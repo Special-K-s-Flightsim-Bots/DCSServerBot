@@ -122,7 +122,12 @@ will walk the mission tree like so:
 ```yaml
 MyFancyPreset:
   modify:
-  - for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+  - variables:
+      theatre: theatre
+      temperature: weather/season/temperature 
+      rand: '$random.randint(1, 10)'
+      mylist: '$list(range(1, {rand}))'
+    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     replace:
       frequency: 
         "$'{type}' == 'CVN_71'": 371000000

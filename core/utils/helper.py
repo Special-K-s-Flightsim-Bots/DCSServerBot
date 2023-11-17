@@ -8,6 +8,10 @@ import re
 import string
 import unicodedata
 
+# for eval
+import random
+import math
+
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 

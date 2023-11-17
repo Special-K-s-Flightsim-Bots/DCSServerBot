@@ -3,11 +3,10 @@ import io
 import shutil
 
 import luadata
-import math  # do not remove
 import os
 import tempfile
-import random  # do not remove
 import zipfile
+
 from datetime import datetime
 from typing import Union, Any, Optional
 
@@ -298,7 +297,10 @@ class MizFile:
         kwargs = {}
         if 'variables' in config:
             for name, value in config['variables'].items():
-                kwargs[name] = next(utils.for_each(self.mission, value.split('/'), debug=debug, **kwargs))
+                if value.startswith('$'):
+                    kwargs[name] = utils.evaluate(value, **kwargs)
+                else:
+                    kwargs[name] = next(utils.for_each(self.mission, value.split('/'), debug=debug, **kwargs))
         for reference in utils.for_each(self.mission, config['for-each'].split('/'), debug=debug, **kwargs):
             if 'where' in config:
                 if debug:
