@@ -181,7 +181,7 @@ class GameMaster(Plugin):
                     continue
                 await self.eventlistener.reset_coalitions(server, True)
                 await interaction.response.send_message(f'Coalition bindings reset for all players.',
-                                                        ephemmeral=ephemeral)
+                                                        ephemeral=ephemeral)
         except discord.Forbidden:
             await interaction.response.send_message('The bot is missing the "Manage Roles" permission.',
                                                     ephemeral=ephemeral)
