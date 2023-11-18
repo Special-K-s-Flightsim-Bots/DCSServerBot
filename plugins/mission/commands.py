@@ -62,10 +62,12 @@ class Mission(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'serverStatus.json')
         env: ReportEnv = await report.render(server=server)
-        file = discord.File(env.filename) if env.filename else discord.utils.MISSING
-        await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
-        if env.filename and os.path.exists(env.filename):
-            await asyncio.to_thread(os.remove, env.filename)
+        try:
+            file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else discord.utils.MISSING
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @mission.command(description='Manage the active mission')
     @app_commands.guild_only()

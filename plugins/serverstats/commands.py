@@ -1,11 +1,10 @@
-import asyncio
 import discord
-import os
-import platform
 import psycopg
+
 from core import utils, Plugin, TEventListener, PluginRequiredError, Report, PaginationReport, Server, command
 from discord import app_commands
 from discord.ext import tasks
+from discord.utils import MISSING
 from services import DCSServerBot
 from typing import Type, Optional
 from .listener import ServerStatsListener
@@ -32,10 +31,12 @@ class ServerStats(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server.name, node=server.node.name)
-        file = discord.File(env.filename) if env.filename else None
-        await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
-        if env.filename and os.path.exists(env.filename):
-            await asyncio.to_thread(os.remove, env.filename)
+        try:
+            file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else MISSING
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @command(description='Displays the load of your DCS servers')
     @app_commands.guild_only()
