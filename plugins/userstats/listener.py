@@ -348,7 +348,7 @@ class UserStatisticsEventListener(EventListener):
                         member.verified = True
                         cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
                         # make sure we update all tables with the new UCID
-                        if old_ucid != player.ucid:
+                        if old_ucid and old_ucid != player.ucid:
                             for plugin in self.bot.cogs.values():  # type: Plugin
                                 await plugin.update_ucid(conn, old_ucid, player.ucid)
                             await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)

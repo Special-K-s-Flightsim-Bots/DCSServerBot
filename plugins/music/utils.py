@@ -84,7 +84,7 @@ async def playlist_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
-    playlists = get_all_playlists(interaction.client)
+    playlists = get_all_playlists(interaction)
     return [
         app_commands.Choice(name=playlist, value=playlist)
         for playlist in playlists if not current or current.casefold() in playlist.casefold()

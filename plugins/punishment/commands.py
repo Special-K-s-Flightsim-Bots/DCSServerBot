@@ -154,7 +154,7 @@ class Punishment(Plugin):
                         conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
     @command(name='punish', description='Adds punishment points to a user')
-    @utils.has_role('DCS Admin')
+    @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def _punish(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
@@ -213,7 +213,7 @@ class Punishment(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def penalty(self, interaction: discord.Interaction,
-                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
         ephemeral = utils.get_ephemeral(interaction)
         if user:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):

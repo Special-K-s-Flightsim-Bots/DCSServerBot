@@ -25,6 +25,8 @@ class InstanceBusyError(Exception):
 class Instance(DataObject):
     name: str
     locals: dict = field(repr=False, default_factory=dict)
+    _server: Optional[Server] = field(compare=False, repr=False, default=None, init=False)
+    missions_dir: str = field(repr=False, init=False, default=None)
 
     @property
     def home(self) -> str:
@@ -59,11 +61,14 @@ class Instance(DataObject):
 
     @property
     def server(self) -> Optional[Server]:
-        raise NotImplemented()
+        return self._server
 
     @server.setter
     def server(self, server: Optional[Server]):
-        raise NotImplemented()
+        self.set_server(server)
+
+    def set_server(self, server: Optional[Server]):
+        self._server = server
 
     def prepare(self):
         raise NotImplemented()

@@ -19,7 +19,8 @@ class MissionStatisticsEventListener(EventListener):
         2: 'Ground Units',
         3: 'Ships',
         4: 'Structures',
-        5: 'Unknown'
+        5: 'Unknown',
+        6: 'Cargo'
     }
 
     EVENT_TEXTS = {
@@ -50,7 +51,7 @@ class MissionStatisticsEventListener(EventListener):
     def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
             server.send_to_dcs({"command": "enableMissionStats"})
-            server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels[Channel.STATUS]})
+            server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels.get(Channel.STATUS, -1)})
         else:
             server.send_to_dcs({"command": "disableMissionStats"})
 
@@ -84,11 +85,11 @@ class MissionStatisticsEventListener(EventListener):
                 'init_id': init_player.ucid if init_player else -1,
                 'init_side': get_value(data, 'initiator', 'coalition'),
                 'init_type': get_value(data, 'initiator', 'unit_type'),
-                'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
+                'init_cat': self.UNIT_CATEGORY.get(get_value(data, 'initiator', 'category'), 'Unknown'),
                 'target_id': target_player.ucid if target_player else -1,
                 'target_side': get_value(data, 'target', 'coalition'),
                 'target_type': get_value(data, 'target', 'unit_type'),
-                'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
+                'target_cat': self.UNIT_CATEGORY.get(get_value(data, 'target', 'category'), 'Unknown'),
                 'weapon': get_value(data, 'weapon', 'name'),
                 'place': get_value(data, 'place', 'name'),
                 'comment': data['comment'] if 'comment' in data else ''
@@ -116,7 +117,7 @@ class MissionStatisticsEventListener(EventListener):
             if data['eventName'] == 'S_EVENT_BIRTH':
                 initiator = data['initiator']
                 if initiator:
-                    category = self.UNIT_CATEGORY[initiator['category']]
+                    category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
                     coalition: Coalition = self.COALITION[initiator['coalition']]
                     # no stats for Neutral
                     if coalition == Coalition.NEUTRAL:
@@ -142,7 +143,7 @@ class MissionStatisticsEventListener(EventListener):
                     if coalition == Coalition.NEUTRAL:
                         return
                     if victim['type'] == 'UNIT':
-                        category = self.UNIT_CATEGORY[victim['category']]
+                        category = self.UNIT_CATEGORY.get(victim['category'], 'Unknown')
                         if 'kills' not in stats['coalitions'][coalition.name]:
                             stats['coalitions'][coalition.name]['kills'] = {}
                         if category not in stats['coalitions'][coalition.name]['kills']:
@@ -159,7 +160,7 @@ class MissionStatisticsEventListener(EventListener):
                     update = True
             elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and data.get('initiator'):
                 initiator = data['initiator']
-                category = self.UNIT_CATEGORY[initiator['category']]
+                category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
                 coalition: Coalition = self.COALITION[initiator['coalition']]
                 # no stats for Neutral
                 if coalition == Coalition.NEUTRAL:
@@ -212,7 +213,7 @@ class MissionStatisticsEventListener(EventListener):
                 if config['mission_end'].get('persistent', False):
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed_me', server=server,
-                                              channel_id=config['mission_end'].get('channel'))
+                                              channel_id=int(config['mission_end'].get('channel')))
                     await report.render(stats=stats, mission_id=server.mission_id,
                                         sides=[Coalition.BLUE, Coalition.RED], title=title)
                 else:

@@ -37,6 +37,7 @@ __all__ = ["Server"]
 class Server(DataObject):
     name: str
     port: int
+    _instance: Instance = field(default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
@@ -61,6 +62,9 @@ class Server(DataObject):
         super().__post_init__()
         self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
+        self.locals = self.read_locals()
+
+    def read_locals(self) -> dict:
         if os.path.exists('config/servers.yaml'):
             try:
                 data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
@@ -68,9 +72,11 @@ class Server(DataObject):
                 raise YAMLError('config/servers.yaml', ex)
             if not data.get(self.name):
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
-            self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
+            _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in self.locals:
-                self.locals['message_ban'] = 'You are banned from this server. Reason: {}'
+                _locals['message_ban'] = 'You are banned from this server. Reason: {}'
+            return _locals
+        return {}
 
     @property
     def is_remote(self) -> bool:
@@ -78,11 +84,15 @@ class Server(DataObject):
 
     @property
     def instance(self) -> Instance:
-        raise NotImplemented()
+        return self._instance
 
     @instance.setter
     def instance(self, instance: Instance):
-        raise NotImplemented()
+        self.set_instance(instance)
+
+    def set_instance(self, instance: Instance):
+        self._instance = instance
+        self._instance.server = self
 
     @property
     def status(self) -> Status:
@@ -94,6 +104,9 @@ class Server(DataObject):
 
     @maintenance.setter
     def maintenance(self, maintenance: bool):
+        self.set_maintenance(maintenance)
+
+    def set_maintenance(self, maintenance: bool):
         self._maintenance = maintenance
 
     @property

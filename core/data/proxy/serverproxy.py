@@ -12,7 +12,6 @@ __all__ = ["ServerProxy"]
 
 @dataclass
 class ServerProxy(Server):
-    _instance: InstanceProxy = field(default=None)
 
     @property
     def is_remote(self) -> bool:
@@ -43,21 +42,7 @@ class ServerProxy(Server):
     def options(self, o: dict):
         self._options = utils.RemoteSettingsDict(self, "options", o)
 
-    @property
-    def instance(self) -> InstanceProxy:
-        return self._instance
-
-    @instance.setter
-    def instance(self, instance: InstanceProxy):
-        self._instance = instance
-        self._instance.server = self
-
-    @property
-    def maintenance(self) -> bool:
-        return self._maintenance
-
-    @maintenance.setter
-    def maintenance(self, maintenance: bool):
+    def set_maintenance(self, maintenance: bool):
         self._maintenance = maintenance
         self.bus.send_to_node({
             "command": "rpc",

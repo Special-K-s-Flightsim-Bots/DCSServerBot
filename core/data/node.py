@@ -54,9 +54,9 @@ class Node:
         raise NotImplemented()
 
     @staticmethod
-    def read_config():
+    def read_config(file: Optional[str] = 'config/main.yaml') -> dict:
         try:
-            config = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
+            config = yaml.load(Path(file).read_text(encoding='utf-8'))
             # set defaults
             config['logging'] = config.get('logging', {})
             config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')

@@ -9,7 +9,7 @@ import psycopg
 import shutil
 import ssl
 
-from contextlib import closing
+from contextlib import closing, suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -100,7 +100,9 @@ class CloudHandler(Plugin):
             await send(data)
 
     async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        await self.post('update_ucid', {"old_ucid": old_ucid, "new_ucid": new_ucid})
+        # we must not fail due to a cloud unavailability
+        with suppress(Exception):
+            await self.post('update_ucid', {"old_ucid": old_ucid, "new_ucid": new_ucid})
 
     # New command group "/cloud"
     cloud = Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")

@@ -60,7 +60,8 @@ class ServiceBus(Service):
                     # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
                     conn.execute("DELETE FROM files WHERE created < NOW() - interval '300 seconds'")
                     conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
-                    conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
+                    if self.master:
+                        conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
             await self.start_udp_listener()
             await self.init_servers()
@@ -154,6 +155,7 @@ class ServiceBus(Service):
                 "instance": server.instance.name,
                 "settings": server.settings,
                 "options": server.options,
+                "channels": server.locals.get('channels', {}),
                 "node": self.node.name
             }
         })
@@ -326,7 +328,7 @@ class ServiceBus(Service):
             return conn.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
-                           options: dict, node: str):
+                           options: dict, node: str, channels: dict):
         server = self.servers.get(server_name)
         if not server:
             node = NodeProxy(self.node, node, public_ip)
@@ -340,6 +342,9 @@ class ServiceBus(Service):
             self.servers[server_name] = server
             server.settings = settings
             server.options = options
+            # to support remote channel configs (for remote testing)
+            if not server.locals.get('channels'):
+                server.locals['channels'] = channels
             # add eventlistener queue
             if server.name not in self.udp_server.message_queue:
                 self.udp_server.message_queue[server.name] = Queue()
@@ -366,10 +371,9 @@ class ServiceBus(Service):
         else:
             data['node'] = self.node.name
             with self.pool.connection() as conn:
-                with conn.pipeline():
-                    with conn.transaction():
-                        conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
-                        self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
+                with conn.transaction():
+                    conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
+                    self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
     async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 10.0, *,
                                 node: Optional[Union[Node, str]] = None):
@@ -448,9 +452,13 @@ class ServiceBus(Service):
         server_name = data['server_name']
         if server_name not in self.udp_server.message_queue:
             self.log.debug(f"Intercom: message ignored, no server {server_name} registered.")
+            return
         # support sync responses though intercom
         if 'channel' in data and data['channel'].startswith('sync-'):
             server: Server = self.servers.get(server_name)
+            if not server:
+                self.log.warning(f'Message for unregistered server {server_name} received, ignoring.')
+                return
             f = server.listeners.get(data['channel'])
             if f and not f.done():
                 self.loop.call_soon_threadsafe(f.set_result, data)
@@ -597,6 +605,7 @@ class ServiceBus(Service):
                     finally:
                         derived.message_queue[server.name].task_done()
                         data = derived.message_queue[server.name].get()
+                del self.udp_server.message_queue[server_name]
 
             def shutdown(derived):
                 super().shutdown()

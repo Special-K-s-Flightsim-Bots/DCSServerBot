@@ -287,7 +287,7 @@ class DCSServerBot(commands.Bot):
     def get_admin_channel(self, server: Server):
         admin_channel = self.locals.get('admin_channel')
         if not admin_channel:
-            admin_channel = server.channels[Channel.ADMIN]
+            admin_channel = server.channels.get(Channel.ADMIN, -1)
         return self.get_channel(admin_channel)
 
     def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
@@ -500,7 +500,9 @@ class DCSServerBot(commands.Bot):
                        file: Optional[discord.File] = None, server: Optional[Server] = None):
         async with self.lock:
             if server and isinstance(channel_id, Channel):
-                channel_id = server.channels[channel_id]
+                channel_id = int(server.channels.get(channel_id, -1))
+            else:
+                channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")

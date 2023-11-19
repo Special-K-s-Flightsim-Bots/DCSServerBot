@@ -30,7 +30,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Extension, InstanceImpl
+    from core import Extension, Instance
     from services import DCSServerBot
 
 __all__ = ["ServerImpl"]
@@ -77,7 +77,6 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register("Server")
 class ServerImpl(Server):
-    _instance: InstanceImpl = field(default=None)
     bot: Optional[DCSServerBot] = field(compare=False, init=False)
     event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
     observer: Observer = field(compare=False, default=None)
@@ -118,12 +117,7 @@ class ServerImpl(Server):
             self._options = utils.SettingsDict(self, path, 'options')
         return self._options
 
-    @property
-    def instance(self) -> InstanceImpl:
-        return self._instance
-
-    @instance.setter
-    def instance(self, instance: InstanceImpl):
+    def set_instance(self, instance: Instance):
         self._instance = instance
         self.locals |= self.instance.locals
         self.prepare()
@@ -416,7 +410,8 @@ class ServerImpl(Server):
             return True
         except Exception as ex:
             if isinstance(ex, UnsupportedMizFileException):
-                self.log.error(f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
+                self.log.error(
+                    f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
             else:
                 self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):

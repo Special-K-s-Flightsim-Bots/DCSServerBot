@@ -1,6 +1,6 @@
 from __future__ import annotations
 import discord
-from core import DataObjectFactory, DataObject
+from core import DataObjectFactory, DataObject, utils
 from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
@@ -30,7 +30,7 @@ class Member(DataObject):
                 ORDER BY manual DESC LIMIT 1
             """, (self.member.id, )).fetchone()
             if row:
-                self.ucid = row[0]
+                self.ucid = row[0] if row[0] and utils.is_ucid(row[0]) else None
                 self.banned = row[1] is True
                 self._verified = row[2]
 

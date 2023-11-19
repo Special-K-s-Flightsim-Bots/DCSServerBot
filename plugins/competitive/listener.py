@@ -185,6 +185,9 @@ class CompetitiveListener(EventListener):
                         print_crew(killers), self.calculate_rating(self.get_rating(player))))
         elif data['eventName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
+            if not players:
+                # we should never get here
+                return
             match: Match = self.in_match[server.name].get(players[0].ucid)
             if match:
                 match.log.append((datetime.now(), "{} in {} died ({})".format(
@@ -194,6 +197,9 @@ class CompetitiveListener(EventListener):
                     del self.in_match[server.name][player.ucid]
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
+            if not player:
+                # we should never get here
+                return
             # if the pilot of a MC aircraft leaves, both pilots get booted
             if player.slot == 0:
                 players = server.get_crew_members(server.get_player(id=data['arg1']))

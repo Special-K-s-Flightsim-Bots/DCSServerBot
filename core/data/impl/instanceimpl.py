@@ -1,6 +1,6 @@
 import os
 
-from core import Instance, InstanceBusyError, Status, utils, ServerImpl, DataObjectFactory
+from core import Instance, InstanceBusyError, Status, utils, Server, DataObjectFactory
 from dataclasses import field, dataclass
 from typing import Optional
 
@@ -13,8 +13,6 @@ __all__ = ["InstanceImpl"]
 @dataclass
 @DataObjectFactory.register("Instance")
 class InstanceImpl(Instance):
-    _server: Optional[ServerImpl] = field(compare=False, repr=False, default=None, init=False)
-    missions_dir: str = field(repr=False, init=False, default=None)
 
     def __post_init__(self):
         super().__post_init__()
@@ -41,12 +39,7 @@ class InstanceImpl(Instance):
                     SET port=excluded.port, server_name=excluded.server_name 
                 """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
 
-    @property
-    def server(self) -> Optional[ServerImpl]:
-        return self._server
-
-    @server.setter
-    def server(self, server: Optional[ServerImpl]):
+    def set_server(self, server: Optional[Server]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server

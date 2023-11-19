@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 import builtins
 import importlib
 import json
 import luadata
 import os
 import re
+import shutil
 import string
+import tempfile
 import unicodedata
 
 # for eval
@@ -272,15 +275,19 @@ class SettingsDict(dict):
             self.update(data)
 
     def write_file(self):
+        # DO NOT write empty config files. This means in general that there is an error.
+        if not len(self):
+            return
+        tmpfd, tmpname = tempfile.mkstemp()
+        os.close(tmpfd)
         if self.path.lower().endswith('.lua'):
-            with open(self.path, 'wb') as outfile:
-                self.mtime = os.path.getmtime(self.path)
+            with open(tmpname, 'wb') as outfile:
                 outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t',
                                                                      indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.json'):
-            with open(self.path, "w", encoding='utf-8') as outfile:
-                self.mtime = os.path.getmtime(self.path)
+            with open(tmpname, "w", encoding='utf-8') as outfile:
                 yaml.dump(self, outfile)
+        shutil.copy2(tmpname, self.path)
         self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):

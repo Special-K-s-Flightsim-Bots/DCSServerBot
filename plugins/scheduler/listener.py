@@ -79,8 +79,11 @@ class SchedulerListener(EventListener):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # init and start extensions if necessary
-        await server.init_extensions()
-        await server.startup_extensions()
+        try:
+            await server.init_extensions()
+            await server.startup_extensions()
+        except TimeoutError:
+            self.log.error(f"Timeout while loading extensions for server {server.name}!")
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:

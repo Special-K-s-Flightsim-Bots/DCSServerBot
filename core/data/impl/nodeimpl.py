@@ -61,8 +61,8 @@ LOGLEVEL = {
 
 class NodeImpl(Node):
 
-    def __init__(self):
-        super().__init__(platform.node())
+    def __init__(self, name: Optional[str] = None):
+        super().__init__(name or platform.node())
         self.node = self  # to be able to address self.node
         self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
@@ -474,14 +474,12 @@ class NodeImpl(Node):
 
     def get_active_nodes(self) -> list[str]:
         with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    return [row[0] for row in cursor.execute("""
-                        SELECT node FROM nodes 
-                        WHERE guild_id = %s
-                        AND master is False 
-                        AND last_seen > (NOW() - interval '1 minute')
-                    """, (self.guild_id, ))]
+            return [row[0] for row in conn.execute("""
+                SELECT node FROM nodes 
+                WHERE guild_id = %s
+                AND master is False 
+                AND last_seen > (NOW() - interval '1 minute')
+            """, (self.guild_id, )).fetchall()]
 
     async def shell_command(self, cmd: str):
         self.log.debug('Running shell-command: ' + cmd)
@@ -654,7 +652,7 @@ class NodeImpl(Node):
 
     async def migrate_server(self, server: Server, instance: Instance) -> None:
         await server.node.unregister_server(server)
-        bus = ServiceRegistry.get("ServiceBus")
+        bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         server: ServerImpl = DataObjectFactory().new(
             Server.__name__, node=self.node, port=instance.bot_port, name=server.name)
         server.status = Status.SHUTDOWN

@@ -296,8 +296,8 @@ class PersistentReport(Report):
                  channel_id: Optional[Union[Channel, int]] = Channel.STATUS, server: Optional[Server] = None):
         super().__init__(bot, plugin, filename)
         self.server = server
-        self.embed_name = embed_name
-        self.channel_id = channel_id
+        self.embed_name: str = embed_name
+        self.channel_id: Union[Channel, int] = channel_id
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = None
