@@ -481,9 +481,14 @@ class NodeImpl(Node):
                 AND last_seen > (NOW() - interval '1 minute')
             """, (self.guild_id, )).fetchall()]
 
-    async def shell_command(self, cmd: str):
+    async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
         self.log.debug('Running shell-command: ' + cmd)
-        await asyncio.create_subprocess_shell(cmd)
+        process = await asyncio.create_subprocess_shell(cmd,
+                                                        stdout=asyncio.subprocess.PIPE,
+                                                        stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await process.communicate()
+        return (stdout.decode('cp1252', 'ignore') if stdout else None,
+                stderr.decode('cp1252', 'ignore') if stderr else None)
 
     async def read_file(self, path: str) -> Union[bytes, int]:
         path = os.path.expandvars(path)

@@ -396,6 +396,24 @@ class Admin(Plugin):
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "upgrade", node)
 
+    @node.command(description='Run a shell command on a node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def shell(self, interaction: discord.Interaction,
+                    node: app_commands.Transform[Node, utils.NodeTransformer],
+                    cmd: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        stdout, stderr = await node.shell_command(cmd)
+        embed = discord.Embed(colour=discord.Color.blue())
+        if stdout:
+            embed.description = "```" + stdout[:4090] + "```"
+        if stderr:
+            embed.set_footer(text=stderr[:2048])
+        if not stdout and not stderr:
+            embed.description = "```Command executed.```"
+        await interaction.followup.send(embed=embed)
+
     @command(description='Reloads a plugin')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
