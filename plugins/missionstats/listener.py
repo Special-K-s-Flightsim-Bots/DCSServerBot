@@ -21,8 +21,7 @@ class MissionStatisticsEventListener(EventListener):
         2: 'Ground Units',
         3: 'Ships',
         4: 'Structures',
-        5: 'Unknown',
-        6: 'Cargo'
+        5: 'Unknown'
     }
 
     EVENT_TEXTS = {
@@ -127,13 +126,13 @@ class MissionStatisticsEventListener(EventListener):
             if data['eventName'] == 'S_EVENT_BIRTH':
                 initiator = data['initiator']
                 if initiator:
-                    category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
                     coalition: Coalition = self.COALITION[initiator['coalition']]
                     # no stats for Neutral
                     if coalition == Coalition.NEUTRAL:
                         return
                     unit_name = initiator['unit_name']
                     if initiator['type'] == 'UNIT':
+                        category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
                         if category not in stats['coalitions'][coalition.name]['units']:
                             # lua does initialize the empty dict as an array
                             if len(stats['coalitions'][coalition.name]['units']) == 0:
