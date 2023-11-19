@@ -382,7 +382,7 @@ class ServiceBus(Service):
                     conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
                     self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
-    async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 10.0, *,
+    async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 30.0, *,
                                 node: Optional[Union[Node, str]] = None):
         future = self.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
@@ -397,8 +397,8 @@ class ServiceBus(Service):
     async def handle_rpc(self, data: dict):
         # handle synchronous responses
         if data.get('channel', '').startswith('sync-') and 'return' in data:
+            self.log.debug(f"{data.get('node', 'Master')}->Master: {json.dumps(data)}")
             if data['channel'] in self.listeners:
-                self.log.debug(f"{data.get('node', 'Master')}->Master: {json.dumps(data)}")
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
