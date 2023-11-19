@@ -67,13 +67,13 @@ class Playlist:
                 self._items.remove(item)
                 # if no item remains, make sure any server mapping to this list is deleted, too
                 if not self._items:
-                    conn.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist, ))
+                    conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist, ))
 
     def clear(self) -> None:
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
-                conn.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist,))
+                conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
                 self._items.clear()
 
 

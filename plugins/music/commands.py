@@ -45,7 +45,7 @@ class Music(Plugin):
         playlists = get_all_playlists(interaction)
         if not playlists:
             await interaction.response.send_message(
-                f"You don't have any playlists to play. Please create one with /music add", ephemeral=True)
+                f"You don't have any playlists to play. Please create one with /playlist add", ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)
         await interaction.response.send_message(embed=await view.render(), view=view,
