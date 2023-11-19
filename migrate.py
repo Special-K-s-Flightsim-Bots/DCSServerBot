@@ -9,6 +9,7 @@ from configparser import ConfigParser
 from contextlib import suppress
 from copy import deepcopy
 from core import utils, DEFAULT_TAG, BACKUP_FOLDER
+from extensions import TACVIEW_DEFAULT_DIR
 from pathlib import Path
 from typing import Union
 from rich import print
@@ -16,9 +17,6 @@ from rich.prompt import IntPrompt, Prompt
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-
-from extensions import TACVIEW_DEFAULT_DIR
-
 yaml = YAML()
 
 
@@ -196,7 +194,7 @@ def migrate():
             all_schedulers = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
         else:
             all_schedulers = {}
-        scheduler = all_schedulers[platform.node()] = {}
+        scheduler = all_schedulers.get(platform.node())
         if os.path.exists('config/presets.yaml'):
             presets = yaml.load(Path('config/presets.yaml').read_text(encoding='utf-8'))
         else:
@@ -210,7 +208,9 @@ def migrate():
             all_missionstats = yaml.load(Path('config/plugins/missionstats.yaml').read_text(encoding='utf-8'))
         else:
             all_missionstats = {}
-        missionstats = all_missionstats[platform.node()] = {}
+        if platform.node() not in all_missionstats:
+            all_missionstats[platform.node()] = {}
+        missionstats = all_missionstats[platform.node()]
         # If we are not the first node to be migrated
         if os.path.exists('config/nodes.yaml'):
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
@@ -330,7 +330,14 @@ def migrate():
                     if 'affinity' in schedule:
                         nodes[platform.node()]['instances'][instance]['affinity'] = schedule['affinity']
                         del schedule['affinity']
-                    if 'settings' in schedule:
+                    if 'terrains' in schedule:
+                        if 'extensions' not in schedule:
+                            schedule['extensions'] = {}
+                        schedule['extensions']['MizEdit'] = {
+                            "terrains": schedule['terrains']
+                        }
+                        del schedule['terrains']
+                    elif 'settings' in schedule:
                         if 'extensions' not in schedule:
                             schedule['extensions'] = {}
                         schedule['extensions']['MizEdit'] = {
@@ -392,8 +399,8 @@ def migrate():
                         userstats[instance] = {}
                     userstats[instance]['enabled'] = False
         # add the extension defaults to the node config
-        if DEFAULT_TAG in scheduler:
-            schedule = scheduler[DEFAULT_TAG]
+        if DEFAULT_TAG in all_schedulers:
+            schedule = all_schedulers[DEFAULT_TAG]
             if 'extensions' in schedule:
                 nodes[platform.node()]['extensions'] = schedule['extensions']
                 del schedule['extensions']
@@ -445,15 +452,15 @@ def migrate():
                 print("- Created config/main.yaml")
         with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
-            print("- Created config/nodes.yaml")
+            print("- Created / updated config/nodes.yaml")
         with open('config/servers.yaml', 'w', encoding='utf-8') as out:
             yaml.dump(servers, out)
-            print("- Created config/servers.yaml")
+            print("- Created / updated config/servers.yaml")
         # write plugin configuration
         if scheduler:
             with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
                 yaml.dump(all_schedulers, out)
-                print("- Created config/plugins/scheduler.yaml")
+                print("- Created / updated config/plugins/scheduler.yaml")
             if presets:
                 with open('config/presets.yaml', 'w', encoding='utf-8') as out:
                     yaml.dump(presets, out)
@@ -461,14 +468,14 @@ def migrate():
         if userstats:
             with open('config/plugins/userstats.yaml', 'w', encoding='utf-8') as out:
                 yaml.dump(all_userstats, out)
-            print("- Created config/plugins/missionstats.yaml")
+            print("- Created / updated config/plugins/missionstats.yaml")
         if missionstats:
             with open('config/plugins/missionstats.yaml', 'w', encoding='utf-8') as out:
                 yaml.dump(all_missionstats, out)
-            print("- Created config/plugins/missionstats.yaml")
+            print("- Created / updated config/plugins/missionstats.yaml")
         # shutil.move('config/default.ini', BACKUP_FOLDER)
         shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER)
-        print("\n[green]Migration to DCSServerBot 3.0 successful, starting up ...[/]\n")
+        Prompt.ask("\n[green]Migration to DCSServerBot 3.0 successful![/]\n\nPress any key to launch.\n")
     except Exception:
         print("\n[red]Migration to DCSServerBot 3.0 failed![/]\n")
         traceback.print_exc()

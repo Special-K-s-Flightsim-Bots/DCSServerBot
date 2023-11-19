@@ -33,6 +33,7 @@ class CloudHandler(Plugin):
         self._session = None
         self.client = None
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
+            self.cloud_bans.add_exception_type(IndexError)
             self.cloud_bans.add_exception_type(aiohttp.ClientError)
             self.cloud_bans.add_exception_type(discord.Forbidden)
             self.cloud_bans.add_exception_type(psycopg.DatabaseError)

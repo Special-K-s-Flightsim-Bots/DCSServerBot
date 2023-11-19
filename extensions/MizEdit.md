@@ -224,3 +224,15 @@ c) Permutations
               - Rainy
               - Heavy Storm
 ```
+
+d) Map-specific Settings
+```yaml
+        MizEdit:
+          theatre:
+            Caucasus:
+              settings:
+              - Winter, Morning, Slight Breeze, Halo
+            Syria:
+              settings:
+              - Spring, Morning, Rainy, Halo
+```
