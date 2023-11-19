@@ -65,7 +65,6 @@ class ServiceBus(Service):
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
             await self.start_udp_listener()
             await self.init_servers()
-            self.intercom.start()
             if self.master:
                 self.bot = ServiceRegistry.get("Bot").bot
                 while not self.bot:
@@ -82,10 +81,13 @@ class ServiceBus(Service):
                         "node": self.node.name
                     }
                 })
+            self.intercom.start()
         except Exception as ex:
             self.log.exception(ex)
 
     async def stop(self):
+        self.intercom.cancel()
+        self.log.debug('- Intercom stopped.')
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -104,8 +106,6 @@ class ServiceBus(Service):
                     "node": self.node.name
                 }
             })
-        self.intercom.cancel()
-        self.log.debug('- Intercom stopped.')
         await super().stop()
 
     @property
