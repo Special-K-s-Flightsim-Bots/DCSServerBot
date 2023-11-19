@@ -110,7 +110,7 @@ class Node:
     async def list_directory(self, path: str, pattern: str) -> list[str]:
         raise NotImplemented()
 
-    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: Server, new_name: str):
         raise NotImplemented()
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:

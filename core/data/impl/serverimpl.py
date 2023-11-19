@@ -247,7 +247,7 @@ class ServerImpl(Server):
         dcs_socket.close()
 
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
-        def update_config(old_name, new_name: str):
+        def update_config(old_name, new_name: str, update_settings: bool = False):
             # update servers.yaml
             filename = 'config/servers.yaml'
             if os.path.exists(filename):
@@ -276,7 +276,7 @@ class ServerImpl(Server):
                                  (new_name, self.name))
                     # only the master can take care of a cluster-wide rename
                     if self.node.master:
-                        await self.node.rename_server(self, new_name, update_settings)
+                        await self.node.rename_server(self, new_name)
                     else:
                         await self.bus.send_to_node_sync({
                             "command": "rpc",
@@ -284,17 +284,17 @@ class ServerImpl(Server):
                             "method": "rename_server",
                             "params": {
                                 "server": self.name,
-                                "new_name": new_name,
-                                "update_settings": update_settings
+                                "new_name": new_name
                             }
                         })
+                        self.bus.rename_server(self, new_name)
             try:
                 # update servers.yaml
-                update_config(self.name, new_name)
+                update_config(self.name, new_name, update_settings)
                 self.name = new_name
             except Exception as ex:
                 # rollback config
-                update_config(new_name, old_name)
+                update_config(new_name, old_name, update_settings)
                 raise
         except Exception as ex:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=ex)

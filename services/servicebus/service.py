@@ -269,6 +269,12 @@ class ServiceBus(Service):
         self.log.info(f'  => Local DCS-Server "{server_name}" registered.')
         return True
 
+    def rename_server(self, server: Server, new_name: str):
+        self.servers[new_name] = server
+        del self.servers[server.name]
+        self.udp_server.message_queue[new_name] = self.udp_server.message_queue[server.name]
+        del self.udp_server.message_queue[server.name]
+
     def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
             until: datetime = datetime.now() + timedelta(days=days)
