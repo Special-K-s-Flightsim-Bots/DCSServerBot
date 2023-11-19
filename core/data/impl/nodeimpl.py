@@ -43,7 +43,7 @@ from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from services import ServiceBus, BotService
+    from services import ServiceBus
 
 __all__ = [
     "NodeImpl"
@@ -61,8 +61,8 @@ LOGLEVEL = {
 
 class NodeImpl(Node):
 
-    def __init__(self):
-        super().__init__(platform.node())
+    def __init__(self, name: Optional[str] = None):
+        super().__init__(name or platform.node())
         self.node = self  # to be able to address self.node
         self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
@@ -316,7 +316,7 @@ class NodeImpl(Node):
         self.update_pending = True
         servers = []
         tasks = []
-        bus = ServiceRegistry.get('ServiceBus')  # type: ServiceBus
+        bus: ServiceBus = ServiceRegistry.get('ServiceBus')
         for server in [x for x in bus.servers.values() if not x.is_remote]:
             if server.maintenance:
                 servers.append(server)
@@ -474,14 +474,12 @@ class NodeImpl(Node):
 
     def get_active_nodes(self) -> list[str]:
         with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    return [row[0] for row in cursor.execute("""
-                        SELECT node FROM nodes 
-                        WHERE guild_id = %s
-                        AND master is False 
-                        AND last_seen > (NOW() - interval '1 minute')
-                    """, (self.guild_id, ))]
+            return [row[0] for row in conn.execute("""
+                SELECT node FROM nodes 
+                WHERE guild_id = %s
+                AND master is False 
+                AND last_seen > (NOW() - interval '1 minute')
+            """, (self.guild_id, )).fetchall()]
 
     async def shell_command(self, cmd: str):
         self.log.debug('Running shell-command: ' + cmd)
@@ -526,21 +524,18 @@ class NodeImpl(Node):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
 
-    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: Server, new_name: str):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
             return
         old_name = server.name
         # we are doing the plugin changes, as we are the master
-        bot: BotService = ServiceRegistry.get('Bot')
-        bot.rename(server, new_name)
-        # we only need to change the name of the proxy as the real server is renamed already
+        ServiceRegistry.get('Bot').rename_server(server, new_name)
+        # update the ServiceBus
+        ServiceRegistry.get('ServiceBus').rename_server(server, new_name)
+        # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
         if server.is_remote:
             server.name = new_name
-        # update the local tables
-        ServiceRegistry.get('ServiceBus').servers[new_name] = server
-        # and get rid of the old server
-        del ServiceRegistry.get('ServiceBus').servers[old_name]
 
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
@@ -654,11 +649,10 @@ class NodeImpl(Node):
 
     async def migrate_server(self, server: Server, instance: Instance) -> None:
         await server.node.unregister_server(server)
-        bus = ServiceRegistry.get("ServiceBus")
         server: ServerImpl = DataObjectFactory().new(
             Server.__name__, node=self.node, port=instance.bot_port, name=server.name)
         server.status = Status.SHUTDOWN
-        bus.servers[server.name] = server
+        ServiceRegistry.get("ServiceBus").servers[server.name] = server
         instance.server = server
         with open('config/nodes.yaml') as infile:
             config = yaml.load(infile)

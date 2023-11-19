@@ -30,7 +30,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Extension, InstanceImpl
+    from core import Extension, Instance
     from services import DCSServerBot
 
 __all__ = ["ServerImpl"]
@@ -77,7 +77,6 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register("Server")
 class ServerImpl(Server):
-    _instance: InstanceImpl = field(default=None)
     bot: Optional[DCSServerBot] = field(compare=False, init=False)
     event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
     observer: Observer = field(compare=False, default=None)
@@ -118,12 +117,7 @@ class ServerImpl(Server):
             self._options = utils.SettingsDict(self, path, 'options')
         return self._options
 
-    @property
-    def instance(self) -> InstanceImpl:
-        return self._instance
-
-    @instance.setter
-    def instance(self, instance: InstanceImpl):
+    def set_instance(self, instance: Instance):
         self._instance = instance
         self.locals |= self.instance.locals
         self.prepare()
@@ -253,44 +247,57 @@ class ServerImpl(Server):
         dcs_socket.close()
 
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
+        def update_config(old_name, new_name: str, update_settings: bool = False):
+            # update servers.yaml
+            filename = 'config/servers.yaml'
+            if os.path.exists(filename):
+                data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+                if old_name in data and new_name not in data:
+                    data[new_name] = deepcopy(data[old_name])
+                    del data[old_name]
+                    with open(filename, 'w', encoding='utf-8') as outfile:
+                        yaml.dump(data, outfile)
+            # update serverSettings.lua if requested
+            if update_settings:
+                self.settings['name'] = new_name
+
         # shutdown all extensions
         await self.shutdown_extensions()
-        # update servers.yaml
-        filename = 'config/servers.yaml'
-        if os.path.exists(filename):
-            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
-            if self.name in data and new_name not in data:
-                data[new_name] = deepcopy(data[self.name])
-                del data[self.name]
-                with open(filename, 'w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
-        # update serverSettings.lua if requested
-        if update_settings:
-            self.settings['name'] = new_name
-        # rename the server in the database
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-                conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-        # only the master can take care of a cluster-wide rename
-        if self.node.master:
-            await self.node.rename_server(self, new_name, update_settings)
-        else:
-            await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": "Node",
-                "method": "rename_server",
-                "params": {
-                    "server": self.name,
-                    "new_name": new_name,
-                    "update_settings": update_settings
-                }
-            })
-        self.name = new_name
+        old_name = self.name
+        try:
+            # rename the server in the database
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                                 (new_name, self.name))
+                    conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
+                                 (new_name, self.name))
+                    conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                                 (new_name, self.name))
+                    # only the master can take care of a cluster-wide rename
+                    if self.node.master:
+                        await self.node.rename_server(self, new_name)
+                    else:
+                        await self.bus.send_to_node_sync({
+                            "command": "rpc",
+                            "object": "Node",
+                            "method": "rename_server",
+                            "params": {
+                                "server": self.name,
+                                "new_name": new_name
+                            }
+                        })
+                        self.bus.rename_server(self, new_name)
+            try:
+                # update servers.yaml
+                update_config(self.name, new_name, update_settings)
+                self.name = new_name
+            except Exception as ex:
+                # rollback config
+                update_config(new_name, old_name, update_settings)
+                raise
+        except Exception as ex:
+            self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=ex)
         # startup extensions again
         await self.startup_extensions()
 
@@ -416,7 +423,8 @@ class ServerImpl(Server):
             return True
         except Exception as ex:
             if isinstance(ex, UnsupportedMizFileException):
-                self.log.error(f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
+                self.log.error(
+                    f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
             else:
                 self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):

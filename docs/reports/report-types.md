@@ -88,7 +88,7 @@ from typing import Optional
 @commands.command(description='Pagination Test', usage='[period] [server name]')
 async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
     server = await utils.get_server(self, ctx)
-    report = PersistentReport(self.bot, self.plugin_name, 'mytest.json', server, 'test_embed')
+    report = PersistentReport(self.bot, self.plugin_name, 'mytest.json', server=server, embed_name='test_embed')
     return await report.render(period=period, server_name=server_name)
 ```
 

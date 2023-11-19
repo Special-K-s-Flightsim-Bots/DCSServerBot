@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from io import BytesIO
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -18,4 +19,5 @@ class ReportEnv:
     view: View = None
     figure: Figure = None
     filename: str = None
+    buffer: BytesIO = None
     params: dict = None

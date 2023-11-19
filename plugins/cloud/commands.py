@@ -9,7 +9,7 @@ import psycopg
 import shutil
 import ssl
 
-from contextlib import closing
+from contextlib import closing, suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -33,6 +33,7 @@ class CloudHandler(Plugin):
         self._session = None
         self.client = None
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
+            self.cloud_bans.add_exception_type(IndexError)
             self.cloud_bans.add_exception_type(aiohttp.ClientError)
             self.cloud_bans.add_exception_type(discord.Forbidden)
             self.cloud_bans.add_exception_type(psycopg.DatabaseError)
@@ -100,7 +101,9 @@ class CloudHandler(Plugin):
             await send(data)
 
     async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        await self.post('update_ucid', {"old_ucid": old_ucid, "new_ucid": new_ucid})
+        # we must not fail due to a cloud unavailability
+        with suppress(Exception):
+            await self.post('update_ucid', {"old_ucid": old_ucid, "new_ucid": new_ucid})
 
     # New command group "/cloud"
     cloud = Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")

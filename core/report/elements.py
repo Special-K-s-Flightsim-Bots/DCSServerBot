@@ -4,14 +4,15 @@ import asyncio
 import discord
 import inspect
 import numpy as np
-import os
 import sys
 import uuid
+
 from abc import ABC, abstractmethod
 from contextlib import closing
 from core import utils
 from datetime import timedelta
 from discord import ButtonStyle, Interaction
+from io import BytesIO
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
 from typing import Optional, Any, TYPE_CHECKING, Union
@@ -211,9 +212,11 @@ class Graph(ReportElement):
         if not self.env.filename:
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
             self.env.filename = f'{uuid.uuid4()}.png'
-            self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
+            self.env.buffer = BytesIO()
+            self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
+            self.env.buffer.seek(0)
             plt.close(self.env.figure)
-        self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
+        self.env.embed.set_image(url='attachment://' + self.env.filename)
         footer = self.env.embed.footer.text or ''
         if footer is None:
             footer = 'Click on the image to zoom in.'

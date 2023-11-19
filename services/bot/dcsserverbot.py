@@ -161,7 +161,7 @@ class DCSServerBot(commands.Bot):
         if server.locals.get('coalitions'):
             channels.extend(['red', 'blue'])
         for c in channels:
-            channel_id = server.channels[Channel(c)]
+            channel_id = int(server.channels[Channel(c)])
             if channel_id != -1:
                 self.check_channel(channel_id)
 
@@ -179,7 +179,7 @@ class DCSServerBot(commands.Bot):
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 if self.locals.get('admin_channel'):
-                    self.check_channel(self.locals['admin_channel'])
+                    self.check_channel(int(self.locals['admin_channel']))
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
                         roles = []
@@ -284,10 +284,10 @@ class DCSServerBot(commands.Bot):
     def get_channel(self, channel_id: int):
         return super().get_channel(channel_id) if channel_id != -1 else None
 
-    def get_admin_channel(self, server: Server):
+    def get_admin_channel(self, server: Server) -> discord.TextChannel:
         admin_channel = self.locals.get('admin_channel')
         if not admin_channel:
-            admin_channel = server.channels[Channel.ADMIN]
+            admin_channel = int(server.channels.get(Channel.ADMIN, -1))
         return self.get_channel(admin_channel)
 
     def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
@@ -500,7 +500,9 @@ class DCSServerBot(commands.Bot):
                        file: Optional[discord.File] = None, server: Optional[Server] = None):
         async with self.lock:
             if server and isinstance(channel_id, Channel):
-                channel_id = server.channels[channel_id]
+                channel_id = int(server.channels.get(channel_id))
+            else:
+                channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")

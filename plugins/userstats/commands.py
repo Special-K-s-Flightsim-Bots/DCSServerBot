@@ -1,7 +1,4 @@
-import asyncio
 import discord
-import os
-import platform
 import psycopg
 import random
 
@@ -11,6 +8,7 @@ from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, S
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
+from discord.utils import MISSING
 from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Union, Optional, Tuple, Literal
@@ -166,10 +164,12 @@ class UserStatistics(Plugin):
             report = Report(self.bot, self.plugin_name, file)
             env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt,
                                       limit=limit)
-            file = discord.File(env.filename)
-            await interaction.followup.send(embed=env.embed, file=file)
-            if env.filename and os.path.exists(env.filename):
-                await asyncio.to_thread(os.remove, env.filename)
+            try:
+                file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else MISSING
+                await interaction.followup.send(embed=env.embed, file=file)
+            finally:
+                if env.buffer:
+                    env.buffer.close()
 
     @command(description="Links a member to a DCS user")
     @app_commands.guild_only()

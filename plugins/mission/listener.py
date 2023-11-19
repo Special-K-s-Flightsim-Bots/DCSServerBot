@@ -48,6 +48,7 @@ class MissionEventListener(EventListener):
             'disconnect': '```\nPlayer {} disconnected```',
             'spectators': '```\n{} player {} returned to Spectators```',
             'crash': '```\nPlayer {} crashed.```',
+            'eject': '```\nPlayer {} ejected.```',
             'pilot_death': '```\n[Player {} died.```',
             'kill': '```\n{} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```'
@@ -170,7 +171,7 @@ class MissionEventListener(EventListener):
             elif side == Side.BLUE:
                 events_channel = server.channels[Channel.COALITION_BLUE_EVENTS]
         if not events_channel:
-            events_channel = server.channels[Channel.EVENTS]
+            events_channel = server.channels.get(Channel.EVENTS)
         if events_channel:
             if events_channel not in self.queue:
                 self.queue[self.bot.get_channel(events_channel)] = Queue()

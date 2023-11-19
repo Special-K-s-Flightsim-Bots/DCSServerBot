@@ -374,7 +374,7 @@ class Admin(Plugin):
                     "object": "Node",
                     "method": method
                 }, node=n)
-            await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
+                await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
         if not node or node.name == platform.node():
             await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
@@ -415,6 +415,9 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send(
                     f'One or more plugins could not be reloaded, check the log for details.', ephemeral=ephemeral)
+        # for server in self.bus.servers.values():
+        #    if server.status == Status.STOPPED:
+        #        server.send_to_dcs({"command": "reloadScripts"})
 
     @node.command(description="Add/create an instance")
     @app_commands.guild_only()

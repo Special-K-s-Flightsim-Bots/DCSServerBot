@@ -154,7 +154,7 @@ class BotService(Service):
                     server: Optional[Server] = None):
         await self.bot.audit(message, user=user, server=server)
 
-    def rename(self, server: Server, new_name: str):
+    def rename_server(self, server: Server, new_name: str):
         with self.pool.connection() as conn:
             with conn.transaction():
                 # call rename() in all Plugins

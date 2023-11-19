@@ -148,8 +148,7 @@ class CompetitiveListener(EventListener):
     def calculate_rating(r: Rating) -> float:
         return round(r.mu - 3.0 * r.sigma, 2)
 
-    @event(name="onGameEvent")
-    async def onGameEvent(self, server: Server, data: dict) -> None:
+    async def _onGameEvent(self, server: Server, data: dict) -> None:
         def print_crew(players: list[Player]) -> str:
             return ' and '.join([p.name for p in players])
 
@@ -160,7 +159,7 @@ class CompetitiveListener(EventListener):
             # self-kill
             if data['arg1'] == data['arg4']:
                 data['eventName'] = 'self_kill'
-                await self.onGameEvent(server, data)
+                await self._onGameEvent(server, data)
             # Multi-crew - pilot and all crew members gain points
             killers = server.get_crew_members(server.get_player(id=data['arg1']))
             victims = server.get_crew_members(server.get_player(id=data['arg4']))
@@ -186,6 +185,9 @@ class CompetitiveListener(EventListener):
                         print_crew(killers), self.calculate_rating(self.get_rating(player))))
         elif data['eventName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
+            if not players:
+                # we should never get here
+                return
             match: Match = self.in_match[server.name].get(players[0].ucid)
             if match:
                 match.log.append((datetime.now(), "{} in {} died ({})".format(
@@ -195,6 +197,9 @@ class CompetitiveListener(EventListener):
                     del self.in_match[server.name][player.ucid]
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
+            if not player:
+                # we should never get here
+                return
             # if the pilot of a MC aircraft leaves, both pilots get booted
             if player.slot == 0:
                 players = server.get_crew_members(server.get_player(id=data['arg1']))
@@ -207,6 +212,10 @@ class CompetitiveListener(EventListener):
                 for player in players:
                     match.player_dead(player)
                     del self.in_match[server.name][player.ucid]
+
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
+        await self._onGameEvent(server, data)
 
     @chat_command(name="skill", help="Show your TrueSkill")
     async def skill(self, server: Server, player: Player, params: list[str]):

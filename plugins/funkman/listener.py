@@ -1,10 +1,12 @@
-import os
 import discord
 import sys
 import uuid
 import matplotlib.figure
+
 from core import EventListener, Plugin, Server, event
+from io import BytesIO
 from matplotlib import pyplot as plt
+from typing import Tuple
 
 
 class FunkManEventListener(EventListener):
@@ -90,21 +92,21 @@ class FunkManEventListener(EventListener):
         return embed
 
     @staticmethod
-    def save_fig(fig: matplotlib.figure.Figure) -> str:
+    def save_fig(fig: matplotlib.figure.Figure) -> Tuple[str, BytesIO]:
         filename = f'{uuid.uuid4()}.png'
-        fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+        buffer = BytesIO()
+        fig.savefig(buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
+        buffer.seek(0)
         plt.close(fig)
-        return filename
+        return filename, buffer
 
     async def send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: str):
-        filename = self.save_fig(fig)
-        try:
+        filename, buffer = self.save_fig(fig)
+        with buffer:
             config = self.plugin.get_config(server)
             channel = self.bot.get_channel(int(config[channel]))
-            await channel.send(file=discord.File(filename), delete_after=self.config.get('delete_after'))
-        finally:
-            if os.path.exists(filename):
-                os.remove(filename)
+            await channel.send(file=discord.File(filename=filename, fp=buffer),
+                               delete_after=self.config.get('delete_after'))
 
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:
@@ -125,16 +127,13 @@ class FunkManEventListener(EventListener):
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
         embed = self.create_lso_embed(data)
-        filename = None
         try:
             fig, _ = self.get_funkplot().PlotTrapSheet(data)
-            filename = self.save_fig(fig)
-            embed.set_image(url=f"attachment://{filename}")
-            config = self.plugin.get_config(server)
-            channel = self.bot.get_channel(int(config['CHANNELID_AIRBOSS']))
-            await channel.send(embed=embed, file=discord.File(filename), delete_after=self.config.get('delete_after'))
+            filename, buffer = self.save_fig(fig)
+            with buffer:
+                embed.set_image(url=f"attachment://{filename}")
+                config = self.plugin.get_config(server)
+                channel = self.bot.get_channel(int(config['CHANNELID_AIRBOSS']))
+                await channel.send(embed=embed, file=discord.File(filename=filename, fp=buffer), delete_after=self.config.get('delete_after'))
         except TypeError:
             self.log.error("No trapsheet data received from DCS!")
-        finally:
-            if filename and os.path.exists(filename):
-                os.remove(filename)

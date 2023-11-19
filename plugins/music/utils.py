@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 @lru_cache(maxsize=None)
 def get_tag(file) -> Tag:
     audio = eyed3.load(file)
-    return audio.tag if audio else Tag()
+    if not audio or not audio.tag:
+        return Tag()
+    return audio.tag
 
 
 class Playlist:
@@ -65,13 +67,13 @@ class Playlist:
                 self._items.remove(item)
                 # if no item remains, make sure any server mapping to this list is deleted, too
                 if not self._items:
-                    conn.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist, ))
+                    conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist, ))
 
     def clear(self) -> None:
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
-                conn.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist,))
+                conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
                 self._items.clear()
 
 
@@ -84,43 +86,53 @@ async def playlist_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
-    playlists = get_all_playlists(interaction.client)
-    return [
-        app_commands.Choice(name=playlist, value=playlist)
-        for playlist in playlists if not current or current.casefold() in playlist.casefold()
-    ]
+    try:
+        playlists = get_all_playlists(interaction)
+        return [
+            app_commands.Choice(name=playlist, value=playlist)
+            for playlist in playlists if not current or current.casefold() in playlist.casefold()
+        ]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def all_songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
-    ret = []
-    service: MusicService = ServiceRegistry.get("Music")
-    music_dir = await service.get_music_dir()
-    for song in [
-        file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)]:
-        title = get_tag(os.path.join(music_dir, song)).title or song
-        if current and current.casefold() not in title.casefold():
-            continue
-        ret.append(app_commands.Choice(name=title[:100], value=song))
-    return ret[:25]
+    try:
+        ret = []
+        service: MusicService = ServiceRegistry.get("Music")
+        music_dir = await service.get_music_dir()
+        for song in [
+            file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)
+        ]:
+            title = get_tag(os.path.join(music_dir, song)).title or song
+            if current and current.casefold() not in title.casefold():
+                continue
+            ret.append(app_commands.Choice(name=title[:100], value=song))
+        return ret[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
-    service: MusicService = ServiceRegistry.get("Music")
-    music_dir = await service.get_music_dir()
-    playlist = Playlist(utils.get_interaction_param(interaction, 'playlist'))
-    ret = []
-    for song in playlist.items:
-        title = get_tag(os.path.join(music_dir, song)).title or song
-        if current and current.casefold() not in title.casefold():
-            continue
-        ret.append(app_commands.Choice(name=title[:100], value=song))
-    return ret[:25]
+    try:
+        service: MusicService = ServiceRegistry.get("Music")
+        music_dir = await service.get_music_dir()
+        playlist = Playlist(utils.get_interaction_param(interaction, 'playlist'))
+        ret = []
+        for song in playlist.items:
+            title = get_tag(os.path.join(music_dir, song)).title or song
+            if current and current.casefold() not in title.casefold():
+                continue
+            ret.append(app_commands.Choice(name=title[:100], value=song))
+        return ret[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def radios_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

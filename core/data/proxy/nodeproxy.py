@@ -51,7 +51,10 @@ class NodeProxy(Node):
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
-            node: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))[self.name]
+            node: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8')).get(self.name)
+            if not node:
+                self.log.warning(f'No configuration found for node "{self.name}" in config/nodes.yaml!')
+                return {}
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():
