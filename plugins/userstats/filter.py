@@ -25,6 +25,8 @@ class StatisticsFilter(ABC):
     def detect(bot: DCSServerBot, period: str) -> Any:
         if MissionFilter.supports(bot, period):
             return MissionFilter
+        elif MissionIDFilter.supports(bot, period):
+            return MissionIDFilter
         elif MonthFilter.supports(bot, period):
             return MonthFilter
         elif PeriodFilter.supports(bot, period):
@@ -140,6 +142,23 @@ class MissionFilter(StatisticsFilter):
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return f'Missions containing "{period[8:].strip().title()}"'
+
+
+class MissionIDFilter(StatisticsFilter):
+    def __init__(self, campaign: str):
+        self.campaign = campaign
+
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return period and period.startswith('mission_id:')
+
+    @staticmethod
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        return f"m.id = {period[11:].strip()}"
+
+    @staticmethod
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        return f'Mission'
 
 
 class MonthFilter(StatisticsFilter):

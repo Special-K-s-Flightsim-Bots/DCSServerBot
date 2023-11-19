@@ -3,6 +3,7 @@ import psycopg
 import random
 
 from contextlib import closing
+from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
 from discord import app_commands
@@ -460,32 +461,54 @@ class UserStatistics(Plugin):
                 conn.execute(
                     "DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 days')")
 
+    async def render_highscore(self, highscore: Union[dict, list], server: Optional[Server] = None,
+                               mission_end: Optional[bool] = False):
+        if isinstance(highscore, list):
+            for h in highscore:
+                await self.render_highscore(h, server, mission_end)
+            return
+        kwargs = deepcopy(highscore.get('params', {}))
+        if ((not mission_end and kwargs.get('mission_end', False)) or
+                (mission_end and not kwargs.get('mission_end', False))):
+            return
+        if not mission_end:
+            period = kwargs['period'] = utils.format_string(kwargs.get('period'), server=server, params=kwargs)
+        else:
+            period = kwargs['period'] = kwargs.get('period') or f'mission_id:{server.mission_id}'
+        flt = StatisticsFilter.detect(self.bot, period) if period else None
+        file = highscore.get('report',
+                             'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
+        embed_name = 'highscore-' + period
+        channel_id = highscore.get('channel')
+        if not mission_end:
+            report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
+                                      channel_id=channel_id or Channel.STATUS)
+            await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
+        else:
+            report = Report(self.bot, self.plugin_name, file)
+            channel = self.bot.get_channel(channel_id)
+            if not channel:
+                self.log.warning(f"Can't generate highscore, channel {channel_id} does not exist.")
+                return
+            env = await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
+            try:
+                file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else discord.utils.MISSING
+                await channel.send(embed=env.embed, file=file)
+            finally:
+                if env.buffer:
+                    env.buffer.close()
+
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
-        async def render_highscore(highscore: Union[dict, list], server: Optional[Server] = None):
-            if isinstance(highscore, list):
-                for h in highscore:
-                    await render_highscore(h, server)
-                return
-            kwargs = highscore.get('params', {})
-            period = kwargs.get('period')
-            flt = StatisticsFilter.detect(self.bot, period) if period else None
-            file = highscore.get('report',
-                                 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
-            embed_name = 'highscore-' + period
-            report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
-                                      channel_id=highscore.get('channel', Channel.STATUS))
-            await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
-
         try:
             # global highscore
             if self.locals.get(DEFAULT_TAG) and self.locals[DEFAULT_TAG].get('highscore'):
-                await render_highscore(self.locals[DEFAULT_TAG]['highscore'], None)
+                await self.render_highscore(self.locals[DEFAULT_TAG]['highscore'], None)
             for server in self.bus.servers.values():
                 config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if not config or not config.get('highscore'):
                     continue
-                await render_highscore(config['highscore'], server)
+                await self.render_highscore(config['highscore'], server)
         except Exception as ex:
             self.log.exception(ex)
 

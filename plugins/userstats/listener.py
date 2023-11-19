@@ -226,8 +226,8 @@ class UserStatisticsEventListener(EventListener):
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         # ignore game events until the server is not initialized correctly
-        if server.status != Status.RUNNING:
-            return
+        # if server.status != Status.RUNNING:
+        #    return
         if data['eventName'] == 'disconnect':
             if data['arg1'] != 1:
                 player: Player = server.get_player(id=data['arg1'])
@@ -311,7 +311,7 @@ class UserStatisticsEventListener(EventListener):
                                 return
                             conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                          (server.mission_id, player.ucid))
-        elif data['eventName'] in ['eject']:
+        elif data['eventName'] == 'eject':
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
                     # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
@@ -322,6 +322,10 @@ class UserStatisticsEventListener(EventListener):
                             with conn.transaction():
                                 conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                              (server.mission_id, crew_members[0].ucid))
+        elif data['eventName'] == 'mission_end':
+            config = self.get_config(server)
+            if 'highscore' in config:
+                await self.plugin.render_highscore(config['highscore'], server, True)
 
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):
