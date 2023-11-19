@@ -15,10 +15,11 @@ if TYPE_CHECKING:
     from services import MusicService
 
 
-@lru_cache(maxsize=None)
 def get_tag(file) -> Tag:
     audio = eyed3.load(file)
-    return audio.tag if audio else Tag()
+    if not audio or not audio.tag:
+        return Tag()
+    return audio.tag
 
 
 class Playlist:
@@ -105,7 +106,6 @@ async def all_songs_autocomplete(
         for song in [
             file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)
         ]:
-            interaction.client.log.info("### Song: " + os.path.join(music_dir, song))
             title = get_tag(os.path.join(music_dir, song)).title or song
             if current and current.casefold() not in title.casefold():
                 continue
