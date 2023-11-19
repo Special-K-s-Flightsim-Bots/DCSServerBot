@@ -25,6 +25,8 @@ DCS.openbeta_server:
     params:
       period: month   # and a monthly statistic in another channel
       limit: 10       # "top 10 of the month"
+  - channel: 9876543298765432
+    mission_end: true # post the mission highscore at mission end
 instance2:
   enabled: false  # we disable statistics gathering on instance2
 ```
