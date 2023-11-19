@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from services import MusicService
 
 
+@lru_cache(maxsize=None)
 def get_tag(file) -> Tag:
     audio = eyed3.load(file)
     if not audio or not audio.tag:
