@@ -160,7 +160,7 @@ class MusicPlayer(View):
 
     async def playlist(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        running = self.service.get_current_song(self.server, self.radio_name)
+        running = await self.service.get_current_song(self.server, self.radio_name)
         if running:
             await self.service.stop_radios(self.server, self.radio_name)
         await self.service.set_playlist(self.server, self.radio_name, interaction.data['values'][0])

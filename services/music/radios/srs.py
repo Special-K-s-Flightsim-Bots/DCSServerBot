@@ -35,7 +35,7 @@ class SRSRadio(Radio):
                 "-c", str(self.config['coalition']),
                 "-v", self.config.get('volume', '1.0'),
                 "-p", srs_port,
-                "-n", self.config.get('name', 'DCSSB MusicBox'),
+                "-n", self.config.get('display_name', 'DCSSB MusicBox'),
                 "-i", file,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL
