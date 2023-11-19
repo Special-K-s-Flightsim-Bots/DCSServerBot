@@ -272,8 +272,9 @@ class ServiceBus(Service):
     def rename_server(self, server: Server, new_name: str):
         self.servers[new_name] = server
         del self.servers[server.name]
-        self.udp_server.message_queue[new_name] = self.udp_server.message_queue[server.name]
-        del self.udp_server.message_queue[server.name]
+        if server.name in self.udp_server.message_queue:
+            self.udp_server.message_queue[new_name] = self.udp_server.message_queue[server.name]
+            del self.udp_server.message_queue[server.name]
 
     def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
