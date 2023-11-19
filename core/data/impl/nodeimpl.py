@@ -532,7 +532,7 @@ class NodeImpl(Node):
         # we are doing the plugin changes, as we are the master
         ServiceRegistry.get('Bot').rename_server(server, new_name)
         # update the ServiceBus
-        ServiceRegistry.get('ServiceBus').rename_server(old_name, new_name)
+        ServiceRegistry.get('ServiceBus').rename_server(server, new_name)
         # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
         if server.is_remote:
             server.name = new_name
