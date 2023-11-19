@@ -247,45 +247,58 @@ class ServerImpl(Server):
         dcs_socket.close()
 
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
+        def update_config(old_name, new_name: str):
+            # update servers.yaml
+            filename = 'config/servers.yaml'
+            if os.path.exists(filename):
+                data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+                if old_name in data and new_name not in data:
+                    data[new_name] = deepcopy(data[old_name])
+                    del data[old_name]
+                    with open(filename, 'w', encoding='utf-8') as outfile:
+                        yaml.dump(data, outfile)
+            # update serverSettings.lua if requested
+            if update_settings:
+                self.settings['name'] = new_name
+
         # shutdown all extensions
         await self.shutdown_extensions()
-        # update servers.yaml
-        filename = 'config/servers.yaml'
-        if os.path.exists(filename):
-            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
-            if self.name in data and new_name not in data:
-                data[new_name] = deepcopy(data[self.name])
-                del data[self.name]
-                with open(filename, 'w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
-        # update serverSettings.lua if requested
-        if update_settings:
-            self.settings['name'] = new_name
-        # rename the server in the database
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-                conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-                # only the master can take care of a cluster-wide rename
-                if self.node.master:
-                    await self.node.rename_server(self, new_name, update_settings)
-                else:
-                    await self.bus.send_to_node_sync({
-                        "command": "rpc",
-                        "service": "Node",
-                        "method": "rename_server",
-                        "params": {
-                            "server": self.name,
-                            "new_name": new_name,
-                            "update_settings": update_settings
-                        }
-                    })
+        old_name = self.name
+        try:
+            # rename the server in the database
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                                 (new_name, self.name))
+                    conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
+                                 (new_name, self.name))
+                    conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                                 (new_name, self.name))
+                    # only the master can take care of a cluster-wide rename
+                    if self.node.master:
+                        await self.node.rename_server(self, new_name, update_settings)
+                    else:
+                        await self.bus.send_to_node_sync({
+                            "command": "rpc",
+                            "object": "Node",
+                            "method": "rename_server",
+                            "params": {
+                                "server": self.name,
+                                "new_name": new_name,
+                                "update_settings": update_settings
+                            }
+                        })
+            try:
+                # update servers.yaml
+                update_config(self.name, new_name)
                 self.name = new_name
-                # startup extensions again
+            except Exception as ex:
+                # rollback config
+                update_config(new_name, old_name)
+                raise
+        except Exception as ex:
+            self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=ex)
+        # startup extensions again
         await self.startup_extensions()
 
     async def do_startup(self):
