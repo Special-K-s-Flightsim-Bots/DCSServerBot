@@ -103,7 +103,9 @@ async def all_songs_autocomplete(
         service: MusicService = ServiceRegistry.get("Music")
         music_dir = await service.get_music_dir()
         for song in [
-            file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)]:
+            file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)
+        ]:
+            interaction.client.log.info("### Song: " + os.path.join(music_dir, song))
             title = get_tag(os.path.join(music_dir, song)).title or song
             if current and current.casefold() not in title.casefold():
                 continue
