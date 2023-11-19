@@ -270,22 +270,22 @@ class ServerImpl(Server):
                              (new_name, self.name))
                 conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
                              (new_name, self.name))
-        # only the master can take care of a cluster-wide rename
-        if self.node.master:
-            await self.node.rename_server(self, new_name, update_settings)
-        else:
-            await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": "Node",
-                "method": "rename_server",
-                "params": {
-                    "server": self.name,
-                    "new_name": new_name,
-                    "update_settings": update_settings
-                }
-            })
-        self.name = new_name
-        # startup extensions again
+                # only the master can take care of a cluster-wide rename
+                if self.node.master:
+                    await self.node.rename_server(self, new_name, update_settings)
+                else:
+                    await self.bus.send_to_node_sync({
+                        "command": "rpc",
+                        "service": "Node",
+                        "method": "rename_server",
+                        "params": {
+                            "server": self.name,
+                            "new_name": new_name,
+                            "update_settings": update_settings
+                        }
+                    })
+                self.name = new_name
+                # startup extensions again
         await self.startup_extensions()
 
     async def do_startup(self):

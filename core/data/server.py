@@ -364,14 +364,14 @@ class Server(DataObject):
         raise NotImplemented()
 
     @property
-    def channels(self) -> dict:
+    def channels(self) -> dict[Channel, int]:
         if not self._channels:
             if 'channels' not in self.locals:
                 self.log.error(f"No channels defined in servers.yaml for server {self.name}!")
                 return {}
             self._channels = {}
             for key, value in self.locals['channels'].items():
-                self._channels[Channel(key)] = value
+                self._channels[Channel(key)] = int(value)
             if Channel.EVENTS not in self._channels:
                 self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
             if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:

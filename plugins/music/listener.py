@@ -1,6 +1,6 @@
+from core import EventListener, Server, event, ServiceRegistry, Plugin
 from typing import cast
 
-from core import EventListener, Server, event, ServiceRegistry, Plugin
 from services.music.service import MusicService
 
 
