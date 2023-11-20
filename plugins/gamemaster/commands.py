@@ -2,19 +2,17 @@ import aiohttp
 import asyncio
 import discord
 import os
-import platform
 import psycopg
 
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player
-from discord import app_commands, TextStyle
+from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
-from discord.ui import Modal, TextInput
 from services import DCSServerBot
 from typing import Optional, Literal
 
 from .listener import GameMasterEventListener
-from .views import CampaignModal
+from .views import CampaignModal, ScriptModal
 
 
 class GameMaster(Plugin):
@@ -133,20 +131,14 @@ class GameMaster(Plugin):
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[
                             Status.RUNNING, Status.PAUSED
                         ])]):
-        class ScriptModal(Modal, title="Lua Script"):
-            script = TextInput(label="Enter your script here", style=TextStyle.long, required=True)
 
         ephemeral = utils.get_ephemeral(interaction)
-        modal = ScriptModal()
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f'Server "{server.name}" is {server.status.name}. Aborted.',
+                                                    ephemeral=ephemeral)
+            return
+        modal = ScriptModal(server, ephemeral)
         await interaction.response.send_modal(modal)
-        if await modal.wait():
-            server.send_to_dcs({
-                "command": "do_script",
-                "script": ' '.join(modal.script.value)
-            })
-            await interaction.followup.send('Script sent.', ephemeral=ephemeral)
-        else:
-            await interaction.followup.send('Aborted', ephemeral=ephemeral)
 
     @command(description='Loads a lua file into the mission')
     @app_commands.guild_only()
