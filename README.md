@@ -194,6 +194,7 @@ This file holds the main information about DCSServerBot. You can configure which
 guild_id: 112233445566  # Your Discord server ID. Right click on your server and select "Copy Server ID".
 use_dashboard: true     # Use the dashboard display for your node. Default is true.
 chat_command_prefix: .  # The command prefix to be used for in-game chat commands. Default is "."
+mission_rewrite: false  # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
 database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME
   pool_min: 5           # min size of the DB pool, default is 5

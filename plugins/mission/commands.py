@@ -174,6 +174,8 @@ class Mission(Plugin):
             await msg.delete()
 
         msg = await interaction.followup.send('Mission will restart now, please wait ...', ephemeral=ephemeral)
+        if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
+            await server.stop()
         if run_extensions:
             await server.restart(smooth=await server.apply_mission_changes())
         else:
@@ -223,6 +225,8 @@ class Mission(Plugin):
                 await interaction.followup.send(f'Mission {server.current_mission.display_name} will be restarted '
                                                 f'when server is empty.', ephemeral=ephemeral)
             else:
+                if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                    await server.stop()
                 if run_extensions:
                     await server.restart(smooth=await server.apply_mission_changes())
                 else:
@@ -241,9 +245,15 @@ class Mission(Plugin):
                 tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
                                                       ephemeral=ephemeral)
                 try:
+                    startup = False
                     await server.loadMission(mission_id + 1)
+                    if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                        await server.stop()
+                        startup = True
                     if run_extensions:
                         await server.restart(smooth=await server.apply_mission_changes())
+                    if startup:
+                        await server.start()
                     await self.bot.audit("loaded mission", server=server, user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
                 except asyncio.TimeoutError:
@@ -384,7 +394,11 @@ class Mission(Plugin):
             server.restart_pending = True
             await interaction.followup.send(f'Preset will be changed when server is empty.', ephemeral=ephemeral)
         else:
+            startup = False
             msg = await interaction.followup.send('Changing presets...', ephemeral=ephemeral)
+            if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                await server.stop()
+                startup = True
             filename = await server.get_current_mission_file()
             new_filename = await server.modifyMission(filename, [
                 value for name, value in presets.items() if name in view.result
@@ -396,7 +410,7 @@ class Mission(Plugin):
                 await server.replaceMission(missions.index(filename) + 1, new_filename)
             else:
                 self.log.info(f"  => Mission {filename} overwritten.")
-            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 await server.restart(smooth=True)
                 message += '\nMission reloaded.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)

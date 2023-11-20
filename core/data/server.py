@@ -297,7 +297,8 @@ class Server(DataObject):
         elif self.current_mission:
             await self.current_mission.restart()
         else:
-            await self.stop()
+            if self.status != Status.STOPPED:
+                await self.stop()
             await self.start()
 
     async def _load(self, message):
