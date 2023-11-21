@@ -47,6 +47,7 @@ class MissionEventListener(EventListener):
             'connect': '```\nPlayer {} connected to server```',
             'disconnect': '```\nPlayer {} disconnected```',
             'spectators': '```\n{} player {} returned to Spectators```',
+            'takeoff': '```\nPlayer {} took off from {}.```',
             'crash': '```\nPlayer {} crashed.```',
             'eject': '```\nPlayer {} ejected.```',
             'pilot_death': '```\n[Player {} died.```',

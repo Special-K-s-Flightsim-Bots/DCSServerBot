@@ -210,35 +210,34 @@ class CloudHandler(Plugin):
     @tasks.loop(seconds=10)
     async def cloud_sync(self):
         with self.pool.connection() as conn:
-            with conn.pipeline():
-                with conn.transaction():
-                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                        for row in cursor.execute("""
-                            SELECT ucid FROM players 
-                            WHERE synced IS FALSE 
-                            ORDER BY last_seen DESC 
-                            LIMIT 10
-                        """).fetchall():
-                            cursor.execute("""
-                                SELECT s.player_ucid, m.mission_theatre, s.slot, 
-                                       SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
-                                       SUM(ejections) as ejections, SUM(crashes) as crashes, 
-                                       SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
-                                       SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
-                                       SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
-                                       SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
-                                       SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
-                                       SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
-                                       SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                                       ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
-                                FROM statistics s, missions m 
-                                WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
-                                GROUP BY 1, 2, 3
-                            """, (row['ucid'], ))
-                            for line in cursor.fetchall():
-                                line['client'] = self.client
-                                await self.post('upload', line)
-                            cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+            with conn.transaction():
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    for row in cursor.execute("""
+                        SELECT ucid FROM players 
+                        WHERE synced IS FALSE 
+                        ORDER BY last_seen DESC 
+                        LIMIT 10
+                    """).fetchall():
+                        cursor.execute("""
+                            SELECT s.player_ucid, m.mission_theatre, s.slot, 
+                                   SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
+                                   SUM(ejections) as ejections, SUM(crashes) as crashes, 
+                                   SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                                   SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                                   SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                                   SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                                   SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
+                                   SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                                   SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
+                            FROM statistics s, missions m 
+                            WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
+                            GROUP BY 1, 2, 3
+                        """, (row['ucid'], ))
+                        for line in cursor.fetchall():
+                            line['client'] = self.client
+                            await self.post('upload', line)
+                        cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
 
     @tasks.loop(hours=1)
     async def register(self):

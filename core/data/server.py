@@ -98,6 +98,10 @@ class Server(DataObject):
     def status(self) -> Status:
         return self._status
 
+    @status.setter
+    def status(self, status: Union[Status, str]):
+        self.set_status(status)
+
     @property
     def maintenance(self) -> bool:
         return self._maintenance
@@ -112,10 +116,6 @@ class Server(DataObject):
     @property
     def display_name(self) -> str:
         return utils.escape_string(self.name)
-
-    @status.setter
-    def status(self, status: Union[Status, str]):
-        self.set_status(status)
 
     # allow overloading of setter
     def set_status(self, status: Union[Status, str]):
@@ -238,7 +238,7 @@ class Server(DataObject):
     async def shutdown_extensions(self) -> None:
         raise NotImplemented()
 
-    async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0):
+    async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
         future = self.bus.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token

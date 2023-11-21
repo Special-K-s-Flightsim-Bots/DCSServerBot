@@ -5,7 +5,6 @@ import inspect
 import json
 import platform
 import psycopg
-import sys
 import uuid
 
 from _operator import attrgetter
@@ -273,8 +272,10 @@ class ServiceBus(Service):
         self.servers[new_name] = server
         del self.servers[server.name]
         if server.name in self.udp_server.message_queue:
-            self.udp_server.message_queue[new_name] = self.udp_server.message_queue[server.name]
+            self.udp_server.message_queue[server.name].put({})
             del self.udp_server.message_queue[server.name]
+            self.udp_server.message_queue[new_name] = Queue()
+            self.executor.submit(self.udp_server.process, new_name)
 
     def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
@@ -486,29 +487,21 @@ class ServiceBus(Service):
     @tasks.loop(seconds=1)
     async def intercom(self):
         with self.pool.connection() as conn:
-            with conn.pipeline():
-                while True:
-                    with conn.transaction():
-                        with closing(conn.cursor()) as cursor:
-                            # we read until there is no new data, then we wait for the next call (after 1 s)
-                            rows = cursor.execute("SELECT id, data FROM intercom WHERE node = %s",
-                                                  ("Master" if self.master else platform.node(), )).fetchall()
-                            if not len(rows):
-                                return
-                            for row in rows:
-                                data = row[1]
-                                if sys.getsizeof(data) > 8 * 1024:
-                                    self.log.error("Packet is larger than 8 KB!")
-                                try:
-                                    if data['command'] == 'rpc':
-                                        asyncio.create_task(self.handle_rpc(data))
-                                    elif self.master:
-                                        asyncio.create_task(self.handle_master(data))
-                                    else:
-                                        asyncio.create_task(self.handle_agent(data))
-                                except Exception as ex:
-                                    self.log.exception(ex)
-                                cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+            with conn.transaction():
+                # we read until there is no new data, then we wait for the next call (after 1 s)
+                for row in conn.execute("SELECT id, data FROM intercom WHERE node = %s",
+                                        ("Master" if self.master else self.node.name, )).fetchall():
+                    data = row[1]
+                    try:
+                        if data['command'] == 'rpc':
+                            asyncio.create_task(self.handle_rpc(data))
+                        elif self.master:
+                            asyncio.create_task(self.handle_master(data))
+                        else:
+                            asyncio.create_task(self.handle_agent(data))
+                    except Exception as ex:
+                        self.log.exception(ex)
+                    conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
@@ -581,7 +574,7 @@ class ServiceBus(Service):
                 while data:
                     server: Server = self.servers.get(server_name)
                     if not server:
-                        continue
+                        return
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':

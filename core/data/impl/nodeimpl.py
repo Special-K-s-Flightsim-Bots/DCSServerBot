@@ -603,7 +603,7 @@ class NodeImpl(Node):
         autoexec.crash_report_mode = "silent"
         with open('config/nodes.yaml') as infile:
             config = yaml.load(infile)
-        config[platform.node()]['instances'][instance.name] = {
+        config[self.name]['instances'][instance.name] = {
             "home": instance.home,
             "bot_port": instance.bot_port
         }
@@ -620,7 +620,7 @@ class NodeImpl(Node):
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         with open('config/nodes.yaml') as infile:
             config = yaml.load(infile)
-        del config[platform.node()]['instances'][instance.name]
+        del config[self.name]['instances'][instance.name]
         with open('config/nodes.yaml', 'w') as outfile:
             yaml.dump(config, outfile)
         self.instances.remove(instance)
@@ -635,8 +635,8 @@ class NodeImpl(Node):
             config = yaml.load(infile)
         new_home = os.path.join(os.path.dirname(instance.home), new_name)
         os.rename(instance.home, new_home)
-        config[platform.node()]['instances'][new_name] = config[platform.node()]['instances'][instance.name].copy()
-        config[platform.node()]['instances'][new_name]['home'] = new_home
+        config[self.name]['instances'][new_name] = config[self.name]['instances'][instance.name].copy()
+        config[self.name]['instances'][new_name]['home'] = new_home
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -645,7 +645,7 @@ class NodeImpl(Node):
                 """, (new_name, instance.node.name, instance.name, ))
         instance.name = new_name
         instance.locals['home'] = new_home
-        del config[platform.node()]['instances'][instance.name]
+        del config[self.name]['instances'][instance.name]
         with open('config/nodes.yaml', 'w') as outfile:
             yaml.dump(config, outfile)
 

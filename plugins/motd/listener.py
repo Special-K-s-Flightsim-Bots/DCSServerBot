@@ -60,6 +60,9 @@ class MessageOfTheDayListener(EventListener):
             return
         if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator'] and 'on_birth' in config:
             player: Player = server.get_player(name=data['initiator']['name'], active=True)
+            if not player:
+                # should never happen, just in case
+                return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
                 self.plugin.send_message(message, server, cfg, player)

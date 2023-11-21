@@ -94,16 +94,15 @@ class MissionStatisticsEventListener(EventListener):
                 'comment': data['comment'] if 'comment' in data else ''
             }
             with self.pool.connection() as conn:
-                with conn.pipeline():
-                    with conn.transaction():
-                        conn.execute("""
-                            INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
-                                                      target_id, target_side, target_type, target_cat, weapon, place, 
-                                                      comment) 
-                            VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
-                                    %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
-                                    %(place)s, %(comment)s)
-                        """, dataset)
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
+                                                  target_id, target_side, target_type, target_cat, weapon, place, 
+                                                  comment) 
+                        VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
+                                %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
+                                %(place)s, %(comment)s)
+                    """, dataset)
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
