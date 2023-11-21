@@ -14,3 +14,6 @@ DCS.openbeta_server:
   channel: 1122334455667788   # channel, where to upload the stats into (default: Status channel)
 ```
 Every parameter has a default value, which means, that you do not need to specify a configuration file at all.
+
+## Credits
+Credits to No15|KillerDog for implementing the base version of this plugin!
