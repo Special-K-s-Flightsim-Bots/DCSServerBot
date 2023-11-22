@@ -287,36 +287,35 @@ class Admin(Plugin):
             return
 
         with self.pool.connection() as conn:
-            with conn.pipeline():
-                with conn.transaction():
-                    with closing(conn.cursor()) as cursor:
-                        if view.what in ['users', 'non-members']:
-                            sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
-                            if view.what == 'non-members':
-                                sql += ' AND discord_id = -1'
-                            ucids = [row[0] for row in cursor.execute(sql).fetchall()]
-                            if not ucids:
-                                await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
-                                return
-                            if not await utils.yn_question(interaction, f"This will delete {len(ucids)} players incl. "
-                                                                        f"their stats from the database.\n"
-                                                                        f"Are you sure?", ephemeral=ephemeral):
-                                return
-                            for plugin in self.bot.cogs.values():  # type: Plugin
-                                await plugin.prune(conn, ucids=ucids)
-                            for ucid in ucids:
-                                cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                            await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
-                        elif view.what == 'data':
-                            days = int(view.age)
-                            if not await utils.yn_question(interaction, f"This will delete all data older than {days} "
-                                                                        f"days from the database.\nAre you sure?",
-                                                           ephemeral=ephemeral):
-                                return
-                            for plugin in self.bot.cogs.values():  # type: Plugin
-                                await plugin.prune(conn, days=days)
-                            await interaction.followup.send(f"All data older than {days} days pruned.",
-                                                            ephemeral=ephemeral)
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    if view.what in ['users', 'non-members']:
+                        sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
+                        if view.what == 'non-members':
+                            sql += ' AND discord_id = -1'
+                        ucids = [row[0] for row in cursor.execute(sql).fetchall()]
+                        if not ucids:
+                            await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
+                            return
+                        if not await utils.yn_question(interaction, f"This will delete {len(ucids)} players incl. "
+                                                                    f"their stats from the database.\n"
+                                                                    f"Are you sure?", ephemeral=ephemeral):
+                            return
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.prune(conn, ucids=ucids)
+                        for ucid in ucids:
+                            cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                        await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
+                    elif view.what == 'data':
+                        days = int(view.age)
+                        if not await utils.yn_question(interaction, f"This will delete all data older than {days} "
+                                                                    f"days from the database.\nAre you sure?",
+                                                       ephemeral=ephemeral):
+                            return
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.prune(conn, days=days)
+                        await interaction.followup.send(f"All data older than {days} days pruned.",
+                                                        ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
     node = Group(name="node", description="Commands to manage your nodes")
@@ -395,6 +394,24 @@ class Admin(Plugin):
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "upgrade", node)
+
+    @node.command(description='Run a shell command on a node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def shell(self, interaction: discord.Interaction,
+                    node: app_commands.Transform[Node, utils.NodeTransformer],
+                    cmd: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        stdout, stderr = await node.shell_command(cmd)
+        embed = discord.Embed(colour=discord.Color.blue())
+        if stdout:
+            embed.description = "```" + stdout[:4090] + "```"
+        if stderr:
+            embed.set_footer(text=stderr[:2048])
+        if not stdout and not stderr:
+            embed.description = "```Command executed.```"
+        await interaction.followup.send(embed=embed)
 
     @command(description='Reloads a plugin')
     @app_commands.guild_only()

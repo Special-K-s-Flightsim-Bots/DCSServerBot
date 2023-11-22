@@ -344,8 +344,10 @@ class PieChart(GraphElement):
         if len(values) or self.show_no_data:
             labels = values.keys()
             values = list(values.values())
-            patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: self.func(pct, values),
-                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+            patches, texts, pcts = self.axes.pie(
+                values, labels=labels, autopct=lambda pct: self.func(pct, values), colors=self.colors,
+                wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True
+            )
             plt.setp(pcts, color='black', fontweight='bold')
             self.axes.set_title(self.title, color='white', fontsize=25)
             self.axes.axis('equal')

@@ -26,17 +26,16 @@ class DBExporter(Plugin):
 
     def do_export(self, table_filter: list[str]):
         with self.pool.connection() as conn:
-            with conn.pipeline():
-                with closing(conn.cursor()) as cursor:
-                    for table in [x[0] for x in cursor.execute("""
-                        SELECT table_name FROM information_schema.tables 
-                        WHERE table_schema = 'public' 
-                        AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
-                    """).fetchall() if x[0] not in table_filter]:
-                        rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
-                        if rows:
-                            with open(f'export/{table}.json', 'w') as file:
-                                file.writelines([json.dumps(x[0]) + '\n' for x in rows])
+            with closing(conn.cursor()) as cursor:
+                for table in [x[0] for x in cursor.execute("""
+                    SELECT table_name FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
+                """).fetchall() if x[0] not in table_filter]:
+                    rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
+                    if rows:
+                        with open(f'export/{table}.json', 'w') as file:
+                            file.writelines([json.dumps(x[0]) + '\n' for x in rows])
 
     @command(description='Exports database tables as json.')
     @app_commands.guild_only()

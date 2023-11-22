@@ -4,3 +4,7 @@ DEFAULT:
   CHANNELID_RANGE: '8877665544332211'
   CHANNELID_AIRBOSS: '1188227733664455'
   IMAGEPATH: ../FunkMan/funkpics/
+  strafe_board: true
+  strafe_channel: 1122334455667788
+  bomb_board: true
+  bomb_channel: 8877665544332211

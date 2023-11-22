@@ -1,0 +1,22 @@
+DEFAULT:
+  wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
+  greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
+  highscore:  # overall persistent highscore display (optional)
+    channel: 1122334455667788
+    params:
+      period: month   # can be one of day, month, quarter, year, or any campaign name
+      limit: 10       # number of players per entry
+DCS.openbeta_server:
+  highscore:  # server-specific persistent highscore (optional)
+  - channel: 9988776655443322
+    params:
+      period: day     # display a daily highscore in another channel for this server
+      limit: 3        # only 3 players this time ("top 3 of the day")
+  - channel: 1234567812345678
+    params:
+      period: month   # and a monthly statistic in another channel
+      limit: 10       # "top 10 of the month"
+  - channel: 9876543298765432
+    mission_end: true # post the mission highscore at mission end
+instance2:
+  enabled: false  # we disable statistics gathering on instance2

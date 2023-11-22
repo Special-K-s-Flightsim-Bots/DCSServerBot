@@ -308,11 +308,12 @@ def migrate():
             nodes[platform.node()]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
             nodes[platform.node()]['DCS']['dcs_password'] = cfg['DCS']['DCS_PASSWORD']
         # add missing configs to userstats
-        if DEFAULT_TAG not in userstats:
-            userstats[DEFAULT_TAG] = {}
-        u = userstats[DEFAULT_TAG]
-        u['greeting_message_members'] = cfg['DCS']['GREETING_MESSAGE_MEMBERS']
-        u['greeting_message_unmatched'] = cfg['DCS']['GREETING_MESSAGE_UNMATCHED']
+        if DEFAULT_TAG not in all_userstats:
+            all_userstats[DEFAULT_TAG] = {}
+        u = all_userstats[DEFAULT_TAG]
+        u['greeting_message_members'] = cfg['DCS']['GREETING_MESSAGE_MEMBERS'].replace(
+            '{}', '{player.name}', 1).replace('{}', '{server.name}')
+        u['greeting_message_unmatched'] = cfg['DCS']['GREETING_MESSAGE_UNMATCHED'].replace('{name}', '{player.name}')
         u['wipe_stats_on_leave'] = cfg['BOT'].getboolean('WIPE_STATS_ON_LEAVE')
 
         nodes[platform.node()]['instances'] = {}

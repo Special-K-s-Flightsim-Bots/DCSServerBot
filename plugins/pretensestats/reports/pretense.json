@@ -1,0 +1,45 @@
+{
+  "color": "blue",
+  "title": "**__Mission Progress__**",
+  "elements":
+  [
+    {
+      "class": "plugins.pretensestats.reports.Header"
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "ruler_length": 28,
+        "header": "TOP 10 Pilots"
+      }
+    },
+    {
+      "class": "plugins.pretensestats.reports.Top10Pilots"
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "ruler_length": 28,
+        "header": "Zone Distribution"
+      }
+    },
+    {
+      "type": "Graph",
+      "params": {
+        "width": 10,
+        "height": 5,
+        "cols": 1,
+        "rows": 1,
+        "elements": [
+          {
+            "class": "plugins.pretensestats.reports.ZoneDistribution",
+            "params": {
+              "col": 0,
+              "row": 0
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -9,7 +9,7 @@ The plugin can be configured via yaml in config/plugins/userstats.yaml. If such 
 
 ```yaml
 DEFAULT:
-  wipe_stats_on_leave: true:  # wipe user statistics if they leave your Discord server (default: true)
+  wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:
@@ -25,6 +25,8 @@ DCS.openbeta_server:
     params:
       period: month   # and a monthly statistic in another channel
       limit: 10       # "top 10 of the month"
+  - channel: 9876543298765432
+    mission_end: true # post the mission highscore at mission end
 instance2:
   enabled: false  # we disable statistics gathering on instance2
 ```
