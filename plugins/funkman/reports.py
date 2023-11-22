@@ -1,14 +1,18 @@
+import string
+
 from contextlib import closing
+from typing import Literal
+
 from core import EmbedElement, utils
 from datetime import datetime
 from psycopg.rows import dict_row
 
-from .const import EMOJIS
+from .const import EMOJIS, StrafeQuality, BombQuality
 
 
 class RangeBoard(EmbedElement):
 
-    async def render(self, server_name: str, num_rows: int, sql1: str, sql2: str):
+    async def render(self, server_name: str, num_rows: int, sql1: str, sql2: str, what: Literal['strafe', 'bomb']):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 pilots = points = runs = ''
@@ -20,7 +24,7 @@ class RangeBoard(EmbedElement):
                     i = 0
                     runs += '**|'
                     for run in cursor.fetchall():
-                        runs += EMOJIS[run['quality']] + '|'
+                        runs += EMOJIS[what][run['quality']] + '|'
                         i += 1
                     for i in range(i, 10):
                         runs += "⬛" + '|'
@@ -34,8 +38,13 @@ class RangeBoard(EmbedElement):
                 self.add_field(name='Avg', value=points)
                 self.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
                                value=runs)
+                footer = ''
+                for value in StrafeQuality if what == 'strafe' else BombQuality:
+                    footer += EMOJIS[what][value.value] + '\t' + string.capwords(value.name.replace('_', ' ')) + '\n'
+
                 if max_time:
-                    self.embed.set_footer(text=f'Last recorded run: {max_time:%y-%m-%d %H:%M:%S}')
+                    footer += f'\nLast recorded run: {max_time:%y-%m-%d %H:%M:%S}'
+                self.embed.set_footer(text=footer)
 
 
 class StrafeBoard(RangeBoard):
@@ -64,7 +73,7 @@ class StrafeBoard(RangeBoard):
             AND s.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s
         """
         sql2 += ' ORDER BY ID DESC LIMIT 10'
-        await super().render(server_name, num_rows, sql1, sql2)
+        await super().render(server_name, num_rows, sql1, sql2, 'strafe')
 
 
 class BombBoard(RangeBoard):
@@ -93,4 +102,4 @@ class BombBoard(RangeBoard):
             AND b.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s
         """
         sql2 += ' ORDER BY ID DESC LIMIT 10'
-        await super().render(server_name, num_rows, sql1, sql2)
+        await super().render(server_name, num_rows, sql1, sql2, 'bomb')

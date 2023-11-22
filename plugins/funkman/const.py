@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class StrafeQuality(Enum):
+    INVALID_PASS = None
     POOR_PASS = 1
     INEFFECTIVE_PASS = 2
     GOOD_PASS = 3
@@ -18,10 +19,19 @@ class BombQuality(Enum):
 
 
 EMOJIS = {
-    None: "❌",
-    1: "🟥",
-    2: "🟧",
-    3: "🟨",
-    4: "🟩",
-    5: "🎯"
+    "bomb": {
+        1: "🟥",
+        2: "🟧",
+        3: "🟨",
+        4: "🟩",
+        5: "🎯"
+    },
+    "strafe": {
+        None: "❌",
+        1: "🟥",
+        2: "🟧",
+        3: "🟨",
+        4: "🟩",
+        5: "💯"
+    }
 }
