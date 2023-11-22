@@ -1,0 +1,18 @@
+{
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions m, strafe_runs s WHERE s.mission_id = m.id"
+    }
+  },
+  "color": "blue",
+  "title": "Strafe-Board (TOP {num_rows})",
+  "elements":
+  [
+    {
+      "class": "plugins.funkman.reports.StrafeBoard"
+    }
+  ]
+}

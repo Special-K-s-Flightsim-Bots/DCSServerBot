@@ -3,10 +3,12 @@ import sys
 import uuid
 import matplotlib.figure
 
-from core import EventListener, Plugin, Server, event
+from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel
 from io import BytesIO
 from matplotlib import pyplot as plt
-from typing import Tuple
+from typing import Tuple, Literal
+
+from .const import StrafeQuality, BombQuality
 
 
 class FunkManEventListener(EventListener):
@@ -100,40 +102,88 @@ class FunkManEventListener(EventListener):
         plt.close(fig)
         return filename, buffer
 
-    async def send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: str):
+    async def send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
         filename, buffer = self.save_fig(fig)
         with buffer:
-            config = self.plugin.get_config(server)
-            channel = self.bot.get_channel(int(config[channel]))
             await channel.send(file=discord.File(filename=filename, fp=buffer),
                                delete_after=self.config.get('delete_after'))
+
+    async def update_rangeboard(self, server: Server, what: Literal['strafe', 'bomb']):
+        # update the server specific board
+        config = self.plugin.get_config(server)
+        if config.get(f'{what}_board', False):
+            channel_id = int(config.get(f'{what}_channel', server.channels[Channel.STATUS]))
+            num_rows = config.get('num_rows', 10)
+            report = PersistentReport(self.bot, self.plugin_name, f'{what}board.json',
+                                      embed_name=f'{what}board', server=server, channel_id=channel_id)
+            await report.render(server_name=server.name, num_rows=num_rows)
+        # update the global board
+        config = self.get_config()
+        if f'{what}_channel' in config and config.get(f'{what}_board', False):
+            num_rows = config.get('num_rows', 10)
+            report = PersistentReport(self.bot, self.plugin_name, f'{what}board.json', embed_name=f'{what}board',
+                                      channel_id=int(config[f'{what}_channel']))
+            await report.render(server_name=None, num_rows=num_rows)
 
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        channel = self.bot.get_channel(int(config['CHANNELID_MAIN']))
+        channel = self.bot.get_channel(int(config.get('CHANNELID_MAIN', -1)))
+        if not channel:
+            return
         await channel.send(data['text'], delete_after=self.config.get('delete_after'))
 
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
+        config = self.plugin.get_config(server)
+        player: Player = server.get_player(name=data['player'])
+        if player:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
+                          data['distance'], BombQuality[data['quality']].value))
+            await self.update_rangeboard(server, 'bomb')
+        channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
+        if not channel:
+            return
         fig, _ = self.get_funkplot().PlotBombRun(data)
-        await self.send_fig(server, fig, 'CHANNELID_RANGE')
+        await self.send_fig(server, fig, channel)
 
     @event(name="moose_strafe_result")
     async def moose_strafe_result(self, server: Server, data: dict) -> None:
+        config = self.plugin.get_config(server)
+        player: Player = server.get_player(name=data['player'])
+        if player:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
+                          data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
+            await self.update_rangeboard(server, 'strafe')
+        channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
+        if not channel:
+            return
         fig, _ = self.get_funkplot().PlotStrafeRun(data)
-        await self.send_fig(server, fig, 'CHANNELID_RANGE')
+        await self.send_fig(server, fig, channel)
 
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
-        embed = self.create_lso_embed(data)
+        config = self.plugin.get_config(server)
+        channel = self.bot.get_channel(int(config.get('CHANNELID_AIRBOSS', -1)))
+        if not channel:
+            return
         try:
             fig, _ = self.get_funkplot().PlotTrapSheet(data)
             filename, buffer = self.save_fig(fig)
             with buffer:
+                embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
-                config = self.plugin.get_config(server)
-                channel = self.bot.get_channel(int(config['CHANNELID_AIRBOSS']))
-                await channel.send(embed=embed, file=discord.File(filename=filename, fp=buffer), delete_after=self.config.get('delete_after'))
+                await channel.send(embed=embed, file=discord.File(filename=filename, fp=buffer),
+                                   delete_after=self.config.get('delete_after'))
         except TypeError:
             self.log.error("No trapsheet data received from DCS!")

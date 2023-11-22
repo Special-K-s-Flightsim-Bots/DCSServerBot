@@ -1,0 +1,18 @@
+{
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions m, bomb_runs s WHERE b.mission_id = m.id"
+    }
+  },
+  "color": "blue",
+  "title": "Bomb-Board (TOP {num_rows})",
+  "elements":
+  [
+    {
+      "class": "plugins.funkman.reports.BombBoard"
+    }
+  ]
+}

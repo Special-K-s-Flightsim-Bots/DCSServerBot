@@ -1,6 +1,10 @@
 # Plugin PretenseStats
 With this plugin, you can display persistent status update embeds for your Pretense missions.
 
+> ⚠️ **Attention!**<br>
+> This plugin can **NOT** run on multi-node-systems yet.  
+
+
 ## Configuration
 The configuration is quite easy. You can define a channel per instance that you want your embeds to be displayed in.
 And you can define, how often they should be updated. Embeds will only be updated, if there is a pretense mission 

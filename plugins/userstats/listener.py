@@ -204,7 +204,7 @@ class UserStatisticsEventListener(EventListener):
                     f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
         else:
             player.sendChatMessage(self.get_config(server).get(
-                'greeting_message_members', '{player.name}, welcome back at {server.name}!').format(player=player,
+                'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,
                                                                                                     server=server))
 
     @event(name="onPlayerChangeSlot")

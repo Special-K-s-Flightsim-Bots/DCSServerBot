@@ -81,18 +81,17 @@ class MonitoringService(Service):
             server.process.cpu_affinity(affinity)
 
     async def warn_admins(self, server: Server, message: str) -> None:
-        if server.locals.get('ping_admin_on_crash', True):
-            message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
-                       f"If the scheduler is configured for this server, it will relaunch it automatically."
-            self.bus.send_to_node({
-                "command": "rpc",
-                "service": "Bot",
-                "method": "alert",
-                "params": {
-                    "server": server.name,
-                    "message": message
-                }
-            })
+        message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
+                   f"If the scheduler is configured for this server, it will relaunch it automatically."
+        self.bus.send_to_node({
+            "command": "rpc",
+            "service": "Bot",
+            "method": "alert",
+            "params": {
+                "server": server.name,
+                "message": message
+            }
+        })
 
     async def check_popups(self):
         # check for blocked processes due to window popups
@@ -121,7 +120,9 @@ class MonitoringService(Service):
                 message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
                 self.log.warning(message)
                 server.status = Status.SHUTDOWN
-                await self.warn_admins(server, message)
+                if server.locals.get('ping_admin_on_crash', True):
+                    await self.warn_admins(server, message)
+                await self.node.audit(f'Server died.', server=server)
             elif server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                 try:
                     if server.status == Status.RUNNING and 'affinity' in server.instance.locals:
@@ -158,7 +159,8 @@ class MonitoringService(Service):
                             await self.node.audit("Server killed due to a hung state.", server=server)
                             del self.hung[server.name]
                             server.status = Status.SHUTDOWN
-                            await self.warn_admins(server, message)
+                            if server.locals.get('ping_admin_on_crash', True):
+                                await self.warn_admins(server, message)
                         elif server.name not in self.hung:
                             self.hung[server.name] = 1
                         else:
