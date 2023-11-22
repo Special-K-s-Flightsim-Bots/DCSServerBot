@@ -1,12 +1,14 @@
-from core import report
+from core import report, Server
 from datetime import datetime
 
 from .const import PRETENSE_RANKS
 
 
 class Header(report.EmbedElement):
-    async def render(self, data: dict):
-        self.embed.description = f"Rankings as of <t:{int(datetime.now().timestamp())}:f>:"
+    async def render(self, data: dict, server: Server):
+        desc = f"__{server.current_mission.name}__\n\n" if server.current_mission else ""
+        desc += f"Rankings as of <t:{int(datetime.now().timestamp())}:f>:"
+        self.embed.description = desc
 
 
 class ZoneDistribution(report.PieChart):
@@ -30,6 +32,7 @@ class ZoneDistribution(report.PieChart):
     async def render(self, data: dict):
         zone_distribution = self.calculate_zone_distribution(data["zones"])
         self.colors = ['blue', 'lightgrey', 'red']
+        self.textcolor = 'white'
         await super().render(zone_distribution)
 
 
