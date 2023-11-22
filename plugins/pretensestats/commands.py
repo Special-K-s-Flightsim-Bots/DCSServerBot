@@ -36,6 +36,7 @@ class PretenseStats(Plugin):
                                os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json"))
                 )
                 if not json_file_path or not os.path.exists(json_file_path):
+                    self.log.debug(f'update_leaderboard(): File {json_file_path} not found!')
                     continue
                 # only update, if the pretense file has been updated
                 mtime = os.path.getmtime(json_file_path)
@@ -50,7 +51,7 @@ class PretenseStats(Plugin):
                 report = PersistentReport(self.bot, self.plugin_name, "pretense.json", embed_name="leaderboard",
                                           channel_id=config.get('channel', server.channels[Channel.STATUS]),
                                           server=server)
-                await report.render(data=data)
+                await report.render(data=data, server=server)
             except Exception as ex:
                 self.log.exception(ex)
 

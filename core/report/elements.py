@@ -325,10 +325,12 @@ class SQLBarChart(BarChart):
 class PieChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
                  rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[list[str]] = None,
-                 is_time: Optional[bool] = False, show_no_data: Optional[bool] = True):
+                 is_time: Optional[bool] = False, show_no_data: Optional[bool] = True,
+                 textcolor: Optional[str] = 'black'):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.colors = colors
+        self.textcolor = textcolor
         self.is_time = is_time
         self.show_no_data = show_no_data
 
@@ -348,7 +350,7 @@ class PieChart(GraphElement):
                 values, labels=labels, autopct=lambda pct: self.func(pct, values), colors=self.colors,
                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True
             )
-            plt.setp(pcts, color='black', fontweight='bold')
+            plt.setp(pcts, color=self.textcolor, fontweight='bold')
             self.axes.set_title(self.title, color='white', fontsize=25)
             self.axes.axis('equal')
             if len(values) == 0:
