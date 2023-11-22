@@ -72,9 +72,10 @@ class CompetitiveListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if data['channel'].startswith('sync-'):
-            self.matches[server.name] = dict()
+        if server.name not in self.in_match:
             self.in_match[server.name] = dict()
+        if server.name not in self.matches:
+            self.matches[server.name] = dict()
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, data: dict) -> None:
