@@ -322,8 +322,8 @@ class NodeImpl(Node):
                 servers.append(server)
             else:
                 server.maintenance = True
-                if server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
-                    tasks.append(asyncio.create_task(shutdown_with_warning(server)))
+            if server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
+                tasks.append(asyncio.create_task(shutdown_with_warning(server)))
         # wait for DCS servers to shut down
         if tasks:
             await asyncio.gather(*tasks)
