@@ -410,8 +410,6 @@ class ServiceBus(Service):
                     else:
                         # TODO: change to data['return']
                         self.loop.call_soon_threadsafe(f.set_result, data)
-            else:
-                self.log.warning(f"This message should not have been sent to node {self.node.name}!")
             return
         self.log.debug(f"RPC: {json.dumps(data)}")
         obj = None

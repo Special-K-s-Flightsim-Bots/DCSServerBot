@@ -108,13 +108,16 @@ class Punishment(Plugin):
                 with conn.transaction():
                     with closing(conn.cursor(row_factory=dict_row)) as cursor:
                         for server_name, server in self.bot.servers.items():
-                            for row in cursor.execute('SELECT * FROM pu_events_sdw WHERE server_name = %s',
-                                                      (server_name, )).fetchall():
+                            config = self.get_config(server)
+                            # we are not initialized correctly yet
+                            if not config:
+                                continue
+                            for row in cursor.execute("""
+                                SELECT * FROM pu_events_sdw 
+                                WHERE server_name = %s
+                                AND time >= (timezone('utc', now()) - interval '%s seconds')
+                            """, (server_name, config.get('forgive', 30))).fetchall():
                                 try:
-                                    config = self.get_config(server)
-                                    # we are not initialized correctly yet
-                                    if not config:
-                                        continue
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:
                                             if row['points'] < punishment['points']:
