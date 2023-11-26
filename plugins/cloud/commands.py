@@ -188,7 +188,8 @@ class CloudHandler(Plugin):
             for ban in await self.get('bans'):
                 if ban['ucid'] not in bans:
                     self.bus.ban(ucid=ban['ucid'], reason='DGSA: ' + ban['reason'], banned_by=self.plugin_name)
-                bans.remove(ban['ucid'])
+                else:
+                    bans.remove(ban['ucid'])
             # we might need to unban someone that is no longer on the list
             for unban in bans:
                 self.bus.unban(unban)
