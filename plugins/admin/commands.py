@@ -172,13 +172,17 @@ class Admin(Plugin):
                                      user=interaction.user)
                 msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
                                                       ephemeral=ephemeral)
-                rc = await node.update(warn_times=[warn_time] or [120, 60])
-                if rc == 0:
-                    await msg.edit(content=f"DCS updated to version {new_version} on node {node.name}.")
-                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
-                                         user=interaction.user)
-                else:
-                    await msg.edit(content=f"Error while updating DCS, code={rc}")
+                try:
+                    rc = await node.update(warn_times=[warn_time] or [120, 60])
+                    if rc == 0:
+                        await msg.edit(content=f"DCS updated to version {new_version} on node {node.name}.")
+                        await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
+                                             user=interaction.user)
+                    else:
+                        await msg.edit(content=f"Error while updating DCS, code={rc}")
+                except TimeoutError:
+                    await msg.edit(content="The update takes longer than 10 minutes, please check back regularly, "
+                                           "if it has finished.")
         else:
             await interaction.followup.send(
                 f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",

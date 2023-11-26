@@ -80,7 +80,7 @@ class NodeProxy(Node):
             "params": {
                 "warn_times": warn_times
             }
-        }, node=self.name)
+        }, node=self.name, timeout=600)
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
         data = await self.bus.send_to_node_sync({
