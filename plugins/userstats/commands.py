@@ -435,7 +435,7 @@ class UserStatistics(Plugin):
     async def delete_statistics(self, interaction: discord.Interaction, user: Optional[discord.Member]):
         if not user:
             user = interaction.user
-        elif user != interaction.user and not utils.check_roles(['DCS Admin'], interaction.user):
+        elif user != interaction.user and not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return

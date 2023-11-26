@@ -71,7 +71,7 @@ class Competitive(Plugin):
                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
         if not user:
             user = interaction.user
-        elif not utils.check_roles(['DCS Admin'], interaction.user):
+        elif not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
             raise discord.app_commands.CheckFailure()
         if isinstance(user, discord.Member):
             member = user
