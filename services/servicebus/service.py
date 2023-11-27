@@ -183,8 +183,6 @@ class ServiceBus(Service):
                 num += 1
         if num == 0:
             self.log.info('- No running local servers found.')
-        else:
-            self.log.info(f'- {num} running local servers found.')
 
     async def register_remote_node(self, node: str):
         self.log.info(f"- Registering remote node {node}.")
@@ -273,6 +271,8 @@ class ServiceBus(Service):
         del self.servers[server.name]
         if server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put({})
+            if not self.udp_server.message_queue[server.name].empty():
+                self.udp_server.message_queue[server.name].join()
             del self.udp_server.message_queue[server.name]
             self.udp_server.message_queue[new_name] = Queue()
             self.executor.submit(self.udp_server.process, new_name)
@@ -603,7 +603,6 @@ class ServiceBus(Service):
                     finally:
                         derived.message_queue[server.name].task_done()
                         data = derived.message_queue[server.name].get()
-                del self.udp_server.message_queue[server_name]
 
             def shutdown(derived):
                 super().shutdown()

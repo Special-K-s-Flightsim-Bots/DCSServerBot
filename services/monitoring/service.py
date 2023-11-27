@@ -62,7 +62,6 @@ class MonitoringService(Service):
         for server in [x for x in self.bus.servers.values() if x.is_remote]:
             if server.node.name not in active_nodes:
                 self.log.warning(f"- Node {server.node.name} not responding, removing server {server.name}.")
-                self.bus.udp_server.message_queue[server.name].put({})
                 del self.bus.servers[server.name]
             else:
                 used_nodes.add(server.node.name)

@@ -194,7 +194,8 @@ class CloudHandler(Plugin):
             for unban in bans:
                 self.bus.unban(unban)
         if self.config.get('discord-ban', False):
-            users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in await self.get('discord-bans')]
+            bans: dict = await self.get('discord-bans')
+            users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
             guild = self.bot.guilds[0]
             guild_bans = [entry async for entry in guild.bans()]
             banned_users = [x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')]
