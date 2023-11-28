@@ -179,7 +179,7 @@ class Admin(Plugin):
                         await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                              user=interaction.user)
                     else:
-                        await msg.edit(content=f"Error while updating DCS, code={rc}")
+                        await msg.edit(content=f"Error while updating DCS on node {node.name}, code={rc}")
                 except TimeoutError:
                     await msg.edit(content="The update takes longer than 10 minutes, please check back regularly, "
                                            "if it has finished.")

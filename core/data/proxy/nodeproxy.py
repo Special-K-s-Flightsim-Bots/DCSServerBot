@@ -65,15 +65,16 @@ class NodeProxy(Node):
                     _locals[name] = element
         return _locals
 
-    async def upgrade(self) -> None:
-        await self.bus.send_to_node_sync({
+    async def upgrade(self) -> int:
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "upgrade"
-        }, node=self.name)
+        }, node=self.name, timeout=60)
+        return data['return']
 
-    async def update(self, warn_times: list[int]):
-        await self.bus.send_to_node_sync({
+    async def update(self, warn_times: list[int]) -> int:
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "update",
@@ -81,6 +82,7 @@ class NodeProxy(Node):
                 "warn_times": warn_times
             }
         }, node=self.name, timeout=600)
+        return data['return']
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
         data = await self.bus.send_to_node_sync({

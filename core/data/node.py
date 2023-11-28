@@ -80,10 +80,10 @@ class Node:
     def read_locals(self) -> dict:
         raise NotImplemented()
 
-    async def upgrade(self) -> None:
+    async def upgrade(self) -> int:
         raise NotImplemented()
 
-    async def update(self, warn_times: list[int]):
+    async def update(self, warn_times: list[int]) -> int:
         raise NotImplemented()
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:

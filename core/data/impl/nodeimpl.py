@@ -253,7 +253,7 @@ class NodeImpl(Node):
             shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
             os.remove(path)
 
-    async def upgrade(self) -> None:
+    async def upgrade(self) -> int:
         try:
             import git
 
@@ -280,16 +280,16 @@ class NodeImpl(Node):
                                     sys.executable, '-m', 'pip', '-q', 'install', '-r', 'requirements.txt',
                                     stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
                                 await proc.wait()
-                            self.log.warning('- Restart needed => exiting.')
-                            self.shutdown()
+                            return 1
                         except git.exc.GitCommandError:
                             self.log.error('  => Autoupdate failed!')
                             self.log.error('     Please revert back the changes in these files:')
                             for item in repo.index.diff(None):
                                 self.log.error(f'     ./{item.a_path}')
-                            return
+                            return -1
                     else:
                         self.log.debug('- No update found for DCSServerBot.')
+                        return 0
             except git.exc.InvalidGitRepositoryError:
                 self.log.error('No git repository found. Aborting. Please use "git clone" to install DCSServerBot.')
         except ImportError:
@@ -300,7 +300,7 @@ class NodeImpl(Node):
             data = json.load(cfg)
         return data.get('branch', 'release'), data['version']
 
-    async def update(self, warn_times: list[int]):
+    async def update(self, warn_times: list[int]) -> int:
         async def shutdown_with_warning(server: Server):
             if server.is_populated():
                 shutdown_in = max(warn_times) if len(warn_times) else 0
