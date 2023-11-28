@@ -125,7 +125,7 @@ class Footer(report.EmbedElement):
         footer = ''
         if isinstance(member, discord.Member):
             _member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=member)
-            if len(_member.ucid):
+            if _member.ucid:
                 footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:
                     footer += '💯 Verify their DCS-link\n'
