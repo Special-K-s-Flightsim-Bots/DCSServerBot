@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import aiofiles
 import aiohttp
+import asyncio
 import discord
 import os
 import shutil
@@ -50,16 +51,12 @@ class BotService(Service):
                             assume_unsync_clock=True)
 
     async def start(self, *, reconnect: bool = True) -> None:
+        await super().start()
         try:
+            while not ServiceRegistry.get("ServiceBus"):
+                await asyncio.sleep(1)
             self.bot = self.init_bot()
             await self.install_fonts()
-            await super().start()
-        # cleanup the intercom channels
-#        with self.pool.connection() as conn:
-#            with conn.transaction():
-#                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
-#                if self.node.master:
-#                    conn.execute("DELETE FROM intercom WHERE node = 'Master'")
             async with self.bot:
                 await self.bot.start(self.locals['token'], reconnect=reconnect)
         except PermissionError as ex:
