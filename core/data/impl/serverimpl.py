@@ -445,13 +445,17 @@ class ServerImpl(Server):
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False
-        filename = os.path.join(await self.get_missions_dir(), filename)
-        if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
-            if not force:
-                return UploadStatus.FILE_IN_USE
-            await self.stop()
-            stopped = True
-
+        for idx, name in enumerate(self.settings['missionList']):
+            if os.path.basename(name) == filename:
+                if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
+                    if not force:
+                        return UploadStatus.FILE_IN_USE
+                    await self.stop()
+                    stopped = True
+                filename = name
+                break
+        else:
+            filename = os.path.normpath(os.path.join(await self.get_missions_dir(), filename))
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
