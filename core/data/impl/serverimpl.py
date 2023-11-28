@@ -217,7 +217,7 @@ class ServerImpl(Server):
                     filename = None
         else:
             filename = self.current_mission.filename
-        return os.path.normpath(filename)
+        return os.path.normpath(filename) if filename else None
 
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()
