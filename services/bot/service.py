@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import aiofiles
 import aiohttp
+import asyncio
 import discord
 import os
 import shutil
@@ -51,6 +52,8 @@ class BotService(Service):
 
     async def start(self, *, reconnect: bool = True) -> None:
         try:
+            while not ServiceRegistry.get("ServiceBus"):
+                await asyncio.sleep(1)
             self.bot = self.init_bot()
             await self.install_fonts()
             await super().start()
