@@ -437,7 +437,7 @@ class ServiceBus(Service):
                     "command": "rpc",
                     "method": data['method'],
                     "channel": data['channel'],
-                    "return": rc or ''
+                    "return": rc if rc is not None else ''
                 }, node=data.get('node'))
         except Exception as ex:
             self.log.exception(ex)
