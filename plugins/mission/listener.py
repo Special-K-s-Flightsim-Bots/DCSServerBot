@@ -106,7 +106,7 @@ class MissionEventListener(EventListener):
 
     @tasks.loop(seconds=5, reconnect=True)
     async def update_player_embed(self):
-        for server_name, update in self.player_embeds.items():
+        for server_name, update in self.player_embeds.copy().items():
             if update:
                 try:
                     server = self.bot.servers.get(server_name)
@@ -121,7 +121,7 @@ class MissionEventListener(EventListener):
 
     @tasks.loop(seconds=5, reconnect=True)
     async def update_mission_embed(self):
-        for server_name, update in self.mission_embeds.items():
+        for server_name, update in self.mission_embeds.copy().items():
             if update:
                 try:
                     server = self.bot.servers.get(server_name)

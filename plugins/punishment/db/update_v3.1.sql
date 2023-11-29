@@ -1,0 +1,1 @@
+ALTER TABLE pu_events ALTER COLUMN time SET DEFAULT (now() AT TIME ZONE 'utc');

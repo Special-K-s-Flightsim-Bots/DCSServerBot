@@ -38,3 +38,8 @@ function dcsbot.setCoalitionPassword(json)
     end
     utils.saveSettings(settings)
 end
+
+function dcsbot.reloadScripts(json)
+    log.write('DCSServerBot', log.DEBUG, 'Scheduler: reloadScripts()')
+    DCS.reloadUserScripts()
+end

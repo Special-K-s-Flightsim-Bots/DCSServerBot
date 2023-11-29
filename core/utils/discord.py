@@ -504,7 +504,7 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
 def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
     members: list[discord.Member] = []
     with bot.pool.connection() as conn:
-        for row in conn.execute("SELECT discord_id FROM players WHERE discord_id <> -1"):
+        for row in conn.execute("SELECT DISTINCT discord_id FROM players WHERE discord_id <> -1"):
             member = bot.guilds[0].get_member(row[0])
             if member:
                 members.append(member)

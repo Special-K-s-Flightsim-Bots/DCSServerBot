@@ -188,12 +188,14 @@ class CloudHandler(Plugin):
             for ban in await self.get('bans'):
                 if ban['ucid'] not in bans:
                     self.bus.ban(ucid=ban['ucid'], reason='DGSA: ' + ban['reason'], banned_by=self.plugin_name)
-                bans.remove(ban['ucid'])
+                else:
+                    bans.remove(ban['ucid'])
             # we might need to unban someone that is no longer on the list
             for unban in bans:
                 self.bus.unban(unban)
         if self.config.get('discord-ban', False):
-            users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in await self.get('discord-bans')]
+            bans: dict = await self.get('discord-bans')
+            users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
             guild = self.bot.guilds[0]
             guild_bans = [entry async for entry in guild.bans()]
             banned_users = [x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')]

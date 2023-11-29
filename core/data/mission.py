@@ -1,9 +1,13 @@
 from __future__ import annotations
+
 import asyncio
+import os
+
 from core.data.dataobject import DataObject, DataObjectFactory
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Union, TYPE_CHECKING
+
 from .. import Status, utils
 
 if TYPE_CHECKING:
@@ -67,7 +71,7 @@ class Mission(DataObject):
         if 'real_time' in data:
             self.real_time = data['real_time']
         if 'filename' in data:
-            self.filename = data['filename']
+            self.filename = os.path.normpath(data['filename'])
         if 'num_slots_blue' in data:
             self.num_slots_blue = data['num_slots_blue']
         if 'num_slots_red' in data:

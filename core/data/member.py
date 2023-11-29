@@ -15,7 +15,7 @@ __all__ = ["Member"]
 @DataObjectFactory.register("Member")
 class Member(DataObject):
     member: discord.Member
-    ucid: Optional[str] = field(default=None, init=False)
+    _ucid: Optional[str] = field(default=None, init=False)
     banned: bool = field(default=False, init=False)
     _verified: bool = field(default=False, init=False)
 
@@ -30,31 +30,42 @@ class Member(DataObject):
                 ORDER BY manual DESC LIMIT 1
             """, (self.member.id, )).fetchone()
             if row:
-                self.ucid = row[0] if row[0] and utils.is_ucid(row[0]) else None
+                self._ucid = row[0] if row[0] and utils.is_ucid(row[0]) else None
                 self.banned = row[1] is True
                 self._verified = row[2]
 
     @property
-    def verified(self):
+    def ucid(self) -> str:
+        return self._ucid
+
+    @ucid.setter
+    def ucid(self, ucid: str):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET ucid = %s WHERE ucid = %s', (ucid, self._ucid))
+        self._ucid = ucid
+
+    @property
+    def verified(self) -> bool:
         return self._verified
 
     @verified.setter
     def verified(self, flag: bool):
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (flag, self.ucid))
+                conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (flag, self._ucid))
         self._verified = flag
 
     def link(self, ucid: str, verified: bool = True):
         self._verified = verified
-        self.ucid = ucid
+        self._ucid = ucid
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
                              (self.member.id, verified, ucid))
 
     def unlink(self, ucid):
-        self.ucid = None
+        self._ucid = None
         self._verified = False
         with self.pool.connection() as conn:
             with conn.transaction():

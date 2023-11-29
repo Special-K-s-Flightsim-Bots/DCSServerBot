@@ -21,7 +21,9 @@ class Main:
 
     async def run(self):
         if self.node.locals.get('autoupdate', False):
-            await self.node.upgrade()
+            if await self.node.upgrade() == 1:
+                self.log.warning('- Restart needed => exiting.')
+                self.node.shutdown()
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:

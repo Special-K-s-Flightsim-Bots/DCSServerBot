@@ -108,13 +108,16 @@ class Punishment(Plugin):
                 with conn.transaction():
                     with closing(conn.cursor(row_factory=dict_row)) as cursor:
                         for server_name, server in self.bot.servers.items():
-                            for row in cursor.execute('SELECT * FROM pu_events_sdw WHERE server_name = %s',
-                                                      (server_name, )).fetchall():
+                            config = self.get_config(server)
+                            # we are not initialized correctly yet
+                            if not config:
+                                continue
+                            for row in cursor.execute("""
+                                SELECT * FROM pu_events_sdw 
+                                WHERE server_name = %s
+                                AND time >= (timezone('utc', now()) - interval '%s seconds')
+                            """, (server_name, config.get('forgive', 30))).fetchall():
                                 try:
-                                    config = self.get_config(server)
-                                    # we are not initialized correctly yet
-                                    if not config:
-                                        continue
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:
                                             if row['points'] < punishment['points']:
@@ -140,7 +143,7 @@ class Punishment(Plugin):
         while 'CreditSystem' not in self.bot.cogs:
             await asyncio.sleep(1)
 
-    @tasks.loop(hours=12.0)
+    @tasks.loop(hours=1.0)
     async def decay(self):
         if self.decay_config:
             self.log.debug('Punishment - Running decay ...')
@@ -149,7 +152,7 @@ class Punishment(Plugin):
                     for d in self.decay_config:
                         conn.execute("""
                             UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
-                            WHERE time < (NOW() - interval '%s days') AND decay_run < %s
+                            WHERE time < (timezone('utc', now()) - interval '%s days') AND decay_run < %s
                         """, (d['weight'], d['days'], d['days'], d['days']))
                         conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 

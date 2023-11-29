@@ -8,6 +8,7 @@ import os
 import shutil
 import ssl
 
+from contextlib import suppress
 from core.const import SAVED_GAMES
 from core.utils.helper import alternate_parse_settings
 from typing import Optional, Tuple
@@ -72,7 +73,9 @@ def desanitize(self, _filename: str = None) -> None:
         if _filename:
             self.log.error('SLmod is installed, it will overwrite your custom MissionScripting.lua again!')
         self.log.info('- Sanitizing MissionScripting')
-        shutil.copyfile(filename, backup)
+        # don't fail, if no backup could be created (for whatever reason)
+        with suppress(Exception):
+            shutil.copyfile(filename, backup)
         shutil.copyfile('./config/MissionScripting.lua', filename)
         return
     try:

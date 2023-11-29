@@ -148,7 +148,7 @@ class PunishmentEventListener(EventListener):
                             x[0] for x in cursor.execute("""
                                 SELECT DISTINCT init_id 
                                 FROM pu_events 
-                                WHERE target_id = %s AND time >= (timezone('utc', now())  - interval '%s seconds')
+                                WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
                             """, (target.ucid, config['forgive'])).fetchall()
                         ]
                         # there were no events, so forgive would not do anything
