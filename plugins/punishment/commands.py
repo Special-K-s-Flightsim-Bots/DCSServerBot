@@ -143,7 +143,7 @@ class Punishment(Plugin):
         while 'CreditSystem' not in self.bot.cogs:
             await asyncio.sleep(1)
 
-    @tasks.loop(hours=12.0)
+    @tasks.loop(hours=1.0)
     async def decay(self):
         if self.decay_config:
             self.log.debug('Punishment - Running decay ...')
@@ -152,7 +152,7 @@ class Punishment(Plugin):
                     for d in self.decay_config:
                         conn.execute("""
                             UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
-                            WHERE time < (NOW() - interval '%s days') AND decay_run < %s
+                            WHERE time < (timezone('utc', now()) - interval '%s days') AND decay_run < %s
                         """, (d['weight'], d['days'], d['days'], d['days']))
                         conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
