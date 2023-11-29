@@ -30,7 +30,7 @@ class Member(DataObject):
                 ORDER BY manual DESC LIMIT 1
             """, (self.member.id, )).fetchone()
             if row:
-                _id = row[0] if row[0] and utils.is_ucid(row[0]) else None
+                self._ucid = row[0] if row[0] and utils.is_ucid(row[0]) else None
                 self.banned = row[1] is True
                 self._verified = row[2]
 
