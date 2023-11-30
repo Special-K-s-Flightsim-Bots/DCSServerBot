@@ -78,15 +78,16 @@ class NodeImpl(Node):
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
-        self.plugins: list[str] = [
+        self.plugins: list[str] = self.config.get('plugins', [
             "mission", "scheduler", "help", "admin", "userstats", "missionstats", "creditsystem", "gamemaster", "cloud"
-        ]
+        ])
         for plugin in self.config.get('opt_plugins', []):
             if plugin not in self.plugins:
                 self.plugins.append(plugin)
         # make sure, cloud is loaded last
-        self.plugins.remove('cloud')
-        self.plugins.append('cloud')
+        if 'cloud' in self.plugins:
+            self.plugins.remove('cloud')
+            self.plugins.append('cloud')
         self.db_version = None
         self.locals: dict = {}
         self.pool = self.init_db()
