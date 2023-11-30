@@ -49,31 +49,14 @@ class SchedulerListener(EventListener):
         if 'restart' in what['command']:
             if server.status == Status.SHUTDOWN:
                 await self.plugin.launch_dcs(server, config)
-            elif server.status == Status.STOPPED:
-                await server.apply_mission_changes()
-                await server.start()
-                message = 'started DCS server'
-                if 'user' not in what:
-                    message = self.plugin_name.title() + ' ' + message
-                await self.bot.audit(message, server=server, user=what.get('user'))
-            elif server.status in [Status.RUNNING, Status.PAUSED]:
-                if not server.node.config.get('mission_rewrite', True):
-                    await server.stop()
-                await server.restart(smooth=await server.apply_mission_changes())
-                if not server.node.config.get('mission_rewrite', True):
-                    await server.start()
+            else:
+                await server.restart()
                 message = f'restarted mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what.get('user'))
         elif what['command'] == 'rotate':
             await server.loadNextMission()
-            if not server.node.config.get('mission_rewrite', True):
-                await server.stop()
-            if await server.apply_mission_changes():
-                await server.restart(smooth=True)
-            if not server.node.config.get('mission_rewrite', True):
-                await server.start()
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif what['command'] == 'load':

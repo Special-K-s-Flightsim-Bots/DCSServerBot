@@ -131,28 +131,45 @@ class Mission(Plugin):
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False):
+        await self._restart(interaction, server, delay, reason, run_extensions, rotate=False)
+
+    @mission.command(description='Rotates the current active mission\n')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def rotate(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(
+                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
+                     delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False):
+        await self._restart(interaction, server, delay, reason, run_extensions, rotate=True)
+
+    async def _restart(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
+                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False,
+                       rotate: Optional[bool] = False):
+        what = "restart" if not rotate else "rotate"
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
                 f"Can't restart server {server.name} as it is {server.status.name}!", ephemeral=True)
             return
         if server.restart_pending and not await utils.yn_question(interaction,
-                                                                  'A restart is currently pending.\n'
-                                                                  'Would you still like to restart the mission?',
+                                                                  f'A restart is currently pending.\n'
+                                                                  f'Would you still like to {what} the mission?',
                                                                   ephemeral=ephemeral):
             return
         else:
             server.on_empty = dict()
         if server.is_populated():
-            result = await utils.populated_question(interaction, "Do you really want to restart the mission?",
+            result = await utils.populated_question(interaction, f"Do you really want to {what} the mission?",
                                                     ephemeral=ephemeral)
             if not result:
                 await interaction.followup.send('Aborted.', ephemeral=ephemeral)
                 return
             elif result == 'later':
-                server.on_empty = {"command": "restart", "user": interaction.user}
+                server.on_empty = {"command": what, "user": interaction.user}
                 server.restart_pending = True
-                await interaction.followup.send('Restart postponed when server is empty.', ephemeral=ephemeral)
+                await interaction.followup.send(f'{what.title()} postponed when server is empty.', ephemeral=ephemeral)
                 return
 
         server.restart_pending = True
@@ -160,29 +177,28 @@ class Mission(Plugin):
             await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated():
             if delay > 0:
-                message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
+                message = f"!!! Mission will be {what.replace('e', '')}ed in {utils.format_time(delay)}!!!"
             else:
-                message = '!!! Server will be restarted NOW !!!'
+                message = f"!!! Mission will be {what.replace('e', '')}ed NOW !!!"
             # have we got a message to present to the users?
             if reason:
                 message += f' Reason: {reason}'
 
             msg = await interaction.followup.send(
-                f'Restarting mission in {utils.format_time(delay)} (warning users before)...', ephemeral=ephemeral)
+                f'{what.title()}ing mission in {utils.format_time(delay)} (warning users before)...',
+                ephemeral=ephemeral)
             server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
             await asyncio.sleep(delay)
             await msg.delete()
 
-        msg = await interaction.followup.send('Mission will restart now, please wait ...', ephemeral=ephemeral)
-        if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
-            await server.stop()
-        if run_extensions:
-            await server.restart(smooth=await server.apply_mission_changes())
+        msg = await interaction.followup.send(f'Mission will {what} now, please wait ...', ephemeral=ephemeral)
+        if rotate:
+            await server.loadNextMission(modify_mission=run_extensions)
         else:
-            await server.restart()
-        await self.bot.audit("restarted mission", server=server, user=interaction.user)
+            await server.restart(modify_mission=run_extensions)
+        await self.bot.audit(f"{what.replace('e', '')}ed mission", server=server, user=interaction.user)
         await msg.delete()
-        await interaction.followup.send('Mission restarted.', ephemeral=ephemeral)
+        await interaction.followup.send(f"Mission {what.replace('e', '')}ed.", ephemeral=ephemeral)
 
     @mission.command(description='(Re-)Loads a mission from the list\n')
     @app_commands.guild_only()
@@ -225,12 +241,7 @@ class Mission(Plugin):
                 await interaction.followup.send(f'Mission {server.current_mission.display_name} will be restarted '
                                                 f'when server is empty.', ephemeral=ephemeral)
             else:
-                if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
-                    await server.stop()
-                if run_extensions:
-                    await server.restart(smooth=await server.apply_mission_changes())
-                else:
-                    await server.restart()
+                await server.restart(modify_mission=run_extensions)
                 await interaction.followup.send(f'Mission {server.current_mission.display_name} restarted.',
                                                 ephemeral=ephemeral)
         else:
@@ -245,15 +256,7 @@ class Mission(Plugin):
                 tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
                                                       ephemeral=ephemeral)
                 try:
-                    startup = False
-                    await server.loadMission(mission_id + 1)
-                    if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
-                        await server.stop()
-                        startup = True
-                    if run_extensions:
-                        await server.restart(smooth=await server.apply_mission_changes())
-                    if startup:
-                        await server.start()
+                    await server.loadMission(mission_id + 1, modify_mission=run_extensions)
                     await self.bot.audit("loaded mission", server=server, user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
                 except asyncio.TimeoutError:
