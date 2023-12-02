@@ -35,14 +35,11 @@ class PretenseStats(Plugin):
                     config.get('json_file_path',
                                os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json"))
                 )
-                if not json_file_path or not os.path.exists(json_file_path):
-                    self.log.debug(f'update_leaderboard(): File {json_file_path} not found!')
+                if not os.path.exists(json_file_path):
                     continue
                 # only update, if the pretense file has been updated
                 mtime = os.path.getmtime(json_file_path)
-                if not self.last_mtime.get(server.name):
-                    self.last_mtime[server.name] = mtime
-                elif self.last_mtime[server.name] <= mtime:
+                if self.last_mtime.get(server.name, 0) == mtime:
                     continue
                 self.last_mtime[server.name] = mtime
                 with open(json_file_path, 'r', encoding='utf8') as json_file:
