@@ -43,6 +43,6 @@ class ScriptModal(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         self.server.send_to_dcs({
             "command": "do_script",
-            "script": ' '.join(self.script.value)
+            "script": self.script.value
         })
         await interaction.response.send_message('Script sent.', ephemeral=self.ephemeral)
