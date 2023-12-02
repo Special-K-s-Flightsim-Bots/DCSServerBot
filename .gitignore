@@ -10,6 +10,7 @@ config/services/*.yaml
 config/backup/*
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
+.stignore
 /venv/
 /.idea/
 /test/
