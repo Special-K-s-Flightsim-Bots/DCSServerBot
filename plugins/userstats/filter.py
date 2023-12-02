@@ -77,7 +77,9 @@ class CampaignFilter(StatisticsFilter):
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period and (period.startswith('campaign:') or period.casefold() in utils.get_all_campaigns(bot))
+        return period and (period.startswith('campaign:') or period.casefold() in [
+            x.casefold() for x in utils.get_all_campaigns(bot)
+        ])
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:

@@ -10,7 +10,7 @@ if sys.platform == 'win32':
 
 from datetime import datetime, timezone
 from discord.ext import tasks
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from core import Status, utils, Server, ServerImpl, Autoexec
 from core.services.base import Service
@@ -70,7 +70,9 @@ class MonitoringService(Service):
             await self.bus.register_remote_node(node)
 
     @staticmethod
-    async def check_affinity(server: Server, affinity: list[int]):
+    async def check_affinity(server: Server, affinity: Union[list[int], str]):
+        if isinstance(affinity, str):
+            affinity = [int(x.strip()) for x in affinity.split(',')]
         if not server.process:
             for exe in ['DCS_server.exe', 'DCS.exe']:
                 server.process = utils.find_process(exe, server.instance.name)

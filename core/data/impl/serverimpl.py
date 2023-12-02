@@ -391,15 +391,16 @@ class ServerImpl(Server):
             self.process.kill()
         self.process = None
 
-    async def apply_mission_changes(self) -> bool:
+    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         # disable autoscan
         autoscan = self.locals.get('autoscan', False)
         if autoscan:
             self.locals['autoscan'] = False
-        filename = await self.get_current_mission_file()
         if not filename:
-            self.log.warning("No mission found. Is your mission list empty?")
-            return False
+            filename = await self.get_current_mission_file()
+            if not filename:
+                self.log.warning("No mission found. Is your mission list empty?")
+                return filename
         new_filename = filename
         try:
             # process all mission modifications
@@ -411,7 +412,7 @@ class ServerImpl(Server):
                 dirty |= _dirty
             # we did not change anything in the mission
             if not dirty:
-                return False
+                return filename
             # make a backup
             if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
                 shutil.copy2(filename, filename + '.orig')
@@ -420,7 +421,7 @@ class ServerImpl(Server):
                 missions: list[str] = self.settings['missionList']
                 index = missions.index(filename) + 1
                 await self.replaceMission(index, new_filename)
-            return True
+            return new_filename
         except Exception as ex:
             if isinstance(ex, UnsupportedMizFileException):
                 self.log.error(
@@ -429,6 +430,7 @@ class ServerImpl(Server):
                 self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
+            return filename
         finally:
             # enable autoscan
             if autoscan:

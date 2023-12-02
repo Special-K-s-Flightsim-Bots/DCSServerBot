@@ -290,27 +290,9 @@ class Server(DataObject):
             self.send_to_dcs({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
-    async def restart(self, smooth: bool = False) -> None:
-        if smooth:
-            # counter the problem that DCS might overwrite the list again, if the name of the mission changed
-            await self.loadMission(self.settings['missionList'][int(self.settings['listStartIndex']) - 1])
-        elif self.current_mission:
-            await self.current_mission.restart()
-        else:
-            if self.status != Status.STOPPED:
-                await self.stop()
-            await self.start()
-
-    async def _load(self, message):
-        stopped = self.status == Status.STOPPED
-        self.send_to_dcs(message)
-        if not stopped:
-            # wait for a status change (STOPPED or LOADING)
-            await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
-        else:
-            self.send_to_dcs({"command": "start_server"})
-        # wait until we are running again
-        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
+    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+        await self.loadMission(self.settings['missionList'][int(self.settings['listStartIndex']) - 1],
+                               modify_mission=modify_mission)
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
@@ -336,21 +318,37 @@ class Server(DataObject):
             del missions[mission_id - 1]
             self.settings['missionList'] = missions
 
-    async def replaceMission(self, index: int, path: str) -> None:
+    async def replaceMission(self, mission_id: int, path: str) -> None:
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            await self.send_to_dcs_sync({"command": "replaceMission", "index": index, "path": path})
+            await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
         else:
             missions: list[str] = self.settings['missionList']
-            missions[index - 1] = path
+            missions[mission_id - 1] = path
 
-    async def loadMission(self, mission: Union[int, str]) -> None:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
         if isinstance(mission, int):
-            await self._load({"command": "startMission", "id": mission})
+            if mission > len(self.settings['missionList']):
+                mission = 1
+            filename = self.settings['missionList'][mission - 1]
         else:
-            await self._load({"command": "startMission", "filename": mission})
+            filename = mission
+        if modify_mission:
+            filename = await self.apply_mission_changes(filename)
+        stopped = self.status == Status.STOPPED
+        try:
+            self.send_to_dcs({"command": "startMission", "id": self.settings['missionList'].index(filename) + 1})
+        except ValueError:
+            self.send_to_dcs({"command": "startMission", "filename": filename})
+        if not stopped:
+            # wait for a status change (STOPPED or LOADING)
+            await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
+        else:
+            self.send_to_dcs({"command": "start_server"})
+        # wait until we are running again
+        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
 
-    async def loadNextMission(self) -> None:
-        await self._load({"command": "startNextMission"})
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
@@ -361,7 +359,7 @@ class Server(DataObject):
     async def listAvailableMissions(self) -> list[str]:
         raise NotImplemented()
 
-    async def apply_mission_changes(self) -> bool:
+    async def apply_mission_changes(self, filename: Optional[str] = None) -> bool:
         raise NotImplemented()
 
     @property

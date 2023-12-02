@@ -6,7 +6,7 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
-from discord import app_commands
+from discord import app_commands, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.utils import MISSING
@@ -242,11 +242,45 @@ class UserStatistics(Plugin):
                 player.member = None
                 player.verified = False
 
+    @command(description='Find a player by name')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def find(self, interaction: discord.Interaction, name: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        with self.pool.connection() as conn:
+            rows = conn.execute("""
+                SELECT distinct ucid, name, max(last_seen) FROM (
+                    SELECT ucid, name, last_seen FROM players
+                    UNION
+                    SELECT distinct ucid, name, time AS last_seen FROM players_hist
+                ) x
+                WHERE x.name ILIKE %s
+                GROUP BY ucid, name
+                LIMIT 10
+            """, ('%' + name + '%', )).fetchall()
+            options = [
+                SelectOption(label=f"{row[1]} (last seen: {row[2]:%Y-%m-%d %H:%M})"[:100], value=str(idx))
+                for idx, row in enumerate(rows)
+            ]
+            if not options:
+                await interaction.response.send_message("No user found.")
+                return
+            await interaction.response.defer(ephemeral=ephemeral)
+            idx = await utils.selection(interaction, placeholder="Select a User", options=options, ephemeral=ephemeral)
+            if idx:
+                await self._info(interaction, rows[int(idx)][0])
+
     @command(description='Shows player information')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+        await self._info(interaction, member)
+
+    async def _info(self, interaction: discord.Interaction, member: Union[discord.Member, str]):
+        ephemeral = utils.get_ephemeral(interaction)
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(member, str):
             ucid = member
             member = self.bot.get_member_by_ucid(ucid)
@@ -263,11 +297,11 @@ class UserStatistics(Plugin):
 
         view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
         embed = await view.render()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:
             await view.wait()
         finally:
-            await interaction.delete_original_response()
+            await msg.delete()
 
     @staticmethod
     def format_unmatched(data, marker, marker_emoji):
