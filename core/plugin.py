@@ -361,7 +361,7 @@ class Plugin(commands.Cog):
                     # we only overwrite the default on the master
                     all_new[DEFAULT_TAG] = config
             if 'commands' in old:
-                new['commands'] = old['commands']
+                all_new['commands'] = old['commands']
             if not all_new[platform.node()]:
                 del all_new[platform.node()]
         else:
