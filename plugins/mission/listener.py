@@ -580,12 +580,14 @@ class MissionEventListener(EventListener):
     async def preset(self, server: Server, player: Player, params: list[str]):
         async def change_preset(preset: str):
             filename = await server.get_current_mission_file()
+            if not server.node.config.get('mission_rewrite', True):
+                await server.stop()
             new_filename = await server.modifyMission(filename, [preset])
-            missions = server.settings['missionList']
-            if filename in missions:
-                await server.deleteMission(missions.index(filename) + 1)
-            await server.addMission(new_filename, autostart=True)
-            await server.restart(smooth=True)
+            if new_filename != filename:
+                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+            await server.restart(modify_mission=False)
+            if server.status == Status.STOPPED:
+                await server.start()
             await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
 
         config = self.plugin.get_config(server)

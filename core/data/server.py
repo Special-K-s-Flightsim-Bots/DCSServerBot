@@ -291,8 +291,7 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
     async def restart(self, modify_mission: Optional[bool] = True) -> None:
-        await self.loadMission(self.settings['missionList'][int(self.settings['listStartIndex']) - 1],
-                               modify_mission=modify_mission)
+        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
@@ -336,7 +335,11 @@ class Server(DataObject):
             filename = await self.apply_mission_changes(filename)
         stopped = self.status == Status.STOPPED
         try:
-            self.send_to_dcs({"command": "startMission", "id": self.settings['missionList'].index(filename) + 1})
+            idx = self.settings['missionList'].index(filename) + 1
+            if idx == int(self.settings['listStartIndex']):
+                self.send_to_dcs({"command": "startMission", "filename": filename})
+            else:
+                self.send_to_dcs({"command": "startMission", "id": idx})
         except ValueError:
             self.send_to_dcs({"command": "startMission", "filename": filename})
         if not stopped:

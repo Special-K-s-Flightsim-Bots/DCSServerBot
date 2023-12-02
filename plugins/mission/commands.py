@@ -409,12 +409,11 @@ class Mission(Plugin):
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
-                missions = server.settings['missionList']
-                await server.replaceMission(missions.index(filename) + 1, new_filename)
+                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
             else:
                 self.log.info(f"  => Mission {filename} overwritten.")
             if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await server.restart(smooth=True)
+                await server.restart(modify_mission=False)
                 message += '\nMission reloaded.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)
             await msg.delete()
