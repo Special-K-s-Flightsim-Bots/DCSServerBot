@@ -104,25 +104,25 @@ class GameMaster(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                        name: str, value: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         if value is not None:
             server.send_to_dcs({
                 "command": "setVariable",
                 "name": name,
                 "value": value
             })
-            await interaction.response.send_message(f"Variable {name} set to {value}.", ephemeral=ephemeral)
+            await interaction.followup.send(f"Variable {name} set to {value}.", ephemeral=ephemeral)
         else:
             try:
                 data = await server.send_to_dcs_sync({"command": "getVariable", "name": name})
-            except asyncio.TimeoutError:
-                await interaction.response.send_message('Timeout while retrieving variable. Most likely a lua error '
-                                                        'occurred. Check your dcs.log.', ephemeral=True)
+            except TimeoutError:
+                await interaction.followup.send('Timeout while retrieving variable. Most likely a lua error occurred. '
+                                                'Check your dcs.log.', ephemeral=True)
                 return
             if 'value' in data:
-                await interaction.response.send_message(f"Variable {name} has value {data['value']}.",
-                                                        ephemeral=ephemeral)
+                await interaction.followup.send(f"Variable {name} has value {data['value']}.", ephemeral=ephemeral)
             else:
-                await interaction.response.send_message(f"Variable {name} is not set.", ephemeral=ephemeral)
+                await interaction.followup.send(f"Variable {name} is not set.", ephemeral=ephemeral)
 
     @command(description='Calls any function inside the mission')
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])

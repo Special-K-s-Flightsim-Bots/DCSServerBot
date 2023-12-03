@@ -476,10 +476,13 @@ class DCSServerBot(commands.Bot):
                         best_fit = row[0]
                 return best_fit
 
-    def get_server(self, ctx: Union[discord.Interaction, discord.Message, str]) \
-            -> Optional[Server]:
-        if int(self.locals.get('admin_channel', 0)) == ctx.channel.id and len(self.servers) == 1:
-            return list(self.servers.values())[0]
+    def get_server(self, ctx: Union[discord.Interaction, discord.Message, str], *,
+                   admin_only: Optional[bool] = False) -> Optional[Server]:
+        if len(self.servers) == 1:
+            if admin_only and int(self.locals.get('admin_channel', 0)) == ctx.channel.id:
+                return list(self.servers.values())[0]
+            elif not admin_only:
+                return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
             if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
                     or isinstance(ctx, discord.Message):

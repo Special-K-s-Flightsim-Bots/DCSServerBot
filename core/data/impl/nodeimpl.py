@@ -7,6 +7,7 @@ import logging
 import os
 import platform
 import psycopg
+import re
 import shutil
 import ssl
 import subprocess
@@ -208,6 +209,14 @@ class NodeImpl(Node):
         return log
 
     def init_db(self):
+        self.log.info(f"- Connecting to PostgreSQL-database ...")
+        try:
+            with psycopg.Connection.connect(conninfo=self.config['database']['url']):
+                self.log.info("  => Connection established.")
+        except psycopg.Error:
+            self.log.warning("  => Falling back to local DB connection.")
+            self.config['database']['url'] = re.sub('@.*:', '@localhost:', self.config['database']['url'])
+
         db_pool = ConnectionPool(self.config['database']['url'],
                                  min_size=self.config['database']['pool_min'],
                                  max_size=self.config['database']['pool_max'])

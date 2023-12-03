@@ -521,7 +521,7 @@ Please make sure you forward the following ports:
         if not utils.check_roles(self.bot.roles['Admin'], message.author):
             return
         # check if the upload happens in the servers admin channel (if provided)
-        server: Server = self.bot.get_server(message)
+        server: Server = self.bot.get_server(message, admin_only=True)
         ctx = await self.bot.get_context(message)
         if not server:
             # check if there is a central admin channel configured
