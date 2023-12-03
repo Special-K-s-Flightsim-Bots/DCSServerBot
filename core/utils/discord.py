@@ -551,6 +551,8 @@ class NodeTransformer(app_commands.Transformer):
             return interaction.client.node
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+        if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+            return []
         all_nodes = [interaction.client.node.name]
         all_nodes.extend(interaction.client.node.get_active_nodes())
         return [
@@ -578,6 +580,8 @@ class InstanceTransformer(app_commands.Transformer):
             return None
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+        if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+            return []
         node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
         if not node:
             return []
@@ -619,6 +623,8 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
     try:
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         if not server:
@@ -634,6 +640,8 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
     try:
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         if not server:
@@ -650,6 +658,8 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
     return [
         app_commands.Choice(name=x, value=x.lower())
         for x in interaction.client.cogs
@@ -658,6 +668,8 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
     try:
         node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, "node"))
         userid = node.locals['DCS'].get('dcs_user')
@@ -673,6 +685,8 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
     try:
         node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, "node"))
         available_modules = await node.get_installed_modules()
@@ -759,6 +773,8 @@ class PlayerTransformer(app_commands.Transformer):
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
+        if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+            return []
         try:
             if self.active:
                 server: Server = interaction.client.get_server(interaction)
