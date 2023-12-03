@@ -376,11 +376,6 @@ class ServerImpl(Server):
             if not force:
                 await super().shutdown(False)
             self.terminate()
-            for ext in [x for x in self.extensions.values() if x.is_running()]:
-                try:
-                    await ext.shutdown()
-                except Exception as ex:
-                    self.log.exception(ex)
         self.status = Status.SHUTDOWN
 
     def is_running(self) -> bool:
