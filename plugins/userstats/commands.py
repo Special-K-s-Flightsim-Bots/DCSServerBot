@@ -126,9 +126,8 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.describe(user='Name of player, member or UCID')
     @app_commands.describe(period='day, month, year, month:may, campaign:name, mission:name')
-    async def statistics(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
-                         period: Optional[str]):
+    async def statistics(self, interaction: discord.Interaction, period: Optional[str],
+                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
             await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)

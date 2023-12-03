@@ -5,7 +5,7 @@ import discord
 import os
 import re
 
-from core import Status
+from core import Status, utils
 from datetime import datetime
 from discord import app_commands, Interaction, SelectOption
 from discord.app_commands import Choice, TransformerError
@@ -596,6 +596,8 @@ class InstanceTransformer(app_commands.Transformer):
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
     choices: list[app_commands.Choice[int]] = [
         app_commands.Choice(name=x['name'] or x['ucid'], value=x['ucid'])
         for x in interaction.client.bus.bans()
@@ -728,6 +730,8 @@ class UserTransformer(app_commands.Transformer):
             return interaction.user
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
+        if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+            return []
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([

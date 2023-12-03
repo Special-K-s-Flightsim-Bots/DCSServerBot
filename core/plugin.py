@@ -271,6 +271,7 @@ class Plugin(commands.Cog):
                             cmd.add_check(utils.cmd_has_roles(params['roles'].copy()).predicate)
                     if cmd.parent:
                         cmd.parent.add_command(cmd)
+                    break
 
     async def install(self) -> bool:
         if self._init_db():
