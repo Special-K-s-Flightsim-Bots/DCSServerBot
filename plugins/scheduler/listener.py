@@ -128,6 +128,13 @@ class SchedulerListener(EventListener):
         if config and 'onMissionEnd' in config:
             await self.run(server, config['onMissionEnd'])
 
+    @event(name="onSimulationStop")
+    async def onSimulationStop(self, server: Server, data: dict) -> None:
+        try:
+            await server.shutdown_extensions()
+        except TimeoutError:
+            self.log.error(f"Timeout while shutting down extensions for server {server.name}!")
+
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
