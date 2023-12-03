@@ -339,10 +339,7 @@ class ServerImpl(Server):
                     self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
                 )
                 if ext.is_installed():
-                    self.log.debug(f"### Extension {ext.name} installed.")
                     self.extensions[extension] = ext
-                else:
-                    self.log.debug(f"### Extension {ext.name} NOT installed.")
 
     async def startup(self) -> None:
         await self.init_extensions()

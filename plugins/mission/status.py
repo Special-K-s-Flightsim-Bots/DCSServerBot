@@ -116,12 +116,10 @@ class ExtensionsInfo(report.EmbedElement):
         await report.Ruler(self.env).render()
         footer = self.embed.footer.text or ''
         for ext in extensions:
-            self.log.debug(f"### Adding extension: {ext['name']}")
             self.embed.add_field(name=ext['name'], value=ext['value'])
             footer += ', ' + ext['name']
             if ext.get('version'):
                 footer += ' v' + ext['version']
-        self.log.debug(f"### Number of fields: {len(self.embed.fields)}")
         self.embed.set_footer(text=footer)
 
 
