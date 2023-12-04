@@ -32,6 +32,8 @@ class Tacview(Extension):
 
     async def shutdown(self) -> bool:
         if self.config.get('target'):
+            # give it 10 seconds to send the tacview log
+            await asyncio.sleep(10)
             self.check_log.cancel()
         return await super().shutdown()
 
