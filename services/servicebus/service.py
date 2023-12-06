@@ -334,7 +334,8 @@ class ServiceBus(Service):
 
     def is_banned(self, ucid: str) -> Optional[dict]:
         with self.pool.connection() as conn:
-            return conn.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return cursor.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str, channels: dict):
