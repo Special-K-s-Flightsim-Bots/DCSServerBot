@@ -115,7 +115,7 @@ class Punishment(Plugin):
                             for row in cursor.execute("""
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
-                                AND time <= (timezone('utc', now()) - interval '%s seconds')
+                                AND time < (timezone('utc', now()) - interval '%s seconds')
                             """, (server_name, config.get('forgive', 30))).fetchall():
                                 try:
                                     if 'punishments' in config:

@@ -142,12 +142,15 @@ class ServerProxy(Server):
         }, timeout=60, node=self.node.name)
         return data['return']
 
-    async def apply_mission_changes(self) -> bool:
+    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "apply_mission_changes",
-            "server_name": self.name
+            "server_name": self.name,
+            "params": {
+                "filename": filename or ""
+            }
         }, timeout=120, node=self.node.name)
         return data['return']
 

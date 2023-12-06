@@ -151,6 +151,21 @@ class ServerImpl(Server):
             super().set_status(status)
 
     def _install_luas(self):
+        def rmtree(top):
+            import stat
+            for root, dirs, files in os.walk(top, topdown=False):
+                for name in files:
+                    filename = os.path.join(root, name)
+                    os.chmod(filename, stat.S_IWUSR)
+                    os.remove(filename)
+                for name in dirs:
+                    dirname = os.path.join(root, name)
+                    os.chmod(dirname, stat.S_IWUSR)
+                    os.rmdir(dirname)
+            os.chmod(top, stat.S_IWUSR)
+            os.rmdir(top)
+
+        # Example from pathutils.py
         dcs_path = os.path.join(self.instance.home, 'Scripts')
         if not os.path.exists(dcs_path):
             os.mkdir(dcs_path)
@@ -158,7 +173,7 @@ class ServerImpl(Server):
         bot_home = os.path.join(dcs_path, 'net', 'DCSServerBot')
         if os.path.exists(bot_home):
             self.log.debug('  - Updating Hooks ...')
-            shutil.rmtree(bot_home)
+            rmtree(bot_home)
             ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
         else:
             self.log.debug('  - Installing Hooks ...')
@@ -547,6 +562,6 @@ class ServerImpl(Server):
     async def render_extensions(self) -> list[dict]:
         ret: list[dict] = []
         for ext in self.extensions.values():
-            with suppress(Exception):
+            with suppress(NotImplementedError):
                 ret.append(await ext.render())
         return ret

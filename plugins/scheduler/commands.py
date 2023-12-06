@@ -118,8 +118,9 @@ class Scheduler(Plugin):
                 restart_in -= 1
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
+        await server.stop()
         self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
         await server.shutdown()
         if not member:
             self.log.info(

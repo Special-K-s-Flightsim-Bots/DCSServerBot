@@ -152,7 +152,7 @@ class Music(Plugin):
         # ignore bot messages or messages that do not contain music attachments
         if message.author.bot or not message.attachments:
             return
-        # only DCS Admin role is allowed to upload missions in the servers admin channel
+        # only DCS Admin role is allowed to upload music in the servers admin channel
         if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
             return
         delete = True

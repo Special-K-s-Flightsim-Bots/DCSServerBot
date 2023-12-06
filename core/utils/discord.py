@@ -604,9 +604,9 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
     if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
         return []
     choices: list[app_commands.Choice[int]] = [
-        app_commands.Choice(name=x['name'] or x['ucid'], value=x['ucid'])
+        app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
         for x in interaction.client.bus.bans()
-        if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['ucid'].casefold()
+        if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
     ]
     return choices[:25]
 

@@ -185,5 +185,5 @@ class FunkManEventListener(EventListener):
                 embed.set_image(url=f"attachment://{filename}")
                 await channel.send(embed=embed, file=discord.File(filename=filename, fp=buffer),
                                    delete_after=self.config.get('delete_after'))
-        except TypeError:
+        except (ValueError, TypeError):
             self.log.error("No trapsheet data received from DCS!")

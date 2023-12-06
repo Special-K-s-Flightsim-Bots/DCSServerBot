@@ -91,6 +91,9 @@ class Mission(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.RUNNING, Status.PAUSED])],
                    idx: int):
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            return
         airbase = server.current_mission.airbases[idx]
         data = await server.send_to_dcs_sync({
             "command": "getWeatherInfo",
@@ -151,7 +154,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
-                f"Can't restart server {server.name} as it is {server.status.name}!", ephemeral=True)
+                f"Can't restart server {server.display_name} as it is {server.status.name}!", ephemeral=True)
             return
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   f'A restart is currently pending.\n'
@@ -212,7 +215,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
-                f"Can't load mission on server {server.name} as it is {server.status.name}!", ephemeral=True)
+                f"Can't load mission on server {server.display_name} as it is {server.status.name}!", ephemeral=True)
             return
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
@@ -467,6 +470,9 @@ class Mission(Plugin):
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
+        if server.status != Status.RUNNING:
+            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            return
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction.client, interaction, server))
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
@@ -534,6 +540,9 @@ class Mission(Plugin):
     async def afk(self, interaction: discord.Interaction,
                   server: Optional[app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]],
                   minutes: Optional[int] = 10):
+        if server.status != Status.RUNNING:
+            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            return
         ephemeral = utils.get_ephemeral(interaction)
         afk: list[Player] = list()
         for s in self.bot.servers.values():
@@ -663,7 +672,7 @@ class Mission(Plugin):
         if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
             return
         # check if the upload happens in the servers admin channel (if provided)
-        server: Server = self.bot.get_server(message)
+        server: Server = self.bot.get_server(message, admin_only=True)
         ctx = await self.bot.get_context(message)
         if not server:
             # check if there is a central admin channel configured
