@@ -271,7 +271,8 @@ class ServiceBus(Service):
 
     def rename_server(self, server: Server, new_name: str):
         self.servers[new_name] = server
-        del self.servers[server.name]
+        if server.name in self.servers:
+            del self.servers[server.name]
         if server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put({})
             if not self.udp_server.message_queue[server.name].empty():
@@ -336,7 +337,8 @@ class ServiceBus(Service):
 
     def is_banned(self, ucid: str) -> Optional[dict]:
         with self.pool.connection() as conn:
-            return conn.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return cursor.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str, channels: dict):

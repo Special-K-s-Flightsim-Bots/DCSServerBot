@@ -139,6 +139,7 @@ class PunishmentEventListener(EventListener):
             target.sendChatMessage(f'{self.prefix}forgive is not enabled on this server.')
             return
 
+        forgive = config.get('forgive', 30)
         async with self.lock:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -149,7 +150,7 @@ class PunishmentEventListener(EventListener):
                                 SELECT DISTINCT init_id 
                                 FROM pu_events 
                                 WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
-                            """, (target.ucid, config['forgive'])).fetchall()
+                            """, (target.ucid, forgive)).fetchall()
                         ]
                         # there were no events, so forgive would not do anything
                         if not initiators:
@@ -159,12 +160,12 @@ class PunishmentEventListener(EventListener):
                         cursor.execute("""
                             DELETE FROM pu_events 
                             WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
-                        """, (target.ucid, config['forgive']))
+                        """, (target.ucid, forgive))
                         # cancel pending punishment tasks
                         cursor.execute("""
                             DELETE FROM pu_events_sdw 
                             WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
-                        """, (target.ucid, config['forgive']))
+                        """, (target.ucid, forgive))
                         names = []
                         for initiator in initiators:
                             player = self.bot.get_player_by_ucid(initiator)

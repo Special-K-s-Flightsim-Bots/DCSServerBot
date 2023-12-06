@@ -362,7 +362,7 @@ class Server(DataObject):
     async def listAvailableMissions(self) -> list[str]:
         raise NotImplemented()
 
-    async def apply_mission_changes(self, filename: Optional[str] = None) -> bool:
+    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         raise NotImplemented()
 
     @property

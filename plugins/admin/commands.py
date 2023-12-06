@@ -4,7 +4,7 @@ import platform
 import shutil
 
 from contextlib import closing
-from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance, Status
+from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance, Status, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -72,7 +72,8 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
-                  user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]]):
+                  user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                      sel_type=PlayerType.PLAYER)]]):
 
         class BanModal(Modal):
             reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
