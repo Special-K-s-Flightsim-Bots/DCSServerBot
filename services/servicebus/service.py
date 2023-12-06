@@ -268,7 +268,8 @@ class ServiceBus(Service):
 
     def rename_server(self, server: Server, new_name: str):
         self.servers[new_name] = server
-        del self.servers[server.name]
+        if server.name in self.servers:
+            del self.servers[server.name]
         if server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put({})
             if not self.udp_server.message_queue[server.name].empty():
