@@ -62,8 +62,6 @@ class Node:
             config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
             config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
             config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
-            config['database']['pool_min'] = config['database'].get('pool_min', 5)
-            config['database']['pool_max'] = config['database'].get('pool_max', 10)
             config['messages'] = config.get('messages', {})
             config['messages']['player_username'] = config['messages'].get('player_username',
                                                                            'Your player name contains invalid characters. '

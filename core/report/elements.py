@@ -198,7 +198,7 @@ class Graph(ReportElement):
                     # remove parameters, that are not in the render methods signature
                     signature = inspect.signature(element_class.render).parameters.keys()
                     render_args = {name: value for name, value in element_args.items() if name in signature}
-                    tasks.append(element_class.render(**render_args))
+                    tasks.append(asyncio.create_task(element_class.render(**render_args)))
                 else:
                     raise UnknownGraphElement(element['class'])
             else:

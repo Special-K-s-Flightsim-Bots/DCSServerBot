@@ -237,11 +237,6 @@ def migrate():
                 "guild_id": guild_id,
                 "use_dashboard": cfg['BOT'].getboolean('USE_DASHBOARD'),
                 'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],
-                "database": {
-                    "url": cfg['BOT']['DATABASE_URL'],
-                    "pool_min": int(cfg['DB']['MASTER_POOL_MIN']),
-                    "pool_max": int(cfg['DB']['MASTER_POOL_MAX'])
-                },
                 "logging": {
                     "loglevel": cfg['LOGGING']['LOGLEVEL'],
                     "logrotate_count": int(cfg['LOGGING']['LOGROTATE_COUNT']),
@@ -307,6 +302,11 @@ def migrate():
         if 'DCS_USER' in cfg['DCS']:
             nodes[platform.node()]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
             nodes[platform.node()]['DCS']['dcs_password'] = cfg['DCS']['DCS_PASSWORD']
+        nodes[platform.node()]['database'] = {
+            "url": cfg['BOT']['DATABASE_URL'],
+            "pool_min": int(cfg['DB']['MASTER_POOL_MIN']),
+            "pool_max": int(cfg['DB']['MASTER_POOL_MAX'])
+        }
         # add missing configs to userstats
         if DEFAULT_TAG not in all_userstats:
             all_userstats[DEFAULT_TAG] = {}

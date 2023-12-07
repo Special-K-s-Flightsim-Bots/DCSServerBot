@@ -90,8 +90,9 @@ class NodeImpl(Node):
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
         self.db_version = None
-        self.locals: dict = {}
+        self.locals = self.read_locals()
         self.pool = self.init_db()
+        self.init_instances()
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -111,7 +112,6 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             self.update_db()
-        self.locals = self.read_locals()
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
 
@@ -178,15 +178,9 @@ class NodeImpl(Node):
             if not node:
                 self.log.error(f'No configuration found for node {self.name} in nodes.yaml! Hostname changed?')
                 raise KeyboardInterrupt()
-            for name, element in node.items():
-                if name == 'instances':
-                    for _name, _element in node['instances'].items():
-                        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
-                                                                         locals=_element)
-                        self.instances.append(instance)
-                else:
-                    _locals[name] = element
-        return _locals
+            return node
+        self.log.error(f"No config/nodes.yaml found. Exiting.")
+        raise KeyboardInterrupt()
 
     def init_logger(self):
         log = logging.getLogger(name='dcsserverbot')
@@ -209,18 +203,18 @@ class NodeImpl(Node):
         return log
 
     def init_db(self):
-        self.log.info(f"- Connecting to PostgreSQL-database ...")
-        try:
-            with psycopg.Connection.connect(conninfo=self.config['database']['url']):
-                self.log.info("  => Connection established.")
-        except psycopg.Error:
-            self.log.warning("  => Falling back to local DB connection.")
-            self.config['database']['url'] = re.sub('@.*:', '@localhost:', self.config['database']['url'])
-
-        db_pool = ConnectionPool(self.config['database']['url'],
-                                 min_size=self.config['database']['pool_min'],
-                                 max_size=self.config['database']['pool_max'])
+        url = self.config.get("database", self.locals.get('database'))['url']
+        pool_min = self.config.get("database", self.locals.get('database')).get('pool_bin', 5)
+        pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 5)
+        db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max)
         return db_pool
+
+    def init_instances(self):
+        for _name, _element in self.locals['instances'].items():
+            instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
+                                                             locals=_element)
+            self.instances.append(instance)
+        del self.locals['instances']
 
     def update_db(self):
         # Initialize the database
