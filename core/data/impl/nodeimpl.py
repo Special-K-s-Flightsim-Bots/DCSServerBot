@@ -204,8 +204,8 @@ class NodeImpl(Node):
 
     def init_db(self):
         url = self.config.get("database", self.locals.get('database'))['url']
-        pool_min = self.config.get("database", self.locals.get('database')).get('pool_bin', 5)
-        pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 5)
+        pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 5)
+        pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max)
         return db_pool
 

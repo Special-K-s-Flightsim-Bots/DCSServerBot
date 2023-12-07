@@ -199,7 +199,8 @@ class Mission(Plugin):
             await server.loadNextMission(modify_mission=run_extensions)
         else:
             await server.restart(modify_mission=run_extensions)
-        await self.bot.audit(f"{what.replace('e', '')}ed mission", server=server, user=interaction.user)
+        await self.bot.audit('restarted mission' if what == 'restart' else 'rotated mission', server=server,
+                             user=interaction.user)
         await msg.delete()
         await interaction.followup.send(f"Mission {what.replace('e', '')}ed.", ephemeral=ephemeral)
 

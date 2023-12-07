@@ -261,10 +261,7 @@ def migrate():
                 'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
                 'autoban': cfg['BOT'].getboolean('AUTOBAN'),
                 'message_ban': cfg['BOT']['MESSAGE_BAN'],
-                'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE']),
-                "reports": {
-                    "num_workers": int(cfg['REPORTS']['NUM_WORKERS'])
-                }
+                'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE'])
             }
             # take the first admin channel as the single one
             if single_admin:
@@ -277,7 +274,9 @@ def migrate():
             if 'GREETING_DM' in cfg['BOT']:
                 bot['greeting_dm'] = cfg['BOT']['GREETING_DM']
             if 'CJK_FONT' in cfg['REPORTS']:
-                bot['reports']['cjk_font'] = cfg['REPORTS']['CJK_FONT']
+                bot['reports'] = {
+                    'cjk_font': cfg['REPORTS']['CJK_FONT']
+                }
             if 'DISCORD_STATUS' in cfg['BOT']:
                 bot['discord_status'] = cfg['BOT']['DISCORD_STATUS']
             if 'AUDIT_CHANNEL' in cfg['BOT']:
