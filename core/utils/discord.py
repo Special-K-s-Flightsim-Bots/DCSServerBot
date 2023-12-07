@@ -739,8 +739,10 @@ class UserTransformer(app_commands.Transformer):
         if value:
             if is_ucid(value):
                 return interaction.client.get_member_by_ucid(value) or value
-            else:
+            elif value.isnumeric():
                 return interaction.client.guilds[0].get_member(int(value))
+            else:
+                return None
         else:
             return interaction.user
 
