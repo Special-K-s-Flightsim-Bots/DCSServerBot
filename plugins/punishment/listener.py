@@ -146,26 +146,26 @@ class PunishmentEventListener(EventListener):
                     with closing(conn.cursor()) as cursor:
                         # get the punishments
                         initiators = [
-                            x[0] for x in cursor.execute("""
+                            x[0] for x in cursor.execute(f"""
                                 SELECT DISTINCT init_id 
                                 FROM pu_events 
-                                WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
-                            """, (target.ucid, forgive)).fetchall()
+                                WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
+                            """, (target.ucid, )).fetchall()
                         ]
                         # there were no events, so forgive would not do anything
                         if not initiators:
                             target.sendChatMessage('There is nothing to forgive (anymore).')
                             return
                         # clean the punishment table from these events
-                        cursor.execute("""
+                        cursor.execute(f"""
                             DELETE FROM pu_events 
-                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
-                        """, (target.ucid, forgive))
+                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
+                        """, (target.ucid, ))
                         # cancel pending punishment tasks
-                        cursor.execute("""
+                        cursor.execute(f"""
                             DELETE FROM pu_events_sdw 
-                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
-                        """, (target.ucid, forgive))
+                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
+                        """, (target.ucid, ))
                         names = []
                         for initiator in initiators:
                             player = self.bot.get_player_by_ucid(initiator)

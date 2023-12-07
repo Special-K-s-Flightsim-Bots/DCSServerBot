@@ -112,11 +112,12 @@ class Punishment(Plugin):
                             # we are not initialized correctly yet
                             if not config:
                                 continue
-                            for row in cursor.execute("""
+                            forgive = config.get('forgive', 30)
+                            for row in cursor.execute(f"""
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
-                                AND time < (timezone('utc', now()) - interval '%s seconds')
-                            """, (server_name, config.get('forgive', 30))).fetchall():
+                                AND time < (timezone('utc', now()) - interval '{forgive} seconds')
+                            """, (server_name, )).fetchall():
                                 try:
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:
@@ -150,10 +151,11 @@ class Punishment(Plugin):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     for d in self.decay_config:
-                        conn.execute("""
+                        days = d['days']
+                        conn.execute(f"""
                             UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
-                            WHERE time < (timezone('utc', now()) - interval '%s days') AND decay_run < %s
-                        """, (d['weight'], d['days'], d['days'], d['days']))
+                            WHERE time < (timezone('utc', now()) - interval '{days} days') AND decay_run < %s
+                        """, (d['weight'], days, days))
                         conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
     @command(name='punish', description='Adds punishment points to a user')
