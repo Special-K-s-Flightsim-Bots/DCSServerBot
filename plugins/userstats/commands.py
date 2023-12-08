@@ -277,6 +277,9 @@ class UserStatistics(Plugin):
         await self._info(interaction, member)
 
     async def _info(self, interaction: discord.Interaction, member: Union[discord.Member, str]):
+        if not member:
+            await interaction.response.send_message("This user does not exist.", ephemeral=True)
+            return
         ephemeral = utils.get_ephemeral(interaction)
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=ephemeral)
