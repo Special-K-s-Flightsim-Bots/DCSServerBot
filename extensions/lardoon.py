@@ -62,11 +62,14 @@ class Lardoon(Extension):
     @property
     def version(self) -> Optional[str]:
         if sys.platform == 'win32':
-            info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
-            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                       info['FileVersionMS'] % 65536,
-                                       info['FileVersionLS'] / 65536,
-                                       info['FileVersionLS'] % 65536)
+            try:
+                info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
+                version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                           info['FileVersionMS'] % 65536,
+                                           info['FileVersionLS'] / 65536,
+                                           info['FileVersionLS'] % 65536)
+            except Exception:
+                version = None
         else:
             version = None
         return version
