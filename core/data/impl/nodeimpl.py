@@ -98,7 +98,8 @@ class NodeImpl(Node):
                 with conn.transaction():
                     row = conn.execute("""
                             SELECT count(*) FROM nodes 
-                            WHERE guild_id = %s AND node = %s AND last_seen > (NOW() - interval '2 seconds')
+                            WHERE guild_id = %s AND node = %s 
+                            AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '2 seconds')
                         """, (self.guild_id, self.name)).fetchone()
                     if row[0] > 0:
                         self.log.error(f"A node with name {self.name} is already running for this guild!")
@@ -447,7 +448,7 @@ class NodeImpl(Node):
                                 master = True
                             # the old master is dead, we probably need to take over
                             elif (row['now'] - row['last_seen']).total_seconds() > 10:
-                                self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}")
+                                self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}z")
                                 cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
                                 count -= 1
@@ -488,7 +489,7 @@ class NodeImpl(Node):
                 SELECT node FROM nodes 
                 WHERE guild_id = %s
                 AND master is False 
-                AND last_seen > (NOW() - interval '1 minute')
+                AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
             """, (self.guild_id, )).fetchall()]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
