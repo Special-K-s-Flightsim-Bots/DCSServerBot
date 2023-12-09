@@ -2,12 +2,9 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
-if sys.platform == 'win32':
-    import win32api
 
 from typing import Optional, cast
-from core import Extension, Status, ServiceRegistry, Server
+from core import Extension, Status, ServiceRegistry, Server, utils
 from services import ServiceBus
 
 process: Optional[subprocess.Popen] = None
@@ -113,18 +110,7 @@ class Sneaker(Extension):
 
     @property
     def version(self) -> Optional[str]:
-        if sys.platform == 'win32':
-            try:
-                info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
-                version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                           info['FileVersionMS'] % 65536,
-                                           info['FileVersionLS'] / 65536,
-                                           info['FileVersionLS'] % 65536)
-            except Exception:
-                version = None
-        else:
-            version = None
-        return version
+        return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
         # check if Sneaker is enabled

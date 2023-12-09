@@ -436,32 +436,37 @@ class NodeImpl(Node):
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     master = False
                     count = 0
-                    cursor.execute("SELECT * FROM nodes WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
+                    cursor.execute("""
+                        SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
+                        WHERE guild_id = %s FOR UPDATE
+                    """, (self.guild_id, ))
                     for row in cursor.fetchall():
                         if row['master']:
                             count += 1
                             if row['node'] == self.name:
                                 master = True
                             # the old master is dead, we probably need to take over
-                            elif (datetime.now() - row['last_seen']).total_seconds() > 10:
+                            elif (row['now'] - row['last_seen']).total_seconds() > 10:
                                 self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}")
                                 cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
                                 count -= 1
                     # no master there, we're the master now
                     if count == 0:
-                        cursor.execute('UPDATE nodes SET master = True, last_seen = NOW() '
-                                       'WHERE guild_id = %s and node = %s',
-                                       (self.guild_id, self.name))
+                        cursor.execute("""
+                            UPDATE nodes SET master = True, last_seen = NOW() AT TIME ZONE 'UTC'
+                            WHERE guild_id = %s and node = %s
+                        """, (self.guild_id, self.name))
                         master = True
                     # there is only one master, might be me, might be others
                     elif count == 1:
                         # if we are the preferred master, take it back
                         if not master and self.locals.get('preferred_master', False):
                             master = True
-                        cursor.execute('UPDATE nodes SET master = %s, last_seen = NOW() '
-                                       'WHERE guild_id = %s and node = %s',
-                                       (master, self.guild_id, self.name))
+                        cursor.execute("""
+                            UPDATE nodes SET master = %s, last_seen = NOW() AT TIME ZONE 'UTC'
+                            WHERE guild_id = %s and node = %s
+                        """, (master, self.guild_id, self.name))
                     # split brain detected
                     else:
                         # we are the preferred master,
@@ -470,9 +475,10 @@ class NodeImpl(Node):
                                            (self.guild_id, self.name))
                         else:
                             self.log.warning("Split brain detected, stepping back from master.")
-                            cursor.execute('UPDATE nodes SET master = False, last_seen = NOW() '
-                                           'WHERE guild_id = %s and node = %s',
-                                           (self.guild_id, self.name))
+                            cursor.execute("""
+                                UPDATE nodes SET master = False, last_seen = NOW() AT TIME ZONE 'UTC'
+                                WHERE guild_id = %s and node = %s
+                            """, (self.guild_id, self.name))
                             master = False
             return master
 
