@@ -811,7 +811,9 @@ async def server_selection(bus: ServiceBus,
     else:
         max_values = 1
     s = await selection(interaction, title=title,
-                        options=[SelectOption(label=x, value=x) for x in all_servers],
+                        options=[
+                            SelectOption(label=x, value=x, default=(idx == 0)) for idx, x in enumerate(all_servers)
+                        ],
                         max_values=max_values, ephemeral=ephemeral)
     if multi_select:
         return [bus.servers[x] for x in s]

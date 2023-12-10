@@ -199,7 +199,6 @@ class Admin(Plugin):
         if not await utils.yn_question(interaction,
                                        f"Shutdown all servers on node {node.name} for the installation?",
                                        ephemeral=ephemeral):
-            await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
         await node.handle_module('install', module)
         await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=ephemeral)

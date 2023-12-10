@@ -3,7 +3,7 @@ DEFAULT:
   - event: kill             # If you kill a human player, you get 30 points, 18 in case of an AI.
     human: 30
     AI: 18
-    action: move_to_spec
+    # action: move_to_spec  # Optional: run an action instead (see documentation)
     reason: Killing a team member
   - event: collision_kill   # If you collide and kill another player, you get 20 points, if it was an AI, you get 12.
     human: 20

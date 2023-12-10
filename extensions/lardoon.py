@@ -1,11 +1,8 @@
 import asyncio
 import os
 import subprocess
-import sys
-if sys.platform == 'win32':
-    import win32api
 
-from core import Extension, Server
+from core import Extension, Server, utils
 from discord.ext import tasks
 from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
@@ -61,15 +58,7 @@ class Lardoon(Extension):
 
     @property
     def version(self) -> Optional[str]:
-        if sys.platform == 'win32':
-            info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
-            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                       info['FileVersionMS'] % 65536,
-                                       info['FileVersionLS'] / 65536,
-                                       info['FileVersionLS'] % 65536)
-        else:
-            version = None
-        return version
+        return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
         # check if Lardoon is enabled

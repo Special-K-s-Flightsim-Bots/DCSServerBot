@@ -3,7 +3,14 @@ import aiohttp
 import ipaddress
 import psutil
 import socket
+import sys
+if sys.platform == 'win32':
+    import pywintypes
+    import win32api
+
 from contextlib import closing, suppress
+from typing import Optional
+
 
 API_URLS = [
     'https://api4.my-ip.io/ip',
@@ -13,7 +20,8 @@ API_URLS = [
 __all__ = [
     "is_open",
     "get_public_ip",
-    "find_process"
+    "find_process",
+    "get_windows_version"
 ]
 
 
@@ -39,3 +47,20 @@ def find_process(proc: str, instance: str):
                     if instance in c.replace('\\', '/').split('/'):
                         return p
     return None
+
+
+MS_LSB_MULTIPLIER = 65536
+
+
+def get_windows_version(cmd: str) -> Optional[str]:
+    if sys.platform != 'win32':
+        return None
+    try:
+        info = win32api.GetFileVersionInfo(os.path.expandvars(cmd), '\\')
+        version = "%d.%d.%d.%d" % (info['FileVersionMS'] / MS_LSB_MULTIPLIER,
+                                   info['FileVersionMS'] % MS_LSB_MULTIPLIER,
+                                   info['FileVersionLS'] / MS_LSB_MULTIPLIER,
+                                   info['FileVersionLS'] % MS_LSB_MULTIPLIER)
+    except pywintypes.error:
+        version = None
+    return version

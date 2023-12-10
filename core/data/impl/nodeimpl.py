@@ -7,7 +7,6 @@ import logging
 import os
 import platform
 import psycopg
-import re
 import shutil
 import ssl
 import subprocess
@@ -17,7 +16,6 @@ import time
 from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
-from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -90,20 +88,28 @@ class NodeImpl(Node):
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
         self.db_version = None
-        self.locals: dict = {}
+        self.locals = self.read_locals()
         self.pool = self.init_db()
+        self.init_instances()
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    row = conn.execute("""
-                            SELECT count(*) FROM nodes 
-                            WHERE guild_id = %s AND node = %s AND last_seen > (NOW() - interval '2 seconds')
-                        """, (self.guild_id, self.name)).fetchone()
-                    if row[0] > 0:
-                        self.log.error(f"A node with name {self.name} is already running for this guild!")
-                        exit(-2)
-                    conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
-                                 "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
+                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                        cursor.execute("""
+                            SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
+                            WHERE guild_id = %s AND node = %s 
+                            AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '2 seconds')
+                        """, (self.guild_id, self.name))
+                        if cursor.rowcount > 0:
+                            row = cursor.fetchone()
+                            # this can be removed in a bit, it is for backwards compatibility
+                            if row['last_seen'] <= row['now']:
+                                self.log.error(f"A node with name {self.name} is already running for this guild!")
+                                exit(-2)
+                        conn.execute("""
+                            INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) 
+                            ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
+                        """, (self.guild_id, self.name))
             self._master = self.check_master()
         except UndefinedTable:
             # should only happen when an upgrade to 3.0 is needed
@@ -111,7 +117,6 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             self.update_db()
-        self.locals = self.read_locals()
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
 
@@ -178,15 +183,9 @@ class NodeImpl(Node):
             if not node:
                 self.log.error(f'No configuration found for node {self.name} in nodes.yaml! Hostname changed?')
                 raise KeyboardInterrupt()
-            for name, element in node.items():
-                if name == 'instances':
-                    for _name, _element in node['instances'].items():
-                        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
-                                                                         locals=_element)
-                        self.instances.append(instance)
-                else:
-                    _locals[name] = element
-        return _locals
+            return node
+        self.log.error(f"No config/nodes.yaml found. Exiting.")
+        raise KeyboardInterrupt()
 
     def init_logger(self):
         log = logging.getLogger(name='dcsserverbot')
@@ -209,18 +208,18 @@ class NodeImpl(Node):
         return log
 
     def init_db(self):
-        self.log.info(f"- Connecting to PostgreSQL-database ...")
-        try:
-            with psycopg.Connection.connect(conninfo=self.config['database']['url']):
-                self.log.info("  => Connection established.")
-        except psycopg.Error:
-            self.log.warning("  => Falling back to local DB connection.")
-            self.config['database']['url'] = re.sub('@.*:', '@localhost:', self.config['database']['url'])
-
-        db_pool = ConnectionPool(self.config['database']['url'],
-                                 min_size=self.config['database']['pool_min'],
-                                 max_size=self.config['database']['pool_max'])
+        url = self.config.get("database", self.locals.get('database'))['url']
+        pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 5)
+        pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
+        db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max)
         return db_pool
+
+    def init_instances(self):
+        for _name, _element in self.locals['instances'].items():
+            instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
+                                                             locals=_element)
+            self.instances.append(instance)
+        del self.locals['instances']
 
     def update_db(self):
         # Initialize the database
@@ -442,32 +441,37 @@ class NodeImpl(Node):
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     master = False
                     count = 0
-                    cursor.execute("SELECT * FROM nodes WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
+                    cursor.execute("""
+                        SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
+                        WHERE guild_id = %s FOR UPDATE
+                    """, (self.guild_id, ))
                     for row in cursor.fetchall():
                         if row['master']:
                             count += 1
                             if row['node'] == self.name:
                                 master = True
                             # the old master is dead, we probably need to take over
-                            elif (datetime.now() - row['last_seen']).total_seconds() > 10:
-                                self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}")
+                            elif (row['now'] - row['last_seen']).total_seconds() > 10:
+                                self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}z")
                                 cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
                                 count -= 1
                     # no master there, we're the master now
                     if count == 0:
-                        cursor.execute('UPDATE nodes SET master = True, last_seen = NOW() '
-                                       'WHERE guild_id = %s and node = %s',
-                                       (self.guild_id, self.name))
+                        cursor.execute("""
+                            UPDATE nodes SET master = True, last_seen = NOW() AT TIME ZONE 'UTC'
+                            WHERE guild_id = %s and node = %s
+                        """, (self.guild_id, self.name))
                         master = True
                     # there is only one master, might be me, might be others
                     elif count == 1:
                         # if we are the preferred master, take it back
                         if not master and self.locals.get('preferred_master', False):
                             master = True
-                        cursor.execute('UPDATE nodes SET master = %s, last_seen = NOW() '
-                                       'WHERE guild_id = %s and node = %s',
-                                       (master, self.guild_id, self.name))
+                        cursor.execute("""
+                            UPDATE nodes SET master = %s, last_seen = NOW() AT TIME ZONE 'UTC'
+                            WHERE guild_id = %s and node = %s
+                        """, (master, self.guild_id, self.name))
                     # split brain detected
                     else:
                         # we are the preferred master,
@@ -476,9 +480,10 @@ class NodeImpl(Node):
                                            (self.guild_id, self.name))
                         else:
                             self.log.warning("Split brain detected, stepping back from master.")
-                            cursor.execute('UPDATE nodes SET master = False, last_seen = NOW() '
-                                           'WHERE guild_id = %s and node = %s',
-                                           (self.guild_id, self.name))
+                            cursor.execute("""
+                                UPDATE nodes SET master = False, last_seen = NOW() AT TIME ZONE 'UTC'
+                                WHERE guild_id = %s and node = %s
+                            """, (self.guild_id, self.name))
                             master = False
             return master
 
@@ -488,7 +493,7 @@ class NodeImpl(Node):
                 SELECT node FROM nodes 
                 WHERE guild_id = %s
                 AND master is False 
-                AND last_seen > (NOW() - interval '1 minute')
+                AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
             """, (self.guild_id, )).fetchall()]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:

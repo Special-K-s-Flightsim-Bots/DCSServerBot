@@ -334,12 +334,51 @@ def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:
     return eval(format_string(value[1:], **kwargs))
 
 
-# Helper function to find a specific node inside a dictionary with a format like
-# /node1/node2/*/node4/$... python evaluation code .../*
-# * is a wildcard to describe any item in a specific list
-# (...) is python code that will be evaluated to find a specific item inside a list
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
              debug: Optional[bool] = False, **kwargs) -> Generator[dict]:
+    def process_iteration(_next, data, search, depth, debug):
+        if isinstance(data, list):
+            for value in data:
+                yield from for_each(value, search, depth + 1, debug=debug)
+        elif isinstance(data, dict):
+            for value in data.values():
+                yield from for_each(value, search, depth + 1, debug=debug)
+
+    def process_indexing(_next, data, search, depth, debug):
+        if isinstance(data, list):
+            indexes = [int(x.strip()) for x in _next[1:-1].split(',')]
+            for index in indexes:
+                if index <= 0 or len(data) < index:
+                    if debug:
+                        print("  " * depth + f"|_ {index}. element not found")
+                    yield None
+                if debug:
+                    print("  " * depth + f"|_ Selecting {index}. element")
+                yield from for_each(data[index - 1], search, depth + 1, debug=debug)
+        elif isinstance(data, dict):
+            indexes = [x.strip() for x in _next[1:-1].split(',')]
+            for index in indexes:
+                if index not in data:
+                    if debug:
+                        print("  " * depth + f"|_ {index}. element not found")
+                    yield None
+                if debug:
+                    print("  " * depth + f"|_ Selecting element {index}")
+                yield from for_each(data[index], search, depth + 1, debug=debug)
+
+    def process_pattern(_next, data, search, depth, debug, **kwargs):
+        if isinstance(data, list):
+            for idx, value in enumerate(data):
+                if evaluate(_next, **(kwargs | value)):
+                    if debug:
+                        print("  " * depth + f"  - Element {idx + 1} matches.")
+                    yield from for_each(value, search, depth + 1, debug=debug)
+        else:
+            if evaluate(_next, **(kwargs | data)):
+                if debug:
+                    print("  " * depth + "  - Element matches.")
+                yield from for_each(data, search, depth + 1, debug=debug)
+
     if not data or len(search) == depth:
         if debug:
             print("  " * depth + ("|_ RESULT found => Processing ..." if data else "|_ NO result found, skipping."))
@@ -348,38 +387,18 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
         _next = search[depth]
         if _next == '*':
             if debug:
-                print("  " * depth + f"|_ Iterating over {len(data)} {search[depth-1]} elements")
-            for value in data:
-                yield from for_each(value, search, depth+1, debug=debug)
+                print("  " * depth + f"|_ Iterating over {len(data)} {search[depth - 1]} elements")
+            yield from process_iteration(_next, data, search, depth, debug)
         elif _next.startswith('['):
-            index = int(_next[1:-1])
-            if len(data) < index:
-                if debug:
-                    print("  " * depth + f"|_ {index}. element not found")
-                yield None
-            if debug:
-                print("  " * depth + f"|_ Selecting {index}. element")
-            yield from for_each(data[index - 1], search, depth+1, debug=debug)
+            yield from process_indexing(_next, data, search, depth, debug)
         elif _next.startswith('$'):
-            if isinstance(data, list):
-                if debug:
-                    print("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth-1]} elements")
-                for idx, value in enumerate(data):
-                    if evaluate(_next, **(kwargs | value)):
-                        if debug:
-                            print("  " * depth + f"  - Element {idx+1} matches.")
-                        yield from for_each(value, search, depth+1, debug=debug)
-            else:
-                if debug:
-                    print("  " * depth + f"|_ Evaluating {_next} ...")
-                if evaluate(_next, **(kwargs | data)):
-                    if debug:
-                        print("  " * depth + "  - Element matches.")
-                    yield from for_each(data, search, depth+1, debug=debug)
+            if debug:
+                print("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth - 1]} elements")
+            yield from process_pattern(_next, data, search, depth, debug, **kwargs)
         elif _next in data:
             if debug:
                 print("  " * depth + f"|_ {_next} found.")
-            yield from for_each(data.get(_next), search, depth+1, debug=debug)
+            yield from for_each(data.get(_next), search, depth + 1, debug=debug)
         else:
             if debug:
                 print("  " * depth + f"|_ {_next} not found.")

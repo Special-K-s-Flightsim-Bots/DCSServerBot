@@ -125,7 +125,11 @@ class CreditSystem(Plugin):
         if len(data) > 1:
             n = await utils.selection(interaction, title="Campaign Credits",
                                       options=[
-                                          SelectOption(label=f"{x['name']} (credits={x['credits']})", value=str(idx))
+                                          SelectOption(
+                                              label=f"{x['name']} (credits={x['credits']})",
+                                              value=str(idx),
+                                              default=(idx == 0)
+                                          )
                                           for idx, x in enumerate(data)
                                       ])
         else:
@@ -187,12 +191,15 @@ class CreditSystem(Plugin):
     @credits.command(description='Donate credits to another member')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    async def donate(self, interaction: discord.Interaction, to: discord.Member, donation: Range[int, 1]):
+    async def donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
         if interaction.user == to:
             await interaction.response.send_message("You can't donate to yourself.", ephemeral=True)
             return
         if utils.check_roles(set(self.bot.roles['Admin'] + self.bot.roles['DCS Admin']), interaction.user):
             await self._admin_donate(interaction, to, donation)
+            return
+        if donation < 1:
+            await interaction.response.send_message("Your donation has to be > 0.", ephemeral=True)
             return
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
