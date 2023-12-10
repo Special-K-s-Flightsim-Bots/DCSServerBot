@@ -90,7 +90,6 @@ class NodeImpl(Node):
         self.db_version = None
         self.locals = self.read_locals()
         self.pool = self.init_db()
-        self.init_instances()
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -117,6 +116,7 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             self.update_db()
+        self.init_instances()
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
 
