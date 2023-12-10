@@ -93,7 +93,7 @@ class GreenieBoard(Plugin):
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",
                                   options=[
-                                      SelectOption(label=format_landing(x), value=str(idx))
+                                      SelectOption(label=format_landing(x), value=str(idx), default=(idx == 0))
                                       for idx, x in enumerate(landings)
                                   ], ephemeral=ephemeral)
         if n:

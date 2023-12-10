@@ -125,7 +125,11 @@ class CreditSystem(Plugin):
         if len(data) > 1:
             n = await utils.selection(interaction, title="Campaign Credits",
                                       options=[
-                                          SelectOption(label=f"{x['name']} (credits={x['credits']})", value=str(idx))
+                                          SelectOption(
+                                              label=f"{x['name']} (credits={x['credits']})",
+                                              value=str(idx),
+                                              default=(idx == 0)
+                                          )
                                           for idx, x in enumerate(data)
                                       ])
         else:

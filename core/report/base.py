@@ -170,10 +170,14 @@ class PaginationReport(Report):
             self.formatter = kwargs.get('formatter')
             if self.formatter:
                 select.options = [SelectOption(label=self.formatter(x) or 'All',
-                                               value=str(idx)) for idx, x in enumerate(self.values) if idx < 25]
+                                               value=str(idx),
+                                               default=(x is None)
+                                               ) for idx, x in enumerate(self.values) if idx < 25]
             else:
                 select.options = [SelectOption(label=x or 'All',
-                                               value=str(idx)) for idx, x in enumerate(self.values) if idx < 25]
+                                               value=str(idx),
+                                               default=(x is None)
+                                               ) for idx, x in enumerate(self.values) if idx < 25]
             if self.index == 0:
                 self.children[1].disabled = True
                 self.children[2].disabled = True
