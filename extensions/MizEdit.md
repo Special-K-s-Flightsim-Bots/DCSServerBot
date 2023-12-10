@@ -94,16 +94,17 @@ Therefore, I developed some SQL-like query language, where you can search and ch
 
 You can use these special characters:
 
-| Character | Description                                                             |
-|-----------|-------------------------------------------------------------------------|
-| /node     | Select this element from the datastructure at this point.               |
-| *         | Walk over all elements in a list.                                       |
-| $         | Whatever comes after this is evaluated as Python code.                  |
-| \[x\]     | Select the n-th element from a list (starts with 1).                    |
-| '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string. |
+| Character | Description                                                                             |
+|-----------|-----------------------------------------------------------------------------------------|
+| /node     | Select this element from the datastructure at this point.                               |
+| *         | Walk over all elements in a list or table.                                              |
+| $         | Whatever comes after this is evaluated as Python code.                                  |
+| \[x\]     | Select the n-th element from a list (starts with 1) or a specific element from a table. |
+| \[x,y\]   | Selects these elements from a list (starts with 1) or from a table.                     |
+| '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string.                 |
 
 #### Example 1: Search all CVN carriers in your mission:
-> coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+> coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 
 will walk the mission tree like so:
 ```
@@ -116,9 +117,17 @@ will walk the mission tree like so:
                    |_ ... all groups ...
                        |_ units
                              |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+   |_ red
+      |_ country
+         |_ ... all countries ...
+            |_ ship
+               |_ group
+                   |_ ... all groups ...
+                       |_ units
+                             |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
 
-#### Example 2a: Change the carrier's frequency to 3 + carrier type + 000000 (w. g. CVN-71 => 371000000)
+#### Example 2a: Change the carrier's frequency for the blue coalition to 3 + carrier type + 000000 (w. g. CVN-71 => 371000000)
 ```yaml
 MyFancyPreset:
   modify:
