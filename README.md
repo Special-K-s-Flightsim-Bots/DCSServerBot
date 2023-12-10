@@ -77,6 +77,7 @@ can also create your own plugins (and maybe share them with others).
 | RestAPI       | Simple REST-API to query users and statistics (WIP).                         | yes      | Userstats, Missionstats | [README](./plugins/restapi/README.md)       |
 | Battleground  | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground) | yes      |                         | [README](./plugins/battleground/README.md)  |
 | PretenseStats | Mission statistics for Pretense missions.                                    | yes      |                         | [README](./plugins/pretensestats/README.md) |
+| RealWeather   | Apply real weather to your missions (also available as an extension).        | yes      |                         | [README](./plugins/realweather/README.md)   |
 
 *) These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
 &nbsp;&nbsp;&nbsp;&nbsp;If you want to change that, define a list of `plugins` in your main.yaml.

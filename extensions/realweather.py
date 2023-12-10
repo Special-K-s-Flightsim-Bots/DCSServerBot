@@ -1,32 +1,25 @@
+import asyncio
 import json
 import os
 import shutil
 import tempfile
-import subprocess
-import sys
-if sys.platform == 'win32':
-    import win32api
 
-from core import Extension, MizFile, utils
+from core import Extension, MizFile, utils, DEFAULT_TAG
 from typing import Optional, Tuple
 
 
 class RealWeather(Extension):
     @property
     def version(self) -> Optional[str]:
-        if sys.platform == 'win32':
-            try:
-                info = win32api.GetFileVersionInfo(
-                    os.path.join(os.path.expandvars(self.config['installation']), 'realweather.exe'), '\\')
-                version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                           info['FileVersionMS'] % 65536,
-                                           info['FileVersionLS'] / 65536,
-                                           info['FileVersionLS'] % 65536)
-            except Exception:
-                version = None
+        return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']),
+                                                      'realweather.exe'))
+
+    def get_config(self, filename: str) -> dict:
+        if 'terrains' in self.config:
+            miz = MizFile(self.node, filename)
+            return self.config['terrains'].get(miz.theatre, self.config['terrains'].get(DEFAULT_TAG, {}))
         else:
-            version = None
-        return version
+            return self.config
 
     async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
         rw_home = os.path.expandvars(self.config['installation'])
@@ -34,20 +27,24 @@ class RealWeather(Extension):
         os.close(tmpfd)
         with open(os.path.join(rw_home, 'config.json')) as infile:
             cfg = json.load(infile)
+        config = self.get_config(filename)
         # create proper configuration
         for name, element in cfg.items():
             if name == 'files':
                 element['input-mission'] = filename
                 element['output-mission'] = tmpname
-            elif name in self.config:
-                if isinstance(self.config[name], dict):
-                    element |= self.config[name]
+            elif name in config:
+                if isinstance(config[name], dict):
+                    element |= config[name]
                 else:
-                    element = self.config[name]
+                    cfg[name] = config[name]
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
             json.dump(cfg, outfile, indent=2)
-        subprocess.run(executable=os.path.join(rw_home, 'realweather.exe'), args=[], cwd=cwd, shell=True)
+        proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd,
+                                                    stdout=asyncio.subprocess.DEVNULL,
+                                                    stderr=asyncio.subprocess.DEVNULL)
+        await proc.wait()
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
         MizFile(self, tmpname)
