@@ -167,7 +167,6 @@ class Mission(Plugin):
             result = await utils.populated_question(interaction, f"Do you really want to {what} the mission?",
                                                     ephemeral=ephemeral)
             if not result:
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
                 return
             elif result == 'later':
                 server.on_empty = {"command": what, "user": interaction.user}
@@ -222,7 +221,6 @@ class Mission(Plugin):
                                                                   'A restart is currently pending.\n'
                                                                   'Would you still like to change the mission?',
                                                                   ephemeral=ephemeral):
-            await interaction.followup.send('Aborted', ephemeral=ephemeral)
             return
         else:
             server.on_empty = dict()
@@ -231,7 +229,6 @@ class Mission(Plugin):
             result = await utils.populated_question(interaction, f"Do you really want to change the mission?",
                                                     ephemeral=ephemeral)
             if not result:
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
                 return
         else:
             result = "yes"
@@ -379,7 +376,6 @@ class Mission(Plugin):
             else:
                 result = await utils.yn_question(interaction, question, ephemeral=ephemeral)
             if not result:
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
                 return
 
         view = PresetView(options[:25])
@@ -389,10 +385,7 @@ class Mission(Plugin):
             await interaction.response.send_message(view=view, ephemeral=ephemeral)
             msg = await interaction.original_response()
         try:
-            if await view.wait():
-                return
-            elif not view.result:
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            if await view.wait() or view.result is None:
                 return
         finally:
             await msg.delete()
@@ -440,7 +433,6 @@ class Mission(Plugin):
         if name in presets and \
                 not await utils.yn_question(interaction, f'Do you want to overwrite the existing preset '
                                                          f'"{name}"?', ephemeral=ephemeral):
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         presets[name] = {
             "start_time": miz.start_time,
@@ -682,7 +674,7 @@ class Mission(Plugin):
                     server = await utils.server_selection(
                         self.bus, ctx, title="To which server do you want to upload this mission to?")
                     if not server:
-                        await ctx.send('Aborted.')
+                        await ctx.send('Upload aborted.')
                         return
                 except Exception as ex:
                     self.log.exception(ex)

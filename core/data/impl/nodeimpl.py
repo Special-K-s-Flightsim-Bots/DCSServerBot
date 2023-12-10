@@ -102,6 +102,7 @@ class NodeImpl(Node):
                         """, (self.guild_id, self.name))
                         if cursor.rowcount > 0:
                             row = cursor.fetchone()
+                            # this can be removed in a bit, it is for backwards compatibility
                             if row['last_seen'] <= row['now']:
                                 self.log.error(f"A node with name {self.name} is already running for this guild!")
                                 exit(-2)
