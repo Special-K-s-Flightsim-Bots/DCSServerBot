@@ -7,7 +7,6 @@ import logging
 import os
 import platform
 import psycopg
-import re
 import shutil
 import ssl
 import subprocess
@@ -17,7 +16,6 @@ import time
 from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
-from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -96,16 +94,21 @@ class NodeImpl(Node):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    row = conn.execute("""
-                            SELECT count(*) FROM nodes 
+                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                        cursor.execute("""
+                            SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
                             WHERE guild_id = %s AND node = %s 
                             AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '2 seconds')
-                        """, (self.guild_id, self.name)).fetchone()
-                    if row[0] > 0:
-                        self.log.error(f"A node with name {self.name} is already running for this guild!")
-                        exit(-2)
-                    conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
-                                 "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
+                        """, (self.guild_id, self.name))
+                        if cursor.rowcount > 0:
+                            row = cursor.fetchone()
+                            if row['last_seen'] <= row['now']:
+                                self.log.error(f"A node with name {self.name} is already running for this guild!")
+                                exit(-2)
+                        conn.execute("""
+                            INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) 
+                            ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
+                        """, (self.guild_id, self.name))
             self._master = self.check_master()
         except UndefinedTable:
             # should only happen when an upgrade to 3.0 is needed
