@@ -161,6 +161,7 @@ class SelectView(View):
         select: Select = cast(Select, self.children[0])
         select.placeholder = placeholder
         select.options = options
+        self.result = next((x.value for x in options if x.default), None)
         select.min_values = min_values
         select.max_values = max_values
 

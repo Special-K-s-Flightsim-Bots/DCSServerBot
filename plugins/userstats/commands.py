@@ -180,14 +180,25 @@ class UserStatistics(Plugin):
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
-        _member = self.bot.get_member_by_ucid(ucid)
-        if _member and not await utils.yn_question(interaction, f"Member {_member.display_name} is linked to this UCID "
-                                                                f"already. Do you want to relink?",
+        if isinstance(ucid, discord.Member):
+            if ucid == member:
+                await interaction.response.send_message(
+                    "This member is linked to this UCID already.", ephemeral=ephemeral)
+                return
+            else:
+                _member = ucid
+                ucid = self.bot.get_ucid_by_member(ucid)
+        else:
+            _member = self.bot.get_member_by_ucid(ucid)
+        if _member and not await utils.yn_question(interaction,
+                                                   f"Member {_member.display_name} is linked to UCID {ucid} already. "
+                                                   f"Do you want to relink?",
                                                    ephemeral=ephemeral):
             return
         _ucid = self.bot.get_ucid_by_member(member)
-        if _ucid and not await utils.yn_question(interaction, f"Member {member.display_name} is linked to another UCID "
-                                                              f"already. Do you want to relink?",
+        if _ucid and not await utils.yn_question(interaction,
+                                                 f"Member {member.display_name} is linked to UCID {_ucid} already. "
+                                                 f"Do you want to relink?",
                                                  ephemeral=ephemeral):
             return
         with self.pool.connection() as conn:
