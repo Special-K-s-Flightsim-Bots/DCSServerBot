@@ -108,7 +108,7 @@ class Admin(Plugin):
                                                         (f" for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
-                                     f' for {days} days.' if days else ' permanently.',
+                                     (f' for {days} days.' if days else ' permanently.'),
                                      user=interaction.user)
 
             async def on_error(derived, interaction: discord.Interaction, error: Exception) -> None:

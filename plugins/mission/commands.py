@@ -508,7 +508,7 @@ class Mission(Plugin):
                                                         (f"for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {player.display_name} with reason "{derived.reason.value}"' +
-                                     f' for {days} days.' if days else ' permanently.',
+                                     (f' for {days} days.' if days else ' permanently.'),
                                      user=interaction.user)
         await interaction.response.send_modal(BanModal(server, player))
 
