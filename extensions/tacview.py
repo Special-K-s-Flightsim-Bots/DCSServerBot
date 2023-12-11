@@ -2,9 +2,6 @@ import asyncio
 import os
 import re
 import shutil
-import sys
-if sys.platform == 'win32':
-    import win32api
 
 from core import Extension, utils, ServiceRegistry, Server
 from discord.ext import tasks
@@ -31,8 +28,6 @@ class Tacview(Extension):
         return True
 
     async def shutdown(self) -> bool:
-        if self.config.get('target'):
-            self.check_log.cancel()
         return await super().shutdown()
 
     def load_config(self) -> Optional[dict]:
@@ -96,19 +91,11 @@ class Tacview(Extension):
 
     @property
     def version(self) -> str:
-        path = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll')
-        if sys.platform == 'win32' and os.path.exists(path):
-            info = win32api.GetFileVersionInfo(path, '\\')
-            version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                    info['FileVersionMS'] % 65536,
-                                    info['FileVersionLS'] / 65536)
-        else:
-            version = 'n/a'
-        return version
+        return utils.get_windows_version(os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll'))
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
-            return
+            return {}
         name = 'Tacview'
         if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'
@@ -124,7 +111,7 @@ class Tacview(Extension):
                 value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
                 if show_passwords and self.locals.get('tacviewRemoteControlPassword'):
                     value += f"Password: {self.locals['tacviewRemoteControlPassword']}\n"
-            if self.locals.get('tacviewPlaybackDelay', 0) > 0:
+            if int(self.locals.get('tacviewPlaybackDelay', 0)) > 0:
                 value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
             if len(value) == 0:
                 value = 'enabled'
@@ -184,6 +171,9 @@ class Tacview(Extension):
                 else:
                     file.seek(self.log_pos, 0)
                 for line in file.readlines():
+                    if 'TACVIEW.DLL (Main): End of flight data recorder.' in line:
+                        self.check_log.cancel()
+                        break
                     match = self.exp.search(line)
                     if match:
                         await self.send_tacview_file(match.group('filename')[1:-1])
