@@ -54,7 +54,7 @@ class GreenieBoard(Plugin):
     async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
         conn.execute('UPDATE greenieboard SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
-    # New command group "/trape"
+    # New command group "/traps"
     traps = Group(name="traps", description="Commands to display and manage carrier traps")
 
     @traps.command(description='Show carrier landing qualifications')

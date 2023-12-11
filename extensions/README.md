@@ -251,6 +251,44 @@ Don't forget to add some kind of security before exposing services like that to 
 a nginx reverse proxy.</br>
 If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKilo](https://github.com/team-limakilo/lardoon).
 
+### DCS Olympus
+[DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
+real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
+is to download the installation ZIP file and provide it to the [OvGME](../services/ovgme/README.md) service like so:
+```yaml
+DEFAULT:
+  SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'
+  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'
+DCS_MERCS:
+  packages:
+  - name: DCSOlympus
+    version: latest
+    source: SavedGames
+```
+Then you can add the DCS Olympus extension like so to your nodes.yaml:
+```yaml
+MyNode:
+  # [...]
+  extensions:
+    Olympus: {}     # we need that, to tell the node that Olympus is available
+  # [...]
+  instances:
+    DCS.openbeta_server:
+      # [...]
+      extensions:
+        Olympus:
+          url: https://myfancyurl:3001/   # optional: your own URL, if available
+          server:
+            address: 0.0.0.0              # your bind address
+            port: 3001                    # server port for DCS Olympus internal communication (needs to be unique)                   
+          authentication:
+            gameMasterPassword: secret    # Game Master password
+            blueCommanderPassword: blue   # Blue Tactical Commander password
+            redCommanderPassword: red     # Red Tactical Commander password
+          client:
+            port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
+```
+
 ### Write your own Extension!
 Do you use something alongside with DCS that isn't supported yet? Are you someone that does not fear some lines of
 Python code? Well then - write your own extension!</br>
