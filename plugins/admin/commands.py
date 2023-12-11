@@ -84,15 +84,11 @@ class Admin(Plugin):
                 self.user = user
 
             async def on_submit(derived, interaction: discord.Interaction):
-                if derived.period.value:
-                    days = int(derived.period.value)
-                else:
-                    days = None
-
+                days = int(derived.period.value) if derived.period.value else None
                 if isinstance(derived.user, discord.Member):
                     ucid = self.bot.get_ucid_by_member(derived.user)
                     name = derived.user.display_name
-                elif utils.is_ucid(derived.user):
+                else:
                     ucid = derived.user
                     # check if we should ban a member
                     name = self.bot.get_member_or_name_by_ucid(ucid)
@@ -100,16 +96,12 @@ class Admin(Plugin):
                         name = name.display_name
                     elif not name:
                         name = ucid
-                else:
-                    ucid, name = self.bot.get_ucid_by_name(derived.user)
-
                 self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {name} banned on all servers" +
                                                         (f" for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
-                                     (f' for {days} days.' if days else ' permanently.'),
-                                     user=interaction.user)
+                                     (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
 
             async def on_error(derived, interaction: discord.Interaction, error: Exception) -> None:
                 self.log.exception(error)

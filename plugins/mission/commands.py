@@ -499,17 +499,13 @@ class Mission(Plugin):
                 self.player = player
 
             async def on_submit(derived, interaction: discord.Interaction):
-                if derived.period.value:
-                    days = int(derived.period.value)
-                else:
-                    days = None
+                days = int(derived.period.value) if derived.period.value else None
                 self.bus.ban(derived.player.ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {player.display_name} banned on all servers " +
                                                         (f"for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {player.display_name} with reason "{derived.reason.value}"' +
-                                     (f' for {days} days.' if days else ' permanently.'),
-                                     user=interaction.user)
+                                     (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
         await interaction.response.send_modal(BanModal(server, player))
 
     @player.command(description='Moves a player to spectators')
