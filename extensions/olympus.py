@@ -14,6 +14,7 @@ class Olympus(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
+        self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         self.process = None
 
     @property
@@ -29,6 +30,9 @@ class Olympus(Extension):
         
         if not os.path.exists(self.home):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
+            return False
+        if not os.path.exists(self.nodejs):
+            self.log.warning(f"  => {self.server.name}: Can't run {self.name}, node.js is not installed!")
             return False
         server_port = self.config.get('server', {}).get('port', 3001)
         if server_ports.get(server_port, self.server.name) != self.server.name:
@@ -54,18 +58,18 @@ class Olympus(Extension):
         }
 
     async def prepare(self) -> bool:
-        cmd = 'configurator.exe'
         self.log.debug(f"Launching Olympus configurator ...")
         try:
             subprocess.run([
-                cmd,
+                os.path.basename(self.nodejs),
+                "configurator.js",
                 "-a", self.config.get('server', {}).get('address', '0.0.0.0'),
                 "-c", str(self.config.get('client', {}).get('port', 3000)),
                 "-b", str(self.config.get('server', {}).get('port', 3001)),
                 "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
-                "-bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
-                "-rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
-            ], executable=os.path.join(self.home, cmd), cwd=self.home, stdout=subprocess.DEVNULL,
+                "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
+                "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
+            ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL)
             return await super().prepare()
         except Exception as ex:
@@ -75,7 +79,7 @@ class Olympus(Extension):
     async def startup(self) -> bool:
         await super().startup()
         self.process = await asyncio.create_subprocess_exec(
-            os.path.join(self.home, "client", "node.exe"), r".\bin\www",
+            self.nodejs, r".\bin\www",
             cwd=os.path.join(self.home, "client"),
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL

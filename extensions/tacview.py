@@ -23,7 +23,7 @@ class Tacview(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
-        if self.config.get('target'):
+        if self.config.get('target') and not self.check_log.is_running():
             self.check_log.start()
         return True
 

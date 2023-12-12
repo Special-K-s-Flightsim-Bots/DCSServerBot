@@ -254,7 +254,7 @@ If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKi
 ### DCS Olympus
 [DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
 real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
-is to download the installation ZIP file and provide it to the [OvGME](../services/ovgme/README.md) service like so:
+is to download the installation ZIP file from [here](TODO) and provide it to the [OvGME](../services/ovgme/README.md) service like so:
 ```yaml
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'
@@ -265,12 +265,17 @@ DCS_MERCS:
     version: latest
     source: SavedGames
 ```
+To use the DCS Olympus client, you need [Node.js](https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi) installed.
+Click on the link, download and install it. Remember the installation location, as you need to provide it in the 
+configuration.
+
 Then you can add the DCS Olympus extension like so to your nodes.yaml:
 ```yaml
 MyNode:
   # [...]
   extensions:
-    Olympus: {}     # we need that, to tell the node that Olympus is available
+    Olympus:
+      nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
     DCS.openbeta_server:
@@ -287,6 +292,11 @@ MyNode:
             redCommanderPassword: red     # Red Tactical Commander password
           client:
             port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
+    instance2:
+      # [...]
+      extensions:
+        Olympus:
+          enabled: false                  # Don't enable DCS Olympus on your instance2
 ```
 
 ### Write your own Extension!
