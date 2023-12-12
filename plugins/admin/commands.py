@@ -330,7 +330,7 @@ class Admin(Plugin):
         for instance in self.bot.node.instances:
             instances.append(instance.name)
             names.append(instance.server.name if instance.server else 'n/a')
-            status.append(instance.server.status.name if instance.server else '\- unused -')
+            status.append(instance.server.status.name if instance.server else '- unused -')
         embed.add_field(name="Instance", value='\n'.join(instances))
         embed.add_field(name="Server", value='\n'.join(names))
         embed.add_field(name="Status", value='\n'.join(status))

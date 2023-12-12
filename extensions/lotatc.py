@@ -37,7 +37,7 @@ class LotAtc(Extension):
                     value = match.group('value').strip(' ,')
                     cfg[key] = self.parse(value)
 
-        exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
+        exp = re.compile('(?P<key>.*) = (?P<value>.*)')
         cfg = dict()
         instance = self.server.instance
         if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua')):

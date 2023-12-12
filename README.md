@@ -115,13 +115,9 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 (3.11 recommended) and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick "Add python.exe to PATH" during your Python installation.<br>
+You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
+"Add python.exe to PATH" during your Python installation.<br>
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
-
-> ⚠️ **Attention!**<br>
-> Python 3.12 is **NOT** compatible with DCSServerBot atm. This is caused by an external library (aiohttp),  
-> which is used in many Python projects. Not only I use it, but many of the 3rd party libraries I use do. So 
-> please be patient until this issue is resolved by the responsive developers.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>

@@ -21,6 +21,7 @@ from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -56,7 +57,7 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     pos = timeframe.find('-')
     if pos != -1:
         start_time = parse_time(timeframe[:pos])
-        end_time = parse_time(timeframe[pos+1:])
+        end_time = parse_time(timeframe[pos + 1:])
         if end_time <= start_time:
             end_time += timedelta(days=1)
     else:
@@ -99,6 +100,7 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
             elif isinstance(value, bool):
                 value = str(value).lower()
             return super().format_field(value, spec)
+
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
     except KeyError:
@@ -193,8 +195,8 @@ def alternate_parse_settings(path: str):
         else:
             return int(value)
 
-    exp1 = re.compile('cfg\["(?P<key>.*)"\] = (?P<value>.*)')
-    exp2 = re.compile('cfg\["(?P<key1>.*)"\]\[(?P<key2>.*)\] = (?P<value>.*)')
+    exp1 = re.compile(r'cfg\["(?P<key>.*)"\] = (?P<value>.*)')
+    exp2 = re.compile(r'cfg\["(?P<key1>.*)"\]\[(?P<key2>.*)\] = (?P<value>.*)')
 
     settings = dict()
     with open(path, encoding='utf-8') as infile:
