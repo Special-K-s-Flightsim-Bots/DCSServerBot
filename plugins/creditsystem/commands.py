@@ -168,7 +168,7 @@ class CreditSystem(Plugin):
                             SET points = credits.points + EXCLUDED.points
                         """, (data[n]['id'], receiver, donation))
                         cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                       (data[n][0], receiver))
+                                       (data[n]['id'], receiver))
                         new_points_receiver = cursor.fetchone()[0]
                         cursor.execute("""
                             INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 

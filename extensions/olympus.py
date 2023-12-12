@@ -32,7 +32,7 @@ class Olympus(Extension):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
             return False
         if not os.path.exists(self.nodejs):
-            self.log.warning(f"  => {self.server.name}: Can't run {self.name}, node.js is not installed!")
+            self.log.warning(f"  => {self.server.name}: Can't run {self.name}, Node.js is not installed!")
             return False
         server_port = self.config.get('server', {}).get('port', 3001)
         if server_ports.get(server_port, self.server.name) != self.server.name:
