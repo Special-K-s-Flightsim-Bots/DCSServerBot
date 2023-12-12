@@ -5,6 +5,9 @@ import subprocess
 from core import Extension, utils, Server
 from typing import Optional
 
+server_ports: dict[int, str] = dict()
+client_ports: dict[int, str] = dict()
+
 
 class Olympus(Extension):
 
@@ -22,7 +25,22 @@ class Olympus(Extension):
         return utils.get_windows_version(os.path.join(self.home, 'Mods', 'Services', 'Olympus', 'bin', 'olympus.dll'))
 
     def is_installed(self) -> bool:
-        return os.path.exists(self.home)
+        global server_ports, client_ports
+        
+        if not os.path.exists(self.home):
+            self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
+            return False
+        server_port = self.config.get('server', {}).get('port', 3001)
+        if server_ports.get(server_port, self.server.name) != self.server.name:
+            self.log.warning(f'  => Server port {server_port} is already in use by another {self.name} instance!')
+            return False
+        server_ports[server_port] = self.server.name
+        client_port = self.config.get('client', {}).get('port', 3000)
+        if client_ports.get(client_port, self.server.name) != self.server.name:
+            self.log.warning(f'  => Client port {client_port} is already in use by another {self.name} instance!')
+            return False
+        client_ports[client_port] = self.server.name
+        return True
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if 'url' in self.config:

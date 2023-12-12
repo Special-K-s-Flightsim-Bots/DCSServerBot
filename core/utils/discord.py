@@ -529,9 +529,10 @@ class ServerTransformer(app_commands.Transformer):
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         try:
-            # server: Server = interaction.client.get_server(interaction)
-            # if server and server.status != Status.UNREGISTERED and (not self.status or server.status in self.status):
-            #   return [Choice(name=server.name, value=server.name)]
+            server: Optional[Server] = interaction.client.get_server(interaction)
+            if (not current and server and server.status != Status.UNREGISTERED and
+                    (not self.status or server.status in self.status)):
+                return [Choice(name=server.name, value=server.name)]
             choices: list[Choice[str]] = [
                 Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
@@ -811,9 +812,14 @@ async def server_selection(bus: ServiceBus,
         max_values = len(all_servers)
     else:
         max_values = 1
+    server: Optional[Server] = interaction.client.get_server(interaction)
     s = await selection(interaction, title=title,
                         options=[
-                            SelectOption(label=x, value=x, default=(idx == 0)) for idx, x in enumerate(all_servers)
+                            SelectOption(label=x, value=x, default=(
+                                True if server and server == x else
+                                True if not server and idx == 0 else
+                                False
+                            )) for idx, x in enumerate(all_servers)
                         ],
                         max_values=max_values, ephemeral=ephemeral)
     if multi_select:

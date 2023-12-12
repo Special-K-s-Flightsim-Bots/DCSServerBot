@@ -144,17 +144,17 @@ class Tacview(Extension):
             self.log.error(f"  => {self.server.name}: Can't load extension, Tacview not correctly installed.")
             return False
         rtt_port = self.locals.get('tacviewRealTimeTelemetryPort', 42674)
-        if rtt_port in rtt_ports and rtt_ports[rtt_port] != self.server.name:
+        if rtt_ports.get(rtt_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  tacviewRealTimeTelemetryPort {rtt_port} already in use by "
                            f"server {rtt_ports[rtt_port]}!")
-        else:
-            rtt_ports[rtt_port] = self.server.name
+            return False
+        rtt_ports[rtt_port] = self.server.name
         rcp_port = self.locals.get('tacviewRemoteControlPort', 42675)
-        if rcp_port in rcp_ports and rcp_ports[rcp_port] != self.server.name:
+        if rcp_ports.get(rcp_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  tacviewRemoteControlPort {rcp_port} already in use by "
                            f"server {rcp_ports[rcp_port]}!")
-        else:
-            rcp_ports[rcp_port] = self.server.name
+            return False
+        rcp_ports[rcp_port] = self.server.name
         return True
 
     @tasks.loop(seconds=1)
