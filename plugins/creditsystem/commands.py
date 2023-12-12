@@ -134,6 +134,7 @@ class CreditSystem(Plugin):
                                       ])
         else:
             n = 0
+        await interaction.response.defer(ephemeral=ephemeral)
         p_receiver: Optional[CreditPlayer] = None
         for server in self.bot.servers.values():
             p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
@@ -177,16 +178,18 @@ class CreditSystem(Plugin):
                               f'Credit points change by Admin {interaction.user.display_name}'))
             if donation > 0:
                 try:
-                    await to.dm_channel.send(f'You just received {donation} credit points from an Admin.')
+                    await (await to.create_dm()).send(f'You just received {donation} credit points from an Admin.')
                 except discord.Forbidden:
-                    await interaction.response.send_message(to.mention + f', you just received {donation} credit '
-                                                                         f'points from an Admin.')
+                    await interaction.followup.send(
+                        to.mention + f', you just received {donation} credit points from an Admin.')
             else:
                 try:
-                    await to.dm_channel.send(f'Your credits were decreased by {donation} credit points by an Admin.')
+                    await (await to.create_dm()).send(
+                        f'Your credits were decreased by {donation} credit points by an Admin.')
                 except discord.Forbidden:
-                    await interaction.response.send_message(to.mention + f', your credits were decreased by {donation} '
-                                                                         f'credit points by an Admin.')
+                    await interaction.followup.send(
+                        to.mention + f', your credits were decreased by {donation} credit points by an Admin.')
+            await interaction.followup.send(f'Donated {donation} points to {to.display_name}.', ephemeral=ephemeral)
 
     @credits.command(description='Donate credits to another member')
     @utils.app_has_role('DCS')
@@ -223,9 +226,11 @@ class CreditSystem(Plugin):
                                       ])
         else:
             n = 0
+        await interaction.response.defer()
         if data[n]['credits'] < donation:
-            await interaction.response.send_message(f"You can't donate {donation} credit points, as you only "
-                                                    f"have {data[n]['credits']} in total!", ephemeral=True)
+            await interaction.followup.send(
+                f"You can't donate {donation} credit points, as you only have {data[n]['credits']} in total!",
+                ephemeral=True)
             return
         # now see, if one of the parties is an active player already...
         p_donor: Optional[CreditPlayer] = None
@@ -250,7 +255,7 @@ class CreditSystem(Plugin):
                         old_points_receiver = p_receiver.points
                     if 'max_points' in self.get_config() and \
                             (old_points_receiver + donation) > self.get_config()['max_points']:
-                        await interaction.response.send_message(
+                        await interaction.followup.send(
                             f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
                             f'points with this donation. Aborted.', ephemeral=True)
                         return
@@ -289,10 +294,11 @@ class CreditSystem(Plugin):
                         """, (data[n]['id'], 'donation', receiver, old_points_receiver, new_points_receiver,
                               f'Donation from member {interaction.user.display_name}'))
             try:
-                await to.dm_channel.send(f'You just received {donation} credit points from '
-                                         f'{utils.escape_string(interaction.user.display_name)}!')
+                await (await to.create_dm()).send(
+                    f'You just received {donation} credit points '
+                    f'from {utils.escape_string(interaction.user.display_name)}!')
             except discord.Forbidden:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     to.mention + f', you just received {donation} credit points from '
                                  f'{utils.escape_string(interaction.user.display_name)}!'
                 )
