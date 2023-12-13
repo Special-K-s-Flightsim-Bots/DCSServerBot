@@ -146,7 +146,7 @@ class MonitoringService(Service):
                             message = f"Can't reach server \"{server.name}\" for more than {max_hung_minutes} " \
                                       f"minutes. Killing ..."
                             self.log.warning(message)
-                            if server.process:
+                            if server.process and server.process.is_running():
                                 now = datetime.now(timezone.utc)
                                 filename = os.path.join(server.instance.home, 'Logs',
                                                         f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
