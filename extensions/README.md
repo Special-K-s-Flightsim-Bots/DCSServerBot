@@ -171,7 +171,7 @@ MyNode:
   extensions:
     Sneaker:
       cmd: '%USERPROFILE%\Documents\GitHub\sneaker\sneaker.exe'
-      bind: 0.0.0.0:8080            # local listen configuration for sneaker
+      bind: 0.0.0.0:8080            # local listen configuration for Sneaker
       url: https://myfancyhost.com  # optional: show a different host instead of the servers external IP
   # [...]
   instances:
@@ -180,6 +180,7 @@ MyNode:
       extensions:
         Sneaker:
           enabled: true
+          debug: true               # Show the Sneaker console output in the DCSSB console. Default = false
 ```
 You need to let the sneaker cmd point to wherever you've installed the sneaker.exe binary (name might vary, usually 
 there is a version number attached to it). DCSServerBot will auto-create the config.json for sneaker 
@@ -246,6 +247,7 @@ MyNode:
       extensions:
         Lardoon:
           enabled: true
+          debug: true               # Show the sneaker console output in the DCSSB console. Default = false
 ```
 Don't forget to add some kind of security before exposing services like that to the outside world, with for instance
 a nginx reverse proxy.</br>
@@ -282,6 +284,7 @@ MyNode:
       # [...]
       extensions:
         Olympus:
+          debug: true                     # Show the Olympus console in the DCSSB console, default = false
           url: https://myfancyurl:3001/   # optional: your own URL, if available
           server:
             address: 0.0.0.0              # your bind address
@@ -298,6 +301,9 @@ MyNode:
         Olympus:
           enabled: false                  # Don't enable DCS Olympus on your instance2
 ```
+> ⚠️ **Attention!**<br>
+> You need to forward the server.port and the client.port from your router to the PC running DCS and DCS Olympus.
+
 
 ### Write your own Extension!
 Do you use something alongside with DCS that isn't supported yet? Are you someone that does not fear some lines of

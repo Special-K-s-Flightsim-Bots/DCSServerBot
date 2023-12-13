@@ -60,6 +60,7 @@ class Olympus(Extension):
     async def prepare(self) -> bool:
         self.log.debug(f"Launching Olympus configurator ...")
         try:
+            out = subprocess.DEVNULL if self.config.get('debug', False) else None
             subprocess.run([
                 os.path.basename(self.nodejs),
                 "configurator.js",
@@ -69,8 +70,7 @@ class Olympus(Extension):
                 "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
                 "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
                 "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
-            ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL)
+            ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
             return await super().prepare()
         except Exception as ex:
             self.log.exception(ex)
