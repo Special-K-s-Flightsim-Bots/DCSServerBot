@@ -62,6 +62,7 @@ class MonitoringService(Service):
         for server in [x for x in self.bus.servers.values() if x.is_remote]:
             if server.node.name not in active_nodes:
                 self.log.warning(f"- Node {server.node.name} not responding, removing server {server.name}.")
+                self.bus.servers[server.name].status = Status.UNREGISTERED
                 del self.bus.servers[server.name]
             else:
                 used_nodes.add(server.node.name)
@@ -113,7 +114,7 @@ class MonitoringService(Service):
                                               server=server)
 
     async def heartbeat(self):
-        for server in self.bus.servers.values():  # type: ServerImpl
+        for server in self.bus.servers.copy().values():  # type: ServerImpl
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
             if not server.maintenance and server.process is not None and not server.process.is_running():

@@ -343,7 +343,7 @@ class ServiceBus(Service):
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str, channels: dict):
         server = self.servers.get(server_name)
-        if not server:
+        if not server or not server.is_remote:
             node = NodeProxy(self.node, node, public_ip)
             server = ServerProxy(
                 node=node,
