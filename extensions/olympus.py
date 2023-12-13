@@ -78,11 +78,9 @@ class Olympus(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
+        out = subprocess.DEVNULL if self.config.get('debug', False) else None
         self.process = await asyncio.create_subprocess_exec(
-            self.nodejs, r".\bin\www",
-            cwd=os.path.join(self.home, "client"),
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL
+            self.nodejs, r".\bin\www", cwd=os.path.join(self.home, "client"), stdout=out, stderr=out
         )
         return self.is_running()
 
