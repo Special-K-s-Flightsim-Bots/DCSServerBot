@@ -23,12 +23,12 @@ class Olympus(Extension):
 
     @property
     def version(self) -> Optional[str]:
-        return utils.get_windows_version(os.path.join(self.home, 'Mods', 'Services', 'Olympus', 'bin', 'olympus.dll'))
+        return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
 
     def is_installed(self) -> bool:
         global server_ports, client_ports
         
-        if not os.path.exists(self.home):
+        if not os.path.exists(os.path.join(self.home, 'bin', 'olympus.dll')):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
             return False
         if not os.path.exists(self.nodejs):
@@ -58,6 +58,8 @@ class Olympus(Extension):
         }
 
     async def prepare(self) -> bool:
+        if not self.is_installed():
+            return False
         self.log.debug(f"Launching Olympus configurator ...")
         try:
             out = subprocess.DEVNULL if self.config.get('debug', False) else None
