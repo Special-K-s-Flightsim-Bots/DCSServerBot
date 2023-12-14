@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import logging
 import os
 import psutil
 import sys
@@ -154,6 +155,9 @@ class MonitoringService(Service):
                                 if sys.platform == 'win32':
                                     await asyncio.to_thread(create_dump, server.process.pid, filename,
                                                             MINIDUMP_TYPE.MiniDumpNormal, True)
+                                    root = logging.getLogger()
+                                    if root.handlers:
+                                        root.removeHandler(root.handlers[0])
                                 server.process.kill()
                             else:
                                 await server.shutdown(True)
