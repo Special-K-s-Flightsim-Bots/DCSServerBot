@@ -20,7 +20,7 @@ your Discord server.
 | /flag                | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or clears) a flag inside the running mission or returns the current value.                 |
 | /variable            | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or gets) a mission variable.                                                               |
 | /do_script           | lua code                              | admin-channel | DCS Admin, GameMaster | Runs specific lua code inside the running mission.                                               |
-| /do_script_file      | file                                  | admin-channel | DCS Admin, GameMaster | Loads a script (relative to Saved Games\DCS...) into the running mission.                        |
+| /do_script_file      | file                                  | admin-channel | DCS Admin, GameMaster | Loads a script from Missions\Scripts into the running mission.                                   |
 | /reset_coalitions    |                                       | all           | DCS Admin             | Resets all user-coalition-bindings on all servers.                                               |
 | /campaign list       | [active]                              | admin-channel | DCS Admin, GameMaster | Lists all available campaigns. If "active" is provided, only active campaigns will be displayed. |
 | /campaign info       | campaign                              | admin-channel | DCS Admin, GameMaster | Displays information about a campaign like name, description, start, stop and involved servers.  |
@@ -54,6 +54,10 @@ your triggers that fire after a mission load:
 ```
 This can for instance be used for some arena based game, which should start all over again after being restarted.
 A campaign name of "_internal_" will be used in that case.
+
+## Upload of LUA files
+LUA files that can be used in /do_script_file and be loaded into any running mission, can be uploaded to a specific
+server by just drag&drop into the respective admin channel, like you would do it with mission files.
 
 ## Upload of (persistent) Embeds
 
