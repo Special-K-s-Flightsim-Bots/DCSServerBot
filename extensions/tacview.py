@@ -173,7 +173,8 @@ class Tacview(Extension):
                 for line in file.readlines():
                     if 'TACVIEW.DLL (Main): End of flight data recorder.' in line:
                         self.check_log.cancel()
-                        break
+                        self.log_pos = -1
+                        return
                     match = self.exp.search(line)
                     if match:
                         await self.send_tacview_file(match.group('filename')[1:-1])
