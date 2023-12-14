@@ -285,9 +285,9 @@ MyNode:
       extensions:
         Olympus:
           debug: true                     # Show the Olympus console in the DCSSB console, default = false
-          url: https://myfancyurl:3001/   # optional: your own URL, if available
+          url: https://myfancyurl:3000/   # optional: your own URL, if available
           server:
-            address: 0.0.0.0              # your bind address
+            address: '*'                  # your bind address. * = 0.0.0.0, use localhost for local only setups
             port: 3001                    # server port for DCS Olympus internal communication (needs to be unique)                   
           authentication:
             gameMasterPassword: secret    # Game Master password
@@ -302,7 +302,8 @@ MyNode:
           enabled: false                  # Don't enable DCS Olympus on your instance2
 ```
 > ⚠️ **Attention!**<br>
-> You need to forward the server.port and the client.port from your router to the PC running DCS and DCS Olympus.
+> You need to forward the server.port and the client.port from your router to the PC running DCS and DCS Olympus.<br>
+> To create an exclusion in your UAC run this: `netsh http add urlacl url="http://*:3001/olympus/" user=user-running-dcs`
 
 
 ### Write your own Extension!
