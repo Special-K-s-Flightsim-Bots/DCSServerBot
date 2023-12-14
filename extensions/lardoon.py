@@ -27,7 +27,7 @@ class Lardoon(Extension):
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
         if not process or process.returncode is not None:
-            out = subprocess.DEVNULL if self.config.get('debug', False) else None
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
             process = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],

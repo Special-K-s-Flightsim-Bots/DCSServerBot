@@ -54,7 +54,7 @@ class Sneaker(Extension):
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         if 'config' not in self.config:
-            out = subprocess.DEVNULL if self.config.get('debug', False) else None
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             if process and process.returncode is None:
                 process.kill()
             self.create_config()

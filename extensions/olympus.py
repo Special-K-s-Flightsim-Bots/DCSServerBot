@@ -62,7 +62,7 @@ class Olympus(Extension):
             return False
         self.log.debug(f"Launching Olympus configurator ...")
         try:
-            out = subprocess.DEVNULL if self.config.get('debug', False) else None
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             subprocess.run([
                 os.path.basename(self.nodejs),
                 "configurator.js",
@@ -80,7 +80,7 @@ class Olympus(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
-        out = subprocess.DEVNULL if self.config.get('debug', False) else None
+        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
         self.process = await asyncio.create_subprocess_exec(
             self.nodejs, r".\bin\www", cwd=os.path.join(self.home, "client"), stdout=out, stderr=out
         )

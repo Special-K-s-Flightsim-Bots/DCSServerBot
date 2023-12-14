@@ -25,6 +25,11 @@ class UploadStatus(Enum):
     WRITE_ERROR = auto()
 
 
+class SortOrder(Enum):
+    NAME = auto()
+    DATE = auto()
+
+
 class Node:
 
     def __init__(self, name: str):
@@ -105,7 +110,7 @@ class Node:
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplemented()
 
-    async def list_directory(self, path: str, pattern: str) -> list[str]:
+    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
         raise NotImplemented()
 
     async def rename_server(self, server: Server, new_name: str):

@@ -27,7 +27,7 @@ from version import __version__
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
-from core.data.node import Node, UploadStatus
+from core.data.node import Node, UploadStatus, SortOrder
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
@@ -537,10 +537,11 @@ class NodeImpl(Node):
                     return UploadStatus.READ_ERROR
         return UploadStatus.OK
 
-    async def list_directory(self, path: str, pattern: str) -> list[str]:
+    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
         directory = Path(os.path.expandvars(path))
         ret = []
-        for file in sorted(directory.glob(pattern), key=os.path.getmtime, reverse=True):
+        for file in sorted(directory.glob(pattern), key=os.path.getmtime if order == SortOrder.DATE else None,
+                           reverse=True):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
 
