@@ -28,12 +28,14 @@ To disable mission statistics for a specific mission, you can use the following 
 
 ## Discord Commands
 
-| Command       | Parameter                         | Channel                     | Role | Description                                                                                          |
-|---------------|-----------------------------------|-----------------------------|------|------------------------------------------------------------------------------------------------------|
-| /missionstats |                                   | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievements in kills and captures.   |
-| /sorties      | [@member / Player Name] [period*] | all                         | DCS  | Display the number of sorties and real flight time per module / period.                              |
-| /modulestats  | [@member / Player Name] [period*] | all                         | DCS  | Display module and weapon statistics per module.                                                     |
-| /refuelings   | [@member / Player Name] [period*] | all                         | DCS  | Display refuelings per module.                                                                       |
+| Command       | Parameter                         | Channel                     | Role | Description                                                                                        |
+|---------------|-----------------------------------|-----------------------------|------|----------------------------------------------------------------------------------------------------|
+| /missionstats |                                   | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievements in kills and captures. |
+| /sorties      | [@member / Player Name] [period*] | all                         | DCS  | Display the number of sorties and real flight time per module / period.                            |
+| /modulestats  | [@member / Player Name] [period*] | all                         | DCS  | Display module and weapon statistics per module.                                                   |
+| /refuelings   | [@member / Player Name] [period*] | all                         | DCS  | Display refuelings per module.                                                                     |
+| /nemesis      | [@member / Player Name]           | all                         | DCS  | Display who killed you the most.                                                                   |
+| /antagonist   | [@member / Player Name]           | all                         | DCS  | Display who you killed the most (top 5 atm).                                                       |
 
 *) "period" can either be a period [day, week, month, year] or a [campaign](../gamemaster/README.md) name!
 

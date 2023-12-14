@@ -225,8 +225,16 @@ class Graph(ReportElement):
         self.env.embed.set_footer(text=footer)
 
 
+def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: bool):
+    if isinstance(no_data, str):
+        element.add_field(name='_ _', value=no_data)
+    else:
+        for name, value in no_data.items():
+            element.add_field(name=name, value=value, inline=inline)
+
+
 class SQLField(EmbedElement):
-    async def render(self, sql: str, inline: Optional[bool] = True):
+    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
@@ -235,13 +243,20 @@ class SQLField(EmbedElement):
                     name = list(row.keys())[0]
                     value = row[name]
                     self.add_field(name=name, value=value, inline=inline)
+                else:
+                    if no_data:
+                        _display_no_data(self, no_data, inline)
 
 
 class SQLTable(EmbedElement):
-    async def render(self, sql: str, inline: Optional[bool] = True):
+    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+                if cursor.rowcount == 0:
+                    if no_data:
+                        _display_no_data(self, no_data, inline)
+                    return
                 header = None
                 cols = []
                 elements = 0

@@ -65,7 +65,7 @@ class MissionStatistics(Plugin):
             name = user.display_name
         report = Report(self.bot, self.plugin_name, 'sorties.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
-        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @staticmethod
     def format_modules(data):
@@ -108,7 +108,7 @@ class MissionStatistics(Plugin):
             name = user.display_name
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
         env = await report.render(member_name=name, ucid=ucid, period=period, module=module, flt=flt)
-        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @command(description='Refueling statistics')
     @app_commands.guild_only()
@@ -134,7 +134,49 @@ class MissionStatistics(Plugin):
             name = user.display_name
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
-        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+
+    @command(description='Find who killed you most')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def nemesis(self, interaction: discord.Interaction,
+                      user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+        if not user:
+            user = interaction.user
+        if isinstance(user, str):
+            ucid = user
+            user = self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
+            ucid = self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        report = Report(self.bot, self.plugin_name, 'nemesis.json')
+        env = await report.render(ucid=ucid, member_name=name)
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+
+    @command(description="Find who you've killed the most")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def antagonist(self, interaction: discord.Interaction,
+                         user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+        if not user:
+            user = interaction.user
+        if isinstance(user, str):
+            ucid = user
+            user = self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
+            ucid = self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        report = Report(self.bot, self.plugin_name, 'antagonist.json')
+        env = await report.render(ucid=ucid, member_name=name)
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
