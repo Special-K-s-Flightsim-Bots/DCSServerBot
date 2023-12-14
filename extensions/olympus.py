@@ -53,7 +53,7 @@ class Olympus(Extension):
             value = f"{self.node.public_ip}:{self.config.get('client', {}).get('port', 3000)}"
         return {
             "name": "Olympus",
-            "version": self.version or 'n/a',
+            "version": self.version,
             "value": value
         }
 

@@ -29,11 +29,15 @@ class MusicService(Service):
         else:
             return super().get_config(server)['radios'][radio_name]
 
-    async def get_music_dir(self) -> str:
+    @property
+    def music_dir(self):
         music_dir = os.path.expandvars(self.get_config()['music_dir'])
         if not os.path.exists(music_dir):
             os.makedirs(music_dir)
         return music_dir
+
+    async def get_music_dir(self) -> str:
+        return self.music_dir
 
     async def stop(self):
         for server_name in self.radios.keys():
