@@ -812,7 +812,9 @@ async def server_selection(bus: ServiceBus,
         max_values = len(all_servers)
     else:
         max_values = 1
-    server: Optional[Server] = interaction.client.get_server(interaction)
+    server: Optional[Server] = None
+    if isinstance(interaction, discord.Interaction):
+        server = interaction.client.get_server(interaction)
     s = await selection(interaction, title=title,
                         options=[
                             SelectOption(label=x, value=x, default=(
