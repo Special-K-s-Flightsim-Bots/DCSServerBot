@@ -33,7 +33,7 @@ MyNode:
 [SimpleRadioStandalone](http://dcssimpleradio.com/) (DCS-SRS) is an awesome tool built by CiriBob, who dedicates a lot of work and this 
 simulated real life radio experience to DCS. Many if not every server runs an SRS server too, to let their players have 
 a proper radio experience.<br/>
-DCSServerBot integrates nicely with SRS. If you place your server.cfg in your Saved Games\DCS(..)\Config folder (and I
+DCSServerBot integrates nicely with SRS. If you place your server.cfg in your Saved Games\DCS(...)\Config folder (and I
 usually rename it to SRS.cfg, just to avoid confusions in there), the bot can auto-start and -stop your SRS server 
 alongside with your DCS server. It even monitors if SRS has crashed (that's a waste of code... I literally never saw
 that crash) and start it again in such a case.<br/>
@@ -129,6 +129,7 @@ MyNode:
         LotAtc:
           show_passwords: false     # show passwords in the server status embed (default = true)
           host: "myfancyhost.com"   # Show a different hostname instead of your servers external IP
+          port: 10310               # you can specify any parameter from LotAtc's config.lua in here to overwrite it
 ```
 There is no default section for LotAtc, so if added to an instance like described above, it is enabled, if not, then not.
 

@@ -1,64 +1,48 @@
+import luadata
 import os
-import re
-import sys
-if sys.platform == 'win32':
-    import win32api
 
-from core import Extension
-from typing import Any, Optional, TextIO
+from core import Extension, utils, Server
+from typing import Optional
 
 ports: dict[int, str] = dict()
 
 
 class LotAtc(Extension):
-    @staticmethod
-    def parse(value: str) -> Any:
-        if value.startswith('{'):
-            return value[1:-1].split(',')
-        elif value.startswith('"'):
-            return value.strip('"')
-        elif value == 'true':
-            return True
-        elif value == 'false':
-            return False
-        elif '.' in value:
-            return float(value)
-        else:
-            return int(value)
+    def __init__(self, server: Server, config: dict):
+        self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'LotAtc')
+        super().__init__(server, config)
 
     def load_config(self) -> Optional[dict]:
-        def read_file(file: TextIO, cfg: dict):
-            for line in file.readlines():
-                match = exp.match(line)
-                if match:
-                    key = match.group('key').strip()
-                    if key.startswith('--'):
-                        continue
-                    value = match.group('value').strip(' ,')
-                    cfg[key] = self.parse(value)
-
-        exp = re.compile('(?P<key>.*) = (?P<value>.*)')
-        cfg = dict()
-        instance = self.server.instance
-        if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua')):
-            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua'), 'r') as file:
-                read_file(file, cfg)
-        if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua')):
-            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua'), 'r') as file:
-                read_file(file, cfg)
+        cfg = {}
+        for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
+            with open(path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            content = content.replace('lotatc_inst.options', 'cfg')
+            cfg |= luadata.unserialize(content)
         return cfg
+
+    async def prepare(self) -> bool:
+        config = self.config.copy()
+        if 'enabled' in config:
+            del config['enabled']
+        if 'show_passwords' in config:
+            del config['show_passwords']
+        if 'host' in config:
+            del config['host']
+        if len(config):
+            new_cfg = self.locals
+            new_cfg |= self.config
+            del new_cfg['enabled']
+            path = os.path.join(self.home, 'config.custom.lua')
+            with open(path, 'wb') as outfile:
+                outfile.write((f"lotatc_inst.options = " + luadata.serialize(new_cfg, indent='\t',
+                                                                             indent_level=0)).encode('utf-8'))
+            self.log.debug(f"  => New {path} written.")
+        return True
 
     @property
     def version(self) -> str:
-        path = os.path.join(self.server.instance.home, r'Mods\services\LotAtc\bin\lotatc.dll')
-        if sys.platform == 'win32' and os.path.exists(path):
-            info = win32api.GetFileVersionInfo(path, '\\')
-            version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                    info['FileVersionMS'] % 65536,
-                                    info['FileVersionLS'] / 65536)
-        else:
-            version = 'n/a'
-        return version
+        return utils.get_windows_version(os.path.join(self.home, r'bin', 'lotatc.dll'))
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if self.locals:
@@ -80,8 +64,8 @@ class LotAtc(Extension):
     def is_installed(self) -> bool:
         global ports
 
-        if (not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/bin/lotatc.dll')) or
-                not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/config.lua'))):
+        if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
+                not os.path.exists(os.path.join(self.home, 'config.lua'))):
             self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
             return False
         port = self.locals.get('port', 10310)
