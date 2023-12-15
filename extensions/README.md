@@ -3,6 +3,15 @@ Extensions are external programs or mods that you have added to your DCS install
 (supported ones, see below). DCSServerBot adds some support for them, reaching from simply displaying details about
 them in your server embed (LotAtc) to completely starting and stopping external programs (SRS).
 
+> ⚠️ **Attention!**<br>
+> Besides MizEdit, which is my own solution, all other extensions are made by fellow community members. I am very happy 
+> about these solutions and I really appreciate that someone put a lot of time in to make them what they
+> are today.<br>
+> Nevertheless, I am not responsible for them. Neither for any bugs, nor for their proper functionality. The developers
+> usually either have their own Discord servers, where you can ask for support or they have the option to raise an 
+> issue in their GitHubs.<br>
+> So please - if you see any issues in these solutions, contact the developers and ask for help.
+
 ## Supported Extensions
 If you have looked around a bit, you might have seen already that I try to create APIs that you guys can use to extend
 what is there. That said - there is a list of Extensions that I added already, but you can write our own. I'll give an
@@ -307,6 +316,23 @@ MyNode:
 > You need to forward the server.port and the client.port from your router to the PC running DCS and DCS Olympus.<br>
 > To create an exclusion in your UAC run this: `netsh http add urlacl url="http://*:3001/olympus/" user=user-running-dcs`
 
+### DCS-gRPC
+[DCS-gRPC](https://github.com/DCS-gRPC) is a communication library, that is somehow similar to what DCSServerBot does 
+already. It has some differences though and comes with some other tools. This said, you can use it alongside DCSServerBot
+without issues.<br>
+The extension itself allows you to configure your DCS-gRPC server from your instance configurations like with any other
+extension:
+```yaml
+MyNode:
+  # [...]
+  instances:
+    DCS.openbeta_server:
+      # [...]
+      extensions:
+        gRPC:
+          enabled: true
+          port: 50051     # you can set any configuration parameter here, that will be replaced in your dcs-grpc.lua file.
+```
 
 ### Write your own Extension!
 Do you use something alongside with DCS that isn't supported yet? Are you someone that does not fear some lines of

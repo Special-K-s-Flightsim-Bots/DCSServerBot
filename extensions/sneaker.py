@@ -115,7 +115,7 @@ class Sneaker(Extension):
 
     def is_installed(self) -> bool:
         # check if Sneaker is enabled
-        if 'enabled' not in self.config or not self.config['enabled']:
+        if not self.config.get('enabled', True):
             return False
         # check if Sneaker is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
