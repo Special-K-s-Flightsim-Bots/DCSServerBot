@@ -699,7 +699,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
                 SELECT DISTINCT slot, COUNT(*) FROM statistics 
                 WHERE player_ucid =  %s 
                 AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 DESC
+                GROUP BY 1 ORDER BY 2 LIMIT 25 DESC
             """, (ucid, )).fetchall()]
 
     try:
