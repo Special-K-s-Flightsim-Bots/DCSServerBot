@@ -56,6 +56,16 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         interaction.client.log.exception(ex)
 
 
+async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
+    return [
+        app_commands.Choice(name=x, value=x)
+        for x in interaction.client.cogs
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
 class Admin(Plugin):
 
     def read_locals(self) -> dict:
@@ -412,16 +422,16 @@ class Admin(Plugin):
     @command(description='Reloads a plugin')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(plugin=utils.plugins_autocomplete)
+    @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
-            if await self.bot.reload(plugin):
-                await interaction.followup.send(f'Plugin {plugin.title()} reloaded.', ephemeral=ephemeral)
+            if await self.bot.reload(plugin.lower()):
+                await interaction.followup.send(f'Plugin {plugin} reloaded.', ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    f'Plugin {plugin.title()} could not be reloaded, check the log for details.', ephemeral=ephemeral)
+                    f'Plugin {plugin} could not be reloaded, check the log for details.', ephemeral=ephemeral)
         else:
             if await self.bot.reload():
                 await interaction.followup.send(f'All plugins reloaded.', ephemeral=ephemeral)

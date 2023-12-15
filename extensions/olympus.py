@@ -51,9 +51,9 @@ class Olympus(Extension):
         if 'url' in self.config:
             value = self.config['url']
         else:
-            value = f"{self.node.public_ip}:{self.config.get('client', {}).get('port', 3000)}"
+            value = f"http://{self.node.public_ip}:{self.config.get('client', {}).get('port', 3000)}"
         return {
-            "name": "Olympus",
+            "name": self.name,
             "version": self.version,
             "value": value
         }

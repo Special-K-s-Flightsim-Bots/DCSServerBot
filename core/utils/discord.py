@@ -51,7 +51,6 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "mizfile_autocomplete",
-    "plugins_autocomplete",
     "available_modules_autocomplete",
     "installed_modules_autocomplete",
     "player_modules_autocomplete",
@@ -658,16 +657,6 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
-
-
-async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
-        return []
-    return [
-        app_commands.Choice(name=x, value=x.lower())
-        for x in interaction.client.cogs
-        if not current or current.casefold() in x.casefold()
-    ]
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:

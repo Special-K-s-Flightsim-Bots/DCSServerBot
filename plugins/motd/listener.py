@@ -2,7 +2,7 @@ from core import EventListener, utils, Server, Report, Player, event
 from typing import Optional, Tuple
 
 
-class MessageOfTheDayListener(EventListener):
+class MOTDListener(EventListener):
 
     def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
         if 'messages' in config:
