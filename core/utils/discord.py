@@ -699,7 +699,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
                 SELECT DISTINCT slot, COUNT(*) FROM statistics 
                 WHERE player_ucid =  %s 
                 AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 LIMIT 25 DESC
+                GROUP BY 1 ORDER BY 2 DESC
             """, (ucid, )).fetchall()]
 
     try:
@@ -710,11 +710,12 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
             ucid = interaction.client.get_ucid_by_member(user)
         if not ucid:
             return []
-        return [
+        ret = [
             app_commands.Choice(name=x, value=x)
             for x in get_modules(ucid)
             if not current or current.casefold() in x.casefold()
         ]
+        return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
 
