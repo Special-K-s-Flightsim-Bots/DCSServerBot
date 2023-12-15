@@ -1,5 +1,6 @@
 import asyncio
 import os
+import stat
 import subprocess
 
 from core import Extension, utils, Server
@@ -63,6 +64,7 @@ class Olympus(Extension):
         self.log.debug(f"Launching Olympus configurator ...")
         try:
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+            os.chmod(os.path.join(self.home, 'olympus.json'), stat.S_IWUSR)
             subprocess.run([
                 os.path.basename(self.nodejs),
                 "configurator.js",
