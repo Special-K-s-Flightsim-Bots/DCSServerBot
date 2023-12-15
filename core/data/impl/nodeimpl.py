@@ -73,7 +73,9 @@ class NodeImpl(Node):
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
-
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()

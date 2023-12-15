@@ -99,7 +99,7 @@ class SRS(Extension):
         return self.is_running()
 
     async def shutdown(self):
-        if self.config.get('autostart', True):
+        if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
             p = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
             if p:
                 p.kill()

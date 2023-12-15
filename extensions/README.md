@@ -57,7 +57,8 @@ MyNode:
           awacs: true
           blue_password: blue
           red_password: red
-          autostart: true
+          autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
+          no_shutdown: true   # optional: don't shut down SRS on mission end (default: false)
 ```
 You need one entry in the node section, pointing to your DCS-SRS installation and one in every instance section, 
 where you want to use SRS with. The next time the bot starts your server, it will auto-launch SRS and take care of it.
