@@ -60,7 +60,7 @@ class Olympus(Extension):
 
         if not self.is_installed():
             return False
-        self.log.debug(f"Launching Olympus configurator ...")
+        self.log.debug(f"Launching {self.name} configurator ...")
         try:
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             os.chmod(os.path.join(self.home, 'olympus.json'), stat.S_IWUSR)
