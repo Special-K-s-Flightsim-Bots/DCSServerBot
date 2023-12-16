@@ -183,7 +183,8 @@ bother with the bots configuration in first place.
 > drive for instance.
 
 The following samples will show you what you can configure in DCSServerBot. For most of the configuration, default 
-values will apply, so you don't need to set them explicitly.
+values will apply, so you don't need all these values explicitly. I printed them here for completeness and for the
+sake of documentation.
 
 ### config/main.yaml
 This file holds the main information about DCSServerBot. You can configure which plugins are loaded here for instance.
@@ -236,7 +237,8 @@ NODENAME:                       # this will be your hostname
   listen_port: 10042            # On which port should the bot listen to? Default is 10042
   autoupdate: true              # use the bots autoupdate functionality, default is false
   slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
-  preferred_master: true        # this node should be the preferred master node (only needed in a cluster configuration)
+  preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
+  heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
