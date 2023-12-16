@@ -257,6 +257,7 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     async def find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         with self.pool.connection() as conn:
             rows = conn.execute("""
                 SELECT distinct ucid, name, max(last_seen) FROM (
@@ -273,9 +274,8 @@ class UserStatistics(Plugin):
                 for idx, row in enumerate(rows)
             ]
             if not options:
-                await interaction.response.send_message("No user found.")
+                await interaction.followup.send("No user found.")
                 return
-            await interaction.response.defer(ephemeral=ephemeral)
             idx = await utils.selection(interaction, placeholder="Select a User", options=options, ephemeral=ephemeral)
             if idx:
                 await self._info(interaction, rows[int(idx)][0])
