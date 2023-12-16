@@ -107,8 +107,9 @@ class Olympus(Extension):
         return self.process is not None and self.process.returncode is None
 
     async def shutdown(self) -> bool:
+        await super().shutdown()
         if self.is_running():
             self.process.terminate()
             await self.process.wait()
             self.process = None
-        return await super().shutdown()
+        return True
