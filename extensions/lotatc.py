@@ -22,6 +22,8 @@ class LotAtc(Extension):
         return cfg
 
     async def prepare(self) -> bool:
+        global ports
+
         config = self.config.copy()
         if 'enabled' in config:
             del config['enabled']
@@ -30,15 +32,19 @@ class LotAtc(Extension):
         if 'host' in config:
             del config['host']
         if len(config):
-            new_cfg = self.locals
-            new_cfg |= self.config
-            del new_cfg['enabled']
+            self.locals = self.locals | config
             path = os.path.join(self.home, 'config.custom.lua')
             with open(path, 'wb') as outfile:
-                outfile.write((f"lotatc_inst.options = " + luadata.serialize(new_cfg, indent='\t',
+                outfile.write((f"lotatc_inst.options = " + luadata.serialize(self.locals, indent='\t',
                                                                              indent_level=0)).encode('utf-8'))
             self.log.debug(f"  => New {path} written.")
-        return True
+        port = self.locals.get('port', 10310)
+        if port in ports and ports[port] != self.server.name:
+            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+            return False
+        else:
+            ports[port] = self.server.name
+        return await super().prepare()
 
     @property
     def version(self) -> str:
@@ -62,18 +68,10 @@ class LotAtc(Extension):
             return {}
 
     def is_installed(self) -> bool:
-        global ports
-
         if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
                 not os.path.exists(os.path.join(self.home, 'config.lua'))):
             self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
             return False
-        port = self.locals.get('port', 10310)
-        if port in ports and ports[port] != self.server.name:
-            self.log.error(f"  => LotAtc port {port} already in use by server {ports[port]}!")
-            return False
-        else:
-            ports[port] = self.server.name
         return True
 
     async def shutdown(self) -> bool:

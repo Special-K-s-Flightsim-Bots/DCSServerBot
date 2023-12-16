@@ -11,11 +11,6 @@ from configparser import RawConfigParser
 from core import Extension, utils, Server
 from typing import Optional
 
-if sys.platform == 'win32':
-    import win32api
-    import win32con
-
-
 ports: dict[int, str] = dict()
 
 
@@ -34,6 +29,8 @@ class SRS(Extension):
             return {}
 
     async def prepare(self) -> bool:
+        global ports
+
         # Set SRS port if necessary
         dirty = False
         if 'port' in self.config and int(self.cfg['Server Settings']['SERVER_PORT']) != int(self.config['port']):
@@ -57,6 +54,13 @@ class SRS(Extension):
             with open(path, 'w') as ini:
                 self.cfg.write(ini)
             self.locals = self.load_config()
+        # Check port conflicts
+        port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
+        if port in ports and ports[port] != self.server.name:
+            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+            return False
+        else:
+            ports[port] = self.server.name
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
         autoconnect = os.path.join(self.server.instance.home,
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
@@ -78,7 +82,7 @@ class SRS(Extension):
                         outfile.write(line)
         else:
             self.log.info('- SRS autoconnect is not enabled for this server.')
-        return True
+        return await super().prepare()
 
     async def startup(self) -> bool:
         await super().startup()
@@ -86,6 +90,8 @@ class SRS(Extension):
             self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
                 os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
             if sys.platform == 'win32' and self.config.get('minimized', False):
+                import win32con
+
                 info = subprocess.STARTUPINFO()
                 info.dwFlags = subprocess.STARTF_USESHOWWINDOW
                 info.wShowWindow = win32con.SW_MINIMIZE
@@ -114,16 +120,7 @@ class SRS(Extension):
 
     @property
     def version(self) -> Optional[str]:
-        if sys.platform == 'win32':
-            info = win32api.GetFileVersionInfo(
-                os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'), '\\')
-            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                       info['FileVersionMS'] % 65536,
-                                       info['FileVersionLS'] / 65536,
-                                       info['FileVersionLS'] % 65536)
-        else:
-            version = None
-        return version
+        return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'))
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if self.locals:
@@ -143,8 +140,6 @@ class SRS(Extension):
             }
 
     def is_installed(self) -> bool:
-        global ports
-
         # check if SRS is installed
         exe_path = os.path.join(
             os.path.expandvars(self.config.get('installation',
@@ -163,17 +158,10 @@ class SRS(Extension):
             if self.server.instance.name not in cfg_path:
                 self.log.warning(f"  => Please move your SRS configuration from {cfg_path} to "
                                  f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
+            return True
         except KeyError:
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
-
-        port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
-        if port in ports and ports[port] != self.server.name:
-            self.log.error(f"  => SRS port {port} already in use by server {ports[port]}!")
-            return False
-        else:
-            ports[port] = self.server.name
-        return True
 
     @tasks.loop(minutes=5)
     async def schedule(self):

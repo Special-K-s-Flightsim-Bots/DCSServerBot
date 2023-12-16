@@ -453,7 +453,7 @@ class NodeImpl(Node):
                             if row['node'] == self.name:
                                 master = True
                             # the old master is dead, we probably need to take over
-                            elif (row['now'] - row['last_seen']).total_seconds() > 10:
+                            elif (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
                                 self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}z")
                                 cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))

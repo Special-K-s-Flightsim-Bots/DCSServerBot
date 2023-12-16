@@ -388,8 +388,8 @@ class Scheduler(Plugin):
                     return
             await do_shutdown(server, force=force, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is already shut down.",
-                                                    ephemeral=ephemeral)
+            await interaction.followup.send(f"DCS server \"{server.display_name}\" is already shut down.",
+                                            ephemeral=ephemeral)
 
     @group.command(description='Starts a stopped DCS server')
     @app_commands.guild_only()

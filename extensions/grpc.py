@@ -5,6 +5,8 @@ import re
 from core import Extension, Server
 from typing import Optional, Any, TextIO
 
+ports: dict[int, str] = dict()
+
 
 class gRPC(Extension):
 
@@ -55,12 +57,18 @@ class gRPC(Extension):
         if 'enabled' in config:
             del config['enabled']
         if len(config):
-            config = self.locals | config
-            config['autostart'] = True
+            self.locals = self.locals | config
+            self.locals['autostart'] = True
             path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
-            data = luadata.serialize(config, indent='', indent_level=0).encode('utf8')[1:-1]
+            data = luadata.serialize(self.locals, indent='', indent_level=0).encode('utf8')[1:-1]
             with open(path, 'wb') as outfile:
                 outfile.write(data)
+        port = self.locals.get('port', 50051)
+        if port in ports and ports[port] != self.server.name:
+            self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
+            return False
+        else:
+            ports[port] = self.server.name
         return await super().prepare()
 
     def is_installed(self) -> bool:

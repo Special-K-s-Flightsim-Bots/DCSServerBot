@@ -1,7 +1,9 @@
 import asyncio
+import json
 import os
 import stat
 import subprocess
+import sys
 
 from core import Extension, utils, Server
 from typing import Optional
@@ -26,25 +28,20 @@ class Olympus(Extension):
     def version(self) -> Optional[str]:
         return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
 
+    def load_config(self) -> Optional[dict]:
+        try:
+            with open(os.path.join(self.home, 'olympus.json'), 'r') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            return {}
+
     def is_installed(self) -> bool:
-        global server_ports, client_ports
-        
         if not os.path.exists(os.path.join(self.home, 'bin', 'olympus.dll')):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
             return False
         if not os.path.exists(self.nodejs):
             self.log.warning(f"  => {self.server.name}: Can't run {self.name}, Node.js is not installed!")
             return False
-        server_port = self.config.get('server', {}).get('port', 3001)
-        if server_ports.get(server_port, self.server.name) != self.server.name:
-            self.log.warning(f'  => Server port {server_port} is already in use by another {self.name} instance!')
-            return False
-        server_ports[server_port] = self.server.name
-        client_port = self.config.get('client', {}).get('port', 3000)
-        if client_ports.get(client_port, self.server.name) != self.server.name:
-            self.log.warning(f'  => Client port {client_port} is already in use by another {self.name} instance!')
-            return False
-        client_ports[client_port] = self.server.name
         return True
 
     async def render(self, param: Optional[dict] = None) -> dict:
@@ -59,6 +56,8 @@ class Olympus(Extension):
         }
 
     async def prepare(self) -> bool:
+        global server_ports, client_ports
+
         if not self.is_installed():
             return False
         self.log.debug(f"Launching Olympus configurator ...")
@@ -75,6 +74,19 @@ class Olympus(Extension):
                 "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
                 "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
             ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
+            self.locals = self.load_config()
+            server_port = self.locals.get('server', {}).get('port', 3001)
+            if server_ports.get(server_port, self.server.name) != self.server.name:
+                self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
+                               f"server {server_ports[server_port]}!")
+                return False
+            server_ports[server_port] = self.server.name
+            client_port = self.locals.get('client', {}).get('port', 3000)
+            if client_ports.get(client_port, self.server.name) != self.server.name:
+                self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
+                               f"server {client_ports[client_port]}!")
+                return False
+            client_ports[client_port] = self.server.name
             return await super().prepare()
         except Exception as ex:
             self.log.exception(ex)
@@ -86,6 +98,9 @@ class Olympus(Extension):
         self.process = await asyncio.create_subprocess_exec(
             self.nodejs, r".\bin\www", cwd=os.path.join(self.home, "client"), stdout=out, stderr=out
         )
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.server.node.bot_version}.{self.server.node.sub_version}")
         return self.is_running()
 
     def is_running(self) -> bool:
