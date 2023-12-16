@@ -54,6 +54,7 @@ class Sneaker(Extension):
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         if 'config' not in self.config:
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             if process and process.returncode is None:
                 process.kill()
             self.create_config()
@@ -63,7 +64,7 @@ class Sneaker(Extension):
             process = subprocess.Popen([
                 cmd, "--bind", self.config['bind'],
                 "--config", os.path.join('config', 'sneaker.json')
-            ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
         else:
             if not process:
                 cmd = os.path.basename(self.config['cmd'])
@@ -114,7 +115,7 @@ class Sneaker(Extension):
 
     def is_installed(self) -> bool:
         # check if Sneaker is enabled
-        if 'enabled' not in self.config or not self.config['enabled']:
+        if not self.config.get('enabled', True):
             return False
         # check if Sneaker is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):

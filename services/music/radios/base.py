@@ -51,12 +51,19 @@ class Radio(ABC):
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else None
 
     def _read_playlist(self) -> list[str]:
+        playlist: list[str] = list()
+        music_dir: str = self.service.music_dir
         with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                return [
-                    x[0] for x in cursor.execute('SELECT song_file FROM music_playlists WHERE name = %s',
-                                                 (self._playlist,)).fetchall()
-                ]
+            with conn.transaction():
+                for row in conn.execute('SELECT song_file FROM music_playlists WHERE name = %s',
+                                        (self._playlist,)).fetchall():
+                    if os.path.exists(os.path.join(music_dir, row[0])):
+                        playlist.append(row[0])
+                    else:
+                        self.log.warning(f"Can't find music file {row[0]}, deleting from playlist {self._playlist}.")
+                        conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s',
+                                     (self._playlist, row[0]))
+        return playlist
 
     @property
     def playlist(self) -> str:
@@ -133,7 +140,11 @@ class Radio(ABC):
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
             with suppress(Exception):
-                await self.play(os.path.join(await self.service.get_music_dir(), self.songs[self.idx]))
+                filename = os.path.join(self.service.music_dir, self.songs[self.idx])
+                if os.path.exists(filename):
+                    await self.play(filename)
+                else:
+                    self.log.warning(f"Can't play {self.songs[self.idx]} - file does not exist.")
             self._current = None
             if self._mode == Mode.SHUFFLE:
                 self.idx = randrange(len(self.songs)) if self.songs else 0

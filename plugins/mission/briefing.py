@@ -17,6 +17,10 @@ class Body(report.EmbedElement):
         server: Server = self.bot.servers[server_name]
         sides = utils.get_sides(interaction.client, interaction, server)
         if Coalition.BLUE in sides:
-            self.add_field(name='Blue Tasks', value=mission_info['briefing']['descriptionBlueTask'][:1024].strip('\n') or 'n/a', inline=False)
+            self.add_field(name='Blue Tasks',
+                           value=mission_info['briefing']['descriptionBlueTask'][:1024].strip('\n') or 'n/a',
+                           inline=False)
         if Coalition.RED in sides:
-            self.add_field(name='Red Tasks', value=mission_info['briefing']['descriptionRedTask'][:1024].strip('\n') or 'n/a', inline=False)
+            self.add_field(name='Red Tasks',
+                           value=mission_info['briefing']['descriptionRedTask'][:1024].strip('\n') or 'n/a',
+                           inline=False)

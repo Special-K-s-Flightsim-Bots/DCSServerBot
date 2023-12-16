@@ -14,16 +14,16 @@ from .listener import HelpListener
 
 @cache
 async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
-    commands: dict[str, app_commands.Command] = dict()
-    for command in interaction.client.tree.get_commands(guild=interaction.guild):
-        if isinstance(command, app_commands.Group):
-            basename = command.name
-            for inner in command.commands:
+    cmds: dict[str, app_commands.Command] = dict()
+    for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
+        if isinstance(cmd, app_commands.Group):
+            basename = cmd.name
+            for inner in cmd.commands:
                 if await inner._check_can_run(interaction):
-                    commands['/' + basename + ' ' + inner.name] = inner
-        elif await command._check_can_run(interaction):
-            commands['/' + command.name] = command
-    return commands
+                    cmds['/' + basename + ' ' + inner.name] = inner
+        elif await cmd._check_can_run(interaction):
+            cmds['/' + cmd.name] = cmd
+    return cmds
 
 
 async def commands_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -41,21 +41,21 @@ async def command_picker(interaction: discord.Interaction, current: str) -> list
     try:
         ctx = await commands.Context.from_interaction(interaction)
         ret = list()
-        for command in interaction.client.commands:
-            if not command.enabled or command.hidden or (current and current.casefold() not in command.name):
+        for cmd in interaction.client.commands:
+            if not cmd.enabled or cmd.hidden or (current and current.casefold() not in cmd.name):
                 continue
-            if not isinstance(command, discord.ext.commands.core.Command):
+            if not isinstance(cmd, discord.ext.commands.core.Command):
                 continue
-            if await command.can_run(ctx):
-                ret.append(app_commands.Choice(name=command.name, value=command.name))
-        for command in interaction.client.tree.get_commands():
-            if current and current.casefold() not in command.name:
+            if await cmd.can_run(ctx):
+                ret.append(app_commands.Choice(name=cmd.name, value=cmd.name))
+        for cmd in interaction.client.tree.get_commands():
+            if current and current.casefold() not in cmd.name:
                 continue
-            if not isinstance(command, discord.ext.commands.hybrid.HybridAppCommand) and \
-                    not isinstance(command, Command):
+            if not isinstance(cmd, discord.ext.commands.hybrid.HybridAppCommand) and \
+                    not isinstance(cmd, Command):
                 continue
-            if await command._check_can_run(interaction):
-                ret.append(app_commands.Choice(name=command.name, value=command.name))
+            if await cmd._check_can_run(interaction):
+                ret.append(app_commands.Choice(name=cmd.name, value=cmd.name))
         return sorted(ret, key=lambda x: x.name)[:25]
     except Exception as ex:
         print(ex)
@@ -97,25 +97,25 @@ class Help(Plugin):
             else:
                 group = None
 
-            for command in interaction.client.tree.get_commands(guild=interaction.guild):
-                if group and isinstance(command, app_commands.Group) and command.name == group:
-                    for inner in command.commands:
+            for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
+                if group and isinstance(cmd, app_commands.Group) and cmd.name == group:
+                    for inner in cmd.commands:
                         if inner.name == _name:
-                            command = inner
+                            cmd = inner
                             break
                     else:
                         return None
                     break
-                elif not group and isinstance(command, app_commands.Command) and command.name == _name:
+                elif not group and isinstance(cmd, app_commands.Command) and cmd.name == _name:
                     break
             else:
                 return None
-            if not await command._check_can_run(interaction):
+            if not await cmd._check_can_run(interaction):
                 raise PermissionError()
             help_embed = discord.Embed(color=discord.Color.blue())
             help_embed.title = f"Command: {name}"
-            help_embed.description = command.description
-            usage = self.get_usage(command)
+            help_embed.description = cmd.description
+            usage = self.get_usage(cmd)
             help_embed.add_field(name='Usage', value=f"{name} {usage}", inline=False)
             if usage:
                 help_embed.set_footer(text='<> mandatory, [] non-mandatory')
@@ -127,10 +127,10 @@ class Help(Plugin):
             help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
             cmds = []
             descriptions = []
-            for name, command in (await get_commands(interaction)).items():
-                if command.module == plugin:
-                    cmds.append(name + ' ' + self.get_usage(command))
-                    descriptions.append(command.description)
+            for name, cmd in (await get_commands(interaction)).items():
+                if cmd.module == plugin:
+                    cmds.append(name + ' ' + self.get_usage(cmd))
+                    descriptions.append(cmd.description)
             if cmds:
                 help_embed.add_field(name='Command', value='\n'.join(cmds))
                 help_embed.add_field(name='Description', value='\n'.join(descriptions))

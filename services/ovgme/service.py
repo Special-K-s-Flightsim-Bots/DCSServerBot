@@ -87,7 +87,7 @@ class OvGMEService(Service):
                 try:
                     if not installed:
                         if await self.install_package(server, package['source'], package['name'], version):
-                            self.log.info(f"- Package {package['name']}_v{version} installed.")
+                            self.log.info(f"- Package {package['name']}_v{version} installed on server {server.name}.")
                         else:
                             self.log.warning(f"- Package {package['name']}_v{version} not found!")
                     elif installed != version:
@@ -96,9 +96,11 @@ class OvGMEService(Service):
                                            f"configured version. Skipping.")
                             continue
                         if not await self.uninstall_package(server, package['source'], package['name'], installed):
-                            self.log.warning(f"- Package {package['name']}_v{installed} could not be uninstalled!")
+                            self.log.warning(f"- Package {package['name']}_v{installed} could not be uninstalled on "
+                                             f"server {server.name}!")
                         elif not await self.install_package(server, package['source'], package['name'], version):
-                            self.log.warning(f"- Package {package['name']}_v{version} could not be installed!")
+                            self.log.warning(f"- Package {package['name']}_v{version} could not be installed on "
+                                             f"server {server.name}!")
                         else:
                             self.log.info(f"- Package {package['name']}_v{installed} updated to v{version}.")
                 finally:

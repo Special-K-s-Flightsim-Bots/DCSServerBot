@@ -2,7 +2,7 @@ import os
 
 from core import Instance, Server
 from core.services.registry import ServiceRegistry
-from core.data.node import Node, UploadStatus
+from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
 from typing import Any, Union, Optional, Tuple
@@ -155,14 +155,15 @@ class NodeProxy(Node):
         }, timeout=60, node=self.name)
         return UploadStatus(data["return"])
 
-    async def list_directory(self, path: str, pattern: str) -> list[str]:
+    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "list_directory",
             "params": {
                 "path": path,
-                "pattern": pattern
+                "pattern": pattern,
+                "order": order
             }
         }, node=self.name)
         return data['return']
@@ -178,7 +179,6 @@ class NodeProxy(Node):
                 "update_settings": update_settings
             }
         }, node=self.name)
-
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
         data = await self.bus.send_to_node_sync({

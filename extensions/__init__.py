@@ -7,3 +7,5 @@ from .dsmc import *
 from .lardoon import *
 from .mizedit import *
 from .voicechat import *
+from .olympus import *
+from .grpc import *

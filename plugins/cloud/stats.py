@@ -85,7 +85,8 @@ class PlaytimesPerMap(report.GraphElement):
             series = data[data['guild'] == guild]
         else:
             series = data
-        series = series.groupby('mission_theatre').agg(total_time=('playtime', 'sum')).sort_values(by=['total_time'], ascending=False).reset_index()
+        series = series.groupby('mission_theatre').agg(
+            total_time=('playtime', 'sum')).sort_values(by=['total_time'], ascending=False).reset_index()
         for index, row in series.iterrows():
             labels.insert(0, row['mission_theatre'])
             values.insert(0, row['total_time'])
@@ -117,7 +118,8 @@ class FlightPerformance(report.GraphElement):
             series = data[data['guild'] == guild]
         else:
             series = data
-        series = series.groupby('player_ucid').agg(landings=('landings', 'sum'), ejections=('ejections', 'sum'), crashes=('crashes', 'sum')).reset_index()
+        series = series.groupby('player_ucid').agg(
+            landings=('landings', 'sum'), ejections=('ejections', 'sum'), crashes=('crashes', 'sum')).reset_index()
         series['crashes'] = series['crashes'] - series['ejections']
         for name, value in series.iloc[0].items():
             if name == 'player_ucid':
@@ -160,12 +162,12 @@ class KDRatio(report.MultiGraphElement):
         result = DataFrame()
         result['AI Kills'] = series['kills'] - series['pvp']
         result['Player Kills'] = series['pvp']
-        result['Deaths by AI'] = series['deaths_planes'] + series['deaths_helicopters'] + series['deaths_ships'] + \
-                                 series['deaths_sams'] + series['deaths_ground'] - series['deaths_pvp']
+        result['Deaths by AI'] = (series['deaths_planes'] + series['deaths_helicopters'] + series['deaths_ships'] +
+                                  series['deaths_sams'] + series['deaths_ground'] - series['deaths_pvp'])
         result['Deaths by Player'] = series['deaths_pvp']
-        result['Selfkill'] = series[['deaths', 'crashes']].max(axis=1) - series['deaths_planes'] - \
-                             series['deaths_helicopters'] - series['deaths_ships'] - series['deaths_sams'] - \
-                             series['deaths_ground']
+        result['Selfkill'] = (series[['deaths', 'crashes']].max(axis=1) - series['deaths_planes'] -
+                              series['deaths_helicopters'] - series['deaths_ships'] - series['deaths_sams'] -
+                              series['deaths_ground'])
         result['Teamkills'] = series['teamkills']
         for name, value in result.iloc[0].items():
             if value and value > 0:

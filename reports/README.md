@@ -193,7 +193,8 @@ If you want to display a single value from a database table, use the SQLField fo
       "type": "SQLField",
       "params": {
         "sql": "SELECT points AS \"Points\" FROM sb_points WHERE player_ucid = %(ucid)s",
-        "inline": false
+        "inline": false,
+        "no_data": { "Points": 0 }
       }
     }
 ]
@@ -207,11 +208,13 @@ Similar to the Table element but with values from a SQL query:
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT init_id as ucid, event, SUM(points) AS points FROM pu_events WHERE init_id = %(ucid)s GROUP BY 1,2"
+        "sql": "SELECT init_id as ucid, event, SUM(points) AS points FROM pu_events WHERE init_id = %(ucid)s GROUP BY 1,2",
+        "no_data": "You have no points yet!"
       }
     }
 ]
 ```
+no_data can be either a string, or a dictionary. In case of a string, the "name" value will be empty.
 
 ## Graph Elements
 To display nice graphics like bar-charts or pie-charts, you need to wrap them in a Graph element:

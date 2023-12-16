@@ -1,12 +1,9 @@
 from __future__ import annotations
 import discord
 from core import DataObjectFactory, DataObject, utils
-from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
-if TYPE_CHECKING:
-    from services import DCSServerBot
 
 __all__ = ["Member"]
 
@@ -21,7 +18,6 @@ class Member(DataObject):
 
     def __post_init__(self):
         super().__post_init__()
-        self.bot: DCSServerBot = ServiceRegistry.get("Bot")
         with self.pool.connection() as conn:
             row = conn.execute("""
                 SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 

@@ -56,6 +56,16 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         interaction.client.log.exception(ex)
 
 
+async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
+    return [
+        app_commands.Choice(name=x, value=x)
+        for x in interaction.client.cogs
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
 class Admin(Plugin):
 
     def read_locals(self) -> dict:
@@ -138,7 +148,8 @@ class Admin(Plugin):
         embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'),
                         value=ban['ucid'])
         until = ban['banned_until'].strftime('%Y-%m-%d %H:%M')
-        embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
+        embed.add_field(name=f"Banned by: {ban['banned_by']}",
+                        value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
         embed.add_field(name='Reason', value=ban['reason'])
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
@@ -278,7 +289,7 @@ class Admin(Plugin):
             await view.wait()
         finally:
             await interaction.delete_original_response()
-        if view.command == "cancel":
+        if view.cmd == "cancel":
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
 
@@ -330,7 +341,7 @@ class Admin(Plugin):
         for instance in self.bot.node.instances:
             instances.append(instance.name)
             names.append(instance.server.name if instance.server else 'n/a')
-            status.append(instance.server.status.name if instance.server else '\- unused -')
+            status.append(instance.server.status.name if instance.server else '- unused -')
         embed.add_field(name="Instance", value='\n'.join(instances))
         embed.add_field(name="Server", value='\n'.join(names))
         embed.add_field(name="Status", value='\n'.join(status))
@@ -412,16 +423,16 @@ class Admin(Plugin):
     @command(description='Reloads a plugin')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(plugin=utils.plugins_autocomplete)
+    @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
-            if await self.bot.reload(plugin):
-                await interaction.followup.send(f'Plugin {plugin.title()} reloaded.', ephemeral=ephemeral)
+            if await self.bot.reload(plugin.lower()):
+                await interaction.followup.send(f'Plugin {plugin} reloaded.', ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    f'Plugin {plugin.title()} could not be reloaded, check the log for details.', ephemeral=ephemeral)
+                    f'Plugin {plugin} could not be reloaded, check the log for details.', ephemeral=ephemeral)
         else:
             if await self.bot.reload():
                 await interaction.followup.send(f'All plugins reloaded.', ephemeral=ephemeral)

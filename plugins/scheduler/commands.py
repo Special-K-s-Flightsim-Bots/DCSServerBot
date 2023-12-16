@@ -347,8 +347,9 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
-                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED])],
-                       force: Optional[bool] = False, maintenance: Optional[bool] = True):
+                           status=[
+                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED
+                           ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
         async def do_shutdown(server: Server, *, force: bool = False, ephemeral: bool):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
                                             ephemeral=ephemeral)
@@ -387,8 +388,8 @@ class Scheduler(Plugin):
                     return
             await do_shutdown(server, force=force, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is already shut down.",
-                                                    ephemeral=ephemeral)
+            await interaction.followup.send(f"DCS server \"{server.display_name}\" is already shut down.",
+                                            ephemeral=ephemeral)
 
     @group.command(description='Starts a stopped DCS server')
     @app_commands.guild_only()
@@ -529,9 +530,9 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def _migrate(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer],
-                      node: app_commands.Transform[Node, utils.NodeTransformer],
-                      instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
+                       server: app_commands.Transform[Server, utils.ServerTransformer],
+                       node: app_commands.Transform[Node, utils.NodeTransformer],
+                       instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         if server.instance == instance:
             await interaction.response.send_message(
                 f'Server "{server.name}" is already bound to instance "{instance.name}".', ephemeral=True)

@@ -27,7 +27,7 @@ from version import __version__
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
-from core.data.node import Node, UploadStatus
+from core.data.node import Node, UploadStatus, SortOrder
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
@@ -73,7 +73,9 @@ class NodeImpl(Node):
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
-
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
@@ -451,7 +453,7 @@ class NodeImpl(Node):
                             if row['node'] == self.name:
                                 master = True
                             # the old master is dead, we probably need to take over
-                            elif (row['now'] - row['last_seen']).total_seconds() > 10:
+                            elif (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
                                 self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}z")
                                 cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
@@ -537,10 +539,11 @@ class NodeImpl(Node):
                     return UploadStatus.READ_ERROR
         return UploadStatus.OK
 
-    async def list_directory(self, path: str, pattern: str) -> list[str]:
+    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
         directory = Path(os.path.expandvars(path))
         ret = []
-        for file in sorted(directory.glob(pattern), key=os.path.getmtime, reverse=True):
+        for file in sorted(directory.glob(pattern), key=os.path.getmtime if order == SortOrder.DATE else None,
+                           reverse=True):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
 

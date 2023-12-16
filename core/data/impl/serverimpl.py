@@ -180,7 +180,7 @@ class ServerImpl(Server):
         shutil.copytree('Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
         try:
             with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), 'r') as template:
-                with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w') as outfile:
+                with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w', encoding='utf-8') as outfile:
                     for line in template.readlines():
                         line = utils.format_string(line, node=self.node, instance=self.instance, server=self)
                         outfile.write(line)

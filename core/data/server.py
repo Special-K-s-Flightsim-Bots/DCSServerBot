@@ -73,7 +73,7 @@ class Server(DataObject):
             if not data.get(self.name):
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
-            if 'message_ban' not in self.locals:
+            if 'message_ban' not in _locals:
                 _locals['message_ban'] = 'You are banned from this server. Reason: {}'
             return _locals
         return {}

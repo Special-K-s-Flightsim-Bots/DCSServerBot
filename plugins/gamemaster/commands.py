@@ -1,10 +1,9 @@
 import aiohttp
-import asyncio
 import discord
 import os
 import psycopg
 
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, UploadStatus
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -13,6 +12,25 @@ from typing import Optional, Literal
 
 from .listener import GameMasterEventListener
 from .views import CampaignModal, ScriptModal
+
+
+async def scriptfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))
+            for x in await server.node.list_directory(os.path.join(await server.get_missions_dir(), 'Scripts'),
+                                                      pattern='*.lua')
+            if not current or current.casefold() in x.casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 class GameMaster(Plugin):
@@ -131,31 +149,35 @@ class GameMaster(Plugin):
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[
                             Status.RUNNING, Status.PAUSED
                         ])]):
-
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            return
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(f'Server "{server.name}" is {server.status.name}. Aborted.',
                                                     ephemeral=ephemeral)
             return
         modal = ScriptModal(server, ephemeral)
-        await interaction.response.send_modal(modal)
+        await interaction.response.send_modal(modal, ephemeral=ephemeral)
 
     @command(description='Loads a lua file into the mission')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.autocomplete(filename=scriptfile_autocomplete)
     async def do_script_file(self, interaction: discord.Interaction,
                              server: app_commands.Transform[Server, utils.ServerTransformer(status=[
                                  Status.RUNNING, Status.PAUSED
                              ])],
                              filename: str):
-        ephemeral = utils.get_ephemeral(interaction)
-        if not os.path.exists(os.path.join(server.instance.home, filename)):
-            interaction.response.send_message(f"File {filename} not found.", ephemeral=ephemeral)
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            return
+        filename = os.path.join('Missions', 'Scripts', filename)
         server.send_to_dcs({
             "command": "do_script_file",
             "file": filename.replace('\\', '/')
         })
-        await interaction.response.send_message('Script loaded.', ephemeral=ephemeral)
+        await interaction.response.send_message('Script loaded.', ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Mass coalition leave for users')
     @app_commands.guild_only()
@@ -301,37 +323,83 @@ class GameMaster(Plugin):
                 if player:
                     player.member = after
 
+    async def _create_embed(self, message: discord.Message) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(message.attachments[0].url) as response:
+                if response.status == 200:
+                    data = await response.json(encoding="utf-8")
+                    embed = utils.format_embed(data, bot=self.bot, bus=self.bus, node=self.bus.node,
+                                               user=message.author)
+                    msg = None
+                    if 'message_id' in data:
+                        try:
+                            msg = await message.channel.fetch_message(int(data['message_id']))
+                            await msg.edit(embed=embed)
+                        except discord.errors.NotFound:
+                            msg = None
+                        except discord.errors.DiscordException as ex:
+                            self.log.exception(ex)
+                            await message.channel.send(f'Error while updating embed!')
+                            return
+                    if not msg:
+                        await message.channel.send(embed=embed)
+                    await message.delete()
+                else:
+                    await message.channel.send(f'Error {response.status} while reading JSON file!')
+
+    async def _upload_lua(self, message: discord.Message) -> int:
+        # check if the upload happens in the servers admin channel (if provided)
+        server: Server = self.bot.get_server(message, admin_only=True)
+        ctx = await self.bot.get_context(message)
+        if not server:
+            # check if there is a central admin channel configured
+            if self.bot.locals.get('admin_channel', 0) == message.channel.id:
+                try:
+                    server = await utils.server_selection(
+                        self.bus, ctx, title="To which server do you want to upload this LUA to?")
+                    if not server:
+                        await ctx.send('Upload aborted.')
+                        return -1
+                except Exception as ex:
+                    self.log.exception(ex)
+                    return -1
+            else:
+                return -1
+        num = 0
+        for attachment in message.attachments:
+            if not attachment.filename.endswith('.lua'):
+                continue
+            filename = os.path.normpath(os.path.join(await server.get_missions_dir(), 'Scripts', attachment.filename))
+            rc = await server.node.write_file(filename, attachment.url)
+            if rc == UploadStatus.OK:
+                num += 1
+                continue
+            if not await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?'):
+                await message.channel.send('Upload aborted.')
+                continue
+            rc = await server.node.write_file(filename, attachment.url, overwrite=True)
+            if rc != UploadStatus.OK:
+                await message.channel.send(f"File {attachment.filename} could not be uploaded.")
+            else:
+                num += 1
+        return num
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # ignore bot messages
         if message.author.bot:
             return
-        if message.attachments and message.attachments[0].filename.endswith('.json'):
-            # only Admin role is allowed to upload config files
-            if not utils.check_roles(self.bot.roles['Admin'], message.author):
-                return
-            async with aiohttp.ClientSession() as session:
-                async with session.get(message.attachments[0].url) as response:
-                    if response.status == 200:
-                        data = await response.json(encoding="utf-8")
-                        embed = utils.format_embed(data, bot=self.bot, bus=self.bus, node=self.bus.node,
-                                                   user=message.author)
-                        msg = None
-                        if 'message_id' in data:
-                            try:
-                                msg = await message.channel.fetch_message(int(data['message_id']))
-                                await msg.edit(embed=embed)
-                            except discord.errors.NotFound:
-                                msg = None
-                            except discord.errors.DiscordException as ex:
-                                self.log.exception(ex)
-                                await message.channel.send(f'Error while updating embed!')
-                                return
-                        if not msg:
-                            await message.channel.send(embed=embed)
-                        await message.delete()
-                    else:
-                        await message.channel.send(f'Error {response.status} while reading JSON file!')
+        if message.attachments:
+            if (message.attachments[0].filename.endswith('.json') and
+                    utils.check_roles(self.bot.roles['Admin'], message.author)):
+                await self._create_embed(message)
+            elif (message.attachments[0].filename.endswith('.lua') and
+                  utils.check_roles(self.bot.roles['DCS Admin'], message.author)):
+                num = await self._upload_lua(message)
+                if num > 0:
+                    await message.channel.send(
+                        f"{num} LUA files uploaded. You can load any of them with `/do_script_file` now.")
+                    await message.delete()
         else:
             for server in self.bot.servers.values():
                 if server.status != Status.RUNNING:

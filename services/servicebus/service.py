@@ -254,8 +254,10 @@ class ServiceBus(Service):
         # update the database and check for server name changes
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT server_name FROM instances WHERE node=%s AND port=%s AND server_name IS NOT NULL',
-                               (platform.node(), data['port']))
+                cursor.execute(
+                    'SELECT server_name FROM instances WHERE node=%s AND port=%s AND server_name IS NOT NULL',
+                    (platform.node(), data['port'])
+                )
                 if cursor.rowcount == 1:
                     _server_name = cursor.fetchone()[0]
                     if _server_name != server_name:
@@ -338,12 +340,13 @@ class ServiceBus(Service):
     def is_banned(self, ucid: str) -> Optional[dict]:
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
+                return cursor.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()",
+                                      (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str, channels: dict):
         server = self.servers.get(server_name)
-        if not server:
+        if not server or not server.is_remote:
             node = NodeProxy(self.node, node, public_ip)
             server = ServerProxy(
                 node=node,

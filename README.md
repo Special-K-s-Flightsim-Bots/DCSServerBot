@@ -115,13 +115,9 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 (3.11 recommended) and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick "Add python.exe to PATH" during your Python installation.<br>
+You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
+"Add python.exe to PATH" during your Python installation.<br>
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
-
-> ⚠️ **Attention!**<br>
-> Python 3.12 is **NOT** compatible with DCSServerBot atm. This is caused by an external library (aiohttp),  
-> which is used in many Python projects. Not only I use it, but many of the 3rd party libraries I use do. So 
-> please be patient until this issue is resolved by the responsive developers.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
@@ -187,7 +183,8 @@ bother with the bots configuration in first place.
 > drive for instance.
 
 The following samples will show you what you can configure in DCSServerBot. For most of the configuration, default 
-values will apply, so you don't need to set them explicitly.
+values will apply, so you don't need all these values explicitly. I printed them here for completeness and for the
+sake of documentation.
 
 ### config/main.yaml
 This file holds the main information about DCSServerBot. You can configure which plugins are loaded here for instance.
@@ -240,7 +237,8 @@ NODENAME:                       # this will be your hostname
   listen_port: 10042            # On which port should the bot listen to? Default is 10042
   autoupdate: true              # use the bots autoupdate functionality, default is false
   slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
-  preferred_master: true        # this node should be the preferred master node (only needed in a cluster configuration)
+  preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
+  heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.

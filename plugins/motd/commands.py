@@ -5,10 +5,10 @@ from discord import app_commands
 from discord.ext import tasks
 from services import DCSServerBot
 from typing import Optional, Type, Literal
-from .listener import MessageOfTheDayListener
+from .listener import MOTDListener
 
 
-class MessageOfTheDay(Plugin):
+class MOTD(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -118,4 +118,4 @@ class MessageOfTheDay(Plugin):
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    await bot.add_cog(MessageOfTheDay(bot, MessageOfTheDayListener))
+    await bot.add_cog(MOTD(bot, MOTDListener))

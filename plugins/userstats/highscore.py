@@ -35,7 +35,9 @@ class HighscorePlaytime(report.GraphElement):
             sql += "AND m.server_name = %s"
             self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
+                sql += ' AND s.side in (' + ','.join([
+                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
+                ]) + ')'
         self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
@@ -99,7 +101,9 @@ class HighscoreElement(report.GraphElement):
         if server_name:
             sql += "AND m.server_name = %s"
             if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
+                sql += ' AND s.side in (' + ','.join([
+                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
+                ]) + ')'
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
         if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:

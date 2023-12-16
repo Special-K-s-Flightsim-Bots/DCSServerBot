@@ -43,7 +43,10 @@ class Mission(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
         if days > -1:
-            conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')")
+            conn.execute(f"""
+                DELETE FROM missions 
+                WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
+            """)
         self.log.debug('Mission pruned.')
 
     async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
@@ -608,7 +611,7 @@ class Mission(Plugin):
         for server_name, server in self.bot.servers.items():
             if server.status == Status.UNREGISTERED:
                 continue
-            #channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
+            # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
             channel = self.bot.get_channel(server.channels[Channel.STATUS])
             # name changes of the status channel will only happen with the correct permission
             if channel.permissions_for(self.bot.member).manage_channels:

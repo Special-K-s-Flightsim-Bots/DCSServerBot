@@ -3,7 +3,6 @@ import psycopg
 
 from contextlib import closing
 from discord import app_commands, SelectOption
-from discord.app_commands import Range
 from core import utils, Plugin, PluginRequiredError, Group
 from psycopg.rows import dict_row
 from services import DCSServerBot

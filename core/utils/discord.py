@@ -51,7 +51,6 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "mizfile_autocomplete",
-    "plugins_autocomplete",
     "available_modules_autocomplete",
     "installed_modules_autocomplete",
     "player_modules_autocomplete",
@@ -529,9 +528,10 @@ class ServerTransformer(app_commands.Transformer):
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         try:
-            # server: Server = interaction.client.get_server(interaction)
-            # if server and server.status != Status.UNREGISTERED and (not self.status or server.status in self.status):
-            #   return [Choice(name=server.name, value=server.name)]
+            server: Optional[Server] = interaction.client.get_server(interaction)
+            if (not current and server and server.status != Status.UNREGISTERED and
+                    (not self.status or server.status in self.status)):
+                return [Choice(name=server.name, value=server.name)]
             choices: list[Choice[str]] = [
                 Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
@@ -659,16 +659,6 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         interaction.client.log.exception(ex)
 
 
-async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
-        return []
-    return [
-        app_commands.Choice(name=x, value=x.lower())
-        for x in interaction.client.cogs
-        if not current or current.casefold() in x.casefold()
-    ]
-
-
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
         return []
@@ -720,11 +710,12 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
             ucid = interaction.client.get_ucid_by_member(user)
         if not ucid:
             return []
-        return [
+        ret = [
             app_commands.Choice(name=x, value=x)
             for x in get_modules(ucid)
             if not current or current.casefold() in x.casefold()
         ]
+        return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
 
@@ -811,9 +802,16 @@ async def server_selection(bus: ServiceBus,
         max_values = len(all_servers)
     else:
         max_values = 1
+    server: Optional[Server] = None
+    if isinstance(interaction, discord.Interaction):
+        server = interaction.client.get_server(interaction)
     s = await selection(interaction, title=title,
                         options=[
-                            SelectOption(label=x, value=x, default=(idx == 0)) for idx, x in enumerate(all_servers)
+                            SelectOption(label=x, value=x, default=(
+                                True if server and server == x else
+                                True if not server and idx == 0 else
+                                False
+                            )) for idx, x in enumerate(all_servers)
                         ],
                         max_values=max_values, ephemeral=ephemeral)
     if multi_select:

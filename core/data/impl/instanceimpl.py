@@ -20,6 +20,8 @@ class InstanceImpl(Instance):
             self.missions_dir = os.path.join(self.home, 'Missions')
         else:
             self.missions_dir = os.path.expandvars(self.locals['missions_dir'])
+        os.makedirs(self.missions_dir, exist_ok=True)
+        os.makedirs(os.path.join(self.missions_dir, 'Scripts'), exist_ok=True)
         autoexec = Autoexec(instance=self)
         self.locals['webgui_port'] = autoexec.webgui_port or 8088
         settings = {}

@@ -27,9 +27,6 @@ class Tacview(Extension):
             self.check_log.start()
         return True
 
-    async def shutdown(self) -> bool:
-        return await super().shutdown()
-
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
             options = self.server.options['plugins']
@@ -57,6 +54,8 @@ class Tacview(Extension):
         return options['Tacview']
 
     async def prepare(self) -> bool:
+        global rtt_ports, rcp_ports
+
         dirty = False
         options = self.server.options['plugins']
         if 'tacviewExportPath' in self.config:
@@ -87,6 +86,19 @@ class Tacview(Extension):
                              f'performance issues!')
         if dirty:
             self.server.options['plugins'] = options
+            self.locals = options['Tacview']
+        rtt_port = self.locals.get('tacviewRealTimeTelemetryPort', 42674)
+        if rtt_ports.get(rtt_port, self.server.name) != self.server.name:
+            self.log.error(f"  =>  {self.server.name}: tacviewRealTimeTelemetryPort {rtt_port} already in use by "
+                           f"server {rtt_ports[rtt_port]}!")
+            return False
+        rtt_ports[rtt_port] = self.server.name
+        rcp_port = self.locals.get('tacviewRemoteControlPort', 42675)
+        if rcp_ports.get(rcp_port, self.server.name) != self.server.name:
+            self.log.error(f"  =>  {self.server.name}: tacviewRemoteControlPort {rcp_port} already in use by "
+                           f"server {rcp_ports[rcp_port]}!")
+            return False
+        rcp_ports[rcp_port] = self.server.name
         return True
 
     @property
@@ -122,8 +134,6 @@ class Tacview(Extension):
         }
 
     def is_installed(self) -> bool:
-        global rtt_ports, rcp_ports
-
         base_dir = self.server.instance.home
         dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
         exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
@@ -143,18 +153,6 @@ class Tacview(Extension):
         if not dll_installed or not exports_installed:
             self.log.error(f"  => {self.server.name}: Can't load extension, Tacview not correctly installed.")
             return False
-        rtt_port = self.locals.get('tacviewRealTimeTelemetryPort', 42674)
-        if rtt_port in rtt_ports and rtt_ports[rtt_port] != self.server.name:
-            self.log.error(f"  =>  tacviewRealTimeTelemetryPort {rtt_port} already in use by "
-                           f"server {rtt_ports[rtt_port]}!")
-        else:
-            rtt_ports[rtt_port] = self.server.name
-        rcp_port = self.locals.get('tacviewRemoteControlPort', 42675)
-        if rcp_port in rcp_ports and rcp_ports[rcp_port] != self.server.name:
-            self.log.error(f"  =>  tacviewRemoteControlPort {rcp_port} already in use by "
-                           f"server {rcp_ports[rcp_port]}!")
-        else:
-            rcp_ports[rcp_port] = self.server.name
         return True
 
     @tasks.loop(seconds=1)

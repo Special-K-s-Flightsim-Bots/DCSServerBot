@@ -25,6 +25,11 @@ class UploadStatus(Enum):
     WRITE_ERROR = auto()
 
 
+class SortOrder(Enum):
+    NAME = auto()
+    DATE = auto()
+
+
 class Node:
 
     def __init__(self, name: str):
@@ -63,14 +68,18 @@ class Node:
             config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
             config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
             config['messages'] = config.get('messages', {})
-            config['messages']['player_username'] = config['messages'].get('player_username',
-                                                                           'Your player name contains invalid characters. '
-                                                                           'Please change your name to join our server.')
-            config['messages']['player_default_username'] = \
-                config['messages'].get('player_default_username', 'Please change your default player name at the top right '
-                                                                  'of the multiplayer selection list to an individual one!')
-            config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
-                                                                                          'server. Reason: {}')
+            config['messages']['player_username'] = config['messages'].get(
+                'player_username',
+                'Your player name contains invalid characters. Please change your name to join our server.'
+            )
+            config['messages']['player_default_username'] = config['messages'].get(
+                'player_default_username',
+                'Please change your default player name at the top right of the multiplayer selection list to an '
+                'individual one!'
+            )
+            config['messages']['player_banned'] = config['messages'].get(
+                'player_banned', 'You are banned from this server. Reason: {}'
+            )
             return config
         except ParserError as ex:
             raise YAMLError('config/main.yaml', ex)
@@ -105,7 +114,7 @@ class Node:
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplemented()
 
-    async def list_directory(self, path: str, pattern: str) -> list[str]:
+    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
         raise NotImplemented()
 
     async def rename_server(self, server: Server, new_name: str):

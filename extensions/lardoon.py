@@ -27,12 +27,12 @@ class Lardoon(Extension):
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
         if not process or process.returncode is not None:
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
             process = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
                                        executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
+                                       stdout=out, stderr=out)
             servers.add(self.server.name)
         return self.is_running()
 
@@ -62,7 +62,7 @@ class Lardoon(Extension):
 
     def is_installed(self) -> bool:
         # check if Lardoon is enabled
-        if 'enabled' not in self.config or not self.config['enabled']:
+        if not self.config.get('enabled', True):
             return False
         # check if Lardoon is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):

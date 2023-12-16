@@ -8,7 +8,7 @@ class CleanupView(View):
         super().__init__()
         self.what = 'non-members'
         self.age = '180'
-        self.command = None
+        self.cmd = None
 
     @discord.ui.select(placeholder="What to be pruned?", options=[
         discord.SelectOption(label='Non-member users (unlinked)', value='non-members', default=True),
@@ -32,13 +32,13 @@ class CleanupView(View):
     @discord.ui.button(label='Prune', style=discord.ButtonStyle.danger, emoji='⚠')
     async def prune(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
-        self.command = "prune"
+        self.cmd = "prune"
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: Button):
         await interaction.response.defer()
-        self.command = "cancel"
+        self.cmd = "cancel"
         self.stop()
 
 

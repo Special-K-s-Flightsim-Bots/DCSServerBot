@@ -102,7 +102,6 @@ class Player(DataObject):
                 'roles': [x.name for x in self._member.roles] if self._member else []
             })
 
-
     @property
     def verified(self) -> bool:
         return self._verified
