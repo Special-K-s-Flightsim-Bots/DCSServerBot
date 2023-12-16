@@ -286,6 +286,75 @@ Don't forget to add some kind of security before exposing services like that to 
 a nginx reverse proxy.</br>
 If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKilo](https://github.com/team-limakilo/lardoon).
 
+### DCS Olympus
+[DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
+real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
+is to download the installation ZIP file from [here](TODO) and provide it to the [OvGME](../plugins/ovgme/README.md) 
+plugin like so:
+```json
+{
+  "configs": [
+    {
+      "SavedGames": "%USERPROFILE%\\Documents\\OvGME\\SavedGames",
+      "RootFolder": "%USERPROFILE%\\Documents\\OvGME\\RootFolder"
+    },
+    {
+      "installation": "DCS.openbeta",
+      "packages": [
+        {
+          "name": "DCSOlympus",
+          "version": "latest",
+          "source": "SavedGames"
+        }
+      ]
+    }
+  ]
+}
+```
+To use the DCS Olympus client, you need [Node.js](https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi) installed.
+Click on the link, download and install it. Remember the installation location, as you need to provide it in the 
+configuration.
+
+Then you can add the DCS Olympus extension like so to your scheduler.json:
+```json
+{
+  "configs": [
+    {
+      [...]
+      "extensions": {
+        "Olympus": {
+          "nodejs": "%ProgramFiles%\\nodejs"
+        }
+      }
+      [...]
+    },
+    {
+      "installation": "DCS.openbeta_server",
+      [...]
+      "extensions": {
+        "Olympus": {
+          "url": "https://myfancyurl:4000/",
+          "server": {
+            "address": "*",
+            "port": 4001
+          },
+          "authentication": {
+            "gameMasterPassword": "secret",
+            "blueCommanderPassword": "blue",
+            "redCommanderPassword": "red"
+          },
+          "client": {
+            "port": 4000
+          }
+        }
+      }
+    }
+  ]
+}
+```
+> ⚠️ **Attention!**<br>
+> You need to forward the server.port and the client.port from your router to the PC running DCS and DCS Olympus.
+
 ### Write your own Extension!
 Do you use something alongside with DCS that isn't supported yet? Are you someone that does not fear some lines of
 Python code? Well then - write your own extension!</br>

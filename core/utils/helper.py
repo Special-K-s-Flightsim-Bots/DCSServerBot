@@ -154,8 +154,8 @@ def alternate_parse_settings(path: str):
         else:
             return int(value)
 
-    exp1 = re.compile('cfg\["(?P<key>.*)"\] = (?P<value>.*)')
-    exp2 = re.compile('cfg\["(?P<key1>.*)"\]\[(?P<key2>.*)\] = (?P<value>.*)')
+    exp1 = re.compile(r'cfg\["(?P<key>.*)"\] = (?P<value>.*)')
+    exp2 = re.compile(r'cfg\["(?P<key1>.*)"\]\[(?P<key2>.*)\] = (?P<value>.*)')
 
     settings = dict()
     with open(path, encoding='utf-8') as infile:

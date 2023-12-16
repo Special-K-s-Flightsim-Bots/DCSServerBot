@@ -12,13 +12,6 @@ servers: set[str] = set()
 
 class Sneaker(Extension):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
-        super().__init__(bot, server, config)
-        self.bot = bot
-        self.log = bot.log
-        self.server = server
-        self.config = config
-
     def create_config(self):
         cfg = {"servers": []}
         if os.path.exists('config\\sneaker.json'):

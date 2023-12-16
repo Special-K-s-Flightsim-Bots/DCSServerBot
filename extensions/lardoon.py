@@ -17,10 +17,6 @@ class Lardoon(Extension):
 
     def __init__(self, bot: DCSServerBot, server: Server, config: dict):
         super().__init__(bot, server, config)
-        self.bot = bot
-        self.log = bot.log
-        self.server = server
-        self.config = config
         self._import: Optional[subprocess.Popen] = None
 
     async def startup(self) -> bool:
@@ -54,7 +50,7 @@ class Lardoon(Extension):
     def is_running(self) -> bool:
         global process, servers
 
-        if process and process.poll() is None:
+        if process is not None and process.poll() is None:
             return self.server.name in servers
         else:
             process = None

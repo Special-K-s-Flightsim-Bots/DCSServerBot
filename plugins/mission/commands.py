@@ -599,7 +599,7 @@ class Mission(Plugin):
                         else:
                             message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
                             self.log.warning(message)
-                            await self.bot.audit("Server set to SHUTDOWN due to a hung state.", server=server)
+                            await self.bot.audit("Server died.", server=server)
                         del self.hung[server.name]
                         server.status = Status.SHUTDOWN
                         await warn_admins(server, message)

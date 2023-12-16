@@ -103,6 +103,7 @@ class MissionEventListener(EventListener):
 
     @tasks.loop(seconds=5)
     async def update_player_embed(self):
+        self.log.debug("### update_player_embed()")
         for server_name, update in self.player_embeds.items():
             if update:
                 try:
@@ -117,6 +118,7 @@ class MissionEventListener(EventListener):
 
     @tasks.loop(seconds=5)
     async def update_mission_embed(self):
+        self.log.debug("### update_mission_embed()")
         for server_name, update in self.mission_embeds.items():
             if update:
                 try:
