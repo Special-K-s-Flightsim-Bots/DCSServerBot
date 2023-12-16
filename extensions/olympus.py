@@ -63,7 +63,12 @@ class Olympus(Extension):
         self.log.debug(f"Launching {self.name} configurator ...")
         try:
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
-            os.chmod(os.path.join(self.home, 'olympus.json'), stat.S_IWUSR)
+            try:
+                os.chmod(os.path.join(self.home, 'olympus.json'), stat.S_IWUSR)
+            except PermissionError:
+                self.log.warning(
+                    f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
+                return False
             subprocess.run([
                 os.path.basename(self.nodejs),
                 "configurator.js",
