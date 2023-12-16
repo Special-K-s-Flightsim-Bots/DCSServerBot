@@ -15,8 +15,8 @@ client_ports: dict[int, str] = dict()
 class Olympus(Extension):
 
     def __init__(self, server: Server, config: dict):
-        super().__init__(server, config)
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
+        super().__init__(server, config)
         self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         self.process = None
 
