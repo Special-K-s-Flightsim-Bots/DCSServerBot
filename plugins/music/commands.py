@@ -11,8 +11,8 @@ from services import DCSServerBot, MusicService
 from typing import Type, Optional, cast
 
 from .listener import MusicEventListener
-from .utils import radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag, Playlist, \
-    all_songs_autocomplete
+from .utils import (radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag,
+                    Playlist, all_songs_autocomplete)
 from .views import MusicPlayer
 
 
@@ -143,7 +143,8 @@ class Music(Plugin):
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
             await interaction.response.send_message(
-                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=ephemeral)
+                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist),
+                ephemeral=ephemeral)
         except OSError as ex:
             await interaction.response.send_message(ex, ephemeral=ephemeral)
 

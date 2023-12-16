@@ -106,8 +106,12 @@ class History(report.EmbedElement):
                 if not rows:
                     return
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
-                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
-                self.add_field(name='Time (UTC)', value='\n'.join([f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows]))
+                self.add_field(name='DCS Name', value='\n'.join([
+                    utils.escape_string(row['name'] or 'n/a') for row in rows
+                ]))
+                self.add_field(name='Time (UTC)', value='\n'.join([
+                    f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows
+                ]))
                 self.add_field(name='_ _', value='_ _')
 
 

@@ -31,7 +31,8 @@ class PlaytimesPerPlane(report.GraphElement):
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                for row in cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                for row in cursor.execute(sql,
+                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.insert(0, row['slot'])
                     values.insert(0, float(row['playtime']) / 3600.0)
                 self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
@@ -128,9 +129,11 @@ class RecentActivities(report.GraphElement):
 
     async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
         sql = """
-            SELECT TO_CHAR(s.hop_on, 'MM/DD') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))) AS playtime 
+            SELECT TO_CHAR(s.hop_on, 'MM/DD') as day, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))) AS playtime 
             FROM statistics s, players p, missions m 
-            WHERE s.player_ucid = p.ucid AND s.hop_on > (DATE((now() AT TIME ZONE 'utc')) - integer '7') AND s.mission_id = m.id
+            WHERE s.player_ucid = p.ucid AND s.hop_on > (DATE((now() AT TIME ZONE 'utc')) - integer '7') 
+            AND s.mission_id = m.id
         """
         if isinstance(member, discord.Member):
             sql += ' AND p.discord_id = %s'
@@ -188,7 +191,7 @@ class FlightPerformance(report.GraphElement):
                     labels = []
                     values = []
                     for name, value in dict(cursor.fetchone()).items():
-                        if value and value > 0:
+                        if value and int(value) > 0:
                             labels.append(name)
                             values.append(value)
                     if len(values) > 0:
@@ -241,7 +244,7 @@ class KDRatio(report.MultiGraphElement):
                     explode = []
                     result = cursor.fetchone()
                     for name, value in dict(result).items():
-                        if value and value > 0:
+                        if value and int(value) > 0:
                             labels.append(name)
                             values.append(value)
                             retval.append(name)

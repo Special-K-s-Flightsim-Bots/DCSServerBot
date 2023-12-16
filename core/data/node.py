@@ -68,14 +68,18 @@ class Node:
             config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
             config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
             config['messages'] = config.get('messages', {})
-            config['messages']['player_username'] = config['messages'].get('player_username',
-                                                                           'Your player name contains invalid characters. '
-                                                                           'Please change your name to join our server.')
-            config['messages']['player_default_username'] = \
-                config['messages'].get('player_default_username', 'Please change your default player name at the top right '
-                                                                  'of the multiplayer selection list to an individual one!')
-            config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
-                                                                                          'server. Reason: {}')
+            config['messages']['player_username'] = config['messages'].get(
+                'player_username',
+                'Your player name contains invalid characters. Please change your name to join our server.'
+            )
+            config['messages']['player_default_username'] = config['messages'].get(
+                'player_default_username',
+                'Please change your default player name at the top right of the multiplayer selection list to an '
+                'individual one!'
+            )
+            config['messages']['player_banned'] = config['messages'].get(
+                'player_banned', 'You are banned from this server. Reason: {}'
+            )
             return config
         except ParserError as ex:
             raise YAMLError('config/main.yaml', ex)

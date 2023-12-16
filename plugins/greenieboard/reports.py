@@ -78,7 +78,7 @@ class LSORating(report.EmbedElement):
                                 _element = ''
                         return retval
 
-                    little = re.findall("\((.*?)\)", element)
+                    little = re.findall(r"\((.*?)\)", element)
                     if len(little):
                         for x in little:
                             for y in deflate_comment(x):
@@ -94,7 +94,7 @@ class LSORating(report.EmbedElement):
                             element = element.replace(f'_{x}_', '')
                         if not element:
                             continue
-                    ignored = re.findall("\[(.*?)\]", element)
+                    ignored = re.findall(r"\[(.*?)\]", element)
                     if len(ignored):
                         for x in ignored:
                             for y in deflate_comment(x):
@@ -140,7 +140,9 @@ class HighscoreTraps(report.GraphElement):
             sql += "AND m.server_name = %s"
             self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
+                sql += ' AND s.side in (' + ','.join([
+                    str(x) for x in get_sides(interaction, self.bot.servers[server_name])
+                ]) + ')'
         if not include_bolters:
             sql += " AND g.grade <> 'B'"
         if not include_waveoffs:

@@ -428,7 +428,7 @@ def migrate():
                 _delete_after = instance['extensions']['Tacview'].get('delete_after', delete_after)
                 _directory = instance['extensions']['Tacview'].get('tacviewExportPath', directory)
                 if _delete_after:
-                    if not name in cleanup:
+                    if name not in cleanup:
                         cleanup[name] = {}
                     cleanup[name] |= {
                         "Tacview": {

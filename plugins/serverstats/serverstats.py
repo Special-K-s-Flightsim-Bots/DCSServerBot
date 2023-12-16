@@ -14,10 +14,14 @@ warnings.filterwarnings("ignore", category=UserWarning)
 class ServerUsage(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: Optional[str]):
-        sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) " \
-              f"AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, " \
-              f"COUNT(DISTINCT s.player_ucid) AS players, COUNT(DISTINCT p.discord_id) AS members FROM missions m, " \
-              f"statistics s, players p WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL"
+        sql = f"""
+            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, 
+                   COUNT(DISTINCT s.player_ucid) AS players, 
+                   COUNT(DISTINCT p.discord_id) AS members 
+            FROM missions m, statistics s, players p 
+            WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL
+        """
         if server_name:
             sql += f' AND m.server_name = %s'
         if period:
@@ -51,11 +55,13 @@ class TopMissionPerServer(report.EmbedElement):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ('
-        sql_inner = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', " \
-                    f"'g')) AS server_name, trim(regexp_replace(m.mission_name, " \
-                    f"'{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, " \
-                    f"ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime FROM missions m, " \
-                    f"statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL"
+        sql_inner = f"""
+            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
+                   trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+            FROM missions m, statistics s 
+            WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL
+        """
         sql_right = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'
         if server_name:
             sql_inner += f' AND m.server_name = %s'
@@ -88,9 +94,13 @@ class TopMissionPerServer(report.EmbedElement):
 class TopModulesPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
-        sql = 'SELECT s.slot, COUNT(s.slot) AS num_usage, COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - ' \
-              's.hop_on))) / 3600),0) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, ' \
-              'statistics s WHERE m.id = s.mission_id'
+        sql = """
+            SELECT s.slot, COUNT(s.slot) AS num_usage, 
+                   COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime, 
+                   COUNT(DISTINCT s.player_ucid) AS players 
+            FROM missions m, statistics s 
+            WHERE m.id = s.mission_id
+        """
         if server_name:
             sql += ' AND m.server_name = %s'
         if period:
@@ -117,9 +127,13 @@ class TopModulesPerServer(report.EmbedElement):
 class UniquePast14(report.GraphElement):
 
     async def render(self, server_name: Optional[str]):
-        sql = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, ' \
-              'missions m, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 ' \
-              'day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) AND s.mission_id = m.id'
+        sql = """
+            SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players 
+            FROM statistics s, missions m, 
+                 generate_series(DATE(NOW()) - INTERVAL '2 weeks', DATE(NOW()), INTERVAL '1 day') d 
+            WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) 
+            AND s.mission_id = m.id
+        """
         if server_name:
             sql += f" AND m.server_name = %s"
         sql += ' GROUP BY d.date'
@@ -152,10 +166,13 @@ class UniquePast14(report.GraphElement):
 class UsersPerDayTime(report.GraphElement):
 
     async def render(self, server_name: Optional[str], period: Optional[str]):
-        sql = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, ' \
-              'COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(current_date, ' \
-              'current_date + 1, INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', ' \
-              's.hop_on) AND date_part(\'hour\', s.hop_off) AND s.mission_id = m.id'
+        sql = """
+            SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
+                   COUNT(DISTINCT s.player_ucid) AS players 
+            FROM statistics s, missions m, generate_series(current_date, current_date + 1, INTERVAL '1 hour') h 
+            WHERE date_part('hour', h.time) BETWEEN date_part('hour', s.hop_on) AND date_part('hour', s.hop_off) 
+            AND s.mission_id = m.id
+        """
         if server_name:
             sql += f" AND m.server_name = %s"
         if period:
@@ -179,12 +196,19 @@ class UsersPerDayTime(report.GraphElement):
 class ServerLoad(report.MultiGraphElement):
 
     async def render(self, server_name: Optional[str], period: str, node: Optional[str]):
-        sql = f"SELECT date_trunc('minute', time) AS time, AVG(users) AS \"Users\", AVG(cpu) AS \"CPU\", AVG(CASE " \
-              f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
-              f"AVG(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
-              f"AS \"Write\", ROUND(AVG(bytes_sent)) AS \"Sent\", ROUND(AVG(bytes_recv)) AS \"Recv\", ROUND(AVG(fps), " \
-              f"2) AS \"FPS\", ROUND(AVG(ping), 2) AS \"Ping\" FROM serverstats " \
-              f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')"
+        sql = f"""
+            SELECT date_trunc('minute', time) AS time, AVG(users) AS "Users", AVG(cpu) AS "CPU", 
+                   AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS "Memory (paged)",  
+                   AVG(mem_ram)/(1024*1024) AS "Memory (RAM)", 
+                   SUM(read_bytes)/1024 AS "Read", 
+                   SUM(write_bytes)/1024 AS "Write", 
+                   ROUND(AVG(bytes_sent)) AS "Sent", 
+                   ROUND(AVG(bytes_recv)) AS "Recv", 
+                   ROUND(AVG(fps), 2) AS "FPS", 
+                   ROUND(AVG(ping), 2) AS "Ping" 
+            FROM serverstats 
+            WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')
+        """
         if server_name:
             sql += f" AND server_name = %s"
         if node:
@@ -212,11 +236,14 @@ class ServerLoad(report.MultiGraphElement):
                     ax3 = self.axes[1].twinx()
                     series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
                     ax3.legend(['Users'], loc='upper right')
-                    series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
+                    series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory',
+                                xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
                     self.axes[2].legend(loc='upper left')
-                    series.plot(ax=self.axes[3], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', grid=True)
+                    series.plot(ax=self.axes[3], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[],
+                                xlabel='', ylabel='KB', grid=True)
                     self.axes[3].legend(loc='upper left')
-                    series.plot(ax=self.axes[4], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
+                    series.plot(ax=self.axes[4], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='',
+                                ylabel='KB/s', grid=True)
                     self.axes[4].legend(['Sent', 'Recv'], loc='upper left')
                     ax4 = self.axes[4].twinx()
                     series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')

@@ -148,7 +148,8 @@ class Admin(Plugin):
         embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'),
                         value=ban['ucid'])
         until = ban['banned_until'].strftime('%Y-%m-%d %H:%M')
-        embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
+        embed.add_field(name=f"Banned by: {ban['banned_by']}",
+                        value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
         embed.add_field(name='Reason', value=ban['reason'])
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
@@ -288,7 +289,7 @@ class Admin(Plugin):
             await view.wait()
         finally:
             await interaction.delete_original_response()
-        if view.command == "cancel":
+        if view.cmd == "cancel":
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
 

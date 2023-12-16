@@ -12,6 +12,7 @@ from core import Extension, utils, Server
 from typing import Optional
 
 ports: dict[int, str] = dict()
+SRS_GITHUB_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest"
 
 
 class SRS(Extension):
@@ -170,7 +171,7 @@ class SRS(Extension):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get("https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest") as response:
+                async with session.get(SRS_GITHUB_URL) as response:
                     if response.status in [200, 302]:
                         version = response.url.raw_parts[-1]
                         if version != self.version:
