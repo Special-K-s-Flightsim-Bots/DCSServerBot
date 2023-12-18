@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import discord.errors
 import inspect
 import json
 import os
@@ -143,11 +144,14 @@ class Command(app_commands.Command):
             server = interaction.client.get_server(interaction)
             if not server:
                 if len(interaction.client.servers) > 0:
-                    await interaction.response.send_message(
-                        'No server registered for this channel. '
-                        'If the channel is correct, please try again in a bit, when the server has registered.',
-                        ephemeral=True)
-                    return
+                    try:
+                        await interaction.response.send_message(
+                            'No server registered for this channel. '
+                            'If the channel is correct, please try again in a bit, when the server has registered.',
+                            ephemeral=True)
+                        return
+                    except discord.errors.NotFound:
+                        pass
                 else:
                     await interaction.response.send_message('No servers registered yet.', ephemeral=True)
                     return

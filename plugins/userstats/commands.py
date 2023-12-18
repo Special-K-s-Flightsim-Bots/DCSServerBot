@@ -519,10 +519,14 @@ class UserStatistics(Plugin):
         if ((not mission_end and kwargs.get('mission_end', False)) or
                 (mission_end and not kwargs.get('mission_end', False))):
             return
-        if not mission_end:
-            period = kwargs['period'] = utils.format_string(kwargs.get('period'), server=server, params=kwargs)
-        else:
-            period = kwargs['period'] = kwargs.get('period') or f'mission_id:{server.mission_id}'
+        try:
+            if not mission_end:
+                period = kwargs['period'] = utils.format_string(kwargs.get('period'), server=server, params=kwargs)
+            else:
+                period = kwargs['period'] = kwargs.get('period') or f'mission_id:{server.mission_id}'
+        except KeyError as ex:
+            self.log.warning(f'Skipping wrong highscore element due to missing key: {ex}')
+            return
         flt = StatisticsFilter.detect(self.bot, period) if period else None
         file = highscore.get('report',
                              'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
