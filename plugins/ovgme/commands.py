@@ -388,7 +388,7 @@ class OvGME(Plugin):
 
     @mods.command(description='Download a mod to your installation directory')
     @app_commands.guild_only()
-    @utils.app_has_roles(['DCS Admin'])
+    @utils.app_has_roles(['Admin'])
     @app_commands.describe(url="GitHub repo link or download URL")
     @app_commands.autocomplete(version=repo_version_autocomplete)
     async def download(self, interaction: discord.Interaction, folder: Literal['SavedGames', 'RootDir'], url: str,
