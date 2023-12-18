@@ -331,11 +331,15 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
-        p = subprocess.Popen(
-            [exe, '--server', '--norender', '-w', self.instance.name], executable=path
-        )
-        with suppress(Exception):
+        try:
+            p = subprocess.Popen(
+                [exe, '--server', '--norender', '-w', self.instance.name], executable=path
+            )
             self.process = Process(p.pid)
+            self.log.info(f"  => DCS server starting up with PID {p.pid}")
+        except Exception as ex:
+            self.log.error(f"  => Error while trying to launch DCS!", exc_info=ex)
+            self.process = None
 
     async def init_extensions(self):
         for extension in self.locals.get('extensions', {}):
@@ -359,7 +363,10 @@ class ServerImpl(Server):
     async def startup(self) -> None:
         await self.init_extensions()
         for ext in self.extensions.values():
-            await ext.prepare()
+            try:
+                await ext.prepare()
+            except Exception as ex:
+                self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
         await self.apply_mission_changes()
         await self.do_startup()
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
