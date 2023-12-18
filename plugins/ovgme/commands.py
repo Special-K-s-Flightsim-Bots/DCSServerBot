@@ -79,7 +79,10 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
                                                                    utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        folder, mod = utils.get_interaction_param(interaction, 'mod').split('/')
+        try:
+            folder, mod = utils.get_interaction_param(interaction, 'mod').split('/')
+        except Exception as ex:
+            pass
         return [
             app_commands.Choice(name=version, value=version)
             for version in sorted(await service.get_available_versions(server, folder, mod), reverse=True)
