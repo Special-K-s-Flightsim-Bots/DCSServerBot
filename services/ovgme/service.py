@@ -162,17 +162,16 @@ class OvGMEService(Service):
         if 'packages' not in config:
             return []
 
-        package = next(x for x in config['packages'] if x['name'] == package_name and x['source'] == folder)
-        if not package:
-            return []
         local_versions: set[str] = set()
         config = self.get_config(server)
         for x in Path(os.path.expandvars(config[folder])).glob(f"{package_name}*"):
             name, version = self.parse_filename(x.name)
             local_versions.add(version)
         remote_versions: set[str] = set()
-        if 'repo' in package:
-            remote_versions = await self.get_repo_versions(package['repo'])
+        with suppress(StopIteration):
+            package = next(x for x in config['packages'] if x['name'] == package_name and x['source'] == folder)
+            if 'repo' in package:
+                remote_versions = await self.get_repo_versions(package['repo'])
         return sorted(local_versions | remote_versions)
 
     @staticmethod
