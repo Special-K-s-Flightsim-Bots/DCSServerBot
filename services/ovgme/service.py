@@ -158,10 +158,6 @@ class OvGMEService(Service):
         return versions
 
     async def get_available_versions(self, server: Server, folder: str, package_name: str) -> list[str]:
-        config = self.get_config(server)
-        if 'packages' not in config:
-            return []
-
         local_versions: set[str] = set()
         config = self.get_config(server)
         for x in Path(os.path.expandvars(config[folder])).glob(f"{package_name}*"):
@@ -169,7 +165,7 @@ class OvGMEService(Service):
             local_versions.add(version)
         remote_versions: set[str] = set()
         with suppress(StopIteration):
-            package = next(x for x in config['packages'] if x['name'] == package_name and x['source'] == folder)
+            package = next(x for x in config.get('packages', []) if x['name'] == package_name and x['source'] == folder)
             if 'repo' in package:
                 remote_versions = await self.get_repo_versions(package['repo'])
         return sorted(local_versions | remote_versions)
