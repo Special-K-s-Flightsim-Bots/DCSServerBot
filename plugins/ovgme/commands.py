@@ -375,7 +375,7 @@ class OvGME(Plugin):
         for folder in OVGME_FOLDERS:
             installed[folder] = await self.service.get_installed_packages(server, folder)
         if not len(installed[OVGME_FOLDERS[0]]) and not len(installed[OVGME_FOLDERS[1]]):
-            await interaction.response.send(f"No mod installed on server {server.name}.", ephemeral=ephemeral)
+            await interaction.response.send_message(f"No mod installed on server {server.name}.", ephemeral=ephemeral)
             return
         embed = discord.Embed(color=discord.Color.blue())
         embed.description = f"The following mods are installed on server {server.name}:"
