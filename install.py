@@ -224,10 +224,20 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
             if not os.path.exists('config/main.yaml'):
                 main, nodes, bot = self.install_master()
                 master = True
+                servers = {}
+                schedulers = {}
             else:
                 main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
                 nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
                 bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
+                try:
+                    servers = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+                except FileNotFoundError:
+                    servers = {}
+                try:
+                    schedulers = yaml.load(Path('config/plugins/schedulers.yaml').read_text(encoding='utf-8'))
+                except FileNotFoundError:
+                    schedulers = {}
                 if platform.node() in nodes:
                     if Prompt.ask("[red]A configuration for this nodes exists already![/]\n"
                                   "Do you want to overwrite it?", choices=['y', 'n'], default='n') == 'n':
@@ -280,8 +290,6 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
                 pass
 
             print(f"\n4. DCS Server Setup")
-            servers = {}
-            schedulers = {}
             scheduler = schedulers[platform.node()] = {}
             node['instances'] = {}
             bot_port = 6666
