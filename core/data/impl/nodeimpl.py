@@ -359,7 +359,7 @@ class NodeImpl(Node):
             self.log.exception(ex)
             return -1
         if self.locals['DCS'].get('desanitize', True):
-            if self.locals['DCS'].get('cloud', False) or self.master:
+            if not self.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         # call after update hooks
         for callback in self.after_update.values():
