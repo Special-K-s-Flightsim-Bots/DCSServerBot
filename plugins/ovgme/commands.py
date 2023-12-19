@@ -120,7 +120,7 @@ class OvGME(Plugin):
                         packages += derived.installed[i][1] + '\n'
                         versions += derived.installed[i][2] + '\n'
                         latest = self.service.get_latest_version(derived.installed[i][0], derived.installed[i][1])
-                        if latest != derived.installed[i][2]:
+                        if latest and latest != derived.installed[i][2]:
                             update += latest + '\n'
                         else:
                             update += '_ _\n'
