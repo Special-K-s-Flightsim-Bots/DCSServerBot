@@ -367,7 +367,7 @@ class Mission(Plugin):
         options = [
             discord.SelectOption(label=k)
             for k, v in presets.items()
-            if 'hidden' not in v or not v['hidden']
+            if not v.get('hidden', False)
         ]
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")

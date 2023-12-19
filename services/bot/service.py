@@ -74,14 +74,20 @@ class BotService(Service):
             await self.bot.close()
         await super().stop()
 
-    async def alert(self, server: Server, message: str):
+    async def alert(self, message: str, server: Optional[Server] = None, node: Optional[str] = None) -> None:
         mentions = ''
         for role_name in self.bot.roles['DCS Admin']:
             role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
             if role:
                 mentions += role.mention
         message = mentions + ' ' + utils.escape_string(message)
-        await self.bot.get_admin_channel(server).send(message)
+        if not server and node:
+            try:
+                server = next(server for server in self.bot.servers.values() if server.node.name == node)
+            except StopIteration:
+                server = None
+        if server:
+            await self.bot.get_admin_channel(server).send(message)
 
     async def install_fonts(self):
         font = self.locals.get('reports', {}).get('cjk_font')
