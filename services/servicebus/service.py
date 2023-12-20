@@ -439,8 +439,6 @@ class ServiceBus(Service):
             if data.get('channel', '').startswith('sync-'):
                 if isinstance(rc, Enum):
                     rc = rc.value
-                elif isinstance(rc, bool):
-                    rc = str(rc)
                 self.send_to_node({
                     "command": "rpc",
                     "method": data['method'],
