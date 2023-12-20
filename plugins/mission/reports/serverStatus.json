@@ -2,7 +2,6 @@
   "color": "blue",
   "elements":
   [
-    "Ruler",
     {
       "class": "plugins.mission.status.Init"
     },
@@ -19,7 +18,6 @@
     {
       "class": "plugins.mission.status.ScheduleInfo"
     },
-    "Ruler",
     {
       "class": "plugins.mission.status.Footer"
     }
