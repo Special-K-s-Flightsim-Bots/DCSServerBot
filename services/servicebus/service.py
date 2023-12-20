@@ -146,6 +146,7 @@ class ServiceBus(Service):
                     self.log.exception(ex)
 
     async def send_init(self, server: Server):
+        _, dcs_version = await self.node.get_dcs_branch_and_version()
         self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -159,7 +160,7 @@ class ServiceBus(Service):
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
                 "node": self.node.name,
-                "dcs_version": server.dcs_version
+                "dcs_version": dcs_version
             }
         })
 
