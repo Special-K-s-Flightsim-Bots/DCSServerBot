@@ -152,13 +152,12 @@ class GameMaster(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
-        ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(f'Server "{server.name}" is {server.status.name}. Aborted.',
-                                                    ephemeral=ephemeral)
+                                                    ephemeral=True)
             return
-        modal = ScriptModal(server, ephemeral)
-        await interaction.response.send_modal(modal, ephemeral=ephemeral)
+        modal = ScriptModal(server, utils.get_ephemeral(interaction))
+        await interaction.response.send_modal(modal)
 
     @command(description='Loads a lua file into the mission')
     @app_commands.guild_only()
