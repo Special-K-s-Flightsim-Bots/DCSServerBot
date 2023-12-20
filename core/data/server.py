@@ -111,7 +111,17 @@ class Server(DataObject):
         self.set_maintenance(maintenance)
 
     def set_maintenance(self, maintenance: bool):
-        self._maintenance = maintenance
+        if maintenance != self._maintenance:
+            self._maintenance = maintenance
+            if self.is_remote and not self.node.master:
+                self.bus.send_to_node({
+                    "command": "rpc",
+                    "object": "Server",
+                    "params": {
+                        "maintenance": maintenance
+                    },
+                    "server_name": self.name
+                }, node=self.node.name)
 
     @property
     def display_name(self) -> str:
