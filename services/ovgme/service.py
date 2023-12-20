@@ -4,11 +4,14 @@ import re
 import shutil
 import zipfile
 
+from aiohttp import ClientSession
 from contextlib import closing, suppress
 from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError
 from filecmp import cmp
+from pathlib import Path
 from psycopg.rows import dict_row
 from typing import Optional, Tuple, TYPE_CHECKING
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from services import ServiceBus
@@ -47,11 +50,13 @@ class OvGMEService(Service):
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages
+        self.log.debug("  => Uninstalling any OvGME-packages from the DCS installation folder ...")
         for server_name, server in self.bus.servers.items():
-            for package_name, version in self.get_installed_packages(server, 'RootFolder'):
+            for package_name, version in await self.get_installed_packages(server, 'RootFolder'):
                 await self.uninstall_package(server, 'RootFolder', package_name, version)
 
     async def after_dcs_update(self):
+        self.log.debug("  => Re-installing any OvGME-packages into the DCS installation folder ...")
         await self.install_packages()
 
     @staticmethod
@@ -59,8 +64,11 @@ class OvGMEService(Service):
         parts1 = [int(x) for x in v1.split('.')]
         parts2 = [int(x) for x in v2.split('.')]
         for i in range(0, max(len(parts1), len(parts2))):
-            if parts1[i] > parts2[i]:
-                return True
+            left = parts1[i] if len(parts1) > i else 0
+            right = parts2[i] if len(parts2) > i else 0
+            if left == right:
+                continue
+            return left > right
         return False
 
     async def install_packages(self):
@@ -75,9 +83,11 @@ class OvGMEService(Service):
                 return
 
             for package in config['packages']:
-                version = package['version'] if package['version'] != 'latest' \
-                    else self.get_latest_version(package['source'], package['name'])
-                installed = self.check_package(server, package['source'], package['name'])
+                if package['version'] == 'latest':
+                    version = await self.get_latest_version(package)
+                else:
+                    version = package['version']
+                installed = self.get_installed_package(server, package['source'], package['name'])
                 if (not installed or installed != version) and \
                         server.status != Status.SHUTDOWN:
                     self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
@@ -86,7 +96,7 @@ class OvGMEService(Service):
                 server.maintenance = True
                 try:
                     if not installed:
-                        if await self.install_package(server, package['source'], package['name'], version):
+                        if await self.install_package(server, package['source'], package['name'], version, package.get('repo')):
                             self.log.info(f"- Package {package['name']}_v{version} installed on server {server.name}.")
                         else:
                             self.log.warning(f"- Package {package['name']}_v{version} not found!")
@@ -113,34 +123,109 @@ class OvGMEService(Service):
     def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str]]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
-        exp = re.compile('(?P<package>.*)_v(?P<version>.*)')
+        exp = re.compile('(?P<package>.*)_v?(?P<version>.*)')
         match = exp.match(filename)
         if match:
             return match.group('package'), match.group('version')
         else:
             return None, None
 
-    def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
+    async def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 return [
                     (x['package_name'], x['version']) for x in cursor.execute(
                         """
-                        SELECT * FROM ovgme_packages WHERE server_name = %s AND folder = %s
+                            SELECT * FROM ovgme_packages 
+                            WHERE server_name = %s AND folder = %s 
+                            ORDER BY package_name, version
                         """, (server.name, folder)).fetchall()
                 ]
 
-    def get_latest_version(self, folder: str, package: str) -> str:
+    async def get_repo_versions(self, repo: str) -> set[str]:
+        versions: set[str] = set()
+        url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
+        exp = re.compile(r'(\d+\.\d+(\.\d+)?)')
+        async with ClientSession() as session:
+            async with session.get(url) as response:
+                response.raise_for_status()
+                data = await response.json()
+                for release in data:
+                    for asset in release['assets']:
+                        match = exp.search(asset['name'])
+                        if match:
+                            versions.add(match.group(1))
+        return versions
+
+    async def get_available_versions(self, server: Server, folder: str, package_name: str) -> list[str]:
+        local_versions: set[str] = set()
+        config = self.get_config(server)
+        for x in Path(os.path.expandvars(config[folder])).glob(f"{package_name}*"):
+            name, version = self.parse_filename(x.name)
+            local_versions.add(version)
+        remote_versions: set[str] = set()
+        with suppress(StopIteration):
+            package = next(x for x in config.get('packages', []) if x['name'] == package_name and x['source'] == folder)
+            if 'repo' in package:
+                remote_versions = await self.get_repo_versions(package['repo'])
+        return sorted(local_versions | remote_versions)
+
+    @staticmethod
+    def extract_repo_name(url: str) -> str:
+        path = urlparse(url).path
+        return path.lstrip('/')
+
+    async def download(self, url: str, folder: str, force: Optional[bool] = False) -> None:
         config = self.get_config()
         path = os.path.expandvars(config[folder])
-        available = [OvGMEService.parse_filename(x) for x in os.listdir(path) if package in x]
+        filename = url.split('/')[-1]
+        self.log.info(f"  => OvGME: Downloading {folder}/{filename} ...")
+        async with ClientSession() as session:
+            async with session.get(url) as response:
+                response.raise_for_status()
+                outpath = os.path.join(path, filename)
+                if os.path.exists(outpath) and not force:
+                    self.log.warning(f"  => OvGME: File {folder}/{filename} exists!")
+                    raise FileExistsError(outpath)
+                with open(outpath, 'wb') as outfile:
+                    outfile.write(await response.read())
+        self.log.info(f"  => OvGME: {folder}/{filename} downloaded.")
+
+    async def download_from_repo(self, repo: str, folder: str, *, package_name: Optional[str] = None,
+                                 version: Optional[str] = None, force: Optional[bool] = False):
+        if not package_name:
+            package_name = self.extract_repo_name(repo).split('/')[-1]
+        if not version or version == 'latest':
+            version = await self.get_latest_repo_version(repo)
+        url = f'{repo}/releases/download/v{version}/{package_name}_v{version}.zip'
+        await self.download(url, folder, force)
+
+    async def get_latest_repo_version(self, repo: str) -> str:
+        url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases/latest"
+
+        async with ClientSession() as session:
+            async with session.get(url) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get('tag_name', '').strip('v')
+
+    async def _get_latest_file_version(self, package: dict):
+        config = self.get_config()
+        path = os.path.expandvars(config[package['source']])
+        available = [self.parse_filename(x) for x in os.listdir(path) if package['name'] in x]
         max_version = None
         for _, version in available:
-            if not max_version or OvGMEService.is_greater(version, max_version):
+            if not max_version or self.is_greater(version, max_version):
                 max_version = version
         return max_version
 
-    def check_package(self, server: Server, folder: str, package_name: str) -> Optional[str]:
+    async def get_latest_version(self, package: dict) -> str:
+        if 'repo' in package:
+            return await self._get_latest_repo_version(package['repo'])
+        else:
+            return await self._get_latest_file_version(package)
+
+    def get_installed_package(self, server: Server, folder: str, package_name: str) -> Optional[str]:
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute(
@@ -148,7 +233,29 @@ class OvGMEService(Service):
                     (server.name, package_name, folder))
                 return cursor.fetchone()[0] if cursor.rowcount == 1 else None
 
-    async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+    def recreate_install_log(self, server: Server, package_name: str, version: str) -> bool:
+        config = self.get_config(server)
+        path = os.path.expandvars(config['SavedGames'])
+        ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
+        os.makedirs(ovgme_path, exist_ok=True)
+        with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
+            package = os.path.join(path, f"{package_name}_v{version}")
+            if os.path.isdir(package):
+                for root, dirs, files in os.walk(package):
+                    for _dir in dirs:
+                        log.write("w {}\n".format(os.path.relpath(os.path.join(root, _dir), package).replace('\\', '/')))
+                    for file in files:
+                        log.write("w {}\n".format(os.path.relpath(os.path.join(root, file), package).replace('\\', '/')))
+                return True
+            elif os.path.exists(package + '.zip'):
+                with zipfile.ZipFile(package + '.zip', 'r') as zfile:
+                    for name in zfile.namelist():
+                        log.write(f"w {name}\n")
+                return True
+        return False
+
+    async def install_package(self, server: Server, folder: str, package_name: str, version: str,
+                              repo: Optional[str] = None) -> bool:
         if server.is_remote:
             return await self.bus.send_to_node_sync({
                 "command": "rpc",
@@ -158,7 +265,8 @@ class OvGMEService(Service):
                     "server": server.name,
                     "folder": folder,
                     "package_name": package_name,
-                    "version": version
+                    "version": version,
+                    "repo": repo
                 }
             }, node=server.node.name)
 
@@ -166,51 +274,55 @@ class OvGMEService(Service):
         path = os.path.expandvars(config[folder])
         os.makedirs(os.path.join(path, '.' + server.instance.name), exist_ok=True)
         target = self.node.installation if folder == 'RootFolder' else server.instance.home
-        for file in os.listdir(path):
-            filename = os.path.join(path, file)
-            if (os.path.isfile(filename) and file == package_name + '_v' + version + '.zip') or \
-                    (os.path.isdir(filename) and file == package_name + '_v' + version):
-                ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
-                os.makedirs(ovgme_path, exist_ok=True)
-                if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
-                    with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
-                        with zipfile.ZipFile(filename, 'r') as zfile:
-                            for name in zfile.namelist():
-                                orig = os.path.join(target, name)
-                                if os.path.exists(orig) and os.path.isfile(orig):
-                                    log.write(f"x {name}\n")
-                                    dest = os.path.join(ovgme_path, name)
-                                    os.makedirs(os.path.dirname(dest), exist_ok=True)
-                                    shutil.copy2(orig, dest)
-                                else:
-                                    log.write(f"w {name}\n")
-                                zfile.extract(name, target)
-                else:
-                    with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
-                        def backup(p, names) -> list[str]:
-                            _dir = p[len(os.path.join(path, package_name + '_v' + version)):].lstrip(os.path.sep)
-                            for name in names:
-                                source = os.path.join(p, name)
-                                if len(_dir):
-                                    name = os.path.join(_dir, name)
-                                orig = os.path.join(target, name)
-                                if os.path.exists(orig) and os.path.isfile(orig) and not cmp(source, orig):
-                                    log.write("x {}\n".format(name.replace('\\', '/')))
-                                    dest = os.path.join(ovgme_path, name)
-                                    os.makedirs(os.path.dirname(dest), exist_ok=True)
-                                    shutil.copy2(orig, dest)
-                                else:
-                                    log.write("w {}\n".format(name.replace('\\', '/')))
-                            return []
+        try:
+            filename = str(next(Path(path).glob(f"{package_name}*{version}*")))
+        except StopIteration:
+            if repo:
+                await self.download_from_repo(repo, folder, package_name=package_name, version=version)
+                return await self.install_package(server, folder, package_name, version)
+            return False
+        ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
+        os.makedirs(ovgme_path, exist_ok=True)
+        if os.path.isfile(filename) and filename.endswith(".zip"):
+            with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
+                with zipfile.ZipFile(filename, 'r') as zfile:
+                    for name in zfile.namelist():
+                        orig = os.path.join(target, name)
+                        if os.path.exists(orig) and os.path.isfile(orig):
+                            log.write(f"x {name}\n")
+                            dest = os.path.join(ovgme_path, name)
+                            os.makedirs(os.path.dirname(dest), exist_ok=True)
+                            shutil.copy2(orig, dest)
+                        else:
+                            log.write(f"w {name}\n")
+                        zfile.extract(name, target)
+            return True
+        elif os.path.isdir(filename):
+            with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
+                def backup(p, names) -> list[str]:
+                    _dir = p[len(os.path.join(path, package_name + '_v' + version)):].lstrip(os.path.sep)
+                    for name in names:
+                        source = os.path.join(p, name)
+                        if len(_dir):
+                            name = os.path.join(_dir, name)
+                        orig = os.path.join(target, name)
+                        if os.path.exists(orig) and os.path.isfile(orig) and not cmp(source, orig):
+                            log.write("x {}\n".format(name.replace('\\', '/')))
+                            dest = os.path.join(ovgme_path, name)
+                            os.makedirs(os.path.dirname(dest), exist_ok=True)
+                            shutil.copy2(orig, dest)
+                        else:
+                            log.write("w {}\n".format(name.replace('\\', '/')))
+                    return []
 
-                        shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("""
-                            INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
-                            VALUES (%s, %s, %s, %s)
-                        """, (server.name, package_name, version, folder))
-                return True
+                shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
+                        VALUES (%s, %s, %s, %s)
+                    """, (server.name, package_name, version, folder))
+            return True
         return False
 
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
@@ -227,12 +339,20 @@ class OvGMEService(Service):
                 }
             }, node=server.node.name)
 
+        self.log.info(f"Uninstalling package {package_name}_v{version} ...")
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         target = self.node.installation if folder == 'RootFolder' else server.instance.home
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
-            return False
+            self.log.warning(f"- Can't find {os.path.join(ovgme_path, 'install.log')}. Trying to recreate ...")
+            # try to recreate it
+            if folder == 'SavedGames':
+                if not self.recreate_install_log(server, package_name, version):
+                    self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
+                    return False
+                else:
+                    self.log.info("- Recreation successful.")
         with open(os.path.join(ovgme_path, 'install.log'), encoding=ENCODING) as log:
             lines = log.readlines()
             # delete has to run reverse to clean the directories
@@ -249,8 +369,9 @@ class OvGMEService(Service):
                     try:
                         shutil.copy2(os.path.join(ovgme_path, filename), file)
                     except FileNotFoundError:
-                        self.log.warning(f"Can't recover file {filename}, because it has been removed! "
-                                         f"You might need to run a slow repair.")
+                        if folder == 'RootFolder':
+                            self.log.warning(f"- Can't recover file {filename}, because it has been removed! "
+                                             f"You might need to run a slow repair.")
         shutil.rmtree(ovgme_path)
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -258,4 +379,5 @@ class OvGMEService(Service):
                     DELETE FROM ovgme_packages 
                     WHERE server_name = %s AND folder = %s AND package_name = %s AND version = %s
                 """, (server.name, folder, package_name, version))
+        self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True

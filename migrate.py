@@ -49,7 +49,7 @@ def post_migrate_admin():
                 "pattern": "*.yaml"
             })
 
-    with open('config/plugins/admin.yaml') as infile:
+    with open('config/plugins/admin.yaml', encoding='utf-8') as infile:
         data = yaml.load(infile)
     for node in data:
         if node == 'commands':
@@ -60,7 +60,7 @@ def post_migrate_admin():
             for name, instance in data[node].items():
                 _migrate(instance)
 
-    with open('config/plugins/admin.yaml', 'w') as outfile:
+    with open('config/plugins/admin.yaml', 'w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)
 
 
@@ -74,7 +74,7 @@ def post_migrate_music():
         del _data['radios']['Radio 1']['name']
         del _data['sink']
 
-    with open('config/plugins/music.yaml') as infile:
+    with open('config/plugins/music.yaml', encoding='utf-8') as infile:
         data = yaml.load(infile)
     for node in data:
         if node == 'commands':
@@ -84,7 +84,7 @@ def post_migrate_music():
         elif node == platform.node():
             for name, instance in data[node].items():
                 _migrate(instance)
-    with open('config/plugins/music.yaml', 'w') as outfile:
+    with open('config/plugins/music.yaml', 'w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)
 
 
@@ -95,7 +95,7 @@ def post_migrate_greenieboard():
     if platform.node() not in data:
         return
     if os.path.exists('config/services/cleanup.yaml'):
-        with open('config/services/cleanup.yaml') as infile:
+        with open('config/services/cleanup.yaml', encoding='utf-8') as infile:
             cleanups = yaml.load(infile)
     else:
         cleanups = {}
@@ -124,9 +124,9 @@ def post_migrate_greenieboard():
             }
             del instance['FunkMan']['delete_after']
     if cleanup:
-        with open('config/services/cleanup.yaml', 'w') as outfile:
+        with open('config/services/cleanup.yaml', 'w', encoding='utf-8') as outfile:
             yaml.dump(cleanups, outfile)
-        with open('config/plugins/greenieboard.yaml', 'w') as outfile:
+        with open('config/plugins/greenieboard.yaml', 'w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
 
 
@@ -419,7 +419,7 @@ def migrate():
         directory = nodes[platform.node()].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
                                                                                         TACVIEW_DEFAULT_DIR)
         if os.path.exists('config/services/cleanup.yaml'):
-            with open('config/services/cleanup.yaml') as infile:
+            with open('config/services/cleanup.yaml', encoding='utf-8') as infile:
                 cleanup = yaml.load(infile)
         else:
             cleanup = {}
@@ -442,7 +442,7 @@ def migrate():
         with suppress(KeyError):
             del nodes[platform.node()]['extensions']['Tacview']['delete_after']
         if cleanup:
-            with open('config/services/cleanup.yaml', 'w') as outfile:
+            with open('config/services/cleanup.yaml', 'w', encoding='utf-8') as outfile:
                 yaml.dump(cleanup, outfile)
 
         # write main configuration

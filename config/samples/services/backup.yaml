@@ -5,9 +5,9 @@
 # should take place. There is no incremental backup support #
 # by now, please keep that in mind.                         #
 #############################################################
+delete_after: 7             # keep your backups for 7 days.
+target: G:\My Drive\Backup  # The target directory of your backups. Should be on a cloud / external drive.
 backups:
-  delete_after: 7             # keep your backups for 7 days.
-  target: G:\My Drive\Backup  # The target directory of your backups. Should be on a cloud / external drive.
   bot:  # the bot configuration and customizations like reports
     directories:
     - config

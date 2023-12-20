@@ -219,7 +219,7 @@ class DCSServerBot(commands.Bot):
             await ctx.send("An unknown exception occurred.")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        if isinstance(error, discord.app_commands.CommandNotFound):
+        if isinstance(error, discord.app_commands.CommandNotFound) or isinstance(error, discord.app_commands.CommandInvokeError):
             pass
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)

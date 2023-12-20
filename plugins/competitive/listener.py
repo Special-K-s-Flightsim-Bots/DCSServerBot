@@ -164,6 +164,8 @@ class CompetitiveListener(EventListener):
             # Multi-crew - pilot and all crew members gain points
             killers = server.get_crew_members(server.get_player(id=data['arg1']))
             victims = server.get_crew_members(server.get_player(id=data['arg4']))
+            if not killers or not victims:
+                return
             # check if we are in a registered match
             match: Match = self.in_match[server.name].get(killers[0].ucid)
             if match:

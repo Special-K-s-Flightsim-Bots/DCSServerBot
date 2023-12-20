@@ -324,6 +324,24 @@ class NodeImpl(Node):
                     shutdown_in -= 1
             await server.shutdown()
 
+        async def do_update() -> int:
+            # disable any popup on the remote machine
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
+                    '--quiet', 'update', startupinfo=startupinfo, stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
+                await process.wait()
+                if process.returncode != 0:
+                    return process.returncode
+            except Exception as ex:
+                self.log.exception(ex)
+                return -1
+
         self.update_pending = True
         servers = []
         tasks = []
@@ -342,29 +360,15 @@ class NodeImpl(Node):
         # call before update hooks
         for callback in self.before_update.values():
             await callback()
-        # disable any popup on the remote machine
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        try:
-            process = await asyncio.create_subprocess_exec(
-                os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
-                '--quiet', 'update', startupinfo=startupinfo, stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
-            )
-            await process.wait()
-            if process.returncode != 0:
-                return process.returncode
-        except Exception as ex:
-            self.log.exception(ex)
-            return -1
-        if self.locals['DCS'].get('desanitize', True):
-            if not self.locals['DCS'].get('cloud', False) or self.master:
-                utils.desanitize(self)
-        # call after update hooks
-        for callback in self.after_update.values():
-            await callback()
-        self.log.info(f"{self.installation} updated to the latest version.")
+        rc = await do_update()
+        if rc == 0:
+            if self.locals['DCS'].get('desanitize', True):
+                if not self.locals['DCS'].get('cloud', False) or self.master:
+                    utils.desanitize(self)
+            # call after update hooks
+            for callback in self.after_update.values():
+                await callback()
+            self.log.info(f"{self.installation} updated to the latest version.")
         for server in [x for x in bus.servers.values() if self.locals['DCS'].get('cloud', False) or not x.is_remote]:
             if server not in servers:
                 # let the scheduler do its job
@@ -375,8 +379,9 @@ class NodeImpl(Node):
                     await server.startup()
                 except asyncio.TimeoutError:
                     self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
-        self.update_pending = False
-        return 0
+        if rc == 0:
+            self.update_pending = False
+        return rc
 
     async def handle_module(self, what: str, module: str):
         startupinfo = subprocess.STARTUPINFO()
@@ -572,15 +577,15 @@ class NodeImpl(Node):
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
-                if rc == 0:
-                    ServiceRegistry.get('ServiceBus').send_to_node({
-                        "command": "rpc",
-                        "service": "Bot",
-                        "method": "audit",
-                        "params": {
-                            "message": f"DCS World updated to version {new_version} on node {self.node.name}."
-                        }
-                    })
+                ServiceRegistry.get('ServiceBus').send_to_node({
+                    "command": "rpc",
+                    "service": "Bot",
+                    "method": "audit" if rc == 0 else "alert",
+                    "params": {
+                        "node": self.name,
+                        "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                    }
+                })
         except Exception as ex:
             self.log.exception(ex)
 

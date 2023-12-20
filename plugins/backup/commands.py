@@ -49,15 +49,16 @@ class Backup(Plugin):
             node = self.bot.node
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         try:
-            await self.bus.send_to_node_sync({
+            rc = await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "Backup",
                 "method": f"backup_{what}"
             }, node=node.name, timeout=120)
+            assert rc is True
             await interaction.followup.send(f"Backup of {what} completed.", ephemeral=ephemeral)
-        except Exception as ex:
-            self.log.exception(ex)
-            await interaction.followup.send(f"Backup of {what} failed.", ephemeral=ephemeral)
+        except Exception:
+            await interaction.followup.send(f"Backup of {what} failed. Please check log for details",
+                                            ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

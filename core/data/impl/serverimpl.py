@@ -312,7 +312,7 @@ class ServerImpl(Server):
                 update_config(new_name, old_name, update_settings)
                 raise
         except Exception as ex:
-            self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=ex)
+            self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
         # startup extensions again
         await self.startup_extensions()
 
@@ -338,7 +338,7 @@ class ServerImpl(Server):
             self.process = Process(p.pid)
             self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception as ex:
-            self.log.error(f"  => Error while trying to launch DCS!", exc_info=ex)
+            self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
     async def init_extensions(self):

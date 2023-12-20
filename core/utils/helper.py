@@ -17,6 +17,7 @@ import math
 
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
+from urllib.parse import urlparse
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -40,6 +41,8 @@ __all__ = [
     "get_all_servers",
     "get_all_players",
     "is_ucid",
+    "is_valid_url",
+    "is_github_repo",
     "SettingsDict",
     "RemoteSettingsDict",
     "evaluate",
@@ -246,6 +249,18 @@ def is_ucid(ucid: Optional[str]) -> bool:
     if not ucid:
         return False
     return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
+
+
+def is_valid_url(url: str) -> bool:
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
+
+
+def is_github_repo(url: str) -> bool:
+    return is_valid_url(url) and 'https://github.com/' in url and not url.endswith('.zip')
 
 
 class SettingsDict(dict):

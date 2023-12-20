@@ -111,7 +111,7 @@ class SRS(Extension):
             if p:
                 p.kill()
                 self.process = None
-        return await super().shutdown()
+            return await super().shutdown()
 
     def is_running(self) -> bool:
         server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')

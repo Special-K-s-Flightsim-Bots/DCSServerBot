@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import discord.errors
 import inspect
 import json
 import os
@@ -143,11 +144,14 @@ class Command(app_commands.Command):
             server = interaction.client.get_server(interaction)
             if not server:
                 if len(interaction.client.servers) > 0:
-                    await interaction.response.send_message(
-                        'No server registered for this channel. '
-                        'If the channel is correct, please try again in a bit, when the server has registered.',
-                        ephemeral=True)
-                    return
+                    try:
+                        await interaction.response.send_message(
+                            'No server registered for this channel. '
+                            'If the channel is correct, please try again in a bit, when the server has registered.',
+                            ephemeral=True)
+                        return
+                    except discord.errors.NotFound:
+                        pass
                 else:
                     await interaction.response.send_message('No servers registered yet.', ephemeral=True)
                     return
@@ -343,7 +347,7 @@ class Plugin(commands.Cog):
         os.makedirs(BACKUP_FOLDER, exist_ok=True)
         old_file = f'config/{plugin_name}.json'
         new_file = f'config/plugins/{plugin_name}.yaml'
-        with open(old_file, 'r') as infile:
+        with open(old_file, 'r', encoding='utf-8') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
             all_new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
@@ -367,7 +371,7 @@ class Plugin(commands.Cog):
                 del all_new[platform.node()]
         else:
             all_new = old
-        with open(new_file, 'w') as outfile:
+        with open(new_file, 'w', encoding='utf-8') as outfile:
             yaml.dump(all_new, outfile)
         shutil.move(old_file, BACKUP_FOLDER)
 
