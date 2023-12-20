@@ -158,7 +158,8 @@ class ServiceBus(Service):
                 "settings": server.settings,
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
-                "node": self.node.name
+                "node": self.node.name,
+                "dcs_version": server.dcs_version
             }
         })
 
@@ -344,7 +345,7 @@ class ServiceBus(Service):
                                       (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
-                           options: dict, node: str, channels: dict):
+                           options: dict, node: str, channels: dict, dcs_version: str) -> None:
         server = self.servers.get(server_name)
         if not server or not server.is_remote:
             node = NodeProxy(self.node, node, public_ip)
@@ -358,6 +359,7 @@ class ServiceBus(Service):
             self.servers[server_name] = server
             server.settings = settings
             server.options = options
+            server.dcs_version = dcs_version
             # to support remote channel configs (for remote testing)
             if not server.locals.get('channels'):
                 server.locals['channels'] = channels
