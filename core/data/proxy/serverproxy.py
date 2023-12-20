@@ -40,7 +40,9 @@ class ServerProxy(Server):
     def options(self, o: dict):
         self._options = utils.RemoteSettingsDict(self, "options", o)
 
-    def set_status(self, status: Status):
+    def set_status(self, status: Union[Status, str]):
+        if isinstance(status, str):
+            status = Status(status)
         if status != self._status:
             self._status = status
             self.bus.send_to_node({
