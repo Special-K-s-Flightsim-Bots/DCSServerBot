@@ -28,16 +28,16 @@ class Battleground(Plugin):
             sides = utils.get_sides(interaction.client, interaction, server)
             blue_channel = server.channels.get(Channel.COALITION_BLUE_CHAT)
             red_channel = server.channels.get(Channel.COALITION_RED_CHAT)
-            if Coalition.BLUE in sides and blue_channel and blue_channel.id == interaction.message.channel.id:
+            if Coalition.BLUE in sides and blue_channel and blue_channel == interaction.channel_id:
                 side = "blue"
-            elif Coalition.RED in sides and red_channel and red_channel.id == interaction.message.channel.id:
+            elif Coalition.RED in sides and red_channel and red_channel == interaction.channel_id:
                 side = "red"
             else:
                 continue
             done = True
             screenshots = [att.url for att in [screenshot]]  # TODO: add multiple ones
             with self.pool.connection() as conn:
-                with conn.transation():
+                with conn.transaction():
                     conn.execute("""
                         INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
                         VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
