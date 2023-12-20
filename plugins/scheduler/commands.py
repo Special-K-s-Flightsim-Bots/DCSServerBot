@@ -213,7 +213,7 @@ class Scheduler(Plugin):
     async def check_mission_state(self, server: Server, config: dict):
         def check_mission_restart(rconf: dict):
             # calculate the time when the mission has to restart
-            if server.is_populated() and rconf.get('populated', 'True'):
+            if server.is_populated() and rconf.get('populated', True):
                 warn_times = Scheduler.get_warn_times(config)
             else:
                 warn_times = [0]
