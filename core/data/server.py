@@ -113,7 +113,7 @@ class Server(DataObject):
     def set_maintenance(self, maintenance: bool):
         if maintenance != self._maintenance:
             self._maintenance = maintenance
-            if self.is_remote and not self.node.master:
+            if not self.node.master:
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
