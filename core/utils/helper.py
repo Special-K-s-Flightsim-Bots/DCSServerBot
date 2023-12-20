@@ -42,6 +42,7 @@ __all__ = [
     "get_all_players",
     "is_ucid",
     "is_valid_url",
+    "is_github_repo",
     "SettingsDict",
     "RemoteSettingsDict",
     "evaluate",
@@ -256,6 +257,10 @@ def is_valid_url(url: str) -> bool:
         return all([result.scheme, result.netloc])
     except ValueError:
         return False
+
+
+def is_github_repo(url: str) -> bool:
+    return is_valid_url(url) and 'https://github.com/' in url and not url.endswith('.zip')
 
 
 class SettingsDict(dict):

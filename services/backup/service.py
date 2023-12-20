@@ -53,7 +53,7 @@ class BackupService(Service):
             for file in files:
                 zf.write(os.path.join(root, file), os.path.join(root.replace(base, ''), file))
 
-    async def backup_bot(self):
+    async def backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
         target = self.mkdir()
         config = self.locals['backups'].get('bot')
@@ -63,12 +63,17 @@ class BackupService(Service):
             for directory in config.get('directories', ['config', 'reports']):
                 self.zip_path(zf, "", directory)
             self.log.info("Backup of DCSServerBot complete.")
+            return True
+        except Exception:
+            self.log.error(f'Backup of DCSServerBot failed.', exc_info=True)
+            return False
         finally:
             zf.close()
 
-    async def backup_servers(self):
+    async def backup_servers(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
+        rc = True
         for server_name, server in self.bus.servers.items():
             self.log.info(f'Backing up server "{server_name}" ...')
             filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
@@ -77,11 +82,15 @@ class BackupService(Service):
                 root_dir = server.instance.home
                 for directory in config.get('directories', ['Config', 'Missions', 'Scripts']):
                     self.zip_path(zf, root_dir, directory)
+                self.log.info(f'Backup of server "{server_name}" complete.')
+            except Exception:
+                self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
+                rc = False
             finally:
                 zf.close()
-            self.log.info(f'Backup of server "{server_name}" complete.')
+        return rc
 
-    async def backup_database(self):
+    async def backup_database(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('database')
         cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
@@ -93,10 +102,15 @@ class BackupService(Service):
         args = shlex.split(f'-U postgres -F t -f "{path}" -d "{database}"')
         os.environ['PGPASSWORD'] = config['password']
         self.log.info("Backing up database...")
-        process = await asyncio.create_subprocess_exec(cmd, *args, stdin=asyncio.subprocess.DEVNULL,
-                                                       stdout=asyncio.subprocess.DEVNULL)
+        process = await asyncio.create_subprocess_exec(cmd, *args)
         await process.wait()
-        self.log.info("Backup of database complete.")
+        rc = process.returncode
+        if rc == 0:
+            self.log.info("Backup of database complete.")
+            return True
+        else:
+            self.log.info(f"Backup of database failed. Code: {rc}")
+            return False
 
     @staticmethod
     def can_run(config: dict):
@@ -113,23 +127,11 @@ class BackupService(Service):
     async def schedule(self):
         if self.node.master:
             if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
-                try:
-                    await self.backup_bot()
-                except Exception as ex:
-                    self.log.debug(ex)
-                    self.log.error("Backup of bot failed. See logfile for details.")
+                await self.backup_bot()
             if 'database' in self.locals['backups'] and self.can_run(self.locals['backups']['database']):
-                try:
-                    await self.backup_database()
-                except Exception as ex:
-                    self.log.debug(ex)
-                    self.log.error("Backup of database failed. See logfile for details.")
+                await self.backup_database()
         if 'servers' in self.locals['backups'] and self.can_run(self.locals['backups']['servers']):
-            try:
-                await self.backup_servers()
-            except Exception as ex:
-                self.log.debug(ex)
-                self.log.error("Backup of servers failed. See logfile for details.")
+            await self.backup_servers()
 
     @tasks.loop(hours=24)
     async def delete(self):

@@ -267,7 +267,8 @@ class UserStatistics(Plugin):
                 ) x
                 WHERE x.name ILIKE %s
                 GROUP BY ucid, name
-                LIMIT 10
+                ORDER BY 3 DESC
+                LIMIT 25
             """, ('%' + name + '%', )).fetchall()
             options = [
                 SelectOption(label=f"{row[1]} (last seen: {row[2]:%Y-%m-%d %H:%M})"[:100], value=str(idx))

@@ -82,6 +82,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
         try:
             folder, mod = utils.get_interaction_param(interaction, 'mod').split('/')
         except Exception as ex:
+            interaction.client.log.exception(ex)
             return []
         return [
             app_commands.Choice(name=version, value=version)
@@ -97,7 +98,7 @@ async def repo_version_autocomplete(interaction: discord.Interaction, current: s
     try:
         repo = utils.get_interaction_param(interaction, 'url')
 
-        if not repo or not utils.is_valid_url(repo) or 'https://github.com' not in repo:
+        if not repo or not utils.is_github_repo(repo):
             return []
         return [
             app_commands.Choice(name=version, value=version)
@@ -269,7 +270,7 @@ class OvGME(Plugin):
                 async def download(modal: UploadModal):
                     if utils.is_valid_url(modal.url.value):
                         folder = OVGME_FOLDERS[0 if modal.dest.value == 'R' else 1]
-                        if 'https://github.com/' in modal.url.value:
+                        if utils.is_github_repo(modal.url.value):
                             await self.service.download_from_repo(modal.url.value, folder, version=modal.version.value)
                         else:
                             await self.service.download(modal.url.value, folder)
@@ -294,7 +295,7 @@ class OvGME(Plugin):
                             self.log.error(f"{ex.code}: {modal.url.value} {ex.message}")
                             embed.set_footer(text=f"{ex.code}: {ex.message}")
                         except Exception as ex:
-                            embed.set_footer(text=ex.__class__.__name__)
+                            embed.set_footer(text=f"Error: {ex.__class__.__name__}")
                         for child in derived.children:
                             child.disabled = False
                         await derived.render()
@@ -401,9 +402,8 @@ class OvGME(Plugin):
             await interaction.response.send_message("{url} is not a valid URL.", ephemeral=True)
             return
         await interaction.response.defer(ephemeral=ephemeral)
-        if 'https://github.com/' in url:
-            if not version:
-                version = 'latest'
+        if utils.is_github_repo(url) and not version:
+            version = await self.service.get_latest_repo_version(url)
         if version:
             package_name = self.service.extract_repo_name(url).split('/')[-1]
             msg = await interaction.followup.send(f"Downloading {package_name}_v{version} from GitHub ...",
@@ -416,6 +416,9 @@ class OvGME(Plugin):
                     await msg.edit(content="Aborted.")
                     return
                 await self.service.download_from_repo(url, folder, version=version, force=True)
+            except aiohttp.ClientResponseError as ex:
+                await msg.edit(content=f"Error {ex.status}: {package_name}_v{version} {ex.message}")
+                return
             await msg.edit(content=f"{package_name}_v{version} downloaded. Use `/mods install` to install it.")
         else:
             filename = url.split('/')[-1]
