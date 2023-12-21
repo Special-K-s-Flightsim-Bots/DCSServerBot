@@ -336,8 +336,7 @@ class NodeImpl(Node):
                     stderr=asyncio.subprocess.DEVNULL
                 )
                 await process.wait()
-                if process.returncode != 0:
-                    return process.returncode
+                return process.returncode
             except Exception as ex:
                 self.log.exception(ex)
                 return -1
