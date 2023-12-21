@@ -20,6 +20,7 @@ from ..utils.helper import YAMLError
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -68,7 +69,7 @@ class Server(DataObject):
         if os.path.exists('config/servers.yaml'):
             try:
                 data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
-            except ParserError as ex:
+            except (ParserError, ScannerError) as ex:
                 raise YAMLError('config/servers.yaml', ex)
             if not data.get(self.name):
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')

@@ -39,6 +39,7 @@ from core.utils.helper import SettingsDict, YAMLError
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -179,7 +180,7 @@ class NodeImpl(Node):
         if os.path.exists('config/nodes.yaml'):
             try:
                 self.all_nodes: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
-            except ParserError as ex:
+            except (ParserError, ScannerError) as ex:
                 raise YAMLError('config/nodes.yaml', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:

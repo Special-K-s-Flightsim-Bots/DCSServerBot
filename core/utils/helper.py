@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 
 yaml = YAML()
 
@@ -423,5 +424,5 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
 
 
 class YAMLError(Exception):
-    def __init__(self, file: str, ex: ParserError):
+    def __init__(self, file: str, ex: Union[ParserError, ScannerError]):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))

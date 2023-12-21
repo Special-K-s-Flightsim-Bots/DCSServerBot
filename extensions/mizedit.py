@@ -8,6 +8,7 @@ from typing import Tuple
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 
@@ -17,7 +18,7 @@ class MizEdit(Extension):
         super().__init__(server, config)
         try:
             self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
-        except ParserError as ex:
+        except (ParserError, ScannerError) as ex:
             raise YAMLError('config/presets.yaml', ex)
 
     async def get_presets(self, config: dict):

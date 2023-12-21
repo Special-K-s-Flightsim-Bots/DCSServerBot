@@ -10,6 +10,7 @@ from typing import cast
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 
@@ -35,7 +36,7 @@ class Backup(Plugin):
             return {}
         try:
             return yaml.load(Path('config/services/backup.yaml').read_text(encoding='utf-8'))
-        except ParserError as ex:
+        except (ParserError, ScannerError) as ex:
             raise YAMLError('config/services/backup.yaml', ex)
 
     @command(description='Backup your data')
