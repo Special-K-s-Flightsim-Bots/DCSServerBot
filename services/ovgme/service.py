@@ -96,7 +96,8 @@ class OvGMEService(Service):
                 server.maintenance = True
                 try:
                     if not installed:
-                        if await self.install_package(server, package['source'], package['name'], version, package.get('repo')):
+                        if await self.install_package(server, package['source'], package['name'], version,
+                                                      package.get('repo')):
                             self.log.info(f"- Package {package['name']}_v{version} installed on server {server.name}.")
                         else:
                             self.log.warning(f"- Package {package['name']}_v{version} not found!")
@@ -221,7 +222,7 @@ class OvGMEService(Service):
 
     async def get_latest_version(self, package: dict) -> str:
         if 'repo' in package:
-            return await self._get_latest_repo_version(package['repo'])
+            return await self.get_latest_repo_version(package['repo'])
         else:
             return await self._get_latest_file_version(package)
 
@@ -296,7 +297,6 @@ class OvGMEService(Service):
                         else:
                             log.write(f"w {name}\n")
                         zfile.extract(name, target)
-            return True
         elif os.path.isdir(filename):
             with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
                 def backup(p, names) -> list[str]:
@@ -316,14 +316,15 @@ class OvGMEService(Service):
                     return []
 
                 shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
-                        VALUES (%s, %s, %s, %s)
-                    """, (server.name, package_name, version, folder))
-            return True
-        return False
+        else:
+            return False
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
+                    VALUES (%s, %s, %s, %s)
+                """, (server.name, package_name, version, folder))
+        return True
 
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         if server.is_remote:

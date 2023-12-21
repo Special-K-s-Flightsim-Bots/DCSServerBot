@@ -11,6 +11,7 @@ from ..utils.helper import YAMLError
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ class Service(ABC):
         self.log.debug(f'  - Reading service configuration from {filename} ...')
         try:
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except ParserError as ex:
+        except (ParserError, ScannerError) as ex:
             raise YAMLError(filename, ex)
 
     def get_config(self, server: Optional[Server] = None) -> dict:

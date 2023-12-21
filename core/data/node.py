@@ -9,6 +9,7 @@ from ..utils.helper import YAMLError
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 __all__ = [
@@ -81,7 +82,7 @@ class Node:
                 'player_banned', 'You are banned from this server. Reason: {}'
             )
             return config
-        except ParserError as ex:
+        except (ParserError, ScannerError) as ex:
             raise YAMLError('config/main.yaml', ex)
 
     def read_locals(self) -> dict:
