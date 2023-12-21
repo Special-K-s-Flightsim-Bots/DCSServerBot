@@ -158,13 +158,13 @@ class MissionStatisticsEventListener(EventListener):
                 update = True
         elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
             initiator = data['initiator']
-            category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
-            coalition: Coalition = self.COALITION[initiator['coalition']]
             # no stats for Neutral
+            coalition: Coalition = self.COALITION[initiator['coalition']]
             if coalition == Coalition.NEUTRAL:
                 return
             unit_name = initiator['unit_name']
             if initiator['type'] == 'UNIT':
+                category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
                 if category == 'Structures':
                     if unit_name in stats['coalitions'][coalition.name]['statics']:
                         stats['coalitions'][coalition.name]['statics'].remove(unit_name)
