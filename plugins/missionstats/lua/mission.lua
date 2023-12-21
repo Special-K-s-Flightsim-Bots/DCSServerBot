@@ -100,7 +100,7 @@ function onEvent(event)
 		msg.time = event.time
 		if event.initiator then
 			msg.initiator = {}
-			category, msg.initiator.category = Object.getCategory(event.initiator)
+			category = Object.getCategory(event.initiator)
 			if category == Object.Category.UNIT then
 				msg.initiator.type = 'UNIT'
 				msg.initiator.unit = event.initiator
@@ -112,12 +112,15 @@ function onEvent(event)
 				msg.initiator.name = msg.initiator.unit:getPlayerName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+				msg.initiator.category = msg.initiator.unit
+				msg.initiator.category = msg.initiator.unit:getDesc().category
 			elseif category == Object.Category.WEAPON then
 				msg.initiator.type = 'WEAPON'
 				msg.initiator.unit = event.initiator
 				msg.initiator.unit_name = msg.initiator.unit:getName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+				msg.initiator.category = msg.initiator.unit:getDesc().category
 			elseif category == Object.Category.STATIC then
 				msg.initiator.type = 'STATIC'
 				-- ejected pilot, unit will not be counted as dead but only lost
@@ -155,7 +158,7 @@ function onEvent(event)
 		end
 		if event.target then
 			msg.target = {}
-			category, msg.target.category = Object.getCategory(event.target)
+			category = Object.getCategory(event.target)
 			if category == Object.Category.UNIT then
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
@@ -167,12 +170,14 @@ function onEvent(event)
 				msg.target.name = msg.target.unit:getPlayerName()
 				msg.target.coalition = msg.target.unit:getCoalition()
 				msg.target.unit_type = msg.target.unit:getTypeName()
+				msg.target.category = msg.target.unit:getDesc().category
 			elseif category == Object.Category.WEAPON then
 				msg.target.type = 'WEAPON'
 				msg.target.unit = event.target
 				msg.target.unit_name = msg.target.unit:getName()
                 msg.target.coalition = msg.target.unit:getCoalition()
 				msg.target.unit_type = msg.target.unit:getTypeName()
+				msg.target.category = msg.target.unit:getDesc().category
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'
 				msg.target.unit = event.target
@@ -211,7 +216,7 @@ function onEvent(event)
 		if event.weapon then
 			msg.weapon = {}
 			msg.weapon.name = event.weapon:getTypeName()
-			msg.weapon.category = event.weapon:getCategoryEx()
+			msg.weapon.category = event.weapon:getDesc().category
 			if msg.weapon.name == nil or msg.weapon.name == '' then
 			    msg.weapon.name = 'Gun'
 			end
