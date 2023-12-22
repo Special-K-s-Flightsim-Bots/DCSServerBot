@@ -364,11 +364,16 @@ class Mission(Plugin):
             await interaction.response.send_message(
                 f'No presets available, please configure them in config/presets.yaml.', ephemeral=True)
             return
-        options = [
-            discord.SelectOption(label=k)
-            for k, v in presets.items()
-            if not v.get('hidden', False)
-        ]
+        try:
+            options = [
+                discord.SelectOption(label=k)
+                for k, v in presets.items()
+                if not isinstance(v, dict) or not v.get('hidden', False)
+            ]
+        except AttributeError:
+            await interaction.response.send_message(
+                f"There is an error in your config/presets.yaml. Please check the file structure.", ephemeral=True)
+            return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
