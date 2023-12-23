@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import platform
 import shutil
 import socket
 import subprocess
@@ -460,7 +459,7 @@ class ServerImpl(Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',
-                             (platform.node(), self.name))
+                             (self.node.name, self.name))
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False

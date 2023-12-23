@@ -344,7 +344,7 @@ class UserStatisticsEventListener(EventListener):
                             f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                     else:
                         discord_id = row[0]
-                        member = DataObjectFactory().new('Member', node=self.bot.node,
+                        member = DataObjectFactory().new('Member', node=self.node,
                                                          member=self.bot.guilds[0].get_member(discord_id))
 
                         old_ucid = member.ucid if member.verified else None

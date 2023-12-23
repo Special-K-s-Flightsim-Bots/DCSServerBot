@@ -1,6 +1,5 @@
 import discord
 import os
-import platform
 import shutil
 
 from contextlib import closing
@@ -325,20 +324,20 @@ class Admin(Plugin):
                                                         ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
-    node = Group(name="node", description="Commands to manage your nodes")
+    node_group = Group(name="node", description="Commands to manage your nodes")
 
-    @node.command(name='list', description='Status of all nodes')
+    @node_group.command(name='list', description='Status of all nodes')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
         embed = discord.Embed(title=f"All Nodes", color=discord.Color.blue())
-        master: NodeImpl = self.bot.node
+        master: NodeImpl = self.node
         # master node
         names = []
         instances = []
         status = []
         embed.add_field(name="▬" * 32, value=f"**Master: {master.name}**", inline=False)
-        for instance in self.bot.node.instances:
+        for instance in self.node.instances:
             instances.append(instance.name)
             names.append(instance.server.name if instance.server else 'n/a')
             status.append(instance.server.status.name if instance.server else '- unused -')
@@ -373,7 +372,7 @@ class Admin(Plugin):
                                        ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
-        for n in self.bot.node.get_active_nodes():
+        for n in self.node.get_active_nodes():
             if not node or n == node.name:
                 self.bus.send_to_node({
                     "command": "rpc",
@@ -381,28 +380,28 @@ class Admin(Plugin):
                     "method": method
                 }, node=n)
                 await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
-        if not node or node.name == platform.node():
+        if not node or node.name == self.node.name:
             await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
-                self.bot.node.shutdown()
+                self.node.shutdown()
             else:
-                await self.bot.node.upgrade()
+                await self.node.upgrade()
 
-    @node.command(description='Stop a specific node')
+    @node_group.command(description='Stop a specific node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def exit(self, interaction: discord.Interaction,
                    node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "shutdown", node)
 
-    @node.command(description='Upgrade a node')
+    @node_group.command(description='Upgrade a node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "upgrade", node)
 
-    @node.command(description='Run a shell command on a node')
+    @node_group.command(description='Run a shell command on a node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
@@ -443,7 +442,7 @@ class Admin(Plugin):
         #    if server.status == Status.STOPPED:
         #        server.send_to_dcs({"command": "reloadScripts"})
 
-    @node.command(description="Add/create an instance")
+    @node_group.command(description="Add/create an instance")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
@@ -472,7 +471,7 @@ Please make sure you forward the following ports:
             await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
                                                     ephemeral=ephemeral)
 
-    @node.command(description="Delete an instance")
+    @node_group.command(description="Delete an instance")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def delete_instance(self, interaction: discord.Interaction,
@@ -495,7 +494,7 @@ Please make sure you forward the following ports:
         await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=ephemeral)
         await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
 
-    @node.command(description="Rename an instance\n")
+    @node_group.command(description="Rename an instance\n")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def rename_instance(self, interaction: discord.Interaction,
@@ -548,7 +547,7 @@ Please make sure you forward the following ports:
         elif name in ['backup', 'bot']:
             target_path = os.path.join('config', 'services')
             plugin = False
-        elif name in self.bot.node.plugins:
+        elif name in self.node.plugins:
             target_path = os.path.join('config', 'plugins')
             plugin = True
         else:

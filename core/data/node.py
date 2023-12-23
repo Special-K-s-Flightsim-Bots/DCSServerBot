@@ -14,7 +14,8 @@ yaml = YAML()
 
 __all__ = [
     "Node",
-    "UploadStatus"
+    "UploadStatus",
+    "FatalException"
 ]
 
 
@@ -29,6 +30,11 @@ class UploadStatus(Enum):
 class SortOrder(Enum):
     NAME = auto()
     DATE = auto()
+
+
+class FatalException(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
 
 
 class Node:
@@ -83,6 +89,8 @@ class Node:
                 'player_banned', 'You are banned from this server. Reason: {}'
             )
             return config
+        except FileNotFoundError:
+            raise FatalException()
         except (ParserError, ScannerError) as ex:
             raise YAMLError('config/main.yaml', ex)
 

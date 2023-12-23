@@ -116,7 +116,7 @@ class UserStatistics(Plugin):
                     conn.execute("TRUNCATE TABLE statistics")
                     conn.execute("TRUNCATE TABLE missionstats")
                     conn.execute("TRUNCATE TABLE missions")
-                    if 'greenieboard' in self.bot.node.plugins:
+                    if 'greenieboard' in self.node.plugins:
                         conn.execute("TRUNCATE TABLE greenieboard")
                     await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=ephemeral)
                     await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
@@ -443,7 +443,7 @@ class UserStatistics(Plugin):
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
-        member = DataObjectFactory().new('Member', node=self.bot.node, member=interaction.user)
+        member = DataObjectFactory().new('Member', node=self.node, member=interaction.user)
         if (utils.is_ucid(member.ucid) and member.verified and
                 not await utils.yn_question(interaction,
                                             "You already have a verified DCS account!\n"
@@ -488,7 +488,7 @@ class UserStatistics(Plugin):
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return
-        member = DataObjectFactory().new('Member', node=self.bot.node, member=user)
+        member = DataObjectFactory().new('Member', node=self.node, member=user)
         if not member.verified:
             await interaction.response.send_message(
                 f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)

@@ -13,11 +13,11 @@ from services import DCSServerBot
 class RealWeather(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.installation = self.bot.node.locals.get('extensions', {}).get('RealWeather', {}).get('installation')
+        self.installation = self.node.locals.get('extensions', {}).get('RealWeather', {}).get('installation')
         if not self.installation:
             raise PluginInstallationError(
                 plugin='RealWeather',
-                reason=f"No configuration found for RealWeather for node {self.bot.node.name} in nodes.yaml"
+                reason=f"No configuration found for RealWeather for node {self.node.name} in nodes.yaml"
             )
 
     async def change_weather(self, server: Server, filename: str, airbase: dict) -> str:

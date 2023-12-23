@@ -159,6 +159,10 @@ class Mission(Plugin):
                        delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False,
                        rotate: Optional[bool] = False):
         what = "restart" if not rotate else "rotate"
+        actions = {
+            "restart": "restarted",
+            "rotate": "rotated",
+        }
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
@@ -187,9 +191,9 @@ class Mission(Plugin):
             await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated():
             if delay > 0:
-                message = f"!!! Mission will be {what.replace('e', '')}ed in {utils.format_time(delay)}!!!"
+                message = f"!!! Mission will be {actions.get(what)} in {utils.format_time(delay)}!!!"
             else:
-                message = f"!!! Mission will be {what.replace('e', '')}ed NOW !!!"
+                message = f"!!! Mission will be {actions.get(what)} NOW !!!"
             # have we got a message to present to the users?
             if reason:
                 message += f' Reason: {reason}'
@@ -206,10 +210,9 @@ class Mission(Plugin):
             await server.loadNextMission(modify_mission=run_extensions)
         else:
             await server.restart(modify_mission=run_extensions)
-        await self.bot.audit('restarted mission' if what == 'restart' else 'rotated mission', server=server,
-                             user=interaction.user)
+        await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
         await msg.delete()
-        await interaction.followup.send(f"Mission {what.replace('e', '')}ed.", ephemeral=ephemeral)
+        await interaction.followup.send(f"Mission {actions.get(what)}.", ephemeral=ephemeral)
 
     @mission.command(description='(Re-)Loads a mission from the list\n')
     @app_commands.guild_only()

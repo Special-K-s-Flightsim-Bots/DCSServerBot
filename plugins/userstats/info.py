@@ -128,7 +128,7 @@ class Footer(report.EmbedElement):
     async def render(self, member: Union[discord.Member, str], banned: bool, player: Optional[Player]):
         footer = ''
         if isinstance(member, discord.Member):
-            _member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=member)
+            _member: Member = DataObjectFactory().new('Member', node=self.node, member=member)
             if _member.ucid:
                 footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:

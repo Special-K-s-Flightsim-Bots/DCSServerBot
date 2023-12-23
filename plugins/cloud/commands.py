@@ -68,7 +68,7 @@ class CloudHandler(Plugin):
 
     async def cog_load(self):
         if self.config.get('upload_errors', True):
-            cloud_logger = CloudLoggingHandler(node=self.bot.node, url=self.base_url)
+            cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url)
             self.log.addHandler(cloud_logger)
 
     async def cog_unload(self) -> None:
@@ -270,7 +270,7 @@ class CloudHandler(Plugin):
                     num_bots = row[0]
                     num_servers = row[1]
         try:
-            _, dcs_version = await self.bot.node.get_dcs_branch_and_version()
+            _, dcs_version = await self.node.get_dcs_branch_and_version()
             bot = {
                 "guild_id": self.bot.guilds[0].id,
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",

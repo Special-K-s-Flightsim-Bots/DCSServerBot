@@ -72,7 +72,7 @@ class OvGMEService(Service):
         return False
 
     async def install_packages(self):
-        for server_name, server in self.bus.servers.items():
+        for server_name, server in self.bus.servers.copy().items():
             if server.is_remote:
                 continue
             # wait for the servers to be registered
