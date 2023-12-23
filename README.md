@@ -166,8 +166,8 @@ latest available PostgreSQL version from the above-mentioned website.<br>
 
 ### DCSServerBot Installation
 Run the provided `install.cmd` script or just `run.cmd`.<br>
-It will ask you for your Guild ID (right click on your Discord server icon and select "Copy Server ID") and the bots 
-user ID (right click on the bot user and select "Copy User ID"). Then it will search for existing DCS installations, 
+It will ask you for your Guild ID (right-click on your Discord server icon and select "Copy Server ID") and the bots 
+user ID (right-click on the bot user and select "Copy User ID"). Then it will search for existing DCS installations, 
 create the database user, password and database and asks whether you want to add existing DCS servers to the 
 configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
@@ -180,7 +180,7 @@ When finished, the bot should launch successfully and maybe even start your serv
 ## Configuration
 The bot configuration is held in several files in the **config** subdirectory.
 If you run the `install.cmd` script for the first time, it will generate basic files for you that you can amend to your 
-needs afterwards. Your bot should be ready to run already and you can skip this section for now, if you don't want to
+needs afterwards. Your bot should be ready to run already, and you can skip this section for now, if you don't want to
 bother with the bots configuration in first place.
 
 > ⚠️ **Attention!**<br>
@@ -395,28 +395,6 @@ To view some sample configurations for the bot or for each configurable plugin, 
 Players that have no pilot ID (empty or whitespace) or that share an account with others, will not be able to join your 
 DCS server. This is not configurable, it's a general rule (and a good one in my eyes).
 
----
-## Starting the Bot
-To start the bot, you can either use the packaged ```run.cmd``` command (recommended) or ```venv\Scripts\python run.py```.<br/>
-If using `autoupdate: true` in your main.yaml, it is recommended to start the bot via ```run.cmd```. This runs it in 
-a loop, as it will try to restart itself after an update has taken place.</br>
-If you want to run the bot from autostart, create a small batch script, that will change to the bots installation 
-directory and run the bot from there like so:
-```cmd
-@echo off
-cd "<whereveryouinstalledthebot>\DCSServerBot"
-:loop
-venv\Scripts\python run.py
-goto loop
-```
-DCSServerBot runs in a Python virtual environment, with its own independent set of Python libraries and packages.
-
----
-## How to do the more complex stuff?
-DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest 
-communities. The installation and maintenance of such a use-case is just a bit more complex than a single server 
-installation.
-
 ### Setup Multiple Servers on a Single Host
 To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different 
 communication ports. This can be done with the parameter `bot_port` in nodes.yaml. The default is 6666, you can just 
@@ -424,71 +402,31 @@ increase that for every server (6667, 6668, ...).<br>
 Don't forget to configure different Discord channels (`chat` and `status`, optional `admin`) for every server, too. 
 This will be done in the servers.yaml file.<br>
 To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server 
-(see below).
+(see [Multi-Node-Setup](./MULTINODE.md) in that case).
 
 DCSServerBot will autodetect all configured DCS servers on installation and generate simple configuration files 
 for you already. To add a new instance, you can either do that manually or use `/node add_instance` in your Discord.
+---
+## Starting the Bot
+To start the bot, you can either use the packaged ```run.cmd``` command (recommended) or ```venv\Scripts\python run.py```.<br/>
+If using `autoupdate: true` in your main.yaml, it is recommended to start the bot via ```run.cmd```. This runs it in 
+a loop, as it will try to restart itself after an update has taken place.</br>
+If you want to run the bot from autostart, press Win+R, enter `shell:startup` and press ENTER, create a shortcut to your
+run.cmd in there.
 
-### Setup Multiple Servers on Multiple Host
-DCSServerBot is able to run in multiple locations, worldwide. On every PC in this cluster, one instance of DCSServerBot
-(a "node") needs to be installed. One node will always be the "Master", taking over the Discord communication and most of
-the work. If the Master fails, any other node in the cluster will automatically take over.<br>
-All nodes collect statistics of the DCS servers they control, but only the master runs the statistics module to display 
-them in Discord. To be able to communicate, all nodes need to have access to a **central** database. 
-
-You can either host that database at one of the nodes and give all other nodes access to it (have security 
-like SSL encryption in mind) or you use a cloud database, available on services like Amazon, Heroku, etc.
-This would be the recommended approach, as you would still have a single point of failure in your cluster with a local
-database. All depending on your high availability requirements.
-
-Many files like configuration, music and maybe even missions should be kept on a cloud drive in that case, even the 
-whole DCSServerBot installation could be on a cloud drive (like Google Drive). You can start each bot in each
-location on this shared directory. Each bot will read its individual configuration based on the hostname (node name) of 
-that PC.
-
-> ⚠️ **Attention!**<br>
-> If you use multiple nodes, you might get to the moment where instances are named identical. This will start with the
-> first instance already, if you keep the default name "DCS.server" or "DCS.openbeta_server".<br>
-> As many configuration files only use the instance name per default, you might need to add the node name as well.
-> This can be done like as if you look at your nodes.yaml - the node can be the outer structure in each config file.
-> 
-> Single-Node-Config:
-> ```yaml
-> DEFAULT:
->   some-param: A
-> DCS.openbeta_server:
->   some-param: B
-> ```
-> 
-> Multi-Node-Config:
-> ```yaml
-> DEFAULT:
->   some-param: A
-> MyNode1:
->   DCS.openbeta_server:
->     some-param: B
-> MyNode2:
->   DCS.openbeta_server:
->     some-param: C
-> ```
-DCSServerBot will understand both versions. The DEFAULT will be used for ALL instances, independent on which node they 
-are. If you don't provide a node in a multi-node-system (ex: "Single-Node-Config" above), the bot will read the same 
-parameters for all instances that are named DCS.openbeta_server on any of your nodes. This can be what you want but it 
-can lead to errors.<br>
-I would always recommend to create the node-specific version (ex: "Multi-Node-Config" above) to avoid confusion. That's 
-what the bot will create during a default installation also.
-
-### Moving a Server from one Location to Another
-Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
-the `/server migrate` command. Please keep in mind that - unless you use a central missions directory - the necessary
-missions (or scripts) for this server might not be available on the other node.
+---
+## How to do the more complex stuff?
+DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest 
+communities. The installation and maintenance of such a use-case is just a bit more complex than a single server 
+installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
 
 ### How to talk to the Bot from inside Missions
 If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
-_Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._<br/> 
+> Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._<br/>
+ 
 After that, you can for instance send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
@@ -530,8 +468,7 @@ replaced with this one.
 
 ---
 ## Contact / Support
-If you need support, if you want to chat with me or other users or if you like to contribute, jump into my [Support Discord](https://discord.gg/h2zGDH9szZ).
-
+If you need support, if you want to chat with me or other users or if you like to contribute, jump into my [Support Discord](https://discord.gg/h2zGDH9szZ).<br>
 If you like what I do, and you want to support me, you can do that via my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
 
 ---
