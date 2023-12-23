@@ -64,7 +64,6 @@ class NodeImpl(Node):
     def __init__(self, name: Optional[str] = None):
         super().__init__(name or platform.node())
         self.node = self  # to be able to address self.node
-        self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
         self.log = self.init_logger()
         self.bot_version = __version__[:__version__.rfind('.')]
@@ -582,7 +581,6 @@ class NodeImpl(Node):
                     "service": "Bot",
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
-                        "node": self.name,
                         "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     }
                 })

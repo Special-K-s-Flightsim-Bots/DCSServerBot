@@ -38,6 +38,7 @@ class Node:
         self.instances: list[Instance] = list()
         self.locals = None
         self.config = self.read_config()
+        self.guild_id: int = int(self.config['guild_id'])
 
     @property
     def master(self) -> bool:

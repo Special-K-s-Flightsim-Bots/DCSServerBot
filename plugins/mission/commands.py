@@ -43,6 +43,7 @@ class Mission(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
         if days > -1:
+            # noinspection PyTypeChecker
             conn.execute(f"""
                 DELETE FROM missions 
                 WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
@@ -113,7 +114,8 @@ class Mission(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def briefing(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer]):
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[Status.RUNNING, Status.PAUSED])]):
         def read_passwords(server: Server) -> dict:
             with self.pool.connection() as conn:
                 row = conn.execute(
@@ -121,6 +123,9 @@ class Mission(Plugin):
                     (server.name,)).fetchone()
                 return {"Blue": row[0], "Red": row[1]}
 
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            return
         timeout = self.bot.locals.get('message_autodelete', 300)
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
@@ -277,7 +282,11 @@ class Mission(Plugin):
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
-        path = (await server.listAvailableMissions())[idx]
+        all_missions = await server.listAvailableMissions()
+        if idx >= len(all_missions):
+            await interaction.response.send_message('No mission found.', ephemeral=True)
+            return
+        path = all_missions[idx]
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
         await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
@@ -300,6 +309,9 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer],
                      mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
+        if mission_id >= len(server.settings['missionList']):
+            await interaction.response.send_message("No mission found.")
+            return
         filename = server.settings['missionList'][mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and \
                 filename == server.current_mission.filename:
@@ -616,30 +628,32 @@ class Mission(Plugin):
         for server_name, server in self.bot.servers.items():
             if server.status == Status.UNREGISTERED:
                 continue
-            # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
-            channel = self.bot.get_channel(server.channels[Channel.STATUS])
-            # name changes of the status channel will only happen with the correct permission
-            if channel.permissions_for(self.bot.member).manage_channels:
-                name = channel.name
-                # if the server owner leaves, the server is shut down
-                if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
-                    if name.find('［') == -1:
-                        name = name + '［-］'
+            try:
+                # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
+                channel = self.bot.get_channel(server.channels[Channel.STATUS])
+                if not channel:
+                    channel = await self.bot.fetch_channel(server.channels[Channel.STATUS])
+                # name changes of the status channel will only happen with the correct permission
+                if channel.permissions_for(self.bot.member).manage_channels:
+                    name = channel.name
+                    # if the server owner leaves, the server is shut down
+                    if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
+                        if name.find('［') == -1:
+                            name = name + '［-］'
+                        else:
+                            name = re.sub('［.*］', f'［-］', name)
                     else:
-                        name = re.sub('［.*］', f'［-］', name)
-                else:
-                    players = server.get_active_players()
-                    current = len(players) + 1
-                    max_players = server.settings.get('maxPlayers') or 0
-                    if name.find('［') == -1:
-                        name = name + f'［{current}／{max_players}］'
-                    else:
-                        name = re.sub('［.*］', f'［{current}／{max_players}］', name)
-                try:
+                        players = server.get_active_players()
+                        current = len(players) + 1
+                        max_players = server.settings.get('maxPlayers') or 0
+                        if name.find('［') == -1:
+                            name = name + f'［{current}／{max_players}］'
+                        else:
+                            name = re.sub('［.*］', f'［{current}／{max_players}］', name)
                     if name != channel.name:
                         await channel.edit(name=name)
-                except Exception as ex:
-                    self.log.debug("Exception in update_channel_name(): " + str(ex))
+            except Exception as ex:
+                self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=str(ex))
 
     @tasks.loop(minutes=1.0)
     async def afk_check(self):

@@ -18,6 +18,7 @@ from typing import Type, Any, Optional, Union
 
 from services import DCSServerBot
 from .listener import CloudListener
+from .logger import CloudLoggingHandler
 
 
 class CloudHandler(Plugin):
@@ -65,9 +66,18 @@ class CloudHandler(Plugin):
             )
         return self._session
 
+    async def cog_load(self):
+        if self.config.get('upload_errors', True):
+            cloud_logger = CloudLoggingHandler(node=self.bot.node, url=self.base_url)
+            self.log.addHandler(cloud_logger)
+
     async def cog_unload(self) -> None:
         if self.config.get('register', True):
             self.register.cancel()
+        if self.config.get('upload_errors', True):
+            for handler in self.log.handlers:
+                if isinstance(handler, CloudLoggingHandler):
+                    self.log.removeHandler(handler)
         if 'token' in self.config:
             self.cloud_sync.cancel()
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):

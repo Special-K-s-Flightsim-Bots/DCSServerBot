@@ -62,7 +62,7 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.queue: dict[discord.TextChannel, Queue[str]] = dict()
+        self.queue: dict[int, Queue[str]] = dict()
         self.player_embeds: dict[str, bool] = dict()
         self.mission_embeds: dict[str, bool] = dict()
         self.print_queue.start()
@@ -79,6 +79,11 @@ class MissionEventListener(EventListener):
         for channel in self.queue.keys():
             if self.queue[channel].empty():
                 continue
+            _channel = self.bot.get_channel(channel)
+            if not _channel:
+                _channel = await self.bot.fetch_channel(channel)
+                if not _channel:
+                    return
             messages: list[str] = []
             message_old = ''
             while not self.queue[channel].empty():
@@ -89,10 +94,10 @@ class MissionEventListener(EventListener):
                 if messages.__sizeof__() > 1900:
                     if not flush:
                         break
-                    await channel.send(''.join(messages))
+                    await _channel.send(''.join(messages))
                     messages.clear()
             if messages:
-                await channel.send(''.join(messages))
+                await _channel.send(''.join(messages))
 
     @tasks.loop(seconds=2)
     async def print_queue(self):
@@ -176,8 +181,8 @@ class MissionEventListener(EventListener):
             events_channel = server.channels.get(Channel.EVENTS)
         if events_channel:
             if events_channel not in self.queue:
-                self.queue[self.bot.get_channel(events_channel)] = Queue()
-            self.queue[self.bot.get_channel(events_channel)].put(message)
+                self.queue[events_channel] = Queue()
+            self.queue[events_channel].put(message)
 
     def display_mission_embed(self, server: Server):
         self.mission_embeds[server.name] = True

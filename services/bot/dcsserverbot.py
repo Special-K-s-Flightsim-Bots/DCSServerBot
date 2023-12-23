@@ -6,7 +6,6 @@ from contextlib import closing
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status
 from datetime import datetime
 from discord.ext import commands
-from functools import lru_cache
 from typing import Optional, Union, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -119,7 +118,7 @@ class DCSServerBot(commands.Bot):
             for bad_role in config_roles:
                 self.log.error(f"  => Role {bad_role} not found in your Discord!")
 
-    def check_channel(self, channel_id: int) -> bool:
+    async def check_channel(self, channel_id: int) -> bool:
         channel = self.get_channel(channel_id)
         if not channel:
             self.log.error(f'No channel with ID {channel_id} found!')
@@ -154,7 +153,7 @@ class DCSServerBot(commands.Bot):
             ret = False
         return ret
 
-    def check_channels(self, server: Server):
+    async def check_channels(self, server: Server):
         channels = ['status', 'chat']
         if not self.locals.get('admin_channel'):
             channels.append('admin')
@@ -163,7 +162,7 @@ class DCSServerBot(commands.Bot):
         for c in channels:
             channel_id = int(server.channels[Channel(c)])
             if channel_id != -1:
-                self.check_channel(channel_id)
+                await self.check_channel(channel_id)
 
     async def on_ready(self):
         try:
@@ -186,7 +185,7 @@ class DCSServerBot(commands.Bot):
                         roles.extend([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
                         roles.extend([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
                         self.check_roles(roles, server)
-                    self.check_channels(server)
+                    await self.check_channels(server)
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
                 await self.tree.sync(guild=self.guilds[0])
@@ -279,10 +278,6 @@ class DCSServerBot(commands.Bot):
                 """, (self.node.name, message, server.name if server else None,
                       user.id if isinstance(user, discord.Member) else None,
                       user if isinstance(user, str) else None))
-
-    @lru_cache
-    def get_channel(self, channel_id: int):
-        return super().get_channel(channel_id) if channel_id != -1 else None
 
     def get_admin_channel(self, server: Server) -> discord.TextChannel:
         admin_channel = self.locals.get('admin_channel')

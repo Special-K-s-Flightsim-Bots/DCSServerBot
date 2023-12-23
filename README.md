@@ -21,7 +21,7 @@ bots architecture, read [here](./ARCHITECTURE.md)
 
 ### Node
 A node is an installation of DCSServerBot on one PC. The usual user will have one installation, meaning one node.
-You can run multiple instances of DCS with each node (see blow). If you run multiple PCs or (virtual) servers, you 
+You can run multiple instances of DCS with each node (see below). If you run multiple PCs or (virtual) servers, you 
 need to install multiple DCSServerBot nodes. This results in a DCSServerBot cluster.<br>
 One node is always a master node, which handles all the Discord commands and controls the rest of the cluster. Each
 node can be a master. You can define nodes as preferred master nodes, which you usually want to do with nodes that
@@ -99,11 +99,12 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 
 | Extension        | Scope                                                                                                             | 
 |------------------|-------------------------------------------------------------------------------------------------------------------|
+| MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up [here](./extensions/MizEdit.md)! |
 | DCS-SRS          | Market leader in DCS VOIP integration.                                                                            |
 | Tacview          | Well known flight data capture and analysis tool.                                                                 |
 | LotAtc           | Simple display only extension.                                                                                    |
-| MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up [here](./extensions/MizEdit.md)! |
 | DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                       |
+| DCS Olympus      | Real-time control of your DCS missions through a map interface.                                                   |
 | Lardoon          | Start, stop and manage Lardoon servers.                                                                           |
 | Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option!        |
 | DCS Real Weather | Real weather for your missions.                                                                                   |
@@ -115,9 +116,13 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
+You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
 "Add python.exe to PATH" during your Python installation.<br>
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
+
+> ⚠️ **Attention!**<br>
+> DCSServerBot is not compatible with Python 3.12 yet. This is because of some 3rd party libraries and not the bot
+> itself.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
@@ -531,6 +536,7 @@ If you like what I do, and you want to support me, you can do that via my [Patre
 
 ---
 ## Credits
-Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
-I gave my best to mark parts in the code to show where I copied some ideas or even code from you guys, which honestly is just a very small piece. Hope that is ok.
-Also thanks to Moose for aligning the API for [FunkMan](https://github.com/funkyfranky/FunkMan) with me and make it compatible with DCSServerBot in first place.
+Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this 
+solution. I gave my best to mark the few parts in the code to show where I copied some ideas or even code from you guys, 
+which honestly is just a very small piece. Hope that is ok. Also thanks to Moose for aligning the API for [FunkMan](https://github.com/funkyfranky/FunkMan) 
+with me and make it compatible with DCSServerBot in first place.

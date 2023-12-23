@@ -5,10 +5,7 @@ not only fly in one community, they might want to see their statistics that they
 single place.</br>
 That said, DCSServerBot offers the opportunity to use a cloud based database system, to upload aggregated statistics
 for every active user into the cloud. Users then can use Discord commands to see their overall stats, like they are
-used to see with .stats.
-
-In the future it is planned to have "Cloud Campaigns" that span over multiple groups that want to participate and
-compete against each other!
+used to see with `/statistics`.
 
 > ⚠️ **Attention!**</br>
 > The Cloud statistics are meant for larger servers only. I am happy to provide you access to it, using a token, provided 
@@ -34,6 +31,7 @@ DEFAULT:
   port: 443                             # Don't change that until told otherwise.
   protocol: https                       # Don't change that until told otherwise.
   register: true                        # True, send general statistics to my community stats (please do that!)
+  upload_errors: true                   # True, upload exceptions to the central error database, so that I can see what happened in your bot (and fix it)
 #  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.
 ```
 The online registration helps me to better understand which installations are out there. There is no personal
@@ -45,5 +43,5 @@ maintaining the solutions that are out in the wild.
 | Command           | Parameter        | Role      | Description                                          |
 |-------------------|------------------|-----------|------------------------------------------------------|
 | /cloud status     |                  | Admin     | Status of the connection to the cloud service.       |
-| /cloud resync     | [@member / ucid] | DCS Admin | Resyncs all players (or this player) with the cloud. |
+| /cloud resync     | [@member / ucid] | DCS Admin | Resync all players (or this player) with the cloud.  |
 | /cloud statistics | [@member / ucid] | DCS       | Display player cloud statistics (overall, per guild) |
