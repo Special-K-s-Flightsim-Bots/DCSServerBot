@@ -57,7 +57,10 @@ class MizFile:
                     elif os.path.basename(item.filename) not in [os.path.basename(x) for x in self._files]:
                         zout.writestr(item, zin.read(item.filename))
                 for file in self._files:
-                    zout.write(file, f'l10n/DEFAULT/{os.path.basename(file)}')
+                    try:
+                        zout.write(file, f'l10n/DEFAULT/{os.path.basename(file)}')
+                    except FileNotFoundError:
+                        self.log.warning(f"- File {file} could not be found, skipping.")
         try:
             if new_filename and new_filename != self.filename:
                 shutil.copy2(tmpname, new_filename)

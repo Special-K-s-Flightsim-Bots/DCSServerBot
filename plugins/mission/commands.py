@@ -11,6 +11,7 @@ from discord import Interaction, app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
+from extensions import MizEdit
 from services import DCSServerBot
 from typing import Optional
 
@@ -442,9 +443,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(filename, [
-                value for name, value in presets.items() if name in view.result
-            ])
+            new_filename, _ = await MizEdit(server, {"settings": view.result}).beforeMissionLoad(filename)
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
