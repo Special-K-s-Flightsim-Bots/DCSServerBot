@@ -534,8 +534,8 @@ class NodeImpl(Node):
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
                         with open(filename, 'wb') as outfile:
                             outfile.write(await response.read())
-                    except OSError as ex:
-                        self.log.exception(ex)
+                    except Exception as ex:
+                        self.log.error(ex)
                         return UploadStatus.WRITE_ERROR
                 else:
                     return UploadStatus.READ_ERROR

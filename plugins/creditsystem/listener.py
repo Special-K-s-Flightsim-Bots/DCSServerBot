@@ -81,6 +81,8 @@ class CreditSystemListener(EventListener):
     async def addUserPoints(self, server: Server, data: dict) -> None:
         if data['points'] != 0:
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
+            if not player:
+                return
             old_points = player.points
             player.points += int(data['points'])
             if old_points != player.points:
