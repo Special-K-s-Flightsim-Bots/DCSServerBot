@@ -324,7 +324,6 @@ class OvGMEService(Service):
                             with zfile.open(name) as infile:
                                 with open(os.path.join(target, _name), 'wb') as outfile:
                                     outfile.write(infile.read())
-                        # zfile.extract(name, target)
         elif os.path.isdir(filename):
             with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
                 def backup(p, names) -> list[str]:
