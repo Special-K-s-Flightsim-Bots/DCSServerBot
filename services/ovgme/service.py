@@ -350,7 +350,9 @@ class OvGMEService(Service):
             with conn.transaction():
                 conn.execute("""
                     INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s) 
+                    ON CONFLICT (server_name, package_name) 
+                    DO UPDATE SET version=excluded.version
                 """, (server.name, package_name, version, folder))
         self.log.info(f"- Package {package_name}_v{version} successfully installed.")
         return True
