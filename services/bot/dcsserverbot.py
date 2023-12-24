@@ -178,7 +178,7 @@ class DCSServerBot(commands.Bot):
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 if self.locals.get('admin_channel'):
-                    self.check_channel(int(self.locals['admin_channel']))
+                    await self.check_channel(int(self.locals['admin_channel']))
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
                         roles = []
