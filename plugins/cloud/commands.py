@@ -68,7 +68,7 @@ class CloudHandler(Plugin):
 
     async def cog_load(self):
         if self.config.get('upload_errors', True):
-            cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url)
+            cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url + '/errors/')
             self.log.addHandler(cloud_logger)
 
     async def cog_unload(self) -> None:
