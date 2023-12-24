@@ -5,7 +5,6 @@ import discord.errors
 import inspect
 import json
 import os
-import platform
 import psycopg
 import shutil
 import sys
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
     from core import Server
     from services import DCSServerBot, ServiceBus
 
-BACKUP_FOLDER = f'config/backup/{platform.node()}'
+BACKUP_FOLDER = 'config/backup/{}'
 
 __all__ = [
     "BACKUP_FOLDER",
@@ -229,6 +228,7 @@ class Plugin(commands.Cog):
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
+        self.node = bot.node
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.log = self.bot.log
         self.pool = self.bot.pool
@@ -344,8 +344,8 @@ class Plugin(commands.Cog):
                         return False
 
     @staticmethod
-    def migrate_to_3(plugin_name: str):
-        os.makedirs(BACKUP_FOLDER, exist_ok=True)
+    def migrate_to_3(node: str, plugin_name: str):
+        os.makedirs(BACKUP_FOLDER.format(node), exist_ok=True)
         old_file = f'config/{plugin_name}.json'
         new_file = f'config/plugins/{plugin_name}.yaml'
         with open(old_file, 'r', encoding='utf-8') as infile:
@@ -357,7 +357,7 @@ class Plugin(commands.Cog):
             all_new = {}
             exists = False
         if 'configs' in old:
-            new = all_new[platform.node()] = {}
+            new = all_new[node] = {}
             for config in old['configs']:
                 if 'installation' in config:
                     instance = config['installation']
@@ -368,8 +368,8 @@ class Plugin(commands.Cog):
                     all_new[DEFAULT_TAG] = config
             if 'commands' in old:
                 all_new['commands'] = old['commands']
-            if not all_new[platform.node()]:
-                del all_new[platform.node()]
+            if not all_new[node]:
+                del all_new[node]
         else:
             all_new = old
         with open(new_file, 'w', encoding='utf-8') as outfile:
@@ -381,7 +381,7 @@ class Plugin(commands.Cog):
         new_file = f'./config/plugins/{self.plugin_name}.yaml'
         if path.exists(old_file):
             self.log.info('  => Migrating old JSON config format to YAML ...')
-            self.migrate_to_3(self.plugin_name)
+            self.migrate_to_3(self.node.name, self.plugin_name)
             self.log.info(f'  => Config file {old_file} migrated to {new_file}.')
         if path.exists(new_file):
             filename = new_file

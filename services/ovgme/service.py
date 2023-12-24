@@ -72,7 +72,7 @@ class OvGMEService(Service):
         return False
 
     async def install_packages(self):
-        for server_name, server in self.bus.servers.items():
+        for server_name, server in self.bus.servers.copy().items():
             if server.is_remote:
                 continue
             # wait for the servers to be registered
@@ -199,7 +199,11 @@ class OvGMEService(Service):
         if not version or version == 'latest':
             version = await self.get_latest_repo_version(repo)
         url = f'{repo}/releases/download/v{version}/{package_name}_v{version}.zip'
-        await self.download(url, folder, force)
+        try:
+            await self.download(url, folder, force)
+        except Exception as ex:
+            url = f'{repo}/releases/download/v{version}/{package_name}_{version}.zip'
+            await self.download(url, folder, force)
 
     async def get_latest_repo_version(self, repo: str) -> str:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases/latest"
@@ -255,6 +259,14 @@ class OvGMEService(Service):
                 return True
         return False
 
+    def is_ovgme(self, zfile: zipfile.ZipFile, package_name: str) -> bool:
+        for dirs in [
+            x.filename.strip('/') for x in zfile.filelist if x.is_dir() and len(x.filename.strip('/').split('/')) == 1
+        ]:
+            if dirs.lower() in ['mods', 'scripts', 'kneeboards', 'liveries']:
+                return False
+        return package_name in dirs
+
     async def install_package(self, server: Server, folder: str, package_name: str, version: str,
                               repo: Optional[str] = None) -> bool:
         if server.is_remote:
@@ -282,21 +294,36 @@ class OvGMEService(Service):
                 await self.download_from_repo(repo, folder, package_name=package_name, version=version)
                 return await self.install_package(server, folder, package_name, version)
             return False
+        self.log.info(f"Installing package {package_name}_v{version} ...")
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         os.makedirs(ovgme_path, exist_ok=True)
         if os.path.isfile(filename) and filename.endswith(".zip"):
             with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
                 with zipfile.ZipFile(filename, 'r') as zfile:
+                    ovgme = self.is_ovgme(zfile, package_name)
+                    if ovgme:
+                        root = zfile.namelist()[0]
                     for name in zfile.namelist():
-                        orig = os.path.join(target, name)
+                        if ovgme:
+                            _name = name.replace(root, '')
+                            if not _name or name in ['README.txt', 'VERSION.txt']:
+                                continue
+                        else:
+                            _name = name
+                        orig = os.path.join(target, _name)
                         if os.path.exists(orig) and os.path.isfile(orig):
-                            log.write(f"x {name}\n")
-                            dest = os.path.join(ovgme_path, name)
+                            log.write(f"x {_name}\n")
+                            dest = os.path.join(ovgme_path, _name)
                             os.makedirs(os.path.dirname(dest), exist_ok=True)
                             shutil.copy2(orig, dest)
                         else:
-                            log.write(f"w {name}\n")
-                        zfile.extract(name, target)
+                            log.write(f"w {_name}\n")
+                        if name.endswith('/'):
+                            os.makedirs(os.path.join(target, _name), exist_ok=True)
+                        else:
+                            with zfile.open(name) as infile:
+                                with open(os.path.join(target, _name), 'wb') as outfile:
+                                    outfile.write(infile.read())
         elif os.path.isdir(filename):
             with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
                 def backup(p, names) -> list[str]:
@@ -317,6 +344,7 @@ class OvGMEService(Service):
 
                 shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
         else:
+            self.log.info(f"- Installation of package {package_name}_v{version} failed, no package.")
             return False
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -324,6 +352,7 @@ class OvGMEService(Service):
                     INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
                     VALUES (%s, %s, %s, %s)
                 """, (server.name, package_name, version, folder))
+        self.log.info(f"- Package {package_name}_v{version} successfully installed.")
         return True
 
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:

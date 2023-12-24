@@ -168,6 +168,28 @@ class NodeProxy(Node):
         }, node=self.name)
         return data['return']
 
+    async def remove_file(self, path: str):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "remove_file",
+            "params": {
+                "path": path
+            }
+        }, node=self.name)
+
+    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "rename_file",
+            "params": {
+                "old_name": old_name,
+                "new_name": new_name,
+                "force": force
+            }
+        }, node=self.name)
+
     async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
         await self.bus.send_to_node_sync({
             "command": "rpc",

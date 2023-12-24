@@ -12,4 +12,6 @@ if not exist "%VENV%" (
     "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
     "%VENV%\Scripts\pip" install -r requirements.txt
 )
-"%VENV%\Scripts\python" install.py
+"%VENV%\Scripts\python" install.py %*
+echo|set "Please press any key to continue..."
+pause > NUL

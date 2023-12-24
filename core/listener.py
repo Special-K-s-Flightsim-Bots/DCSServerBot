@@ -105,11 +105,12 @@ class EventListener(metaclass=EventListenerMeta):
         self.plugin: Plugin = plugin
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.bot: DCSServerBot = plugin.bot
+        self.node = plugin.node
         self.log = plugin.log
         self.pool = plugin.pool
         self.locals: dict = plugin.locals
         self.loop = plugin.loop
-        self.prefix = self.bot.node.config.get('chat_command_prefix', '-')
+        self.prefix = self.node.config.get('chat_command_prefix', '-')
 
     @property
     def events(self) -> Any:

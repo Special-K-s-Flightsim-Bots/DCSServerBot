@@ -14,7 +14,8 @@ yaml = YAML()
 
 __all__ = [
     "Node",
-    "UploadStatus"
+    "UploadStatus",
+    "FatalException"
 ]
 
 
@@ -31,6 +32,11 @@ class SortOrder(Enum):
     DATE = auto()
 
 
+class FatalException(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 class Node:
 
     def __init__(self, name: str):
@@ -38,6 +44,7 @@ class Node:
         self.instances: list[Instance] = list()
         self.locals = None
         self.config = self.read_config()
+        self.guild_id: int = int(self.config['guild_id'])
 
     @property
     def master(self) -> bool:
@@ -82,6 +89,8 @@ class Node:
                 'player_banned', 'You are banned from this server. Reason: {}'
             )
             return config
+        except FileNotFoundError:
+            raise FatalException()
         except (ParserError, ScannerError) as ex:
             raise YAMLError('config/main.yaml', ex)
 
@@ -116,6 +125,12 @@ class Node:
         raise NotImplemented()
 
     async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
+        raise NotImplemented()
+
+    async def remove_file(self, path: str):
+        raise NotImplemented()
+
+    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
         raise NotImplemented()
 
     async def rename_server(self, server: Server, new_name: str):

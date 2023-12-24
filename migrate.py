@@ -1,7 +1,6 @@
 import core
 import json
 import os
-import platform
 import shutil
 import traceback
 
@@ -20,7 +19,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-def post_migrate_admin():
+def post_migrate_admin(node: str):
     def _migrate(_data: dict):
         remove = -1
         config = False
@@ -51,20 +50,20 @@ def post_migrate_admin():
 
     with open('config/plugins/admin.yaml', encoding='utf-8') as infile:
         data = yaml.load(infile)
-    for node in data:
-        if node == 'commands':
+    for element in data:
+        if element == 'commands':
             continue
-        elif node == DEFAULT_TAG:
+        elif element == DEFAULT_TAG:
             _migrate(data[DEFAULT_TAG])
-        elif node == platform.node():
-            for name, instance in data[node].items():
+        elif element == element:
+            for name, instance in data[element].items():
                 _migrate(instance)
 
     with open('config/plugins/admin.yaml', 'w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)
 
 
-def post_migrate_music():
+def post_migrate_music(node: str):
     def _migrate(_data: dict):
         _data['radios'] = {
             'Radio 1': deepcopy(_data['sink'])
@@ -76,31 +75,31 @@ def post_migrate_music():
 
     with open('config/plugins/music.yaml', encoding='utf-8') as infile:
         data = yaml.load(infile)
-    for node in data:
-        if node == 'commands':
+    for element in data:
+        if element == 'commands':
             continue
-        elif node == DEFAULT_TAG:
+        elif element == DEFAULT_TAG:
             _migrate(data[DEFAULT_TAG])
-        elif node == platform.node():
-            for name, instance in data[node].items():
+        elif element == element:
+            for name, instance in data[element].items():
                 _migrate(instance)
     with open('config/plugins/music.yaml', 'w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)
 
 
-def post_migrate_greenieboard():
+def post_migrate_greenieboard(node: str):
     with open('config/plugins/greenieboard.yaml') as infile:
         data = yaml.load(infile)
     # we only need to do a post migration is there were server specific settings
-    if platform.node() not in data:
+    if node not in data:
         return
     if os.path.exists('config/services/cleanup.yaml'):
         with open('config/services/cleanup.yaml', encoding='utf-8') as infile:
             cleanups = yaml.load(infile)
     else:
         cleanups = {}
-    cleanup = cleanups[platform.node()] = {}
-    for name, instance in data[platform.node()].items():
+    cleanup = cleanups[node] = {}
+    for name, instance in data[node].items():
         if 'Moose.AIRBOSS' in instance and instance['Moose.AIRBOSS'].get('delete_after'):
             if name not in cleanup:
                 cleanup[name] = {}
@@ -130,7 +129,7 @@ def post_migrate_greenieboard():
             yaml.dump(data, outfile)
 
 
-def migrate():
+def migrate(node: str):
     cfg = ConfigParser()
     cfg.read('config/default.ini', encoding='utf-8')
     cfg.read('config/dcsserverbot.ini', encoding='utf-8')
@@ -158,7 +157,7 @@ def migrate():
         else:
             print("- [yellow]Agent[/] node detected.")
         # create backup directory
-        os.makedirs(BACKUP_FOLDER, exist_ok=True)
+        os.makedirs(BACKUP_FOLDER.format(node), exist_ok=True)
         # Migrate all plugins
         os.makedirs('config/plugins', exist_ok=True)
         os.makedirs('config/services', exist_ok=True)
@@ -167,15 +166,15 @@ def migrate():
             plugins.extend([x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')])
         for plugin_name in set(plugins):
             if os.path.exists(f'config/{plugin_name}.json'):
-                core.Plugin.migrate_to_3(plugin_name)
+                core.Plugin.migrate_to_3(node, plugin_name)
                 if plugin_name == 'admin':
-                    post_migrate_admin()
+                    post_migrate_admin(node)
                     print(f"- Migrated config/admin.json to config/plugins/admin.yaml")
                     continue
                 elif plugin_name == 'music':
-                    post_migrate_music()
+                    post_migrate_music(node)
                 elif plugin_name == 'greenieboard':
-                    post_migrate_greenieboard()
+                    post_migrate_greenieboard(node)
                 if plugin_name in ['backup', 'ovgme', 'music']:
                     shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
                     print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")
@@ -194,7 +193,7 @@ def migrate():
             all_schedulers = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
         else:
             all_schedulers = {}
-        scheduler = all_schedulers.get(platform.node())
+        scheduler = all_schedulers.get(node)
         if os.path.exists('config/presets.yaml'):
             presets = yaml.load(Path('config/presets.yaml').read_text(encoding='utf-8'))
         else:
@@ -203,20 +202,20 @@ def migrate():
             all_userstats = yaml.load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
         else:
             all_userstats = {}
-        userstats = all_userstats[platform.node()] = {}
+        userstats = all_userstats[node] = {}
         if os.path.exists('config/plugins/missionstats.yaml'):
             all_missionstats = yaml.load(Path('config/plugins/missionstats.yaml').read_text(encoding='utf-8'))
         else:
             all_missionstats = {}
-        if platform.node() not in all_missionstats:
-            all_missionstats[platform.node()] = {}
-        missionstats = all_missionstats[platform.node()]
+        if node not in all_missionstats:
+            all_missionstats[node] = {}
+        missionstats = all_missionstats[node]
         # If we are not the first node to be migrated
         if os.path.exists('config/nodes.yaml'):
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
         else:
             nodes = {}
-        nodes[platform.node()] = {
+        nodes[node] = {
             "autoupdate": cfg['BOT'].getboolean('AUTOUPDATE')
         }
         if os.path.exists('config/servers.yaml'):
@@ -289,19 +288,19 @@ def migrate():
                 print("- Created config/services/bot.yaml")
 
         if 'PUBLIC_IP' in cfg['BOT']:
-            nodes[platform.node()]['public_ip'] = cfg['BOT']['PUBLIC_IP']
-        nodes[platform.node()]['listen_address'] = '0.0.0.0' if cfg['BOT']['HOST'] == '127.0.0.1' else cfg['BOT']['HOST']
-        nodes[platform.node()]['listen_port'] = int(cfg['BOT']['PORT'])
-        nodes[platform.node()]['slow_system'] = cfg['BOT'].getboolean('SLOW_SYSTEM')
-        nodes[platform.node()]['DCS'] = {
+            nodes[node]['public_ip'] = cfg['BOT']['PUBLIC_IP']
+        nodes[node]['listen_address'] = '0.0.0.0' if cfg['BOT']['HOST'] == '127.0.0.1' else cfg['BOT']['HOST']
+        nodes[node]['listen_port'] = int(cfg['BOT']['PORT'])
+        nodes[node]['slow_system'] = cfg['BOT'].getboolean('SLOW_SYSTEM')
+        nodes[node]['DCS'] = {
             "installation": cfg['DCS']['DCS_INSTALLATION'],
             "autoupdate": cfg['DCS'].getboolean('AUTOUPDATE'),
             "desanitize": cfg['BOT'].getboolean('DESANITIZE')
         }
         if 'DCS_USER' in cfg['DCS']:
-            nodes[platform.node()]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
-            nodes[platform.node()]['DCS']['dcs_password'] = cfg['DCS']['DCS_PASSWORD']
-        nodes[platform.node()]['database'] = {
+            nodes[node]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
+            nodes[node]['DCS']['dcs_password'] = cfg['DCS']['DCS_PASSWORD']
+        nodes[node]['database'] = {
             "url": cfg['BOT']['DATABASE_URL'],
             "pool_min": int(cfg['DB']['MASTER_POOL_MIN']),
             "pool_max": int(cfg['DB']['MASTER_POOL_MAX'])
@@ -315,10 +314,10 @@ def migrate():
         u['greeting_message_unmatched'] = cfg['DCS']['GREETING_MESSAGE_UNMATCHED'].replace('{name}', '{player.name}')
         u['wipe_stats_on_leave'] = cfg['BOT'].getboolean('WIPE_STATS_ON_LEAVE')
 
-        nodes[platform.node()]['instances'] = {}
+        nodes[node]['instances'] = {}
         for server_name, instance in utils.findDCSInstances():
             if instance in cfg:
-                i = nodes[platform.node()]['instances'][instance] = {
+                i = nodes[node]['instances'][instance] = {
                     "home": cfg[instance]['DCS_HOME'],
                     "bot_port": int(cfg[instance]['DCS_PORT']),
                     "max_hung_minutes": int(cfg['DCS']['MAX_HUNG_MINUTES'])
@@ -328,7 +327,7 @@ def migrate():
                 if instance in scheduler:
                     schedule = scheduler[instance]
                     if 'affinity' in schedule:
-                        nodes[platform.node()]['instances'][instance]['affinity'] = schedule['affinity']
+                        nodes[node]['instances'][instance]['affinity'] = schedule['affinity']
                         del schedule['affinity']
                     if 'terrains' in schedule:
                         if 'extensions' not in schedule:
@@ -402,7 +401,7 @@ def migrate():
         if DEFAULT_TAG in all_schedulers:
             schedule = all_schedulers[DEFAULT_TAG]
             if 'extensions' in schedule:
-                nodes[platform.node()]['extensions'] = schedule['extensions']
+                nodes[node]['extensions'] = schedule['extensions']
                 del schedule['extensions']
             # remove any presets from scheduler.yaml to a separate presets.yaml
             if 'presets' in schedule:
@@ -411,19 +410,19 @@ def migrate():
                 else:
                     with open(schedule['presets'], 'r', encoding='utf-8') as pin:
                         presets |= json.load(pin)
-                    shutil.move(schedule['presets'], BACKUP_FOLDER)
+                    shutil.move(schedule['presets'], BACKUP_FOLDER.format(node))
                 del schedule['presets']
 
         # Now we need to figure if tacview has a delete_after configured...
-        delete_after = nodes[platform.node()].get('extensions', {}).get('Tacview', {}).get('delete_after', 0)
-        directory = nodes[platform.node()].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
-                                                                                        TACVIEW_DEFAULT_DIR)
+        delete_after = nodes[node].get('extensions', {}).get('Tacview', {}).get('delete_after', 0)
+        directory = nodes[node].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
+                                                                             TACVIEW_DEFAULT_DIR)
         if os.path.exists('config/services/cleanup.yaml'):
             with open('config/services/cleanup.yaml', encoding='utf-8') as infile:
                 cleanup = yaml.load(infile)
         else:
             cleanup = {}
-        for name, instance in nodes[platform.node()].get('instances', {}).items():
+        for name, instance in nodes[node].get('instances', {}).items():
             if 'extensions' in instance and 'Tacview' in instance['extensions']:
                 _delete_after = instance['extensions']['Tacview'].get('delete_after', delete_after)
                 _directory = instance['extensions']['Tacview'].get('tacviewExportPath', directory)
@@ -438,9 +437,9 @@ def migrate():
                         }
                     }
                 with suppress(KeyError):
-                    del nodes[platform.node()]['instances'][name]['extensions']['Tacview']['delete_after']
+                    del nodes[node]['instances'][name]['extensions']['Tacview']['delete_after']
         with suppress(KeyError):
-            del nodes[platform.node()]['extensions']['Tacview']['delete_after']
+            del nodes[node]['extensions']['Tacview']['delete_after']
         if cleanup:
             with open('config/services/cleanup.yaml', 'w', encoding='utf-8') as outfile:
                 yaml.dump(cleanup, outfile)
@@ -474,7 +473,7 @@ def migrate():
                 yaml.dump(all_missionstats, out)
             print("- Created / updated config/plugins/missionstats.yaml")
         # shutil.move('config/default.ini', BACKUP_FOLDER)
-        shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER)
+        shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER.format(node))
         Prompt.ask("\n[green]Migration to DCSServerBot 3.0 successful![/]\n\nPress any key to launch.\n")
     except Exception:
         print("\n[red]Migration to DCSServerBot 3.0 failed![/]\n")

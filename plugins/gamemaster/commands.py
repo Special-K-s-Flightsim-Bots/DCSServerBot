@@ -64,6 +64,9 @@ class GameMaster(Plugin):
     async def chat(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    message: str):
+        if server.status != Status.RUNNING:
+            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            return
         server.send_to_dcs({
             "command": "sendChatMessage",
             "channel": interaction.channel.id,
@@ -78,6 +81,9 @@ class GameMaster(Plugin):
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     to: Literal['all', 'red', 'blue'], message: str, time: Optional[Range[int, 1, 30]] = -1):
+        if server.status != Status.RUNNING:
+            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            return
         server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
@@ -103,6 +109,9 @@ class GameMaster(Plugin):
     async def flag(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    flag: str, value: Optional[int] = None):
+        if server.status != Status.RUNNING:
+            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            return
         ephemeral = utils.get_ephemeral(interaction)
         if value is not None:
             server.send_to_dcs({
@@ -121,6 +130,9 @@ class GameMaster(Plugin):
     async def variable(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                        name: str, value: Optional[str] = None):
+        if server.status != Status.RUNNING:
+            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            return
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         if value is not None:

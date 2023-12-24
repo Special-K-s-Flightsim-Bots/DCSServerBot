@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import platform
 
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
@@ -32,9 +31,9 @@ class Scheduler(Plugin):
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
-            config = {platform.node(): {}}
+            config = {self.node.name: {}}
             for instance in self.bus.node.instances:
-                config[platform.node()][instance.name] = {}
+                config[self.node.name][instance.name] = {}
             with open("config/plugins/scheduler.yaml", 'w') as outfile:
                 yaml.dump(config, outfile)
         return config

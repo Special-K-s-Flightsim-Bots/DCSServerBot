@@ -27,7 +27,7 @@ from version import __version__
 
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
-from core.data.node import Node, UploadStatus, SortOrder
+from core.data.node import Node, UploadStatus, SortOrder, FatalException
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
@@ -61,12 +61,10 @@ LOGLEVEL = {
 
 class NodeImpl(Node):
 
-    def __init__(self, name: Optional[str] = None):
-        super().__init__(name or platform.node())
+    def __init__(self, name: str):
+        super().__init__(name)
         self.node = self  # to be able to address self.node
-        self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
-        self.log = self.init_logger()
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.all_nodes: Optional[dict] = None
@@ -74,6 +72,8 @@ class NodeImpl(Node):
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
+        self.locals = self.read_locals()
+        self.log = self.init_logger()
         if sys.platform == 'win32':
             from os import system
             system(f"title DCSServerBot v{self.bot_version}.{self.sub_version}")
@@ -91,7 +91,6 @@ class NodeImpl(Node):
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
         self.db_version = None
-        self.locals = self.read_locals()
         self.pool = self.init_db()
         try:
             with self.pool.connection() as conn:
@@ -184,11 +183,9 @@ class NodeImpl(Node):
                 raise YAMLError('config/nodes.yaml', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:
-                self.log.error(f'No configuration found for node {self.name} in nodes.yaml! Hostname changed?')
-                raise KeyboardInterrupt()
+                raise FatalException(f'No configuration found for node {self.name} in nodes.yaml!')
             return node
-        self.log.error(f"No config/nodes.yaml found. Exiting.")
-        raise KeyboardInterrupt()
+        raise FatalException(f"No config/nodes.yaml found. Exiting.")
 
     def init_logger(self):
         log = logging.getLogger(name='dcsserverbot')
@@ -552,6 +549,12 @@ class NodeImpl(Node):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
 
+    async def remove_file(self, path: str):
+        os.remove(path)
+
+    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+        shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
+
     async def rename_server(self, server: Server, new_name: str):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
@@ -582,7 +585,6 @@ class NodeImpl(Node):
                     "service": "Bot",
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
-                        "node": self.name,
                         "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     }
                 })

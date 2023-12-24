@@ -1,6 +1,5 @@
 import asyncio
 import os
-import platform
 import shlex
 import shutil
 import time
@@ -43,7 +42,7 @@ class BackupService(Service):
 
     def mkdir(self) -> str:
         target = os.path.expandvars(self.locals.get('target'))
-        directory = os.path.join(target, utils.slugify(platform.node()) + '_' + datetime.now().strftime("%Y%m%d"))
+        directory = os.path.join(target, utils.slugify(self.node.name) + '_' + datetime.now().strftime("%Y%m%d"))
         os.makedirs(directory, exist_ok=True)
         return directory
 

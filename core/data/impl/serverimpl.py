@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import platform
 import shutil
 import socket
 import subprocess
@@ -460,7 +459,7 @@ class ServerImpl(Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',
-                             (platform.node(), self.name))
+                             (self.node.name, self.name))
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False
@@ -488,7 +487,7 @@ class ServerImpl(Server):
         return [str(x) for x in sorted(Path(PurePath(await self.get_missions_dir())).glob("*.miz"))]
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
-        def apply_preset(value: dict):
+        async def apply_preset(value: dict):
             if 'start_time' in value:
                 miz.start_time = value['start_time']
             if 'date' in value:
@@ -537,9 +536,9 @@ class ServerImpl(Server):
                 if not isinstance(p, dict):
                     self.log.error(f"{p} is not a dictionary!")
                     continue
-                apply_preset(p)
+                await apply_preset(p)
         elif isinstance(preset, dict):
-            apply_preset(preset)
+            await apply_preset(preset)
         else:
             self.log.error(f"{preset} is not a dictionary!")
         # write new mission

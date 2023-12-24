@@ -3,7 +3,6 @@ import asyncio
 import concurrent
 import inspect
 import json
-import platform
 import psycopg
 import uuid
 
@@ -258,7 +257,7 @@ class ServiceBus(Service):
             with closing(conn.cursor()) as cursor:
                 cursor.execute(
                     'SELECT server_name FROM instances WHERE node=%s AND port=%s AND server_name IS NOT NULL',
-                    (platform.node(), data['port'])
+                    (self.node.name, data['port'])
                 )
                 if cursor.rowcount == 1:
                     _server_name = cursor.fetchone()[0]
@@ -378,7 +377,7 @@ class ServiceBus(Service):
         if isinstance(node, Node):
             node = node.name
         if self.master:
-            if node and node != platform.node():
+            if node and node != self.node.name:
                 self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
                 with self.pool.connection() as conn:
                     with conn.transaction():

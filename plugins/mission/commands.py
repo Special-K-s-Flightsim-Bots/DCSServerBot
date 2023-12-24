@@ -11,6 +11,7 @@ from discord import Interaction, app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
+from extensions import MizEdit
 from services import DCSServerBot
 from typing import Optional
 
@@ -20,6 +21,25 @@ from .views import ServerView, PresetView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+
+async def orig_mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        orig_files = [os.path.basename(x)[:-9] for x in await server.node.list_directory(await server.get_missions_dir(), '*.orig')]
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            for idx, x in enumerate(server.settings['missionList'])
+            if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 class Mission(Plugin):
@@ -43,6 +63,7 @@ class Mission(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
         if days > -1:
+            # noinspection PyTypeChecker
             conn.execute(f"""
                 DELETE FROM missions 
                 WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
@@ -113,7 +134,8 @@ class Mission(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def briefing(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer]):
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[Status.RUNNING, Status.PAUSED])]):
         def read_passwords(server: Server) -> dict:
             with self.pool.connection() as conn:
                 row = conn.execute(
@@ -121,6 +143,9 @@ class Mission(Plugin):
                     (server.name,)).fetchone()
                 return {"Blue": row[0], "Red": row[1]}
 
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            return
         timeout = self.bot.locals.get('message_autodelete', 300)
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
@@ -154,6 +179,10 @@ class Mission(Plugin):
                        delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False,
                        rotate: Optional[bool] = False):
         what = "restart" if not rotate else "rotate"
+        actions = {
+            "restart": "restarted",
+            "rotate": "rotated",
+        }
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
@@ -182,9 +211,9 @@ class Mission(Plugin):
             await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated():
             if delay > 0:
-                message = f"!!! Mission will be {what.replace('e', '')}ed in {utils.format_time(delay)}!!!"
+                message = f"!!! Mission will be {actions.get(what)} in {utils.format_time(delay)}!!!"
             else:
-                message = f"!!! Mission will be {what.replace('e', '')}ed NOW !!!"
+                message = f"!!! Mission will be {actions.get(what)} NOW !!!"
             # have we got a message to present to the users?
             if reason:
                 message += f' Reason: {reason}'
@@ -201,10 +230,9 @@ class Mission(Plugin):
             await server.loadNextMission(modify_mission=run_extensions)
         else:
             await server.restart(modify_mission=run_extensions)
-        await self.bot.audit('restarted mission' if what == 'restart' else 'rotated mission', server=server,
-                             user=interaction.user)
+        await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
         await msg.delete()
-        await interaction.followup.send(f"Mission {what.replace('e', '')}ed.", ephemeral=ephemeral)
+        await interaction.followup.send(f"Mission {actions.get(what)}.", ephemeral=ephemeral)
 
     @mission.command(description='(Re-)Loads a mission from the list\n')
     @app_commands.guild_only()
@@ -277,7 +305,11 @@ class Mission(Plugin):
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
-        path = (await server.listAvailableMissions())[idx]
+        all_missions = await server.listAvailableMissions()
+        if idx >= len(all_missions):
+            await interaction.response.send_message('No mission found.', ephemeral=True)
+            return
+        path = all_missions[idx]
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
         await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
@@ -300,10 +332,13 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer],
                      mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
+        if mission_id >= len(server.settings['missionList']):
+            await interaction.response.send_message("No mission found.")
+            return
         filename = server.settings['missionList'][mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and \
                 filename == server.current_mission.filename:
-            await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=ephemeral)
+            await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=True)
             return
         name = filename[:-4]
 
@@ -314,7 +349,7 @@ class Mission(Plugin):
                                             ephemeral=ephemeral)
             if await utils.yn_question(interaction, f'Delete "{name}" also from disk?', ephemeral=ephemeral):
                 try:
-                    os.remove(filename)
+                    await server.node.remove_file(filename)
                     await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=ephemeral)
                 except FileNotFoundError:
                     await interaction.followup.send(f'Mission "{name}" was already deleted.', ephemeral=ephemeral)
@@ -408,9 +443,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(filename, [
-                value for name, value in presets.items() if name in view.result
-            ])
+            new_filename, _ = await MizEdit(server, {"settings": view.result}).beforeMissionLoad(filename)
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
@@ -462,6 +495,38 @@ class Mission(Plugin):
             await interaction.followup.send(f'Preset "{name}" added.', ephemeral=ephemeral)
         else:
             await interaction.response.send_message(f'Preset "{name}" added.', ephemeral=ephemeral)
+
+    @mission.command(description='Rollback to the original mission file after any modifications')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(mission_id="mission")
+    @app_commands.autocomplete(mission_id=orig_mission_autocomplete)
+    async def rollback(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                           Status.RUNNING, Status.PAUSED, Status.STOPPED])], mission_id: int):
+        if mission_id >= len(server.settings['missionList']):
+            await interaction.response.send_message("No mission found.")
+            return
+        filename = server.settings['missionList'][mission_id]
+        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and \
+                filename == server.current_mission.filename:
+            await interaction.response.send_message("Please stop your server first to rollback the running mission.",
+                                                    ephemeral=True)
+            return
+        mission_folder = await server.get_missions_dir()
+        miz_file = os.path.basename(filename)
+        try:
+            new_file = os.path.join(mission_folder, miz_file)
+            old_file = new_file + '.orig'
+            await server.node.rename_file(old_file, new_file, force=True)
+        except FileNotFoundError:
+            # we should never be here, but just in case
+            await interaction.response.send_message("No orig file there, the mission was not changed.", ephemeral=True)
+            return
+        if new_file != filename:
+            await server.replaceMission(mission_id, new_file)
+        await interaction.response.send_message(f"Mission {miz_file[:-4]} has been rolled back.",
+                                                phemeral=utils.get_ephemeral(interaction))
 
     # New command group "/player"
     player = Group(name="player", description="Commands to manage DCS players")
@@ -616,30 +681,32 @@ class Mission(Plugin):
         for server_name, server in self.bot.servers.items():
             if server.status == Status.UNREGISTERED:
                 continue
-            # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
-            channel = self.bot.get_channel(server.channels[Channel.STATUS])
-            # name changes of the status channel will only happen with the correct permission
-            if channel.permissions_for(self.bot.member).manage_channels:
-                name = channel.name
-                # if the server owner leaves, the server is shut down
-                if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
-                    if name.find('［') == -1:
-                        name = name + '［-］'
+            try:
+                # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
+                channel = self.bot.get_channel(server.channels[Channel.STATUS])
+                if not channel:
+                    channel = await self.bot.fetch_channel(server.channels[Channel.STATUS])
+                # name changes of the status channel will only happen with the correct permission
+                if channel.permissions_for(self.bot.member).manage_channels:
+                    name = channel.name
+                    # if the server owner leaves, the server is shut down
+                    if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
+                        if name.find('［') == -1:
+                            name = name + '［-］'
+                        else:
+                            name = re.sub('［.*］', f'［-］', name)
                     else:
-                        name = re.sub('［.*］', f'［-］', name)
-                else:
-                    players = server.get_active_players()
-                    current = len(players) + 1
-                    max_players = server.settings.get('maxPlayers') or 0
-                    if name.find('［') == -1:
-                        name = name + f'［{current}／{max_players}］'
-                    else:
-                        name = re.sub('［.*］', f'［{current}／{max_players}］', name)
-                try:
+                        players = server.get_active_players()
+                        current = len(players) + 1
+                        max_players = server.settings.get('maxPlayers') or 0
+                        if name.find('［') == -1:
+                            name = name + f'［{current}／{max_players}］'
+                        else:
+                            name = re.sub('［.*］', f'［{current}／{max_players}］', name)
                     if name != channel.name:
                         await channel.edit(name=name)
-                except Exception as ex:
-                    self.log.debug("Exception in update_channel_name(): " + str(ex))
+            except Exception as ex:
+                self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=str(ex))
 
     @tasks.loop(minutes=1.0)
     async def afk_check(self):

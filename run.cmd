@@ -13,7 +13,7 @@ if not exist "%VENV%" (
     "%VENV%\Scripts\pip" install -r requirements.txt
 )
 :loop
-"%VENV%\Scripts\python" run.py
+"%VENV%\Scripts\python" run.py %*
 if %ERRORLEVEL% EQU -1 (
     goto loop
 )

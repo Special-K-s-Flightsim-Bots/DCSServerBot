@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
 import platform
 import traceback
 
-from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError
+from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException
 from install import Install
 from migrate import migrate
 
@@ -79,21 +80,30 @@ class Main:
 
 
 if __name__ == "__main__":
-    if os.path.exists('config/dcsserverbot.ini'):
-        migrate()
-    elif not os.path.exists('config/main.yaml'):
-        Install().install()
     if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
         print("You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)!")
         exit(-2)
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
+
+    parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
+                                     epilog='If unsure about the parameters, please check the documentation.')
+    parser.add_argument('-n', '--node', help='Node name', default=platform.node())
+    args = parser.parse_args()
+    if os.path.exists('config/dcsserverbot.ini'):
+        migrate(node=args.node)
     try:
-        # work around possible bug with several Python versions / asyncio
-        # asyncio.get_event_loop().run_until_complete()
-        asyncio.run(Main(NodeImpl()).run())
+        node = NodeImpl(name=args.node)
+    except FatalException:
+        Install(node=args.node).install()
+        node = NodeImpl(name=args.node)
+    try:
+        asyncio.run(Main(node).run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)
+    except FatalException as ex:
+        print(ex)
+        exit(-2)
     except YAMLError as ex:
         print(ex)
         exit(-1)
