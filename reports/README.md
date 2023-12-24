@@ -179,11 +179,14 @@ the key of the fields you want to use from these dictionaries and the name you w
           "display_name": "Server Name",
           "status": "Status",
           "num_players": "Active Players"
-        }
+        },
+        "ansi_colors": false
       }
     }
 ]
 ```
+If ansi_colors is set to true, you can use color coding like `\u001b[0;31m` to color your values. Default is false and
+it is therefor optional. Works with SQLTables also (see `/infractions` as example).
 
 ### SQLField
 If you want to display a single value from a database table, use the SQLField for it.
@@ -202,7 +205,7 @@ If you want to display a single value from a database table, use the SQLField fo
 If your query needs values, you can provide them as a dictionary to your report() call.
 
 ### SQLTable
-Similar to the Table element but with values from a SQL query:
+Similar to the Table element but with values from an SQL query:
 ```json
 "elements": [
     {

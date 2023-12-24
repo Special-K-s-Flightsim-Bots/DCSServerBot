@@ -96,10 +96,11 @@ Decay can only be configured once, so there is no need for a server specific con
 
 ## Discord Commands
 
-| Command  | Parameter | Channel | Role            | Description                                                                 |
-|----------|-----------|---------|-----------------|-----------------------------------------------------------------------------|
-| /forgive | user      | all     | DCS Admin       | Deletes all punishment points for this member / user.                       |
-| /penalty | [user]    | all     | DCS / DCS Admin | Displays the players penalty points. [user] can only be used by DCS Admins. |
+| Command      | Parameter | Channel | Role            | Description                                                                                                              |
+|--------------|-----------|---------|-----------------|--------------------------------------------------------------------------------------------------------------------------|
+| /forgive     | user      | all     | DCS Admin       | Deletes all punishment points for this member / user.                                                                    |
+| /penalty     | [user]    | all     | DCS / DCS Admin | Displays the players penalty points. [user] can only be used by DCS Admins.                                              |
+| /infractions | user      | all     | DCS Admin       | Display the last (default: 10) infraction events of that user.<br>Mission statistics needs to be enabled for it to work. |
 
 ## In-Game Chat Commands
 

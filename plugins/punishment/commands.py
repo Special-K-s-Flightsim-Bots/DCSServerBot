@@ -4,9 +4,10 @@ import psycopg
 
 from contextlib import closing, suppress
 from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, PluginInstallationError, \
-    command, DEFAULT_TAG
+    command, DEFAULT_TAG, Report
 from datetime import timezone
 from discord import app_commands
+from discord.app_commands import Range
 from discord.ext import tasks
 from psycopg.rows import dict_row
 from services import DCSServerBot
@@ -280,6 +281,29 @@ class Punishment(Plugin):
                     embed.set_footer(text=f"You are currently banned.\n"
                                           f"Please contact an admin if you want to get unbanned.")
                 await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+    @command(description='Show last infractions of a user')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin'])
+    async def infractions(self, interaction: discord.Interaction,
+                          user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
+                          limit: Optional[Range[int, 3, 20]] = 10):
+        if not user:
+            await interaction.response.send_message("This user does not exist. Try `/find` to find them in the "
+                                                    "historic data.", ephemeral=True)
+            return
+        if isinstance(user, str):
+            ucid = user
+        else:
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message("This member is not linked.", ephemeral=True)
+                return
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        report = Report(self.bot, self.plugin_name, 'events.json')
+        env = await report.render(ucid=ucid, limit=limit)
+        await interaction.followup.send(embed=env.embed, ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

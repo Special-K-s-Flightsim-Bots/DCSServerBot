@@ -507,8 +507,10 @@ class UserStatistics(Plugin):
     async def expire_token(self):
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute(
-                    "DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 days')")
+                conn.execute("""
+                    DELETE FROM players 
+                    WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(now() AT TIME ZONE 'utc') - interval '2 days')
+                """)
 
     async def render_highscore(self, highscore: Union[dict, list], server: Optional[Server] = None,
                                mission_end: Optional[bool] = False):

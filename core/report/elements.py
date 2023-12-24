@@ -10,7 +10,7 @@ import uuid
 from abc import ABC, abstractmethod
 from contextlib import closing
 from core import utils
-from datetime import timedelta
+from datetime import timedelta, datetime
 from discord import ButtonStyle, Interaction
 from io import BytesIO
 from matplotlib import pyplot as plt
@@ -98,7 +98,8 @@ class Field(EmbedElement):
 
 
 class Table(EmbedElement):
-    async def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True):
+    async def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True,
+                     ansi_colors: Optional[bool] = False):
         if obj:
             table = self.env.params[obj]
             _values: dict = values.copy()
@@ -109,7 +110,7 @@ class Table(EmbedElement):
             elif isinstance(table, dict):
                 values.append({_values[k]: v for k, v in table.items() if k in _values.keys()})
         header = None
-        cols = ['', '', '']
+        cols = ['', '', ''] if not ansi_colors else ['```ansi\n', '```ansi\n', '```ansi\n']
         elements = 0
         for row in values:
             elements = len(row)
@@ -120,7 +121,7 @@ class Table(EmbedElement):
             for i in range(0, elements):
                 cols[i] += utils.format_string(str(row[header[i]]), '_ _', **self.env.params) + '\n'
         for i in range(0, elements):
-            self.add_field(name=header[i], value=cols[i], inline=inline)
+            self.add_field(name=header[i], value=cols[i] + ('```' if ansi_colors else ''), inline=inline)
         if inline:
             for i in range(elements, 3):
                 self.add_field(name='_ _', value='_ _')
@@ -242,6 +243,8 @@ class SQLField(EmbedElement):
                     row = cursor.fetchone()
                     name = list(row.keys())[0]
                     value = row[name]
+                    if isinstance(value, datetime):
+                        value = value.strftime('%Y-%m-%d %H:%M')
                     self.add_field(name=name, value=value, inline=inline)
                 else:
                     if no_data:
@@ -249,7 +252,8 @@ class SQLField(EmbedElement):
 
 
 class SQLTable(EmbedElement):
-    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None):
+    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None,
+                     ansi_colors: Optional[bool] = False):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
@@ -266,12 +270,16 @@ class SQLTable(EmbedElement):
                         header = list(row.keys())
                     values = list(row.values())
                     for i in range(0, elements):
-                        if len(cols) <= i:
-                            cols.append(str(values[i]) + '\n')
+                        if isinstance(values[i], datetime):
+                            value = values[i].strftime('%Y-%m-%d %H:%M')
                         else:
-                            cols[i] += str(values[i]) + '\n'
+                            value = str(values[i])
+                        if len(cols) <= i:
+                            cols.append(('```ansi\n' if ansi_colors else '') + value + '\n')
+                        else:
+                            cols[i] += value + '\n'
                 for i in range(0, elements):
-                    self.add_field(name=header[i], value=cols[i], inline=inline)
+                    self.add_field(name=header[i], value=cols[i] + ('```' if ansi_colors else ''), inline=inline)
                 if elements % 3 and inline:
                     for i in range(0, 3 - elements % 3):
                         self.add_field(name='_ _', value='_ _')
