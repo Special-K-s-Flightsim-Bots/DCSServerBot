@@ -22,6 +22,25 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
+async def orig_mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        orig_files = [os.path.basename(x)[:-9] for x in await server.node.list_directory(await server.get_missions_dir(), '*.orig')]
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            for idx, x in enumerate(server.settings['missionList'])
+            if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 class Mission(Plugin):
 
     def __init__(self, bot, listener):
@@ -318,7 +337,7 @@ class Mission(Plugin):
         filename = server.settings['missionList'][mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and \
                 filename == server.current_mission.filename:
-            await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=ephemeral)
+            await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=True)
             return
         name = filename[:-4]
 
@@ -329,7 +348,7 @@ class Mission(Plugin):
                                             ephemeral=ephemeral)
             if await utils.yn_question(interaction, f'Delete "{name}" also from disk?', ephemeral=ephemeral):
                 try:
-                    os.remove(filename)
+                    await server.node.remove_file(filename)
                     await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=ephemeral)
                 except FileNotFoundError:
                     await interaction.followup.send(f'Mission "{name}" was already deleted.', ephemeral=ephemeral)
@@ -477,6 +496,38 @@ class Mission(Plugin):
             await interaction.followup.send(f'Preset "{name}" added.', ephemeral=ephemeral)
         else:
             await interaction.response.send_message(f'Preset "{name}" added.', ephemeral=ephemeral)
+
+    @mission.command(description='Rollback to the original mission file after any modifications')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(mission_id="mission")
+    @app_commands.autocomplete(mission_id=orig_mission_autocomplete)
+    async def rollback(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                           Status.RUNNING, Status.PAUSED, Status.STOPPED])], mission_id: int):
+        if mission_id >= len(server.settings['missionList']):
+            await interaction.response.send_message("No mission found.")
+            return
+        filename = server.settings['missionList'][mission_id]
+        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and \
+                filename == server.current_mission.filename:
+            await interaction.response.send_message("Please stop your server first to rollback the running mission.",
+                                                    ephemeral=True)
+            return
+        mission_folder = await server.get_missions_dir()
+        miz_file = os.path.basename(filename)
+        try:
+            new_file = os.path.join(mission_folder, miz_file)
+            old_file = new_file + '.orig'
+            await server.node.rename_file(old_file, new_file, force=True)
+        except FileNotFoundError:
+            # we should never be here, but just in case
+            await interaction.response.send_message("No orig file there, the mission was not changed.", ephemeral=True)
+            return
+        if new_file != filename:
+            await server.replaceMission(mission_id, new_file)
+        await interaction.response.send_message(f"Mission {miz_file[:-4]} has been rolled back.",
+                                                phemeral=utils.get_ephemeral(interaction))
 
     # New command group "/player"
     player = Group(name="player", description="Commands to manage DCS players")

@@ -127,6 +127,12 @@ class Node:
     async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
         raise NotImplemented()
 
+    async def remove_file(self, path: str):
+        raise NotImplemented()
+
+    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+        raise NotImplemented()
+
     async def rename_server(self, server: Server, new_name: str):
         raise NotImplemented()
 

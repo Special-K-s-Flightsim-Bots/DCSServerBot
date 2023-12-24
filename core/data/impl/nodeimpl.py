@@ -549,6 +549,12 @@ class NodeImpl(Node):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
 
+    async def remove_file(self, path: str):
+        os.remove(path)
+
+    async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
+        shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
+
     async def rename_server(self, server: Server, new_name: str):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
