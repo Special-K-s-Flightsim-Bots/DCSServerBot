@@ -42,6 +42,7 @@ class CloudLoggingHandler(logging.Handler):
             async with aiohttp.ClientSession() as session:
                 await session.post(self.url, json={
                     "guild_id": self.node.guild_id,
+                    "version": f"{self.node.bot_version}.{self.node.sub_version}",
                     "filename": file,
                     "lineno": line,
                     "message": record.message,
