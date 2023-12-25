@@ -45,7 +45,7 @@ class CloudLoggingHandler(logging.Handler):
                     "version": f"{self.node.bot_version}.{self.node.sub_version}",
                     "filename": file,
                     "lineno": line,
-                    "message": record.message,
+                    "message": exc.__class__.__name__ + ': ' + record.message,
                     "stacktrace": '\n'.join(trace)
                 })
 

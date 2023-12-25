@@ -588,6 +588,8 @@ class NodeImpl(Node):
                         "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     }
                 })
+        except aiohttp.ClientError as ex:
+            self.log.warning(ex)
         except Exception as ex:
             self.log.exception(ex)
 
