@@ -69,17 +69,6 @@ class Olympus(Extension):
                 self.log.warning(
                     f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
                 return False
-            subprocess.run([
-                os.path.basename(self.nodejs),
-                "configurator.js",
-                "-a", self.config.get('server', {}).get('address', '0.0.0.0'),
-                "-c", str(self.config.get('client', {}).get('port', 3000)),
-                "-b", str(self.config.get('server', {}).get('port', 3001)),
-                "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
-                "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
-                "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
-            ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
-            self.locals = self.load_config()
             server_port = self.locals.get('server', {}).get('port', 3001)
             if server_ports.get(server_port, self.server.name) != self.server.name:
                 self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
@@ -92,6 +81,18 @@ class Olympus(Extension):
                                f"server {client_ports[client_port]}!")
                 return False
             client_ports[client_port] = self.server.name
+            # Starting Olympus Configurator
+            subprocess.run([
+                os.path.basename(self.nodejs),
+                "configurator.js",
+                "-a", self.config.get('server', {}).get('address', '0.0.0.0'),
+                "-c", str(client_port),
+                "-b", str(server_port),
+                "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
+                "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
+                "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
+            ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
+            self.locals = self.load_config()
             return await super().prepare()
         except Exception as ex:
             self.log.exception(ex)

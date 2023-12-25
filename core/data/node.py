@@ -33,7 +33,7 @@ class SortOrder(Enum):
 
 
 class FatalException(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: Optional[str] = None):
         super().__init__(message)
 
 

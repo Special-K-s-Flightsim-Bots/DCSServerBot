@@ -451,10 +451,14 @@ class Mission(Plugin):
             else:
                 self.log.info(f"  => Mission {filename} overwritten.")
             if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await server.restart(modify_mission=False)
-                message += '\nMission reloaded.'
-            await self.bot.audit("changed preset", server=server, user=interaction.user)
-            await msg.delete()
+                try:
+                    await server.restart(modify_mission=False)
+                    message += '\nMission reloaded.'
+                    await self.bot.audit("changed preset", server=server, user=interaction.user)
+                    await msg.delete()
+                except TimeoutError:
+                    message = ("Timeout during restart of mission!\n"
+                               "Please check, if your server is running or if the mission somehow got corrupted.")
             await interaction.followup.send(message, ephemeral=ephemeral)
 
     @mission.command(description='Save mission preset')

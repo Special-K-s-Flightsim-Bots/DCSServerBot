@@ -3,7 +3,7 @@ import discord
 import re
 
 from contextlib import closing
-from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status
+from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status, FatalException
 from datetime import datetime
 from discord.ext import commands
 from typing import Optional, Union, Tuple, TYPE_CHECKING
@@ -170,10 +170,13 @@ class DCSServerBot(commands.Bot):
             if not self.synced:
                 self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
                 if len(self.guilds) > 1:
-                    self.log.warning('  => YOUR BOT IS INSTALLED IN MORE THAN ONE GUILD. THIS IS NOT SUPPORTED!')
+                    self.log.warning('  => Your bot can only be installed in ONE Discord server!')
                     for guild in self.guilds:
                         self.log.warning(f'     - {guild.name}')
                     self.log.warning('  => Remove it from one guild and restart the bot.')
+                    raise FatalException()
+                elif not self.guilds:
+                    raise FatalException("You need to invite your bot to a Discord server.")
                 self.member = self.guilds[0].get_member(self.user.id)
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
