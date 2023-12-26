@@ -119,9 +119,16 @@ class SRS(Extension):
             server_ip = '127.0.0.1'
         return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
 
+    def get_exe_path(self) -> str:
+        return os.path.join(
+            os.path.expandvars(self.config.get('installation',
+                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))),
+            'SR-Server.exe'
+        )
+
     @property
     def version(self) -> Optional[str]:
-        return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'))
+        return utils.get_windows_version(self.get_exe_path())
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if self.locals:
@@ -142,11 +149,7 @@ class SRS(Extension):
 
     def is_installed(self) -> bool:
         # check if SRS is installed
-        exe_path = os.path.join(
-            os.path.expandvars(self.config.get('installation',
-                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))),
-            'SR-Server.exe'
-        )
+        exe_path = self.get_exe_path()
         if not os.path.exists(exe_path):
             self.log.error(f"  => SRS executable not found in {exe_path}")
             return False

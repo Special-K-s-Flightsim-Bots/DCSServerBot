@@ -224,15 +224,19 @@ class Mission(Plugin):
             server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
             await asyncio.sleep(delay)
             await msg.delete()
-
-        msg = await interaction.followup.send(f'Mission will {what} now, please wait ...', ephemeral=ephemeral)
-        if rotate:
-            await server.loadNextMission(modify_mission=run_extensions)
-        else:
-            await server.restart(modify_mission=run_extensions)
-        await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
-        await msg.delete()
-        await interaction.followup.send(f"Mission {actions.get(what)}.", ephemeral=ephemeral)
+        try:
+            msg = await interaction.followup.send(f'Mission will {what} now, please wait ...', ephemeral=ephemeral)
+            if rotate:
+                await server.loadNextMission(modify_mission=run_extensions)
+            else:
+                await server.restart(modify_mission=run_extensions)
+            await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
+            await msg.delete()
+            await interaction.followup.send(f"Mission {actions.get(what)}.", ephemeral=ephemeral)
+        except TimeoutError:
+            await interaction.followup.send(f"Timeout while {actions.get(what).replace('ed', 'ing')} the mission.\n"
+                                            f"Please check with /mission info, if the server is up.",
+                                            ephemeral=ephemeral)
 
     @mission.command(description='(Re-)Loads a mission from the list\n')
     @app_commands.guild_only()
@@ -344,15 +348,20 @@ class Mission(Plugin):
 
         if await utils.yn_question(interaction, f'Delete mission "{os.path.basename(name)}" from the mission list?',
                                    ephemeral=ephemeral):
-            await server.deleteMission(mission_id + 1)
-            await interaction.followup.send(f'Mission "{os.path.basename(name)}" removed from list.',
-                                            ephemeral=ephemeral)
-            if await utils.yn_question(interaction, f'Delete "{name}" also from disk?', ephemeral=ephemeral):
-                try:
-                    await server.node.remove_file(filename)
-                    await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=ephemeral)
-                except FileNotFoundError:
-                    await interaction.followup.send(f'Mission "{name}" was already deleted.', ephemeral=ephemeral)
+            try:
+                await server.deleteMission(mission_id + 1)
+                await interaction.followup.send(f'Mission "{os.path.basename(name)}" removed from list.',
+                                                ephemeral=ephemeral)
+                if await utils.yn_question(interaction, f'Delete "{name}" also from disk?', ephemeral=ephemeral):
+                    try:
+                        await server.node.remove_file(filename)
+                        await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=ephemeral)
+                    except FileNotFoundError:
+                        await interaction.followup.send(f'Mission "{name}" was already deleted.', ephemeral=ephemeral)
+            except TimeoutError:
+                await interaction.followup.send("Timeout while deleting mission.\n"
+                                                "Please reconfirm that the deletion was succesful.",
+                                                ephemeral=ephemeral)
 
     @mission.command(description='Pauses the current running mission')
     @app_commands.guild_only()

@@ -18,6 +18,8 @@ class MizEdit(Extension):
         super().__init__(server, config)
         try:
             self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
+            if not isinstance(self.presets, dict):
+                raise ParserError("File must contain a dictionary. not a list!")
         except (ParserError, ScannerError) as ex:
             raise YAMLError('config/presets.yaml', ex)
 

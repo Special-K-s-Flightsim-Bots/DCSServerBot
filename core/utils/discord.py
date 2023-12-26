@@ -704,6 +704,8 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 
     try:
         user = await UserTransformer().transform(interaction, get_interaction_param(interaction, "user"))
+        if not user:
+            return []
         if isinstance(user, str):
             ucid = user
         else:

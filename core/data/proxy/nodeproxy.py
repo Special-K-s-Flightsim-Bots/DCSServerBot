@@ -163,7 +163,7 @@ class NodeProxy(Node):
             "params": {
                 "path": path,
                 "pattern": pattern,
-                "order": order
+                "order": order.value
             }
         }, node=self.name)
         return data['return']

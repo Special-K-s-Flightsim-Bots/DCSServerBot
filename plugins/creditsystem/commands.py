@@ -77,14 +77,11 @@ class CreditSystem(Plugin):
                 await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
         data = self.get_credits(ucid)
+        name = member.display_name if isinstance(member, discord.Member) else member
         if not data:
-            await interaction.response.send_message(f'{utils.escape_string(member.display_name)} has no campaign '
-                                                    f'credits.', ephemeral=True)
+            await interaction.response.send_message(f'{name} has no campaign credits.', ephemeral=True)
             return
-        embed = discord.Embed(
-            title="Campaign Credits for {}".format(utils.escape_string(member.display_name)
-                                                   if isinstance(member, discord.Member) else member),
-            color=discord.Color.blue())
+        embed = discord.Embed(title=f"Campaign Credits for {name}", color=discord.Color.blue())
         campaigns = points = ''
         for row in data:
             campaigns += row['name'] + '\n'
@@ -152,7 +149,7 @@ class CreditSystem(Plugin):
                         old_points_receiver = p_receiver.points
                     if 'max_points' in self.get_config() and \
                             (old_points_receiver + donation) > self.get_config()['max_points']:
-                        await interaction.response.send_message(
+                        await interaction.followup.send(
                             f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
                             f'points with this donation. Aborted.')
                         return
