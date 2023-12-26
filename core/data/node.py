@@ -15,6 +15,7 @@ yaml = YAML()
 __all__ = [
     "Node",
     "UploadStatus",
+    "SortOrder",
     "FatalException"
 ]
 

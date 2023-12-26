@@ -160,9 +160,12 @@ class DCSServerBot(commands.Bot):
         if server.locals.get('coalitions'):
             channels.extend(['red', 'blue'])
         for c in channels:
-            channel_id = int(server.channels[Channel(c)])
-            if channel_id != -1:
-                await self.check_channel(channel_id)
+            try:
+                channel_id = int(server.channels[Channel(c)])
+                if channel_id != -1:
+                    await self.check_channel(channel_id)
+            except KeyError:
+                raise FatalException(f"Channel {c} missing for server {server.name} in config/servers.yaml!")
 
     async def on_ready(self):
         try:
@@ -200,8 +203,11 @@ class DCSServerBot(commands.Bot):
                 await self.audit(message="Discord Bot started.")
             else:
                 self.log.warning('- Discord connection re-established.')
+        except FatalException:
+            raise
         except Exception as ex:
             self.log.exception(ex)
+            raise
 
     async def on_command_error(self, ctx: commands.Context, err: Exception):
         if isinstance(err, commands.CommandNotFound):

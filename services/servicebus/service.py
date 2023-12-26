@@ -448,7 +448,7 @@ class ServiceBus(Service):
                     "return": rc if rc is not None else ''
                 }, node=data.get('node'))
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.exception(ex, exc_info=True)
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",
