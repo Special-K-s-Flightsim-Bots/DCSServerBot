@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import discord
 import inspect
 import json
@@ -16,7 +15,7 @@ from typing import Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
 from .elements import ReportElement
 from .env import ReportEnv
-from .errors import UnknownReportElement, ClassNotFound, ReportException
+from .errors import UnknownReportElement, ClassNotFound
 from .__utils import parse_input, parse_params
 
 if TYPE_CHECKING:
@@ -104,12 +103,7 @@ class Report:
                             signature = inspect.signature(element_class.render).parameters.keys()
                             render_args = {name: value for name, value in element_args.items() if name in signature}
                             try:
-                                func = element_class.render
-                                if asyncio.iscoroutine(func):
-                                    await func(**render_args)
-                                else:
-                                    raise ReportException(
-                                        f"{element_class.__class__.__name__}.render() is not a coroutine!")
+                                await element_class.render(**render_args)
                             except Exception as ex:
                                 self.log.exception(ex)
                         else:
