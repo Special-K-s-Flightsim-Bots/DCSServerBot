@@ -107,10 +107,18 @@ class Olympus(Extension):
         if sys.platform == 'win32':
             from os import system
             system(f"title DCSServerBot v{self.server.node.bot_version}.{self.server.node.sub_version}")
-        return self.is_running()
+        # Give the Olympus server 10s to start
+        for _ in range(0, 10):
+            if self.is_running():
+                return True
+            await asyncio.sleep(1)
+        return False
 
     def is_running(self) -> bool:
-        return self.process is not None and self.process.returncode is None
+        server_ip = self.config.get('server', {}).get('address', '0.0.0.0')
+        if server_ip == '0.0.0.0':
+            server_ip = '127.0.0.1'
+        return utils.is_open(server_ip, self.locals.get('server', {}).get('port', 3001))
 
     async def shutdown(self) -> bool:
         await super().shutdown()
