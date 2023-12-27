@@ -346,8 +346,8 @@ class RemoteSettingsDict(dict):
         self.server.send_to_dcs(msg)
 
 
-def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:
-    if isinstance(value, int) or isinstance(value, bool) or not value.startswith('$'):
+def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, float, bool]:
+    if isinstance(value, (int, float, bool)) or not value.startswith('$'):
         return value
     return eval(format_string(value[1:], **kwargs))
 
