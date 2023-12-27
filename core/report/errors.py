@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-class ReportException(BaseException):
+class ReportException(Exception):
     ...
 
 
