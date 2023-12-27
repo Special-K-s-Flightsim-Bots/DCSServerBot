@@ -43,7 +43,7 @@ class Sneaker(Extension):
                 if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
             ]
         ]
-        with open(os.path.join('config', 'sneaker.json'), 'w') as file:
+        with open(filename, 'w') as file:
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:
