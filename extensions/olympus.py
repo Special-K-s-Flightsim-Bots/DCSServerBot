@@ -69,13 +69,13 @@ class Olympus(Extension):
                 self.log.warning(
                     f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
                 return False
-            server_port = self.locals.get('server', {}).get('port', 3001)
+            server_port = self.config.get('server', {}).get('port', 3001)
             if server_ports.get(server_port, self.server.name) != self.server.name:
                 self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
                                f"server {server_ports[server_port]}!")
                 return False
             server_ports[server_port] = self.server.name
-            client_port = self.locals.get('client', {}).get('port', 3000)
+            client_port = self.config.get('client', {}).get('port', 3000)
             if client_ports.get(client_port, self.server.name) != self.server.name:
                 self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
                                f"server {client_ports[client_port]}!")
@@ -85,7 +85,7 @@ class Olympus(Extension):
             subprocess.run([
                 os.path.basename(self.nodejs),
                 "configurator.js",
-                "-a", self.config.get('server', {}).get('address', '0.0.0.0'),
+                "-a", self.config.get('server', {}).get('address', '*'),
                 "-c", str(client_port),
                 "-b", str(server_port),
                 "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
@@ -115,8 +115,8 @@ class Olympus(Extension):
         return False
 
     def is_running(self) -> bool:
-        server_ip = self.config.get('server', {}).get('address', '0.0.0.0')
-        if server_ip == '0.0.0.0':
+        server_ip = self.config.get('server', {}).get('address', '*')
+        if server_ip == '*':
             server_ip = '127.0.0.1'
         return utils.is_open(server_ip, self.locals.get('server', {}).get('port', 3001))
 
