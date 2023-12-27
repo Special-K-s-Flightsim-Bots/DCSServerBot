@@ -103,6 +103,9 @@ You can use these special characters:
 | \[x,y\]   | Selects these elements from a list (starts with 1) or from a table.                     |
 | '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string.                 |
 
+You can use the variable "reference" inside of your replace or insert statements to select the object that was returned
+by the for-each / where clauses (see example 3).
+
 #### Example 1: Search all CVN carriers in your mission:
 > coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 
@@ -166,10 +169,10 @@ MyFancyPreset:
     select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
     replace:
       modeChannel: X
-      channel: $'{where[type]}'[-2:]
+      channel: $'{reference[units][0][type]}'[-2:]
       frequency:
-        $'{where[type]}'[-2:] == '72': 1158000000
-        $'{where[type]}'[-2:] == '73': 1160000000
+        $'{reference[units][0][type]}'[-2:] == '72': 1158000000
+        $'{reference[units][0][type]}'[-2:] == '73': 1160000000
 ```
 
 #### Example 4: Set the 1st radio-preset of all blue F-14Bs to 243

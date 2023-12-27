@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 
 from datetime import datetime
-from typing import Union, Any, Optional
+from typing import Union, Any, Optional, Generator
 
 from core import utils
 
@@ -265,7 +265,7 @@ class MizFile:
         self._files = files
 
     def modify(self, config: Union[list, dict]) -> None:
-        def process_element(reference: dict, where: Optional[dict] = None, **kwargs):
+        def process_element(reference: dict, **kwargs):
             if 'select' in config:
                 if debug:
                     print("Processing SELECT ...")
@@ -283,14 +283,27 @@ class MizFile:
             elif 'replace' in config:
                 for _what, _with in config['replace'].items():
                     if isinstance(_what, int) and isinstance(element, list):
-                        element[_what - 1] = utils.evaluate(_with, reference=reference, where=where)
+                        element[_what - 1] = utils.evaluate(_with, reference=reference)
                     elif isinstance(_with, dict):
                         for key, value in _with.items():
-                            if utils.evaluate(key, **element, reference=reference, where=where):
-                                element[_what] = utils.evaluate(value, **element, reference=reference, where=where)
+                            if utils.evaluate(key, **element, reference=reference):
+                                element[_what] = utils.evaluate(value, **element, reference=reference)
                                 break
                     else:
-                        element[_what] = utils.evaluate(_with, **element, reference=reference, where=where)
+                        element[_what] = utils.evaluate(_with, **element, reference=reference)
+
+        def check_where(reference: dict, config: Union[list, str], debug: bool, **kwargs: dict) -> bool:
+            if isinstance(config, str):
+                try:
+                    next(utils.for_each(reference, config.split('/'), debug=debug, **kwargs))
+                    return True
+                except StopIteration:
+                    return False
+            else:
+                for c in config:
+                    if not check_where(reference, c, debug=debug, **kwargs):
+                        return False
+                return True
 
         if isinstance(config, list):
             for cfg in config:
@@ -308,10 +321,10 @@ class MizFile:
             if 'where' in config:
                 if debug:
                     print("Processing WHERE ...")
-                for where in utils.for_each(reference, config['where'].split('/'), debug=debug, **kwargs):
-                    process_element(reference, where, **kwargs)
+                if check_where(reference, config['where'], debug=debug, **kwargs):
+                    process_element(reference, **kwargs)
             else:
-                process_element(reference)
+                process_element(reference, **kwargs)
 
 
 class UnsupportedMizFileException(Exception):
