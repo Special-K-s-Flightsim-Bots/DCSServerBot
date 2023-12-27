@@ -1,18 +1,18 @@
--- Version 2.0.7.0
+-- Version 2.1.0.0
 -- ONLY COPY THIS WHOLE FILE IS YOU ARE GOING TO HOST A SERVER!
--- The file must be in Saved Games\DCS\Scripts\Hooks or Saved Games\DCS.openbeta\Scripts\Hooks
+-- The file must be in Saved Games\DCS\Scripts\Hooks or Saved Games\DCS.openalpha\Scripts\Hooks
 -- Make sure you enter the correct address into SERVER_SRS_HOST and SERVER_SRS_PORT (5002 by default) below.
 -- You can optionally enable SERVER_SRS_HOST_AUTO and SRS will attempt to find your public IP address
--- You can also enable SRS Chat commands to list frequencies and a message to all 
+-- You can also enable SRS Chat commands to list frequencies and a message to all
 -- non SRS connected users to encourage them to connect
 
 -- User options --
 local SRSAuto = {}
 
-SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the SERVER_SRS_HOST for you! - Currently disabled
+SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the SERVER_SRS_HOST for you!
 SRSAuto.SERVER_SRS_PORT = "5002" --  SRS Server default is 5002 TCP & UDP
-SRSAuto.SERVER_SRS_HOST = "127.0.0.1" -- overridden if SRS_HOST_AUTO is true -- set to your PUBLIC ipv4 address
-SRSAuto.SERVER_SEND_AUTO_CONNECT = true -- set to false to disable auto connect or just remove this file 
+SRSAuto.SERVER_SRS_HOST = "127.0.0.1" -- overridden if SRS_HOST_AUTO is true -- set to your PUBLIC ipv4 address or domain srs.example.com
+SRSAuto.SERVER_SEND_AUTO_CONNECT = true -- set to false to disable auto connect or just remove this file
 
 ---- SRS CHAT COMMANDS ----
 SRSAuto.CHAT_COMMANDS_ENABLED = false -- if true type -freq, -freqs or -frequencies in ALL chat in multilayer to see the frequencies
@@ -51,6 +51,9 @@ SRSAuto.JSON = JSON
 
 local socket = require("socket")
 -- local DcsWeb = require('DcsWeb')
+
+require("url") -- defines socket.url, which socket.http looks for
+http = require("http") -- socket.http
 
 SRSAuto.UDPSendSocket = socket.udp()
 SRSAuto.UDPSendSocket:settimeout(0)
@@ -116,14 +119,25 @@ end
 local _lastSent = 0
 
 SRSAuto.onMissionLoadBegin = function()
+	local _status, _result = pcall( function()
+		if SRSAuto.SERVER_SRS_HOST_AUTO then
+			local ipLookupUrl = "https://ipv4.icanhazip.com"
+			local T, code, headers, status = socket.http.request(ipLookupUrl)
 
-	if SRSAuto.SERVER_SRS_HOST_AUTO then
-		-- SRSAuto.SERVER_SRS_HOST = DcsWeb.get_data('dcs:whatsmyip')
-		-- SRSAuto.log("SET IP automatically to "..SRSAuto.SERVER_SRS_HOST)
+			if T == nil or code == nil or code < 200 or code >= 300 then
+			   if code == nil then code = "??" end
+			   SRSAuto.log("Failed to lookup IP from "..ipLookupUrl..". Http Status: " .. code)
+			else
+				SRSAuto.SERVER_SRS_HOST = T
+				SRSAuto.log("SET IP automatically to "..SRSAuto.SERVER_SRS_HOST)
+			end
+		end
+	end)
+
+	if not _status then
+		SRSAuto.log('ERROR: ' .. _result)
 	end
-
 end
-
 
 SRSAuto.onSimulationFrame = function()
 
@@ -162,15 +176,15 @@ SRSAuto.srsNudge = function()
         for _,v in pairs(net.get_player_list()) do
 
             local _player = net.get_player_info(v)
-           
-               
+
+
                 if _player.side ~= 0  then
 
                     _playerByName[_player.name] = _player
                      --SRSAuto.log("SRS NUDGE - Added ".._player.name)
 
                 end
-            
+
         end
         local fileContent = SRSAuto.readFile(SRSAuto.SRS_NUDGE_PATH);
 
@@ -225,4 +239,4 @@ SRSAuto.sendMessage = function(msg, showTime, gid)
 end
 
 DCS.setUserCallbacks(SRSAuto)
-net.log("Loaded - DCS-SRS-AutoConnect 2.0.7.0")
+net.log("Loaded - DCS-SRS-AutoConnect 2.0.7.1")
