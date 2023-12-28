@@ -782,8 +782,6 @@ class Mission(Plugin):
 
             filename = os.path.normpath(os.path.join(await server.get_missions_dir(), att.filename))
             name = os.path.basename(att.filename)[:-4]
-            if not server.locals.get('autoscan', False):
-                await server.addMission(filename)
             await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
