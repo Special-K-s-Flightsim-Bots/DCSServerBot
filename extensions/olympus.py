@@ -115,10 +115,10 @@ class Olympus(Extension):
         return False
 
     def is_running(self) -> bool:
-        server_ip = self.config.get('server', {}).get('address', '*')
+        server_ip = self.locals.get('server', {}).get('address', '*')
         if server_ip == '*':
             server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals.get('server', {}).get('port', 3001))
+        return utils.is_open(server_ip, self.locals.get('client', {}).get('port', 3000))
 
     async def shutdown(self) -> bool:
         await super().shutdown()
