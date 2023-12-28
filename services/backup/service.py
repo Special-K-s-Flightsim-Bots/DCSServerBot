@@ -30,14 +30,16 @@ class BackupService(Service):
             return
         await super().start()
         self.schedule.start()
-        if self.locals['delete_after'].lower() != 'never':
+        delete_after = self.locals.get('delete_after', 'never')
+        if isinstance(delete_after, int) or (isinstance(delete_after, str) and delete_after.lower() != 'never'):
             self.delete.start()
 
     async def stop(self, *args, **kwargs):
         if not self.locals:
             return
         self.schedule.stop()
-        if self.locals['delete_after'].lower() != 'never':
+        delete_after = self.locals.get('delete_after', 'never')
+        if isinstance(delete_after, int) or (isinstance(delete_after, str) and delete_after.lower() != 'never'):
             self.delete.stop()
 
     def mkdir(self) -> str:
