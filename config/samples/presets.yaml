@@ -59,6 +59,30 @@ Heavy Storm:
 Halo:
   halo:
     preset: auto
+HardcoreMode:
+  forcedOptions:
+    fuel: false
+    miniHUD: false
+    accidental_failures: false
+    optionsView: 'optview_allies'
+    permitCrash: true
+    immortal: false
+    easyCommunication: true
+    wakeTurbulence: true
+    easyFlight: false
+    radio: true
+    geffect: 'realistic'
+    birds: 0
+    cockpitStatusBarAllowed: false
+    unrestrictedSATNAV: true
+    userMarks: true
+    RBDAI: false
+    externalViews: true
+    padlock: true
+    civTraffic: ''
+    weapons: false
+    cockpitVisualRM: true
+    labels: 3
 Sounds:
   files:
   - sounds/alarm.ogg

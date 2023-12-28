@@ -67,6 +67,8 @@ class NodeImpl(Node):
         self._public_ip: Optional[str] = None
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
+        self.dcs_branch = None
+        self.dcs_version = None
         self.all_nodes: Optional[dict] = None
         self.instances: list[InstanceImpl] = list()
         self.update_pending = False
@@ -305,9 +307,12 @@ class NodeImpl(Node):
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
-        with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
-            data = json.load(cfg)
-        return data.get('branch', 'release'), data['version']
+        if not self.dcs_branch or not self.dcs_version:
+            with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
+                data = json.load(cfg)
+            self.dcs_branch = data.get('branch', 'release')
+            self.dcs_version = data['version']
+        return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int]) -> int:
         async def shutdown_with_warning(server: Server):
@@ -359,6 +364,7 @@ class NodeImpl(Node):
             await callback()
         rc = await do_update()
         if rc == 0:
+            self.dcs_branch = self.dcs_version = None
             if self.locals['DCS'].get('desanitize', True):
                 if not self.locals['DCS'].get('cloud', False) or self.master:
                     utils.desanitize(self)
