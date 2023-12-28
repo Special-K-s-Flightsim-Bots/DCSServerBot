@@ -1,4 +1,6 @@
 import asyncio
+from pathlib import Path
+
 import discord
 import os
 import psycopg
@@ -31,11 +33,26 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
                                                                    utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        orig_files = [os.path.basename(x)[:-9] for x in await server.node.list_directory(await server.get_missions_dir(), '*.orig')]
+        orig_files = [os.path.basename(x)[:-9] for x in await server.node.list_directory(
+            await server.get_missions_dir(), '*.orig')]
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
             for idx, x in enumerate(server.settings['missionList'])
             if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
+async def presets_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    try:
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-5], value=os.path.relpath(x, os.getcwd()))
+            for x in Path('config').glob('presets*.yaml')
+            if not current or current.casefold() in x[:-5].casefold()
         ]
         return choices[:25]
     except Exception as ex:
@@ -397,16 +414,19 @@ class Mission(Plugin):
     @mission.command(description='Modify mission with a preset')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(presets_file=presets_autocomplete)
+    @app_commands.rename(presets_file='presets')
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
-                         status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
+                         status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
+                     presets_file: Optional[str] = 'config/presets.yaml'):
         ephemeral = utils.get_ephemeral(interaction)
         try:
-            with open('config/presets.yaml', encoding='utf-8') as infile:
+            with open(presets_file, encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
-                f'No presets available, please configure them in config/presets.yaml.', ephemeral=True)
+                f'No presets available, please configure them in {presets_file}.', ephemeral=True)
             return
         try:
             options = [
@@ -416,7 +436,7 @@ class Mission(Plugin):
             ]
         except AttributeError:
             await interaction.response.send_message(
-                f"There is an error in your config/presets.yaml. Please check the file structure.", ephemeral=True)
+                f"There is an error in your {presets_file}. Please check the file structure.", ephemeral=True)
             return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")

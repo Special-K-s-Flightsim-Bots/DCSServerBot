@@ -16,12 +16,20 @@ class MizEdit(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        try:
-            self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
-            if not isinstance(self.presets, dict):
-                raise ParserError("File must contain a dictionary. not a list!")
-        except (ParserError, ScannerError) as ex:
-            raise YAMLError('config/presets.yaml', ex)
+        presets_file = self.config.get('presets', 'config/presets.yaml')
+        self.presets = {}
+        if not isinstance(presets_file, list):
+            presets_file = [presets_file]
+        for file in presets_file:
+            try:
+                self.presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
+                if not isinstance(self.presets, dict):
+                    raise ParserError("File must contain a dictionary. not a list!")
+            except FileNotFoundError:
+                self.log.error(f"MizEdit: File {file} not found!")
+                continue
+            except (ParserError, ScannerError) as ex:
+                raise YAMLError(file, ex)
 
     async def get_presets(self, config: dict):
         # check for terrain-specific config

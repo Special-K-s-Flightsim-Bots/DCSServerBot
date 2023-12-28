@@ -23,6 +23,10 @@ work as a fixed setting for any mission you have, like any weather preset you kn
 As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
 a name. Presets can be chained to create a combination of presets as a separate preset.
 
+> You can create any other file named presets*.yaml to better structure your presets.
+> If you want to use presets from another yaml file, you can specify that in your MizEdit-Extension.
+> You can mix several presets files by specifying them as a list (see example below).
+
 #### a) Simple Presets
 ```yaml
 Spring:
@@ -196,6 +200,9 @@ Again, you have multiple options on how you want your missions to be changed:
 a) Changes, based on the local server time
 ```yaml
         MizEdit:
+          presets: 
+            - config/presets.yaml         # default
+            - config/presets_weather.yaml # own preset, will be merged with the default one
           settings:
             00:01-06:00: Spring, Morning, Rainy, Halo
             06:01-12:00: Summer, Morning, Slight Breeze, Halo
