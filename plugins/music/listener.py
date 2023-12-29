@@ -12,7 +12,10 @@ class MusicEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        await self.service.init_radios(server=server)
+        try:
+            await self.service.init_radios(server=server)
+        except TimeoutError:
+            return
         # if we've just started, we need to start the radios
         if data['channel'].startswith('sync-'):
             await self.service.start_radios(server=server)
