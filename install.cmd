@@ -13,5 +13,5 @@ if not exist "%VENV%" (
     "%VENV%\Scripts\pip" install -r requirements.txt
 )
 "%VENV%\Scripts\python" install.py %*
-echo|set "Please press any key to continue..."
+echo Please press any key to continue...
 pause > NUL

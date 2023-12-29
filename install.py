@@ -5,6 +5,7 @@ import platform
 import psycopg
 import secrets
 import shutil
+import traceback
 import sys
 if sys.platform == 'win32':
     import winreg
@@ -229,6 +230,7 @@ If you need any further assistance, please visit the support discord, listed in 
             master = True
             servers = {}
             schedulers = {}
+            i = 3
         else:
             main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
@@ -250,8 +252,9 @@ If you need any further assistance, please visit the support discord, listed in 
             else:
                 print("[yellow]Configuration found, adding another node...[/]")
             master = False
+            i = 0
 
-        print(f"\n3. Node Setup")
+        print(f"\n{i+1}. Node Setup")
         if sys.platform == 'win32':
             dcs_installation = self.get_dcs_installation_win32() or '<see documentation>'
         else:
@@ -260,6 +263,7 @@ If you need any further assistance, please visit the support discord, listed in 
             self.log.error("Aborted: No DCS installation found.")
             exit(-1)
         node = nodes[self.node] = {
+            "listen_port": max([n.get('listen_port', 10041) for n in nodes.values()]) + 1,
             "DCS": {
                 "installation": dcs_installation
             }
@@ -283,20 +287,32 @@ If you need any further assistance, please visit the support discord, listed in 
         else:
             self.log.info("DCS-SRS not configured.")
         # check if we can enable autoupdate
-        try:
-            import git
-            node['autoupdate'] = True
-            print("[green]- autoupdate enabled for DCSServerBot[/]")
-            self.log.info("Git for Windows found, autoupdate enabled.")
-        except ImportError:
-            self.log.info("Git for Windows not found, autoupdate disabled.")
-            pass
+        if master:
+            try:
+                import git
+                node['autoupdate'] = True
+                print("[green]- autoupdate enabled for DCSServerBot[/]")
+                self.log.info("Git for Windows found, autoupdate enabled.")
+            except ImportError:
+                self.log.info("Git for Windows not found, autoupdate disabled.")
+                pass
+        else:
+            node['autoupdate'] = False
+            print("[yellow]- autoupdate disabled for DCSServerBot on non-master node.[/]")
 
-        print(f"\n4. DCS Server Setup")
+        print(f"\n{i+2}. DCS Server Setup")
         scheduler = schedulers[self.node] = {}
         node['instances'] = {}
-        bot_port = 6666
-        srs_port = 5002
+        # calculate unique bot ports
+        bot_port = max([
+            i.get('bot_port', 6665)
+            for i in [n.get('instances', []) for n in nodes.values()]
+        ]) + 1
+        # calculate unique SRS ports
+        srs_port = max([
+            i.get('extensions', {}).get('SRS', {}).get('port', 5001)
+            for i in [n.get('instances', []) for n in nodes.values()]
+        ]) + 1
         for name, instance in utils.findDCSInstances():
             if Prompt.ask(f'\nDCS server "{name}" found.\n'
                           'Would you like to manage this server through DCSServerBot?)',
@@ -414,4 +430,5 @@ if __name__ == "__main__":
     try:
         Install(args.node).install()
     except Exception:
+        traceback.print_exc()
         print("\nAborted.")
