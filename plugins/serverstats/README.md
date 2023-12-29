@@ -3,7 +3,15 @@ If you enable this plugin you will gather statistics for your DCS servers.<br>
 This can be helpful to detect issues in your servers and missions or just to see how many people love which of your missions most.
 
 ## Configuration
-n/a
+You can specify an optional configuration which can be used to monitor the server FPS:
+```yaml
+DEFAULT:
+  min_fps: 30       # minium acceptable FPS (0 = disabled)
+  period: 5         # period of 5 minutes (default = 5)
+  mentioning: true  # mentioning DCS Admin (default = true)
+  message: "The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!"
+```
+
 
 ## Discord Commands
 

@@ -1,16 +1,36 @@
 import math
 
-from core import EventListener, Plugin, event, Server
+from core import EventListener, Plugin, event, Server, utils, ServiceRegistry
 
 
 class ServerStatsListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.fps = {}
+        self.minutes = {}
 
     @event(name="perfmon")
     async def perfmon(self, server: Server, data: dict):
-        self.fps[server.name] = data['fps']
+        fps = float(data['fps'])
+        self.fps[server.name] = fps
+        config = self.get_config(server)
+        min_fps = config.get("min_fps", 0)
+        if min_fps:
+            if fps < min_fps:
+                self.minutes[server.name] = self.minutes.get(server.name, 0) + 1
+                period = config.get("period", 5)
+                if self.minutes[server.name] == period:
+                    message = utils.format_string(
+                        config.get("message", "The FPS of server {server.name} are below {min_fps} for longer than "
+                                              "{period} minutes!"),
+                        server=server, fps=round(fps, 2), min_fps=min_fps, period=period)
+                    if config.get("mentioning", True):
+                        await ServiceRegistry.get("Bot").alert(message, server)
+                    else:
+                        await self.bot.get_admin_channel(server).send(message)
+                    self.minutes[server.name] = 0
+            else:
+                self.minutes[server.name] = 0
 
     @event(name="serverLoad")
     async def serverLoad(self, server: Server, data: dict):
