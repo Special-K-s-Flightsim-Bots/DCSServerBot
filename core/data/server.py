@@ -58,6 +58,7 @@ class Server(DataObject):
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
     bus: ServiceBus = field(compare=False, init=False)
+    last_seen: datetime = field(compare=False, default=datetime.now())
 
     def __post_init__(self):
         super().__post_init__()
@@ -134,6 +135,7 @@ class Server(DataObject):
             status = Status(status)
         if status != self._status:
             # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
+            self.last_seen = datetime.now()
             self._status = status
             self.status_change.set()
             self.status_change.clear()

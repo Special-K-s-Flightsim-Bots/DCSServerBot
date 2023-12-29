@@ -452,10 +452,8 @@ class ServerImpl(Server):
             if autoscan:
                 self.locals['autoscan'] = True
 
-    async def keep_alive(self):
-        # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.node.locals.get('slow_system', False) else 10
-        await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
+    def keep_alive(self):
+        self.send_to_dcs({"command": "getMissionUpdate"})
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',

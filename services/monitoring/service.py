@@ -30,7 +30,6 @@ class MonitoringService(Service):
     def __init__(self, node, name: str):
         super().__init__(node, name)
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
-        self.hung = dict[str, int]()
         self.io_counters = {}
         self.net_io_counters = None
 
@@ -114,6 +113,29 @@ class MonitoringService(Service):
                         await self.node.audit(f'Server killed due to a popup with title "{title}".',
                                               server=server)
 
+    async def kill_hung_server(self, server: Server):
+        message = (f"Can't reach server \"{server.name}\" for more than "
+                   f"{int(server.instance.locals.get('max_hung_minutes', 3))} minutes. Killing ...")
+        self.log.warning(message)
+        if server.process and server.process.is_running():
+            now = datetime.now(timezone.utc)
+            filename = os.path.join(server.instance.home, 'Logs',
+                                    f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
+            if sys.platform == 'win32':
+                await asyncio.to_thread(create_dump, server.process.pid, filename,
+                                        MINIDUMP_TYPE.MiniDumpNormal, True)
+                root = logging.getLogger()
+                if root.handlers:
+                    root.removeHandler(root.handlers[0])
+            server.process.kill()
+        else:
+            await server.shutdown(True)
+        server.process = None
+        await self.node.audit("Server killed due to a hung state.", server=server)
+        server.status = Status.SHUTDOWN
+        if server.locals.get('ping_admin_on_crash', True):
+            await self.warn_admins(server, message)
+
     async def heartbeat(self):
         for server in self.bus.servers.copy().values():  # type: ServerImpl
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
@@ -126,51 +148,21 @@ class MonitoringService(Service):
                 if server.locals.get('ping_admin_on_crash', True):
                     await self.warn_admins(server, message)
                 await self.node.audit(f'Server died.', server=server)
-            elif server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            else:
                 try:
-                    if server.status == Status.RUNNING and 'affinity' in server.instance.locals:
-                        await self.check_affinity(server, server.instance.locals['affinity'])
+                    server.keep_alive()
                     # check if server is alive
-                    await server.keep_alive()
-                    # remove any hung flag, if the server has responded
-                    if server.name in self.hung:
-                        del self.hung[server.name]
-                    # check extension states
-                    for ext in [x for x in server.extensions.values() if not x.is_running()]:
-                        await ext.startup()
-                except (TimeoutError, asyncio.TimeoutError):
-                    # check if the server process is still existent
-                    max_hung_minutes = int(server.instance.locals.get('max_hung_minutes', 3))
-                    if max_hung_minutes > 0:
-                        self.log.warning(f'Server "{server.name}" is not responding.')
-                        # process might be in a hung state, so try again for a specified amount of times
-                        if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):
-                            message = f"Can't reach server \"{server.name}\" for more than {max_hung_minutes} " \
-                                      f"minutes. Killing ..."
-                            self.log.warning(message)
-                            if server.process and server.process.is_running():
-                                now = datetime.now(timezone.utc)
-                                filename = os.path.join(server.instance.home, 'Logs',
-                                                        f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
-                                if sys.platform == 'win32':
-                                    await asyncio.to_thread(create_dump, server.process.pid, filename,
-                                                            MINIDUMP_TYPE.MiniDumpNormal, True)
-                                    root = logging.getLogger()
-                                    if root.handlers:
-                                        root.removeHandler(root.handlers[0])
-                                server.process.kill()
-                            else:
-                                await server.shutdown(True)
-                            server.process = None
-                            await self.node.audit("Server killed due to a hung state.", server=server)
-                            del self.hung[server.name]
-                            server.status = Status.SHUTDOWN
-                            if server.locals.get('ping_admin_on_crash', True):
-                                await self.warn_admins(server, message)
-                        elif server.name not in self.hung:
-                            self.hung[server.name] = 1
-                        else:
-                            self.hung[server.name] += 1
+                    if ((datetime.now() - server.last_seen).total_seconds() / 60 >
+                            int(server.instance.locals.get('max_hung_minutes', 3))):
+                        await self.kill_hung_server(server)
+                        continue
+                    if server.status in [Status.RUNNING, Status.PAUSED]:
+                        # check affinity
+                        if 'affinity' in server.instance.locals:
+                            await self.check_affinity(server, server.instance.locals['affinity'])
+                        # check extension states
+                        for ext in [x for x in server.extensions.values() if not x.is_running()]:
+                            await ext.startup()
                 except Exception as ex:
                     self.log.exception(ex)
 

@@ -494,6 +494,7 @@ class ServiceBus(Service):
     async def intercom(self):
         with self.pool.connection() as conn:
             with conn.transaction():
+                processed_ids = []
                 # we read until there is no new data, then we wait for the next call (after 1 s)
                 for row in conn.execute("SELECT id, data FROM intercom WHERE node = %s",
                                         ("Master" if self.master else self.node.name, )).fetchall():
@@ -507,7 +508,8 @@ class ServiceBus(Service):
                             asyncio.create_task(self.handle_agent(data))
                     except Exception as ex:
                         self.log.exception(ex)
-                    conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+                    processed_ids.append(row[0])
+                conn.execute("DELETE FROM intercom WHERE id IN %s", (tuple(processed_ids), ))
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
@@ -582,6 +584,7 @@ class ServiceBus(Service):
                     if not server:
                         return
                     try:
+                        server.last_seen = datetime.now()
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not server.is_remote:
