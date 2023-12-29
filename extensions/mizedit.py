@@ -31,7 +31,7 @@ class MizEdit(Extension):
             except (ParserError, ScannerError) as ex:
                 raise YAMLError(file, ex)
 
-    async def get_presets(self, config: dict):
+    async def get_presets(self, config: dict) -> list[dict]:
         # check for terrain-specific config
         if 'terrains' in config:
             theatre = await self.server.get_current_mission_theatre() or DEFAULT_TAG
@@ -64,6 +64,7 @@ class MizEdit(Extension):
             if preset not in self.presets:
                 self.log.error(f'Preset {preset} not found, ignored.')
                 continue
+            self.log.info(f"  - Applying preset {preset}")
             value = self.presets[preset]
             if isinstance(value, list):
                 for inner_preset in value:
