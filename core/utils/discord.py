@@ -722,6 +722,28 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
         interaction.client.log.exception(ex)
 
 
+async def all_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+
+    def get_modules() -> list[str]:
+        with interaction.client.pool.connection() as conn:
+            cursor = conn.execute("""
+                SELECT DISTINCT slot, COUNT(*) FROM statistics 
+                WHERE slot NOT IN ('', '?', 'forward_observer', 'instructor', 'observer', 'artillery_commander') 
+                GROUP BY 1 ORDER BY 2 DESC
+            """)
+            return [row[0] for row in cursor.fetchall()]
+
+    try:
+        ret = [
+            app_commands.Choice(name=x, value=x)
+            for x in get_modules()
+            if not current or current.casefold() in x.casefold()
+        ]
+        return ret[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 class UserTransformer(app_commands.Transformer):
 
     def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None):
