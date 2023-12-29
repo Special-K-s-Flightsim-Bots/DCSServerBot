@@ -711,7 +711,7 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=5.0)
     async def update_channel_name(self):
-        for server_name, server in self.bot.servers.items():
+        for server_name, server in self.bot.servers.copy().items():
             if server.status == Status.UNREGISTERED:
                 continue
             try:
