@@ -200,13 +200,15 @@ class Punishment(Plugin):
                                 row[0] for row in cursor.execute('SELECT ucid FROM players WHERE discord_id = %s',
                                                                  (user.id,)).fetchall()
                             ]
+                            if not ucids:
+                                await interaction.followup.send(f"User {user.display_name} is not linked.",
+                                                                ephemeral=True)
                         else:
                             ucids = [user]
                         for ucid in ucids:
                             cursor.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
                             cursor.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
-                            cursor.execute("DELETE FROM bans WHERE ucid = %s AND banned_by = %s",
-                                           (self.plugin_name, ucid))
+                            cursor.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
                             for server_name, server in self.bot.servers.items():
                                 server.send_to_dcs({
                                     "command": "unban",
