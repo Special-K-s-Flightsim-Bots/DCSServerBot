@@ -33,6 +33,15 @@ class gRPC(Extension):
         else:
             return int(value)
 
+    @staticmethod
+    def unparse(value: Any) -> str:
+        if isinstance(value, bool):
+            return value.__repr__().lower()
+        elif isinstance(value, str):
+            return '"' + value + '"'
+        else:
+            return value
+
     def load_config(self) -> Optional[dict]:
         def read_file(file: TextIO, cfg: dict):
             for line in file.readlines():
@@ -54,17 +63,31 @@ class gRPC(Extension):
 
     async def prepare(self) -> bool:
         config = self.config.copy()
+        filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
+        with open(filename, 'r') as infile:
+            orig = infile.readlines()
+        dirty = False
+        for idx, line in enumerate(orig):
+            if ("dofile('Scripts/ScriptingSystem.lua')" in line and
+                    r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])" not in orig[idx+1]):
+                orig.insert(idx+1, r"dofile(lfs.writedir()..[[Scripts\DCS-gRPC\grpc-mission.lua]])")
+                dirty = True
+                break
+        if dirty:
+            with open(filename, 'w') as outfile:
+                outfile.writelines(orig)
+            self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
         if 'enabled' in config:
             del config['enabled']
         if len(config):
             self.locals = self.locals | config
             self.locals['autostart'] = True
             path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
-            data = luadata.serialize(self.locals, indent='', indent_level=0).encode('utf8')[1:-1]
-            with open(path, 'wb') as outfile:
-                outfile.write(data)
+            with open(path, 'w', encoding='utf-8') as outfile:
+                for key, value in self.locals.items():
+                    outfile.write(f"{key} = {self.unparse(value)}\n")
         port = self.locals.get('port', 50051)
-        if port in ports and ports[port] != self.server.name:
+        if ports.get(port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
             return False
         else:
@@ -73,9 +96,6 @@ class gRPC(Extension):
 
     def is_installed(self) -> bool:
         if not self.config.get('enabled', True):
-            return False
-        if not os.path.exists(os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')):
-            self.log.error(f"  => {self.server.name}: Can't load extension, DCS-gRPC not correctly installed.")
             return False
         if not os.path.exists(os.path.join(self.home, 'dcs_grpc.dll')):
             self.log.error(f"  => {self.server.name}: Can't load extension, DCS-gRPC not correctly installed.")
