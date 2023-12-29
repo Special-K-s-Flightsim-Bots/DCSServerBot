@@ -282,6 +282,8 @@ class ServerImpl(Server):
             # rename the server in the database
             with self.pool.connection() as conn:
                 with conn.transaction():
+                    # we need to remove any older server that might have had the same name
+                    conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
                     conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                  (new_name, self.name))
                     conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',

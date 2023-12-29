@@ -50,9 +50,9 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
         return []
     try:
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.basename(x)[:-5], value=os.path.relpath(x, os.getcwd()))
+            app_commands.Choice(name=x.name[:-5], value=str(x))
             for x in Path('config').glob('presets*.yaml')
-            if not current or current.casefold() in x[:-5].casefold()
+            if not current or current.casefold() in x.name[:-5].casefold()
         ]
         return choices[:25]
     except Exception as ex:

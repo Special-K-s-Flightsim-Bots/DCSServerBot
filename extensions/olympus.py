@@ -121,8 +121,8 @@ class Olympus(Extension):
         return utils.is_open(server_ip, self.locals.get('client', {}).get('port', 3000))
 
     async def shutdown(self) -> bool:
-        await super().shutdown()
-        if self.is_running():
+        if self.process is not None and self.process.returncode is None:
+            await super().shutdown()
             self.process.terminate()
             await self.process.wait()
             self.process = None

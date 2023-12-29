@@ -55,7 +55,7 @@ class GreenieBoardEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
         if events_channel is not None:
-            carrier = data['place']['name']
+            carrier = data['place']['name'] if 'place' in data else 'n/a'
             if 'WO' in data['grade']:
                 await events_channel.send(self.EVENT_TEXTS[player.side]['waveoff'].format(player.name, carrier))
             elif data['grade'] == 'B':

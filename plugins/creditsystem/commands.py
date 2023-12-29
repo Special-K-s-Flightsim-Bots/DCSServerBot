@@ -148,7 +148,7 @@ class CreditSystem(Plugin):
                     else:
                         old_points_receiver = p_receiver.points
                     if 'max_points' in self.get_config() and \
-                            (old_points_receiver + donation) > self.get_config()['max_points']:
+                            (old_points_receiver + donation) > int(self.get_config()['max_points']):
                         await interaction.followup.send(
                             f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
                             f'points with this donation. Aborted.')
@@ -250,7 +250,7 @@ class CreditSystem(Plugin):
                     else:
                         old_points_receiver = p_receiver.points
                     if 'max_points' in self.get_config() and \
-                            (old_points_receiver + donation) > self.get_config()['max_points']:
+                            (old_points_receiver + donation) > int(self.get_config()['max_points']):
                         await interaction.followup.send(
                             f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
                             f'points with this donation. Aborted.', ephemeral=True)

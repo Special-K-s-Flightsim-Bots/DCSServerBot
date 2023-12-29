@@ -38,7 +38,9 @@ class Member(DataObject):
     def ucid(self, ucid: str):
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE players SET ucid = %s WHERE ucid = %s', (ucid, self._ucid))
+                conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (self.member.id, ucid))
+                conn.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s AND discord_id = %s',
+                             (self._ucid, self.member.id))
         self._ucid = ucid
 
     @property

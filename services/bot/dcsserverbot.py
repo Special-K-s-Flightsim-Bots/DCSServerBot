@@ -507,7 +507,7 @@ class DCSServerBot(commands.Bot):
                        file: Optional[discord.File] = None, server: Optional[Server] = None):
         async with self.lock:
             if server and isinstance(channel_id, Channel):
-                channel_id = int(server.channels.get(channel_id))
+                channel_id = int(server.channels.get(channel_id, -1))
             else:
                 channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
