@@ -15,6 +15,7 @@ import unicodedata
 import random
 import math
 
+from croniter import croniter
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 from urllib.parse import urlparse
@@ -44,6 +45,7 @@ __all__ = [
     "is_ucid",
     "is_valid_url",
     "is_github_repo",
+    "matches_cron",
     "SettingsDict",
     "RemoteSettingsDict",
     "evaluate",
@@ -262,6 +264,13 @@ def is_valid_url(url: str) -> bool:
 
 def is_github_repo(url: str) -> bool:
     return is_valid_url(url) and 'https://github.com/' in url and not url.endswith('.zip')
+
+
+def matches_cron(datetime_obj: datetime, cron_string: str):
+    cron_job = croniter(cron_string, datetime_obj)
+    next_date = cron_job.get_next(datetime)
+    prev_date = cron_job.get_prev(datetime)
+    return datetime_obj == prev_date or datetime_obj == next_date
 
 
 class SettingsDict(dict):
