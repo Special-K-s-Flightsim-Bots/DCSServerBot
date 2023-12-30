@@ -118,7 +118,7 @@ class Server(DataObject):
         else:
             new_maintenance = maintenance
         if new_maintenance != self._maintenance:
-            self._maintenance = maintenance
+            self._maintenance = new_maintenance
             if not isinstance(maintenance, str):
                 self.bus.send_to_node({
                     "command": "rpc",
