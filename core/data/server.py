@@ -132,21 +132,23 @@ class Server(DataObject):
     # allow overloading of setter
     def set_status(self, status: Union[Status, str]):
         if isinstance(status, str):
-            status = Status(status)
-        if status != self._status:
+            new_status = Status(status)
+        else:
+            new_status = status
+        if new_status != self._status:
             # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self.last_seen = datetime.now()
-            self._status = status
+            self._status = new_status
             self.status_change.set()
             self.status_change.clear()
-            if not self.node.master:
+            if not isinstance(status, str):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
+                    "server_name": self.name,
                     "params": {
-                        "status": self.status.value
-                    },
-                    "server_name": self.name
+                        "status": self._status.value
+                    }
                 }, node=self.node.name)
 
     @property

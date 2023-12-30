@@ -40,26 +40,6 @@ class ServerProxy(Server):
     def options(self, o: dict):
         self._options = utils.RemoteSettingsDict(self, "options", o)
 
-    def set_status(self, status: Union[Status, str]):
-        if isinstance(status, str):
-            new_status = Status(status)
-        else:
-            new_status = status
-        if new_status != self._status:
-            self._status = new_status
-            self.status_change.set()
-            self.status_change.clear()
-            # don't do status ping-pongs
-            if not isinstance(status, str):
-                self.bus.send_to_node({
-                    "command": "rpc",
-                    "object": "Server",
-                    "server_name": self.name,
-                    "params": {
-                        "status": self._status.value
-                    }
-                }, node=self.node.name)
-
     def set_maintenance(self, maintenance: bool):
         if maintenance != self._maintenance:
             self._maintenance = maintenance
