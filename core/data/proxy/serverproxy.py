@@ -45,12 +45,14 @@ class ServerProxy(Server):
             status = Status(status)
         if status != self._status:
             self._status = status
+            self.status_change.set()
+            self.status_change.clear()
             self.bus.send_to_node({
                 "command": "rpc",
                 "object": "Server",
                 "server_name": self.name,
                 "params": {
-                    "status": self.status.value
+                    "status": self._status.value
                 }
             }, node=self.node.name)
 
@@ -62,7 +64,7 @@ class ServerProxy(Server):
                 "object": "Server",
                 "server_name": self.name,
                 "params": {
-                    "maintenance": self.maintenance
+                    "maintenance": self._maintenance
                 }
             }, node=self.node.name)
 
