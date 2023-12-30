@@ -51,6 +51,7 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "mizfile_autocomplete",
+    "all_modules_autocomplete",
     "available_modules_autocomplete",
     "installed_modules_autocomplete",
     "player_modules_autocomplete",
