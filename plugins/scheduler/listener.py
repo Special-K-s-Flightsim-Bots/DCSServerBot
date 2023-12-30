@@ -48,7 +48,7 @@ class SchedulerListener(EventListener):
             await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
         if 'restart' in what['command']:
             if server.status == Status.SHUTDOWN:
-                await self.plugin.launch_dcs(server, config)
+                await self.plugin.launch_dcs(server)
             else:
                 await server.restart()
                 message = f'restarted mission {server.current_mission.display_name}'

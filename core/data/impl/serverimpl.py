@@ -282,6 +282,8 @@ class ServerImpl(Server):
             # rename the server in the database
             with self.pool.connection() as conn:
                 with conn.transaction():
+                    # we need to remove any older server that might have had the same name
+                    conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
                     conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                  (new_name, self.name))
                     conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
@@ -335,7 +337,7 @@ class ServerImpl(Server):
                 [exe, '--server', '--norender', '-w', self.instance.name], executable=path
             )
             self.process = Process(p.pid)
-            self.log.info(f"  => DCS server starting up with PID {p.pid}")
+            self.log.debug(f"  => DCS server starting up with PID {p.pid}")
         except Exception as ex:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
@@ -452,10 +454,8 @@ class ServerImpl(Server):
             if autoscan:
                 self.locals['autoscan'] = True
 
-    async def keep_alive(self):
-        # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.node.locals.get('slow_system', False) else 10
-        await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
+    def keep_alive(self):
+        self.send_to_dcs({"command": "getMissionUpdate"})
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',

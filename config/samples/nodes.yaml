@@ -13,7 +13,6 @@ NODENAME:                       # this will be your hostname
       home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      server: My Fancy Server   # The server (name) that is associated to this instance. See servers.yaml
       affinity: 2,3             # Optional: set the CPU-affinity for this instance.
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:

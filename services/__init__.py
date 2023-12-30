@@ -7,3 +7,4 @@ from .dashboard import *
 from .backup import *
 from .ovgme import *
 from .music import *
+from .scheduler import *

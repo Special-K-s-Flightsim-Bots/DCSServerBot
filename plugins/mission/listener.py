@@ -439,7 +439,7 @@ class MissionEventListener(EventListener):
                     and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
                 await self.bot.get_admin_channel(server).send(
-                    f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
+                    f'{server.display_name}: {name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             if data['arg1'] != -1:

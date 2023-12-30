@@ -350,10 +350,9 @@ class UserStatisticsEventListener(EventListener):
                         old_ucid = member.ucid if member.verified else None
                         if old_ucid:
                             member.ucid = player.ucid
-                            member.verified = True
                         else:
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE where ucid = %s',
-                                           (discord_id, player.ucid))
+                            player.member = member.member
+                        member.verified = True
                         cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
                         # make sure we update all tables with the new UCID
                         if old_ucid and old_ucid != player.ucid:

@@ -43,7 +43,7 @@ class Sneaker(Extension):
                 if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
             ]
         ]
-        with open(os.path.join('config', 'sneaker.json'), 'w') as file:
+        with open(filename, 'w') as file:
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:
@@ -53,8 +53,8 @@ class Sneaker(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
+        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
         if 'config' not in self.config:
-            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             if process and process.returncode is None:
                 process.kill()
             self.create_config()
@@ -73,8 +73,7 @@ class Sneaker(Extension):
                 process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
                                             os.path.expandvars(self.config['config'])],
                                            executable=os.path.expandvars(self.config['cmd']),
-                                           stdout=subprocess.DEVNULL,
-                                           stderr=subprocess.DEVNULL)
+                                           stdout=out, stderr=out)
         servers.add(self.server.name)
         return self.is_running()
 

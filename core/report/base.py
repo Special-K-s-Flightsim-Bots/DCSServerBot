@@ -40,12 +40,10 @@ class Report:
         default = f'./plugins/{plugin}/reports/{filename}'
         overwrite = f'./reports/{plugin}/{filename}'
         if path.exists(overwrite):
-            filename = overwrite
+            self.filename = overwrite
         else:
-            filename = default
-        if not path.exists(filename):
-            raise FileNotFoundError(filename)
-        with open(filename, encoding='utf-8') as file:
+            self.filename = default
+        with open(self.filename, encoding='utf-8') as file:
             self.report_def = json.load(file)
 
     async def render(self, *args, **kwargs) -> ReportEnv:
@@ -104,6 +102,9 @@ class Report:
                             render_args = {name: value for name, value in element_args.items() if name in signature}
                             try:
                                 await element_class.render(**render_args)
+                            except TimeoutError:
+                                self.log.error(f"Timeout while processing report {self.filename}! "
+                                               f"Some elements might be empty.")
                             except Exception as ex:
                                 self.log.exception(ex)
                         else:

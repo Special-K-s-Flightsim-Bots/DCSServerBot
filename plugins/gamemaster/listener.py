@@ -21,24 +21,27 @@ class GameMasterEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if server.locals.get('chat_log') and server.name not in self.chat_log:
-            os.makedirs('logs', exist_ok=True)
-            self.chat_log[server.name] = logging.getLogger(name=f'chat-{server.name}')
-            self.chat_log[server.name].setLevel(logging.INFO)
-            formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
-                                          datefmt='%Y-%m-%d %H:%M:%S')
-            filename = os.path.join('logs', f'{utils.slugify(server.name)}-chat.log')
-            fh = RotatingFileHandler(filename, encoding='utf-8',
-                                     maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
-                                     backupCount=int(server.locals['chat_log'].get('count', 10)))
-            fh.setLevel(logging.INFO)
-            fh.setFormatter(formatter)
-            self.chat_log[server.name].addHandler(fh)
+        if not server.locals.get('chat_log') or server.name in self.chat_log:
+            return
+        os.makedirs('logs', exist_ok=True)
+        self.chat_log[server.name] = logging.getLogger(name=f'chat-{server.name}')
+        self.chat_log[server.name].setLevel(logging.INFO)
+        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
+                                      datefmt='%Y-%m-%d %H:%M:%S')
+        filename = os.path.join('logs', f'{utils.slugify(server.name)}-chat.log')
+        fh = RotatingFileHandler(filename, encoding='utf-8',
+                                 maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
+                                 backupCount=int(server.locals['chat_log'].get('count', 10)))
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(formatter)
+        self.chat_log[server.name].addHandler(fh)
 
     @event(name="onChatMessage")
     async def onChatMessage(self, server: Server, data: dict) -> None:
         player: Player = server.get_player(id=data['from_id'])
-        if server.locals.get('chat_log'):
+        if not player:
+            return
+        if server.locals.get('chat_log') and self.chat_log.get(server.name):
             self.chat_log[server.name].info(f"{player.ucid}\t{player.name}\t{data['to']}\t{data['message']}")
         chat_channel: Optional[discord.TextChannel] = None
         if server.locals.get('coalitions') and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:

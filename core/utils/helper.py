@@ -15,6 +15,7 @@ import unicodedata
 import random
 import math
 
+from croniter import croniter
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 from urllib.parse import urlparse
@@ -44,6 +45,7 @@ __all__ = [
     "is_ucid",
     "is_valid_url",
     "is_github_repo",
+    "matches_cron",
     "SettingsDict",
     "RemoteSettingsDict",
     "evaluate",
@@ -264,6 +266,13 @@ def is_github_repo(url: str) -> bool:
     return is_valid_url(url) and 'https://github.com/' in url and not url.endswith('.zip')
 
 
+def matches_cron(datetime_obj: datetime, cron_string: str):
+    cron_job = croniter(cron_string, datetime_obj)
+    next_date = cron_job.get_next(datetime)
+    prev_date = cron_job.get_prev(datetime)
+    return datetime_obj == prev_date or datetime_obj == next_date
+
+
 class SettingsDict(dict):
     def __init__(self, obj: DataObject, path: str, root: str):
         super().__init__()
@@ -346,8 +355,8 @@ class RemoteSettingsDict(dict):
         self.server.send_to_dcs(msg)
 
 
-def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:
-    if isinstance(value, int) or isinstance(value, bool) or not value.startswith('$'):
+def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, float, bool]:
+    if isinstance(value, (int, float, bool)) or not value.startswith('$'):
         return value
     return eval(format_string(value[1:], **kwargs))
 

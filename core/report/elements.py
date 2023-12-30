@@ -195,7 +195,7 @@ class Graph(ReportElement):
                 class_args = {name: value for name, value in element_args.items() if name in signature}
                 # instantiate the class
                 element_class = element_class(self.env, rows, cols, **class_args)
-                if isinstance(element_class, GraphElement) or isinstance(element_class, MultiGraphElement):
+                if isinstance(element_class, (GraphElement, MultiGraphElement)):
                     # remove parameters, that are not in the render methods signature
                     signature = inspect.signature(element_class.render).parameters.keys()
                     render_args = {name: value for name, value in element_args.items() if name in signature}

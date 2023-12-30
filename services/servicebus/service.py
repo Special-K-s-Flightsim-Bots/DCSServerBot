@@ -164,9 +164,12 @@ class ServiceBus(Service):
         })
 
     async def register_local_servers(self):
-        self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
         timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
-        local_servers = [x for x in self.servers.values() if not x.is_remote]
+        local_servers = [x for x in self.servers.values() if x.status == Status.UNREGISTERED and not x.is_remote]
+        if local_servers:
+            self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
+        else:
+            return
         calls = []
         for server in local_servers:
             if server.is_remote:
@@ -582,6 +585,7 @@ class ServiceBus(Service):
                     if not server:
                         return
                     try:
+                        server.last_seen = datetime.now()
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not server.is_remote:

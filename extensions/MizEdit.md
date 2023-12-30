@@ -23,6 +23,10 @@ work as a fixed setting for any mission you have, like any weather preset you kn
 As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
 a name. Presets can be chained to create a combination of presets as a separate preset.
 
+> You can create any other file named presets*.yaml to better structure your presets.
+> If you want to use presets from another yaml file, you can specify that in your MizEdit-Extension.
+> You can mix several presets files by specifying them as a list (see example below).
+
 #### a) Simple Presets
 ```yaml
 Spring:
@@ -103,6 +107,9 @@ You can use these special characters:
 | \[x,y\]   | Selects these elements from a list (starts with 1) or from a table.                     |
 | '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string.                 |
 
+You can use the variable "reference" inside of your replace or insert statements to select the object that was returned
+by the for-each / where clauses (see example 3).
+
 #### Example 1: Search all CVN carriers in your mission:
 > coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 
@@ -166,10 +173,10 @@ MyFancyPreset:
     select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
     replace:
       modeChannel: X
-      channel: $'{where[type]}'[-2:]
+      channel: $'{reference[units][0][type]}'[-2:]
       frequency:
-        $'{where[type]}'[-2:] == '72': 1158000000
-        $'{where[type]}'[-2:] == '73': 1160000000
+        $'{reference[units][0][type]}'[-2:] == '72': 1158000000
+        $'{reference[units][0][type]}'[-2:] == '73': 1160000000
 ```
 
 #### Example 4: Set the 1st radio-preset of all blue F-14Bs to 243
@@ -193,6 +200,9 @@ Again, you have multiple options on how you want your missions to be changed:
 a) Changes, based on the local server time
 ```yaml
         MizEdit:
+          presets: 
+            - config/presets.yaml         # default
+            - config/presets_weather.yaml # own preset, will be merged with the default one
           settings:
             00:01-06:00: Spring, Morning, Rainy, Halo
             06:01-12:00: Summer, Morning, Slight Breeze, Halo

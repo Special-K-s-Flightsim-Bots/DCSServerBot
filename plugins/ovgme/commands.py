@@ -81,8 +81,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
             return []
         try:
             folder, mod = utils.get_interaction_param(interaction, 'mod').split('/')
-        except Exception as ex:
-            interaction.client.log.exception(ex)
+        except AttributeError:
             return []
         return [
             app_commands.Choice(name=version, value=version)
@@ -327,6 +326,9 @@ class OvGME(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status != Status.SHUTDOWN:
             await interaction.response.send_message(f"Server {server.name} needs to be shut down to install mods.")
+            return
+        if '/' not in mod:
+            await interaction.response.send_message(f"Mod {mod} not found.")
             return
         folder, package = mod.split('/')
         await interaction.response.defer(ephemeral=ephemeral)

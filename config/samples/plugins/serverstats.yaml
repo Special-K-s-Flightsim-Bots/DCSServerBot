@@ -1,0 +1,5 @@
+DEFAULT:
+  min_fps: 30       # minium acceptable FPS
+  period: 5         # period of 5 minutes
+  mentioning: true  # mentioning DCS Admin
+  message: "The FPS of server {server.name} are below {min_fps} for longer than {period} minutes!"

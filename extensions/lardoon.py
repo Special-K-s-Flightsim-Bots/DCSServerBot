@@ -91,11 +91,10 @@ class Lardoon(Extension):
             if not path:
                 path = TACVIEW_DEFAULT_DIR
             cmd = os.path.expandvars(self.config['cmd'])
-            proc = await asyncio.create_subprocess_exec(
-                cmd,  "import", "-p", path, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+            proc = await asyncio.create_subprocess_exec(cmd,  "import", "-p", path, stdout=out, stderr=out)
             await proc.wait()
-            proc = await asyncio.create_subprocess_exec(
-                cmd, "prune",  "--no-dry-run", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            proc = await asyncio.create_subprocess_exec(cmd, "prune",  "--no-dry-run", stdout=out, stderr=out)
             await proc.wait()
         except Exception as ex:
             self.log.exception(ex)

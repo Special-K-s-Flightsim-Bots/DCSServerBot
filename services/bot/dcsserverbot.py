@@ -180,7 +180,9 @@ class DCSServerBot(commands.Bot):
                     raise FatalException()
                 elif not self.guilds:
                     raise FatalException("You need to invite your bot to a Discord server.")
-                self.member = self.guilds[0].get_member(self.user.id)
+                self.member = await self.guilds[0].fetch_member(self.user.id)
+                if not self.member:
+                    raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 if self.locals.get('admin_channel'):
@@ -507,10 +509,12 @@ class DCSServerBot(commands.Bot):
                        file: Optional[discord.File] = None, server: Optional[Server] = None):
         async with self.lock:
             if server and isinstance(channel_id, Channel):
-                channel_id = int(server.channels.get(channel_id))
+                channel_id = int(server.channels.get(channel_id, -1))
             else:
                 channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
+            if not channel:
+                channel = await self.fetch_channel(channel_id)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return

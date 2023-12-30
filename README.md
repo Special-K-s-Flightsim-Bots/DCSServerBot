@@ -39,6 +39,7 @@ Discord commands, like the Music service. You can define that a service only run
 | ServiceBus | Communication hub between every node of the bot cluster and DCS.        |             | [README](./services/servicebus/README.md) |
 | Bot        | The Discord bot handling all discord commands.                          |             | [README](./services/bot/README.md)        |
 | Monitoring | Availability monitoring of your DCS servers.                            | ServerStats | [README](./services/monitoring/README.md) |
+| Scheduler  | Schedule tasks based on a cron-like configuration.                      | Scheduler   | [README](./services/scheduler/README.md)  |
 | Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                      |             | [README](./services/cleanup/README.md)    |
 | Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup      | [README](./services/bot/README.md)        |
 | Dashboard  | Nice console graphics display to show the status of your bot / servers. |             | [README](./services/dashboard/README.md)  |
@@ -254,7 +255,6 @@ NODENAME:                       # this will be your hostname
       home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      server: My Fancy Server   # The server (name) that is associated to this instance. See servers.yaml
       affinity: 2,3             # Optional: set the CPU-affinity for this instance.
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
