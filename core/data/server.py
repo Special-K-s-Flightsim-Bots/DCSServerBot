@@ -112,15 +112,19 @@ class Server(DataObject):
     def maintenance(self, maintenance: bool):
         self.set_maintenance(maintenance)
 
-    def set_maintenance(self, maintenance: bool):
-        if maintenance != self._maintenance:
+    def set_maintenance(self, maintenance: Union[str, bool]):
+        if isinstance(maintenance, str):
+            new_maintenance = maintenance.lower() == 'true'
+        else:
+            new_maintenance = maintenance
+        if new_maintenance != self._maintenance:
             self._maintenance = maintenance
-            if not self.node.master:
+            if not isinstance(maintenance, str):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
                     "params": {
-                        "maintenance": maintenance
+                        "maintenance": str(maintenance)
                     },
                     "server_name": self.name
                 }, node=self.node.name)
