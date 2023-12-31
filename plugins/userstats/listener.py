@@ -150,7 +150,7 @@ class UserStatisticsEventListener(EventListener):
                                 if not player.member and self.bot.locals.get('automatch', True) and \
                                         len(server.settings['password']) > 0:
                                     await self.bot.get_admin_channel(server).send(
-                                        f"Player {data['name']} (ucid={data['ucid']}) can't be matched to a "
+                                        f"Player {player.name} (ucid={player.ucid}) can't be matched to a "
                                         f"discord user.")
                                 cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
                                                (mission_id, player.ucid, self.get_unit_type(player),
