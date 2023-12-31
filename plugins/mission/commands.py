@@ -357,7 +357,7 @@ class Mission(Plugin):
             await interaction.response.send_message("No mission found.")
             return
         filename = server.settings['missionList'][mission_id]
-        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and \
+        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and server.current_mission and \
                 filename == server.current_mission.filename:
             await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=True)
             return
