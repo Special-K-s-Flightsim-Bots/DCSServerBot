@@ -711,6 +711,9 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=5.0)
     async def update_channel_name(self):
+        # might happen during a restart
+        if not self.bot.member:
+            return
         for server_name, server in self.bot.servers.copy().items():
             if server.status == Status.UNREGISTERED:
                 continue
@@ -741,6 +744,10 @@ class Mission(Plugin):
             except Exception as ex:
                 self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=str(ex))
 
+    @update_channel_name.before_loop
+    async def before_update_channel_name(self):
+        await self.bot.wait_until_ready()
+
     @tasks.loop(minutes=1.0)
     async def afk_check(self):
         try:
@@ -759,6 +766,10 @@ class Mission(Plugin):
                         server.kick(player, msg)
         except Exception as ex:
             self.log.exception(ex)
+
+    @afk_check.before_loop
+    async def before_afk_check(self):
+        await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
