@@ -452,6 +452,7 @@ class NodeImpl(Node):
                 self.autoupdate.cancel()
 
     def check_master(self) -> bool:
+        self.log.debug("### check_master() called ...")
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -474,6 +475,7 @@ class NodeImpl(Node):
                                 count -= 1
                     # no master there, we're the master now
                     if count == 0:
+                        self.log.debug("### check_master(): no master found, taking over")
                         cursor.execute("""
                             UPDATE nodes SET master = True, last_seen = NOW() AT TIME ZONE 'UTC'
                             WHERE guild_id = %s and node = %s
@@ -483,18 +485,30 @@ class NodeImpl(Node):
                     elif count == 1:
                         # if we are the preferred master, take it back
                         if not master and self.locals.get('preferred_master', False):
+                            self.log.debug("### check_master(): taking over master as I am the preferred one")
                             master = True
+                        self.log.debug("### check_master(): I am a {} node".format('master' if master else 'agent'))
                         cursor.execute("""
                             UPDATE nodes SET master = %s, last_seen = NOW() AT TIME ZONE 'UTC'
                             WHERE guild_id = %s and node = %s
                         """, (master, self.guild_id, self.name))
                     # split brain detected
                     else:
+                        self.log.debug("### check_master(): Split Brain detected!")
                         # we are the preferred master,
                         if self.locals.get('preferred_master', False):
-                            cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node <> %s',
-                                           (self.guild_id, self.name))
+                            self.log.debug("### check_master(): SB: I am taking over as master")
+                            cursor.execute("""
+                                UPDATE nodes SET master = False 
+                                WHERE guild_id = %s and node <> %s
+                            """, (self.guild_id, self.name))
+                            cursor.execute("""
+                                UPDATE nodes SET master = True, last_seen = NOW() AT TIME ZONE 'UTC' 
+                                WHERE guild_id = %s and node = %s
+                            """, (self.name, ))
+                            master = True
                         else:
+                            self.log.debug("### check_master(): SB: I am stepping back from master")
                             self.log.warning("Split brain detected, stepping back from master.")
                             cursor.execute("""
                                 UPDATE nodes SET master = False, last_seen = NOW() AT TIME ZONE 'UTC'
