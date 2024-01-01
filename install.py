@@ -263,7 +263,7 @@ If you need any further assistance, please visit the support discord, listed in 
             self.log.error("Aborted: No DCS installation found.")
             exit(-1)
         node = nodes[self.node] = {
-            "listen_port": max([n.get('listen_port', 10041) for n in nodes.values()]) + 1,
+            "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
             "DCS": {
                 "installation": dcs_installation
             }
@@ -305,14 +305,14 @@ If you need any further assistance, please visit the support discord, listed in 
         node['instances'] = {}
         # calculate unique bot ports
         bot_port = max([
-            i.get('bot_port', 6665)
-            for i in [n.get('instances', []) for n in nodes.values()]
-        ]) + 1
+            i.get('bot_port', 6665 + idx)
+            for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
+        ]) + 1 if nodes else 6666
         # calculate unique SRS ports
         srs_port = max([
-            i.get('extensions', {}).get('SRS', {}).get('port', 5001)
-            for i in [n.get('instances', []) for n in nodes.values()]
-        ]) + 1
+            i.get('extensions', {}).get('SRS', {}).get('port', 5001 + idx)
+            for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
+        ]) + 1 if nodes else 5002
         for name, instance in utils.findDCSInstances():
             if Prompt.ask(f'\nDCS server "{name}" found.\n'
                           'Would you like to manage this server through DCSServerBot?)',
