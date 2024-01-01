@@ -69,7 +69,9 @@ dcsbot.startMission = dcsbot.startMission or function (id)
 end
 
 dcsbot.shutdown = dcsbot.shutdown or function ()
-	DCS.exitProcess()
+	local msg = {}
+	msg.command = 'shutdown'
+	dcsbot.callback(msg)
 end
 
 dcsbot.restartMission = dcsbot.restartMission or function ()
