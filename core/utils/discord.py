@@ -841,8 +841,9 @@ async def server_selection(bus: ServiceBus,
                         max_values=max_values, ephemeral=ephemeral)
     if multi_select:
         return [bus.servers[x] for x in s]
-    else:
+    elif s:
         return bus.servers[s]
+    return None
 
 
 def get_ephemeral(interaction: discord.Interaction) -> bool:
