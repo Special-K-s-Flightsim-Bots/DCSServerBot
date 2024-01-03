@@ -119,7 +119,7 @@ class Server(DataObject):
             new_maintenance = maintenance
         if new_maintenance != self._maintenance:
             self._maintenance = new_maintenance
-            if not isinstance(maintenance, str):
+            if not isinstance(status, str) and not (self.node.master and not self.is_remote):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
@@ -145,7 +145,7 @@ class Server(DataObject):
             self._status = new_status
             self.status_change.set()
             self.status_change.clear()
-            if not isinstance(status, str):
+            if not isinstance(status, str) and not (self.node.master and not self.is_remote):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
