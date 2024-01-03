@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import certifi
 import os
 import shutil
@@ -88,8 +89,7 @@ class SRS(Extension):
     async def startup(self) -> bool:
         await super().startup()
         if self.config.get('autostart', True):
-            self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
-                os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
+            self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.config['config']}\"")
             if sys.platform == 'win32' and self.config.get('minimized', False):
                 import win32con
 
@@ -98,11 +98,11 @@ class SRS(Extension):
                 info.wShowWindow = win32con.SW_MINIMIZE
             else:
                 info = None
-            self.process = subprocess.Popen(
-                ['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config['config']))],
-                executable=os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'),
-                startupinfo=info
-            )
+            out = asyncio.subprocess.DEVNULL if not self.config.get('debug', False) else None
+            self.process = await asyncio.create_subprocess_exec(
+                self.get_exe_path(),
+                '-cfg={}'.format(os.path.expandvars(self.config['config'])),
+                startupinfo=info, stdout=out, stderr=out)
         return self.is_running()
 
     async def shutdown(self):
@@ -119,12 +119,13 @@ class SRS(Extension):
             server_ip = '127.0.0.1'
         return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
 
-    def get_exe_path(self) -> str:
+    def get_inst_path(self) -> str:
         return os.path.join(
             os.path.expandvars(self.config.get('installation',
-                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))),
-            'SR-Server.exe'
-        )
+                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))))
+
+    def get_exe_path(self) -> str:
+        return os.path.join(self.get_inst_path(), 'SR-Server.exe')
 
     @property
     def version(self) -> Optional[str]:
@@ -179,7 +180,7 @@ class SRS(Extension):
                         version = response.url.raw_parts[-1]
                         if version != self.version:
                             self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                            cwd = os.path.expandvars(self.config['installation'])
+                            cwd = self.get_inst_path()
                             subprocess.run(executable=os.path.join(cwd, 'SRS-AutoUpdater.exe'),
                                            args=['-server', '-autoupdate', f'-path=\"{cwd}\"'], cwd=cwd, shell=True)
         except OSError as ex:

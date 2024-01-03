@@ -82,8 +82,8 @@ class OvGMEService(Service):
             if 'packages' not in config:
                 return
 
-            for package in config['packages']:
-                if package['version'] == 'latest':
+            for package in config.get('packages', []):
+                if package.get('version', 'latest') == 'latest':
                     version = await self.get_latest_version(package)
                 else:
                     version = package['version']
@@ -96,10 +96,8 @@ class OvGMEService(Service):
                 server.maintenance = True
                 try:
                     if not installed:
-                        if await self.install_package(server, package['source'], package['name'], version,
-                                                      package.get('repo')):
-                            self.log.info(f"- Package {package['name']}_v{version} installed on server {server.name}.")
-                        else:
+                        if not await self.install_package(server, package['source'], package['name'], version,
+                                                          package.get('repo')):
                             self.log.warning(f"- Package {package['name']}_v{version} not found!")
                     elif installed != version:
                         if self.is_greater(installed, version):
@@ -267,34 +265,8 @@ class OvGMEService(Service):
                 return False
         return package_name in dirs
 
-    async def install_package(self, server: Server, folder: str, package_name: str, version: str,
-                              repo: Optional[str] = None) -> bool:
-        if server.is_remote:
-            return await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": "OvGME",
-                "method": "install_package",
-                "params": {
-                    "server": server.name,
-                    "folder": folder,
-                    "package_name": package_name,
-                    "version": version,
-                    "repo": repo
-                }
-            }, node=server.node.name)
-
-        config = self.get_config(server)
-        path = os.path.expandvars(config[folder])
-        os.makedirs(os.path.join(path, '.' + server.instance.name), exist_ok=True)
+    def do_install(self, server: Server, folder: str, package_name: str, version: str, path: str, filename: str) -> bool:
         target = self.node.installation if folder == 'RootFolder' else server.instance.home
-        try:
-            filename = str(next(Path(path).glob(f"{package_name}*{version}*")))
-        except StopIteration:
-            if repo:
-                await self.download_from_repo(repo, folder, package_name=package_name, version=version)
-                return await self.install_package(server, folder, package_name, version)
-            return False
-        self.log.info(f"Installing package {package_name}_v{version} ...")
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         os.makedirs(ovgme_path, exist_ok=True)
         if os.path.isfile(filename) and filename.endswith(".zip"):
@@ -354,37 +326,42 @@ class OvGMEService(Service):
                     ON CONFLICT (server_name, package_name) 
                     DO UPDATE SET version=excluded.version
                 """, (server.name, package_name, version, folder))
-        self.log.info(f"- Package {package_name}_v{version} successfully installed.")
+        self.log.info(f"- Package {package_name}_v{version} successfully installed in server {server.name}.")
         return True
 
-    async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+    async def install_package(self, server: Server, folder: str, package_name: str, version: str,
+                              repo: Optional[str] = None) -> bool:
         if server.is_remote:
             return await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "OvGME",
-                "method": "uninstall_package",
+                "method": "install_package",
                 "params": {
                     "server": server.name,
                     "folder": folder,
                     "package_name": package_name,
-                    "version": version
+                    "version": version,
+                    "repo": repo
                 }
             }, node=server.node.name)
 
-        self.log.info(f"Uninstalling package {package_name}_v{version} ...")
+        self.log.info(f"Installing package {package_name}_v{version} ...")
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
+        os.makedirs(os.path.join(path, '.' + server.instance.name), exist_ok=True)
+        try:
+            filename = str(next(Path(path).glob(f"{package_name}*{version}*")))
+        except StopIteration:
+            if repo:
+                await self.download_from_repo(repo, folder, package_name=package_name, version=version)
+                return await self.install_package(server, folder, package_name, version)
+            return False
+        return await asyncio.create_task(asyncio.to_thread(
+            self.do_install, server, folder, package_name, version, path, filename
+        ))
+
+    def do_uninstall(self, server: Server, folder: str, package_name: str, version: str, ovgme_path: str) -> bool:
         target = self.node.installation if folder == 'RootFolder' else server.instance.home
-        if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
-            self.log.warning(f"- Can't find {os.path.join(ovgme_path, 'install.log')}. Trying to recreate ...")
-            # try to recreate it
-            if folder == 'SavedGames':
-                if not self.recreate_install_log(server, package_name, version):
-                    self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
-                    return False
-                else:
-                    self.log.info("- Recreation successful.")
         with open(os.path.join(ovgme_path, 'install.log'), encoding=ENCODING) as log:
             lines = log.readlines()
             # delete has to run reverse to clean the directories
@@ -413,3 +390,36 @@ class OvGMEService(Service):
                 """, (server.name, folder, package_name, version))
         self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True
+
+    async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+        if server.is_remote:
+            return await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "service": "OvGME",
+                "method": "uninstall_package",
+                "params": {
+                    "server": server.name,
+                    "folder": folder,
+                    "package_name": package_name,
+                    "version": version
+                }
+            }, node=server.node.name)
+
+        self.log.info(f"Uninstalling package {package_name}_v{version} ...")
+        config = self.get_config(server)
+        path = os.path.expandvars(config[folder])
+        ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
+        if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
+            self.log.warning(f"- Can't find {os.path.join(ovgme_path, 'install.log')}. Trying to recreate ...")
+            # try to recreate it
+            if folder == 'SavedGames':
+                if not await asyncio.create_task(asyncio.to_thread(
+                        self.recreate_install_log, server, package_name, version
+                )):
+                    self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
+                    return False
+                else:
+                    self.log.info("- Recreation successful.")
+        return await asyncio.create_task(asyncio.to_thread(
+            self.do_uninstall, server, folder, package_name, version, ovgme_path
+        ))

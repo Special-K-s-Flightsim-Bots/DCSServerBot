@@ -2,6 +2,7 @@ import asyncio
 import os
 import shlex
 import shutil
+import subprocess
 import time
 from typing import TYPE_CHECKING
 
@@ -54,7 +55,7 @@ class BackupService(Service):
             for file in files:
                 zf.write(os.path.join(root, file), os.path.join(root.replace(base, ''), file))
 
-    async def backup_bot(self) -> bool:
+    def backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
         target = self.mkdir()
         config = self.locals['backups'].get('bot')
@@ -71,7 +72,7 @@ class BackupService(Service):
         finally:
             zf.close()
 
-    async def backup_servers(self) -> bool:
+    def backup_servers(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
         rc = True
@@ -91,7 +92,7 @@ class BackupService(Service):
                 zf.close()
         return rc
 
-    async def backup_database(self) -> bool:
+    def backup_database(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('database')
         cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
@@ -103,8 +104,8 @@ class BackupService(Service):
         args = shlex.split(f'-U postgres -F t -f "{path}" -d "{database}"')
         os.environ['PGPASSWORD'] = config['password']
         self.log.info("Backing up database...")
-        process = await asyncio.create_subprocess_exec(cmd, *args)
-        await process.wait()
+        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
         rc = process.returncode
         if rc == 0:
             self.log.info("Backup of database complete.")
@@ -126,13 +127,17 @@ class BackupService(Service):
 
     @tasks.loop(minutes=1)
     async def schedule(self):
+        tasks = []
         if self.node.master:
             if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
-                await self.backup_bot()
+                tasks.append(asyncio.create_task(asyncio.to_thread(self.backup_bot)))
             if 'database' in self.locals['backups'] and self.can_run(self.locals['backups']['database']):
-                await self.backup_database()
+                tasks.append(asyncio.create_task(asyncio.to_thread(self.backup_database)))
         if 'servers' in self.locals['backups'] and self.can_run(self.locals['backups']['servers']):
-            await self.backup_servers()
+            tasks.append(asyncio.create_task(asyncio.to_thread(self.backup_servers)))
+        if tasks:
+            await asyncio.gather(*tasks)
+            self.log.info("Backup finished.")
 
     @tasks.loop(hours=24)
     async def delete(self):
