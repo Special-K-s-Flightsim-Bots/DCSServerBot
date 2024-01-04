@@ -27,7 +27,9 @@ class SlotBlockingListener(EventListener):
                 return
             # get all linked members
             with self.pool.connection() as conn:
-                for row in conn.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1').fetchall():
+                for row in conn.execute("""
+                    SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
+                """).fetchall():
                     member = guild.get_member(row[1])
                     if not member:
                         continue

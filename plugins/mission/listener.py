@@ -104,7 +104,8 @@ class MissionEventListener(EventListener):
             await self.work_queue()
             if self.print_queue.seconds == 10:
                 self.print_queue.change_interval(seconds=2)
-        except discord.errors.DiscordException:
+        except discord.errors.DiscordException as ex:
+            self.log.exception(ex)
             self.print_queue.change_interval(seconds=10)
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
