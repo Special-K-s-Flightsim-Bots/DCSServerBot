@@ -115,7 +115,7 @@ class Install:
                 port = IntPrompt.ask(prompt='Enter the port to your PostgreSQL-database', default=5432)
         while True:
             passwd = Prompt.ask('Please enter your PostgreSQL master password (user=postgres)', password=True)
-            url = f'postgres://postgres:{quote(passwd)}@{host}:{port}/postgres'
+            url = f'postgres://postgres:{quote(passwd)}@{host}:{port}/postgres?sslmode=prefer'
             with psycopg.connect(url, autocommit=True) as conn:
                 with closing(conn.cursor()) as cursor:
                     passwd = secrets.token_urlsafe(8)
@@ -128,7 +128,7 @@ class Install:
                                                 password=True)
                             try:
                                 with psycopg.connect(
-                                        f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}"):
+                                        f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
                                     pass
                                 break
                             except psycopg.Error:
@@ -138,7 +138,7 @@ class Install:
                         cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
                         cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
                     print("[green]- Database user and database created.[/]")
-                    return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}"
+                    return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
 
     def install_master(self) -> Tuple[dict, dict, dict]:
         print("""
