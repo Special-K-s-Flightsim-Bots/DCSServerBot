@@ -75,10 +75,10 @@ class MissionStatisticsEventListener(EventListener):
             return
         player = get_value(data, 'initiator', 'name')
         init_player = server.get_player(name=player) if player else None
-        init_type = get_value(data, 'initiator', 'unit_type')
+        init_type = get_value(data, 'initiator', 'type')
         player = get_value(data, 'target', 'name')
         target_player = server.get_player(name=player) if player else None
-        target_type = get_value(data, 'target', 'unit_type')
+        target_type = get_value(data, 'target', 'type')
         if (config.get('persist_ai_statistics', False) or (init_player and init_type == 'UNIT') or
                 (target_player and target_type == 'UNIT')):
             dataset = {

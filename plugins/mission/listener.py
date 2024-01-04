@@ -84,20 +84,19 @@ class MissionEventListener(EventListener):
                 _channel = await self.bot.fetch_channel(channel)
                 if not _channel:
                     return
-            messages: list[str] = []
-            message_old = ''
+            messages = message_old = ''
             while not self.queue[channel].empty():
                 message = self.queue[channel].get()
                 if message != message_old:
-                    messages.append(message)
+                    messages += message
                     message_old = message
-                if messages.__sizeof__() > 1900:
+                if len(messages) > 1900:
                     if not flush:
                         break
-                    await _channel.send(''.join(messages))
-                    messages.clear()
+                    await _channel.send(messages)
+                    messages = message_old = ''
             if messages:
-                await _channel.send(''.join(messages))
+                await _channel.send(messages)
 
     @tasks.loop(seconds=2)
     async def print_queue(self):
