@@ -89,6 +89,7 @@ class Node:
             config['messages']['player_banned'] = config['messages'].get(
                 'player_banned', 'You are banned from this server. Reason: {}'
             )
+            config['chat_command_prefix'] = config.get('chat_command_prefix', '-')
             return config
         except FileNotFoundError:
             raise FatalException()

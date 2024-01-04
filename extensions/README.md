@@ -213,13 +213,13 @@ MyNode:
       # [...]
       extensions:
         RealWeather:
-          enabled: true
+          enabled: true   # optional to disable the extension, default: true
+          debug: true     # see outputs of RealWeather, default: false
           metar:
             icao: URMM
           options:
             update-time: true
             update-weather: true
-            time-offset: 0
             wind:
               minimum: -1
               maximum: -1

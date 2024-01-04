@@ -77,6 +77,8 @@ class Server(DataObject):
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:
                 _locals['message_ban'] = 'You are banned from this server. Reason: {}'
+            if 'message_server_full' not in _locals:
+                _locals['message_server_full'] = 'The server is full, please try again later.'
             return _locals
         return {}
 
@@ -119,7 +121,7 @@ class Server(DataObject):
             new_maintenance = maintenance
         if new_maintenance != self._maintenance:
             self._maintenance = new_maintenance
-            if not isinstance(maintenance, str):
+            if not isinstance(maintenance, str) and not (self.node.master and not self.is_remote):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
@@ -145,7 +147,7 @@ class Server(DataObject):
             self._status = new_status
             self.status_change.set()
             self.status_change.clear()
-            if not isinstance(status, str):
+            if not isinstance(status, str) and not (self.node.master and not self.is_remote):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",

@@ -784,9 +784,11 @@ class UserTransformer(app_commands.Transformer):
 
 class PlayerTransformer(app_commands.Transformer):
 
-    def __init__(self, *, active: bool = False):
+    def __init__(self, *, active: bool = False, watchlist: Optional[bool] = None, vip: Optional[bool] = None):
         super().__init__()
         self.active = active
+        self.watchlist = watchlist
+        self.vip = vip
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
         server: Server = interaction.client.get_server(interaction)
@@ -801,12 +803,13 @@ class PlayerTransformer(app_commands.Transformer):
                 choices: list[app_commands.Choice[str]] = [
                     app_commands.Choice(name=x.name, value=x.ucid)
                     for x in server.get_active_players()
-                    if current.casefold() in x.name.casefold()
+                    if ((not self.watchlist or x.watchlist == self.watchlist) and (not self.vip or x.vip == self.vip)
+                        and (not current or current.casefold() in x.name.casefold() or current.casefold() in x.ucid))
                 ]
             else:
                 choices = [
                     app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                    for ucid, name in get_all_players(interaction.client)
+                    for ucid, name in get_all_players(interaction.client, self.watchlist, self.vip)
                     if not current or current.casefold() in name.casefold() or current.casefold() in ucid
                 ]
             return choices[:25]
@@ -841,8 +844,9 @@ async def server_selection(bus: ServiceBus,
                         max_values=max_values, ephemeral=ephemeral)
     if multi_select:
         return [bus.servers[x] for x in s]
-    else:
+    elif s:
         return bus.servers[s]
+    return None
 
 
 def get_ephemeral(interaction: discord.Interaction) -> bool:

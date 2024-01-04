@@ -259,7 +259,7 @@ class Punishment(Plugin):
                 times = events = points = ''
                 total = 0.0
                 for row in cursor.fetchall():
-                    times += f"{row['time']:%m/%d %H:%M}\n"
+                    times += f"{row['time'].astimezone(timezone.utc):%m-%d %H:%M}\n"
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
                     total += float(row['points'])
@@ -276,7 +276,7 @@ class Punishment(Plugin):
                     if ban['banned_until'].year == 9999:
                         until = 'never'
                     else:
-                        until = f"<t:{int(ban['banned_until'].astimezone(timezone.utc).timestamp())}:f>"
+                        until = ban['banned_until'].astimezone(timezone.utc).strftime('%y-%m-%d %H:%M')
                     embed.add_field(name="Ban expires", value=until)
                     embed.add_field(name="Reason", value=ban['reason'])
                     embed.add_field(name='_ _', value='_ _')

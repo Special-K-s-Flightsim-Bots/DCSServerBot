@@ -221,6 +221,12 @@ class UserStatistics(Plugin):
                 player.member = member
                 player.verified = True
                 break
+            else:
+                server.send_to_dcs({
+                    'command': 'uploadUserRoles',
+                    'ucid': ucid,
+                    'roles': [x.name for x in member.roles]
+                })
 
     @command(description='Unlinks a member or ucid')
     @app_commands.guild_only()
@@ -251,6 +257,12 @@ class UserStatistics(Plugin):
             if player:
                 player.member = None
                 player.verified = False
+            else:
+                server.send_to_dcs({
+                    'command': 'uploadUserRoles',
+                    'ucid': ucid,
+                    'roles': []
+                })
 
     @command(description='Find a player by name')
     @utils.app_has_role('DCS Admin')
@@ -310,7 +322,7 @@ class UserStatistics(Plugin):
         else:
             server = None
 
-        view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
+        view = InfoView(member=member or ucid, bot=self.bot, ephemeral=ephemeral, player=player, server=server)
         embed = await view.render()
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:

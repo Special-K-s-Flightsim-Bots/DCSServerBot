@@ -379,12 +379,14 @@ class ServiceBus(Service):
     def send_to_node(self, data: dict, *, node: Optional[Union[Node, str]] = None):
         if isinstance(node, Node):
             node = node.name
+        priority = 1 if data.get('command', '') == 'rpc' else 0
         if self.master:
             if node and node != self.node.name:
                 self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
                 with self.pool.connection() as conn:
                     with conn.transaction():
-                        conn.execute("INSERT INTO intercom (node, data) VALUES (%s, %s)", (node, Json(data)))
+                        conn.execute("INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
+                                     (node, Json(data), priority))
             elif data['command'] != 'rpc':
                 self.udp_server.message_queue[data['server_name']].put(data)
             else:
@@ -393,7 +395,8 @@ class ServiceBus(Service):
             data['node'] = self.node.name
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
+                    conn.execute("INSERT INTO intercom (node, data, priority) VALUES ('Master', %s, %s)",
+                                 (Json(data), priority))
                     self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
     async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 30.0, *,
@@ -497,20 +500,25 @@ class ServiceBus(Service):
     async def intercom(self):
         with self.pool.connection() as conn:
             with conn.transaction():
-                # we read until there is no new data, then we wait for the next call (after 1 s)
-                for row in conn.execute("SELECT id, data FROM intercom WHERE node = %s",
-                                        ("Master" if self.master else self.node.name, )).fetchall():
-                    data = row[1]
-                    try:
-                        if data['command'] == 'rpc':
-                            asyncio.create_task(self.handle_rpc(data))
-                        elif self.master:
-                            asyncio.create_task(self.handle_master(data))
-                        else:
-                            asyncio.create_task(self.handle_agent(data))
-                    except Exception as ex:
-                        self.log.exception(ex)
-                    conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+                while True:
+                    # we read until there is no new data, then we wait for the next call (after 1 s)
+                    idx = 0
+                    for idx, row in enumerate(conn.execute("""
+                        SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 10
+                    """, ("Master" if self.master else self.node.name, )).fetchall()):
+                        data = row[1]
+                        try:
+                            if data['command'] == 'rpc':
+                                asyncio.create_task(self.handle_rpc(data))
+                            elif self.master:
+                                asyncio.create_task(self.handle_master(data))
+                            else:
+                                asyncio.create_task(self.handle_agent(data))
+                        except Exception as ex:
+                            self.log.exception(ex)
+                        conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+                    if idx < 10:
+                        break
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:

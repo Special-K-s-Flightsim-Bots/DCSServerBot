@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import discord
 import inspect
 import json
@@ -77,6 +78,7 @@ class Report:
                     footer += '\n' + text
                 self.env.embed.set_footer(text=footer[:2048])
             elif name == 'elements':
+                tasks = []
                 for element in item:
                     if isinstance(element, dict):
                         if 'params' in element:
@@ -100,17 +102,18 @@ class Report:
                             # remove parameters, that are not in the render classes signature
                             signature = inspect.signature(element_class.render).parameters.keys()
                             render_args = {name: value for name, value in element_args.items() if name in signature}
-                            try:
-                                await element_class.render(**render_args)
-                            except TimeoutError:
-                                self.log.error(f"Timeout while processing report {self.filename}! "
-                                               f"Some elements might be empty.")
-                            except Exception as ex:
-                                self.log.exception(ex)
+                            tasks.append(asyncio.create_task(element_class.render(**render_args)))
                         else:
                             raise UnknownReportElement(element['class'])
                     else:
                         raise ClassNotFound(element['class'])
+                try:
+                    await asyncio.gather(*tasks)
+                except TimeoutError:
+                    self.log.error(f"Timeout while processing report {self.filename}! "
+                                   f"Some elements might be empty.")
+                except Exception as ex:
+                    self.log.exception(ex)
         return self.env
 
 

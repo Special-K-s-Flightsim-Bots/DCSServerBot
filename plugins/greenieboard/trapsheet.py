@@ -1,8 +1,9 @@
 import csv
-import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+
+from datetime import datetime, timezone
 from numpy import ndarray
 from matplotlib.axes import Axes
 from pathlib import Path
@@ -350,9 +351,9 @@ def parse_filename(vinput) -> dict[str, str]:
     pinfo = {}
     p = Path(vinput)
     last_modified = p.stat().st_mtime
-    mod_timestamp = datetime.datetime.fromtimestamp(last_modified)
+    mod_timestamp = datetime.fromtimestamp(last_modified)
 
-    timestampStr = mod_timestamp.strftime("%b %d %Y, %H:%M:%S")
+    timestampStr = mod_timestamp.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     pinfo['time'] = timestampStr
     ps = p.stem
 

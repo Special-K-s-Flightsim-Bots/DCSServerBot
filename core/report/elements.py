@@ -171,6 +171,14 @@ class Graph(ReportElement):
         super().__init__(env)
         plt.switch_backend('agg')
 
+    def _plot(self):
+        plt.subplots_adjust(hspace=0.5, wspace=0.5)
+        self.env.filename = f'{uuid.uuid4()}.png'
+        self.env.buffer = BytesIO()
+        self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
+        self.env.buffer.seek(0)
+        plt.close(self.env.figure)
+
     async def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
                      facecolor: Optional[str] = None):
         plt.style.use('dark_background')
@@ -211,12 +219,7 @@ class Graph(ReportElement):
             return
         # only render the graph, if we don't have a rendered graph already attached as a file (image)
         if not self.env.filename:
-            plt.subplots_adjust(hspace=0.5, wspace=0.5)
-            self.env.filename = f'{uuid.uuid4()}.png'
-            self.env.buffer = BytesIO()
-            self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
-            self.env.buffer.seek(0)
-            plt.close(self.env.figure)
+            await asyncio.create_task(asyncio.to_thread(self._plot))
         self.env.embed.set_image(url='attachment://' + self.env.filename)
         footer = self.env.embed.footer.text or ''
         if footer is None:

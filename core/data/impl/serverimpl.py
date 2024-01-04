@@ -317,7 +317,7 @@ class ServerImpl(Server):
         # startup extensions again
         await self.startup_extensions()
 
-    async def do_startup(self):
+    def do_startup(self):
         basepath = self.node.installation
         for exe in ['DCS_server.exe', 'DCS.exe']:
             path = os.path.join(basepath, 'bin', exe)
@@ -369,7 +369,7 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
         await self.apply_mission_changes()
-        await self.do_startup()
+        await asyncio.create_task(asyncio.to_thread(self.do_startup))
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         try:

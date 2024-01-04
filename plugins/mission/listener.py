@@ -84,20 +84,19 @@ class MissionEventListener(EventListener):
                 _channel = await self.bot.fetch_channel(channel)
                 if not _channel:
                     return
-            messages: list[str] = []
-            message_old = ''
+            messages = message_old = ''
             while not self.queue[channel].empty():
                 message = self.queue[channel].get()
                 if message != message_old:
-                    messages.append(message)
+                    messages += message
                     message_old = message
-                if messages.__sizeof__() > 1900:
+                if len(messages) > 1900:
                     if not flush:
                         break
-                    await _channel.send(''.join(messages))
-                    messages.clear()
+                    await _channel.send(messages)
+                    messages = message_old = ''
             if messages:
-                await _channel.send(''.join(messages))
+                await _channel.send(messages)
 
     @tasks.loop(seconds=2)
     async def print_queue(self):
@@ -105,7 +104,8 @@ class MissionEventListener(EventListener):
             await self.work_queue()
             if self.print_queue.seconds == 10:
                 self.print_queue.change_interval(seconds=2)
-        except discord.errors.DiscordException:
+        except discord.errors.DiscordException as ex:
+            self.log.exception(ex)
             self.print_queue.change_interval(seconds=10)
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
@@ -220,6 +220,25 @@ class MissionEventListener(EventListener):
                         "banned_until": until
                     })
 
+    async def _watchlist_alert(self, server: Server, player: Player):
+        mentions = ''
+        for role_name in self.bot.roles['DCS Admin']:
+            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+            if role:
+                mentions += role.mention
+        embed = discord.Embed(title='Watchlist member joined!', colour=discord.Color.red())
+        embed.description = "A user just joined that you put on the watchlist."
+        embed.add_field(name="Server", value=server.name, inline=False)
+        embed.add_field(name="Player", value=player.name)
+        embed.add_field(name="UCID", value=player.ucid)
+        if player.member:
+            embed.add_field(name="_ _", value='_ _')
+            embed.add_field(name="Member", value=player.member.display_name)
+            embed.add_field(name="Discord ID", value=player.member.id)
+            embed.add_field(name="_ _", value='_ _')
+        embed.set_footer(text="Players can be removed from the watchlist by using the /info command.")
+        await self.bot.get_admin_channel(server).send(mentions, embed=embed)
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is starting up
@@ -332,6 +351,8 @@ class MissionEventListener(EventListener):
                 'ucid': player.ucid,
                 'roles': [x.name for x in player.member.roles]
             })
+        if player.watchlist:
+            await self._watchlist_alert(server, player)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:

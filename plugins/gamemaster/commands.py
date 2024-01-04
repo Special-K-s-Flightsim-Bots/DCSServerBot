@@ -332,7 +332,12 @@ class GameMaster(Plugin):
             for server in self.bot.servers.values():
                 player: Player = server.get_player(discord_id=after.id)
                 if player:
-                    player.member = after
+                    server.send_to_dcs({
+                        'command': 'uploadUserRoles',
+                        'id': player.id,
+                        'ucid': player.ucid,
+                        'roles': [x.name for x in after.roles]
+                    })
 
     async def _create_embed(self, message: discord.Message) -> None:
         async with aiohttp.ClientSession() as session:

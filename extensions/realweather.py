@@ -8,6 +8,10 @@ from core import Extension, MizFile, utils, DEFAULT_TAG
 from typing import Optional, Tuple
 
 
+class RealWeatherException(Exception):
+    pass
+
+
 class RealWeather(Extension):
     @property
     def version(self) -> Optional[str]:
@@ -41,10 +45,12 @@ class RealWeather(Extension):
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
             json.dump(cfg, outfile, indent=2)
+        out = asyncio.subprocess.DEVNULL if not self.config.get('debug', False) else None
         proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd,
-                                                    stdout=asyncio.subprocess.DEVNULL,
-                                                    stderr=asyncio.subprocess.DEVNULL)
-        await proc.wait()
+                                                    stdout=out, stderr=out)
+        rc = await proc.wait()
+        if rc != 0:
+            raise RealWeatherException(f"Error in RealWeather. Enable debug in your extension to see more.")
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
         MizFile(self, tmpname)
