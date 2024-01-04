@@ -35,6 +35,8 @@ Missions folder of your DCS-server (for instance via a Google Drive) will be aut
 | /player afk          | [minutes]           | all                   | DCS Admin             | Lists players that sit on Spectators since more than [minutes] (default 10 mins).                                                    |
 | /player chat         | player message      | admin-channel         | DCS Admin, GameMaster | Sends a in-game chat message to the respective player.                                                                               |
 | /player popup        | player message      | admin-channel         | DCS Admin, GameMaster | Sends a popup message to the respective player.                                                                                      |
+| /player watch        | player              | admin-channel         | DCS Admin             | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                               |
+| /player unwatch      | player              | admin-channel         | DCS Admin             | Removes a user from the watchlist.                                                                                                   |
 
 ## In-Game Chat Commands
 

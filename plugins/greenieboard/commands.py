@@ -4,6 +4,7 @@ import shutil
 
 from contextlib import closing
 from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG
+from datetime import timezone
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from psycopg.rows import dict_row
@@ -63,7 +64,8 @@ class GreenieBoard(Plugin):
     async def info(self, interaction: discord.Interaction,
                    user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
         def format_landing(landing: dict) -> str:
-            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
+            return (f"{landing['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S} - "
+                    f"{landing['unit_type']}@{landing['place']}: {landing['grade']}")
 
         ephemeral = utils.get_ephemeral(interaction)
         if not user:

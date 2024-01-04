@@ -10,7 +10,8 @@ class Header(report.EmbedElement):
     async def render(self, member: Union[discord.Member, str]):
         sql = """
             SELECT p.first_seen, p.last_seen, 
-                   CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_until
+                   CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_until,
+                   p.watchlist, p.vip
             FROM players p 
             LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
             WHERE p.discord_id = 
@@ -56,10 +57,14 @@ class Header(report.EmbedElement):
                 last_seen = row['last_seen'].astimezone(timezone.utc)
             if row['banned'] == 1:
                 banned = True
-        if first_seen != datetime(1970, 1, 1):
-            self.add_field(name='First seen (UTC):', value=first_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if last_seen != datetime(1970, 1, 1):
-            self.add_field(name='Last seen (UTC):', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
+            self.add_field(name='Last seen (UTC):', value=last_seen.strftime("%Y-%m-%d %H:%M"))
+        if first_seen != datetime(1970, 1, 1):
+            self.add_field(name='First seen (UTC):', value=first_seen.strftime("%Y-%m-%d %H:%M"))
+        if rows[0]['watchlist']:
+            self.add_field(name='Watchlist', value="🔍")
+        if rows[0]['vip']:
+            self.add_field(name="VIP", value="⭐")
         if banned:
             if rows[0]['banned_until'].year == 9999:
                 until = 'never'
@@ -110,7 +115,7 @@ class History(report.EmbedElement):
                     utils.escape_string(row['name'] or 'n/a') for row in rows
                 ]))
                 self.add_field(name='Time (UTC)', value='\n'.join([
-                    f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows
+                    f"{row['time'].astimezone(timezone.utc):%Y-%m-%d %H:%M:%S}" for row in rows
                 ]))
                 self.add_field(name='_ _', value='_ _')
 
@@ -125,7 +130,7 @@ class ServerInfo(report.EmbedElement):
 
 
 class Footer(report.EmbedElement):
-    async def render(self, member: Union[discord.Member, str], banned: bool, player: Optional[Player]):
+    async def render(self, member: Union[discord.Member, str], banned: bool, watchlist: bool, player: Optional[Player]):
         footer = ''
         if isinstance(member, discord.Member):
             _member: Member = DataObjectFactory().new('Member', node=self.node, member=member)
@@ -134,6 +139,7 @@ class Footer(report.EmbedElement):
                 if not _member.verified:
                     footer += '💯 Verify their DCS-link\n'
         footer += '✅ Unban them\n' if banned else '⛔ Ban them (DCS only)\n'
+        footer += '🆓 Unwatch them\n' if watchlist else '🔍 Put them on the watchlist\n'
         if player:
             footer += f'⏏️ Kick them from {player.server.name}'
         self.embed.set_footer(text=footer)

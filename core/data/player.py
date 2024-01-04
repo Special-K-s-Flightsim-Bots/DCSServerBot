@@ -37,6 +37,8 @@ class Player(DataObject):
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
     _coalition: Coalition = field(compare=False, default=None)
+    _watchlist: bool = field(compare=False, default=False)
+    _vip: bool = field(compare=False, default=False)
     bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):
@@ -50,7 +52,7 @@ class Player(DataObject):
                 with closing(conn.cursor()) as cursor:
                     cursor.execute("""
                         SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
-                               p.manual, c.coalition 
+                               p.manual, c.coalition, p.watchlist, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                         LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
                         WHERE p.ucid = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
@@ -64,6 +66,8 @@ class Player(DataObject):
                         self.banned = row[1]
                         if row[3]:
                             self.coalition = Coalition.RED if row[3] == 'red' else Coalition.BLUE
+                        self._watchlist = row[4]
+                        self._vip = row[5]
                     cursor.execute("""
                         INSERT INTO players (ucid, discord_id, name, last_seen) VALUES (%s, -1, %s, NOW()) 
                         ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
@@ -111,6 +115,29 @@ class Player(DataObject):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
+        self._verified = verified
+
+    @property
+    def watchlist(self) -> bool:
+        return self._watchlist
+
+    @watchlist.setter
+    def watchlist(self, watchlist: bool):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET watchlist = %s WHERE ucid = %s', (watchlist, self.ucid))
+        self._watchlist = watchlist
+
+    @property
+    def vip(self) -> bool:
+        return self._vip
+
+    @vip.setter
+    def vip(self, vip: bool):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
+        self._vip = vip
 
     @property
     def coalition(self) -> Coalition:

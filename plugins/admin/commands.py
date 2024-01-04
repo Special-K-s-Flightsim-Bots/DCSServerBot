@@ -4,6 +4,7 @@ import shutil
 
 from contextlib import closing
 from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance, Status, PlayerType
+from datetime import timezone
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -146,11 +147,95 @@ class Admin(Plugin):
             user = None
         embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'),
                         value=ban['ucid'])
-        until = ban['banned_until'].strftime('%Y-%m-%d %H:%M')
-        embed.add_field(name=f"Banned by: {ban['banned_by']}",
-                        value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
+        if ban['banned_until'].year == 9999:
+            until = 'never'
+        else:
+            until = ban['banned_until'].astimezone(timezone.utc).strftime('%y-%m-%d %H:%M')
+        embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}")
         embed.add_field(name='Reason', value=ban['reason'])
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+
+    @dcs.command(description='Moves a player onto the watchlist')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def watch(self, interaction: discord.Interaction,
+                    user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                        sel_type=PlayerType.PLAYER)]]):
+        if isinstance(user, discord.Member):
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message(f"Member {user.display_name} is not linked.")
+                return
+        else:
+            ucid = user
+        for server in self.bus.servers.values():
+            player = server.get_player(ucid=ucid)
+            if player:
+                if player.watchlist:
+                    await interaction.response.send_message(f"Player {player.display_name} was already on the watchlist.",
+                                                            ephemeral=utils.get_ephemeral(interaction))
+                else:
+                    player.watchlist = True
+                    await interaction.response.send_message(f"Player {player.display_name} is now on the watchlist.",
+                                                            ephemeral=utils.get_ephemeral(interaction))
+                return
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
+        await interaction.response.send_message(
+            "Player {} is now on the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
+            ephemeral=utils.get_ephemeral(interaction))
+
+    @dcs.command(description='Moves a player onto the watchlist')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def unwatch(self, interaction: discord.Interaction,
+                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                          sel_type=PlayerType.PLAYER)]]):
+        if isinstance(user, discord.Member):
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message(f"Member {user.display_name} is not linked.")
+                return
+        else:
+            ucid = user
+        for server in self.bus.servers.values():
+            player = server.get_player(ucid=ucid)
+            if player:
+                if not player.watchlist:
+                    await interaction.response.send_message(f"Player {player.display_name} wasn't on the watchlist.",
+                                                            ephemeral=utils.get_ephemeral(interaction))
+                else:
+                    player.watchlist = False
+                    await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
+                                                            ephemeral=utils.get_ephemeral(interaction))
+                return
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (ucid, ))
+        await interaction.response.send_message(
+            "Player {} removed from the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
+            ephemeral=utils.get_ephemeral(interaction))
+
+    @dcs.command(description='Shows the watchlist')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def watchlist(self, interaction: discord.Interaction):
+        ephemeral = utils.get_ephemeral(interaction)
+        with self.pool.connection() as conn:
+            watches = conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE").fetchall()
+            if not watches:
+                await interaction.response.send_message("The watchlist is currently empty.", ephemeral=ephemeral)
+                return
+            embed = discord.Embed(colour=discord.Colour.blue())
+            embed.description = "These players are currently on the watchlist:"
+            names = ucids = ""
+            for row in watches:
+                ucids = row[0] + "\n"
+                names += utils.escape_string(row[1]) + "\n"
+            embed.add_field(name="UCIDs", value=ucids)
+            embed.add_field(name="Names", value=names)
+            await interaction.response.send_message(embed=embed)
 
     @dcs.command(description='Update your DCS installations')
     @app_commands.guild_only()

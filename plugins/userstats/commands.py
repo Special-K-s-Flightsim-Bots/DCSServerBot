@@ -310,7 +310,7 @@ class UserStatistics(Plugin):
         else:
             server = None
 
-        view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
+        view = InfoView(member=member or ucid, bot=self.bot, ephemeral=ephemeral, player=player, server=server)
         embed = await view.render()
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:

@@ -147,7 +147,7 @@ class UniquePast14(report.GraphElement):
                 else:
                     rows = cursor.execute(sql).fetchall()
                 for row in rows:
-                    labels.append(row['date'].strftime('%a %m/%d'))
+                    labels.append(row['date'].strftime('%a %m-%d'))
                     values.append(row['players'])
                 self.axes.bar(labels, values, width=0.5, color='dodgerblue')
                 self.axes.set_title('Unique Players past 14 Days', color='white', fontsize=25)

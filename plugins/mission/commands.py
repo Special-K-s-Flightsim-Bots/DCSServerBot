@@ -689,6 +689,26 @@ class Mission(Plugin):
         player.sendChatMessage(message, interaction.user.display_name)
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
+    @player.command(description='Moves a player onto the watchlist')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def watch(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True, watchlist=False)]):
+        player.watchlist = True
+        await interaction.response.send_message(f"Player {player.display_name} is now on the watchlist.",
+                                                ephemeral=utils.get_ephemeral(interaction))
+
+    @player.command(description='Removes a player from the watchlist')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def unwatch(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                      player: app_commands.Transform[Player, utils.PlayerTransformer(active=True, watchlist=True)]):
+        player.watchlist = False
+        await interaction.response.send_message(f"Player {player.display_name} removed from watchlist.",
+                                                ephemeral = utils.get_ephemeral(interaction))
+
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
         with self.pool.connection() as conn:

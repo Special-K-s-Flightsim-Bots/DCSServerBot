@@ -237,13 +237,18 @@ def get_all_servers(self) -> list[str]:
         ]
 
 
-def get_all_players(self, linked: Optional[bool] = None) -> list[Tuple[str, str]]:
+def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
+                    vip: Optional[bool] = None) -> list[Tuple[str, str]]:
     sql = "SELECT ucid, name FROM players WHERE length(ucid) = 32"
+    if watchlist:
+        sql += " AND watchlist IS NOT FALSE"
+    if vip:
+        sql += " AND vip IS NOT FALSE"
     if linked is not None:
         if linked:
-            sql += ' AND discord_id != -1'
+            sql += " AND discord_id != -1"
         else:
-            sql += ' AND discord_id = -1'
+            sql += " AND discord_id = -1"
     with self.pool.connection() as conn:
         return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
 

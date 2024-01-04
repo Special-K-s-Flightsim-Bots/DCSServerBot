@@ -239,7 +239,7 @@ class CompetitiveListener(EventListener):
                         message += f"- {player.name}\n"
                     message += "\nThis is the log of your last match:\n"
                     for time, log in match.log:
-                        message += f"{time.astimezone(timezone.utc):%H:%M:%Sz}: {log}\n"
+                        message += f"{time.astimezone(timezone.utc):%H:%M:%S}: {log}\n"
                     message += "\nYour new rating is as follows:\n"
                     for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                         message += f"- {player.name}: {self.calculate_rating(self.get_rating(player))}\n"

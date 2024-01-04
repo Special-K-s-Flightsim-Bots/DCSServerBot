@@ -4,7 +4,7 @@ import re
 
 from contextlib import closing
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status, FatalException
-from datetime import datetime
+from datetime import datetime, timezone
 from discord.ext import commands
 from typing import Optional, Union, Tuple, TYPE_CHECKING
 
@@ -279,7 +279,7 @@ class DCSServerBot(commands.Bot):
                 embed.add_field(name='UCID', value=user)
             if server:
                 embed.add_field(name='Server', value=server.display_name)
-            embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
+            embed.set_footer(text=datetime.now().astimezone(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
         with self.pool.connection() as conn:
             with conn.transaction():
