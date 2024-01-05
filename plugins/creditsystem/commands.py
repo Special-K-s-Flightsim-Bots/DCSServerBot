@@ -98,7 +98,7 @@ class CreditSystem(Plugin):
                 points = row['new_points'] - row['old_points']
                 if points == 0:
                     continue
-                times += f"{row['time'].astimestamp(timezone.utc):%m-%d %H:%M}\n"
+                times += f"{row['time'].astimezone(timezone.utc):%m-%d %H:%M}\n"
                 events += row['event'].title() + '\n'
                 deltas += f"{points}\n"
             embed.add_field(name='Time', value=times)
