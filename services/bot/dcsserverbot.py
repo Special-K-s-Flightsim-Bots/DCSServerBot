@@ -6,7 +6,7 @@ from contextlib import closing
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status, FatalException
 from datetime import datetime, timezone
 from discord.ext import commands
-from typing import Optional, Union, Tuple, TYPE_CHECKING
+from typing import Optional, Union, Tuple, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..servicebus import ServiceBus
@@ -152,6 +152,11 @@ class DCSServerBot(commands.Bot):
             self.log.error(f'  => Permission "Manage Messages" missing for channel {channel_name}')
             ret = False
         return ret
+
+    def get_channel(self, id: int, /) -> Any:
+        if id == -1:
+            return None
+        return super().get_channel(id)
 
     async def check_channels(self, server: Server):
         channels = ['status', 'chat']
