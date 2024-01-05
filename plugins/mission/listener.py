@@ -179,7 +179,7 @@ class MissionEventListener(EventListener):
                 events_channel = server.channels[Channel.COALITION_BLUE_EVENTS]
         if not events_channel:
             events_channel = server.channels.get(Channel.EVENTS)
-        if events_channel:
+        if events_channel and events_channel != -1:
             if events_channel not in self.queue:
                 self.queue[events_channel] = Queue()
             self.queue[events_channel].put(message)

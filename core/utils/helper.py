@@ -268,7 +268,7 @@ def is_valid_url(url: str) -> bool:
 
 
 def is_github_repo(url: str) -> bool:
-    return is_valid_url(url) and 'https://github.com/' in url and not url.endswith('.zip')
+    return is_valid_url(url) and url.startswith('https://github.com/') and not url.endswith('.zip')
 
 
 def matches_cron(datetime_obj: datetime, cron_string: str):

@@ -518,7 +518,7 @@ class DCSServerBot(commands.Bot):
             else:
                 channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
-            if not channel:
+            if not channel and channel_id != -1:
                 channel = await self.fetch_channel(channel_id)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
