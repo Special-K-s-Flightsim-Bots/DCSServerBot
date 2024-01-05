@@ -16,10 +16,7 @@ class InstanceImpl(Instance):
 
     def __post_init__(self):
         super().__post_init__()
-        if not self.locals.get('missions_dir'):
-            self.missions_dir = os.path.join(self.home, 'Missions')
-        else:
-            self.missions_dir = os.path.expandvars(self.locals['missions_dir'])
+        self.missions_dir = os.path.expandvars(self.locals.get('missions_dir', os.path.join(self.home, 'Missions')))
         os.makedirs(self.missions_dir, exist_ok=True)
         os.makedirs(os.path.join(self.missions_dir, 'Scripts'), exist_ok=True)
         autoexec = Autoexec(instance=self)
