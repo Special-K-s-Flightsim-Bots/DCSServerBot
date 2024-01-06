@@ -40,9 +40,7 @@ class RealWeather(Plugin):
             if name == 'files':
                 element['input-mission'] = filename
                 element['output-mission'] = tmpname
-                if 'log' in config:
-                    element['log'] = config['log']
-            elif name in config:
+            if name in config:
                 if isinstance(config[name], dict):
                     element |= config[name]
                 else:
