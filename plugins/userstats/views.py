@@ -66,7 +66,7 @@ class InfoView(View):
     def is_watchlist(self) -> bool:
         with self.bot.pool.connection() as conn:
             row = conn.execute("SELECT watchlist FROM players WHERE ucid = %s", (self.ucid, )).fetchone()
-        return row[0]
+        return row[0] if row else False
 
     async def on_cancel(self, interaction: discord.Interaction):
         await interaction.response.defer()
