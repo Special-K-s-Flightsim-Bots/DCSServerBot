@@ -1,7 +1,8 @@
 import discord
 import psycopg
 
-from core import utils, Plugin, TEventListener, PluginRequiredError, Report, PaginationReport, Server, command
+from core import utils, Plugin, TEventListener, PluginRequiredError, Report, PaginationReport, Server, command, \
+    ValueNotInRange
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
@@ -45,12 +46,15 @@ class ServerStats(Plugin):
     async def serverload(self, interaction: discord.Interaction,
                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                          period: Optional[str]):
-        if _server:
-            await self.display_report(interaction, 'serverload.json', period, _server,
-                                      ephemeral=utils.get_ephemeral(interaction))
-        else:
-            report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
-            await report.render(period=period, server_name=None)
+        try:
+            if _server:
+                await self.display_report(interaction, 'serverload.json', period, _server,
+                                          ephemeral=utils.get_ephemeral(interaction))
+            else:
+                report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
+                await report.render(period=period, server_name=None)
+        except ValueNotInRange as ex:
+            await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Shows servers statistics')
     @app_commands.guild_only()
@@ -59,12 +63,15 @@ class ServerStats(Plugin):
     async def serverstats(self, interaction: discord.Interaction,
                           _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                           period: Optional[str]):
-        if _server:
-            await self.display_report(interaction, 'serverstats.json', period, _server,
-                                      ephemeral=utils.get_ephemeral(interaction))
-        else:
-            report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')
-            await report.render(period=period, server_name=None)
+        try:
+            if _server:
+                await self.display_report(interaction, 'serverstats.json', period, _server,
+                                          ephemeral=utils.get_ephemeral(interaction))
+            else:
+                report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')
+                await report.render(period=period, server_name=None)
+        except ValueNotInRange as ex:
+            await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
 
     @tasks.loop(hours=12.0)
     async def cleanup(self):
