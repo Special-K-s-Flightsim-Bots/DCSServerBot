@@ -97,6 +97,10 @@ class Admin(Plugin):
                 days = int(derived.period.value) if derived.period.value else None
                 if isinstance(derived.user, discord.Member):
                     ucid = self.bot.get_ucid_by_member(derived.user)
+                    if not ucid:
+                        await interaction.response.send_message(f"Member {derived.user.display_name} is not linked!",
+                                                                ephemeral=True)
+                        return
                     name = derived.user.display_name
                 else:
                     ucid = derived.user
