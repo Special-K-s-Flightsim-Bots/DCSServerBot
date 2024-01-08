@@ -258,6 +258,7 @@ class OvGMEService(Service):
         return False
 
     def is_ovgme(self, zfile: zipfile.ZipFile, package_name: str) -> bool:
+        dirs = ""
         for dirs in [
             x.filename.strip('/') for x in zfile.filelist if x.is_dir() and len(x.filename.strip('/').split('/')) == 1
         ]:

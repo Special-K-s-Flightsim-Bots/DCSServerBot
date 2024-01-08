@@ -841,7 +841,7 @@ class Mission(Plugin):
                     await utils.yn_question(ctx, 'Do you want to load this mission?')):
                 tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
                 try:
-                    await server.loadMission(server.settings['missionList'].index(filename) + 1)
+                    await server.loadMission(filename)
                 except asyncio.TimeoutError:
                     await tmp.delete()
                     await message.channel.send(f"Timeout while trying to load mission.")

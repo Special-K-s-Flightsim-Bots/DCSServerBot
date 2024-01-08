@@ -17,6 +17,7 @@ from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from extensions import RealWeatherException
 from pathlib import Path, PurePath
 from psutil import Process
 from typing import Optional, TYPE_CHECKING, Union
@@ -344,22 +345,25 @@ class ServerImpl(Server):
 
     async def init_extensions(self):
         for extension in self.locals.get('extensions', {}):
-            ext: Extension = self.extensions.get(extension)
-            if not ext:
-                if '.' not in extension:
-                    _extension = 'extensions.' + extension
-                else:
-                    _extension = extension
-                _ext = utils.str_to_class(_extension)
-                if not _ext:
-                    self.log.error(f"Extension {extension} could not be found!")
-                    return
-                ext = _ext(
-                    self,
-                    self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
-                )
-                if ext.is_installed():
-                    self.extensions[extension] = ext
+            try:
+                ext: Extension = self.extensions.get(extension)
+                if not ext:
+                    if '.' not in extension:
+                        _extension = 'extensions.' + extension
+                    else:
+                        _extension = extension
+                    _ext = utils.str_to_class(_extension)
+                    if not _ext:
+                        self.log.error(f"Extension {extension} could not be found!")
+                        return
+                    ext = _ext(
+                        self,
+                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
+                    )
+                    if ext.is_installed():
+                        self.extensions[extension] = ext
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def startup(self) -> None:
         await self.init_extensions()
@@ -444,6 +448,8 @@ class ServerImpl(Server):
             if isinstance(ex, UnsupportedMizFileException):
                 self.log.error(
                     f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
+            elif isinstance(ex, RealWeatherException):
+                self.log.error(ex)
             else:
                 self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
