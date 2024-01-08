@@ -151,6 +151,9 @@ class DCSServerBot(commands.Bot):
         if not permissions.manage_messages:
             self.log.error(f'  => Permission "Manage Messages" missing for channel {channel_name}')
             ret = False
+        if not permissions.use_application_commands:
+            self.log.error(f'  => Permission "Use Application Commands" missing for channel {channel_name}')
+            ret = False
         return ret
 
     def get_channel(self, id: int, /) -> Any:
