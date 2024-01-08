@@ -459,9 +459,11 @@ class MissionEventListener(EventListener):
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
                     and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
-                await self.bot.get_admin_channel(server).send(
-                    f'{server.display_name}: {name} (ucid={player1.ucid}) is killing team members. Please investigate.'
-                )
+                message = f"{name} (ucid={player1.ucid}) is killing team members. Please investigate."
+                # show the server name on central admin channels
+                if self.bot.locals.get('admin_channel'):
+                    message = f"{server.display_name}: " + message
+                await self.bot.get_admin_channel(server).send(message)
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             if data['arg1'] != -1:
                 player = server.get_player(id=data['arg1'])
