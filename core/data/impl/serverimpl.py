@@ -17,7 +17,6 @@ from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from extensions import RealWeatherException
 from pathlib import Path, PurePath
 from psutil import Process
 from typing import Optional, TYPE_CHECKING, Union
@@ -448,10 +447,8 @@ class ServerImpl(Server):
             if isinstance(ex, UnsupportedMizFileException):
                 self.log.error(
                     f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
-            elif isinstance(ex, RealWeatherException):
-                self.log.error(ex)
             else:
-                self.log.exception(ex)
+                self.log.error(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
             return filename
