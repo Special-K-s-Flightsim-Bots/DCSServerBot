@@ -578,7 +578,6 @@ class NodeImpl(Node):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
             return
-        old_name = server.name
         # we are doing the plugin changes, as we are the master
         ServiceRegistry.get('Bot').rename_server(server, new_name)
         # update the ServiceBus
