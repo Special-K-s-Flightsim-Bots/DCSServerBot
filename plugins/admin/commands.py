@@ -143,7 +143,11 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(user=utils.bans_autocomplete)
     async def bans(self, interaction: discord.Interaction, user: str):
-        ban = next(x for x in self.bus.bans() if x['ucid'] == user)
+        try:
+            ban = next(x for x in self.bus.bans() if x['ucid'] == user)
+        except StopIteration:
+            await interaction.response.send_message(f"User with UCID {user} is not banned.", ephemeral=True)
+            return
         embed = discord.Embed(title='Bans Information', color=discord.Color.blue())
         if ban['discord_id'] != -1:
             user = self.bot.get_user(ban['discord_id'])
