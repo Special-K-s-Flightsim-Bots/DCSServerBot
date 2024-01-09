@@ -281,9 +281,6 @@ class ServiceBus(Service):
             del self.servers[server.name]
         if server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put({})
-            if not self.udp_server.message_queue[server.name].empty():
-                self.udp_server.message_queue[server.name].join()
-            del self.udp_server.message_queue[server.name]
             self.udp_server.message_queue[new_name] = Queue()
             self.executor.submit(self.udp_server.process, new_name)
 
@@ -623,6 +620,7 @@ class ServiceBus(Service):
                     finally:
                         derived.message_queue[server.name].task_done()
                         data = derived.message_queue[server.name].get()
+                del derived.message_queue[server_name]
 
             def shutdown(derived):
                 super().shutdown()

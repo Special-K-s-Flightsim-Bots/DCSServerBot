@@ -275,8 +275,6 @@ class ServerImpl(Server):
             if update_settings:
                 self.settings['name'] = new_name
 
-        # shutdown all extensions
-        await self.shutdown_extensions()
         old_name = self.name
         try:
             # rename the server in the database
@@ -306,7 +304,7 @@ class ServerImpl(Server):
                         self.bus.rename_server(self, new_name)
             try:
                 # update servers.yaml
-                update_config(self.name, new_name, update_settings)
+                update_config(old_name, new_name, update_settings)
                 self.name = new_name
             except Exception as ex:
                 # rollback config
@@ -314,8 +312,6 @@ class ServerImpl(Server):
                 raise
         except Exception as ex:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
-        # startup extensions again
-        await self.startup_extensions()
 
     def do_startup(self):
         basepath = self.node.installation
