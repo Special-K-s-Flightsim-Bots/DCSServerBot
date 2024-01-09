@@ -150,6 +150,9 @@ class FunkManEventListener(EventListener):
         if not channel:
             return
         fig, _ = self.get_funkplot().PlotBombRun(data)
+        if not fig:
+            self.log.error("Bomb result could not be plotted (due to missing data?)")
+            return
         await self.send_fig(server, fig, channel)
 
     @event(name="moose_strafe_result")
@@ -169,6 +172,9 @@ class FunkManEventListener(EventListener):
         if not channel:
             return
         fig, _ = self.get_funkplot().PlotStrafeRun(data)
+        if not fig:
+            self.log.error("Strafe result could not be plotted (due to missing data?)")
+            return
         await self.send_fig(server, fig, channel)
 
     @event(name="moose_lso_grade")
@@ -179,6 +185,9 @@ class FunkManEventListener(EventListener):
             return
         try:
             fig, _ = self.get_funkplot().PlotTrapSheet(data)
+            if not fig:
+                self.log.error("Trapsheet could not be plotted (due to missing data?)")
+                return
             filename, buffer = self.save_fig(fig)
             with buffer:
                 embed = self.create_lso_embed(data)
