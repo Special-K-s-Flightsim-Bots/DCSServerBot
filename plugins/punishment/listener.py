@@ -114,6 +114,8 @@ class PunishmentEventListener(EventListener):
             elif data['eventName'] == 'kill':
                 if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
                     initiator = server.get_player(id=data['arg1'])
+                    if not initiator:
+                        return
                     target = server.get_player(id=data['arg4']) if data['arg4'] != -1 else None
                     data['initiator'] = initiator.name
                     if target:

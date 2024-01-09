@@ -493,7 +493,7 @@ class Scheduler(Plugin):
                                                              'Do you want to stop it?', ephemeral=ephemeral):
                 await server.stop()
             else:
-                await interaction.response.send_message('Aborted.', ephemeral=ephemeral)
+                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
                 return
 
         view = ConfigView(server)

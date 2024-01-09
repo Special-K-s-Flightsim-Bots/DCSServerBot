@@ -800,6 +800,8 @@ class PlayerTransformer(app_commands.Transformer):
         try:
             if self.active:
                 server: Server = interaction.client.get_server(interaction)
+                if not server:
+                    return []
                 choices: list[app_commands.Choice[str]] = [
                     app_commands.Choice(name=x.name, value=x.ucid)
                     for x in server.get_active_players()

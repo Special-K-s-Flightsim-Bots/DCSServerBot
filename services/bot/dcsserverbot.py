@@ -151,6 +151,9 @@ class DCSServerBot(commands.Bot):
         if not permissions.manage_messages:
             self.log.error(f'  => Permission "Manage Messages" missing for channel {channel_name}')
             ret = False
+        if not permissions.use_application_commands:
+            self.log.error(f'  => Permission "Use Application Commands" missing for channel {channel_name}')
+            ret = False
         return ret
 
     def get_channel(self, id: int, /) -> Any:
@@ -189,6 +192,12 @@ class DCSServerBot(commands.Bot):
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 self.log.info('- Checking Roles & Channels ...')
+                if 'GameMaster' not in self.locals.get('roles', {}):
+                    self.log.debug("  => Setting GameMaster role to DCS Admin")
+                    if not self.locals.get('roles'):
+                        self.locals['roles'] = {"GameMaster": "DCS Admin"}
+                    else:
+                        self.locals['roles']['GameMaster'] = self.locals['roles'].get('DCS Admin')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 if self.locals.get('admin_channel'):
                     await self.check_channel(int(self.locals['admin_channel']))

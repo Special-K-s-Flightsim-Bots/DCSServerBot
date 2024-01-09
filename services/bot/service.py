@@ -134,6 +134,8 @@ class BotService(Service):
     async def send_message(self, channel: int, content: Optional[str] = None, server: Optional[Server] = None,
                            filename: Optional[str] = None, embed: Optional[dict] = None):
         _channel = self.bot.get_channel(channel)
+        if not _channel:
+            return
         if embed:
             _embed = discord.Embed.from_dict(embed)
         else:

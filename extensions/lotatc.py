@@ -15,10 +15,13 @@ class LotAtc(Extension):
     def load_config(self) -> Optional[dict]:
         cfg = {}
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
-            with open(path, 'r', encoding='utf-8') as file:
-                content = file.read()
-            content = content.replace('lotatc_inst.options', 'cfg')
-            cfg |= luadata.unserialize(content)
+            try:
+                with open(path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                content = content.replace('lotatc_inst.options', 'cfg')
+                cfg |= luadata.unserialize(content)
+            except FileNotFoundError:
+                pass
         return cfg
 
     async def prepare(self) -> bool:

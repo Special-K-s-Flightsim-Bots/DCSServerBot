@@ -173,8 +173,11 @@ class Punishment(Plugin):
             if not ucid:
                 await interaction.response.send_message(f"User {user.display_name} is not linked.", ephemeral=ephemeral)
                 return
-        else:
+        elif user is not None:
             ucid = user
+        else:
+            await interaction.response.send_message("You must provide a valid UCID to be punished.", ephemeral=True)
+            return
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""

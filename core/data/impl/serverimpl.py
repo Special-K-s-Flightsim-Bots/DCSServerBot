@@ -275,8 +275,6 @@ class ServerImpl(Server):
             if update_settings:
                 self.settings['name'] = new_name
 
-        # shutdown all extensions
-        await self.shutdown_extensions()
         old_name = self.name
         try:
             # rename the server in the database
@@ -306,7 +304,7 @@ class ServerImpl(Server):
                         self.bus.rename_server(self, new_name)
             try:
                 # update servers.yaml
-                update_config(self.name, new_name, update_settings)
+                update_config(old_name, new_name, update_settings)
                 self.name = new_name
             except Exception as ex:
                 # rollback config
@@ -314,8 +312,6 @@ class ServerImpl(Server):
                 raise
         except Exception as ex:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
-        # startup extensions again
-        await self.startup_extensions()
 
     def do_startup(self):
         basepath = self.node.installation
@@ -344,22 +340,25 @@ class ServerImpl(Server):
 
     async def init_extensions(self):
         for extension in self.locals.get('extensions', {}):
-            ext: Extension = self.extensions.get(extension)
-            if not ext:
-                if '.' not in extension:
-                    _extension = 'extensions.' + extension
-                else:
-                    _extension = extension
-                _ext = utils.str_to_class(_extension)
-                if not _ext:
-                    self.log.error(f"Extension {extension} could not be found!")
-                    return
-                ext = _ext(
-                    self,
-                    self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
-                )
-                if ext.is_installed():
-                    self.extensions[extension] = ext
+            try:
+                ext: Extension = self.extensions.get(extension)
+                if not ext:
+                    if '.' not in extension:
+                        _extension = 'extensions.' + extension
+                    else:
+                        _extension = extension
+                    _ext = utils.str_to_class(_extension)
+                    if not _ext:
+                        self.log.error(f"Extension {extension} could not be found!")
+                        return
+                    ext = _ext(
+                        self,
+                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
+                    )
+                    if ext.is_installed():
+                        self.extensions[extension] = ext
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def startup(self) -> None:
         await self.init_extensions()
@@ -445,7 +444,7 @@ class ServerImpl(Server):
                 self.log.error(
                     f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
             else:
-                self.log.exception(ex)
+                self.log.error(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
             return filename
