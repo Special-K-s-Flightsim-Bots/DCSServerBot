@@ -30,6 +30,34 @@ class SRS(Extension):
         else:
             return {}
 
+    def enable_autoconnect(self):
+        # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
+        autoconnect = os.path.join(self.server.instance.home,
+                                   os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
+        host = self.config.get('host', self.node.public_ip)
+        port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
+        if os.path.exists(autoconnect):
+            shutil.copy2(autoconnect, autoconnect + '.bak')
+        with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua')) as infile:
+            with open(autoconnect, 'w') as outfile:
+                for line in infile.readlines():
+                    if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
+                        line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
+                               "SERVER_SRS_HOST for you! - Currently disabled\n"
+                    elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
+                        line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
+                    elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
+                        line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
+                               f'-- set to your PUBLIC ipv4 address\n'
+                    outfile.write(line)
+
+    def disable_autoconnect(self):
+        autoconnect = os.path.join(self.server.instance.home,
+                                   os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
+        if os.path.exists(autoconnect):
+            shutil.copy2(autoconnect, autoconnect + '.bak')
+            os.remove(autoconnect)
+
     async def prepare(self) -> bool:
         global ports
 
@@ -63,27 +91,11 @@ class SRS(Extension):
             return False
         else:
             ports[port] = self.server.name
-        # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
-        autoconnect = os.path.join(self.server.instance.home,
-                                   os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
-        host = self.config.get('host', self.node.public_ip)
-        port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
-        if os.path.exists(autoconnect):
-            shutil.copy2(autoconnect, autoconnect + '.bak')
-            with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua')) as infile:
-                with open(autoconnect, 'w') as outfile:
-                    for line in infile.readlines():
-                        if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
-                            line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
-                                   "SERVER_SRS_HOST for you! - Currently disabled\n"
-                        elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
-                            line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
-                        elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
-                            line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
-                                   f'-- set to your PUBLIC ipv4 address\n'
-                        outfile.write(line)
+        if self.config.get('autoconnect', True):
+            self.enable_autoconnect()
+            self.log.info('  => SRS autoconnect is enabled for this server.')
         else:
-            self.log.info('- SRS autoconnect is not enabled for this server.')
+            self.log.info('  => SRS autoconnect is NOT enabled for this server.')
         return await super().prepare()
 
     async def startup(self) -> bool:
