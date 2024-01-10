@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 import discord
 import inspect
 import json
+import os
 import sys
 
 from abc import ABC, abstractmethod
@@ -78,7 +78,6 @@ class Report:
                     footer += '\n' + text
                 self.env.embed.set_footer(text=footer[:2048])
             elif name == 'elements':
-                tasks = []
                 for element in item:
                     if isinstance(element, dict):
                         if 'params' in element:
@@ -102,18 +101,17 @@ class Report:
                             # remove parameters, that are not in the render classes signature
                             signature = inspect.signature(element_class.render).parameters.keys()
                             render_args = {name: value for name, value in element_args.items() if name in signature}
-                            tasks.append(asyncio.create_task(element_class.render(**render_args)))
+                            try:
+                                await element_class.render(**render_args)
+                            except TimeoutError:
+                                self.log.error(f"Timeout while processing report {self.filename}! "
+                                               f"Some elements might be empty.")
+                            except Exception as ex:
+                                self.log.exception(ex)
                         else:
                             raise UnknownReportElement(element['class'])
                     else:
                         raise ClassNotFound(element['class'])
-                try:
-                    await asyncio.gather(*tasks)
-                except TimeoutError:
-                    self.log.error(f"Timeout while processing report {self.filename}! "
-                                   f"Some elements might be empty.")
-                except Exception as ex:
-                    self.log.exception(ex)
         return self.env
 
 
@@ -214,14 +212,15 @@ class PaginationReport(Report):
                     self.children[4].disabled = False
                 if env.filename:
                     await interaction.edit_original_response(embed=env.embed, view=self, attachments=[
-                            discord.File(filename=env.filename, fp=env.buffer)
+                            discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename))
                         ]
                     )
                 else:
                     await interaction.edit_original_response(embed=env.embed, view=self, attachments=[])
             finally:
                 if not self.keep_image and env.filename:
-                    env.buffer.close()
+                    if env.buffer:
+                        env.buffer.close()
                     env.filename = None
 
         @discord.ui.select()
@@ -282,11 +281,12 @@ class PaginationReport(Report):
                 message = await self.interaction.followup.send(
                     embed=env.embed,
                     view=view,
-                    file=discord.File(filename=env.filename, fp=env.buffer) if env.filename else MISSING
+                    file=discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
                 )
             finally:
                 if not self.keep_image and env.filename:
-                    env.buffer.close()
+                    if env.buffer:
+                        env.buffer.close()
                     env.filename = None
             await view.wait()
         except Exception as ex:
@@ -311,7 +311,7 @@ class PersistentReport(Report):
         env = None
         try:
             env = await super().render(*args, **kwargs)
-            file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else MISSING
+            file = discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
             await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
                                     file=file, server=self.server)
             return env
