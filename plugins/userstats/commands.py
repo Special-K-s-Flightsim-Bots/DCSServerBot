@@ -165,7 +165,7 @@ class UserStatistics(Plugin):
             env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt,
                                       limit=limit)
             try:
-                file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else MISSING
+                file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
                 await interaction.followup.send(embed=env.embed, file=file)
             finally:
                 if env.buffer:
@@ -559,7 +559,7 @@ class UserStatistics(Plugin):
                 return
             env = await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
             try:
-                file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else discord.utils.MISSING
+                file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else discord.utils.MISSING
                 await channel.send(embed=env.embed, file=file)
             finally:
                 if env.buffer:

@@ -4,6 +4,7 @@ import asyncio
 import discord
 import inspect
 import numpy as np
+import os
 import sys
 import uuid
 
@@ -177,7 +178,6 @@ class Graph(ReportElement):
         self.env.buffer = BytesIO()
         self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
         self.env.buffer.seek(0)
-        plt.close(self.env.figure)
 
     async def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
                      facecolor: Optional[str] = None):
@@ -186,48 +186,52 @@ class Graph(ReportElement):
         if 'cjk_font' in self.bot.locals.get('reports', {}):
             plt.rcParams['font.family'] = [f"Noto Sans {self.bot.locals['reports']['cjk_font']}", 'sans-serif']
         self.env.figure = plt.figure(figsize=(width, height))
-        if facecolor:
-            self.env.figure.set_facecolor(facecolor)
-        tasks = []
-        for element in elements:
-            if 'params' in element:
-                element_args = parse_params(self.env.params, element['params'])
-            else:
-                element_args = self.env.params.copy()
-            element_class = utils.str_to_class(element['class']) if 'class' in element else None
-            if not element_class and 'type' in element:
-                element_class = getattr(sys.modules[__name__], element['type'])
-            if element_class:
-                # remove parameters, that are not in the class __init__ signature
-                signature = inspect.signature(element_class.__init__).parameters.keys()
-                class_args = {name: value for name, value in element_args.items() if name in signature}
-                # instantiate the class
-                element_class = element_class(self.env, rows, cols, **class_args)
-                if isinstance(element_class, (GraphElement, MultiGraphElement)):
-                    # remove parameters, that are not in the render methods signature
-                    signature = inspect.signature(element_class.render).parameters.keys()
-                    render_args = {name: value for name, value in element_args.items() if name in signature}
-                    tasks.append(asyncio.create_task(element_class.render(**render_args)))
-                else:
-                    raise UnknownGraphElement(element['class'])
-            else:
-                raise ClassNotFound(element['class'])
-        # check for any exceptions and raise them
         try:
-            await asyncio.gather(*tasks)
-        except NothingToPlot:
-            return
-        # only render the graph, if we don't have a rendered graph already attached as a file (image)
-        if not self.env.filename:
-            await asyncio.create_task(asyncio.to_thread(self._plot))
-        self.env.embed.set_image(url='attachment://' + self.env.filename)
-        footer = self.env.embed.footer.text or ''
-        if footer is None:
-            footer = 'Click on the image to zoom in.'
-        else:
-            footer += '\nClick on the image to zoom in.'
-        self.env.embed.set_footer(text=footer)
-
+            if facecolor:
+                self.env.figure.set_facecolor(facecolor)
+            tasks = []
+            for element in elements:
+                if 'params' in element:
+                    element_args = parse_params(self.env.params, element['params'])
+                else:
+                    element_args = self.env.params.copy()
+                element_class = utils.str_to_class(element['class']) if 'class' in element else None
+                if not element_class and 'type' in element:
+                    element_class = getattr(sys.modules[__name__], element['type'])
+                if element_class:
+                    # remove parameters, that are not in the class __init__ signature
+                    signature = inspect.signature(element_class.__init__).parameters.keys()
+                    class_args = {name: value for name, value in element_args.items() if name in signature}
+                    # instantiate the class
+                    element_class = element_class(self.env, rows, cols, **class_args)
+                    if isinstance(element_class, (GraphElement, MultiGraphElement)):
+                        # remove parameters, that are not in the render methods signature
+                        signature = inspect.signature(element_class.render).parameters.keys()
+                        render_args = {name: value for name, value in element_args.items() if name in signature}
+                        tasks.append(asyncio.create_task(element_class.render(**render_args)))
+                    else:
+                        raise UnknownGraphElement(element['class'])
+                else:
+                    raise ClassNotFound(element['class'])
+            # check for any exceptions and raise them
+            try:
+                await asyncio.gather(*tasks)
+            except NothingToPlot:
+                return
+            # only render the graph, if we don't have a rendered graph already attached as a file (image)
+            if not self.env.filename:
+                await asyncio.create_task(asyncio.to_thread(self._plot))
+            self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
+            footer = self.env.embed.footer.text or ''
+            if footer is None:
+                footer = 'Click on the image to zoom in.'
+            else:
+                footer += '\nClick on the image to zoom in.'
+            self.env.embed.set_footer(text=footer)
+        finally:
+            if self.env.figure:
+                plt.close(self.env.figure)
+                self.env.figure = None
 
 def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: bool):
     if isinstance(no_data, str):

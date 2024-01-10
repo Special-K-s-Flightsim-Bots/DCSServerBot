@@ -104,7 +104,7 @@ class Mission(Plugin):
         report = Report(self.bot, self.plugin_name, 'serverStatus.json')
         env: ReportEnv = await report.render(server=server)
         try:
-            file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else discord.utils.MISSING
+            file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else discord.utils.MISSING
             await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
         finally:
             if env.buffer:
