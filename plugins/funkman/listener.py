@@ -105,7 +105,7 @@ class FunkManEventListener(EventListener):
     async def send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
         filename, buffer = self.save_fig(fig)
         with buffer:
-            await channel.send(file=discord.File(filename=filename, fp=buffer),
+            await channel.send(file=discord.File(fp=buffer, filename=filename),
                                delete_after=self.config.get('delete_after'))
 
     async def update_rangeboard(self, server: Server, what: Literal['strafe', 'bomb']):
@@ -150,6 +150,9 @@ class FunkManEventListener(EventListener):
         if not channel:
             return
         fig, _ = self.get_funkplot().PlotBombRun(data)
+        if not fig:
+            self.log.error("Bomb result could not be plotted (due to missing data?)")
+            return
         await self.send_fig(server, fig, channel)
 
     @event(name="moose_strafe_result")
@@ -169,6 +172,9 @@ class FunkManEventListener(EventListener):
         if not channel:
             return
         fig, _ = self.get_funkplot().PlotStrafeRun(data)
+        if not fig:
+            self.log.error("Strafe result could not be plotted (due to missing data?)")
+            return
         await self.send_fig(server, fig, channel)
 
     @event(name="moose_lso_grade")
@@ -179,11 +185,14 @@ class FunkManEventListener(EventListener):
             return
         try:
             fig, _ = self.get_funkplot().PlotTrapSheet(data)
+            if not fig:
+                self.log.error("Trapsheet could not be plotted (due to missing data?)")
+                return
             filename, buffer = self.save_fig(fig)
             with buffer:
                 embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
-                await channel.send(embed=embed, file=discord.File(filename=filename, fp=buffer),
+                await channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
                                    delete_after=self.config.get('delete_after'))
         except (ValueError, TypeError):
             self.log.error("No trapsheet data received from DCS!")

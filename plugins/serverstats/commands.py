@@ -33,7 +33,7 @@ class ServerStats(Plugin):
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server.name, node=server.node.name)
         try:
-            file = discord.File(filename=env.filename, fp=env.buffer) if env.filename else MISSING
+            file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
             await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
         finally:
             if env.buffer:

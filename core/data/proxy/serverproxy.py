@@ -76,7 +76,7 @@ class ServerProxy(Server):
             "object": "Server",
             "method": "startup_extensions",
             "server_name": self.name
-        }, node=self.node.name, timeout=60)
+        }, node=self.node.name, timeout=180)
 
     async def shutdown_extensions(self) -> None:
         await self.bus.send_to_node_sync({
@@ -106,7 +106,7 @@ class ServerProxy(Server):
             "object": "Server",
             "method": "init_extensions",
             "server_name": self.name
-        }, node=self.node.name, timeout=60)
+        }, node=self.node.name, timeout=180)
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         data = await self.bus.send_to_node_sync({

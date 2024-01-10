@@ -63,6 +63,7 @@ MyNode:
           config: '%USERPROFILE%\Saved Games\DCS.openbeta_server\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
+          autoconnect: true   # install the appropriate DCS-SRS-AutoConnectGameGUI.lua, default: true
           awacs: true
           blue_password: blue
           red_password: red

@@ -114,6 +114,10 @@ class MOTD(Plugin):
         except Exception as ex:
             self.log.exception(ex)
 
+    @nudge.before_loop
+    async def before_nudge(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:

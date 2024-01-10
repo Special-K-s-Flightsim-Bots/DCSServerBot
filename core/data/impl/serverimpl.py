@@ -353,7 +353,7 @@ class ServerImpl(Server):
                         return
                     ext = _ext(
                         self,
-                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
+                        self.node.locals.get('extensions', {}).get(extension, {}) | self.locals['extensions'][extension]
                     )
                     if ext.is_installed():
                         self.extensions[extension] = ext

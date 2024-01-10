@@ -441,7 +441,7 @@ class NodeImpl(Node):
             new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
                                                        password=self.locals['DCS'].get('dcs_password'))
             if new_version and old_version != new_version:
-                self.log.warning(f"Your DCS version is outdated. Consider upgrading to version {new_version}.")
+                self.log.warning(f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
 
     async def unregister(self):
         with self.pool.connection() as conn:
@@ -578,7 +578,6 @@ class NodeImpl(Node):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
             return
-        old_name = server.name
         # we are doing the plugin changes, as we are the master
         ServiceRegistry.get('Bot').rename_server(server, new_name)
         # update the ServiceBus
