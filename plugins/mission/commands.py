@@ -441,6 +441,7 @@ class Mission(Plugin):
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
+        result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:
             question = 'Do you want to restart the server for a preset change?'
             if server.is_populated():
@@ -461,7 +462,7 @@ class Mission(Plugin):
                 return
         finally:
             await msg.delete()
-        if view.result == 'later':
+        if result == 'later':
             server.on_empty = {"command": "preset", "preset": view.result, "user": interaction.user}
             server.restart_pending = True
             await interaction.followup.send(f'Preset will be changed when server is empty.', ephemeral=ephemeral)
@@ -472,7 +473,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename, _ = await MizEdit(server, {"settings": view.result}).beforeMissionLoad(filename)
+            new_filename, _ = await MizEdit(server, {"settings": ",".join(view.result)}).beforeMissionLoad(filename)
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")

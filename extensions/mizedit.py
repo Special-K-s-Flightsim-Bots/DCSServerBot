@@ -40,19 +40,18 @@ class MizEdit(Extension):
             else:
                 return []
 
-        presets = []
         now = datetime.now()
-        _presets = config['settings']
-        if isinstance(_presets, dict):
-            for key, value in _presets.items():
+        presets = config['settings']
+        if isinstance(presets, dict):
+            for key, value in presets.items():
                 if utils.is_in_timeframe(now, key):
-                    _presets = presets = value
+                    presets = value
                     break
-            if not presets:
+            else:
                 # no preset found for the current time, so don't change anything
-                return True
-        if isinstance(_presets, list):
-            presets = random.choice(_presets)
+                return []
+        if isinstance(presets, list):
+            presets = random.choice(presets)
         if isinstance(presets, str):
             all_presets = [x.strip() for x in presets.split(',')]
         else:
