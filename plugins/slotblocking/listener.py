@@ -19,10 +19,9 @@ class SlotBlockingListener(EventListener):
                 'params': config
             })
             guild = self.bot.guilds[0]
-            roles = [
-                discord.utils.get(guild.roles, name=x)
-                for x in config.get('VIP', {}).get('discord', [])
-            ]
+            roles = []
+            for role in config.get('VIP', {}).get('discord', []):
+                roles.append(self.bot.get_role(role))
             if not roles:
                 return
             # get all linked members

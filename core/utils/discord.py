@@ -292,6 +292,8 @@ async def populated_question(interaction: discord.Interaction, question: str, me
 
 
 def check_roles(roles: Iterable[Union[str, int]], member: discord.Member) -> bool:
+    if not member:
+        return False
     for role in member.roles:
         for valid_role in roles:
             if isinstance(valid_role, str) and role.name == valid_role:
@@ -340,10 +342,10 @@ def cmd_has_roles(roles: list[str]):
 
 def app_has_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        valid_roles = []
+        valid_roles = set()
         for role in roles:
-            valid_roles.extend(interaction.client.roles[role])
-        return check_roles(set(valid_roles), interaction.user)
+            valid_roles |= set(interaction.client.roles[role])
+        return check_roles(valid_roles, interaction.user)
 
     return app_commands.check(predicate)
 
@@ -357,10 +359,10 @@ def app_has_not_role(role: str):
 
 def app_has_not_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        invalid_roles = []
+        invalid_roles = set()
         for role in roles:
-            invalid_roles.extend(interaction.client.roles[role])
-        return not check_roles(set(invalid_roles), interaction.user)
+            invalid_roles |= set(interaction.client.roles[role])
+        return not check_roles(invalid_roles, interaction.user)
 
     return app_commands.check(predicate)
 

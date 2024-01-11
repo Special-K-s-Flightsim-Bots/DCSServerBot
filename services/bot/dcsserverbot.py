@@ -6,7 +6,7 @@ from contextlib import closing
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status, FatalException
 from datetime import datetime, timezone
 from discord.ext import commands
-from typing import Optional, Union, Tuple, TYPE_CHECKING, Any
+from typing import Optional, Union, Tuple, TYPE_CHECKING, Any, Iterable
 
 if TYPE_CHECKING:
     from ..servicebus import ServiceBus
@@ -107,16 +107,10 @@ class DCSServerBot(commands.Bot):
         else:
             return False
 
-    def check_roles(self, roles: list, server: Optional[Server] = None):
-        config_roles = []
-        base = server or self
+    def check_roles(self, roles: Iterable[Union[str, int]]):
         for role in roles:
-            config_roles.extend(base.locals.get('roles', {}).get(role, [role]))
-            for discord_role in self.guilds[0].roles:
-                if discord_role.name in config_roles:
-                    config_roles.remove(discord_role.name)
-            for bad_role in config_roles:
-                self.log.error(f"  => Role {bad_role} not found in your Discord!")
+            if not self.get_role(role):
+                self.log.error(f"  => Role {role} not found in your Discord!")
 
     async def check_channel(self, channel_id: int) -> bool:
         channel = self.get_channel(channel_id)
@@ -161,6 +155,17 @@ class DCSServerBot(commands.Bot):
             return None
         return super().get_channel(id)
 
+    def get_role(self, role: Union[str, int]) -> Optional[discord.Role]:
+        if isinstance(role, int):
+            return discord.utils.get(self.guilds[0].roles, id=role)
+        elif isinstance(role, str):
+            if role.isnumeric():
+                return self.get_role(int(role))
+            else:
+                return discord.utils.get(self.guilds[0].roles, name=role)
+        else:
+            return None
+
     async def check_channels(self, server: Server):
         channels = ['status', 'chat']
         if not self.locals.get('admin_channel'):
@@ -192,21 +197,18 @@ class DCSServerBot(commands.Bot):
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 self.log.info('- Checking Roles & Channels ...')
-                if 'GameMaster' not in self.locals.get('roles', {}):
-                    self.log.debug("  => Setting GameMaster role to DCS Admin")
-                    if not self.locals.get('roles'):
-                        self.locals['roles'] = {"GameMaster": "DCS Admin"}
-                    else:
-                        self.locals['roles']['GameMaster'] = self.locals['roles'].get('DCS Admin')
-                self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
+                roles = set()
+                for role in ['Admin', 'DCS Admin', 'DCS', 'GameMaster']:
+                    roles |= set(self.roles[role])
+                self.check_roles(roles)
                 if self.locals.get('admin_channel'):
                     await self.check_channel(int(self.locals['admin_channel']))
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
-                        roles = []
-                        roles.extend([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
-                        roles.extend([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
-                        self.check_roles(roles, server)
+                        roles.clear()
+                        roles |= set([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
+                        roles |= set([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
+                        self.check_roles(roles)
                     await self.check_channels(server)
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
