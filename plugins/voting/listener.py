@@ -4,10 +4,13 @@ import os
 from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin, Status
 from functools import partial
 from itertools import islice
-from typing import Literal, Iterable, Optional
+from typing import Iterable, Optional
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+
+from services import DCSServerBot
+
 yaml = YAML()
 
 
@@ -15,8 +18,9 @@ all_votes: dict[str, 'Vote'] = dict()
 
 
 class Vote:
-    def __init__(self, server: Server, config: dict, what: Literal['mission', 'preset']):
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict, what: str):
         self.loop = asyncio.get_event_loop()
+        self.bot = bot
         self.server = server
         self.config = config
         self.what = what
@@ -108,6 +112,7 @@ class Vote:
                 else:
                     mission = os.path.join(await self.server.get_missions_dir(), winner)
                     await self.server.loadMission(mission=mission, modify_mission=False)
+                    await self.bot.audit("Mission changed by voting", server=self.server)
             else:
                 filename = await self.server.get_current_mission_file()
                 if not self.server.node.config.get('mission_rewrite', True):
@@ -118,6 +123,7 @@ class Vote:
                 await self.server.restart(modify_mission=False)
                 if self.server.status == Status.STOPPED:
                     await self.server.start()
+                await self.bot.audit("Mission preset changed by voting", server=self.server)
         del all_votes[self.server.name]
 
 
@@ -147,7 +153,7 @@ class VotingListener(EventListener):
             return
         vote.vote(player, int(params[0]))
 
-    def create_vote(self, server: Server, player: Player, config: dict, params: list[str]):
+    async def create_vote(self, bot: DCSServerBot, server: Server, player: Player, config: dict, params: list[str]):
         global all_votes
 
         choices = []
@@ -169,7 +175,8 @@ class VotingListener(EventListener):
             player.sendChatMessage(f"Invalid option '{what}'.")
             return
         config['prefix'] = self.prefix
-        all_votes[server.name] = Vote(server=server, config=config, what=what)
+        all_votes[server.name] = Vote(bot=bot, server=server, config=config, what=what)
+        await bot.audit("created a voting", user=player.member or player.ucid, server=server)
 
     @chat_command(name="vote", help="start a voting or vote for a change")
     async def vote(self, server: Server, player: Player, params: list[str]):
@@ -186,6 +193,7 @@ class VotingListener(EventListener):
                     message = "The voting has been cancelled by an Admin."
                     server.sendChatMessage(Coalition.ALL, message)
                     server.sendPopupMessage(Coalition.ALL, message)
+                    await self.bot.audit("cancelled voting", user=player.member, server=server)
                     return
                 else:
                     player.sendChatMessage("You don't have the permission to cancel a voting.")
@@ -203,4 +211,4 @@ class VotingListener(EventListener):
             if delta > 0:
                 player.sendChatMessage(f"A new voting can be started in {utils.format_time(delta)}")
                 return
-        self.create_vote(server, player, config, params)
+        await self.create_vote(self.bot, server, player, config, params)
