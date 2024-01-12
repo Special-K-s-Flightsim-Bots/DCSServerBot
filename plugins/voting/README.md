@@ -34,3 +34,14 @@ to an empty list like so:
 DEFAULT:
   mission: []
 ```
+
+## In-Game Commands
+
+| Command | Parameter         | Description                                             |
+|---------|-------------------|---------------------------------------------------------|
+| .vote   | <mission\|preset> | Start a voting for either a mission or a preset change. | 
+| .vote   | cancel            | Cancel a voting (only DCS Admin can do that).           |
+| .vote   | <num>             | Vote for one of the options.                            |
+| .vote   |                   | Display the current voting and the leader.              |
+
+A voting will automatically end and apply the changes after another 60 seconds.
