@@ -1,6 +1,4 @@
 import asyncio
-from pathlib import Path
-
 import discord
 import os
 import psycopg
@@ -13,7 +11,7 @@ from discord import Interaction, app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
-from extensions import MizEdit
+from pathlib import Path
 from services import DCSServerBot
 from typing import Optional
 
@@ -473,7 +471,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename, _ = await MizEdit(server, {"settings": ",".join(view.result)}).beforeMissionLoad(filename)
+            new_filename = await server.modifyMission(filename, [utils.get_preset(x) for x in view.result])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")

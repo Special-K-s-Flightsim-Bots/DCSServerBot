@@ -291,7 +291,7 @@ async def populated_question(interaction: discord.Interaction, question: str, me
         await msg.delete()
 
 
-def check_roles(roles: Iterable[Union[str, int]], member: discord.Member) -> bool:
+def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:
     if not member:
         return False
     for role in member.roles:

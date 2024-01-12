@@ -611,7 +611,7 @@ class MissionEventListener(EventListener):
             filename = await server.get_current_mission_file()
             if not server.node.config.get('mission_rewrite', True):
                 await server.stop()
-            new_filename = await server.modifyMission(filename, [preset])
+            new_filename = await server.modifyMission(filename, utils.get_preset(preset))
             if new_filename != filename:
                 await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
             await server.restart(modify_mission=False)
@@ -619,19 +619,17 @@ class MissionEventListener(EventListener):
                 await server.start()
             await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
 
-        config = self.plugin.get_config(server)
-        if config and 'presets' in config:
-            presets = list(config['presets'].keys())
+        presets = list(utils.get_presets())
+        if presets:
             if not params:
                 message = 'The following presets are available:\n'
-                for i in range(0, len(presets)):
-                    preset = presets[i]
-                    message += f"{i + 1} {preset}\n"
+                for idx, preset in enumerate(presets):
+                    message += f"{idx + 1} {preset}\n"
                 message += f"\nUse {self.prefix}preset <number> to load that preset " \
                            f"(mission will be restarted!)"
                 player.sendUserMessage(message, 30)
             else:
                 n = int(params[0]) - 1
-                self.bot.loop.call_soon(asyncio.create_task, change_preset, presets[n])
+                self.bot.loop.call_soon(asyncio.create_task, change_preset(presets[n]))
         else:
             player.sendChatMessage(f"There are no presets available to select.")

@@ -1,1 +1,1 @@
-ALTER TABLE players ADD COLUMN coalition TEXT, ADD COLUMN coalition_leave TIMESTAMP;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS coalition TEXT, ADD COLUMN IF NOT EXISTS coalition_leave TIMESTAMP;

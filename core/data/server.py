@@ -270,11 +270,12 @@ class Server(DataObject):
 
     def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
         if coalition == Coalition.ALL:
-            self.send_to_dcs({
-                "command": "sendChatMessage",
-                "from": sender,
-                "message": message
-            })
+            for msg in message.split('\n'):
+                self.send_to_dcs({
+                    "command": "sendChatMessage",
+                    "from": sender,
+                    "message": msg
+                })
         else:
             raise NotImplemented()
 
