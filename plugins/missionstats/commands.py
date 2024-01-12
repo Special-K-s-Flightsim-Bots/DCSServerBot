@@ -10,6 +10,37 @@ from typing import Optional, Union
 from .listener import MissionStatisticsEventListener
 
 
+async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+
+    def get_modules(ucid: str) -> list[str]:
+        with interaction.client.pool.connection() as conn:
+            return [row[0] for row in conn.execute("""
+                SELECT DISTINCT slot, COUNT(*) FROM statistics 
+                WHERE player_ucid =  %s 
+                AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
+                GROUP BY 1 ORDER BY 2 DESC
+            """, (ucid, )).fetchall()]
+
+    try:
+        user = await utils.UserTransformer().transform(interaction, utils.get_interaction_param(interaction, "user"))
+        if not user:
+            return []
+        if isinstance(user, str):
+            ucid = user
+        else:
+            ucid = interaction.client.get_ucid_by_member(user)
+        if not ucid:
+            return []
+        ret = [
+            app_commands.Choice(name=x, value=x)
+            for x in get_modules(ucid)
+            if not current or current.casefold() in x.casefold()
+        ]
+        return ret[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 class MissionStatistics(Plugin):
 
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
@@ -85,7 +116,7 @@ class MissionStatistics(Plugin):
     @command(description='Module statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.autocomplete(module=utils.player_modules_autocomplete)
+    @app_commands.autocomplete(module=player_modules_autocomplete)
     async def modulestats(self, interaction: discord.Interaction,
                           user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
                           module: Optional[str], period: Optional[str]):

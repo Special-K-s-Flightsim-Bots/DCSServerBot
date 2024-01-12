@@ -23,6 +23,24 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
+async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    try:
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            for idx, x in enumerate(await server.listAvailableMissions())
+            if x not in installed_missions and current.casefold() in os.path.basename(x).casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 async def orig_mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
         return []
@@ -319,7 +337,7 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(idx="path")
-    @app_commands.autocomplete(idx=utils.mizfile_autocomplete)
+    @app_commands.autocomplete(idx=mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
