@@ -36,6 +36,8 @@ class Olympus(Extension):
             return {}
 
     def is_installed(self) -> bool:
+        if not self.config.get('enabled', True):
+            return False
         if not os.path.exists(os.path.join(self.home, 'bin', 'olympus.dll')):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
             return False
