@@ -416,7 +416,7 @@ class Server(DataObject):
         slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
         self.send_to_dcs({"command": "shutdown"})
-        with suppress(asyncio.TimeoutError):
+        with suppress(TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def init_extensions(self):

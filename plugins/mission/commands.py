@@ -328,7 +328,7 @@ class Mission(Plugin):
                     await server.loadMission(mission_id + 1, modify_mission=run_extensions)
                     await self.bot.audit("loaded mission", server=server, user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await interaction.followup.send(f'Timeout while loading mission {name}.', ephemeral=ephemeral)
                 finally:
                     await tmp.delete()
@@ -859,7 +859,7 @@ class Mission(Plugin):
                 tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
                 try:
                     await server.loadMission(filename)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await tmp.delete()
                     await message.channel.send(f"Timeout while trying to load mission.")
                     await self.bot.audit(f"Timeout while trying to load mission {name}",

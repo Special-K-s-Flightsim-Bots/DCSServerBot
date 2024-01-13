@@ -380,7 +380,7 @@ class NodeImpl(Node):
                 try:
                     # the server was running before (being in maintenance mode), so start it again
                     await server.startup()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
         if rc == 0:
             self.update_pending = False

@@ -61,7 +61,7 @@ class ServerView(View):
         self.env.embed.set_footer(text="Loading mission, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
         await self.server.loadMission(int(interaction.data['values'][0]) + 1)
-        with suppress(asyncio.TimeoutError):
+        with suppress(TimeoutError):
             await self.server.wait_for_status_change([Status.RUNNING], 2)
         await self.render(interaction)
         await interaction.edit_original_response(embed=self.env.embed, view=self)
@@ -75,7 +75,7 @@ class ServerView(View):
             self.env.embed.set_footer(text="Starting, please wait ...")
             await interaction.edit_original_response(embed=self.env.embed)
             await self.server.start()
-            with suppress(asyncio.TimeoutError):
+            with suppress(TimeoutError):
                 await self.server.wait_for_status_change([Status.RUNNING], 2)
         else:
             await self.server.current_mission.unpause()
@@ -102,7 +102,7 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed)
         await self.server.current_mission.restart()
         # wait for a possible resume
-        with suppress(asyncio.TimeoutError):
+        with suppress(TimeoutError):
             await self.server.wait_for_status_change([Status.RUNNING], 2)
         await self.render(interaction)
         await interaction.edit_original_response(embed=self.env.embed, view=self)

@@ -238,7 +238,7 @@ class DCSServerBot(commands.Bot):
             await ctx.send(f"You don't have the permission to use {ctx.command.name}!")
         elif isinstance(err, commands.DisabledCommand):
             pass
-        elif isinstance(err, asyncio.TimeoutError):
+        elif isinstance(err, TimeoutError):
             await ctx.send('A timeout occurred. Is the DCS server running?')
         else:
             self.log.exception(err)
@@ -254,7 +254,7 @@ class DCSServerBot(commands.Bot):
         elif isinstance(error, discord.app_commands.CheckFailure):
             await interaction.followup.send(f"You don't have the permission to use {interaction.command.name}!",
                                             ephemeral=True)
-        elif isinstance(error, asyncio.TimeoutError):
+        elif isinstance(error, TimeoutError):
             await interaction.followup.send('A timeout occurred. Is the DCS server running?', ephemeral=True)
         elif isinstance(error, discord.app_commands.TransformerError):
             await interaction.followup.send(error, ephemeral=True)

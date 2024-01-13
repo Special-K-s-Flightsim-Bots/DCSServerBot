@@ -373,7 +373,7 @@ class ServerImpl(Server):
         self.status = Status.LOADING
         try:
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # server crashed during launch
             if not self.is_running():
                 self.status = Status.SHUTDOWN
