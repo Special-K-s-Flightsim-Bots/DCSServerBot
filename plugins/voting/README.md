@@ -1,8 +1,9 @@
 # Plugin "Voting"
-This plugin enables a voting system for users. People can either change a mission preset (like weather, time) or the 
-mission itself. Both can be selected either from a provided list or from all available options in your system.
+This plugin enables a voting system for users. People can choose from several voting options. DCSServerBot comes with 
+some pre-defined ones, like mission change, preset change, kicking or temp-banning of annoying users.
 
-You can define who can create a new voting, and you can define who can participate in one.
+You can define who can create a new voting, and you can define who can participate in one. The voting can be combined 
+with the [CreditSystem](../creditsystem/README.md), meaning you can make votes cost credits if you like.
 
 ## Configuration
 The plugin can be configured via yaml in config/plugins/voting.yaml:
@@ -23,9 +24,9 @@ DEFAULT:
     tempban:            # Vote to tempban a player for duration days
       duration: 3       # default: 3 (days)
   creator:              # If present, only specific roles are allowed to create a vote (default: every player).
-    - DCS
+    - Donators
   voter:                # If present, only specific roles are allowed to vote (default: every player).
-    - DCS
+    - Donators
   mission_time: 30      # If specified, a voting can take place when the mission is running at least that many minutes.
   time: 300             # Seconds the voting is open.
   reminder:             # When to send reminders to people to vote including the current top vote.
