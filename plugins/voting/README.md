@@ -76,3 +76,10 @@ class Sexy(VotableItem):
         self.server.sendChatMessage(Coalition.ALL, message)
         self.server.sendPopupMessage(Coalition.ALL, message)
 ```
+
+To enable it, just add it to the options in your voting.yaml:
+```yaml
+DEFAULT:
+  options:
+    sexy: {}  # Our plugin does not have any configuration, so {} is given
+```
