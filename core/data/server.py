@@ -265,6 +265,9 @@ class Server(DataObject):
         try:
             self.send_to_dcs(message)
             return await asyncio.wait_for(future, timeout)
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
         finally:
             del self.listeners[token]
 
