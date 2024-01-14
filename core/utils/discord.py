@@ -77,7 +77,7 @@ async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Inter
             react, _ = done.pop().result()
             return react
         else:
-            raise TimeoutError
+            raise asyncio.TimeoutError
     finally:
         for task in tasks:
             task.cancel()
@@ -142,7 +142,7 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
             elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
                 return (ord(react.emoji[0]) - 0x31) + j * num
         return -1
-    except TimeoutError:
+    except asyncio.TimeoutError:
         if message:
             await message.delete()
         return -1
