@@ -549,7 +549,7 @@ class ServiceBus(Service):
         class RequestHandler(BaseRequestHandler):
 
             def handle(derived):
-                if not derived.request:
+                if not derived.request or not derived.request[0]:
                     self.log.warning(f"Empty request received on port {self.node.listen_port} - ignoring.")
                     return
                 data: dict = json.loads(derived.request[0].strip())
