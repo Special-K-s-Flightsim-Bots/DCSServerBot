@@ -270,11 +270,12 @@ class Server(DataObject):
 
     def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
         if coalition == Coalition.ALL:
-            self.send_to_dcs({
-                "command": "sendChatMessage",
-                "from": sender,
-                "message": message
-            })
+            for msg in message.split('\n'):
+                self.send_to_dcs({
+                    "command": "sendChatMessage",
+                    "from": sender,
+                    "message": msg
+                })
         else:
             raise NotImplemented()
 
@@ -415,7 +416,7 @@ class Server(DataObject):
         slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
         self.send_to_dcs({"command": "shutdown"})
-        with suppress(asyncio.TimeoutError):
+        with suppress(TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def init_extensions(self):

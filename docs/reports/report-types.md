@@ -7,10 +7,10 @@ nav_order: 10
 
 There are three report types that you can use:
 
-| Type       | Description                                                               |
-|--------------|---------------------------------------------------------------------|
-| Report | Standard implementation. Will output a single report as an embed. |
-| PaginationReport | Will enable pagination based on a provided parameter list. |
+| Type             | Description                                                                                    |
+|------------------|------------------------------------------------------------------------------------------------|
+| Report           | Standard implementation. Will output a single report as an embed.c                             | 
+| PaginationReport | Will enable pagination based on a provided parameter list.                                     |
 | PersistentReport | For auto-updates. Everytime a persistent report is generated, it will update the former embed. |
 
 Let's look at the more complex ones.

@@ -1,6 +1,4 @@
 import asyncio
-from pathlib import Path
-
 import discord
 import os
 import psycopg
@@ -13,7 +11,7 @@ from discord import Interaction, app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
-from extensions import MizEdit
+from pathlib import Path
 from services import DCSServerBot
 from typing import Optional
 
@@ -23,6 +21,24 @@ from .views import ServerView, PresetView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+
+async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    try:
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            for idx, x in enumerate(await server.listAvailableMissions())
+            if x not in installed_missions and current.casefold() in os.path.basename(x).casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def orig_mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -310,9 +326,10 @@ class Mission(Plugin):
                                                       ephemeral=ephemeral)
                 try:
                     await server.loadMission(mission_id + 1, modify_mission=run_extensions)
-                    await self.bot.audit("loaded mission", server=server, user=interaction.user)
+                    await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
+                                         user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await interaction.followup.send(f'Timeout while loading mission {name}.', ephemeral=ephemeral)
                 finally:
                     await tmp.delete()
@@ -321,7 +338,7 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(idx="path")
-    @app_commands.autocomplete(idx=utils.mizfile_autocomplete)
+    @app_commands.autocomplete(idx=mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
@@ -340,7 +357,7 @@ class Mission(Plugin):
             return
         tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...', ephemeral=ephemeral)
         await server.loadMission(server.settings['missionList'].index(path) + 1)
-        await self.bot.audit("loaded mission", server=server, user=interaction.user)
+        await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server, user=interaction.user)
         await tmp.delete()
         await interaction.followup.send(f'Mission {utils.escape_string(name)} loaded.', ephemeral=ephemeral)
 
@@ -473,7 +490,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename, _ = await MizEdit(server, {"settings": ",".join(view.result)}).beforeMissionLoad(filename)
+            new_filename = await server.modifyMission(filename, [utils.get_preset(x) for x in view.result])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
@@ -484,7 +501,8 @@ class Mission(Plugin):
                 try:
                     await server.restart(modify_mission=False)
                     message += '\nMission reloaded.'
-                    await self.bot.audit("changed preset", server=server, user=interaction.user)
+                    await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
+                                         user=interaction.user)
                     await msg.delete()
                 except TimeoutError:
                     message = ("Timeout during restart of mission!\n"
@@ -833,23 +851,23 @@ class Mission(Plugin):
                 await server.uploadMission(att.filename, att.url, force=True)
 
             filename = os.path.normpath(os.path.join(await server.get_missions_dir(), att.filename))
-            name = os.path.basename(att.filename)[:-4]
+            name = utils.escape_string(os.path.basename(att.filename)[:-4])
             await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
             if (server.status != Status.SHUTDOWN and server.current_mission and
                     server.current_mission.filename != filename and
                     await utils.yn_question(ctx, 'Do you want to load this mission?')):
-                tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
+                tmp = await message.channel.send(f'Loading mission {name} ...')
                 try:
                     await server.loadMission(filename)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     await tmp.delete()
                     await message.channel.send(f"Timeout while trying to load mission.")
                     await self.bot.audit(f"Timeout while trying to load mission {name}",
                                          server=server)
                     return
-                await self.bot.audit("loaded mission", server=server, user=message.author)
+                await self.bot.audit(f"loaded mission {name}", server=server, user=message.author)
                 await tmp.delete()
                 await message.channel.send(f'Mission {name} loaded.')
         except Exception as ex:

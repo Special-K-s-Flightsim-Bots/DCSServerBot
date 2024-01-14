@@ -571,7 +571,7 @@ class UserStatistics(Plugin):
             # global highscore
             if self.locals.get(DEFAULT_TAG) and self.locals[DEFAULT_TAG].get('highscore'):
                 await self.render_highscore(self.locals[DEFAULT_TAG]['highscore'], None)
-            for server in self.bus.servers.copy().values():
+            for server in list(self.bus.servers.values()):
                 config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if not config or not config.get('highscore'):
                     continue

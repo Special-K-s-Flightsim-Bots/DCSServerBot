@@ -204,12 +204,13 @@ class Player(DataObject):
         return self.verified and self._member is not None and utils.check_roles(set(valid_roles), self._member)
 
     def sendChatMessage(self, message: str, sender: str = None):
-        self.server.send_to_dcs({
-            "command": "sendChatMessage",
-            "to": self.id,
-            "from": sender,
-            "message": message
-        })
+        for msg in message.split('\n'):
+            self.server.send_to_dcs({
+                "command": "sendChatMessage",
+                "to": self.id,
+                "from": sender,
+                "message": msg
+            })
 
     def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
         if self.slot <= 0:

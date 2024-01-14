@@ -1,7 +1,7 @@
 import discord
 
 from core import EventListener, Server, Status, utils, event, chat_command
-from typing import cast
+from typing import cast, Union
 from .player import CreditPlayer
 
 
@@ -99,7 +99,31 @@ class CreditSystemListener(EventListener):
             """, (ucid, campaign_id)).fetchone()[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
-        # only members can achieve roles
+        async def add_role(member: discord.Member, role: Union[str, int]):
+            _role = self.bot.get_role(role)
+            if not role:
+                self.log.error(f"Role {role} not found in your Discord!")
+            if _role not in member.roles:
+                try:
+                    await member.add_roles(_role)
+                    await self.bot.audit(f"achieved the rank {_role.name}", user=member)
+                except discord.Forbidden:
+                    self.log.error(f'The bot needs the "Manage Roles" permission or needs to be placed higher than '
+                                   f'role {_role.name}!')
+
+        async def remove_role(member: discord.Member, role: Union[str, int]):
+            _role = self.bot.get_role(role)
+            if not role:
+                self.log.error(f"Role {role} not found in your Discord!")
+            if _role in member.roles:
+                try:
+                    await member.remove_roles(self.bot.get_role(role))
+                    await self.bot.audit(f"lost the rank {_role.name}", user=member)
+                except discord.Forbidden:
+                    self.log.error(f'The bot needs the "Manage Roles" permission or needs to be placed higher than '
+                                   f'role {_role.name}!')
+
+        # only linked player can achieve roles
         member = player.member
         if not member:
             return
@@ -110,40 +134,25 @@ class CreditSystemListener(EventListener):
         campaign_id, _ = utils.get_running_campaign(self.bot, server)
         playtime = self.get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
-        role = None
+        given = False
         for achievement in sorted_achievements:
+            if given:
+                await remove_role(member, achievement['role'])
+                continue
             if 'combined' in achievement and achievement['combined']:
                 if ('credits' in achievement and player.points >= achievement['credits']) and \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
-                    role = achievement['role']
-                    break
+                    await add_role(member, achievement['role'])
+                    given = True
+                else:
+                    await remove_role(member, achievement['role'])
             else:
                 if ('credits' in achievement and player.points >= achievement['credits']) or \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
-                    role = achievement['role']
-                    break
-
-        if role:
-            for achievement in sorted_achievements:
-                # does the member need to get that role?
-                if achievement['role'] == role and not utils.check_roles([achievement['role']], member):
-                    try:
-                        _role = discord.utils.get(member.guild.roles, name=achievement['role'])
-                        if _role:
-                            await member.add_roles(_role)
-                            await self.bot.audit(f"achieved the rank {role}", user=member)
-                        else:
-                            self.log.error(f"Role {achievement['role']} not found in your Discord!")
-                    except discord.Forbidden:
-                        self.log.error('The bot needs the Manage Roles permission!')
-                # does the member have that role, but they do not deserve it?
-                elif achievement['role'] != role and utils.check_roles([achievement['role']], member):
-                    try:
-                        _role = discord.utils.get(member.guild.roles, name=achievement['role'])
-                        await member.remove_roles(_role)
-                        await self.bot.audit(f"lost the rank {achievement['role']}", user=member)
-                    except discord.Forbidden:
-                        self.log.error('The bot needs the Manage Roles permission!')
+                    await add_role(member, achievement['role'])
+                    given = True
+                else:
+                    await remove_role(member, achievement['role'])
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:

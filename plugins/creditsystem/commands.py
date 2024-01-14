@@ -23,6 +23,9 @@ class CreditSystem(Plugin):
                 conn.execute('DELETE FROM credits_log WHERE player_ucid = %s', (ucid,))
         self.log.debug('Creditsystem pruned.')
 
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
+        conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+
     async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
         conn.execute('UPDATE credits SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
         conn.execute('UPDATE credits_log SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))

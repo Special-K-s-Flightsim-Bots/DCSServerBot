@@ -47,14 +47,8 @@ __all__ = [
     "ServerTransformer",
     "UserTransformer",
     "PlayerTransformer",
-    "bans_autocomplete",
     "airbase_autocomplete",
     "mission_autocomplete",
-    "mizfile_autocomplete",
-    "all_modules_autocomplete",
-    "available_modules_autocomplete",
-    "installed_modules_autocomplete",
-    "player_modules_autocomplete",
     "server_selection",
     "get_ephemeral"
 ]
@@ -83,7 +77,7 @@ async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Inter
             react, _ = done.pop().result()
             return react
         else:
-            raise asyncio.TimeoutError
+            raise TimeoutError
     finally:
         for task in tasks:
             task.cancel()
@@ -148,7 +142,7 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
             elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
                 return (ord(react.emoji[0]) - 0x31) + j * num
         return -1
-    except asyncio.TimeoutError:
+    except TimeoutError:
         if message:
             await message.delete()
         return -1
@@ -291,7 +285,9 @@ async def populated_question(interaction: discord.Interaction, question: str, me
         await msg.delete()
 
 
-def check_roles(roles: Iterable[Union[str, int]], member: discord.Member) -> bool:
+def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:
+    if not member:
+        return False
     for role in member.roles:
         for valid_role in roles:
             if isinstance(valid_role, str) and role.name == valid_role:
@@ -340,10 +336,10 @@ def cmd_has_roles(roles: list[str]):
 
 def app_has_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        valid_roles = []
+        valid_roles = set()
         for role in roles:
-            valid_roles.extend(interaction.client.roles[role])
-        return check_roles(set(valid_roles), interaction.user)
+            valid_roles |= set(interaction.client.roles[role])
+        return check_roles(valid_roles, interaction.user)
 
     return app_commands.check(predicate)
 
@@ -357,10 +353,10 @@ def app_has_not_role(role: str):
 
 def app_has_not_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        invalid_roles = []
+        invalid_roles = set()
         for role in roles:
-            invalid_roles.extend(interaction.client.roles[role])
-        return not check_roles(set(invalid_roles), interaction.user)
+            invalid_roles |= set(interaction.client.roles[role])
+        return not check_roles(invalid_roles, interaction.user)
 
     return app_commands.check(predicate)
 
@@ -483,7 +479,7 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
 
 
 def escape_string(msg: str) -> str:
-    return re.sub(r"([\*\_~])", r"\\\1", msg)
+    return re.sub(r"([*_~])", r"\\\1", msg)
 
 
 def get_interaction_param(interaction: discord.Interaction, name: str) -> Optional[Any]:
@@ -602,17 +598,6 @@ class InstanceTransformer(app_commands.Transformer):
         ]
 
 
-async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
-        return []
-    choices: list[app_commands.Choice[int]] = [
-        app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
-        for x in interaction.client.bus.bans()
-        if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
-    ]
-    return choices[:25]
-
-
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
     if not server:
@@ -638,109 +623,6 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
             if not current or current.casefold() in x[:-4].casefold()
         ]
         return choices[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
-        return []
-    try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
-        if not server:
-            return []
-        installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
-            for idx, x in enumerate(await server.listAvailableMissions())
-            if x not in installed_missions and current.casefold() in os.path.basename(x).casefold()
-        ]
-        return choices[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
-        return []
-    try:
-        node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, "node"))
-        userid = node.locals['DCS'].get('dcs_user')
-        password = node.locals['DCS'].get('dcs_password')
-        available_modules = set(await node.get_available_modules(userid, password)) - set(await node.get_installed_modules())
-        return [
-            app_commands.Choice(name=x, value=x)
-            for x in available_modules
-            if not current or current.casefold() in x.casefold()
-        ]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
-        return []
-    try:
-        node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, "node"))
-        available_modules = await node.get_installed_modules()
-        return [
-            app_commands.Choice(name=x, value=x)
-            for x in available_modules
-            if not current or current.casefold() in x.casefold()
-        ]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-
-    def get_modules(ucid: str) -> list[str]:
-        with interaction.client.pool.connection() as conn:
-            return [row[0] for row in conn.execute("""
-                SELECT DISTINCT slot, COUNT(*) FROM statistics 
-                WHERE player_ucid =  %s 
-                AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 DESC
-            """, (ucid, )).fetchall()]
-
-    try:
-        user = await UserTransformer().transform(interaction, get_interaction_param(interaction, "user"))
-        if not user:
-            return []
-        if isinstance(user, str):
-            ucid = user
-        else:
-            ucid = interaction.client.get_ucid_by_member(user)
-        if not ucid:
-            return []
-        ret = [
-            app_commands.Choice(name=x, value=x)
-            for x in get_modules(ucid)
-            if not current or current.casefold() in x.casefold()
-        ]
-        return ret[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def all_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-
-    def get_modules() -> list[str]:
-        with interaction.client.pool.connection() as conn:
-            cursor = conn.execute("""
-                SELECT DISTINCT slot, COUNT(*) FROM statistics 
-                WHERE slot NOT IN ('', '?', 'forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 DESC
-            """)
-            return [row[0] for row in cursor.fetchall()]
-
-    try:
-        ret = [
-            app_commands.Choice(name=x, value=x)
-            for x in get_modules()
-            if not current or current.casefold() in x.casefold()
-        ]
-        return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
 
@@ -791,7 +673,7 @@ class PlayerTransformer(app_commands.Transformer):
         self.vip = vip
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
-        server: Server = interaction.client.get_server(interaction)
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
@@ -799,7 +681,8 @@ class PlayerTransformer(app_commands.Transformer):
             return []
         try:
             if self.active:
-                server: Server = interaction.client.get_server(interaction)
+                server: Server = await ServerTransformer().transform(interaction,
+                                                                     get_interaction_param(interaction, 'server'))
                 if not server:
                     return []
                 choices: list[app_commands.Choice[str]] = [

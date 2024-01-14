@@ -17,6 +17,49 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from .views import CleanupView
 
 
+async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        return []
+    choices: list[app_commands.Choice[int]] = [
+        app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
+        for x in interaction.client.bus.bans()
+        if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
+    ]
+    return choices[:25]
+
+
+async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
+    try:
+        node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
+        userid = node.locals['DCS'].get('dcs_user')
+        password = node.locals['DCS'].get('dcs_password')
+        available_modules = set(await node.get_available_modules(userid, password)) - set(await node.get_installed_modules())
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in available_modules
+            if not current or current.casefold() in x.casefold()
+        ]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
+async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        return []
+    try:
+        node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
+        available_modules = await node.get_installed_modules()
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in available_modules
+            if not current or current.casefold() in x.casefold()
+        ]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
         server: Server = await utils.ServerTransformer().transform(
@@ -126,7 +169,7 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(ucid="user")
-    @app_commands.autocomplete(ucid=utils.bans_autocomplete)
+    @app_commands.autocomplete(ucid=bans_autocomplete)
     async def unban(self, interaction: discord.Interaction, ucid: str):
         self.bus.unban(ucid)
         name = self.bot.get_member_or_name_by_ucid(ucid)
@@ -141,7 +184,7 @@ class Admin(Plugin):
     @dcs.command(description='Shows active bans')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(user=utils.bans_autocomplete)
+    @app_commands.autocomplete(user=bans_autocomplete)
     async def bans(self, interaction: discord.Interaction, user: str):
         try:
             ban = next(x for x in self.bus.bans() if x['ucid'] == user)
@@ -287,7 +330,7 @@ class Admin(Plugin):
     @dcs.command(name='install', description='Install modules in your dcs server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(module=utils.available_modules_autocomplete)
+    @app_commands.autocomplete(module=available_modules_autocomplete)
     async def _install(self, interaction: discord.Interaction,
                        node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
@@ -301,7 +344,7 @@ class Admin(Plugin):
     @dcs.command(name='uninstall', description='Uninstall modules from your server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(module=utils.installed_modules_autocomplete)
+    @app_commands.autocomplete(module=installed_modules_autocomplete)
     async def _uninstall(self, interaction: discord.Interaction,
                          node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)

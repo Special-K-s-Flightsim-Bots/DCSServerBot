@@ -39,13 +39,12 @@ class SchedulerListener(EventListener):
                 await asyncio.create_subprocess_shell(cmd)
 
     async def process(self, server: Server, what: dict) -> None:
-        config = self.plugin.get_config(server)
         if 'shutdown' in what['command']:
             await server.shutdown()
             message = 'shut down DCS server'
             if 'user' not in what:
                 message = self.plugin_name.title() + ' ' + message
-            await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+            await self.bot.audit(message, server=server, user=what.get('user'))
         if 'restart' in what['command']:
             if server.status == Status.SHUTDOWN:
                 await self.plugin.launch_dcs(server)
@@ -64,7 +63,19 @@ class SchedulerListener(EventListener):
             message = f'loaded mission {server.current_mission.display_name}'
             if 'user' not in what:
                 message = self.plugin_name.title() + ' ' + message
-            await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+            await self.bot.audit(message, server=server, user=what.get('user'))
+        elif what['command'] == 'preset':
+            if not server.node.config.get('mission_rewrite', True):
+                await server.stop()
+            filename = await server.get_current_mission_file()
+            new_filename = await server.modifyMission(filename, [utils.get_preset(x) for x in what['preset']])
+            if new_filename != filename:
+                self.log.info(f"  => New mission written: {new_filename}")
+                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+            else:
+                self.log.info(f"  => Mission {filename} overwritten.")
+            if server.status == Status.STOPPED:
+                await server.start()
         server.restart_pending = False
 
     @event(name="registerDCSServer")

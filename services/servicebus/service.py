@@ -181,7 +181,7 @@ class ServiceBus(Service):
         ret = await asyncio.gather(*calls, return_exceptions=True)
         num = 0
         for i, server in enumerate(local_servers):
-            if isinstance(ret[i], asyncio.TimeoutError):
+            if isinstance(ret[i], TimeoutError):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
             elif isinstance(ret[i], Exception):
@@ -254,6 +254,10 @@ class ServiceBus(Service):
                 return False
             else:
                 webgui_ports[webgui_port] = server.name
+        # check for DSMC
+        if data.get('dsmc_enabled', False) and 'DSMC' not in server.extensions:
+            self.log.warning("  => DSMC is enabled for this server but DSMC extension is not loaded!")
+            self.log.warning("     You need to configure DSMC on your own to prevent issues with the mission list.")
 
         # update the database and check for server name changes
         with self.pool.connection() as conn:

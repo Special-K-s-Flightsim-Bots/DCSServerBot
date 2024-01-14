@@ -137,7 +137,7 @@ class MonitoringService(Service):
             await self.warn_admins(server, message)
 
     async def heartbeat(self):
-        for server in self.bus.servers.copy().values():  # type: ServerImpl
+        for server in list(self.bus.servers.values()):  # type: ServerImpl
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
             if not server.maintenance and server.process is not None and not server.process.is_running():

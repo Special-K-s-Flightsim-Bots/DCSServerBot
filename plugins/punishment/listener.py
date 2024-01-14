@@ -2,7 +2,7 @@ import asyncio
 from contextlib import closing
 from typing import Optional
 
-from core import EventListener, Plugin, Server, Player, Status, event, chat_command
+from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils
 from plugins.competitive.commands import Competitive
 
 
@@ -40,13 +40,25 @@ class PunishmentEventListener(EventListener):
             if penalty:
                 initiator = server.get_player(name=data['initiator'])
                 # check if there is an exemption for this user
-                if 'exemptions' in config:
-                    user = self.bot.get_member_by_ucid(initiator.ucid)
-                    roles = [x.name for x in user.roles] if user else []
-                    for e in config['exemptions']:
-                        if ('ucid' in e and e['ucid'] == initiator.ucid) or ('discord' in e and e['discord'] in roles):
+                for exemption in config.get('exemptions', []):
+                    if 'ucid' in exemption:
+                        if isinstance(exemption['ucid'], str):
+                            ucids = [exemption['ucid']]
+                        else:
+                            ucids = exemption['ucid']
+                        if initiator.ucid in ucids:
                             self.log.debug(f"User {initiator.name} not penalized due to exemption.")
                             return
+                    if 'discord' in exemption:
+                        member = self.bot.get_member_by_ucid(initiator.ucid)
+                        if not member:
+                            continue
+                        if isinstance(exemption['discord'], str):
+                            roles = [exemption['discord']]
+                        else:
+                            roles = exemption['discord']
+                        if utils.check_roles(roles, member):
+                            self.log.debug(f"Member {member.name} not penalized due to exemption.")
                 if 'default' in penalty:
                     points = penalty['default']
                 else:

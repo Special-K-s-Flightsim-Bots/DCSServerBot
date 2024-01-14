@@ -17,7 +17,8 @@ import math
 
 from croniter import croniter
 from datetime import datetime, timedelta
-from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
+from pathlib import Path
+from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator, Iterable
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -43,6 +44,8 @@ __all__ = [
     "get_all_servers",
     "get_all_players",
     "is_ucid",
+    "get_presets",
+    "get_preset",
     "is_valid_url",
     "is_github_repo",
     "matches_cron",
@@ -257,6 +260,35 @@ def is_ucid(ucid: Optional[str]) -> bool:
     if not ucid:
         return False
     return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
+
+
+def get_presets() -> Iterable[str]:
+    presets = set()
+    for file in Path('config').glob('presets*.yaml'):
+        with open(file, encoding='utf-8') as infile:
+            presets |= set([
+                name for name, value in yaml.load(infile).items()
+                if isinstance(value, dict) and not value.get('hidden', False)
+            ])
+    return presets
+
+
+def get_preset(name: str, filename: Optional[str] = None) -> Optional[dict]:
+    def _get_preset_from_file(filename: str) -> Optional[dict]:
+        with open(filename, encoding='utf-8') as infile:
+            data = yaml.load(infile)
+            if name in data:
+                return data[name]
+        return None
+
+    if filename:
+        return _get_preset_from_file(filename)
+    else:
+        for file in Path('config').glob('presets*.yaml'):
+            preset = _get_preset_from_file(str(file))
+            if preset:
+                return preset
+    return None
 
 
 def is_valid_url(url: str) -> bool:
