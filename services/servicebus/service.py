@@ -549,6 +549,9 @@ class ServiceBus(Service):
         class RequestHandler(BaseRequestHandler):
 
             def handle(derived):
+                if not derived.request:
+                    self.log.warning(f"Empty request received on port {self.node.listen_port} - ignoring.")
+                    return
                 data: dict = json.loads(derived.request[0].strip())
                 # ignore messages not containing server names
                 if 'server_name' not in data:
