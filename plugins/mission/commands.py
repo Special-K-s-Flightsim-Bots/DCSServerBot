@@ -27,7 +27,8 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
     if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
         return []
     try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
         installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
