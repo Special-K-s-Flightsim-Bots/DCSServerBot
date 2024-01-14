@@ -76,7 +76,7 @@ class MissionEventListener(EventListener):
         self.update_mission_embed.cancel()
 
     async def work_queue(self, flush: bool = False):
-        for channel in self.queue.keys():
+        for channel in list(self.queue.keys()):
             if self.queue[channel].empty():
                 continue
             _channel = self.bot.get_channel(channel)
@@ -276,7 +276,7 @@ class MissionEventListener(EventListener):
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
         # cleanup inactive players
-        for p in server.players.copy().values():
+        for p in list(server.players.values()):
             if not p.active and not p.id == 1:
                 del server.players[p.id]
         self.display_mission_embed(server)

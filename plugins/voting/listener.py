@@ -1,29 +1,28 @@
 import asyncio
-import os
 
-from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin, Status
+from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin
 from functools import partial
 from itertools import islice
-from typing import Iterable, Optional
+from typing import Optional
 
 # ruamel YAML support
 from ruamel.yaml import YAML
 
-from services import DCSServerBot
+from plugins.creditsystem.player import CreditPlayer
+from plugins.voting.base import VotableItem
 
 yaml = YAML()
 
 
-all_votes: dict[str, 'Vote'] = dict()
+all_votes: dict[str, 'VotingHandler'] = dict()
 
 
-class Vote:
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict, what: str):
+class VotingHandler:
+    def __init__(self, item: VotableItem, server: Server, config: dict):
         self.loop = asyncio.get_event_loop()
-        self.bot = bot
+        self.item = item
         self.server = server
         self.config = config
-        self.what = what
         self.votes:  dict[int, int] = dict()
         self.voter: list[Player] = list()
         self.tasks: list[asyncio.TimerHandle] = []
@@ -33,23 +32,17 @@ class Vote:
         for task in self.tasks:
             task.cancel()
 
-    def get_lists(self) -> Iterable[str]:
-        if self.what == 'mission':
-            return self.config.get('mission', [os.path.basename(x) for x in self.server.settings['missionList']])
-        elif self.what == 'preset':
-            return self.config.get('preset', utils.get_presets())
-
     def get_leading_vote(self) -> str:
         if self.votes:
             win_id = max(self.votes, key=self.votes.get) - 1
-            winner = next(islice(self.get_lists(), win_id, None))
+            winner = next(islice(self.item.get_choices(), win_id, None))
             if winner:
-                return f"\nCurrent leading vote: {self.what.title()} \"{winner}\""
+                return f"\nCurrent leading vote: \"{winner}\""
         return ""
 
     def print(self, player: Optional[Player] = None):
-        message = f"You can now vote to change the {self.what} of this server.\n"
-        for idx, element in enumerate(self.get_lists()):
+        message = self.item.print() + '\n'
+        for idx, element in enumerate(self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
         message += self.get_leading_vote()
         message += f"\nUse {self.config['prefix']}vote <number> to vote for the change.\n"
@@ -89,41 +82,45 @@ class Vote:
         message += self.get_leading_vote()
         self.server.sendPopupMessage(Coalition.ALL, message)
 
+    def check_vote(self) -> int:
+        message = "Voting finished"
+        voting_rule = self.config.get('voting_rule', 'majority')
+        if not self.votes:
+            message += " without any participant."
+        elif self.config.get('voting_threshold') and sum(self.votes.values()) / len(self.server.get_active_players()) < self.config.get('voting_threshold'):
+            message += f" but less than {self.config['voting_threshold'] * 100}% players participated."
+        elif voting_rule == 'majority':
+            return max(self.votes, key=self.votes.get) - 1
+        elif voting_rule == 'supermajority':
+            if max(self.votes.values()) / sum(self.votes.values()) < 0.33:
+                message += f' but no vote got the super-majority.'
+            else:
+                return max(self.votes, key=self.votes.get) - 1
+        elif voting_rule == 'absolute':
+            if max(self.votes.values()) / sum(self.votes.values()) < 0.5:
+                message += f' but no vote got the absolute majority.'
+            else:
+                return max(self.votes, key=self.votes.get) - 1
+        elif voting_rule == 'unanimous':
+            if len(self.votes) != 1:
+                message += " but the vote was not unanimous."
+            else:
+                return next(iter(self.votes))
+        message += '\nEverything will stay as it is.'
+        self.server.sendPopupMessage(Coalition.ALL, message)
+        self.server.sendChatMessage(Coalition.ALL, message)
+        return -1
+
     async def end_vote(self):
         global all_votes
 
-        if not self.votes:
-            message = "Voting finished without any vote for a change."
-            self.server.sendPopupMessage(Coalition.ALL, message)
-            self.server.sendChatMessage(Coalition.ALL, message)
-        else:
-            win_id = max(self.votes, key=self.votes.get) - 1
-            winner = next(islice(self.get_lists(), win_id, None))
-            message = (f"{self.what.title()} \"{winner}\" won with {self.votes[win_id + 1]} votes!\n"
-                       f"The mission will change in 60s.")
+        win_id = self.check_vote()
+        if win_id > -1:
+            winner = next(islice(self.item.get_choices(), win_id, None))
+            message = f"\"{winner}\" won with {self.votes[win_id + 1]} votes!"
             self.server.sendChatMessage(Coalition.ALL, message)
             self.server.sendPopupMessage(Coalition.ALL, message)
-            await asyncio.sleep(60)
-            if self.what == 'mission':
-                for idx, mission in enumerate(self.server.settings['missionList']):
-                    if winner in mission:
-                        await self.server.loadMission(mission=idx + 1, modify_mission=False)
-                        break
-                else:
-                    mission = os.path.join(await self.server.get_missions_dir(), winner)
-                    await self.server.loadMission(mission=mission, modify_mission=False)
-                    await self.bot.audit("Mission changed by voting", server=self.server)
-            else:
-                filename = await self.server.get_current_mission_file()
-                if not self.server.node.config.get('mission_rewrite', True):
-                    await self.server.stop()
-                new_filename = await self.server.modifyMission(filename, utils.get_preset(winner))
-                if new_filename != filename:
-                    await self.server.replaceMission(int(self.server.settings['listStartIndex']), new_filename)
-                await self.server.restart(modify_mission=False)
-                if self.server.status == Status.STOPPED:
-                    await self.server.start()
-                await self.bot.audit("Mission preset changed by voting", server=self.server)
+            await self.item.execute(winner)
         del all_votes[self.server.name]
 
 
@@ -153,17 +150,19 @@ class VotingListener(EventListener):
             return
         vote.vote(player, int(params[0]))
 
-    async def create_vote(self, bot: DCSServerBot, server: Server, player: Player, config: dict, params: list[str]):
+    async def create_vote(self, server: Server, player: Player, config: dict, params: list[str]):
         global all_votes
 
-        choices = []
-        if 'preset' not in config or config.get('preset'):
-            choices.append('preset')
-        if 'mission' not in config or config.get('mission'):
-            choices.append('mission')
+        points = config.get("credits")
+        # if credits are specified, check that the player has enough
+        if points and isinstance(player, CreditPlayer) and player.points < points:
+            player.sendChatMessage(f"You need at least {points} credit points to create a vote.")
+            return
+
+        choices = config['options'].keys()
         if len(choices) > 1:
             if not params:
-                player.sendChatMessage(f'Usage: {self.prefix}vote <mission|preset>')
+                player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
                 return
             else:
                 what = params[0].lower()
@@ -172,11 +171,20 @@ class VotingListener(EventListener):
         else:
             return
         if what not in choices:
-            player.sendChatMessage(f"Invalid option '{what}'.")
+            player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
             return
         config['prefix'] = self.prefix
-        all_votes[server.name] = Vote(bot=bot, server=server, config=config, what=what)
-        await bot.audit("created a voting", user=player.member or player.ucid, server=server)
+        try:
+            item = utils.str_to_class(f"plugins.voting.options.{what}.{what.title()}")(
+                server, config['options'].get(what), params[1:] if len(params) > 1 else None)
+            if points and isinstance(player, CreditPlayer):
+                player.points -= points
+                player.sendChatMessage(f"Your voting has been created for the cost of {points} credit points.")
+        except (TypeError, ValueError) as ex:
+            player.sendChatMessage(str(ex))
+            return
+        all_votes[server.name] = VotingHandler(item=item, server=server, config=config)
+        await self.bot.audit("created a voting", user=player.member or player.ucid, server=server)
 
     @chat_command(name="vote", help="start a voting or vote for a change")
     async def vote(self, server: Server, player: Player, params: list[str]):
@@ -211,4 +219,4 @@ class VotingListener(EventListener):
             if delta > 0:
                 player.sendChatMessage(f"A new voting can be started in {utils.format_time(delta)}")
                 return
-        await self.create_vote(self.bot, server, player, config, params)
+        await self.create_vote(server, player, config, params)

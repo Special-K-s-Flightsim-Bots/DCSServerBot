@@ -673,7 +673,7 @@ class PlayerTransformer(app_commands.Transformer):
         self.vip = vip
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
-        server: Server = interaction.client.get_server(interaction)
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
@@ -681,7 +681,8 @@ class PlayerTransformer(app_commands.Transformer):
             return []
         try:
             if self.active:
-                server: Server = interaction.client.get_server(interaction)
+                server: Server = await ServerTransformer().transform(interaction,
+                                                                     get_interaction_param(interaction, 'server'))
                 if not server:
                     return []
                 choices: list[app_commands.Choice[str]] = [

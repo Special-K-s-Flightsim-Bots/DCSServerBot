@@ -1,19 +1,28 @@
 DEFAULT:
-  preset:           # Selection of presets that need to be specified in your presets.yaml
-    - Summer        # If no preset section is specified, all available presets will be used (not recommended).
-    - Winter        # If you do not want presets to be part of the voting, set an empty list in here.
-    - Morning
-    - Nighttime
-  mission:          # Selection of missions that can be used in a voting. They must be available in your serverSettings.lua
-    - a.miz         # If no mission section is present, all missions from serverSettings.lua will be used.
-    - b.miz
-  creator:          # If present, only specific roles are allowed to create a vote.
+  options:              # These are the voting options, players can chose from. It is up to you, to enable them or not!
+    preset:             # Selection of presets that need to be specified in your presets.yaml
+      choices:
+        - Summer        # If no preset section is specified, all available presets will be used (not recommended).
+        - Winter        # If you do not want presets to be part of the voting, set an empty list in here.
+        - Morning
+        - Nighttime
+    mission:            # Selection of missions that can be used in a voting. They must be available in your serverSettings.lua
+      choices:
+        - a.miz         # If no mission section is present, all missions from serverSettings.lua will be used.
+        - b.miz
+    kick: {}            # Vote for kicking a player
+    tempban:            # Vote to tempban a player for duration days
+      duration: 3       # default: 3 (days)
+  creator:              # If present, only specific roles are allowed to create a vote (default: every player).
     - DCS
-  voter:            # If present, only specific roles are allowed to vote.
+  voter:                # If present, only specific roles are allowed to vote (default: every player).
     - DCS
-  mission_time: 30  # If specified, a voting can take place when the mission is running at least that many minutes.
-  time: 300         # Seconds the voting is open.
-  reminder:         # When to send reminders to people to vote including the current top vote.
+  mission_time: 30      # If specified, a voting can take place when the mission is running at least that many minutes.
+  time: 300             # Seconds the voting is open.
+  reminder:             # When to send reminders to people to vote including the current top vote.
     - 180
     - 60
     - 30
+  voting_threshold: 0.25  # 25% of all players have to vote for the vote to count
+  voting_rule: "majority" # one of "majority" (default), "supermajority" (>= 33%), "unanimous" or "absolute" (>= 50%)
+  credits: 10             # a vote costs 10 credit points (default: 0 = off)

@@ -326,7 +326,8 @@ class Mission(Plugin):
                                                       ephemeral=ephemeral)
                 try:
                     await server.loadMission(mission_id + 1, modify_mission=run_extensions)
-                    await self.bot.audit("loaded mission", server=server, user=interaction.user)
+                    await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
+                                         user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
                 except TimeoutError:
                     await interaction.followup.send(f'Timeout while loading mission {name}.', ephemeral=ephemeral)
@@ -356,7 +357,7 @@ class Mission(Plugin):
             return
         tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...', ephemeral=ephemeral)
         await server.loadMission(server.settings['missionList'].index(path) + 1)
-        await self.bot.audit("loaded mission", server=server, user=interaction.user)
+        await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server, user=interaction.user)
         await tmp.delete()
         await interaction.followup.send(f'Mission {utils.escape_string(name)} loaded.', ephemeral=ephemeral)
 
@@ -500,7 +501,8 @@ class Mission(Plugin):
                 try:
                     await server.restart(modify_mission=False)
                     message += '\nMission reloaded.'
-                    await self.bot.audit("changed preset", server=server, user=interaction.user)
+                    await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
+                                         user=interaction.user)
                     await msg.delete()
                 except TimeoutError:
                     message = ("Timeout during restart of mission!\n"
@@ -849,14 +851,14 @@ class Mission(Plugin):
                 await server.uploadMission(att.filename, att.url, force=True)
 
             filename = os.path.normpath(os.path.join(await server.get_missions_dir(), att.filename))
-            name = os.path.basename(att.filename)[:-4]
+            name = utils.escape_string(os.path.basename(att.filename)[:-4])
             await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
             if (server.status != Status.SHUTDOWN and server.current_mission and
                     server.current_mission.filename != filename and
                     await utils.yn_question(ctx, 'Do you want to load this mission?')):
-                tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
+                tmp = await message.channel.send(f'Loading mission {name} ...')
                 try:
                     await server.loadMission(filename)
                 except TimeoutError:
@@ -865,7 +867,7 @@ class Mission(Plugin):
                     await self.bot.audit(f"Timeout while trying to load mission {name}",
                                          server=server)
                     return
-                await self.bot.audit("loaded mission", server=server, user=message.author)
+                await self.bot.audit(f"loaded mission {name}", server=server, user=message.author)
                 await tmp.delete()
                 await message.channel.send(f'Mission {name} loaded.')
         except Exception as ex:

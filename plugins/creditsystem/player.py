@@ -11,30 +11,27 @@ class CreditPlayer(Player):
     _points: int = field(compare=False, default=-1)
     deposit: int = field(compare=False, default=0)
 
-    def __post_init__(self):
-        super().__post_init__()
-        if not self.active:
-            return
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                # load credit points
-                campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
-                if not campaign_id:
-                    return
-                cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                               (campaign_id, self.ucid))
-                if cursor.rowcount == 1:
-                    self._points = cursor.fetchone()[0]
-                    self.server.send_to_dcs({
-                        'command': 'updateUserPoints',
-                        'ucid': self.ucid,
-                        'points': self._points
-                    })
-                else:
-                    self.log.debug(f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')
-
     @property
     def points(self) -> int:
+        if self._points == -1:
+            with self.pool.connection() as conn:
+                with closing(conn.cursor()) as cursor:
+                    # load credit points
+                    campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
+                    if not campaign_id:
+                        return -1
+                    cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                                   (campaign_id, self.ucid))
+                    if cursor.rowcount == 1:
+                        self._points = cursor.fetchone()[0]
+                        self.server.send_to_dcs({
+                            'command': 'updateUserPoints',
+                            'ucid': self.ucid,
+                            'points': self._points
+                        })
+                    else:
+                        self.log.debug(
+                            f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')
         return self._points
 
     @points.setter
