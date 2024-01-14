@@ -153,7 +153,9 @@ class CloudHandler(Plugin):
                     else:
                         sql += ' WHERE discord_id = %s'
                         member = member.id
-                conn.execute(sql, (member, ))
+                    conn.execute(sql, (member, ))
+                else:
+                    conn.execute(sql)
                 await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
 
     @cloud.command(description='Generate Cloud Statistics')
