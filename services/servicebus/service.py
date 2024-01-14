@@ -179,7 +179,7 @@ class ServiceBus(Service):
         ret = await asyncio.gather(*calls, return_exceptions=True)
         num = 0
         for i, server in enumerate(local_servers):
-            if isinstance(ret[i], TimeoutError):
+            if isinstance(ret[i], asyncio.TimeoutError):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
             elif isinstance(ret[i], Exception):
