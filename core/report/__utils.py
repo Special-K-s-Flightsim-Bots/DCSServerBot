@@ -52,6 +52,6 @@ async def parse_input(self, kwargs: dict, params: list[Any]):
                 })
                 if 'value' in data:
                     new_args[param['callback']] = data['value']
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 new_args[param['callback']] = None
     return new_args

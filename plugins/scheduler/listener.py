@@ -84,7 +84,7 @@ class SchedulerListener(EventListener):
         try:
             await server.init_extensions()
             await server.startup_extensions()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             self.log.error(f"Timeout while loading extensions for server {server.name}!")
 
     @event(name="onPlayerStart")
@@ -143,7 +143,7 @@ class SchedulerListener(EventListener):
     async def onSimulationStop(self, server: Server, data: dict) -> None:
         try:
             await server.shutdown_extensions()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             self.log.error(f"Timeout while shutting down extensions for server {server.name}!")
 
     @event(name="onShutdown")

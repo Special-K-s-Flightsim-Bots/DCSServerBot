@@ -76,7 +76,7 @@ class Scheduler(Plugin):
                 self.log.info(f'  => DCS server "{server.name}" started by '
                               f'{member.display_name}.')
                 await self.bot.audit(f"started DCS server", user=member, server=server)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             if server.status == Status.SHUTDOWN:
                 self.log.warning(f'  => DCS server "{server.name}" was closed / crashed while launching!')
             else:
@@ -196,7 +196,7 @@ class Scheduler(Plugin):
             try:
                 self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
                 await self.launch_dcs(server)
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                      server=server)
         elif method == 'restart':
@@ -328,7 +328,7 @@ class Scheduler(Plugin):
                 await interaction.followup.send(f"DCS server \"{server.display_name}\" started." +
                                                 ("\nServer is in maintenance mode now! Use `/scheduler clear` to "
                                                  "reset maintenance mode." if maintenance else ""), ephemeral=ephemeral)
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 if server.status == Status.SHUTDOWN:
                     await interaction.followup.send(
                         f'Server {server.display_name} was closed / crashed while starting up!', ephemeral=ephemeral)
@@ -401,7 +401,7 @@ class Scheduler(Plugin):
             await interaction.response.defer(ephemeral=ephemeral, thinking=True)
             try:
                 await server.start()
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 await interaction.followup.send(f"Timeout while trying to start server {server.name}.",
                                                 ephemeral=ephemeral)
                 return
@@ -434,7 +434,7 @@ class Scheduler(Plugin):
         try:
             msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=ephemeral)
             await server.stop()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=ephemeral)
             return
         finally:

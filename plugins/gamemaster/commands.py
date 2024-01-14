@@ -1,3 +1,4 @@
+import asyncio
 import aiohttp
 import discord
 import os
@@ -145,7 +146,7 @@ class GameMaster(Plugin):
         else:
             try:
                 data = await server.send_to_dcs_sync({"command": "getVariable", "name": name})
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 await interaction.followup.send('Timeout while retrieving variable. Most likely a lua error occurred. '
                                                 'Check your dcs.log.', ephemeral=True)
                 return

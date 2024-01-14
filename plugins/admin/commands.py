@@ -319,7 +319,7 @@ class Admin(Plugin):
                                              user=interaction.user)
                     else:
                         await msg.edit(content=f"Error while updating DCS on node {node.name}, code={rc}")
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     await msg.edit(content="The update takes longer than 10 minutes, please check back regularly, "
                                            "if it has finished.")
         else:
