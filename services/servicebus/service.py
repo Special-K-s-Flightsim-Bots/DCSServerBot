@@ -172,8 +172,6 @@ class ServiceBus(Service):
             return
         calls = []
         for server in local_servers:
-            if server.is_remote:
-                continue
             calls.append(server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout))
             if not self.master:
                 server.status = Status.UNREGISTERED
@@ -185,7 +183,7 @@ class ServiceBus(Service):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
             elif isinstance(ret[i], Exception):
-                self.log.exception(ret[i])
+                self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
             else:
                 num += 1
         if num == 0:

@@ -103,9 +103,13 @@ class Olympus(Extension):
     async def startup(self) -> bool:
         await super().startup()
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
-        self.process = await asyncio.create_subprocess_exec(
-            self.nodejs, r".\bin\www", cwd=os.path.join(self.home, "client"), stdout=out, stderr=out
-        )
+        try:
+            self.process = await asyncio.create_subprocess_exec(
+                self.nodejs, r".\bin\www", cwd=os.path.join(self.home, "client"), stdout=out, stderr=out
+            )
+        except OSError as ex:
+            self.log.error("Error while starting Olympus: " + str(ex))
+            return False
         if sys.platform == 'win32':
             from os import system
             system(f"title DCSServerBot v{self.server.node.bot_version}.{self.server.node.sub_version}")
