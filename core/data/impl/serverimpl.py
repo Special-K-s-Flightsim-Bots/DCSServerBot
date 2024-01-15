@@ -11,7 +11,7 @@ from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
 from core.data.dataobject import DataObjectFactory
-from core.data.const import Status
+from core.data.const import Status, Channel
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
@@ -178,10 +178,15 @@ class ServerImpl(Server):
             self.log.debug('  - Installing Hooks ...')
         shutil.copytree('Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
         try:
+            admin_channel = self.channels.get(Channel.ADMIN)
+            if not admin_channel:
+                data = yaml.load(Path('config/services/bot.yaml'))
+                admin_channel = data.get('admin_channel', -1)
             with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), 'r') as template:
                 with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w', encoding='utf-8') as outfile:
                     for line in template.readlines():
-                        line = utils.format_string(line, node=self.node, instance=self.instance, server=self)
+                        line = utils.format_string(line, node=self.node, instance=self.instance, server=self,
+                                                   admin_channel=admin_channel)
                         outfile.write(line)
         except KeyError as k:
             self.log.error(
