@@ -485,12 +485,12 @@ class MissionEventListener(EventListener):
                 return
             if data['eventName'] in ['takeoff', 'landing']:
                 self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
-                    player.name if player else 'AI', data['args2'],
+                    player.name if player else 'AI', data['arg2'],
                     data['arg3'] if len(data['arg3']) > 0 else 'ground')
                 )
             else:
                 self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
-                    player.name if player else 'AI', data['args2'])
+                    player.name if player else 'AI', data['arg2'])
                 )
 
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
