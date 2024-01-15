@@ -8,7 +8,7 @@ import uuid
 
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing
+from contextlib import closing, suppress
 from copy import deepcopy
 from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
     InstanceProxy, NodeProxy, Mission, Node, utils
@@ -179,7 +179,7 @@ class ServiceBus(Service):
         ret = await asyncio.gather(*calls, return_exceptions=True)
         num = 0
         for i, server in enumerate(local_servers):
-            if isinstance(ret[i], asyncio.TimeoutError):
+            if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
             elif isinstance(ret[i], Exception):
@@ -387,7 +387,11 @@ class ServiceBus(Service):
                         conn.execute("INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
                                      (node, Json(data), priority))
             elif data['command'] != 'rpc':
-                self.udp_server.message_queue[data['server_name']].put(data)
+                server_name = data['server_name']
+                if server_name not in self.udp_server.message_queue:
+                    self.log.debug(f"Message received for unregistered server {server_name} - ignoring.")
+                else:
+                    self.udp_server.message_queue[server_name].put(data)
             else:
                 asyncio.create_task(self.handle_rpc(data))
         else:

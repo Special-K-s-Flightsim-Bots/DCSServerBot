@@ -99,29 +99,22 @@ class CreditSystemListener(EventListener):
             """, (ucid, campaign_id)).fetchone()[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
-        async def add_role(member: discord.Member, role: Union[str, int]):
+
+        async def manage_role(member: discord.Member, role: Union[str, int], action: str):
             _role = self.bot.get_role(role)
-            if not role:
+            if not _role:
                 self.log.error(f"Role {role} not found in your Discord!")
-            if _role not in member.roles:
-                try:
+                return
+            try:
+                if action == "add":
                     await member.add_roles(_role)
                     await self.bot.audit(f"achieved the rank {_role.name}", user=member)
-                except discord.Forbidden:
-                    self.log.error(f'The bot needs the "Manage Roles" permission or needs to be placed higher than '
-                                   f'role {_role.name}!')
-
-        async def remove_role(member: discord.Member, role: Union[str, int]):
-            _role = self.bot.get_role(role)
-            if not role:
-                self.log.error(f"Role {role} not found in your Discord!")
-            if _role in member.roles:
-                try:
-                    await member.remove_roles(self.bot.get_role(role))
+                elif action == "remove":
+                    await member.remove_roles(_role)
                     await self.bot.audit(f"lost the rank {_role.name}", user=member)
-                except discord.Forbidden:
-                    self.log.error(f'The bot needs the "Manage Roles" permission or needs to be placed higher than '
-                                   f'role {_role.name}!')
+            except discord.Forbidden:
+                self.log.error(
+                    f'The bot needs the "Manage Roles" permission or needs to be placed higher than role {_role.name}!')
 
         # only linked player can achieve roles
         member = player.member
@@ -137,22 +130,22 @@ class CreditSystemListener(EventListener):
         given = False
         for achievement in sorted_achievements:
             if given:
-                await remove_role(member, achievement['role'])
+                await manage_role(member, achievement['role'], 'remove')
                 continue
             if 'combined' in achievement and achievement['combined']:
                 if ('credits' in achievement and player.points >= achievement['credits']) and \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
-                    await add_role(member, achievement['role'])
+                    await manage_role(member, achievement['role'], 'add')
                     given = True
                 else:
-                    await remove_role(member, achievement['role'])
+                    await manage_role(member, achievement['role'], 'remove')
             else:
                 if ('credits' in achievement and player.points >= achievement['credits']) or \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
-                    await add_role(member, achievement['role'])
+                    await manage_role(member, achievement['role'], 'add')
                     given = True
                 else:
-                    await remove_role(member, achievement['role'])
+                    await manage_role(member, achievement['role'], 'remove')
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:

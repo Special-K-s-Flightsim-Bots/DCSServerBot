@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-from core import Server, ServiceRegistry, Node, PersistentReport, Report
+from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status
 from typing import Optional
 
 
@@ -20,7 +20,7 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
 
 async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, rotate: Optional[bool] = False,
                   run_extensions: Optional[bool] = True):
-    if not server:
+    if not server or server.status in [Status.SHUTDOWN, Status.UNREGISTERED]:
         return
     server.maintenance = True
     if shutdown:

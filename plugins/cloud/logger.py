@@ -37,7 +37,7 @@ class CloudLoggingHandler(logging.Handler):
             exc = record.exc_info[1].original
         else:
             exc = record.exc_info[1]
-        file, line, trace = self.format_traceback(exc.__traceback__) if exc else record.filename, record.lineno, record.funcName
+        file, line, trace = self.format_traceback(exc.__traceback__) if exc else record.filename, record.lineno, [record.funcName]
         with suppress(Exception):
             async with aiohttp.ClientSession() as session:
                 await session.post(self.url, json={

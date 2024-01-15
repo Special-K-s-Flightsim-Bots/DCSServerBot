@@ -1,7 +1,8 @@
 DEFAULT:
   message_afk: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
-  message_server_full: The server is full, please try again later!                        # default message, if the server is considered full (see SlotBlocking plugin)
-  message_timeout: 10                                                                     # default timeout for DCS popup messages in seconds
+  message_server_full: The server is full, please try again later!  # default message, if the server is considered full (see SlotBlocking plugin)
+  message_timeout: 10           # default timeout for DCS popup messages in seconds
+  display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
 My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
   afk_time: 300                 # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled

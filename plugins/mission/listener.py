@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 class MissionEventListener(EventListener):
     EVENT_TEXTS = {
         Side.BLUE: {
-            'takeoff': '```ansi\n\u001b[0;34mBLUE player {} took off from {}.```',
-            'landing': '```ansi\n\u001b[0;34mBLUE player {} landed at {}.```',
-            'eject': '```ansi\n\u001b[0;34mBLUE player {} ejected.```',
-            'crash': '```ansi\n\u001b[0;34mBLUE player {} crashed.```',
-            'pilot_death': '```ansi\n\u001b[0;34mBLUE player {} died.```',
+            'takeoff': '```ansi\n\u001b[0;34mBLUE player {} in {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;34mBLUE player {} in {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;34mBLUE player {} in {} ejected.```',
+            'crash': '```ansi\n\u001b[0;34mBLUE player {} in {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;34mBLUE player {} in {} died.```',
             'kill': '```ansi\n\u001b[0;34mBLUE {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
@@ -32,11 +32,11 @@ class MissionEventListener(EventListener):
             'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected```'
         },
         Side.RED: {
-            'takeoff': '```ansi\n\u001b[0;31mRED player {} took off from {}.```',
-            'landing': '```ansi\n\u001b[0;31mRED player {} landed at {}.```',
-            'eject': '```ansi\n\u001b[0;31mRED player {} ejected.```',
-            'crash': '```ansi\n\u001b[0;31mRED player {} crashed.```',
-            'pilot_death': '```ansi\n\u001b[0;31mRED player {} died.```',
+            'takeoff': '```ansi\n\u001b[0;31mRED player {} in {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;31mRED player {} in {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;31mRED player {} in {} ejected.```',
+            'crash': '```ansi\n\u001b[0;31mRED player {} in {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;31mRED player {} in {} died.```',
             'kill': '```ansi\n\u001b[0;31mRED {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
@@ -47,16 +47,23 @@ class MissionEventListener(EventListener):
             'connect': '```\nPlayer {} connected to server```',
             'disconnect': '```\nPlayer {} disconnected```',
             'spectators': '```\n{} player {} returned to Spectators```',
-            'takeoff': '```\nPlayer {} took off from {}.```',
-            'landing': '```\nPlayer {} landed at {}.```',
-            'crash': '```\nPlayer {} crashed.```',
-            'eject': '```\nPlayer {} ejected.```',
-            'pilot_death': '```\n[Player {} died.```',
+            'takeoff': '```\nPlayer {} in {} took off from {}.```',
+            'landing': '```\nPlayer {} in {} landed at {}.```',
+            'crash': '```\nPlayer {} in {} crashed.```',
+            'eject': '```\nPlayer {} in {} ejected.```',
+            'pilot_death': '```\n[Player {} in {} died.```',
             'kill': '```\n{} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```'
         },
         Side.UNKNOWN: {
-            'kill': '```\n{} in {} killed {} {} in {} with {}.```'
+            'takeoff': '```\n{} in {} took off from {}.```',
+            'landing': '```\n{} in {} landed at {}.```',
+            'eject': '```\n{} in {} ejected.```',
+            'crash': '```\n{} in {} crashed.```',
+            'pilot_death': '```\n{} in {} died.```',
+            'kill': '```\n{} in {} killed {} {} in {} with {}.```',
+            'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```',
+            'self_kill': '```\n{} killed themselves - Ooopsie!```'
         }
     }
 
@@ -71,11 +78,11 @@ class MissionEventListener(EventListener):
 
     async def shutdown(self):
         self.print_queue.cancel()
-        await self.work_queue(True)
+        await self.work_queue()
         self.update_player_embed.cancel()
         self.update_mission_embed.cancel()
 
-    async def work_queue(self, flush: bool = False):
+    async def work_queue(self):
         for channel in list(self.queue.keys()):
             if self.queue[channel].empty():
                 continue
@@ -88,13 +95,12 @@ class MissionEventListener(EventListener):
             while not self.queue[channel].empty():
                 message = self.queue[channel].get()
                 if message != message_old:
-                    messages += message
+                    if len(messages + message) > 2000:
+                        await _channel.send(messages)
+                        messages = message
+                    else:
+                        messages += message
                     message_old = message
-                if len(messages) > 1900:
-                    if not flush:
-                        break
-                    await _channel.send(messages)
-                    messages = message_old = ''
             if messages:
                 await _channel.send(messages)
 
@@ -432,23 +438,31 @@ class MissionEventListener(EventListener):
                 self.display_player_embed(server)
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
-            if data['arg3'] != -1:
-                player2 = server.get_player(id=data['arg3'])
-            else:
-                # TODO: remove if issue with Forrestal is fixed
+            player2 = server.get_player(id=data['arg3'])
+            # TODO: remove if issue with Forrestal is fixed
+            if not player2:
                 return
-#                player2 = None
-            self.send_dcs_event(server, player1.side, self.EVENT_TEXTS[player1.side][data['eventName']].format(
-                'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
-                data['arg2'] or 'Cannon/Bomblet'))
+            # filter AI-only events
+            if not player1 and not player2 and not server.locals.get('display_ai_chat', False):
+                return
+            side = player1.side if player1 else player2.side if player2 else Side.UNKNOWN
+            self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+                ('player ' + player1.name) if player1 else 'AI',
+                ('player ' + player2.name) if player2 else 'AI',
+                data['arg2'] or 'Cannon/Bomblet')
+            )
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
-            self.send_dcs_event(server, player.side,
-                                self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+            side = player.side if player else Side.UNKNOWN
+            if player or server.locals.get('display_ai_chat', False):
+                self.send_dcs_event(server, side,
+                                    self.EVENT_TEXTS[side][data['eventName']].format(player.name if player else 'AI'))
         elif data['eventName'] == 'kill':
-            # Player is not an AI
-            player1 = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
-            player2 = server.get_player(id=data['arg4']) if data['arg4'] != -1 else None
+            player1 = server.get_player(id=data['arg1'])
+            player2 = server.get_player(id=data['arg4'])
+            # filter AI-only events
+            if not player1 and not player2 and not server.locals.get('display_ai_chat', False):
+                return
             side = Side(data['arg3'])
             self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
                 ('player ' + player1.name) if player1 is not None else 'AI',
@@ -465,16 +479,19 @@ class MissionEventListener(EventListener):
                     message = f"{server.display_name}: " + message
                 await self.bot.get_admin_channel(server).send(message)
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
-            if data['arg1'] != -1:
-                player = server.get_player(id=data['arg1'])
-                if not player:
-                    return
-                if data['eventName'] in ['takeoff', 'landing']:
-                    self.send_dcs_event(server, player.side, self.EVENT_TEXTS[player.side][data['eventName']].format(
-                        player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
-                else:
-                    self.send_dcs_event(server, player.side,
-                                        self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+            player = server.get_player(id=data['arg1'])
+            side = player.side if player else Side.UNKNOWN
+            if not player and not server.locals.get('display_ai_chat', False):
+                return
+            if data['eventName'] in ['takeoff', 'landing']:
+                self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+                    player.name if player else 'AI', data['args2'],
+                    data['arg3'] if len(data['arg3']) > 0 else 'ground')
+                )
+            else:
+                self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
+                    player.name if player else 'AI', data['args2'])
+                )
 
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
     async def atis(self, server: Server, player: Player, params: list[str]):
@@ -522,69 +539,44 @@ class MissionEventListener(EventListener):
     async def load(self, server: Server, player: Player, params: list[str]):
         self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
 
-    @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 30 days")
+    @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
-        if not params:
-            player.sendChatMessage(
-                f"Usage: {self.prefix}kick <name> [reason]")
-            return
-        params = shlex.split(' '.join(params))
-        name = params[0]
-        if len(params) > 1:
-            reason = ' '.join(params[1:])
-        else:
-            reason = 'n/a'
-        delinquent: Player = server.get_player(name=name, active=True)
-        if not delinquent:
-            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
-            return
-        ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 3)
-        player.sendChatMessage(f"User {name} banned for 3 days.")
-        await self.bot.audit(f'Player {delinquent.display_name} banned for 3 days' +
-                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                             user=player.member)
+        await self._handle_command(server, player, params, lambda delinquent, reason: (
+            ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 3),
+            f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
     async def kick(self, server: Server, player: Player, params: list[str]):
-        if not params:
-            player.sendChatMessage(
-                f"Usage: {self.prefix}kick <name> [reason]")
-            return
-        params = shlex.split(' '.join(params))
-        name = params[0]
-        if len(params) > 1:
-            reason = ' '.join(params[1:])
-        else:
-            reason = 'n/a'
-        delinquent: Player = server.get_player(name=name, active=True)
-        if not delinquent:
-            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
-            return
-        server.kick(delinquent, reason)
-        player.sendChatMessage(f"User {name} kicked.")
-        await self.bot.audit(f'Player {delinquent.display_name} kicked' +
-                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                             user=player.member)
+        await self._handle_command(server, player, params, lambda delinquent, reason: (
+            server.kick(delinquent, reason),
+            f'User {delinquent.display_name} kicked'))
 
     @chat_command(name="spec", roles=['DCS Admin'], usage="<name> [reason]", help="moves a user to spectators")
     async def spec(self, server: Server, player: Player, params: list[str]):
+        await self._handle_command(server, player, params, lambda delinquent, reason: (
+            server.move_to_spectators(delinquent, reason),
+            f'User {delinquent.display_name} moved to spectators'))
+
+    async def _handle_command(self, server: Server, player: Player, params: list[str], action):
         if not params:
             player.sendChatMessage(
-                f"Usage: {self.prefix}spec <name> [reason]")
+                f"Usage: {self.prefix}{action.__name__} <name> [reason]")
             return
+
         params = shlex.split(' '.join(params))
         name = params[0]
-        if len(params) > 1:
-            reason = ' '.join(params[1:])
-        else:
-            reason = 'n/a'
+        reason = ' '.join(params[1:]) if len(params) > 1 else 'n/a'
+
         delinquent: Player = server.get_player(name=name, active=True)
         if not delinquent:
-            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            player.sendChatMessage(f'Player {name} not found. Use "" around names with blanks.')
             return
-        server.move_to_spectators(delinquent, reason)
-        player.sendChatMessage(f"User {name} moved to spectators.")
-        await self.bot.audit(f'Player {delinquent.display_name} moved to spectators' +
+
+        action_result, audit_msg = action(delinquent, reason)
+        action_description = ' '.join(audit_msg.split()[2:])
+
+        player.sendChatMessage(audit_msg)
+        await self.bot.audit(f'Player {delinquent.display_name} {action_description}' +
                              (f' with reason "{reason}".' if reason != 'n/a' else '.'),
                              user=player.member)
 

@@ -169,10 +169,7 @@ class Server(DataObject):
 
     def get_player(self, **kwargs) -> Optional[Player]:
         if 'id' in kwargs:
-            if kwargs['id'] in self.players:
-                return self.players[kwargs['id']]
-            else:
-                return None
+            return self.players.get(kwargs['id'])
         for player in self.players.values():
             if player.id == 1:
                 continue
@@ -416,7 +413,7 @@ class Server(DataObject):
         slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
         self.send_to_dcs({"command": "shutdown"})
-        with suppress(asyncio.TimeoutError):
+        with suppress(TimeoutError, asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def init_extensions(self):

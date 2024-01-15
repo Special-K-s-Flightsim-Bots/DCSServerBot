@@ -1,3 +1,5 @@
+import asyncio
+
 from core import EventListener, Server, event, ServiceRegistry, Plugin
 from typing import cast
 
@@ -14,7 +16,7 @@ class MusicEventListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         try:
             await self.service.init_radios(server=server)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             return
         # if we've just started, we need to start the radios
         if data['channel'].startswith('sync-'):
