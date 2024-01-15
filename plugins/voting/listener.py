@@ -159,7 +159,7 @@ class VotingListener(EventListener):
             player.sendChatMessage(f"You need at least {points} credit points to create a vote.")
             return
 
-        choices = config['options'].keys()
+        choices = list(config['options'].keys())
         if len(choices) > 1:
             if not params:
                 player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
