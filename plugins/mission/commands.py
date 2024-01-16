@@ -267,7 +267,7 @@ class Mission(Plugin):
             await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
             await msg.delete()
             await interaction.followup.send(f"Mission {actions.get(what)}.", ephemeral=ephemeral)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(f"Timeout while {actions.get(what).replace('ed', 'ing')} the mission.\n"
                                             f"Please check with /mission info, if the server is up.",
                                             ephemeral=ephemeral)
@@ -330,7 +330,7 @@ class Mission(Plugin):
                     await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
                                          user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
-                except asyncio.TimeoutError:
+                except (TimeoutError, asyncio.TimeoutError):
                     await interaction.followup.send(f'Timeout while loading mission {name}.', ephemeral=ephemeral)
                 finally:
                     await tmp.delete()
@@ -393,7 +393,7 @@ class Mission(Plugin):
                         await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=ephemeral)
                     except FileNotFoundError:
                         await interaction.followup.send(f'Mission "{name}" was already deleted.', ephemeral=ephemeral)
-            except asyncio.TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 await interaction.followup.send("Timeout while deleting mission.\n"
                                                 "Please reconfirm that the deletion was succesful.",
                                                 ephemeral=ephemeral)
@@ -505,7 +505,7 @@ class Mission(Plugin):
                     await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
                                          user=interaction.user)
                     await msg.delete()
-                except asyncio.TimeoutError:
+                except (TimeoutError, asyncio.TimeoutError):
                     message = ("Timeout during restart of mission!\n"
                                "Please check, if your server is running or if the mission somehow got corrupted.")
             await interaction.followup.send(message, ephemeral=ephemeral)
@@ -603,6 +603,9 @@ class Mission(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    reason: Optional[str] = 'n/a') -> None:
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         server.kick(player, reason)
         await self.bot.audit(f'kicked player {player.display_name} with reason "{reason}"', user=interaction.user)
         await interaction.response.send_message(f"Player {player.display_name} (ucid={player.ucid}) kicked.",
@@ -632,6 +635,9 @@ class Mission(Plugin):
                                                         ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {player.display_name} with reason "{derived.reason.value}"' +
                                      (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         await interaction.response.send_modal(BanModal(server, player))
 
     @player.command(description='Moves a player to spectators')
@@ -641,6 +647,9 @@ class Mission(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    reason: Optional[str] = 'n/a') -> None:
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         server.move_to_spectators(player)
         if reason:
             player.sendChatMessage(f"You have been moved to spectators. Reason: {reason}",
@@ -697,6 +706,9 @@ class Mission(Plugin):
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                     message: str, time: Optional[Range[int, 1, 30]] = -1):
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         player.sendPopupMessage(message, time, interaction.user.display_name)
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
@@ -706,6 +718,9 @@ class Mission(Plugin):
     async def chat(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)], message: str):
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         player.sendChatMessage(message, interaction.user.display_name)
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
@@ -715,6 +730,9 @@ class Mission(Plugin):
     async def watch(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True, watchlist=False)]):
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         player.watchlist = True
         await interaction.response.send_message(f"Player {player.display_name} is now on the watchlist.",
                                                 ephemeral=utils.get_ephemeral(interaction))
@@ -725,6 +743,9 @@ class Mission(Plugin):
     async def unwatch(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                       player: app_commands.Transform[Player, utils.PlayerTransformer(active=True, watchlist=True)]):
+        if not player:
+            await interaction.response.send_message("Player not found.", ephemeral=True)
+            return
         player.watchlist = False
         await interaction.response.send_message(f"Player {player.display_name} removed from watchlist.",
                                                 ephemeral = utils.get_ephemeral(interaction))
@@ -862,7 +883,7 @@ class Mission(Plugin):
                 tmp = await message.channel.send(f'Loading mission {name} ...')
                 try:
                     await server.loadMission(filename)
-                except asyncio.TimeoutError:
+                except (TimeoutError, asyncio.TimeoutError):
                     await tmp.delete()
                     await message.channel.send(f"Timeout while trying to load mission.")
                     await self.bot.audit(f"Timeout while trying to load mission {name}",

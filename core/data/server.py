@@ -48,7 +48,7 @@ class Server(DataObject):
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Optional[Process] = field(default=None, compare=False)
-    _maintenance: bool = field(default=False, compare=False)
+    _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
@@ -130,6 +130,11 @@ class Server(DataObject):
                     },
                     "server_name": self.name
                 }, node=self.node.name)
+            else:
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                                     (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:
@@ -169,10 +174,7 @@ class Server(DataObject):
 
     def get_player(self, **kwargs) -> Optional[Player]:
         if 'id' in kwargs:
-            if kwargs['id'] in self.players:
-                return self.players[kwargs['id']]
-            else:
-                return None
+            return self.players.get(kwargs['id'])
         for player in self.players.values():
             if player.id == 1:
                 continue
@@ -416,7 +418,7 @@ class Server(DataObject):
         slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
         self.send_to_dcs({"command": "shutdown"})
-        with suppress(asyncio.TimeoutError):
+        with suppress(TimeoutError, asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def init_extensions(self):

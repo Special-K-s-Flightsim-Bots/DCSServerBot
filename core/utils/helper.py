@@ -3,6 +3,7 @@ from __future__ import annotations
 import builtins
 import importlib
 import json
+import time
 import luadata
 import os
 import re
@@ -16,7 +17,7 @@ import random
 import math
 
 from croniter import croniter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator, Iterable
 from urllib.parse import urlparse
@@ -38,6 +39,7 @@ __all__ = [
     "format_string",
     "convert_time",
     "format_time",
+    "get_utc_offset",
     "format_period",
     "slugify",
     "alternate_parse_settings",
@@ -167,6 +169,28 @@ def format_time(seconds: int):
         if seconds > 1:
             retval += "s"
     return retval
+
+
+def get_utc_offset() -> str:
+    # Get the struct_time objects for the current local time and UTC time
+    current_time = time.time()
+    localtime = time.localtime(current_time)
+    gmtime = time.gmtime(current_time)
+
+    # Convert these to datetime objects
+    local_dt = datetime(*localtime[:6], tzinfo=timezone.utc)
+    utc_dt = datetime(*gmtime[:6], tzinfo=timezone.utc)
+
+    # Compute the UTC offset
+    offset = local_dt - utc_dt if local_dt > utc_dt else utc_dt - local_dt
+
+    # Express the offset in hours:minutes
+    offset_minutes = int(offset.total_seconds() / 60)
+    offset_hours = offset_minutes // 60
+    offset_minutes %= 60
+    if offset == 0:
+        return ""
+    return f"{offset_hours:+03d}:{offset_minutes:02d}"
 
 
 def format_period(period: str) -> str:

@@ -55,7 +55,7 @@ class Mission(DataObject):
         # wait until we are running again
         try:
             await self.server.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             self.log.debug(f'Trying to force start server "{self.server.name}" due to DCS bug.')
             await self.server.start()
 

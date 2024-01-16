@@ -85,6 +85,9 @@ class ServerImpl(Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT DO NOTHING", (self.name, ))
+            row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
+            if row:
+                self._maintenance = row[0]
 
     @property
     def is_remote(self) -> bool:
@@ -378,7 +381,7 @@ class ServerImpl(Server):
         self.status = Status.LOADING
         try:
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch
             if not self.is_running():
                 self.status = Status.SHUTDOWN

@@ -76,7 +76,7 @@ class Scheduler(Plugin):
                 self.log.info(f'  => DCS server "{server.name}" started by '
                               f'{member.display_name}.')
                 await self.bot.audit(f"started DCS server", user=member, server=server)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             if server.status == Status.SHUTDOWN:
                 self.log.warning(f'  => DCS server "{server.name}" was closed / crashed while launching!')
             else:
@@ -195,7 +195,7 @@ class Scheduler(Plugin):
             try:
                 self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
                 await self.launch_dcs(server)
-            except asyncio.TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                      server=server)
         elif method == 'restart':
@@ -238,7 +238,11 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
-        # check all servers
+        def create_launcher(server: Server):
+            return lambda: asyncio.create_task(self.launch_dcs(server))
+
+        next_startup = 0
+        startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
             if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
@@ -249,7 +253,13 @@ class Scheduler(Plugin):
                 try:
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
-                        asyncio.create_task(self.launch_dcs(server))
+                        if next_startup == 0:
+                            asyncio.create_task(self.launch_dcs(server))
+                            next_startup = startup_delay
+                        else:
+                            server.status = Status.LOADING
+                            self.loop.call_later(next_startup, create_launcher(server))
+                            next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
                     ]:
@@ -327,7 +337,7 @@ class Scheduler(Plugin):
                 await interaction.followup.send(f"DCS server \"{server.display_name}\" started." +
                                                 ("\nServer is in maintenance mode now! Use `/scheduler clear` to "
                                                  "reset maintenance mode." if maintenance else ""), ephemeral=ephemeral)
-            except asyncio.TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 if server.status == Status.SHUTDOWN:
                     await interaction.followup.send(
                         f'Server {server.display_name} was closed / crashed while starting up!', ephemeral=ephemeral)
@@ -400,7 +410,7 @@ class Scheduler(Plugin):
             await interaction.response.defer(ephemeral=ephemeral, thinking=True)
             try:
                 await server.start()
-            except asyncio.TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 await interaction.followup.send(f"Timeout while trying to start server {server.name}.",
                                                 ephemeral=ephemeral)
                 return
@@ -433,7 +443,7 @@ class Scheduler(Plugin):
         try:
             msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=ephemeral)
             await server.stop()
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=ephemeral)
             return
         finally:

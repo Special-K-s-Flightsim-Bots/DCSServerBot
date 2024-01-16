@@ -133,7 +133,8 @@ class ScheduleInfo(report.EmbedElement):
             config = scheduler.get_config(server)
             if 'schedule' in config:
                 await report.Ruler(self.env).render(text="This server runs on the following schedule:")
-                self.embed.add_field(name='Time', value='\n'.join(config['schedule'].keys()))
+                utc_diff = utils.get_utc_offset()
+                self.embed.add_field(name=f'Time (UTC{utc_diff})', value='\n'.join(config['schedule'].keys()))
                 value = ''
                 for schedule in config['schedule'].values():
                     for c in schedule:

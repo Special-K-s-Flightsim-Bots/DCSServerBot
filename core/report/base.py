@@ -104,7 +104,7 @@ class Report:
                             render_args = {name: value for name, value in element_args.items() if name in signature}
                             try:
                                 await element_class.render(**render_args)
-                            except asyncio.TimeoutError:
+                            except (TimeoutError, asyncio.TimeoutError):
                                 self.log.error(f"Timeout while processing report {self.filename}! "
                                                f"Some elements might be empty.")
                             except Exception as ex:
