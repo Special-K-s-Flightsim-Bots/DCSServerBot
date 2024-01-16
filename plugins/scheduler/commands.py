@@ -239,7 +239,11 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
-        # check all servers
+        def create_launcher(server: Server):
+            return lambda: asyncio.create_task(self.launch_dcs(server))
+
+        next_startup = 0
+        startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
             if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
@@ -250,7 +254,13 @@ class Scheduler(Plugin):
                 try:
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
-                        asyncio.create_task(self.launch_dcs(server))
+                        if next_startup == 0:
+                            asyncio.create_task(self.launch_dcs(server))
+                            next_startup = startup_delay
+                        else:
+                            server.status = Status.LOADING
+                            self.loop.call_later(next_startup, create_launcher(server))
+                            next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
                     ]:
