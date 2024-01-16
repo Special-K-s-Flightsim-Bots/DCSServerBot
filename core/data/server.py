@@ -48,7 +48,7 @@ class Server(DataObject):
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Optional[Process] = field(default=None, compare=False)
-    _maintenance: bool = field(compare=False, init=False)
+    _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
