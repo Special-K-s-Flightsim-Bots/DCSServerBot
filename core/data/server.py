@@ -48,7 +48,7 @@ class Server(DataObject):
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Optional[Process] = field(default=None, compare=False)
-    _maintenance: bool = field(default=False, compare=False)
+    _maintenance: bool = field(compare=False, init=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
@@ -130,6 +130,11 @@ class Server(DataObject):
                     },
                     "server_name": self.name
                 }, node=self.node.name)
+            else:
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                                     (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:

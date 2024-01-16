@@ -85,6 +85,9 @@ class ServerImpl(Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT DO NOTHING", (self.name, ))
+            row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
+            if row:
+                self._maintenance = row[0]
 
     @property
     def is_remote(self) -> bool:

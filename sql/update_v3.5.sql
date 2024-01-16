@@ -1,0 +1,2 @@
+ALTER TABLE servers ADD COLUMN IF NOT EXISTS maintenance BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE version SET version='v3.6';
