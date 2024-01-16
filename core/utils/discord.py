@@ -301,6 +301,7 @@ def has_role(role: str):
     def predicate(ctx: commands.Context) -> bool:
         return check_roles([role], ctx.author)
 
+    predicate.role = role
     return commands.check(predicate)
 
 
@@ -308,6 +309,7 @@ def app_has_role(role: str):
     def predicate(interaction: Interaction) -> bool:
         return check_roles(interaction.client.roles[role], interaction.user)
 
+    predicate.role = role
     return app_commands.check(predicate)
 
 
@@ -315,6 +317,7 @@ def has_roles(roles: list[str]):
     def predicate(ctx: commands.Context) -> bool:
         return check_roles(roles, ctx.author)
 
+    predicate.roles = roles
     return commands.check(predicate)
 
 
@@ -341,6 +344,7 @@ def app_has_roles(roles: list[str]):
             valid_roles |= set(interaction.client.roles[role])
         return check_roles(valid_roles, interaction.user)
 
+    predicate.roles = roles
     return app_commands.check(predicate)
 
 
@@ -348,6 +352,7 @@ def app_has_not_role(role: str):
     def predicate(interaction: Interaction) -> bool:
         return not check_roles(interaction.client[role], interaction.user)
 
+    predicate.role = role
     return app_commands.check(predicate)
 
 
@@ -358,6 +363,7 @@ def app_has_not_roles(roles: list[str]):
             invalid_roles |= set(interaction.client.roles[role])
         return not check_roles(invalid_roles, interaction.user)
 
+    predicate.roles = roles
     return app_commands.check(predicate)
 
 

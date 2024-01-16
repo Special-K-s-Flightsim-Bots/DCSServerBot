@@ -4,9 +4,10 @@ Only commands eligible to the caller are displayed.
 
 ## Discord Commands
 
-| Command | Parameter | Channel | Role       | Description                                                                          |
-|---------|-----------|---------|------------|--------------------------------------------------------------------------------------|
-| /help   | [command] | all     | DCS        | Display help with a selection of all modules or for a specific command, if provided. |
+| Command  | Parameter        | Channel | Role  | Description                                                                               |
+|----------|------------------|---------|-------|-------------------------------------------------------------------------------------------|
+| /help    | [command]        | all     | DCS   | Display help with a selection of all modules or for a specific command, if provided.      |
+| /doc     | <role> [channel] | all     | Admin | Generate help text for all commands that a specific role can use (in a separate channel). |
 
 ## In-Game Chat Commands
 

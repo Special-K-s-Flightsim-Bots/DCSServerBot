@@ -4,10 +4,10 @@ import os
 from core import Plugin, Report, ReportEnv, command, Command, utils
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Select, Button
+from discord.ui import View, Select, Button, Modal, TextInput
 from functools import cache
 from services import DCSServerBot
-from typing import cast, Optional
+from typing import cast, Optional, Literal
 
 from .listener import HelpListener
 
@@ -25,6 +25,12 @@ async def get_commands(interaction: discord.Interaction) -> dict[str, app_comman
             cmds['/' + cmd.name] = cmd
     return cmds
 
+
+def get_usage(command: discord.app_commands.Command) -> str:
+    return ' '.join([
+        f"<{param.name}>" if param.required else f"[{param.name}]"
+        for param in command.parameters
+    ])
 
 async def commands_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
@@ -81,13 +87,6 @@ class Help(Plugin):
                 self.children[3].disabled = True
                 self.children[4].disabled = True
 
-        @staticmethod
-        def get_usage(command: discord.app_commands.Command) -> str:
-            return ' '.join([
-                f"<{param.name}>" if param.required else f"[{param.name}]"
-                for param in command.parameters
-            ])
-
         async def print_command(self, interaction: discord.Interaction, *, name: str) -> Optional[discord.Embed]:
             _name = name.lstrip('/')
             parts = _name.split()
@@ -115,7 +114,7 @@ class Help(Plugin):
             help_embed = discord.Embed(color=discord.Color.blue())
             help_embed.title = f"Command: {name}"
             help_embed.description = cmd.description
-            usage = self.get_usage(cmd)
+            usage = get_usage(cmd)
             help_embed.add_field(name='Usage', value=f"{name} {usage}", inline=False)
             if usage:
                 help_embed.set_footer(text='<> mandatory, [] non-mandatory')
@@ -129,7 +128,7 @@ class Help(Plugin):
             descriptions = []
             for name, cmd in (await get_commands(interaction)).items():
                 if cmd.module == plugin:
-                    cmds.append(name + ' ' + self.get_usage(cmd))
+                    cmds.append(name + ' ' + get_usage(cmd))
                     descriptions.append(cmd.description)
             if cmds:
                 help_embed.add_field(name='Command', value='\n'.join(cmds))
@@ -242,6 +241,52 @@ class Help(Plugin):
                 self.log.exception(ex)
             finally:
                 await interaction.delete_original_response()
+
+    @command(description='Generate Documentation')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def doc(self, interaction: discord.Interaction, role: Literal['Admin', 'DCS Admin', 'DCS'],
+                  channel: Optional[discord.TextChannel] = None):
+
+        class DocModal(Modal):
+            header = TextInput(label="Header", default="## DCSServerBot Commands", style=discord.TextStyle.short,
+                              required=True)
+            intro = TextInput(label="Intro", style=discord.TextStyle.long, required=True)
+
+            def __init__(derived, role: str):
+                super().__init__(title="Generate Documentation")
+                derived.role = role
+                derived.intro.default = f"""
+The following bot commands can be used in this discord by members that have the {derived.role} role:
+_ _ 
+            """
+
+            async def on_submit(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+
+        modal = DocModal(role=role)
+        await interaction.response.send_modal(modal)
+        await modal.wait()
+        if not channel:
+            channel = interaction.channel
+        await channel.send(modal.header.value + '\n' + modal.intro.value)
+        message = ""
+        for cmd in sorted((await get_commands(interaction)).values(), key=lambda x: x.qualified_name):
+            for check in cmd.checks:
+                try:
+                    if (('has_role.' in check.__qualname__ and check.role == role) or
+                            ('has_roles.' in check.__qualname__ and role in check.roles)):
+                        message += f'**/{cmd.qualified_name}** {get_usage(cmd)}\n' + cmd.description.strip('\n') + '\n\n'
+                        if len(message) > 1900:
+                            await channel.send(message)
+                            message = ""
+                    break
+                except AttributeError as ex:
+                    self.log.error("Name: {} has no attribute '{}'".format(cmd.name, ex.name))
+            else:
+                message += f'**/{cmd.qualified_name}** {get_usage(cmd)}\n' + cmd.description + '\n\n'
+        if message:
+            await channel.send(message)
 
 
 async def setup(bot: DCSServerBot):

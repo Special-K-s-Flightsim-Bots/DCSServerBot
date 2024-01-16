@@ -7,7 +7,7 @@ into your mind.
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
 
-Now let's see, what DCSServerBot can do for you (installation instructions below)!
+Now let's see, what DCSServerBot can do for you (installation instructions [below](#installation)!
 
 ---
 ## Architecture
