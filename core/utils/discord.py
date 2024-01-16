@@ -333,7 +333,7 @@ def cmd_has_roles(roles: list[str]):
         return predicate(interaction)
 
     cmd_has_roles.predicate = wrapper
-
+    wrapper.roles = roles
     return cmd_has_roles
 
 

@@ -1,11 +1,13 @@
 import discord
 import os
+import pandas as pd
 
 from core import Plugin, Report, ReportEnv, command, Command, utils
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from functools import cache
+from io import BytesIO
 from services import DCSServerBot
 from typing import cast, Optional, Literal
 
@@ -28,9 +30,10 @@ async def get_commands(interaction: discord.Interaction) -> dict[str, app_comman
 
 def get_usage(command: discord.app_commands.Command) -> str:
     return ' '.join([
-        f"<{param.name}>" if param.required else f"[{param.name}]"
+        f"<{param.name.lstrip('_')}>" if param.required else f"[{param.name.lstrip('_')}]"
         for param in command.parameters
     ])
+
 
 async def commands_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
@@ -242,51 +245,117 @@ class Help(Plugin):
             finally:
                 await interaction.delete_original_response()
 
-    @command(description='Generate Documentation')
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    async def doc(self, interaction: discord.Interaction, role: Literal['Admin', 'DCS Admin', 'DCS'],
-                  channel: Optional[discord.TextChannel] = None):
-
-        class DocModal(Modal):
-            header = TextInput(label="Header", default="## DCSServerBot Commands", style=discord.TextStyle.short,
-                              required=True)
-            intro = TextInput(label="Intro", style=discord.TextStyle.long, required=True)
-
-            def __init__(derived, role: str):
-                super().__init__(title="Generate Documentation")
-                derived.role = role
-                derived.intro.default = f"""
-The following bot commands can be used in this discord by members that have the {derived.role} role:
-_ _ 
-            """
-
-            async def on_submit(derived, interaction: discord.Interaction):
-                await interaction.response.defer()
-
-        modal = DocModal(role=role)
-        await interaction.response.send_modal(modal)
-        await modal.wait()
-        if not channel:
-            channel = interaction.channel
-        await channel.send(modal.header.value + '\n' + modal.intro.value)
-        message = ""
+    async def discord_commands_to_df(self, interaction: discord.Interaction) -> pd.DataFrame:
+        df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
         for cmd in sorted((await get_commands(interaction)).values(), key=lambda x: x.qualified_name):
             for check in cmd.checks:
                 try:
-                    if (('has_role.' in check.__qualname__ and check.role == role) or
-                            ('has_roles.' in check.__qualname__ and role in check.roles)):
-                        message += f'**/{cmd.qualified_name}** {get_usage(cmd)}\n' + cmd.description.strip('\n') + '\n\n'
-                        if len(message) > 1900:
-                            await channel.send(message)
-                            message = ""
+                    if 'has_role.' in check.__qualname__:
+                        roles = [check.role]
+                    elif 'has_roles.' in check.__qualname__:
+                        roles = check.roles
+                    else:
+                        continue
+                    plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
+                    data_df = pd.DataFrame(
+                        [(plugin, '/' + cmd.qualified_name, get_usage(cmd), ','.join(roles), cmd.description)],
+                        columns=df.columns)
+                    df = pd.concat([df, data_df], ignore_index=True)
                     break
                 except AttributeError as ex:
                     self.log.error("Name: {} has no attribute '{}'".format(cmd.name, ex.name))
             else:
-                message += f'**/{cmd.qualified_name}** {get_usage(cmd)}\n' + cmd.description + '\n\n'
-        if message:
-            await channel.send(message)
+                plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
+                data_df = pd.DataFrame(
+                    [(plugin, '/' + cmd.qualified_name, get_usage(cmd), '', cmd.description)],
+                    columns=df.columns)
+                df = pd.concat([df, data_df], ignore_index=True)
+        return df
+
+    async def ingame_commands_to_df(self) -> pd.DataFrame:
+        df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
+        for listener in self.bot.eventListeners:
+            for cmd in listener.chat_commands:
+                data_df = pd.DataFrame(
+                    [(listener.plugin_name.title(), listener.prefix + cmd.name, cmd.usage, ','.join(cmd.roles), cmd.help)],
+                    columns=df.columns)
+                df = pd.concat([df, data_df], ignore_index=True)
+        return df
+
+    @command(description='Generate Documentation')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def doc(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
+                  role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
+                  channel: Optional[discord.TextChannel] = None):
+
+        class DocModal(Modal):
+            header = TextInput(label="Header", default="## DCSServerBot Commands", style=discord.TextStyle.short,
+                               required=True)
+            intro = TextInput(label="Intro", style=discord.TextStyle.long, required=True)
+
+            def __init__(derived, role: Optional[str]):
+                super().__init__(title="Generate Documentation")
+                derived.role = role
+                if role:
+                    derived.intro.default = f"""
+The following bot commands can be used in this discord by members that have the {derived.role} role:
+_ _ 
+                    """
+                else:
+                    derived.intro.default = f"""
+The following bot commands can be used in this discord:
+_ _ 
+                    """
+
+            async def on_submit(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+
+        if format == 'xls':
+            discord_commands = (await self.discord_commands_to_df(interaction)).sort_values(['Plugin', 'Command'])
+            ingame_commands = (await self.ingame_commands_to_df()).sort_values(['Plugin', 'Command'])
+            output = BytesIO()
+            with pd.ExcelWriter(output) as writer:
+                discord_commands.to_excel(writer, sheet_name='Discord Commands', index=False)
+                ingame_commands.to_excel(writer, sheet_name='In-Game Commands', index=False)
+                for worksheet in [writer.sheets['Discord Commands'], writer.sheets['In-Game Commands']]:
+                    # Apply a filter to all the columns.
+                    worksheet.auto_filter.ref = worksheet.calculate_dimension()
+
+                    # Get the max length of content in columns and resize the lengths
+                    for col in worksheet.columns:
+                        max_length = 0
+                        column = col[0]
+                        for cell in col:
+                            try:
+                                if len(str(cell.value)) > max_length:
+                                    max_length = len(cell.value)
+                            except:
+                                pass
+                        adjusted_width = max_length + 3  # Add buffer width
+                        worksheet.column_dimensions[column.column_letter].width = adjusted_width
+
+            output.seek(0)
+            await interaction.response.send_message(file=discord.File(fp=output, filename='DCSSB-Commands.xlsx'))
+        elif role:
+            modal = DocModal(role=role)
+            await interaction.response.send_modal(modal)
+            await modal.wait()
+            if not channel:
+                channel = interaction.channel
+            await channel.send(modal.header.value + '\n' + modal.intro.value)
+            message = ""
+            discord_commands = await self.discord_commands_to_df(interaction)
+            for index, row in discord_commands.iterrows():
+                if not role or role in row['Roles']:
+                    message += f"**/{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
+                    if len(message) > 1900:
+                        await channel.send(message)
+                        message = ""
+            if message:
+                await channel.send(message)
+        else:
+            await interaction.response.send_message("Please provide a role for channel output.", ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
