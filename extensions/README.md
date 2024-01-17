@@ -88,15 +88,15 @@ Many servers run [Tacview](https://www.tacview.net/) to help people analyse thei
 whatnot. It is an awesome tool for teaching and after action reports as well.<br/>
 One of the downsides (besides a performance hit on servers) is, that you gather a lot of data and fill up your disk.
 DCSServerBot takes care of both, it will a) warn you, if you configured Tacview in a way that is bad for your overall
-server performance, and b) it can delete old Tacview files after a specific time.<br/>
-To enable Tacview support, again, a change in nodes.yaml is needed:
+server performance, and b) it can delete old Tacview files after a specific time. (see below)<br/>
+
+To enable Tacview support, a change in nodes.yaml is needed:
 ```yaml
 MyNode:
   # [...]
   extensions:
     Tacview:
       tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
-      delete_after: 30  # delete old Tacview files after 30 days
   # [...]
   instances:
     DCS.openbeta_server:
@@ -123,6 +123,8 @@ __Optional__ parameters (will change options.lua if necessary):</br>
 * **delete_after** specifies the number of days after which old Tacview files will get deleted by the bot.
 * **show_passwords** specifies whether to show the Tacview passwords in the server embed in your status channel or not.
 * **target** a channel or directory where your tacview files should be uploaded to on mission end.
+
+To delete old tacview files, checkout the [Cleanup](../services/cleanup/README.md) service.
 
 ### LotAtc
 Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
