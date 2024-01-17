@@ -54,9 +54,9 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
         return
     end
     if cfg['slots'] then
-        local max = utils.loadSettingsRaw()['maxPlayers']
+        local max = tonumber(utils.loadSettingsRaw()['maxPlayers'])
         local current = #net.get_player_list() + 1
-        if current >= (max - cfg['slots']) then
+        if current >= (max - tonumber(cfg['slots'])) then
             if not is_vip(ucid) then
                 return false, config.MESSAGE_SERVER_FULL
             end
@@ -81,9 +81,9 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                 or (unit['group_name'] and string.match(group_name, unit['group_name']) ~= nil) then
             -- blocking slots by points // check multicrew
             if tonumber(slotID) then
-                points = unit['points']
+                points = tonumber(unit['points'])
             else
-                points = unit['crew']
+                points = tonumber(unit['crew'])
             end
             if points then
                 if not dcsbot.userInfo[player].points then
@@ -109,7 +109,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                 local message = unit['message'] or 'This slot is only accessible to members with the ' .. unit['discord'] .. ' role.'
                 net.send_chat_to(message, playerID)
                 return false
-            elseif unit['VIP'] and not unit['VIP'] == is_vip(player) then
+            elseif unit['VIP'] and not is_vip(player) then
                 local message = unit['message'] or 'This slot is only accessible to VIP users.'
                 net.send_chat_to(message, playerID)
                 return false
