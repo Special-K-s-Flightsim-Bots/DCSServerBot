@@ -1,4 +1,4 @@
-from core import report, Server
+from core import report, Server, Side
 from datetime import datetime
 
 from .const import PRETENSE_RANKS
@@ -29,10 +29,32 @@ class ZoneDistribution(report.PieChart):
             "Red": red_percentage
         }
 
+    @staticmethod
+    def normalize_zones(zones: dict) -> dict:
+        red = {}
+        blue = {}
+        neutral = {}
+        for name, zone in zones.items():
+            if Side(zone['side']) == Side.RED:
+                red[name] = zone
+            elif Side(zone['side']) == Side.BLUE:
+                blue[name] = zone
+            else:
+                neutral[name] = zone
+        return {"blue": blue, "neutral": neutral, "red": red}
+
     async def render(self, data: dict):
-        zone_distribution = self.calculate_zone_distribution(data["zones"])
-        self.colors = ['blue', 'lightgrey', 'red']
-        self.textcolor = 'white'
+        zones = data["zones"]
+        if not zones.get('blue') and not zones.get('red') and not zones.get('neutral'):
+            zones = self.normalize_zones(zones)
+        zone_distribution = self.calculate_zone_distribution(zones)
+        self.colors = []
+        if zone_distribution['Blue'] > 0.0:
+            self.colors.append('blue')
+        if zone_distribution['Neutral'] > 0.0:
+            self.colors.append('lightgrey')
+        if zone_distribution['Red'] > 0.0:
+            self.colors.append('red')
         await super().render(zone_distribution)
 
 
@@ -64,6 +86,7 @@ class Top10Pilots(report.EmbedElement):
             names += f'{player}\n'
             xp += f'{score:>5}\n'
             ranks += f'{self.get_rank(score)}\n'
-        self.embed.add_field(name='Name', value=names)
-        self.embed.add_field(name='XP', value=xp)
-        self.embed.add_field(name='Rank', value=ranks)
+        if names:
+            self.embed.add_field(name='Name', value=names)
+            self.embed.add_field(name='XP', value=xp)
+            self.embed.add_field(name='Rank', value=ranks)
