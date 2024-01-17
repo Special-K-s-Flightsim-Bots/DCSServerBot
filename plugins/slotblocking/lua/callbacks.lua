@@ -46,7 +46,7 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
         return
     end
     log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryConnect()')
-    if not dcsbot.params or dcsbot.params['slotblocking'] == nil then
+    if not dcsbot.params or not dcsbot.params['slotblocking'] then
         return
     end
     local cfg = dcsbot.params['slotblocking']['VIP']
@@ -76,9 +76,11 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     end
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
-        if (unit['unit_type'] and unit['unit_type'] == unit_type)
-                or (unit['unit_name'] and string.match(unit_name, unit['unit_name']) ~= nil)
-                or (unit['group_name'] and string.match(group_name, unit['group_name']) ~= nil) then
+        local is_unit_type_match = unit['unit_type'] and unit['unit_type'] == unit_type
+        local is_unit_name_match = unit['unit_name'] and string.match(unit_name, unit['unit_name'])
+        local is_group_name_match = unit['group_name'] and string.match(group_name, unit['group_name'])
+
+        if is_unit_type_match or is_unit_name_match or is_group_name_match then
             -- blocking slots by points // check multicrew
             if tonumber(slotID) then
                 points = tonumber(unit['points'])
@@ -100,12 +102,12 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                 local message = unit['message'] or 'This slot is only accessible to a certain user.'
                 net.send_chat_to(message, playerID)
                 return false
-            elseif unit['ucids'] and has_value(unit['ucids'], player) == false then
+            elseif unit['ucids'] and not has_value(unit['ucids'], player) then
                 local message = unit['message'] or 'This slot is only accessible to certain users.'
                 net.send_chat_to(message, playerID)
                 return false
             -- blocking slots by discord groups
-            elseif unit['discord'] and has_value(dcsbot.userInfo[player].roles, unit['discord']) == false then
+            elseif unit['discord'] and not has_value(dcsbot.userInfo[player].roles, unit['discord']) then
                 local message = unit['message'] or 'This slot is only accessible to members with the ' .. unit['discord'] .. ' role.'
                 net.send_chat_to(message, playerID)
                 return false
