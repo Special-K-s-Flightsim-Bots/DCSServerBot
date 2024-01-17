@@ -35,8 +35,6 @@ class MOTDListener(EventListener):
                 report = Report(self.bot, self.plugin_name, config['report'])
                 env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
                 message = utils.embed_to_simpletext(env.embed)
-            if 'sound' in config:
-                player.playSound(config['sound'])
             return message, config
 
     @event(name="onMissionLoadEnd")
