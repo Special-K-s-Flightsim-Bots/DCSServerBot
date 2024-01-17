@@ -182,13 +182,13 @@ def get_utc_offset() -> str:
     utc_dt = datetime(*gmtime[:6], tzinfo=timezone.utc)
 
     # Compute the UTC offset
-    offset = local_dt - utc_dt if local_dt > utc_dt else utc_dt - local_dt
+    offset = local_dt - utc_dt
 
     # Express the offset in hours:minutes
     offset_minutes = int(offset.total_seconds() / 60)
     offset_hours = offset_minutes // 60
     offset_minutes %= 60
-    if offset == 0:
+    if offset.total_seconds() == 0:
         return ""
     return f"{offset_hours:+03d}:{offset_minutes:02d}"
 
