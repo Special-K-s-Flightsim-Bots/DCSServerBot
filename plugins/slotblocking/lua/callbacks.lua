@@ -72,6 +72,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     local unit_type = DCS.getUnitType(slotID)
     local points
     if not dcsbot.params or not dcsbot.params['slotblocking'] or not dcsbot.params['slotblocking']['restricted'] then
+        log.write('DCSServerBot', log.ERROR, 'Slotblocking: No configuration found, skipping.')
         return
     end
     -- check levels if any
@@ -89,7 +90,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
             end
             if points then
                 if not dcsbot.userInfo[player].points then
-                    log.write('DCSServerBot', log.ERROR, 'Slotblocking: User has no points, but points are configured. Check your creditsystem.json and make sure a campaign is running.')
+                    log.write('DCSServerBot', log.ERROR, 'Slotblocking: User has no points, but points are configured. Check your creditsystem.yaml and make sure a campaign is running.')
                     return
                 end
                 if dcsbot.userInfo[player].points < points then
