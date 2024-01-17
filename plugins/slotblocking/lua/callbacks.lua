@@ -35,7 +35,7 @@ local function is_vip(ucid)
     if cfg['ucid'] and has_value(cfg['ucid'], ucid) then
         return true
     end
-    if cfg['discord'] and dcsbot.userInfo[ucid].roles ~= nil and has_value(dcsbot.userInfo[ucid].roles, cfg['discord']) then
+    if cfg['discord'] and dcsbot.userInfo[ucid].roles ~= nil and has_value(cfg['discord'], dcsbot.userInfo[ucid].roles) then
         return true
     end
     return false
@@ -107,7 +107,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                 net.send_chat_to(message, playerID)
                 return false
             -- blocking slots by discord groups
-            elseif unit['discord'] and not has_value(dcsbot.userInfo[player].roles, unit['discord']) then
+            elseif unit['discord'] and not has_value(unit['discord'], dcsbot.userInfo[player].roles) then
                 local message = unit['message'] or 'This slot is only accessible to members with the ' .. unit['discord'] .. ' role.'
                 net.send_chat_to(message, playerID)
                 return false
