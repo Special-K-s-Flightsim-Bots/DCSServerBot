@@ -61,10 +61,11 @@ class Scheduler(Plugin):
                     return Status.SHUTDOWN
         return server.status
 
-    async def launch_dcs(self, server: Server, member: Optional[discord.Member] = None):
+    async def launch_dcs(self, server: Server, member: Optional[discord.Member] = None,
+                         modify_mission: Optional[bool] = True):
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
-            await server.startup()
+            await server.startup(modify_mission=modify_mission)
             if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                 self.log.info(f'  => DCS server "{server.name}" NOT started.')
                 return
@@ -314,7 +315,8 @@ class Scheduler(Plugin):
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
-                      maintenance: Optional[bool] = True, mission_id: Optional[int] = None):
+                      maintenance: Optional[bool] = True, run_extensions: Optional[bool] = True,
+                      mission_id: Optional[int] = None):
         config = self.get_config(server)
         if server.status == Status.STOPPED:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
@@ -334,7 +336,7 @@ class Scheduler(Plugin):
             try:
                 if mission_id is not None:
                     server.settings['listStartIndex'] = mission_id + 1
-                await self.launch_dcs(server, interaction.user)
+                await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
                 await interaction.followup.send(f"DCS server \"{server.display_name}\" started." +
                                                 ("\nServer is in maintenance mode now! Use `/scheduler clear` to "
                                                  "reset maintenance mode." if maintenance else ""), ephemeral=ephemeral)

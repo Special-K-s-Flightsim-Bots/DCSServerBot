@@ -250,7 +250,7 @@ class Server(DataObject):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         raise NotImplemented()
 
-    async def startup(self) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True) -> None:
         raise NotImplemented()
 
     async def startup_extensions(self) -> None:

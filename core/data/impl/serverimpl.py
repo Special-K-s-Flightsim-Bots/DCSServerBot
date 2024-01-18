@@ -368,14 +368,15 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.exception(ex)
 
-    async def startup(self) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
         for ext in self.extensions.values():
             try:
                 await ext.prepare()
             except Exception as ex:
                 self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
-        await self.apply_mission_changes()
+        if modify_mission:
+            await self.apply_mission_changes()
         await asyncio.create_task(asyncio.to_thread(self.do_startup))
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING

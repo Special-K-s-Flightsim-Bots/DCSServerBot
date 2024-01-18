@@ -62,11 +62,12 @@ class ServerProxy(Server):
         message['server_name'] = self.name
         self.bus.send_to_node(message, node=self.node.name)
 
-    async def startup(self) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "startup",
+            "modify_mission": modify_mission,
             "server_name": self.name
         }, timeout=300 if self.node.locals.get('slow_system', False) else 180, node=self.node.name)
 

@@ -879,9 +879,17 @@ class Mission(Plugin):
             if (server.status != Status.SHUTDOWN and server.current_mission and
                     server.current_mission.filename != filename and
                     await utils.yn_question(ctx, 'Do you want to load this mission?')):
+                extensions = [
+                    x.name for x in server.extensions.values()
+                    if getattr(x, 'beforeMissionLoad').__module__ != 'core.extension'
+                ]
+                if len(extensions):
+                    modify = await utils.yn_question(ctx, "Do you want to apply extensions before mission start?")
+                else:
+                    modify = False
                 tmp = await message.channel.send(f'Loading mission {name} ...')
                 try:
-                    await server.loadMission(filename)
+                    await server.loadMission(filename, modify_mission=modify)
                 except (TimeoutError, asyncio.TimeoutError):
                     await tmp.delete()
                     await message.channel.send(f"Timeout while trying to load mission.")
