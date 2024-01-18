@@ -54,7 +54,14 @@ class GameMasterEventListener(EventListener):
                 chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
         if chat_channel:
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
-                await chat_channel.send(f"`{data['from_name']}` said: {data['message']}")
+                message = f"{data['from_name']} said: {data['message']}"
+                if player.side == Side.BLUE:
+                    message = '```ansi\n\u001b[0;34mBLUE player ' + message + '```'
+                elif player.side == Side.RED:
+                    message = '```ansi\n\u001b[0;31mRED player ' + message + '```'
+                else:
+                    message = '```Player ' + message + '```'
+                await chat_channel.send(message)
 
     def get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
         if not player.coalition:
