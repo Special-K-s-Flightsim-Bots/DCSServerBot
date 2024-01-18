@@ -579,7 +579,7 @@ class Mission(Plugin):
         if new_file != filename:
             await server.replaceMission(mission_id, new_file)
         await interaction.response.send_message(f"Mission {miz_file[:-4]} has been rolled back.",
-                                                phemeral=utils.get_ephemeral(interaction))
+                                                ephemeral=utils.get_ephemeral(interaction))
 
     # New command group "/player"
     player = Group(name="player", description="Commands to manage DCS players")
