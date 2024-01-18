@@ -1,4 +1,5 @@
-import os.path
+import os
+import re
 import shutil
 
 from core import Extension
@@ -6,6 +7,22 @@ from typing import Optional, Union, Tuple
 
 
 class DSMC(Extension):
+
+    @property
+    def version(self) -> Optional[str]:
+        hook = os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')
+        try:
+            version = []
+            with open(hook) as infile:
+                content = infile.read()
+            version_parts = ['DSMC_MainVersion', 'DSMC_SubVersion', 'DSMC_SubSubVersion']
+            for part in version_parts:
+                match = re.search(f'{part}\\s*=\\s*"(\\d*)"', content)
+                if match:
+                    version.append(match.group(1))
+            return ".".join(version)
+        except Exception:
+            return None
 
     def load_config(self) -> Optional[dict]:
         def parse(_value: str) -> Union[int, str, bool]:
