@@ -18,7 +18,7 @@ class ServerView(View):
         report = Report(interaction.client, 'mission', 'serverStatus.json')
         self.env = await report.render(server=self.server)
         self.clear_items()
-        missions = self.server.settings['missionList'][:25]
+        missions = (await self.server.getMissionList())[:25]
         if len(missions) > 1:
             select: Select = Select(placeholder="Select another mission", options=[
                 SelectOption(label=os.path.basename(x)[:-4], value=str(idx))

@@ -26,7 +26,7 @@ class Mission(VotableItem):
         self.server.sendChatMessage(Coalition.ALL, message)
         self.server.sendPopupMessage(Coalition.ALL, message)
         await asyncio.sleep(60)
-        for idx, mission in enumerate(self.server.settings['missionList']):
+        for idx, mission in enumerate(await self.server.getMissionList()):
             if winner in mission:
                 await self.server.loadMission(mission=idx + 1, modify_mission=False)
                 break

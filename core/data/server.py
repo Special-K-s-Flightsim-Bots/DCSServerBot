@@ -8,7 +8,7 @@ from core import utils
 from core.const import DEFAULT_TAG
 from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
@@ -148,7 +148,7 @@ class Server(DataObject):
             new_status = status
         if new_status != self._status:
             # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
-            self.last_seen = datetime.now()
+            self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
             self.status_change.clear()
@@ -374,6 +374,9 @@ class Server(DataObject):
 
     async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
+
+    async def getMissionList(self) -> list[str]:
+        raise NotImplemented()
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()

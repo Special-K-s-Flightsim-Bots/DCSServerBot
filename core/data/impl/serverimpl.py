@@ -494,6 +494,9 @@ class ServerImpl(Server):
     async def listAvailableMissions(self) -> list[str]:
         return [str(x) for x in sorted(Path(PurePath(await self.get_missions_dir())).glob("*.miz"))]
 
+    async def getMissionList(self) -> list[str]:
+        return self.settings.get('missionList', [])
+
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         async def apply_preset(value: dict):
             if 'start_time' in value:

@@ -235,7 +235,7 @@ function onEvent(event)
 end
 
 function dcsbot.getMissionSituation(channel)
-    env.debug('DCSServerBot - getMissionSituation()')
+    env.info('DCSServerBot - getMissionSituation()')
 	local msg = {}
 	msg.command = 'getMissionSituation'
 	msg.coalitions = {}

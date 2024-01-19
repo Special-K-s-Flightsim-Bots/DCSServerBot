@@ -625,7 +625,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
             return []
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
-            for idx, x in enumerate(server.settings['missionList'])
+            for idx, x in enumerate(await server.getMissionList())
             if not current or current.casefold() in x[:-4].casefold()
         ]
         return choices[:25]

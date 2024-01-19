@@ -525,7 +525,7 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="list", roles=['DCS Admin'], help="lists available missions")
     async def _list(self, server: Server, player: Player, params: list[str]):
-        missions = server.settings['missionList']
+        missions = await server.getMissionList()
         message = 'The following missions are available:\n'
         for i in range(0, len(missions)):
             mission = missions[i]

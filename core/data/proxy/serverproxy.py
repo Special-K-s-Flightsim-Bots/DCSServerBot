@@ -132,6 +132,15 @@ class ServerProxy(Server):
         }, timeout=60, node=self.node.name)
         return data['return']
 
+    async def getMissionList(self) -> list[str]:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "getMissionList",
+            "server_name": self.name
+        }, timeout=60, node=self.node.name)
+        return data['return']
+
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",

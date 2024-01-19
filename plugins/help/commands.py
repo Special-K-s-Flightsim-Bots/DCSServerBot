@@ -282,13 +282,9 @@ class Help(Plugin):
                 df = pd.concat([df, data_df], ignore_index=True)
         return df
 
-    @command(description='Generate Documentation')
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    async def doc(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
-                  role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
-                  channel: Optional[discord.TextChannel] = None):
-
+    async def generate_commands_doc(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
+                                    role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
+                                    channel: Optional[discord.TextChannel] = None):
         class DocModal(Modal):
             header = TextInput(label="Header", default="## DCSServerBot Commands", style=discord.TextStyle.short,
                                required=True)
@@ -299,14 +295,14 @@ class Help(Plugin):
                 derived.role = role
                 if role:
                     derived.intro.default = f"""
-The following bot commands can be used in this discord by members that have the {derived.role} role:
-_ _ 
-                    """
+        The following bot commands can be used in this discord by members that have the {derived.role} role:
+        _ _ 
+                            """
                 else:
                     derived.intro.default = f"""
-The following bot commands can be used in this discord:
-_ _ 
-                    """
+        The following bot commands can be used in this discord:
+        _ _ 
+                            """
 
             async def on_submit(derived, interaction: discord.Interaction):
                 await interaction.response.defer()
@@ -356,6 +352,23 @@ _ _
                 await channel.send(message)
         else:
             await interaction.response.send_message("Please provide a role for channel output.", ephemeral=True)
+
+    async def generate_server_docs(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
+                                   channel: Optional[discord.TextChannel] = None):
+        pass
+
+    @command(description='Generate Documentation')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def doc(self, interaction: discord.Interaction, what: Literal['Commands', 'Server'],
+                  format: Literal['channel', 'xls'], role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
+                  channel: Optional[discord.TextChannel] = None):
+        if what == 'Commands':
+            await self.generate_commands_doc(interaction, format, role, channel)
+        elif what == 'Server':
+            await self.generate_server_doc(interaction, format, channel)
+        else:
+            await interaction.response.send_message(f"Unknown option {what}", ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
