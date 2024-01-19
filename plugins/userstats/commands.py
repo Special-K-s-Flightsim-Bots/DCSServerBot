@@ -349,7 +349,6 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def linkcheck(self, interaction: discord.Interaction):
-        # await interaction.response.defer(ephemeral=True, thinking=True)
         await interaction.response.defer(thinking=True)
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:

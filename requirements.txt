@@ -13,7 +13,7 @@ rich==13.7.0
 eyeD3==0.9.7
 certifi==2023.11.17
 fastapi==0.109.0
-uvicorn==0.25.0
+uvicorn==0.26.0
 python-multipart==0.0.6
 pypiwin32==223; sys_platform == 'win32'
 pywin32==306; sys_platform == 'win32'
@@ -22,3 +22,5 @@ ruamel.yaml==0.18.5
 trueskill==0.4.5
 croniter==2.0.1
 openpyxl==3.1.2
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.23.0

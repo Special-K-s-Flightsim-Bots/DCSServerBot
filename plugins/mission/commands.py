@@ -435,6 +435,7 @@ class Mission(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(presets_file=presets_autocomplete)
     @app_commands.rename(presets_file='presets')
+    @app_commands.describe(presets_file='Select the file where you have stored your presets')
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],

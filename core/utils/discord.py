@@ -12,6 +12,7 @@ from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from enum import Enum, auto
+from fuzzywuzzy import fuzz
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
 from .helper import get_all_players, is_ucid, format_string
@@ -40,6 +41,7 @@ __all__ = [
     "embed_to_text",
     "embed_to_simpletext",
     "escape_string",
+    "match",
     "get_interaction_param",
     "get_all_linked_members",
     "NodeTransformer",
@@ -486,6 +488,47 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
 
 def escape_string(msg: str) -> str:
     return re.sub(r"([*_~])", r"\\\1", msg)
+
+
+def normalize_name(name: Optional[str] = None) -> Optional[str]:
+    if not name:
+        return None
+    # removes content surrounded by non-word characters at the beginning or end of string
+    name = re.sub(r"^\s*[\W_]+[\w\s\-\.]*[\W_]+\s*|\s*[\W_]+[\w\s\-\.]*[\W_]+\s*$", "", name)
+    return name.strip().lower()
+
+
+def match(name: str, member_list: list[discord.Member], min_score: Optional[int] = 70) -> Optional[discord.Member]:
+    # we do not want to match the DCS standard names
+    if name in [
+        'Player',
+        'Joueur',
+        'Spieler',
+        'Игрок',
+        'Jugador',
+        '玩家',
+        'Hráč',
+        '플레이어'
+    ]:
+        return None
+
+    name = normalize_name(name)
+    weights = [3, 2, 1]
+    user_lists = [
+        [normalize_name(getattr(member, attr)) for member in member_list]
+        for attr in ['display_name', 'global_name', 'name']
+    ]
+    max_score = 0
+    best_match_index = None
+
+    for user_list, weight in zip(user_lists, weights):
+        for idx, user in enumerate(user_list):
+            score = fuzz.ratio(name, user)
+            if score > max_score:
+                best_match_index = idx if score >= min_score else None
+                max_score = score if score >= min_score else 0
+
+    return member_list[best_match_index] if best_match_index else None
 
 
 def get_interaction_param(interaction: discord.Interaction, name: str) -> Optional[Any]:
