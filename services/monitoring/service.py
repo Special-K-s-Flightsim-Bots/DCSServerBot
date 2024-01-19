@@ -153,7 +153,7 @@ class MonitoringService(Service):
                     server.keep_alive()
                     # check if server is alive
                     max_hung = int(server.instance.locals.get('max_hung_minutes', 3))
-                    if max_hung and ((datetime.now() - server.last_seen).total_seconds() / 60 > max_hung):
+                    if max_hung and ((datetime.now(timezone.utc) - server.last_seen).total_seconds() / 60 > max_hung):
                         await self.kill_hung_server(server)
                         continue
                     if server.status in [Status.RUNNING, Status.PAUSED]:

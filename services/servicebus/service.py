@@ -601,7 +601,7 @@ class ServiceBus(Service):
                     if not server:
                         return
                     try:
-                        server.last_seen = datetime.now()
+                        server.last_seen = datetime.now(timezone.utc)
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not server.is_remote:

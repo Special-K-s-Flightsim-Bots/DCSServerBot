@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 class MissionEventListener(EventListener):
     EVENT_TEXTS = {
         Side.BLUE: {
-            'takeoff': '```ansi\n\u001b[0;34mBLUE player {} in {} took off from {}.```',
-            'landing': '```ansi\n\u001b[0;34mBLUE player {} in {} landed at {}.```',
-            'eject': '```ansi\n\u001b[0;34mBLUE player {} in {} ejected.```',
-            'crash': '```ansi\n\u001b[0;34mBLUE player {} in {} crashed.```',
-            'pilot_death': '```ansi\n\u001b[0;34mBLUE player {} in {} died.```',
+            'takeoff': '```ansi\n\u001b[0;34mBLUE player {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;34mBLUE player {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;34mBLUE player {} ejected.```',
+            'crash': '```ansi\n\u001b[0;34mBLUE player {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;34mBLUE player {} died.```',
             'kill': '```ansi\n\u001b[0;34mBLUE {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
@@ -32,11 +32,11 @@ class MissionEventListener(EventListener):
             'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected```'
         },
         Side.RED: {
-            'takeoff': '```ansi\n\u001b[0;31mRED player {} in {} took off from {}.```',
-            'landing': '```ansi\n\u001b[0;31mRED player {} in {} landed at {}.```',
-            'eject': '```ansi\n\u001b[0;31mRED player {} in {} ejected.```',
-            'crash': '```ansi\n\u001b[0;31mRED player {} in {} crashed.```',
-            'pilot_death': '```ansi\n\u001b[0;31mRED player {} in {} died.```',
+            'takeoff': '```ansi\n\u001b[0;31mRED player {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;31mRED player {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;31mRED player {} ejected.```',
+            'crash': '```ansi\n\u001b[0;31mRED player {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;31mRED player {} died.```',
             'kill': '```ansi\n\u001b[0;31mRED {} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
@@ -47,20 +47,20 @@ class MissionEventListener(EventListener):
             'connect': '```\nPlayer {} connected to server```',
             'disconnect': '```\nPlayer {} disconnected```',
             'spectators': '```\n{} player {} returned to Spectators```',
-            'takeoff': '```\nPlayer {} in {} took off from {}.```',
-            'landing': '```\nPlayer {} in {} landed at {}.```',
-            'crash': '```\nPlayer {} in {} crashed.```',
-            'eject': '```\nPlayer {} in {} ejected.```',
-            'pilot_death': '```\n[Player {} in {} died.```',
+            'takeoff': '```\nPlayer {} took off from {}.```',
+            'landing': '```\nPlayer {} landed at {}.```',
+            'crash': '```\nPlayer {} crashed.```',
+            'eject': '```\nPlayer {} ejected.```',
+            'pilot_death': '```\n[Player {} died.```',
             'kill': '```\n{} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```'
         },
         Side.UNKNOWN: {
-            'takeoff': '```\n{} in {} took off from {}.```',
-            'landing': '```\n{} in {} landed at {}.```',
-            'eject': '```\n{} in {} ejected.```',
-            'crash': '```\n{} in {} crashed.```',
-            'pilot_death': '```\n{} in {} died.```',
+            'takeoff': '```\n{} took off from {}.```',
+            'landing': '```\n{} landed at {}.```',
+            'eject': '```\n{} ejected.```',
+            'crash': '```\n{} crashed.```',
+            'pilot_death': '```\n{} died.```',
             'kill': '```\n{} in {} killed {} {} in {} with {}.```',
             'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```\n{} killed themselves - Ooopsie!```'
@@ -485,12 +485,11 @@ class MissionEventListener(EventListener):
                 return
             if data['eventName'] in ['takeoff', 'landing']:
                 self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
-                    player.name if player else 'AI', data['arg2'],
-                    data['arg3'] if len(data['arg3']) > 0 else 'ground')
+                    player.name if player else 'AI', data['arg3'] if len(data['arg3']) > 0 else 'ground')
                 )
             else:
                 self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
-                    player.name if player else 'AI', data['arg2'])
+                    player.name if player else 'AI')
                 )
 
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")

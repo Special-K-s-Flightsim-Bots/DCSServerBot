@@ -293,7 +293,7 @@ class CloudHandler(Plugin):
         except aiohttp.ClientError:
             self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
         except Exception as error:
-            self.log.debug("Error while registering: " + str(error))
+            self.log.debug("Error while registering: ", exc_info=True)
 
     @register.before_loop
     async def before_register(self):
