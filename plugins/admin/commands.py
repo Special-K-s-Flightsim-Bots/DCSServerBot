@@ -238,7 +238,7 @@ class Admin(Plugin):
             "Player {} is now on the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
             ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description='Moves a player onto the watchlist')
+    @dcs.command(description='Removes a player from the watchlist')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def unwatch(self, interaction: discord.Interaction,
@@ -414,24 +414,38 @@ class Admin(Plugin):
     @command(name='prune', description='Prune unused data in the database')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def _prune(self, interaction: discord.Interaction):
+    async def _prune(self, interaction: discord.Interaction,
+                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                         sel_type=PlayerType.PLAYER)]] = None):
         ephemeral = utils.get_ephemeral(interaction)
-        embed = discord.Embed(title=":warning: Database Prune :warning:")
-        embed.description = "You are going to delete data from your database. Be advised.\n\n" \
-                            "Please select the data to be pruned:"
-        view = CleanupView()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
-        try:
-            await view.wait()
-        finally:
-            await interaction.delete_original_response()
-        if view.cmd == "cancel":
+        if not user:
+            embed = discord.Embed(title=":warning: Database Prune :warning:")
+            embed.description = "You are going to delete data from your database. Be advised.\n\n" \
+                                "Please select the data to be pruned:"
+            view = CleanupView()
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+            try:
+                await view.wait()
+            finally:
+                await interaction.delete_original_response()
+            if view.cmd == "cancel":
+                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                return
+        elif not await utils.yn_question(interaction,
+                                         f"We are going to delete all data of user {user}. Are you sure?"):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
 
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
+                    if user:
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.prune(conn, ucids=[user])
+                            cursor.execute('DELETE FROM players WHERE ucid = %s', (user, ))
+                            cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (user, ))
+                            await interaction.followup.send(f"Data of user {user} deleted.")
+                            return
                     if view.what in ['users', 'non-members']:
                         sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
                         if view.what == 'non-members':
@@ -448,6 +462,7 @@ class Admin(Plugin):
                             await plugin.prune(conn, ucids=ucids)
                         for ucid in ucids:
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                            cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid,))
                         await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
                     elif view.what == 'data':
                         days = int(view.age)
