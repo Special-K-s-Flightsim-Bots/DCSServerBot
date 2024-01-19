@@ -25,11 +25,13 @@ yaml = YAML()
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        interaction.client.log.debug("### Command not executed by DCS Admin")
         return []
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
         if not server:
+            interaction.client.log.debug("### No server assigned to this channel")
             return []
         installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
         choices: list[app_commands.Choice[int]] = [
