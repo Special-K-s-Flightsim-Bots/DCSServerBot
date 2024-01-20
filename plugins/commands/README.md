@@ -8,24 +8,25 @@ program. The sample shows how to launch DCS from a specific command (not really 
 get the idea) and dir as a shell command. 
 
 ```yaml
-command_prefix: .   # The prefix to use for these discord commands
+DEFAULT:
+  command_prefix: . # The prefix to use for these discord commands
 commands:
 - name: dcs         # Create a command .dcs
   roles:            # that can be run by the DCS Admin role
   - DCS Admin
-  cmd:              # and map it to a call of DCS_server.exe
+  execute:          # and map it to a call of DCS_server.exe
+    cmd: DCS_server.exe
     args: -w {instance}
     cwd: C:\Program Files\Eagle Dynamics\DCS World OpenBeta Server\bin
-    exe: DCS_server.exe
   params:           # which receives a parameter "instance" (will be auto replaced by the instance name)
   - instance
 - name: dir         # Create a command .dir
   roles:            # which can be run by Admin and DCS Admin
   - Admin
   - DCS Admin
-  cmd:              # and that maps to a shell command "dir c:\"
+  execute:              # and that maps to a shell command "dir c:\"
+    cmd: dir
     cwd: C:\
-    exe: dir
     shell: true
   hidden: true      # the .dir command will not apply in the help command
 ```
