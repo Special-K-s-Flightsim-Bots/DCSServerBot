@@ -43,7 +43,7 @@ class Service(ABC):
         self.running = False
         self.log.info(f'  => Service {self.name} stopped.')
 
-    async def is_running(self) -> bool:
+    def is_running(self) -> bool:
         return self.running
 
     def read_locals(self) -> dict:

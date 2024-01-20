@@ -83,12 +83,14 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
+            interaction.client.log.debug("### No Server found")
             return []
         label = utils.get_interaction_param(interaction, "what")
         config = interaction.client.cogs['Admin'].get_config(server)
         try:
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
+            interaction.client.log.debug(f"### No configured download found for label {label} in admin.yaml")
             return []
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))
@@ -536,8 +538,10 @@ class Admin(Plugin):
             await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
                 self.node.shutdown()
-            else:
+            elif method == 'upgrade':
                 await self.node.upgrade()
+            elif method == 'restart':
+                await self.node.restart()
 
     @node_group.command(description='Stop a specific node')
     @app_commands.guild_only()
@@ -545,6 +549,13 @@ class Admin(Plugin):
     async def exit(self, interaction: discord.Interaction,
                    node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "shutdown", node)
+
+    @node_group.command(description='Restart a specific node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def restart(self, interaction: discord.Interaction,
+                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        await self.run_on_nodes(interaction, "restart", node)
 
     @node_group.command(description='Upgrade a node')
     @app_commands.guild_only()

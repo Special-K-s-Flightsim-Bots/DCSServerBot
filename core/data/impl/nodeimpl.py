@@ -176,6 +176,13 @@ class NodeImpl(Node):
     def shutdown():
         raise KeyboardInterrupt()
 
+    @staticmethod
+    async def restart():
+        # Shutting down
+        await ServiceRegistry.shutdown()
+        # Restarting
+        os.execv(sys.executable, ['python'] + sys.argv)
+
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
