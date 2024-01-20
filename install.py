@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import pickle
 import platform
 import psycopg
 import secrets
@@ -16,7 +17,7 @@ from pathlib import Path
 from rich import print
 from rich.prompt import IntPrompt, Prompt
 from typing import Optional, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -105,39 +106,47 @@ class Install:
                 skey.Close()
 
     @staticmethod
-    def get_database_url() -> Optional[str]:
-        host = '127.0.0.1'
-        port = 5432
+    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> Optional[Tuple[str, int]]:
         if not utils.is_open(host, port):
             print(f'[red]No PostgreSQL-database found on {host}:{port}![/]')
             host = Prompt.ask("Enter the hostname of your PostgreSQL-database", default='127.0.0.1')
             while not utils.is_open(host, port):
                 port = IntPrompt.ask(prompt='Enter the port to your PostgreSQL-database', default=5432)
+        return host, port
+
+    @staticmethod
+    def get_database_url() -> Optional[str]:
+        host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
             passwd = Prompt.ask('Please enter your PostgreSQL master password (user=postgres)', password=True)
             url = f'postgres://postgres:{quote(passwd)}@{host}:{port}/postgres?sslmode=prefer'
             with psycopg.connect(url, autocommit=True) as conn:
                 with closing(conn.cursor()) as cursor:
-                    passwd = secrets.token_urlsafe(8)
-                    try:
-                        cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
-                    except psycopg.Error:
-                        print(f'[yellow]Existing {DCSSB_DB_USER} user found![/]')
-                        while True:
-                            passwd = Prompt.ask(f"Please enter your password for user '{DCSSB_DB_USER}'",
-                                                password=True)
-                            try:
-                                with psycopg.connect(
-                                        f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
-                                    pass
-                                break
-                            except psycopg.Error:
-                                print("[red]Wrong password! Try again.[/]")
-                    with suppress(psycopg.Error):
-                        cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
-                        cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
-                        cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
-                    print("[green]- Database user and database created.[/]")
+                    if os.path.exists('password.pkl'):
+                        with open('password.pkl', 'rb') as f:
+                            passwd = pickle.load(f)
+                    else:
+                        passwd = secrets.token_urlsafe(8)
+                        try:
+                            cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
+                        except psycopg.Error:
+                            print(f'[yellow]Existing {DCSSB_DB_USER} user found![/]')
+                            while True:
+                                passwd = Prompt.ask(f"Please enter your password for user '{DCSSB_DB_USER}'",
+                                                    password=True)
+                                try:
+                                    with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
+                                        pass
+                                    break
+                                except psycopg.Error:
+                                    print("[red]Wrong password! Try again.[/]")
+                        with open('password.pkl', 'wb') as f:
+                            pickle.dump(passwd, f)
+                        with suppress(psycopg.Error):
+                            cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
+                            cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
+                            cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
+                        print("[green]- Database user and database created.[/]")
                     return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
 
     def install_master(self) -> Tuple[dict, dict, dict]:
@@ -159,19 +168,11 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
             self.log.warning("Aborted: missing requirements")
             exit(-2)
 
-        print("\n1. Database Setup")
-        database_url = Install.get_database_url()
-        if not database_url:
-            self.log.error("Aborted: No valid Database URL provided.")
-            exit(-1)
-        print("\n2. Discord Setup")
+        print("\n1. Discord Setup")
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
         main = {
-            "guild_id": guild_id,
-            "database": {
-                "url": database_url
-            }
+            "guild_id": guild_id
         }
         token = Prompt.ask('Please enter your discord TOKEN (see documentation)') or '<see documentation>'
         owner = Prompt.ask('Please enter your Owner ID (right click on your discord user, "Copy User ID")')
@@ -222,15 +223,16 @@ I will now guide you through the installation process.
 If you need any further assistance, please visit the support discord, listed in the documentation.
 
         """)
-        if int(platform.python_version_tuple()[1]) == 9:
-            print("[yellow]Your Python 3.9 installation is outdated, you should upgrade it to 3.10 or higher![/]\n")
-
+        major_version = int(platform.python_version_tuple()[1])
+        if major_version <= 8 or major_version >= 12:
+            print(f"[red]Your Python 3.{major_version} installation is not supported, please use 3.11![/]\n")
+            sys.exit(-1)
         if not os.path.exists('config/main.yaml'):
             main, nodes, bot = self.install_master()
             master = True
             servers = {}
             schedulers = {}
-            i = 3
+            i = 1
         else:
             main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
@@ -254,7 +256,22 @@ If you need any further assistance, please visit the support discord, listed in 
             master = False
             i = 0
 
-        print(f"\n{i+1}. Node Setup")
+        print(f"\n{i+1}. Database Setup")
+        if master:
+            database_url = Install.get_database_url()
+            if not database_url:
+                self.log.error("Aborted: No valid Database URL provided.")
+                exit(-1)
+        else:
+            try:
+                database_url = next(node['database']['url'] for node in nodes.values() if node.get('database'))
+                url = urlparse(database_url)
+                hostname, port = self.get_database_host(url.hostname, url.port)
+                database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}/{url.path}?sslmode=prefer"
+            except StopIteration:
+                database_url = self.get_database_url()
+
+        print(f"\n{i+2}. Node Setup")
         if sys.platform == 'win32':
             dcs_installation = self.get_dcs_installation_win32() or '<see documentation>'
         else:
@@ -266,12 +283,14 @@ If you need any further assistance, please visit the support discord, listed in 
             "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
             "DCS": {
                 "installation": dcs_installation
+            },
+            "database": {
+                "url": database_url
             }
         }
         if Prompt.ask("Do you want your DCS installation being auto-updated by the bot?", choices=['y', 'n'],
                       default='y') == 'y':
             node["DCS"]["autoupdate"] = True
-            print("[green]- autoupdate enabled for DCS[/]")
         # Check for SRS
         srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
         if not os.path.exists(srs_path):
@@ -285,22 +304,16 @@ If you need any further assistance, please visit the support discord, listed in 
                 }
             }
         else:
-            self.log.info("DCS-SRS not configured.")
+            self.log.info("- DCS-SRS not configured.")
         # check if we can enable autoupdate
         if master:
-            try:
-                import git
-                node['autoupdate'] = True
-                print("[green]- autoupdate enabled for DCSServerBot[/]")
-                self.log.info("Git for Windows found, autoupdate enabled.")
-            except ImportError:
-                self.log.info("Git for Windows not found, autoupdate disabled.")
-                pass
+            node['autoupdate'] = Prompt.ask("Do you want your DCSServerBot being auto-updated?", choices=['y', 'n'],
+                                            default='y') == 'y'
         else:
             node['autoupdate'] = False
             print("[yellow]- autoupdate disabled for DCSServerBot on non-master node.[/]")
 
-        print(f"\n{i+2}. DCS Server Setup")
+        print(f"\n{i+3}. DCS Server Setup")
         scheduler = schedulers[self.node] = {}
         node['instances'] = {}
         # calculate unique bot ports
@@ -396,6 +409,8 @@ DCSServerBot needs the following permissions on them to work:
             self.log.info("./config/services/bot.yaml written.")
         with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
+            if os.path.exists('password.pkl'):
+                os.remove('password.pkl')
             print("- Created config/nodes.yaml")
         self.log.info("./config/nodes.yaml written.")
         with open('config/servers.yaml', 'w', encoding='utf-8') as out:

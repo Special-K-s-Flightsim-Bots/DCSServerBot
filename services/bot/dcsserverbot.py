@@ -51,6 +51,7 @@ class DCSServerBot(commands.Bot):
     def roles(self) -> dict[str, list[Union[str, int]]]:
         return {
             "Admin": ["Admin"],
+            "Alert": ["DCS Admin"],
             "DCS Admin": ["DCS Admin"],
             "DCS": ["DCS"],
             "GameMaster": ["GameMaster"]

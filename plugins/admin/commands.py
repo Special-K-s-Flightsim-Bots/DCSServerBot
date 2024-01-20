@@ -83,14 +83,12 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
-            interaction.client.log.debug("### No Server found")
             return []
         label = utils.get_interaction_param(interaction, "what")
         config = interaction.client.cogs['Admin'].get_config(server)
         try:
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
-            interaction.client.log.debug(f"### No configured download found for label {label} in admin.yaml")
             return []
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))

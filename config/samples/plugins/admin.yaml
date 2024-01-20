@@ -8,7 +8,7 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   downloads:
   # that's for your DCS logs. It should work for all your servers.
   - label: DCS Logs
-    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
+    directory: '{server.instance.home}\logs'
     pattern: 'dcs*.log'
   # That is for the DCSSB logs. Should work for all your servers.
   - label: DCSServerBot Logs
@@ -16,7 +16,7 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     pattern: 'dcssb-*.log*'
   # This is for your missions. If you use a central mission directory, you might want to amend that.
   - label: Missions
-    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
+    directory: '{server.instance.home}\Missions'
     pattern: '*.miz'
   # This is for Tacview. If you use an instance-specific tacview directory, this needs to be changed.
   # Player-specific files aren't supported yet for download. See auto-upload to channels in the Tacview-extension.

@@ -325,6 +325,8 @@ audit_channel: 88776655443322                   # Central audit channel to send 
 roles:                                          # Roles mapping. The bot uses internal roles to decouple from Discord own role system.
   Admin:                                        # Map your Discord role "Admin" to the bots role "Admin" (default: Admin)
   - Admin                                       
+  Alert:                                        # Optional Alert role. Default is DCS Admin. Would be pinged on server crashes and low performance
+    - DCS Admin
   DCS Admin:                                    # Map your Discord role "Moderator" and "Staff" to the bots "DCS Admin" role (default: DCS Admin)
   - Moderator
   - Staff
