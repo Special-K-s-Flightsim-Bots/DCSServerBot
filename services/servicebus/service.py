@@ -8,7 +8,7 @@ import uuid
 
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing, suppress
+from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
     InstanceProxy, NodeProxy, Mission, Node, utils

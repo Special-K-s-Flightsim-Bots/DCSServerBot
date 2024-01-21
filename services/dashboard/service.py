@@ -2,14 +2,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import logging.handlers
-from asyncio import Task
-
-import psycopg
 import re
 
 from core import Service, ServiceRegistry, Status
 from datetime import datetime
-from discord.ext import tasks
 from logging.handlers import QueueHandler, RotatingFileHandler
 from queue import Queue
 from rich.console import Console, ConsoleOptions, RenderResult

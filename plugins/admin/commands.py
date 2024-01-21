@@ -487,34 +487,26 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
         embed = discord.Embed(title=f"All Nodes", color=discord.Color.blue())
-        master: NodeImpl = self.node
-        # master node
-        names = []
-        instances = []
-        status = []
-        embed.add_field(name="▬" * 32, value=f"**Master: {master.name}**", inline=False)
-        for instance in self.node.instances:
-            instances.append(instance.name)
-            names.append(instance.server.name if instance.server else 'n/a')
-            status.append(instance.server.status.name if instance.server else '- unused -')
-        embed.add_field(name="Instance", value='\n'.join(instances))
-        embed.add_field(name="Server", value='\n'.join(names))
-        embed.add_field(name="Status", value='\n'.join(status))
         embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
         # agent nodes
-        names = []
-        instances = []
-        status = []
         # TODO: there should be a list of nodes, with impls / proxies
-        for node in master.get_active_nodes():
-            embed.add_field(name="▬" * 32, value=f"Agent: {node}", inline=False)
-            for server in [server for server in self.bus.servers.values() if server.node.name == node]:
+        for name in self.node.all_nodes.keys():
+            names = []
+            instances = []
+            status = []
+            embed.add_field(name="▬" * 32,
+                            value=f"Agent: {name}" if name != self.node.name else f'**Master: {name}**',
+                            inline=False)
+            for server in [server for server in self.bus.servers.values() if server.node.name == name]:
                 instances.append(server.instance.name)
                 names.append(server.name)
                 status.append(server.status.name)
-            embed.add_field(name="Instance", value='\n'.join(instances))
-            embed.add_field(name="Server", value='\n'.join(names))
-            embed.add_field(name="Status", value='\n'.join(status))
+            if names:
+                embed.add_field(name="Instance", value='\n'.join(instances))
+                embed.add_field(name="Server", value='\n'.join(names))
+                embed.add_field(name="Status", value='\n'.join(status))
+            else:
+                embed.add_field(name="Inactive", value='_ _')
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
