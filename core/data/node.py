@@ -103,7 +103,7 @@ class Node:
     async def upgrade_pending(self) -> bool:
         raise NotImplemented()
 
-    async def upgrade(self) -> int:
+    async def upgrade(self):
         raise NotImplemented()
 
     async def update(self, warn_times: list[int]) -> int:
