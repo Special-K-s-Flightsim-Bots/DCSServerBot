@@ -444,8 +444,6 @@ class NodeImpl(Node):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
-                if self.master:
-                    conn.execute("DELETE FROM cluster WHERE guild_id = %s", (self.guild_id, ))
         if self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
