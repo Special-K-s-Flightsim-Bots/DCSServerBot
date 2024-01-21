@@ -127,7 +127,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
                   user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER)]]):
+                      sel_type=PlayerType.PLAYER, hide_ucid=False)]]):
 
         class BanModal(Modal):
             reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
@@ -212,7 +212,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def watch(self, interaction: discord.Interaction,
                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                        sel_type=PlayerType.PLAYER)]]):
+                        sel_type=PlayerType.PLAYER, hide_ucid=False)]]):
         if isinstance(user, discord.Member):
             ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -243,7 +243,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def unwatch(self, interaction: discord.Interaction,
                       user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                          sel_type=PlayerType.PLAYER)]]):
+                          sel_type=PlayerType.PLAYER, hide_ucid=False)]]):
         if isinstance(user, discord.Member):
             ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -416,7 +416,7 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def _prune(self, interaction: discord.Interaction,
                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                         sel_type=PlayerType.PLAYER)]] = None):
+                         sel_type=PlayerType.PLAYER, hide_ucid=False)]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
             embed = discord.Embed(title=":warning: Database Prune :warning:")
@@ -555,11 +555,18 @@ class Admin(Plugin):
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "restart", node)
 
-    @node_group.command(description='Upgrade a node')
+    @node_group.command(description='Upgrade DCSServerBot')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        if node and not node.master and not await utils.yn_question(
+                interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?"):
+            await interaction.followup.send('Aborted')
+            return
+        # if no node is set, assume the master has to be upgraded
+        if not node:
+            node = self.node
         await self.run_on_nodes(interaction, "upgrade", node)
 
     @node_group.command(description='Run a shell command on a node')

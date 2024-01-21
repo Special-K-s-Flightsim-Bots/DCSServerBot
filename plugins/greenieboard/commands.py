@@ -62,7 +62,8 @@ class GreenieBoard(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: discord.Interaction,
-                   user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+                   user: Optional[app_commands.Transform[
+                       Union[str, discord.Member], utils.UserTransformer(hide_ucid=False)]]):
         def format_landing(landing: dict) -> str:
             return (f"{landing['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S} - "
                     f"{landing['unit_type']}@{landing['place']}: {landing['grade']}")
@@ -114,7 +115,7 @@ class GreenieBoard(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction,
-                  user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+                  user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer(hide_ucid=False)]):
         ephemeral = utils.get_ephemeral(interaction)
         config = self.get_config()
         if 'ratings' not in config:

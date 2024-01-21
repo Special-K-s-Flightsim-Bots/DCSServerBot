@@ -678,10 +678,12 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 class UserTransformer(app_commands.Transformer):
 
-    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None):
+    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None,
+                 hide_ucid: Optional[bool] = True):
         super().__init__()
         self.sel_type = sel_type
         self.linked = linked
+        self.hide_ucid = hide_ucid
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Optional[Union[discord.Member, str]]:
         if value:
@@ -700,7 +702,8 @@ class UserTransformer(app_commands.Transformer):
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([
-                app_commands.Choice(name='✈ ' + name + ' (' + ucid + ')', value=ucid)
+                app_commands.Choice(name='✈ ' + name + (' (' + ucid + ')' if not self.hide_ucid else ''),
+                                    value=ucid)
                 for ucid, name in get_all_players(interaction.client, self.linked)
                 if not current or current.casefold() in name.casefold() or current.casefold() in ucid
             ])
