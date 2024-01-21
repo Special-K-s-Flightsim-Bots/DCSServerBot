@@ -98,6 +98,12 @@ class NodeImpl(Node):
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
         self.db_version = None
+        self.pool = None
+        self._master = None
+        self.listen_address = self.locals.get('listen_address', '0.0.0.0')
+        self.listen_port = self.locals.get('listen_port', 10042)
+
+    async def post_init(self):
         self.pool = self.init_db()
         try:
             with self.pool.connection() as conn:
@@ -106,7 +112,7 @@ class NodeImpl(Node):
                         INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
                         ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
                     """, (self.guild_id, self.name))
-            self._master = self.check_master()
+            self._master = await self.check_master()
         except UndefinedTable:
             # should only happen when an upgrade to 3.0 is needed
             self.log.info("Updating database to DCSServerBot 3.x ...")
@@ -114,8 +120,6 @@ class NodeImpl(Node):
         if self._master:
             self.update_db()
         self.init_instances()
-        self.listen_address = self.locals.get('listen_address', '0.0.0.0')
-        self.listen_port = self.locals.get('listen_port', 10042)
 
     @property
     def master(self) -> bool:
@@ -267,9 +271,8 @@ class NodeImpl(Node):
             shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
             os.remove(path)
 
-    async def upgrade(self) -> int:
+    async def upgrade_pending(self) -> bool:
         self.log.debug('- Checking for updates...')
-        update = False
         try:
             import git
 
@@ -279,7 +282,7 @@ class NodeImpl(Node):
                 origin.fetch()
                 new_hash = origin.refs[repo.active_branch.name].object.hexsha
                 if new_hash != current_hash:
-                    update = True
+                    return True
         except (ImportError, InvalidGitRepositoryError):
             async with aiohttp.ClientSession() as session:
                 async with session.get(REPO_URL) as response:
@@ -288,16 +291,17 @@ class NodeImpl(Node):
                     latest_version = result[0]["tag_name"]
 
                     if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
-                        update = True
-        if update:
+                        return True
+        self.log.debug('- No update found for DCSServerBot.')
+        return False
+
+    async def upgrade(self):
+        if await self.upgrade_pending():
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
             subprocess.Popen([sys.executable, 'update.py'])
             sys.exit(0)
-        else:
-            self.log.debug('- No update found for DCSServerBot.')
-        return 0
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
@@ -446,7 +450,7 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    def check_master(self) -> bool:
+    async def check_master(self) -> bool:
         def version_string_to_tuple(version_string: str):
             return tuple(map(int, version_string.split(".")))
 
@@ -470,7 +474,7 @@ class NodeImpl(Node):
                         # I am the master
                         if cluster['master'] == self.name:
                             if cluster['update_pending']:
-                                if current_version > db_version:
+                                if not await self.upgrade_pending():
                                     # we have just finished updating, so restart all other nodes (if there are any)
                                     for node in self.get_active_nodes():
                                         # TODO: we might not have bus access here yet, so be our own bus (dirty)
@@ -482,10 +486,13 @@ class NodeImpl(Node):
                                         conn.execute(
                                             "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
                                             (node, Json(data), 2))
-                                # clear the update flag
-                                cursor.execute(
-                                    "UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s",
-                                    (__version__, self.guild_id))
+                                    # clear the update flag
+                                    cursor.execute(
+                                        "UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s",
+                                        (__version__, self.guild_id))
+                                else:
+                                    # something went wrong, we need to upgrade again
+                                    await self.upgrade()
                             return True
                         # we are not the master, the update is pending, we will not take over
                         if cluster['update_pending']:

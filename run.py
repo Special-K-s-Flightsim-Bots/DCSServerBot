@@ -21,6 +21,7 @@ class Main:
         self.log = node.log
 
     async def run(self):
+        await self.node.post_init()
         # check for updates
         if self.node.config.get('autoupdate', self.node.locals.get('autoupdate', False)):
             cloud_drive = self.node.locals.get('cloud_drive', True)
@@ -52,7 +53,7 @@ class Main:
             try:
                 while True:
                     # wait until the master changes
-                    while self.node.master == self.node.check_master():
+                    while self.node.master == await self.node.check_master():
                         await asyncio.sleep(1)
                     # switch master
                     self.node.master = not self.node.master
