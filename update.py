@@ -38,10 +38,10 @@ def do_update_git() -> int:
                 if modules:
                     print('  => requirements.txt has changed. Installing missing modules...')
                     rc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                if rc.returncode:
-                    print('  => Autoupdate failed!')
-                    print('     Please run update.cmd manually.')
-                    return -1
+                    if rc.returncode:
+                        print('  => Autoupdate failed!')
+                        print('     Please run update.cmd manually.')
+                        return -1
             except git.exc.GitCommandError:
                 print('  => Autoupdate failed!')
                 print('     Please revert back the changes in these files:')

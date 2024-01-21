@@ -100,6 +100,9 @@ class Node:
     def read_locals(self) -> dict:
         raise NotImplemented()
 
+    async def upgrade_pending(self) -> bool:
+        raise NotImplemented()
+
     async def upgrade(self) -> int:
         raise NotImplemented()
 
