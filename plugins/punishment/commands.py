@@ -164,7 +164,7 @@ class Punishment(Plugin):
     @app_commands.guild_only()
     async def _punish(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
-                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer(hide_ucid=False)],
+                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer],
                       points: int, reason: Optional[str] = 'admin'):
 
         ephemeral = utils.get_ephemeral(interaction)
@@ -190,7 +190,7 @@ class Punishment(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def forgive(self, interaction: discord.Interaction,
-                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer(hide_ucid=False)]):
+                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(interaction,
                                    'This will delete all the punishment points for this user and unban them '
@@ -291,8 +291,7 @@ class Punishment(Plugin):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
     async def infractions(self, interaction: discord.Interaction,
-                          user: app_commands.Transform[
-                              Union[discord.Member, str], utils.UserTransformer(hide_ucid=False)],
+                          user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
                           limit: Optional[Range[int, 3, 20]] = 10):
         if not user:
             await interaction.response.send_message("This user does not exist. Try `/find` to find them in the "

@@ -54,13 +54,18 @@ def get_campaign(self, campaign: str) -> dict:
 
 
 async def campaign_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    choices: list[app_commands.Choice[str]] = list()
-    _, name = get_running_campaign(interaction.client)
-    if name:
-        choices.append(app_commands.Choice(name=name, value=name))
-    choices.extend([
-        app_commands.Choice(name=x, value=x)
-        for x in get_all_campaigns(interaction.client)
-        if x != name and current.casefold() in x.casefold()
-    ])
-    return choices[:25]
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        choices: list[app_commands.Choice[str]] = list()
+        _, name = get_running_campaign(interaction.client)
+        if name:
+            choices.append(app_commands.Choice(name=name, value=name))
+        choices.extend([
+            app_commands.Choice(name=x, value=x)
+            for x in get_all_campaigns(interaction.client)
+            if x != name and current.casefold() in x.casefold()
+        ])
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)

@@ -57,6 +57,20 @@ __all__ = [
 
 
 class PlayerType(Enum):
+    """
+    Defines the types of players.
+
+    Attributes
+    ----------
+    ALL : PlayerType
+        Represents Discord members and DCS players.
+    PLAYER : PlayerType
+        Represents DCS players only.
+    MEMBER : PlayerType
+        Represents Discord members only.
+    HISTORY : PlayerType
+        Represents historical DCS players.
+    """
     ALL = auto()
     PLAYER = auto()
     MEMBER = auto()
@@ -110,6 +124,23 @@ async def input_value(bot: DCSServerBot, interaction: discord.Interaction, messa
 
 async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
+    """
+    :param bot: An instance of DCSServerBot class.
+    :param interaction: A discord.Interaction instance representing the interaction event.
+    :param data: A list of data to display in the embeds.
+    :param embed_formatter: A function that formats the data into an embed.
+    :param num: An integer representing the number of data to display per page, default is 5.
+    :param marker: An integer representing the marker index, default is -1.
+    :param marker_emoji: A string representing the emoji for the marker, default is '🔄'.
+    :return: An integer representing the index of the selected item, or -1 if no item is selected or an error occurs.
+
+    This method is used to display a paginated selection list based on the given data. It sends embeds with reaction buttons for navigation and selection. The user can navigate through the
+    * pages and select an item.
+
+    Example usage:
+    embeds = ["Embed 1", "Embed 1", "Embed 1", "Embed 1", "Embed 1", "Embed 1", "Embed 1", "Embed 1", "Embed 1"]
+    await selection_list(bot, interaction, embeds, custom_embed_formatter, num=3)
+    """
     message = None
     try:
         j = 0
@@ -187,6 +218,15 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
                     placeholder: Optional[str] = None, embed: discord.Embed = None,
                     options: list[SelectOption], min_values: Optional[int] = 1,
                     max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[Union[list, str]]:
+    """
+    This function generates a selection menu on Discord with provided options.
+    If only one option is present, it immediately returns that option's value.
+    In the case of multiple options, this generates a selection menu in view form.
+    Parameters are an interaction or command context, optional title, optional placeholder,
+    optional discord embed, list of option selections, minimum and maximum selectable values,
+    and an 'ephemeral' boolean to denote if the message should be user-only visible.
+    On user selection confirmation, it returns selected result(s) or None if no confirmation.
+    """
     if len(options) == 1:
         return options[0].value
     if not embed and title:
@@ -230,6 +270,18 @@ class YNQuestionView(View):
 
 async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
                       message: Optional[str] = None, ephemeral: Optional[bool] = True) -> bool:
+    """
+    :param ctx: The context in which the yn_question method is being called. It can be either a discord.py commands.Context object or a discord.Interaction object.
+    :param question: The question to be displayed in the embedded message.
+    :param message: An optional additional message to be displayed in the embedded message.
+    :param ephemeral: An optional boolean value indicating whether the message should be ephemeral (only visible to the user who triggered it). Default is True.
+    :return: A boolean value indicating the result of the yn_question. True if the user answered "Yes", False if the user answered "No".
+
+    This method asks a yes/no question using an embedded message, with an optional additional message. It waits for the user to respond and returns their answer as a boolean value.
+    If the ctx parameter is a discord.Interaction object, it is converted to a commands.Context object using ctx.client.get_context(ctx).
+    The yn_question method uses a custom view called YNQuestionView to handle the interaction. An embedded message is sent with the specified question and optional message, along with two
+    * buttons for "Yes" and "No". The view listens for the user's button clicks and returns the corresponding boolean value.
+    """
     embed = discord.Embed(description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
@@ -270,6 +322,17 @@ class PopulatedQuestionView(View):
 
 async def populated_question(interaction: discord.Interaction, question: str, message: Optional[str] = None,
                              ephemeral: Optional[bool] = True) -> Optional[str]:
+    """
+    Same as yn_question, but adds an additional option "Later". The usual usecase of this function would be
+    if people are flying atm and you want to ask to trigger an action that would affect their experience (aka stop
+    the server).
+
+    :param interaction: The discord interaction object.
+    :param question: The question to be displayed in the embed.
+    :param message: An optional message to be displayed in the embed.
+    :param ephemeral: Whether the interaction response should be ephemeral. Default is True.
+    :return: The result of the user's response to the populated question. Returns None if the user does not respond.
+    """
     embed = discord.Embed(title='People are flying!', description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
@@ -288,6 +351,13 @@ async def populated_question(interaction: discord.Interaction, question: str, me
 
 
 def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:
+    """
+    Check if a member has any of the specified roles.
+
+    :param roles: An iterable containing either role names (string) or role IDs (integer).
+    :param member: The discord.Member object to check roles for. Defaults to None.
+    :return: A boolean value indicating whether the member has any of the specified roles. Returns False if member is None.
+    """
     if not member:
         return False
     for role in member.roles:
@@ -300,6 +370,15 @@ def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Membe
 
 
 def has_role(role: str):
+    """
+    Decorator for non-application commands to check if the user has a specific role.
+
+    Example usage:
+    @utils.has_role('DCS Admin')
+
+    :param role: The role to check.
+    :return: A predicate function that checks if the user has the specified role.
+    """
     def predicate(ctx: commands.Context) -> bool:
         return check_roles([role], ctx.author)
 
@@ -308,6 +387,15 @@ def has_role(role: str):
 
 
 def app_has_role(role: str):
+    """
+    Decorator for application commands to check if the user has a specific role.
+
+    Example usage:
+    @utils.app_has_role('DCS Admin')
+
+    :param role: The role to check.
+    :return: True if the user has the role, False otherwise.
+    """
     def predicate(interaction: Interaction) -> bool:
         return check_roles(interaction.client.roles[role], interaction.user)
 
@@ -316,6 +404,15 @@ def app_has_role(role: str):
 
 
 def has_roles(roles: list[str]):
+    """
+    Decorator for non-application commands to check if the user has one of the provided roles.
+
+    Example usage:
+    @utils.has_roles(['DCS', 'DCS Admin'])
+
+    :param roles: A list of roles that should be checked for membership. Each role should be a string representing the name of the role.
+    :return: A decorated function that can be used as a check for membership of the specified roles.
+    """
     def predicate(ctx: commands.Context) -> bool:
         return check_roles(roles, ctx.author)
 
@@ -324,6 +421,15 @@ def has_roles(roles: list[str]):
 
 
 def cmd_has_roles(roles: list[str]):
+    """
+    Check if the user associated with the interaction has any of the specified roles.
+    Internal replacement function for command-overwrites, not to be used by API users.
+
+    :param roles: A list of role names to check.
+    :type roles: list[str]
+    :return: A decorator function that applies the role check to an interaction.
+    :rtype: function
+    """
     def predicate(interaction: Interaction) -> bool:
         valid_roles = []
         for role in roles:
@@ -340,6 +446,15 @@ def cmd_has_roles(roles: list[str]):
 
 
 def app_has_roles(roles: list[str]):
+    """
+    Decorator for application commands to check if the user has one of the provided roles.
+
+    Example usage:
+    @utils.app_has_roles(['DCS', 'DCS Admin'])
+
+    :param roles: A list of roles that should be checked for membership. Each role should be a string representing the name of the role.
+    :return: A decorated function that can be used as a check for membership of the specified roles.
+    """
     def predicate(interaction: Interaction) -> bool:
         valid_roles = set()
         for role in roles:
@@ -351,6 +466,15 @@ def app_has_roles(roles: list[str]):
 
 
 def app_has_not_role(role: str):
+    """
+    Decorator for application commands to check if the user does not have the provided role.
+
+    Example usage:
+    @utils.app_has_not_role('Red')
+
+    :param role: The role to check if the interaction does not have.
+    :return: True if the interaction does not have the given role, False otherwise.
+    """
     def predicate(interaction: Interaction) -> bool:
         return not check_roles(interaction.client[role], interaction.user)
 
@@ -359,6 +483,15 @@ def app_has_not_role(role: str):
 
 
 def app_has_not_roles(roles: list[str]):
+    """
+    Decorator for application commands to check if the user has none one of the provided roles.
+
+    Example usage:
+    @utils.app_has_not_roles(['Red'])
+
+    :param roles: A list of role names that the interaction should not have.
+    :return: A predicate function that checks if the interaction does not have any of the specified roles.
+    """
     def predicate(interaction: Interaction) -> bool:
         invalid_roles = set()
         for role in roles:
@@ -370,6 +503,53 @@ def app_has_not_roles(roles: list[str]):
 
 
 def format_embed(data: dict, **kwargs) -> discord.Embed:
+    """
+    :param data: A dictionary containing the data for formatting the embed.
+    :param kwargs: Additional keyword arguments to be passed to the format_string function.
+    :return: A discord.Embed object.
+
+    This method takes in a dictionary 'data' and optional keyword arguments 'kwargs' to format and construct a discord.Embed object. The function returns the formatted embed.
+
+    The 'data' dictionary contains the following optional keys:
+    - 'color': The color of the embed. If not provided, defaults to discord.Color.blue().
+    - 'title': The title of the embed.
+    - 'description': The description of the embed.
+    - 'img': A string representing the URL of an image to be set as the embed's main image.
+    - 'image': A dictionary containing the URL of an image to be set as the embed's main image.
+    - 'footer': The footer of the embed, which can be either a string or a dictionary with 'text' and 'icon_url' keys.
+    - 'fields': A dictionary or a list of dictionaries representing the fields of the embed. Each dictionary can have 'name', 'value', and 'inline' keys.
+    - 'author': A dictionary representing the author of the embed. It can have 'name', 'url', and 'icon_url' keys.
+    - 'timestamp': A string representing a timestamp in the format '%Y-%m-%dT%H:%M:%S.%fZ'.
+
+    The method constructs a discord.Embed object with the given color. It then sets the title, description, image, footer, fields, author, and timestamp properties based on the provided
+    * data.
+
+    Example usage:
+
+    data = {
+        'color': discord.Color.red(),
+        'title': 'Hello World',
+        'description': 'This is an example embed',
+        'footer': {
+            'text': 'Example Footer',
+            'icon_url': 'https://example.com/footer_icon.png',
+        },
+        'fields': [
+            {
+                'name': 'Field 1',
+                'value': 'Value 1',
+                'inline': True,
+            },
+            {
+                'name': 'Field 2',
+                'value': 'Value 2',
+                'inline': False,
+            },
+        ],
+    }
+
+    embed = format_embed(data)
+    """
     color = data['color'] if 'color' in data else discord.Color.blue()
     embed = discord.Embed(color=color)
     if 'title' in data:
@@ -410,6 +590,14 @@ def format_embed(data: dict, **kwargs) -> discord.Embed:
 
 
 def embed_to_text(embed: discord.Embed) -> str:
+    """
+
+    :param embed: A discord.Embed object representing the embed content.
+    :return: A string containing the formatted text representation of the embed.
+
+    This method takes a discord.Embed object and converts it into a formatted text representation. The resulting string can be used for displaying the embed content in plain text.
+
+    """
     def rows(line: str) -> list[str]:
         return line.splitlines()
 
@@ -461,6 +649,28 @@ def embed_to_text(embed: discord.Embed) -> str:
 
 
 def embed_to_simpletext(embed: discord.Embed) -> str:
+    """
+
+    :param embed: discord.Embed object containing the content to be converted to simple text format.
+    :return: A string representing the content of the embed in simple text format.
+
+    This method takes a discord.Embed object as input and converts its content into a simple text format. The resulting text will include the title (if present), description, fields (including
+    * their names and values), and footer (if present) of the embed, formatted as plain text. If a field is marked as inline in the embed, its name and value will be joined by a '|', otherwise
+    *, they will be separated by a new line.
+
+    Example usage:
+        embed = discord.Embed(title="Example Embed", description="This is an example embed.")
+        simple_text = embed_to_simpletext(embed)
+        print(simple_text)
+
+    Output:
+        EXAMPLE EMBED
+        ============
+        This is an example embed.
+
+    In addition to handling regular fields, the method also supports special fields that start with '▬'. These fields are treated as separators and are included in the resulting text as
+    *-is.
+    """
     message = ''
     if embed.title:
         message += embed.title.upper() + '\n' + '=' * len(embed.title) + '\n'
@@ -487,7 +697,14 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
 
 
 def escape_string(msg: str) -> str:
-    return re.sub(r"([*_~])", r"\\\1", msg)
+    """
+    Escape special characters in a given string to display them in Discord.
+
+    :param msg: The string to escape.
+    :return: The escaped string.
+    :rtype: str
+    """
+    return re.sub(r"([\\_*~`|>#+\-={}!.\[\]()])", r"\\\1", msg)
 
 
 def normalize_name(name: Optional[str] = None) -> Optional[str]:
@@ -499,6 +716,14 @@ def normalize_name(name: Optional[str] = None) -> Optional[str]:
 
 
 def match(name: str, member_list: list[discord.Member], min_score: Optional[int] = 70) -> Optional[discord.Member]:
+    """
+    Match the given name with members in the member_list based on fuzzy string matching.
+
+    :param name: The name to match.
+    :param member_list: The list of discord.Member objects to match against.
+    :param min_score: The minimum score required for a match. Defaults to 70.
+    :return: The discord.Member object with the best match, or None if no match is found.
+    """
     # we do not want to match the DCS standard names
     if name in [
         'Player',
@@ -532,6 +757,13 @@ def match(name: str, member_list: list[discord.Member], min_score: Optional[int]
 
 
 def get_interaction_param(interaction: discord.Interaction, name: str) -> Optional[Any]:
+    """
+    Returns the value of a specific parameter in a Discord interaction.
+
+    :param interaction: The Discord interaction object.
+    :param name: The name of the parameter to retrieve.
+    :return: The value of the parameter, or None if not found.
+    """
     def inner(root: Union[dict, list]) -> Optional[Any]:
         if isinstance(root, dict):
             if root.get('name') == name:
@@ -548,6 +780,10 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
 
 
 def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
+    """
+    :param bot: The instance of the DCSServerBot class.
+    :return: A list of discord.Member objects representing all the members linked to DCS accounts in the bot's guild.
+    """
     members: list[discord.Member] = []
     with bot.pool.connection() as conn:
         for row in conn.execute("SELECT DISTINCT discord_id FROM players WHERE discord_id <> -1"):
@@ -558,7 +794,21 @@ def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
 
 
 class ServerTransformer(app_commands.Transformer):
+    """
 
+    :class:`ServerTransformer` is a class that is used for transforming and autocompleting servers as a selection for application commands.
+
+    .. attribute:: status
+
+        An optional attribute that specifies the list of status values to filter the servers by.
+
+        :type: list of :class:`Status`
+        :default: None
+
+    :param status: An optional parameter that specifies the list of status values to filter the servers by.
+    :type status: list of :class:`Status`
+
+    """
     def __init__(self, *, status: list[Status] = None):
         super().__init__()
         self.status: list[Status] = status
@@ -573,6 +823,8 @@ class ServerTransformer(app_commands.Transformer):
         return server
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+        if not await interaction.command._check_can_run(interaction):
+            return []
         try:
             server: Optional[Server] = interaction.client.get_server(interaction)
             if (not current and server and server.status != Status.UNREGISTERED and
@@ -590,7 +842,10 @@ class ServerTransformer(app_commands.Transformer):
 
 
 class NodeTransformer(app_commands.Transformer):
+    """
+    A class for transforming interaction values to Node objects and providing autocomplete choices for Nodes.
 
+    """
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Node:
         if value:
             return next(x.node for x in interaction.client.servers.values() if x.node.name == value)
@@ -598,20 +853,25 @@ class NodeTransformer(app_commands.Transformer):
             return interaction.client.node
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
-        if not utils.check_roles(interaction.client.roles['Admin'] + interaction.client.roles['DCS Admin'],
-                                 interaction.user):
+        if not await interaction.command._check_can_run(interaction):
             return []
-        all_nodes = [interaction.client.node.name]
-        all_nodes.extend(interaction.client.node.get_active_nodes())
-        return [
-            app_commands.Choice(name=x, value=x)
-            for x in all_nodes
-            if not current or current.casefold() in x.casefold()
-        ]
+        try:
+            all_nodes = [interaction.client.node.name]
+            all_nodes.extend(interaction.client.node.get_active_nodes())
+            return [
+                app_commands.Choice(name=x, value=x)
+                for x in all_nodes
+                if not current or current.casefold() in x.casefold()
+            ]
+        except Exception as ex:
+            interaction.client.log.exception(ex)
 
 
 class InstanceTransformer(app_commands.Transformer):
+    """
+    A class for transforming interaction values to Instance objects and providing autocomplete choices for Instances.
 
+    """
     def __init__(self, *, unused: bool = False):
         super().__init__()
         self.unused = unused
@@ -628,39 +888,54 @@ class InstanceTransformer(app_commands.Transformer):
             return None
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
-        if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+        if not await interaction.command._check_can_run(interaction):
             return []
-        node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
-        if not node:
-            return []
-        if self.unused:
-            all_instances = [instance for server_name, instance in await node.find_all_instances()]
-            for instance in node.instances:
-                all_instances.remove(instance.name)
-            instances = all_instances
-        else:
-            instances = [x.name for x in node.instances]
-        return [
-            app_commands.Choice(name=x, value=x)
-            for x in instances
-            if not current or current.casefold() in x.casefold()
-        ]
+        try:
+            node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
+            if not node:
+                return []
+            if self.unused:
+                all_instances = [instance for server_name, instance in await node.find_all_instances()]
+                for instance in node.instances:
+                    all_instances.remove(instance.name)
+                instances = all_instances
+            else:
+                instances = [x.name for x in node.instances]
+            return [
+                app_commands.Choice(name=x, value=x)
+                for x in instances
+                if not current or current.casefold() in x.casefold()
+            ]
+        except Exception as ex:
+            interaction.client.log.exception(ex)
 
 
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
-    if not server:
+    """
+    Autocompletion for airbases that are in your current mission.
+    """
+    if not await interaction.command._check_can_run(interaction):
         return []
-    choices: list[app_commands.Choice[int]] = [
-        app_commands.Choice(name=x['name'], value=idx)
-        for idx, x in enumerate(server.current_mission.airbases)
-        if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
-    ]
-    return choices[:25]
+    try:
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=x['name'], value=idx)
+            for idx, x in enumerate(server.current_mission.airbases)
+            if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    """
+    Autocompletion of mission names from the current mission list of a server that has to be provided as an earlier
+    parameter to the application command. The mission list can only be obtained by people with the DCS Admin role.
+    """
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
@@ -677,13 +952,17 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 class UserTransformer(app_commands.Transformer):
+    """
+    A class for transforming interaction values to either discord.Member or ucid (str) objects and providing autocomplete choices for users.
 
-    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None,
-                 hide_ucid: Optional[bool] = True):
+    Parameters:
+    - sel_type: The type of user to select. Default is PlayerType.ALL.
+    - linked: Optional boolean value to specify whether to select only linked users. Default is None.
+    """
+    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None):
         super().__init__()
         self.sel_type = sel_type
         self.linked = linked
-        self.hide_ucid = hide_ucid
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Optional[Union[discord.Member, str]]:
         if value:
@@ -697,12 +976,15 @@ class UserTransformer(app_commands.Transformer):
             return interaction.user
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        # is a user is not allowed to run the interaction, they are not allowed to see the autocompletions also
+        if not await interaction.command._check_can_run(interaction):
             return []
+        # only Admin and DCS Admin should be allowed to see ucids at all
+        show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([
-                app_commands.Choice(name='✈ ' + name + (' (' + ucid + ')' if not self.hide_ucid else ''),
+                app_commands.Choice(name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
                                     value=ucid)
                 for ucid, name in get_all_players(interaction.client, self.linked)
                 if not current or current.casefold() in name.casefold() or current.casefold() in ucid
@@ -717,7 +999,9 @@ class UserTransformer(app_commands.Transformer):
 
 
 class PlayerTransformer(app_commands.Transformer):
+    """
 
+    """
     def __init__(self, *, active: bool = False, watchlist: Optional[bool] = None, vip: Optional[bool] = None):
         super().__init__()
         self.active = active
@@ -729,7 +1013,7 @@ class PlayerTransformer(app_commands.Transformer):
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+        if not await interaction.command._check_can_run(interaction):
             return []
         try:
             if self.active:
@@ -758,6 +1042,9 @@ async def server_selection(bus: ServiceBus,
                            interaction: Union[discord.Interaction, commands.Context], *, title: str,
                            multi_select: Optional[bool] = False,
                            ephemeral: Optional[bool] = True) -> Optional[Union[Server, list[Server]]]:
+    """
+
+    """
     all_servers = list(bus.servers.keys())
     if len(all_servers) == 0:
         return []
@@ -787,6 +1074,18 @@ async def server_selection(bus: ServiceBus,
 
 
 def get_ephemeral(interaction: discord.Interaction) -> bool:
+    """
+    Can be used to determine whether a message should be hidden in the current context or not.
+    Usually, you want to hide admin messages in a public context.
+
+    Sample:
+        await interaction.response.send_message("This message should be hidden in public.", ephemeral=utils.get_ephemeral(interaction))
+
+
+    :param interaction: The discord Interaction object representing the interaction event.
+    :return: A boolean value indicating whether the message will be sent as ephemeral or not.
+
+    """
     bot: DCSServerBot = interaction.client
     server: Server = bot.get_server(interaction)
     # we will be ephemeral when we are called in public

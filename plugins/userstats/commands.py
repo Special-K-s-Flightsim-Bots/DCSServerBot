@@ -177,7 +177,7 @@ class UserStatistics(Plugin):
     @app_commands.rename(ucid="user")
     async def link(self, interaction: discord.Interaction, member: discord.Member,
                    ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                       sel_type=PlayerType.PLAYER, linked=False, hide_ucid=False)]
+                       sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(ucid, discord.Member):
@@ -233,8 +233,7 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(user='Name of player, member or UCID')
     async def unlink(self, interaction: discord.Interaction,
-                     user: app_commands.Transform[
-                         Union[discord.Member, str], utils.UserTransformer(linked=True, hide_ucid=False)]):
+                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
         if isinstance(user, discord.Member):
             member = user
             ucid = self.bot.get_ucid_by_member(member)
@@ -298,7 +297,7 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def info(self, interaction: discord.Interaction,
-                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(hide_ucid=False)]):
+                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
         await self._info(interaction, member)
 
     async def _info(self, interaction: discord.Interaction, member: Union[discord.Member, str]):

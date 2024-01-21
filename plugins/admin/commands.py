@@ -19,7 +19,7 @@ from .views import CleanupView
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     choices: list[app_commands.Choice[int]] = [
         app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
@@ -30,7 +30,7 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
@@ -47,7 +47,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
@@ -62,6 +62,8 @@ async def installed_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
@@ -79,6 +81,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
@@ -101,7 +105,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     return [
         app_commands.Choice(name=x, value=x)
@@ -127,7 +131,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
                   user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER, hide_ucid=False)]]):
+                      sel_type=PlayerType.PLAYER)]]):
 
         class BanModal(Modal):
             reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
@@ -212,7 +216,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def watch(self, interaction: discord.Interaction,
                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                        sel_type=PlayerType.PLAYER, hide_ucid=False)]]):
+                        sel_type=PlayerType.PLAYER)]]):
         if isinstance(user, discord.Member):
             ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -243,7 +247,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def unwatch(self, interaction: discord.Interaction,
                       user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                          sel_type=PlayerType.PLAYER, hide_ucid=False)]]):
+                          sel_type=PlayerType.PLAYER)]] = None):
         if isinstance(user, discord.Member):
             ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -416,7 +420,7 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def _prune(self, interaction: discord.Interaction,
                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                         sel_type=PlayerType.PLAYER, hide_ucid=False)]] = None):
+                         sel_type=PlayerType.PLAYER)]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
             embed = discord.Embed(title=":warning: Database Prune :warning:")

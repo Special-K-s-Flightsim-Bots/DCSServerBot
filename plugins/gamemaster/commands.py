@@ -16,7 +16,7 @@ from .views import CampaignModal, ScriptModal
 
 
 async def scriptfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,

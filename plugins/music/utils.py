@@ -86,6 +86,8 @@ async def playlist_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         playlists = get_all_playlists(interaction)
         return [
@@ -100,6 +102,8 @@ async def all_songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         ret = []
         service: MusicService = ServiceRegistry.get("Music")
@@ -120,6 +124,8 @@ async def songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         service: MusicService = ServiceRegistry.get("Music")
         music_dir = await service.get_music_dir()
@@ -136,6 +142,8 @@ async def songs_autocomplete(
 
 
 async def radios_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
