@@ -562,13 +562,19 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
-        if node and not node.master and not await utils.yn_question(
-                interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?"):
-            await interaction.followup.send('Aborted')
-            return
-        # if no node is set, assume the master has to be upgraded
         if not node:
             node = self.node
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not await node.upgrade_pending():
+            await interaction.followup.send(f'There is no upgrade available for node {node.name}.',
+                                            ephemeral=ephemeral)
+            return
+        if not node.master and not await utils.yn_question(
+                interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?",
+                ephemeral=ephemeral):
+            await interaction.followup.send('Aborted', ephemeral=ephemeral)
+            return
         await self.run_on_nodes(interaction, "upgrade", node)
 
     @node_group.command(description='Run a shell command on a node')
