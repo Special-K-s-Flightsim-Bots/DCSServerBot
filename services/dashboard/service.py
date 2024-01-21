@@ -2,6 +2,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import logging.handlers
+from asyncio import Task
+
 import psycopg
 import re
 
@@ -16,7 +18,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from services import ServiceBus
-from typing import cast, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from core import Node
@@ -37,10 +39,13 @@ class HeaderWidget:
         grid = Table.grid(expand=True)
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
-        grid.add_row(
-            f"[b]DCSServerBot {'Master' if self.node.master else 'Agent'} Version {self.node.bot_version}.{self.node.sub_version} | DCS Version {self.service.dcs_version}[/]",
-            datetime.now().ctime().replace(":", "[blink]:[/]"),
-        )
+        message = f"[b]DCSServerBot"
+        if self.node.master and len(self.node.all_nodes) > 0:
+            message += " Cluster Master"
+        elif not self.node.master:
+            message += " Cluster Agent"
+        message += f" Version {self.node.bot_version}.{self.node.sub_version} | DCS Version {self.service.dcs_version}[/]"
+        grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
         return Panel(grid, style="white on blue")
 
 
@@ -75,6 +80,7 @@ class NodeWidget:
     """Displaying Bot Info"""
     def __init__(self, service: Service):
         self.service = service
+        self.node = service.node
         self.bus = service.bus
         self.pool = service.pool
         self.log = service.log
@@ -83,7 +89,7 @@ class NodeWidget:
         table = Table(expand=True, show_edge=False)
         table.add_column("Node ([green]Master[/])", justify="left")
         table.add_column("Servers", justify="left")
-        nodes: dict[str, Node] = dict()
+        nodes: dict[str, Optional[Node]] = {name: None for name in self.node.all_nodes.keys()}
         servers: dict[str, int] = dict()
         for server in self.bus.servers.values():
             nodes[server.node.name] = server.node
@@ -91,8 +97,10 @@ class NodeWidget:
                 servers[server.node.name] = 0
             if server.status not in [Status.SHUTDOWN, Status.UNREGISTERED]:
                 servers[server.node.name] += 1
-        for node in nodes.values():  # type: Node
-            if node.master:
+        for name, node in nodes.items():  # type: Node
+            if not node:
+                table.add_row(f"[grey54]{name}[/]", "[grey54]inactive[/]")
+            elif node.master:
                 table.add_row(f"[green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
@@ -145,6 +153,8 @@ class Dashboard(Service):
         self.old_handler = None
         self.dcs_branch = None
         self.dcs_version = None
+        self.update_task = None
+        self.stop_event = asyncio.Event()
 
     def create_layout(self):
         layout = Layout()
@@ -153,7 +163,7 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        if self.node.master:
+        if self.node.master and len(self.node.all_nodes) > 0:
             layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
         return layout
 
@@ -180,16 +190,17 @@ class Dashboard(Service):
         self.bus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
         self.dcs_branch, self.dcs_version = await self.node.get_dcs_branch_and_version()
         self.hook_logging()
-        self.update.add_exception_type(psycopg.DatabaseError)
-        self.update.start()
+        self.stop_event.clear()
+        self.update_task = asyncio.create_task(self.update())
 
     async def stop(self):
-        self.update.cancel()
+        self.stop_event.set()
+        if self.update_task:
+            await self.update_task
         self.unhook_logging()
         self.console.clear()
         await super().stop()
 
-    @tasks.loop(reconnect=True)
     async def update(self):
         header = HeaderWidget(self)
         servers = ServersWidget(self)
@@ -198,7 +209,7 @@ class Dashboard(Service):
 
         def do_update():
             self.layout['header'].update(header)
-            if self.node.master:
+            if self.node.master and len(self.node.all_nodes) > 0:
                 self.layout['servers'].update(servers)
                 self.layout['nodes'].update(nodes)
             else:
@@ -208,7 +219,7 @@ class Dashboard(Service):
         try:
             do_update()
             with Live(self.layout, refresh_per_second=1, screen=True):
-                while not self.update.is_being_cancelled():
+                while not self.stop_event.is_set():
                     do_update()
                     await asyncio.sleep(1)
         except Exception as ex:
