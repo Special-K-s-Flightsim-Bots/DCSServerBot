@@ -515,9 +515,7 @@ class Admin(Plugin):
             msg = f"Do you want to {method} all nodes?\n"
         else:
             msg = f"Do you want to {method} node {node.name}?\n"
-        if not await utils.yn_question(interaction,
-                                       msg + "It should autostart again, if being launched with run.cmd.",
-                                       ephemeral=ephemeral):
+        if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         for n in self.node.get_active_nodes():
@@ -531,17 +529,25 @@ class Admin(Plugin):
         if not node or node.name == self.node.name:
             await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
-                self.node.shutdown()
+                await self.node.shutdown()
             elif method == 'upgrade':
                 await self.node.upgrade()
             elif method == 'restart':
                 await self.node.restart()
 
-    @node_group.command(description='Stop a specific node')
+    @node_group.command(description='Deprecated!')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def exit(self, interaction: discord.Interaction,
                    node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        await interaction.response.send_message("`/node exit` is deprecated. Please use either `/node shutdown` or "
+                                                "`/node restart` instead.", ephemeral=True)
+
+    @node_group.command(description='Shuts a specific node down')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def shutdown(self, interaction: discord.Interaction,
+                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "shutdown", node)
 
     @node_group.command(description='Restart a specific node')

@@ -21,10 +21,11 @@ class Main:
         self.log = node.log
 
     async def run(self):
-        if self.node.locals.get('autoupdate', False):
-            if await self.node.upgrade() == 1:
-                self.log.warning('- Restart needed => exiting.')
-                self.node.shutdown()
+        # check for updates
+        if self.node.config.get('autoupdate', self.node.locals.get('autoupdate', False)):
+            cloud_drive = self.node.locals.get('cloud_drive', True)
+            if (cloud_drive and self.node.master) or not cloud_drive:
+                await self.node.upgrade()
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
@@ -99,14 +100,16 @@ if __name__ == "__main__":
         node = NodeImpl(name=args.node)
     try:
         asyncio.run(Main(node).run())
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        exit(-1)
-    except FatalException as ex:
-        print(ex)
+    except (asyncio.CancelledError, KeyboardInterrupt) as ex:
+        # do not restart again
         exit(-2)
-    except YAMLError as ex:
+    except (YAMLError, FatalException) as ex:
         print(ex)
-        exit(-1)
+        # do not restart again
+        exit(-2)
+    except SystemExit as ex:
+        exit(ex.code)
     except:
         traceback.print_exc()
+        # restart on unknown errors
         exit(-1)

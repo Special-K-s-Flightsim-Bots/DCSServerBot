@@ -7,6 +7,7 @@ import logging
 import os
 import platform
 import psycopg
+import re
 import shutil
 import ssl
 import subprocess
@@ -17,10 +18,12 @@ from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from discord.ext import tasks
+from git import InvalidGitRepositoryError
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
+from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
 from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple
 from version import __version__
@@ -58,6 +61,8 @@ LOGLEVEL = {
     'FATAL': logging.FATAL
 }
 
+REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
+
 
 class NodeImpl(Node):
 
@@ -69,7 +74,7 @@ class NodeImpl(Node):
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.dcs_branch = None
         self.dcs_version = None
-        self.all_nodes: Optional[dict] = None
+        self.all_nodes: Optional[dict[str, dict]] = None
         self.instances: list[InstanceImpl] = list()
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
@@ -97,22 +102,10 @@ class NodeImpl(Node):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                        cursor.execute("""
-                            SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
-                            WHERE guild_id = %s AND node = %s 
-                            AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '2 seconds')
-                        """, (self.guild_id, self.name))
-                        if cursor.rowcount > 0:
-                            row = cursor.fetchone()
-                            # this can be removed in a bit, it is for backwards compatibility
-                            if row['last_seen'] <= row['now']:
-                                self.log.error(f"A node with name {self.name} is already running for this guild!")
-                                exit(-2)
-                        conn.execute("""
-                            INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) 
-                            ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
-                        """, (self.guild_id, self.name))
+                    conn.execute("""
+                        INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
+                    """, (self.guild_id, self.name))
             self._master = self.check_master()
         except UndefinedTable:
             # should only happen when an upgrade to 3.0 is needed
@@ -173,14 +166,17 @@ class NodeImpl(Node):
             del self.after_update[name]
 
     @staticmethod
-    def shutdown():
-        raise KeyboardInterrupt()
+    async def shutdown():
+        await ServiceRegistry.shutdown()
+        tasks = [t for t in asyncio.all_tasks() if t is not
+                 asyncio.current_task()]
+        [task.cancel() for task in tasks]
+        await asyncio.gather(*tasks, return_exceptions=True)
+        asyncio.get_event_loop().stop()
 
     @staticmethod
     async def restart():
-        # Shutting down
         await ServiceRegistry.shutdown()
-        # Restarting
         os.execv(sys.executable, ['python'] + sys.argv)
 
     def read_locals(self) -> dict:
@@ -272,46 +268,36 @@ class NodeImpl(Node):
             os.remove(path)
 
     async def upgrade(self) -> int:
+        self.log.debug('- Checking for updates...')
+        update = False
         try:
             import git
 
-            try:
-                with closing(git.Repo('.')) as repo:
-                    self.log.debug('- Checking for updates...')
-                    current_hash = repo.head.commit.hexsha
-                    origin = repo.remotes.origin
-                    origin.fetch()
-                    new_hash = origin.refs[repo.active_branch.name].object.hexsha
-                    if new_hash != current_hash:
-                        modules = False
-                        self.log.info('- Updating myself...')
-                        diff = repo.head.commit.diff(new_hash)
-                        for d in diff:
-                            if d.b_path == 'requirements.txt':
-                                modules = True
-                        try:
-                            repo.remote().pull(repo.active_branch)
-                            self.log.info('  => DCSServerBot updated to latest version.')
-                            if modules:
-                                self.log.warning('  => requirements.txt has changed. Installing missing modules...')
-                                proc = await asyncio.create_subprocess_exec(
-                                    sys.executable, '-m', 'pip', '-q', 'install', '-r', 'requirements.txt',
-                                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-                                await proc.wait()
-                            return 1
-                        except git.exc.GitCommandError:
-                            self.log.error('  => Autoupdate failed!')
-                            self.log.error('     Please revert back the changes in these files:')
-                            for item in repo.index.diff(None):
-                                self.log.error(f'     ./{item.a_path}')
-                            return -1
-                    else:
-                        self.log.debug('- No update found for DCSServerBot.')
-                        return 0
-            except git.exc.InvalidGitRepositoryError:
-                self.log.error('No git repository found. Aborting. Please use "git clone" to install DCSServerBot.')
-        except ImportError:
-            self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
+            with closing(git.Repo('.')) as repo:
+                current_hash = repo.head.commit.hexsha
+                origin = repo.remotes.origin
+                origin.fetch()
+                new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                if new_hash != current_hash:
+                    update = True
+        except (ImportError, InvalidGitRepositoryError):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(REPO_URL) as response:
+                    result = await response.json()
+                    current_version = __version__
+                    latest_version = result[0]["tag_name"]
+
+                    if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
+                        update = True
+        if update:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
+            subprocess.Popen([sys.executable, 'update.py'])
+            sys.exit(0)
+        else:
+            self.log.debug('- No update found for DCSServerBot.')
+        return 0
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
@@ -454,77 +440,103 @@ class NodeImpl(Node):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
+                if self.master:
+                    conn.execute("DELETE FROM cluster WHERE guild_id = %s", (self.guild_id, ))
         if self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
     def check_master(self) -> bool:
+        def version_string_to_tuple(version_string: str):
+            return tuple(map(int, version_string.split(".")))
+
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    master = False
-                    count = 0
-                    cursor.execute("""
-                        SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
-                        WHERE guild_id = %s FOR UPDATE
-                    """, (self.guild_id, ))
-                    for row in cursor.fetchall():
-                        if row['master']:
-                            count += 1
-                            if row['node'] == self.name:
-                                master = True
-                            # the old master is dead, we probably need to take over
-                            elif (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
-                                self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}z")
-                                cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
-                                               (self.guild_id, row['node']))
-                                count -= 1
-                    # no master there, we're the master now
-                    if count == 0:
-                        cursor.execute("""
-                            UPDATE nodes SET master = True, last_seen = NOW() AT TIME ZONE 'UTC'
-                            WHERE guild_id = %s and node = %s
-                        """, (self.guild_id, self.name))
-                        master = True
-                    # there is only one master, might be me, might be others
-                    elif count == 1:
-                        # if we are the preferred master, take it back
-                        if not master and self.locals.get('preferred_master', False):
-                            master = True
-                        cursor.execute("""
-                            UPDATE nodes SET master = %s, last_seen = NOW() AT TIME ZONE 'UTC'
-                            WHERE guild_id = %s and node = %s
-                        """, (master, self.guild_id, self.name))
-                    # split brain detected
-                    else:
-                        # we are the preferred master,
+                    try:
+                        all_nodes = cursor.execute("""
+                            SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
+                            WHERE guild_id = %s FOR UPDATE
+                        """, (self.guild_id, )).fetchall()
+                        cluster = cursor.execute("SELECT * FROM cluster WHERE guild_id = %s",
+                                                 (self.guild_id, )).fetchone()
+                        # No master there? we take it!
+                        if not cluster:
+                            cursor.execute("INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)",
+                                           (self.guild_id, self.name, __version__))
+                            return True
+                        current_version = version_string_to_tuple(__version__)
+                        db_version = version_string_to_tuple(cluster['version'])
+                        # I am the master
+                        if cluster['master'] == self.name:
+                            if cluster['update_pending']:
+                                if current_version > db_version:
+                                    # we have just finished updating, so restart all other nodes (if there are any)
+                                    for node in self.get_active_nodes():
+                                        # TODO: we might not have bus access here yet, so be our own bus (dirty)
+                                        data = {
+                                            "command": "rpc",
+                                            "object": "Node",
+                                            "method": "restart"
+                                        }
+                                        conn.execute(
+                                            "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
+                                            (node, Json(data), 2))
+                                # clear the update flag
+                                cursor.execute(
+                                    "UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s",
+                                    (__version__, self.guild_id))
+                            return True
+                        # we are not the master, the update is pending, we will not take over
+                        if cluster['update_pending']:
+                            return False
+                        # we have a version mismatch on the agent, a cloud sync might still be pending
+                        if current_version < db_version:
+                            self.log.error(f"We are running version {__version__} where the master is on version "
+                                           f"{cluster['version']} already. Restarting ...")
+                            # TODO: we might not have bus access here yet, so be our own bus (dirty)
+                            data = {
+                                "command": "rpc",
+                                "object": "Node",
+                                "method": "restart"
+                            }
+                            conn.execute(
+                                "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
+                                (self.name, Json(data), 2))
+                            return False
+                        elif current_version > db_version:
+                            self.log.warning(f"This node is running on version {current_version} where the master "
+                                             f"still runs on {db_version}. You need to upgrade your master node!")
+                        # we are not the master, but we are the preferred one, taking over
                         if self.locals.get('preferred_master', False):
-                            cursor.execute("""
-                                UPDATE nodes SET master = False 
-                                WHERE guild_id = %s and node <> %s
-                            """, (self.guild_id, self.name))
-                            cursor.execute("""
-                                UPDATE nodes SET master = True, last_seen = NOW() AT TIME ZONE 'UTC' 
-                                WHERE guild_id = %s and node = %s
-                            """, (self.name, ))
-                            master = True
-                        else:
-                            self.log.warning("Split brain detected, stepping back from master.")
-                            cursor.execute("""
-                                UPDATE nodes SET master = False, last_seen = NOW() AT TIME ZONE 'UTC'
-                                WHERE guild_id = %s and node = %s
-                            """, (self.guild_id, self.name))
-                            master = False
-            return master
+                            cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                           (self.name, self.guild_id))
+                            return True
+                        # else, check if the running master is probably dead...
+                        for row in all_nodes:
+                            if row['node'] == self.name:
+                                continue
+                            if row['node'] == cluster['master'] and (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
+                                # the master is dead, long live the master
+                                cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                               (self.name, self.guild_id))
+                                return True
+                        # we can not help, we are just an Agent
+                        return False
+                    except Exception as e:
+                        self.log.exception(e)
+                    finally:
+                        cursor.execute("UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE node = %s",
+                                       (self.name,))
 
     def get_active_nodes(self) -> list[str]:
         with self.pool.connection() as conn:
             return [row[0] for row in conn.execute("""
                 SELECT node FROM nodes 
                 WHERE guild_id = %s
-                AND master is False 
+                AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
-            """, (self.guild_id, )).fetchall()]
+            """, (self.guild_id, self.name)).fetchall()]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
         self.log.debug('Running shell-command: ' + cmd)

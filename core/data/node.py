@@ -72,6 +72,7 @@ class Node:
         try:
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
             # set defaults
+            config['autoupdate'] = config.get('autoupdate', False)
             config['logging'] = config.get('logging', {})
             config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
             config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)

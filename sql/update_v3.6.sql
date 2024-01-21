@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS cluster (guild_id BIGINT primary key, master TEXT NOT NULL, version TEXT NOT NULL, UPDATE_PENDING BOOLEAN NOT NULL DEFAULT FALSE);
+UPDATE version SET version='v3.7';

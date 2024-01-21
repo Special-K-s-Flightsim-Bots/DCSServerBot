@@ -168,11 +168,15 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
             self.log.warning("Aborted: missing requirements")
             exit(-2)
 
+        # check if we can enable autoupdate
+        autoupdate = Prompt.ask("Do you want your DCSServerBot being auto-updated?", choices=['y', 'n'],
+                                default='y') == 'y'
         print("\n1. Discord Setup")
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
         main = {
-            "guild_id": guild_id
+            "guild_id": guild_id,
+            "autoupdate": autoupdate
         }
         token = Prompt.ask('Please enter your discord TOKEN (see documentation)') or '<see documentation>'
         owner = Prompt.ask('Please enter your Owner ID (right click on your discord user, "Copy User ID")')
@@ -305,13 +309,6 @@ If you need any further assistance, please visit the support discord, listed in 
             }
         else:
             self.log.info("- DCS-SRS not configured.")
-        # check if we can enable autoupdate
-        if master:
-            node['autoupdate'] = Prompt.ask("Do you want your DCSServerBot being auto-updated?", choices=['y', 'n'],
-                                            default='y') == 'y'
-        else:
-            node['autoupdate'] = False
-            print("[yellow]- autoupdate disabled for DCSServerBot on non-master node.[/]")
 
         print(f"\n{i+3}. DCS Server Setup")
         scheduler = schedulers[self.node] = {}

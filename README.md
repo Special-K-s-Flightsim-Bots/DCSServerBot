@@ -121,7 +121,8 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ### Prerequisites
 You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
 "Add python.exe to PATH" during your Python installation.<br>
-For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
+
+If you want to use instant autoupdate from the master branch, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
 
 > ⚠️ **Attention!**<br>
 > DCSServerBot is not compatible with Python 3.12 yet. This is because of some 3rd party libraries and not the bot
@@ -152,8 +153,9 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then can use the 
-autoupdate functionality of the bot. Otherwise, download the latest release version as ZIP and extract it somewhere on 
-your PC that is running the DCS server(s) and give it write permissions, if needed. 
+instant autoupdate functionality of the bot and always have the newest fixes, independent of and release version. 
+Otherwise, download the latest release version as ZIP and extract it somewhere on your PC that is running the DCS 
+server(s) and give it write permissions, if needed. 
 
 > ⚠️ **Attention!**<br>
 > Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
@@ -199,6 +201,7 @@ This file holds the main information about DCSServerBot. You can configure which
 
 ```yaml
 guild_id: 112233445566  # Your Discord server ID. Right click on your server and select "Copy Server ID".
+autoupdate: true        # use the bots autoupdate functionality, default is false
 use_dashboard: true     # Use the dashboard display for your node. Default is true.
 chat_command_prefix: .  # The command prefix to be used for in-game chat commands. Default is "."
 mission_rewrite: false  # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
@@ -243,10 +246,10 @@ For a cluster installation, you want to describe all your nodes and instances on
 NODENAME:                       # this will be your hostname
   listen_address: 0.0.0.0       # On which interface should the bot listen to? Default is 0.0.0.0
   listen_port: 10042            # On which port should the bot listen to? Default is 10042
-  autoupdate: true              # use the bots autoupdate functionality, default is false
   slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
+  cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
@@ -413,11 +416,10 @@ DCSServerBot will autodetect all configured DCS servers on installation and gene
 for you already. To add a new instance, you can either do that manually or use `/node add_instance` in your Discord.
 ---
 ## Starting the Bot
-To start the bot, you can either use the packaged ```run.cmd``` command (recommended) or ```venv\Scripts\python run.py```.<br/>
-If using `autoupdate: true` in your main.yaml, it is recommended to start the bot via ```run.cmd```. This runs it in 
-a loop, as it will try to restart itself after an update has taken place.</br>
+To start the bot, use the packaged ```run.cmd``` command. This creates the necessary Python virtual environment and 
+launches the bot afterward.<br/>
 If you want to run the bot from autostart, press Win+R, enter `shell:startup` and press ENTER, create a shortcut to your
-run.cmd in there.
+`run.cmd` in there.
 
 ---
 ## How to do the more complex stuff?

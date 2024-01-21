@@ -1,26 +1,17 @@
 @echo off
-echo Updating DCSSererBot to the latest version...
-git pull 2>/NUL
+python --version > NUL 2>&1
 if %ERRORLEVEL% EQU 9009 (
-    echo Git for Windows is not installed.
-    echo Please download the latest version of DCSServerBot from
-    echo https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/releases/latest
-    echo and update manually.
-    exit /B %ERRORLEVEL%
-) else if %ERRORLEVEL% NEQ 0 (
-    echo Error while updating DCSServerBot. Please check the messages above.
+    echo python.exe is not in your PATH.
+    echo Chose "Add python to the environment" in your Python-installer.
     exit /B %ERRORLEVEL%
 )
 SET VENV=%USERPROFILE%\.dcssb
 if not exist "%VENV%" (
     echo Creating the Python Virtual Environment
     python -m venv "%VENV%"
+    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
+    "%VENV%\Scripts\pip" install -r requirements.txt
 )
-echo Installing Python Libraries ...
-"%VENV%\Scripts\python.exe" -m pip install --upgrade pip >NUL 2>NUL
-"%VENV%\Scripts\pip" -q install -r requirements.txt
-if %ERRORLEVEL% NEQ 0 (
-    echo Error while updating DCSServerBot. Please check the messages above.
-    exit /B %ERRORLEVEL%
-)
-echo DCSServerBot updated.
+"%VENV%\Scripts\python" update.py %*
+echo Please press any key to continue...
+pause > NUL
