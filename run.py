@@ -27,7 +27,7 @@ class Main:
             cloud_drive = self.node.locals.get('cloud_drive', True)
             if (cloud_drive and self.node.master) or not cloud_drive:
                 await self.node.upgrade()
-        elif await self.node.update_pending():
+        elif await self.node.upgrade_pending():
             self.log.warning("There is a new update for DCSServerBot available!")
 
         await self.node.register()
