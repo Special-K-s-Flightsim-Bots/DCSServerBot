@@ -378,10 +378,10 @@ class OvGME(Plugin):
             return
         await msg.edit(content=f"Mod {package} uninstalled.")
 
-    @mods.command(description='List all mods that are installed on your DCS server')
+    @mods.command(name="list", description='List all mods that are installed on your DCS server')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
-    async def list(self, interaction: discord.Interaction,
+    async def _list(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         installed: dict[str, list[Tuple[str, str]]] = dict()

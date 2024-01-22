@@ -524,13 +524,16 @@ class NodeImpl(Node):
                         for row in all_nodes:
                             if row['node'] == self.name:
                                 continue
-                            if row['node'] == cluster['master'] and (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
-                                # the master is dead, long live the master
-                                cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
-                                               (self.name, self.guild_id))
-                                return True
-                        # we can not help, we are just an Agent
-                        return False
+                            if row['node'] == cluster['master']:
+                                if (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
+                                    # the master is dead, long live the master
+                                    cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                   (self.name, self.guild_id))
+                                    return True
+                                return False
+                        # we can not find a master - take over
+                        cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s", (self.name, self.guild_id))
+                        return True
                     except Exception as e:
                         self.log.exception(e)
                     finally:

@@ -486,28 +486,32 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"All Nodes", color=discord.Color.blue())
-        embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-        # agent nodes
+        await interaction.response.defer()
+        embed = discord.Embed(title=f"DCSServerBot Cluster Overview", color=discord.Color.blue())
         # TODO: there should be a list of nodes, with impls / proxies
         for name in self.node.all_nodes.keys():
             names = []
             instances = []
             status = []
-            embed.add_field(name="▬" * 32,
-                            value=f"Agent: {name}" if name != self.node.name else f'**Master: {name}**',
-                            inline=False)
             for server in [server for server in self.bus.servers.values() if server.node.name == name]:
                 instances.append(server.instance.name)
                 names.append(server.name)
                 status.append(server.status.name)
             if names:
+                if await server.node.upgrade_pending():
+                    embed.set_footer(text="🆕 Update available")
+                    title = "🆕"
+                else:
+                    title = ""
+
+                title += f"**[{name}]**" if name == self.node.name else f"[{name}]"
+                embed.add_field(name="▬" * 32, value=title, inline=False)
                 embed.add_field(name="Instance", value='\n'.join(instances))
                 embed.add_field(name="Server", value='\n'.join(names))
                 embed.add_field(name="Status", value='\n'.join(status))
             else:
-                embed.add_field(name="Inactive", value='_ _')
-        await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+                embed.add_field(name="▬" * 32, value=f"_[{name}]_", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         ephemeral = utils.get_ephemeral(interaction)
@@ -556,6 +560,32 @@ class Admin(Plugin):
     async def restart(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "restart", node)
+
+    @node_group.command(description='Shuts down all servers on the respective node and sets them to maintenance mode')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def offline(self, interaction: discord.Interaction,
+                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+        for server in self.bus.servers.values():
+            if server.node.name == node.name:
+                server.maintenance = True
+                asyncio.create_task(server.shutdown())
+        await interaction.followup.send(f"Node {node.name} is now offline.")
+
+    @node_group.command(description='Clears the maintenance mode for all servers on the respective node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def online(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+        for server in self.bus.servers.values():
+            if server.node.name == node.name:
+                server.maintenance = False
+                asyncio.create_task(server.startup())
+        await interaction.followup.send(f"Node {node.name} is now online.")
 
     @node_group.command(description='Upgrade DCSServerBot')
     @app_commands.guild_only()
