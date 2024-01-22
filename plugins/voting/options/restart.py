@@ -17,6 +17,7 @@ class Restart(VotableItem):
             message += "Time and/or weather of this mission might change!\n"
         else:
             message += "The mission will be reset to its initial time."
+        return message
 
     def get_choices(self) -> list[str]:
         return ["Restart", "Don't restart"]
