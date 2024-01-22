@@ -18,7 +18,7 @@ from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from discord.ext import tasks
-from git import InvalidGitRepositoryError
+from git import InvalidGitRepositoryError, GitCommandError
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from psycopg.errors import UndefinedTable
@@ -292,6 +292,16 @@ class NodeImpl(Node):
 
                     if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
                         return True
+        except GitCommandError as ex:
+            self.log.error('  => Autoupdate failed!')
+            changed_files = repo.index.diff(None)
+            if changed_files:
+                self.log.error('     Please revert back the changes in these files:')
+                for item in changed_files:
+                    self.log.error(f'     ./{item.a_path}')
+            else:
+                self.log.error(ex.status)
+            return False
         except Exception as ex:
             self.log.exception(ex)
             raise
