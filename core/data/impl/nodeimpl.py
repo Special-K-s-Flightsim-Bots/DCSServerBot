@@ -292,6 +292,9 @@ class NodeImpl(Node):
 
                     if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
                         return True
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
         self.log.debug('- No update found for DCSServerBot.')
         return False
 

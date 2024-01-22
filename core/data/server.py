@@ -432,3 +432,6 @@ class Server(DataObject):
 
     async def render_extensions(self) -> list:
         raise NotImplemented()
+
+    async def is_running(self) -> bool:
+        raise NotImplemented()

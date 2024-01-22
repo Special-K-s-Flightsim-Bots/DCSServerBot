@@ -195,3 +195,12 @@ class ServerProxy(Server):
             "server_name": self.name
         }, timeout=120, node=self.node.name)
         return data['return']
+
+    async def is_running(self) -> bool:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "is_running",
+            "server_name": self.name
+        }, timeout=60, node=self.node.name)
+        return data['return']

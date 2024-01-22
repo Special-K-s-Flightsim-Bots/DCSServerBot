@@ -21,7 +21,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union
+from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union, Any
 
 if TYPE_CHECKING:
     from services import DCSServerBot
@@ -171,18 +171,28 @@ class ServiceBus(Service):
             self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
         else:
             return
-        calls = []
+        calls: dict[str, Any] = dict()
         for server in local_servers:
-            calls.append(server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout))
             if not self.master:
                 server.status = Status.UNREGISTERED
                 await self.send_init(server)
-        ret = await asyncio.gather(*calls, return_exceptions=True)
+            if await server.is_running():
+                calls[server.name] = server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+            else:
+                server.status = Status.SHUTDOWN
+                if server.maintenance:
+                    self.log.warning(
+                        f'  => Server {server.name} in in maintenance mode and will not be started by the Scheduler!')
+        ret = await asyncio.gather(*calls.values(), return_exceptions=True)
         num = 0
-        for i, server in enumerate(local_servers):
+        for i, name in enumerate(calls.keys()):
+            server = self.servers[name]
             if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
+                if server.maintenance:
+                    self.log.warning(
+                        f'  => Server {server.name} in in maintenance mode and will not be started by the Scheduler!')
             elif isinstance(ret[i], Exception):
                 self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
             else:
@@ -217,10 +227,8 @@ class ServiceBus(Service):
         self.log.debug(f'  => Registering DCS-Server "{server_name}"')
         server: ServerImpl = cast(ServerImpl, self.servers[server_name])
         # set the PID
-        for exe in ['DCS_server.exe', 'DCS.exe']:
-            server.process = utils.find_process(exe, server.instance.name)
-            if server.process:
-                break
+        if not server.process:
+            server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
         server.dcs_version = data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:

@@ -384,7 +384,7 @@ class ServerImpl(Server):
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch
-            if not self.is_running():
+            if not await self.is_running():
                 self.status = Status.SHUTDOWN
             raise
 
@@ -403,17 +403,28 @@ class ServerImpl(Server):
                 self.log.exception(ex)
 
     async def shutdown(self, force: bool = False) -> None:
-        if self.is_running():
+        if await self.is_running():
             if not force:
                 await super().shutdown(False)
-            self.terminate()
+            await self.terminate()
         self.status = Status.SHUTDOWN
 
-    def is_running(self) -> bool:
-        return self.process and self.process.is_running()
+    def _check_and_assign_process(self):
+        if not self.process or not self.process.is_running():
+            self.process = utils.find_process("DCS_server.exe|DCS.exe", self.instance.name)
 
-    def terminate(self) -> None:
-        if self.is_running():
+    async def is_running(self) -> bool:
+        # check if something is listening at the port
+        if utils.is_open('127.0.0.1', int(self.settings.get('port'))):
+            self._check_and_assign_process()
+            return True
+        # no, we might be in the startup phase or something might have happened to the process
+        else:
+            self._check_and_assign_process()
+        return self.process is not None
+
+    async def terminate(self) -> None:
+        if await self.is_running():
             self.process.kill()
         self.process = None
 
