@@ -17,7 +17,9 @@ class Mission(VotableItem):
                 f"If you do not want any change, vote for \"No Change\".")
 
     def get_choices(self) -> list[str]:
-        return ['No Change'] + self.config.get('choices', [os.path.basename(x) for x in self.server.settings['missionList']])
+        return ['No Change'] + self.config.get('choices', [
+            os.path.basename(x) for x in self.server.settings['missionList']
+        ])
 
     async def execute(self, winner: str):
         if winner == 'No Change':

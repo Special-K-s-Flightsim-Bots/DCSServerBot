@@ -20,6 +20,8 @@ DEFAULT:
       choices:
         - a.miz         # If no mission section is present, all missions from serverSettings.lua will be used.
         - b.miz
+    restart:            # Vote for a mission restart
+      run_extensions: true  # if true, extensions like RealWeather, MizEdit, etc will be run (default: false).
     kick: {}            # Vote for kicking a player
     tempban:            # Vote to tempban a player for duration days
       duration: 3       # default: 3 (days)
