@@ -182,7 +182,7 @@ class ServiceBus(Service):
                 server.status = Status.SHUTDOWN
                 if server.maintenance:
                     self.log.warning(
-                        f'  => Server {server.name} in in maintenance mode and will not be started by the Scheduler!')
+                        f'  => Maintenance mode enabled for Server {server.name}')
         ret = await asyncio.gather(*calls.values(), return_exceptions=True)
         num = 0
         for i, name in enumerate(calls.keys()):
@@ -192,7 +192,7 @@ class ServiceBus(Service):
                 server.status = Status.SHUTDOWN
                 if server.maintenance:
                     self.log.warning(
-                        f'  => Server {server.name} in in maintenance mode and will not be started by the Scheduler!')
+                        f'  => Maintenance mode enabled for Server {server.name}')
             elif isinstance(ret[i], Exception):
                 self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
             else:
