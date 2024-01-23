@@ -96,7 +96,7 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
 
-    parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
+    parser = argparse.ArgumentParser(prog='run.py', description="Welcome to DCSServerBot!",
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')

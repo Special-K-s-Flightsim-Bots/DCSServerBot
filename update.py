@@ -130,7 +130,7 @@ def do_update_github(delete: Optional[bool] = False) -> int:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
+    parser = argparse.ArgumentParser(prog='update.py', description="Welcome to DCSServerBot!",
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
