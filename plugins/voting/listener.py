@@ -85,7 +85,7 @@ class VotingHandler:
 
     def _get_possible_voters(self) -> int:
         if self.config.get('voter'):
-            len([x for x in self.server.get_active_players() if self.listener.check_role(x, self.config['voter'])])
+            return len([x for x in self.server.get_active_players() if self.listener.check_role(x, self.config['voter'])])
         else:
             return len(self.server.get_active_players())
 
