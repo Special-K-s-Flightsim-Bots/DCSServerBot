@@ -1,9 +1,8 @@
 import argparse
 import io
 import os
+import platform
 import re
-from typing import Iterable, Optional
-
 import requests
 import shutil
 import subprocess
@@ -13,6 +12,7 @@ import zipfile
 
 from contextlib import closing
 from git import InvalidGitRepositoryError
+from typing import Iterable, Optional
 
 from version import __version__
 
@@ -132,12 +132,12 @@ def do_update_github(delete: Optional[bool] = False) -> int:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
                                      epilog='If unsure about the parameters, please check the documentation.')
+    parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
     args = parser.parse_args()
     try:
         rc = do_update_git()
     except (ImportError, InvalidGitRepositoryError):
         rc = do_update_github(args.delete)
-    if not rc:
-        subprocess.Popen([sys.executable, 'run.py'])
+    subprocess.Popen([sys.executable, 'run.py', '-n', args.node, '--noupdate'])
     sys.exit(rc)

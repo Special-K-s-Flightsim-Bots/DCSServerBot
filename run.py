@@ -16,14 +16,20 @@ import services
 
 class Main:
 
-    def __init__(self, node: NodeImpl):
+    def __init__(self, node: NodeImpl, no_autoupdate: bool) -> None:
         self.node = node
         self.log = node.log
+        self.no_autoupdate = no_autoupdate
 
     async def run(self):
         await self.node.post_init()
         # check for updates
-        if self.node.config.get('autoupdate', self.node.locals.get('autoupdate', False)):
+        if self.no_autoupdate:
+            autoupdate = False
+        else:
+            autoupdate = self.node.config.get('autoupdate', self.node.locals.get('autoupdate', False))
+
+        if autoupdate:
             cloud_drive = self.node.locals.get('cloud_drive', True)
             if (cloud_drive and self.node.master) or not cloud_drive:
                 await self.node.upgrade()
@@ -93,6 +99,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
+    parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
     args = parser.parse_args()
     if os.path.exists('config/dcsserverbot.ini'):
         migrate(node=args.node)
@@ -102,7 +109,7 @@ if __name__ == "__main__":
         Install(node=args.node).install()
         node = NodeImpl(name=args.node)
     try:
-        asyncio.run(Main(node).run())
+        asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
     except (asyncio.CancelledError, KeyboardInterrupt) as ex:
         # do not restart again
         exit(-2)
