@@ -153,13 +153,8 @@ class Install:
         print("""
 For a successful installation, you need to fulfill the following prerequisites:
 
-    1. Installation of PostgreSQL
+    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
     2. A Discord TOKEN for your bot from https://discord.com/developers/applications
-    3. Git for Windows (optional but recommended)
-
-If you have installed Git for Windows, I'd recommend that you install the bot using
-
-    [italic][bright_black]git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git[/][/]
 
         """)
         if Prompt.ask(prompt="Have you fulfilled all these requirements", choices=['y', 'n'], show_choices=True,
@@ -168,10 +163,11 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
             self.log.warning("Aborted: missing requirements")
             exit(-2)
 
+        print("\n1. General Setup")
         # check if we can enable autoupdate
         autoupdate = Prompt.ask("Do you want your DCSServerBot being auto-updated?", choices=['y', 'n'],
                                 default='y') == 'y'
-        print("\n1. Discord Setup")
+        print("\n2. Discord Setup")
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
         main = {
@@ -218,6 +214,11 @@ You can keep the defaults, if unsure and create the respective roles in your Dis
         return main, nodes, bot
 
     def install(self):
+        major_version = int(platform.python_version_tuple()[1])
+        if major_version <= 8 or major_version >= 12:
+            print(f"""
+[red]!!! Your Python 3.{major_version} installation is not supported, you might face issues. Please use 3.9 - 3.11 !!![/]
+            """)
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
 DCSServerBot supports everything from single server installations to huge server farms with multiple servers across 
@@ -227,16 +228,12 @@ I will now guide you through the installation process.
 If you need any further assistance, please visit the support discord, listed in the documentation.
 
         """)
-        major_version = int(platform.python_version_tuple()[1])
-        if major_version <= 8 or major_version >= 12:
-            print(f"[red]Your Python 3.{major_version} installation is not supported, please use 3.11![/]\n")
-            sys.exit(-1)
         if not os.path.exists('config/main.yaml'):
             main, nodes, bot = self.install_master()
             master = True
             servers = {}
             schedulers = {}
-            i = 1
+            i = 2
         else:
             main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
@@ -441,6 +438,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     try:
         Install(args.node).install()
+    except KeyboardInterrupt:
+        pass
     except Exception:
         traceback.print_exc()
-        print("\nAborted.")
+    print("\nAborted.")

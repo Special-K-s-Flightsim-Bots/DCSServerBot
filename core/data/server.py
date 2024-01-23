@@ -66,13 +66,16 @@ class Server(DataObject):
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 
+    async def reload(self):
+        raise NotImplemented()
+
     def read_locals(self) -> dict:
         if os.path.exists('config/servers.yaml'):
             try:
                 data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
             except (ParserError, ScannerError) as ex:
                 raise YAMLError('config/servers.yaml', ex)
-            if not data.get(self.name):
+            if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:
@@ -399,7 +402,7 @@ class Server(DataObject):
     @property
     def channels(self) -> dict[Channel, int]:
         if not self._channels:
-            if 'channels' not in self.locals:
+            if 'channels' not in self.locals and self.name != 'n/a':
                 self.log.error(f"No channels defined in servers.yaml for server {self.name}!")
                 return {}
             self._channels = {}

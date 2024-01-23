@@ -500,24 +500,41 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
-        ephemeral = utils.get_ephemeral(interaction)
         if server.status in [Status.RUNNING, Status.PAUSED]:
             if await utils.yn_question(interaction, question='Server has to be stopped to change its configuration.\n'
-                                                             'Do you want to stop it?', ephemeral=ephemeral):
+                                                             'Do you want to stop it?'):
                 await server.stop()
             else:
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                await interaction.followup.send('Aborted.')
                 return
 
-        view = ConfigView(server)
-        embed = discord.Embed(title=f'Do you want to change the configuration of server\n"{server.display_name}"?')
+        view = ConfigView(self.bot, server)
+        embed = discord.Embed(title=f'Please edit the configuration of server\n"{server.display_name}"')
         if interaction.response.is_done():
-            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            msg = await interaction.followup.send(embed=embed, view=view)
         else:
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+            await interaction.response.send_message(embed=embed, view=view)
             msg = await interaction.original_response()
         try:
-            await view.wait()
+            if not await view.wait() and not view.cancelled:
+                if view.channel_update:
+                    if not await view.wait() and not view.cancelled and view.channel_update:
+                        with open('config/servers.yaml') as infile:
+                            config = yaml.load(infile)
+                        config[server.name] = {
+                            "channels": {
+                                "status": server.locals.get('channels', {}).get('status', -1),
+                                "chat": server.locals.get('channels', {}).get('chat', -1)
+                            }
+                        }
+                        if not self.bot.locals.get('admin_channel'):
+                            config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin',
+                                                                                                             -1)
+                        with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
+                            yaml.dump(config, outfile)
+                        await server.reload()
+                await interaction.response.send_message(
+                    f'Server configuration for server "{server.display_name}" updated.')
         finally:
             await msg.delete()
 

@@ -49,7 +49,7 @@ class InstanceImpl(Instance):
                     UPDATE instances SET server_name = %s, last_seen = NOW() 
                     WHERE node = %s AND instance = %s
                 """, (server.name if server else None, self.node.name, self.name))
-                if server:
+                if server and server.name:
                     server.instance = self
 
     def prepare(self):

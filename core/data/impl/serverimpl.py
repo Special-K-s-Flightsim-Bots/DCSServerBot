@@ -89,6 +89,13 @@ class ServerImpl(Server):
             if row:
                 self._maintenance = row[0]
 
+    async def reload(self):
+        self.locals = self.read_locals()
+        self._channels.clear()
+        self._options = None
+        self._settings = None
+        self.prepare()
+
     @property
     def is_remote(self) -> bool:
         return False
@@ -122,7 +129,8 @@ class ServerImpl(Server):
     def set_instance(self, instance: Instance):
         self._instance = instance
         self.locals |= self.instance.locals
-        self.prepare()
+        if self.name != 'n/a':
+            self.prepare()
 
     def set_status(self, status: Union[Status, str]):
         if status != self._status:
@@ -571,18 +579,20 @@ class ServerImpl(Server):
     async def persist_settings(self):
         with open('config/servers.yaml') as infile:
             config = yaml.load(infile)
+        if self.name not in config:
+            config[self.name] = {}
         config[self.name]['serverSettings'] = {
-            "description": self.settings['description'],
-            "advanced": self.settings['advanced'],
-            "mode": self.settings['mode'],
-            "isPublic": self.settings['isPublic'],
+            "description": self.settings.get('description', ''),
+            "advanced": self.settings.get('advanced', {}),
+            "mode": self.settings.get('mode', '0'),
+            "isPublic": self.settings.get('isPublic', True),
             "name": self.name,
-            "password": self.settings['password'],
-            "require_pure_textures": self.settings['require_pure_textures'],
-            "require_pure_scripts": self.settings['require_pure_scripts'],
-            "require_pure_clients": self.settings['require_pure_clients'],
-            "require_pure_models": self.settings['require_pure_models'],
-            "maxPlayers": self.settings['maxPlayers']
+            "password": self.settings.get('password', ''),
+            "require_pure_textures": self.settings.get('require_pure_textures', True),
+            "require_pure_scripts": self.settings.get('require_pure_scripts', True),
+            "require_pure_clients": self.settings.get('require_pure_clients', True),
+            "require_pure_models": self.settings.get('require_pure_models', True),
+            "maxPlayers": self.settings.get('maxPlayers', 16)
         }
         with open('config/servers.yaml', 'w') as outfile:
             yaml.dump(config, outfile)

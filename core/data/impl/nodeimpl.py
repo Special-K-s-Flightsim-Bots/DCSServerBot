@@ -663,12 +663,11 @@ class NodeImpl(Node):
             if instance.webgui_port > max_webgui_port:
                 max_webgui_port = instance.webgui_port
         os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
-        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=name)
-        instance.locals = {
+        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=name, locals={
             "bot_port": max_bot_port + 1,
             "dcs_port": max_dcs_port + 10,
             "webgui_port": max_webgui_port + 2
-        }
+        })
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
         # should we copy from a template
         if template:
@@ -699,6 +698,9 @@ class NodeImpl(Node):
             settings = SettingsDict(self, settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
+        server: ServerImpl = DataObjectFactory().new(
+            Server.__name__, node=self.node, port=instance.bot_port, name='n/a')
+        instance.server = server
         self.instances.append(instance)
         return instance
 

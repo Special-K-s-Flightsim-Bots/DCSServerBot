@@ -4,7 +4,7 @@ import os
 import shutil
 
 from contextlib import closing
-from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance, Status, PlayerType
+from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType
 from datetime import timezone
 from discord import app_commands
 from discord.app_commands import Range
@@ -16,6 +16,11 @@ from typing import Optional, Union
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .views import CleanupView
+from ..scheduler.views import ConfigView
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -652,30 +657,51 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
+    @app_commands.describe(name="Either select an existing instance or enter the name of a new one")
+    @app_commands.describe(template="Take this instance configuration as a reference")
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: app_commands.Transform[Instance, utils.InstanceTransformer]):
-        ephemeral = utils.get_ephemeral(interaction)
         instance = await node.add_instance(name, template=template)
         if instance:
-            await interaction.response.send_message(
-                f"""Instance {name} added to node {node.name}.
+            await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
+            server: Server = instance.server
+            view = ConfigView(self.bot, server)
+            embed = discord.Embed(title="Instance created.\nDo you want to configure the server for this instance?",
+                                  color=discord.Color.blue())
+            try:
+                await interaction.response.send_message(embed=embed, view=view)
+            except Exception as ex:
+                self.log.exception(ex)
+            if not await view.wait() and not view.cancelled:
+                with open('config/servers.yaml') as infile:
+                    config = yaml.load(infile)
+                config[server.name] = {
+                    "channels": {
+                        "status": server.locals.get('channels', {}).get('status', -1),
+                        "chat": server.locals.get('channels', {}).get('chat', -1)
+                    }
+                }
+                if not self.bot.locals.get('admin_channel'):
+                    config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin', -1)
+                with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
+                    yaml.dump(config, outfile)
+                await server.reload()
+                server.status = Status.SHUTDOWN
+                await interaction.followup.send(f"Server {server.name} added to instance {instance.name}.")
+            else:
+                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.")
+            await interaction.followup.send(f"""
+Instance {name} added to node {node.name}.
 Please make sure you forward the following ports:
 ```
 - DCS Port:    {instance.dcs_port}
 - WebGUI Port: {instance.webgui_port}
 ```
-            """, ephemeral=ephemeral)
-            await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
-            if await utils.yn_question(interaction, "Do you want to create a server in this instance?",
-                                       ephemeral=ephemeral):
-                await interaction.followup.send('Not implemented yet!', ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.",
-                                                ephemeral=ephemeral)
+            """)
         else:
-            await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
-                                                    ephemeral=ephemeral)
+            await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}, see log.",
+                                                    ephemeral=True)
 
     @node_group.command(description="Delete an instance")
     @app_commands.guild_only()

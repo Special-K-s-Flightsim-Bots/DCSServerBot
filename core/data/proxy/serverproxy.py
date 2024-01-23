@@ -11,6 +11,14 @@ __all__ = ["ServerProxy"]
 @dataclass
 class ServerProxy(Server):
 
+    async def reload(self):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "reload",
+            "server_name": self.name
+        }, node=self.node.name)
+
     @property
     def is_remote(self) -> bool:
         return True
