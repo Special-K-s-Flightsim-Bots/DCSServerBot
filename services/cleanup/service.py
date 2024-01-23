@@ -1,5 +1,6 @@
 import asyncio
 import os
+import stat
 import time
 
 from core import ServiceRegistry, Service, utils, DEFAULT_TAG, Instance
@@ -31,6 +32,7 @@ class CleanupService(Service):
                 if f.stat().st_mtime < (now - delete_after * 86400):
                     if os.path.isfile(f):
                         self.log.debug(f"  => {f.name} is older then {delete_after} days, deleted.")
+                        os.chmod(f, stat.S_IWUSR)
                         os.remove(f)
 
     @tasks.loop(hours=12)

@@ -318,10 +318,12 @@ class Mission(Plugin):
         else:
             name = os.path.basename(mission[:-4])
             if result == 'later':
+                # make sure, we load that mission, independently on what happens to the server
+                await server.setStartIndex(mission_id)
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
                 server.restart_pending = True
-                await interaction.followup.send(f'Mission {name} will be loaded when server is empty.',
-                                                ephemeral=ephemeral)
+                await interaction.followup.send(
+                    f'Mission {name} will be loaded when server is empty or on the next restart.', ephemeral=ephemeral)
             else:
                 tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
                                                       ephemeral=ephemeral)

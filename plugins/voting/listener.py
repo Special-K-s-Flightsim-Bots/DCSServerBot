@@ -196,7 +196,7 @@ class VotingListener(EventListener):
         except (TypeError, ValueError) as ex:
             player.sendChatMessage(str(ex))
             return
-        all_votes[server.name] = VotingHandler(item=item, server=server, config=config)
+        all_votes[server.name] = VotingHandler(listener=self, item=item, server=server, config=config)
         await self.bot.audit("created a voting", user=player.member or player.ucid, server=server)
 
     @chat_command(name="vote", help="start a voting or vote for a change")

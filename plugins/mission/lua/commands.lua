@@ -245,6 +245,13 @@ function dcsbot.unpauseMission(json)
 	DCS.setPause(false)
 end
 
+function dcsbot.setStartIndex(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setStartIndex()')
+	utils.saveSettings({
+		listStartIndex = json.id
+    })
+end
+
 function dcsbot.addMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: addMission()')
 	if not string.find(json.path, '\\') then

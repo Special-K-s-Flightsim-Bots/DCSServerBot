@@ -102,8 +102,8 @@ You can either host a database on one of your nodes, which creates another singl
 database at some of the prominent cloud services. As the bot databases don't get that large, it should not be a big 
 deal. I have one for $7 a month, running our 2 bots and 10 servers on it. That's an easy investment.
 
-### Automatic Failover
-At the moment, the bot can do automatic failovers for the Discord bot service. This will make sure that the bot is
+### Automatic Fail-over
+At the moment, the bot can do automatic fail-overs for the Discord bot service. This will make sure that the bot is
 responsive on Discord at any time, even if one of your nodes crashes (prerequisite: cloud database).
 
 _It is planned, to have automatic server takeovers also. That means, if you have a very prominent server that it can

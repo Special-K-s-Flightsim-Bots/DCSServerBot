@@ -315,6 +315,12 @@ class Server(DataObject):
     async def restart(self, modify_mission: Optional[bool] = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
 
+    async def setStartIndex(self, mission_id: int) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
+        else:
+            self.settings['listStartIndex'] = mission_id
+
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
         missions = self.settings['missionList']
