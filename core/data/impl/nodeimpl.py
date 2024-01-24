@@ -21,7 +21,7 @@ from discord.ext import tasks
 from git import InvalidGitRepositoryError, GitCommandError
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from psycopg.errors import UndefinedTable, InFailedSqlTransaction
+from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
@@ -113,7 +113,7 @@ class NodeImpl(Node):
                         ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
                     """, (self.guild_id, self.name))
             self._master = await self.check_master()
-        except (UndefinedTable, InFailedSqlTransaction):
+        except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):
             # some master tables have changed, so do the update first
             self._master = True
         if self._master:
