@@ -300,7 +300,7 @@ class NodeImpl(Node):
                 for item in changed_files:
                     self.log.error(f'     ./{item.a_path}')
             else:
-                self.log.error(ex.status)
+                self.log.error(ex)
             return False
         except Exception as ex:
             self.log.exception(ex)
@@ -650,6 +650,22 @@ class NodeImpl(Node):
             self.log.warning(ex)
         except Exception as ex:
             self.log.exception(ex)
+
+    @autoupdate.before_loop
+    async def before_autoupdate(self):
+        # wait for all servers to be in a proper state
+        while True:
+            await asyncio.sleep(1)
+            bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+            if not bus:
+                continue
+            server_initialized = True
+            for server in bus.servers.values():
+                if server.status == Status.UNREGISTERED:
+                    server_initialized = False
+            if server_initialized:
+                break
+
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
         max_bot_port = -1
