@@ -20,6 +20,8 @@ DEFAULT:
       choices:
         - a.miz         # If no mission section is present, all missions from serverSettings.lua will be used.
         - b.miz
+    restart:            # Vote for a mission restart
+      run_extensions: true  # if true, extensions like RealWeather, MizEdit, etc will be run (default: false).
     kick: {}            # Vote for kicking a player
     tempban:            # Vote to tempban a player for duration days
       duration: 3       # default: 3 (days)
@@ -36,6 +38,14 @@ DEFAULT:
   voting_threshold: 0.25  # 25% of all players have to vote for the vote to count
   voting_rule: "majority" # one of "majority" (default), "supermajority" (>= 33%), "unanimous" or "absolute" (>= 50%)
   credits: 10             # a vote costs 10 credit points (default: 0 = off)
+```
+
+If you don't want to provide a list of presets or missions, just send an empty tag like so:
+```yaml
+DEFAULT:
+  options:              # These are the voting options, players can chose from. It is up to you, to enable them or not!
+    preset: {}          # Select all available presets of your presets.yaml
+    mission: {}         # Select all available presets of your serverSettings.lua
 ```
 
 ## In-Game Commands

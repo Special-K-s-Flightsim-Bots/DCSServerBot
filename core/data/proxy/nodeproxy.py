@@ -65,13 +65,20 @@ class NodeProxy(Node):
                     _locals[name] = element
         return _locals
 
-    async def upgrade(self) -> int:
+    async def upgrade_pending(self) -> bool:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "upgrade"
+            "method": "upgrade_pending"
         }, node=self.name, timeout=60)
         return data['return']
+
+    async def upgrade(self):
+        await self.bus.send_to_node({
+            "command": "rpc",
+            "object": "Node",
+            "method": "upgrade"
+        }, node=self.name)
 
     async def update(self, warn_times: list[int]) -> int:
         data = await self.bus.send_to_node_sync({

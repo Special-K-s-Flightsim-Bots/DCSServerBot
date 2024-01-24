@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import os.path
 import re
 import shutil
 
@@ -96,6 +98,7 @@ class Autoexec:
         outfile = path.join(self.instance.home, 'Config', 'autoexec.cfg')
         if path.exists(outfile):
             shutil.copy(outfile, outfile + '.bak')
+        os.makedirs(os.path.dirname(outfile), exist_ok=True)
         with open(outfile, 'w') as outcfg:
             for key, value in self.values.items():
                 if key == 'log':

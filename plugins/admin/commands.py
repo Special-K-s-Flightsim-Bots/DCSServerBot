@@ -4,7 +4,7 @@ import os
 import shutil
 
 from contextlib import closing
-from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance, Status, PlayerType
+from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType
 from datetime import timezone
 from discord import app_commands
 from discord.app_commands import Range
@@ -16,10 +16,15 @@ from typing import Optional, Union
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .views import CleanupView
+from ..scheduler.views import ConfigView
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     choices: list[app_commands.Choice[int]] = [
         app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
@@ -30,7 +35,7 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
@@ -47,7 +52,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
@@ -62,6 +67,8 @@ async def installed_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
@@ -79,6 +86,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         server: Server = await utils.ServerTransformer().transform(
             interaction, utils.get_interaction_param(interaction, 'server'))
@@ -101,7 +110,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not utils.check_roles(interaction.client.roles['Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     return [
         app_commands.Choice(name=x, value=x)
@@ -238,12 +247,12 @@ class Admin(Plugin):
             "Player {} is now on the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
             ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description='Moves a player onto the watchlist')
+    @dcs.command(description='Removes a player from the watchlist')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def unwatch(self, interaction: discord.Interaction,
                       user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                          sel_type=PlayerType.PLAYER)]]):
+                          sel_type=PlayerType.PLAYER)]] = None):
         if isinstance(user, discord.Member):
             ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
@@ -414,24 +423,38 @@ class Admin(Plugin):
     @command(name='prune', description='Prune unused data in the database')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def _prune(self, interaction: discord.Interaction):
+    async def _prune(self, interaction: discord.Interaction,
+                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                         sel_type=PlayerType.PLAYER)]] = None):
         ephemeral = utils.get_ephemeral(interaction)
-        embed = discord.Embed(title=":warning: Database Prune :warning:")
-        embed.description = "You are going to delete data from your database. Be advised.\n\n" \
-                            "Please select the data to be pruned:"
-        view = CleanupView()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
-        try:
-            await view.wait()
-        finally:
-            await interaction.delete_original_response()
-        if view.cmd == "cancel":
+        if not user:
+            embed = discord.Embed(title=":warning: Database Prune :warning:")
+            embed.description = "You are going to delete data from your database. Be advised.\n\n" \
+                                "Please select the data to be pruned:"
+            view = CleanupView()
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+            try:
+                await view.wait()
+            finally:
+                await interaction.delete_original_response()
+            if view.cmd == "cancel":
+                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                return
+        elif not await utils.yn_question(interaction,
+                                         f"We are going to delete all data of user {user}. Are you sure?"):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
 
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
+                    if user:
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.prune(conn, ucids=[user])
+                            cursor.execute('DELETE FROM players WHERE ucid = %s', (user, ))
+                            cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (user, ))
+                            await interaction.followup.send(f"Data of user {user} deleted.")
+                            return
                     if view.what in ['users', 'non-members']:
                         sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
                         if view.what == 'non-members':
@@ -448,6 +471,7 @@ class Admin(Plugin):
                             await plugin.prune(conn, ucids=ucids)
                         for ucid in ucids:
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                            cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid,))
                         await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
                     elif view.what == 'data':
                         days = int(view.age)
@@ -467,36 +491,30 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"All Nodes", color=discord.Color.blue())
-        master: NodeImpl = self.node
-        # master node
-        names = []
-        instances = []
-        status = []
-        embed.add_field(name="▬" * 32, value=f"**Master: {master.name}**", inline=False)
-        for instance in self.node.instances:
-            instances.append(instance.name)
-            names.append(instance.server.name if instance.server else 'n/a')
-            status.append(instance.server.status.name if instance.server else '- unused -')
-        embed.add_field(name="Instance", value='\n'.join(instances))
-        embed.add_field(name="Server", value='\n'.join(names))
-        embed.add_field(name="Status", value='\n'.join(status))
-        embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-        # agent nodes
-        names = []
-        instances = []
-        status = []
+        await interaction.response.defer()
+        embed = discord.Embed(title=f"DCSServerBot Cluster Overview", color=discord.Color.blue())
         # TODO: there should be a list of nodes, with impls / proxies
-        for node in master.get_active_nodes():
-            embed.add_field(name="▬" * 32, value=f"Agent: {node}", inline=False)
-            for server in [server for server in self.bus.servers.values() if server.node.name == node]:
+        for name in self.node.all_nodes.keys():
+            names = []
+            instances = []
+            status = []
+            for server in [server for server in self.bus.servers.values() if server.node.name == name]:
                 instances.append(server.instance.name)
                 names.append(server.name)
                 status.append(server.status.name)
-            embed.add_field(name="Instance", value='\n'.join(instances))
-            embed.add_field(name="Server", value='\n'.join(names))
-            embed.add_field(name="Status", value='\n'.join(status))
-        await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
+            if names:
+                title = f"**[{name}]**" if name == self.node.name else f"[{name}]"
+                if await server.node.upgrade_pending():
+                    embed.set_footer(text="🆕 Update available")
+                    title += " 🆕"
+
+                embed.add_field(name="▬" * 32, value=title, inline=False)
+                embed.add_field(name="Instance", value='\n'.join(instances))
+                embed.add_field(name="Server", value='\n'.join(names))
+                embed.add_field(name="Status", value='\n'.join(status))
+            else:
+                embed.add_field(name="▬" * 32, value=f"_[{name}]_", inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         ephemeral = utils.get_ephemeral(interaction)
@@ -504,9 +522,7 @@ class Admin(Plugin):
             msg = f"Do you want to {method} all nodes?\n"
         else:
             msg = f"Do you want to {method} node {node.name}?\n"
-        if not await utils.yn_question(interaction,
-                                       msg + "It should autostart again, if being launched with run.cmd.",
-                                       ephemeral=ephemeral):
+        if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         for n in self.node.get_active_nodes():
@@ -520,22 +536,78 @@ class Admin(Plugin):
         if not node or node.name == self.node.name:
             await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
-                self.node.shutdown()
-            else:
+                await self.node.shutdown()
+            elif method == 'upgrade':
                 await self.node.upgrade()
+            elif method == 'restart':
+                await self.node.restart()
 
-    @node_group.command(description='Stop a specific node')
+    @node_group.command(description='Deprecated!')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def exit(self, interaction: discord.Interaction,
                    node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        await interaction.response.send_message("`/node exit` is deprecated. Please use either `/node shutdown` or "
+                                                "`/node restart` instead.", ephemeral=True)
+
+    @node_group.command(description='Shuts a specific node down')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def shutdown(self, interaction: discord.Interaction,
+                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "shutdown", node)
 
-    @node_group.command(description='Upgrade a node')
+    @node_group.command(description='Restart a specific node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def restart(self, interaction: discord.Interaction,
+                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        await self.run_on_nodes(interaction, "restart", node)
+
+    @node_group.command(description='Shuts down all servers on the respective node and sets them to maintenance mode')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def offline(self, interaction: discord.Interaction,
+                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+        for server in self.bus.servers.values():
+            if server.node.name == node.name:
+                server.maintenance = True
+                asyncio.create_task(server.shutdown())
+        await interaction.followup.send(f"Node {node.name} is now offline.")
+
+    @node_group.command(description='Clears the maintenance mode for all servers on the respective node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def online(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+        for server in self.bus.servers.values():
+            if server.node.name == node.name:
+                server.maintenance = False
+                asyncio.create_task(server.startup())
+        await interaction.followup.send(f"Node {node.name} is now online.")
+
+    @node_group.command(description='Upgrade DCSServerBot')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        if not node:
+            node = self.node
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not await node.upgrade_pending():
+            await interaction.followup.send(f'There is no upgrade available for node {node.name}.',
+                                            ephemeral=ephemeral)
+            return
+        if not node.master and not await utils.yn_question(
+                interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?",
+                ephemeral=ephemeral):
+            await interaction.followup.send('Aborted', ephemeral=ephemeral)
+            return
         await self.run_on_nodes(interaction, "upgrade", node)
 
     @node_group.command(description='Run a shell command on a node')
@@ -583,30 +655,51 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
+    @app_commands.describe(name="Either select an existing instance or enter the name of a new one")
+    @app_commands.describe(template="Take this instance configuration as a reference")
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: app_commands.Transform[Instance, utils.InstanceTransformer]):
-        ephemeral = utils.get_ephemeral(interaction)
         instance = await node.add_instance(name, template=template)
         if instance:
-            await interaction.response.send_message(
-                f"""Instance {name} added to node {node.name}.
+            await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
+            server: Server = instance.server
+            view = ConfigView(self.bot, server)
+            embed = discord.Embed(title="Instance created.\nDo you want to configure the server for this instance?",
+                                  color=discord.Color.blue())
+            try:
+                await interaction.response.send_message(embed=embed, view=view)
+            except Exception as ex:
+                self.log.exception(ex)
+            if not await view.wait() and not view.cancelled:
+                with open('config/servers.yaml') as infile:
+                    config = yaml.load(infile)
+                config[server.name] = {
+                    "channels": {
+                        "status": server.locals.get('channels', {}).get('status', -1),
+                        "chat": server.locals.get('channels', {}).get('chat', -1)
+                    }
+                }
+                if not self.bot.locals.get('admin_channel'):
+                    config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin', -1)
+                with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
+                    yaml.dump(config, outfile)
+                await server.reload()
+                server.status = Status.SHUTDOWN
+                await interaction.followup.send(f"Server {server.name} added to instance {instance.name}.")
+            else:
+                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.")
+            await interaction.followup.send(f"""
+Instance {name} added to node {node.name}.
 Please make sure you forward the following ports:
 ```
 - DCS Port:    {instance.dcs_port}
 - WebGUI Port: {instance.webgui_port}
 ```
-            """, ephemeral=ephemeral)
-            await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
-            if await utils.yn_question(interaction, "Do you want to create a server in this instance?",
-                                       ephemeral=ephemeral):
-                await interaction.followup.send('Not implemented yet!', ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.",
-                                                ephemeral=ephemeral)
+            """)
         else:
-            await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
-                                                    ephemeral=ephemeral)
+            await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}, see log.",
+                                                    ephemeral=True)
 
     @node_group.command(description="Delete an instance")
     @app_commands.guild_only()

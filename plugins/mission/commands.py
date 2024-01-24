@@ -31,7 +31,7 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
                                                                    utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
+        installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
             for idx, x in enumerate(await server.listAvailableMissions())
@@ -54,7 +54,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
             await server.get_missions_dir(), '*.orig')]
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
-            for idx, x in enumerate(server.settings['missionList'])
+            for idx, x in enumerate(await server.getMissionList())
             if os.path.basename(x)[:-4] in orig_files and (not current or current.casefold() in x[:-4].casefold())
         ]
         return choices[:25]
@@ -304,7 +304,8 @@ class Mission(Plugin):
 
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=ephemeral)
-        if server.current_mission and server.settings['missionList'][mission_id] == server.current_mission.filename:
+        mission = (await server.getMissionList())[mission_id]
+        if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
                 server.restart_pending = True
@@ -315,13 +316,14 @@ class Mission(Plugin):
                 await interaction.followup.send(f'Mission {server.current_mission.display_name} restarted.',
                                                 ephemeral=ephemeral)
         else:
-            mission = server.settings['missionList'][mission_id]
             name = os.path.basename(mission[:-4])
             if result == 'later':
+                # make sure, we load that mission, independently on what happens to the server
+                await server.setStartIndex(mission_id)
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
                 server.restart_pending = True
-                await interaction.followup.send(f'Mission {name} will be loaded when server is empty.',
-                                                ephemeral=ephemeral)
+                await interaction.followup.send(
+                    f'Mission {name} will be loaded when server is empty or on the next restart.', ephemeral=ephemeral)
             else:
                 tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
                                                       ephemeral=ephemeral)
@@ -357,7 +359,7 @@ class Mission(Plugin):
                                             ephemeral=ephemeral):
             return
         tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...', ephemeral=ephemeral)
-        await server.loadMission(server.settings['missionList'].index(path) + 1)
+        await server.loadMission(path)
         await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server, user=interaction.user)
         await tmp.delete()
         await interaction.followup.send(f'Mission {utils.escape_string(name)} loaded.', ephemeral=ephemeral)
@@ -371,10 +373,11 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer],
                      mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
-        if mission_id >= len(server.settings['missionList']):
+        missions = await server.getMissionList()
+        if mission_id >= len(missions):
             await interaction.response.send_message("No mission found.")
             return
-        filename = server.settings['missionList'][mission_id]
+        filename = missions[mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and server.current_mission and \
                 filename == server.current_mission.filename:
             await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=True)
@@ -434,6 +437,7 @@ class Mission(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(presets_file=presets_autocomplete)
     @app_commands.rename(presets_file='presets')
+    @app_commands.describe(presets_file='Select the file where you have stored your presets')
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
@@ -557,12 +561,12 @@ class Mission(Plugin):
     async def rollback(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[
                            Status.RUNNING, Status.PAUSED, Status.STOPPED])], mission_id: int):
-        if mission_id >= len(server.settings['missionList']):
+        missions = await server.getMissionList()
+        if mission_id >= len(missions):
             await interaction.response.send_message("No mission found.")
             return
-        filename = server.settings['missionList'][mission_id]
-        if server.status in [Status.RUNNING, Status.PAUSED] and \
-                filename == server.current_mission.filename:
+        filename = missions[mission_id]
+        if server.status in [Status.RUNNING, Status.PAUSED] and filename == server.current_mission.filename:
             await interaction.response.send_message("Please stop your server first to rollback the running mission.",
                                                     ephemeral=True)
             return
@@ -880,9 +884,17 @@ class Mission(Plugin):
             if (server.status != Status.SHUTDOWN and server.current_mission and
                     server.current_mission.filename != filename and
                     await utils.yn_question(ctx, 'Do you want to load this mission?')):
+                extensions = [
+                    x.name for x in server.extensions.values()
+                    if getattr(x, 'beforeMissionLoad').__module__ != 'core.extension'
+                ]
+                if len(extensions):
+                    modify = await utils.yn_question(ctx, "Do you want to apply extensions before mission start?")
+                else:
+                    modify = False
                 tmp = await message.channel.send(f'Loading mission {name} ...')
                 try:
-                    await server.loadMission(filename)
+                    await server.loadMission(filename, modify_mission=modify)
                 except (TimeoutError, asyncio.TimeoutError):
                     await tmp.delete()
                     await message.channel.send(f"Timeout while trying to load mission.")

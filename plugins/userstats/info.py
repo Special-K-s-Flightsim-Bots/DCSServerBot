@@ -7,6 +7,15 @@ from psycopg.rows import dict_row
 
 
 class Header(report.EmbedElement):
+
+    def add_datetime_field(self, name: str, time_obj: datetime):
+        if time_obj != datetime(1970, 1, 1):
+            if time_obj.year == 9999:
+                value = 'never'
+            else:
+                value = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            self.add_field(name=f'{name}:', value=value)
+
     async def render(self, member: Union[discord.Member, str]):
         sql = """
             SELECT p.first_seen, p.last_seen, 
@@ -57,21 +66,17 @@ class Header(report.EmbedElement):
                 last_seen = row['last_seen'].astimezone(timezone.utc)
             if row['banned'] == 1:
                 banned = True
-        if last_seen != datetime(1970, 1, 1):
-            self.add_field(name='Last seen (UTC):', value=last_seen.strftime("%Y-%m-%d %H:%M"))
-        if first_seen != datetime(1970, 1, 1):
-            self.add_field(name='First seen (UTC):', value=first_seen.strftime("%Y-%m-%d %H:%M"))
+        self.add_datetime_field('Last seen', last_seen)
+        self.add_datetime_field('First seen', first_seen)
         if rows[0]['watchlist']:
             self.add_field(name='Watchlist', value="🔍")
         if rows[0]['vip']:
             self.add_field(name="VIP", value="⭐")
         if banned:
-            if rows[0]['banned_until'].year == 9999:
-                until = 'never'
-            else:
-                until = rows[0]['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M')
-            self.add_field(name='▬' * 13 + ' User is banned! ' + '▬' * 13, value='_ _', inline=False)
-            self.add_field(name='Ban expires (UTC)', value=until)
+            banned_until = rows[0]['banned_until']
+            if banned_until.year != 9999:
+                banned_until = banned_until.astimezone(timezone.utc)
+            self.add_datetime_field('Ban expires', banned_until)
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])
 

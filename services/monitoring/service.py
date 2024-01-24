@@ -75,10 +75,7 @@ class MonitoringService(Service):
         if isinstance(affinity, str):
             affinity = [int(x.strip()) for x in affinity.split(',')]
         if not server.process:
-            for exe in ['DCS_server.exe', 'DCS.exe']:
-                server.process = utils.find_process(exe, server.instance.name)
-                if server.process:
-                    break
+            server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
         if server.process:
             server.process.cpu_affinity(affinity)
 
@@ -138,50 +135,50 @@ class MonitoringService(Service):
 
     async def heartbeat(self):
         for server in list(self.bus.servers.values()):  # type: ServerImpl
+            # don't test remote servers or servers that are not initialized or shutdown
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
-            if not server.maintenance and server.process is not None and not server.process.is_running():
-                server.process = None
+            # check if the process is dead
+            if not await server.is_running():
                 message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
                 self.log.warning(message)
                 server.status = Status.SHUTDOWN
                 if server.locals.get('ping_admin_on_crash', True):
                     await self.warn_admins(server, message)
                 await self.node.audit(f'Server died.', server=server)
-            else:
-                try:
-                    server.keep_alive()
-                    # check if server is alive
+                return
+            # No, check if the process is still doing something
+            try:
+                server.keep_alive()
+                # check if server is alive
+                if server.status == Status.LOADING:
+                    max_hung = int(server.instance.locals.get('max_hung_minutes', 3)) * 2
+                else:
                     max_hung = int(server.instance.locals.get('max_hung_minutes', 3))
-                    if max_hung and ((datetime.now() - server.last_seen).total_seconds() / 60 > max_hung):
-                        await self.kill_hung_server(server)
-                        continue
-                    if server.status in [Status.RUNNING, Status.PAUSED]:
-                        # check affinity
-                        if 'affinity' in server.instance.locals:
-                            await self.check_affinity(server, server.instance.locals['affinity'])
-                        # check extension states
-                        for ext in [x for x in server.extensions.values() if not x.is_running()]:
-                            try:
-                                await ext.startup()
-                            except Exception as ex:
-                                self.log.exception(ex)
-                except Exception as ex:
-                    self.log.exception(ex)
+                if (datetime.now(timezone.utc) - server.last_seen).total_seconds() / 60 > max_hung:
+                    await self.kill_hung_server(server)
+                    continue
+                if server.status in [Status.RUNNING, Status.PAUSED]:
+                    # check affinity
+                    if 'affinity' in server.instance.locals:
+                        await self.check_affinity(server, server.instance.locals['affinity'])
+                    # check extension states
+                    for ext in [x for x in server.extensions.values() if not x.is_running()]:
+                        try:
+                            await ext.startup()
+                        except Exception as ex:
+                            self.log.exception(ex)
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def serverload(self):
         for server in self.bus.servers.values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
-            if not server.process or not server.process.is_running():
-                for exe in ['DCS_server.exe', 'DCS.exe']:
-                    server.process = utils.find_process(exe, server.instance.name)
-                    if server.process:
-                        break
-                else:
-                    self.log.warning(f"Could not find a running DCS instance for server {server.name}, "
-                                     f"skipping server load gathering.")
-                    continue
+            if not await server.is_running():
+                self.log.warning(f"Could not find a running DCS instance for server {server.name}, "
+                                 f"skipping server load gathering.")
+                continue
             try:
                 cpu = server.process.cpu_percent()
                 memory = server.process.memory_full_info()

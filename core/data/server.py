@@ -8,7 +8,7 @@ from core import utils
 from core.const import DEFAULT_TAG
 from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
@@ -66,13 +66,16 @@ class Server(DataObject):
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 
+    async def reload(self):
+        raise NotImplemented()
+
     def read_locals(self) -> dict:
         if os.path.exists('config/servers.yaml'):
             try:
                 data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
             except (ParserError, ScannerError) as ex:
                 raise YAMLError('config/servers.yaml', ex)
-            if not data.get(self.name):
+            if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:
@@ -148,7 +151,7 @@ class Server(DataObject):
             new_status = status
         if new_status != self._status:
             # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
-            self.last_seen = datetime.now()
+            self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
             self.status_change.clear()
@@ -250,7 +253,7 @@ class Server(DataObject):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         raise NotImplemented()
 
-    async def startup(self) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True) -> None:
         raise NotImplemented()
 
     async def startup_extensions(self) -> None:
@@ -315,6 +318,12 @@ class Server(DataObject):
     async def restart(self, modify_mission: Optional[bool] = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
 
+    async def setStartIndex(self, mission_id: int) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
+        else:
+            self.settings['listStartIndex'] = mission_id
+
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
         missions = self.settings['missionList']
@@ -375,6 +384,9 @@ class Server(DataObject):
     async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
 
+    async def getMissionList(self) -> list[str]:
+        raise NotImplemented()
+
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
 
@@ -390,7 +402,7 @@ class Server(DataObject):
     @property
     def channels(self) -> dict[Channel, int]:
         if not self._channels:
-            if 'channels' not in self.locals:
+            if 'channels' not in self.locals and self.name != 'n/a':
                 self.log.error(f"No channels defined in servers.yaml for server {self.name}!")
                 return {}
             self._channels = {}
@@ -428,4 +440,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def render_extensions(self) -> list:
+        raise NotImplemented()
+
+    async def is_running(self) -> bool:
         raise NotImplemented()

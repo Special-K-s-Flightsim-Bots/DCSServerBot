@@ -43,8 +43,10 @@ class Report:
         overwrite = f'./reports/{plugin}/{filename}'
         if path.exists(overwrite):
             self.filename = overwrite
-        else:
+        elif path.exists(default):
             self.filename = default
+        else:
+            raise FileNotFoundError(filename)
         with open(self.filename, encoding='utf-8') as file:
             self.report_def = json.load(file)
 

@@ -38,7 +38,7 @@ class GameMasterEventListener(EventListener):
 
     @event(name="onChatMessage")
     async def onChatMessage(self, server: Server, data: dict) -> None:
-        player: Player = server.get_player(id=data['from_id'])
+        player: Player = server.get_player(id=data['from'])
         if not player:
             return
         if server.locals.get('chat_log') and self.chat_log.get(server.name):
@@ -53,8 +53,15 @@ class GameMasterEventListener(EventListener):
             if not server.locals.get('no_coalition_chat', False) or data['to'] != -2:
                 chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
         if chat_channel:
-            if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
-                await chat_channel.send(f"`{data['from_name']}` said: {data['message']}")
+            if len(data['message']) > 0:
+                message = f"{player.name} said: {data['message']}"
+                if player.side == Side.BLUE:
+                    message = '```ansi\n\u001b[0;34mBLUE player ' + message + '```'
+                elif player.side == Side.RED:
+                    message = '```ansi\n\u001b[0;31mRED player ' + message + '```'
+                else:
+                    message = '```Player ' + message + '```'
+                await chat_channel.send(message)
 
     def get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
         if not player.coalition:
@@ -93,7 +100,6 @@ class GameMasterEventListener(EventListener):
                 "ucid": player.ucid,
                 "coalition": side.value
             })
-            data['from_id'] = data['id']
             await self._coalition(server, player)
             if self.get_coalition_password(server, player.coalition):
                 await self._password(server, player)

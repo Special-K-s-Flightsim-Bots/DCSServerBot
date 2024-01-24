@@ -41,6 +41,8 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[Tupl
 
 
 async def installed_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
@@ -53,10 +55,12 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
-        service.log.exception(ex)
+        interaction.client.log.exception(ex)
 
 
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
@@ -69,10 +73,12 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
-        service.log.exception(ex)
+        interaction.client.log.exception(ex)
 
 
 async def available_versions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
@@ -89,10 +95,12 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
             if not current or current.casefold() in version.casefold()
         ][:25]
     except Exception as ex:
-        service.log.exception(ex)
+        interaction.client.log.exception(ex)
 
 
 async def repo_version_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
     try:
         repo = utils.get_interaction_param(interaction, 'url')
@@ -105,8 +113,7 @@ async def repo_version_autocomplete(interaction: discord.Interaction, current: s
             if not current or current.casefold() in version.casefold()
         ][:25]
     except Exception as ex:
-        service.log.exception(ex)
-        return []
+        interaction.client.log.exception(ex)
 
 
 class OvGME(Plugin):
@@ -371,10 +378,10 @@ class OvGME(Plugin):
             return
         await msg.edit(content=f"Mod {package} uninstalled.")
 
-    @mods.command(description='List all mods that are installed on your DCS server')
+    @mods.command(name="list", description='List all mods that are installed on your DCS server')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
-    async def list(self, interaction: discord.Interaction,
+    async def _list(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         installed: dict[str, list[Tuple[str, str]]] = dict()

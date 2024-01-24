@@ -8,7 +8,7 @@ import uuid
 
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing, suppress
+from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
     InstanceProxy, NodeProxy, Mission, Node, utils
@@ -21,7 +21,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union
+from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union, Any
 
 if TYPE_CHECKING:
     from services import DCSServerBot
@@ -171,18 +171,28 @@ class ServiceBus(Service):
             self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
         else:
             return
-        calls = []
+        calls: dict[str, Any] = dict()
         for server in local_servers:
-            calls.append(server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout))
             if not self.master:
                 server.status = Status.UNREGISTERED
                 await self.send_init(server)
-        ret = await asyncio.gather(*calls, return_exceptions=True)
+            if await server.is_running():
+                calls[server.name] = server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+            else:
+                server.status = Status.SHUTDOWN
+                if server.maintenance:
+                    self.log.warning(
+                        f'  => Maintenance mode enabled for Server {server.name}')
+        ret = await asyncio.gather(*calls.values(), return_exceptions=True)
         num = 0
-        for i, server in enumerate(local_servers):
+        for i, name in enumerate(calls.keys()):
+            server = self.servers[name]
             if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
+                if server.maintenance:
+                    self.log.warning(
+                        f'  => Maintenance mode enabled for Server {server.name}')
             elif isinstance(ret[i], Exception):
                 self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
             else:
@@ -217,10 +227,8 @@ class ServiceBus(Service):
         self.log.debug(f'  => Registering DCS-Server "{server_name}"')
         server: ServerImpl = cast(ServerImpl, self.servers[server_name])
         # set the PID
-        for exe in ['DCS_server.exe', 'DCS.exe']:
-            server.process = utils.find_process(exe, server.instance.name)
-            if server.process:
-                break
+        if not server.process:
+            server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
         server.dcs_version = data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:
@@ -254,7 +262,7 @@ class ServiceBus(Service):
             else:
                 webgui_ports[webgui_port] = server.name
         # check for DSMC
-        if data.get('dsmc_enabled', False) and 'DSMC' not in server.extensions:
+        if server.status == Status.RUNNING and data.get('dsmc_enabled', False) and 'DSMC' not in server.extensions:
             self.log.warning("  => DSMC is enabled for this server but DSMC extension is not loaded!")
             self.log.warning("     You need to configure DSMC on your own to prevent issues with the mission list.")
 
@@ -601,7 +609,7 @@ class ServiceBus(Service):
                     if not server:
                         return
                     try:
-                        server.last_seen = datetime.now()
+                        server.last_seen = datetime.now(timezone.utc)
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not server.is_remote:

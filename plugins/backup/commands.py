@@ -15,6 +15,8 @@ yaml = YAML()
 
 
 async def backup_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
     try:
         config = interaction.client.cogs['Backup'].locals.get('backups')
         choices: list[app_commands.Choice[str]] = [

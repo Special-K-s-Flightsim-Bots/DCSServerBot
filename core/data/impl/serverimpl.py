@@ -89,6 +89,13 @@ class ServerImpl(Server):
             if row:
                 self._maintenance = row[0]
 
+    async def reload(self):
+        self.locals = self.read_locals()
+        self._channels.clear()
+        self._options = None
+        self._settings = None
+        self.prepare()
+
     @property
     def is_remote(self) -> bool:
         return False
@@ -122,7 +129,8 @@ class ServerImpl(Server):
     def set_instance(self, instance: Instance):
         self._instance = instance
         self.locals |= self.instance.locals
-        self.prepare()
+        if self.name != 'n/a':
+            self.prepare()
 
     def set_status(self, status: Union[Status, str]):
         if status != self._status:
@@ -368,14 +376,15 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.exception(ex)
 
-    async def startup(self) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
         for ext in self.extensions.values():
             try:
                 await ext.prepare()
             except Exception as ex:
                 self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
-        await self.apply_mission_changes()
+        if modify_mission:
+            await self.apply_mission_changes()
         await asyncio.create_task(asyncio.to_thread(self.do_startup))
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
@@ -383,7 +392,7 @@ class ServerImpl(Server):
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch
-            if not self.is_running():
+            if not await self.is_running():
                 self.status = Status.SHUTDOWN
             raise
 
@@ -402,17 +411,26 @@ class ServerImpl(Server):
                 self.log.exception(ex)
 
     async def shutdown(self, force: bool = False) -> None:
-        if self.is_running():
+        if await self.is_running():
             if not force:
                 await super().shutdown(False)
-            self.terminate()
+            await self.terminate()
         self.status = Status.SHUTDOWN
 
-    def is_running(self) -> bool:
-        return self.process and self.process.is_running()
+    def _check_and_assign_process(self) -> bool:
+        if not self.process or not self.process.is_running():
+            self.process = utils.find_process("DCS_server.exe|DCS.exe", self.instance.name)
+        return self.process is not None
 
-    def terminate(self) -> None:
-        if self.is_running():
+    async def is_running(self) -> bool:
+        # do we have a registered and running process?
+        if self._check_and_assign_process():
+            return True
+        # we might not have the necessary permissions to read the process
+        return utils.is_open('127.0.0.1', int(self.settings.get('port')))
+
+    async def terminate(self) -> None:
+        if await self.is_running():
             self.process.kill()
         self.process = None
 
@@ -493,6 +511,9 @@ class ServerImpl(Server):
     async def listAvailableMissions(self) -> list[str]:
         return [str(x) for x in sorted(Path(PurePath(await self.get_missions_dir())).glob("*.miz"))]
 
+    async def getMissionList(self) -> list[str]:
+        return self.settings.get('missionList', [])
+
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         async def apply_preset(value: dict):
             if 'start_time' in value:
@@ -556,18 +577,20 @@ class ServerImpl(Server):
     async def persist_settings(self):
         with open('config/servers.yaml') as infile:
             config = yaml.load(infile)
+        if self.name not in config:
+            config[self.name] = {}
         config[self.name]['serverSettings'] = {
-            "description": self.settings['description'],
-            "advanced": self.settings['advanced'],
-            "mode": self.settings['mode'],
-            "isPublic": self.settings['isPublic'],
+            "description": self.settings.get('description', ''),
+            "advanced": self.settings.get('advanced', {}),
+            "mode": self.settings.get('mode', '0'),
+            "isPublic": self.settings.get('isPublic', True),
             "name": self.name,
-            "password": self.settings['password'],
-            "require_pure_textures": self.settings['require_pure_textures'],
-            "require_pure_scripts": self.settings['require_pure_scripts'],
-            "require_pure_clients": self.settings['require_pure_clients'],
-            "require_pure_models": self.settings['require_pure_models'],
-            "maxPlayers": self.settings['maxPlayers']
+            "password": self.settings.get('password', ''),
+            "require_pure_textures": self.settings.get('require_pure_textures', True),
+            "require_pure_scripts": self.settings.get('require_pure_scripts', True),
+            "require_pure_clients": self.settings.get('require_pure_clients', True),
+            "require_pure_models": self.settings.get('require_pure_models', True),
+            "maxPlayers": self.settings.get('maxPlayers', 16)
         }
         with open('config/servers.yaml', 'w') as outfile:
             yaml.dump(config, outfile)

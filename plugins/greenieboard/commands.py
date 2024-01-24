@@ -62,7 +62,7 @@ class GreenieBoard(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: discord.Interaction,
-                   user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
+                   user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
         def format_landing(landing: dict) -> str:
             return (f"{landing['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S} - "
                     f"{landing['unit_type']}@{landing['place']}: {landing['grade']}")

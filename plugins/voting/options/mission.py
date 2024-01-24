@@ -17,7 +17,9 @@ class Mission(VotableItem):
                 f"If you do not want any change, vote for \"No Change\".")
 
     def get_choices(self) -> list[str]:
-        return ['No Change'] + self.config.get('choices', [os.path.basename(x) for x in self.server.settings['missionList']])
+        return ['No Change'] + self.config.get('choices', [
+            os.path.basename(x) for x in self.server.settings['missionList']
+        ])
 
     async def execute(self, winner: str):
         if winner == 'No Change':
@@ -26,7 +28,7 @@ class Mission(VotableItem):
         self.server.sendChatMessage(Coalition.ALL, message)
         self.server.sendPopupMessage(Coalition.ALL, message)
         await asyncio.sleep(60)
-        for idx, mission in enumerate(self.server.settings['missionList']):
+        for idx, mission in enumerate(await self.server.getMissionList()):
             if winner in mission:
                 await self.server.loadMission(mission=idx + 1, modify_mission=False)
                 break

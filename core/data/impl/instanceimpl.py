@@ -1,7 +1,7 @@
 import os
 
 from core import Instance, InstanceBusyError, Status, utils, Server, DataObjectFactory
-from dataclasses import field, dataclass
+from dataclasses import dataclass
 from typing import Optional
 
 from core.autoexec import Autoexec
@@ -26,7 +26,7 @@ class InstanceImpl(Instance):
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
             self.locals['dcs_port'] = settings.get('port', 10308)
-        server_name = settings['name'] if settings else None
+        server_name = settings.get('name', 'DCS Server') if settings else None
         if server_name and server_name == 'n/a':
             server_name = None
         with self.pool.connection() as conn:
@@ -49,7 +49,7 @@ class InstanceImpl(Instance):
                     UPDATE instances SET server_name = %s, last_seen = NOW() 
                     WHERE node = %s AND instance = %s
                 """, (server.name if server else None, self.node.name, self.name))
-                if server:
+                if server and server.name:
                     server.instance = self
 
     def prepare(self):

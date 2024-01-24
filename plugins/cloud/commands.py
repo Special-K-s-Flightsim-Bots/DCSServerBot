@@ -138,8 +138,8 @@ class CloudHandler(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(member="user")
     async def resync(self, interaction: discord.Interaction,
-                     member: Optional[app_commands.Transform[Union[discord.Member, str],
-                     utils.UserTransformer]] = None):
+                     member: Optional[app_commands.Transform[
+                         Union[discord.Member, str], utils.UserTransformer]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
             await interaction.response.send_message('No cloud sync configured.', ephemeral=ephemeral)
@@ -293,7 +293,7 @@ class CloudHandler(Plugin):
         except aiohttp.ClientError:
             self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
         except Exception as error:
-            self.log.debug("Error while registering: " + str(error))
+            self.log.debug("Error while registering: ", exc_info=True)
 
     @register.before_loop
     async def before_register(self):

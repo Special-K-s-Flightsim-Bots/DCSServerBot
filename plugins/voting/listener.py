@@ -18,8 +18,9 @@ all_votes: dict[str, 'VotingHandler'] = dict()
 
 
 class VotingHandler:
-    def __init__(self, item: VotableItem, server: Server, config: dict):
+    def __init__(self, listener: 'VotingListener', item: VotableItem, server: Server, config: dict):
         self.loop = asyncio.get_event_loop()
+        self.listener = listener
         self.item = item
         self.server = server
         self.config = config
@@ -82,12 +83,18 @@ class VotingHandler:
         message += self.get_leading_vote()
         self.server.sendPopupMessage(Coalition.ALL, message)
 
+    def _get_possible_voters(self) -> int:
+        if self.config.get('voter'):
+            return len([x for x in self.server.get_active_players() if self.listener.check_role(x, self.config['voter'])])
+        else:
+            return len(self.server.get_active_players())
+
     def check_vote(self) -> int:
         message = "Voting finished"
         voting_rule = self.config.get('voting_rule', 'majority')
         if not self.votes:
             message += " without any participant."
-        elif self.config.get('voting_threshold') and sum(self.votes.values()) / len(self.server.get_active_players()) < self.config.get('voting_threshold'):
+        elif self.config.get('voting_threshold') and (sum(self.votes.values()) / self._get_possible_voters()) < self.config.get('voting_threshold'):
             message += f" but less than {self.config['voting_threshold'] * 100}% players participated."
         elif voting_rule == 'majority':
             return max(self.votes, key=self.votes.get) - 1
@@ -189,7 +196,7 @@ class VotingListener(EventListener):
         except (TypeError, ValueError) as ex:
             player.sendChatMessage(str(ex))
             return
-        all_votes[server.name] = VotingHandler(item=item, server=server, config=config)
+        all_votes[server.name] = VotingHandler(listener=self, item=item, server=server, config=config)
         await self.bot.audit("created a voting", user=player.member or player.ucid, server=server)
 
     @chat_command(name="vote", help="start a voting or vote for a change")

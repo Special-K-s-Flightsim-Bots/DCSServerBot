@@ -11,6 +11,14 @@ __all__ = ["ServerProxy"]
 @dataclass
 class ServerProxy(Server):
 
+    async def reload(self):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "reload",
+            "server_name": self.name
+        }, node=self.node.name)
+
     @property
     def is_remote(self) -> bool:
         return True
@@ -62,11 +70,12 @@ class ServerProxy(Server):
         message['server_name'] = self.name
         self.bus.send_to_node(message, node=self.node.name)
 
-    async def startup(self) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "startup",
+            "modify_mission": modify_mission,
             "server_name": self.name
         }, timeout=300 if self.node.locals.get('slow_system', False) else 180, node=self.node.name)
 
@@ -131,6 +140,15 @@ class ServerProxy(Server):
         }, timeout=60, node=self.node.name)
         return data['return']
 
+    async def getMissionList(self) -> list[str]:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "getMissionList",
+            "server_name": self.name
+        }, timeout=60, node=self.node.name)
+        return data['return']
+
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -184,4 +202,13 @@ class ServerProxy(Server):
             "method": "render_extensions",
             "server_name": self.name
         }, timeout=120, node=self.node.name)
+        return data['return']
+
+    async def is_running(self) -> bool:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "is_running",
+            "server_name": self.name
+        }, timeout=60, node=self.node.name)
         return data['return']

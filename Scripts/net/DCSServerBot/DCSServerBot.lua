@@ -43,14 +43,15 @@ dcsbot.sendEmbed = dcsbot.sendEmbed or function(title, description, img, fields,
 end
 
 dcsbot.updateEmbed = dcsbot.updateEmbed or function (id, title, description, img, fields, footer, channel)
-	local msg = {}
-	msg.command = 'sendEmbed'
-	msg.id = id
-	msg.title = title
-	msg.description = description
-	msg.img = img
-	msg.fields = fields
-	msg.footer = footer
+	local msg = {
+		command = 'sendEmbed',
+		id = id,
+		title = title,
+		description = description,
+		img = img,
+		fields = fields,
+		footer = footer
+	}
 	dcsbot.sendBotTable(msg, channel)
 end
 
@@ -62,27 +63,31 @@ dcsbot.callback = dcsbot.callback or function (msg, channel)
 end
 
 dcsbot.startMission = dcsbot.startMission or function (id)
-	local msg = {}
-	msg.command = 'startMission'
-	msg.id = id
+	local msg = {
+		command = 'startMission',
+		id = id
+	}
 	dcsbot.callback(msg)
 end
 
 dcsbot.shutdown = dcsbot.shutdown or function ()
-	local msg = {}
-	msg.command = 'shutdown'
+	local msg = {
+		command = 'shutdown'
+	}
 	dcsbot.callback(msg)
 end
 
 dcsbot.restartMission = dcsbot.restartMission or function ()
-	local msg = {}
-	msg.command = 'restartMission'
+	local msg = {
+		command = 'restartMission'
+	}
 	dcsbot.callback(msg)
 end
 
 dcsbot.disableUserStats = dcsbot.disableUserStats or function ()
-	local msg = {}
-	msg.command = 'disableUserStats'
+	local msg = {
+		command = 'disableUserStats'
+	}
 	dcsbot.sendBotTable(msg, channel)
 	env.info('User Statistics disabled.')
 end
@@ -91,8 +96,9 @@ do
 	if not base.mission_hook then
 		-- MISSION HOOK REGISTRATION
 		base.mission_hook = true
-		local msg = {}
-		msg.command = 'registerMissionHook'
+		local msg = {
+			command = 'registerMissionHook'
+		}
 		dcsbot.sendBotTable(msg)
 		env.info('DCSServerBot - Mission Hook installed.')
 	end

@@ -1,16 +1,82 @@
 import discord
+
+from core import Server, Channel
 from discord.ui import Modal, TextInput, View, Button
 
-from core import Server
+from services import DCSServerBot
 
 
 class ConfigView(View):
-    def __init__(self, server: Server):
+    def __init__(self, bot: DCSServerBot, server: Server):
         super().__init__()
+        self.bot = bot
         self.server = server
+        self.cancelled = False
+        self.channel_update = False
+        if self.bot.locals.get('admin_channel'):
+            self.children[0].disabled = True
+        self.children[3].disabled = True
+        self.toggle_config()
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='cfg_yes')
-    async def on_yes(self, interaction: discord.Interaction, button: Button):
+    def toggle_ok(self) -> bool:
+        if self.server.name != 'n/a':
+            self.children[3].disabled = False
+            return True
+        else:
+            self.children[3].disabled = True
+            return False
+
+    def toggle_config(self) -> bool:
+        try:
+            if (self.server.locals.get('channels', {}).get('admin', self.bot.locals.get('admin_channel', -1)) != -1
+                    and self.server.locals.get('channels', {}).get('status', -1) != -1):
+                self.children[4].disabled = False
+                self.toggle_ok()
+                return True
+            else:
+                self.children[4].disabled = True
+                return False
+        except Exception as ex:
+            print(ex)
+
+    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
+                       placeholder="Select an admin channel")
+    async def admin_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+        await interaction.response.defer()
+        if 'channels' not in self.server.locals:
+            self.server.locals['channels'] = {}
+        self.server.locals['channels']['admin'] = select.values[0].id
+        self.channel_update = True
+        if self.toggle_config():
+            await interaction.edit_original_response(view=self)
+
+    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
+                       placeholder="Select a status channel")
+    async def status_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+        await interaction.response.defer()
+        if 'channels' not in self.server.locals:
+            self.server.locals['channels'] = {}
+        self.server.locals['channels']['status'] = select.values[0].id
+        self.channel_update = True
+        if self.toggle_config():
+            await interaction.edit_original_response(view=self)
+
+    @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
+                       placeholder="Select a chat channel")
+    async def chat_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+        await interaction.response.defer()
+        if 'channels' not in self.server.locals:
+            self.server.locals['channels'] = {}
+        self.server.locals['channels']['chat'] = select.values[0].id
+        self.channel_update = True
+
+    @discord.ui.button(label='OK', style=discord.ButtonStyle.primary)
+    async def on_ok(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Config', style=discord.ButtonStyle.secondary)
+    async def on_config(self, interaction: discord.Interaction, button: Button):
         class ConfigModal(Modal, title="Server Configuration"):
             name = TextInput(label="Name", default=self.server.name, max_length=80, required=True)
             description = TextInput(label="Description", style=discord.TextStyle.long,
@@ -21,22 +87,25 @@ class ConfigView(View):
                                    required=True)
 
             async def on_submit(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
                 if derived.name.value != self.server.name:
                     old_name = self.server.name
                     await self.server.rename(new_name=derived.name.value, update_settings=True)
                     interaction.client.servers[derived.name.value] = self.server
-                    del interaction.client.servers[old_name]
+                    if old_name in interaction.client.servers:
+                        del interaction.client.servers[old_name]
                 self.server.settings['description'] = derived.description.value
                 self.server.settings['password'] = derived.password.value
                 self.server.settings['maxPlayers'] = int(derived.max_player.value)
-                await interaction.response.send_message(
-                    f'Server configuration for server "{self.server.display_name}" updated.', ephemeral=True)
 
         modal = ConfigModal()
         await interaction.response.send_modal(modal)
+        self.cancelled = await modal.wait()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='cfg_cancel')
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
     async def on_cancel(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_message('Aborted.', ephemeral=True)
+        await interaction.response.defer()
+        self.cancelled = True
         self.stop()
+

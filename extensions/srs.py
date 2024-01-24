@@ -155,7 +155,7 @@ class SRS(Extension):
                 if blue or red:
                     value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
             return {
-                "name": "SRS (online)" if self.is_running() else "SRS (offline)",
+                "name": self.name,
                 "version": self.version,
                 "value": value
             }

@@ -1,5 +1,5 @@
 from core import const, report, Status, Server, utils, ServiceRegistry
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 
@@ -62,7 +62,8 @@ class ServerInfo(report.EmbedElement):
         else:
             footer = ''
         if server.dcs_version:
-            footer += f'- Server is running DCS {server.dcs_version}'
+            footer += (f'\nServer is running:\n- DCSServerBot {self.node.bot_version}.{self.node.sub_version}, '
+                       f'DCS {server.dcs_version}')
         self.embed.set_footer(text=footer)
 
 
@@ -159,7 +160,7 @@ class Footer(report.EmbedElement):
                     (server.name in listener.statistics):
                 text += '\n- User statistics are enabled for this server.'
                 break
-        text += f'\n\nLast updated: {datetime.now():%y-%m-%d %H:%M:%S}'
+        text += f'\n\nLast updated: {datetime.now().astimezone(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
         self.embed.set_footer(text=text)
 
 

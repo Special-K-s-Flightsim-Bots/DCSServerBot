@@ -16,15 +16,25 @@ import services
 
 class Main:
 
-    def __init__(self, node: NodeImpl):
+    def __init__(self, node: NodeImpl, no_autoupdate: bool) -> None:
         self.node = node
         self.log = node.log
+        self.no_autoupdate = no_autoupdate
 
     async def run(self):
-        if self.node.locals.get('autoupdate', False):
-            if await self.node.upgrade() == 1:
-                self.log.warning('- Restart needed => exiting.')
-                self.node.shutdown()
+        await self.node.post_init()
+        # check for updates
+        if self.no_autoupdate:
+            autoupdate = False
+        else:
+            autoupdate = self.node.locals.get('autoupdate', self.node.config.get('autoupdate', False))
+
+        if autoupdate:
+            cloud_drive = self.node.locals.get('cloud_drive', True)
+            if (cloud_drive and self.node.master) or not cloud_drive:
+                await self.node.upgrade()
+        elif await self.node.upgrade_pending():
+            self.log.warning("There is a new update for DCSServerBot available!")
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
@@ -51,7 +61,7 @@ class Main:
             try:
                 while True:
                     # wait until the master changes
-                    while self.node.master == self.node.check_master():
+                    while self.node.master == await self.node.check_master():
                         await asyncio.sleep(1)
                     # switch master
                     self.node.master = not self.node.master
@@ -86,9 +96,10 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
 
-    parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
+    parser = argparse.ArgumentParser(prog='run.py', description="Welcome to DCSServerBot!",
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
+    parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
     args = parser.parse_args()
     if os.path.exists('config/dcsserverbot.ini'):
         migrate(node=args.node)
@@ -98,15 +109,17 @@ if __name__ == "__main__":
         Install(node=args.node).install()
         node = NodeImpl(name=args.node)
     try:
-        asyncio.run(Main(node).run())
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        exit(-1)
-    except FatalException as ex:
-        print(ex)
+        asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
+    except (asyncio.CancelledError, KeyboardInterrupt) as ex:
+        # do not restart again
         exit(-2)
-    except YAMLError as ex:
+    except (YAMLError, FatalException) as ex:
         print(ex)
-        exit(-1)
+        # do not restart again
+        exit(-2)
+    except SystemExit as ex:
+        exit(ex.code)
     except:
         traceback.print_exc()
+        # restart on unknown errors
         exit(-1)
