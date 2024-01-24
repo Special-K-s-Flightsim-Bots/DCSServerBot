@@ -353,7 +353,7 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         arg4 = arg4,
         arg5 = arg5,
         arg6 = arg6,
-        arg7 = arg
+        arg7 = arg7
     }
 	if eventName == 'kill' then
 		msg.victimCategory = utils.getCategory(arg5)
