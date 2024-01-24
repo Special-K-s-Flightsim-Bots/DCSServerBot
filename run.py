@@ -27,7 +27,7 @@ class Main:
         if self.no_autoupdate:
             autoupdate = False
         else:
-            autoupdate = self.node.config.get('autoupdate', self.node.locals.get('autoupdate', False))
+            autoupdate = self.node.locals.get('autoupdate', self.node.config.get('autoupdate', False))
 
         if autoupdate:
             cloud_drive = self.node.locals.get('cloud_drive', True)
