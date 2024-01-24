@@ -175,25 +175,28 @@ end
 
 function dcsbot.getMissionDetails(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDetails()')
-	local msg = {}
-	msg.command = 'getMissionDetails'
-	msg.current_mission = DCS.getMissionName()
-	msg.mission_time = DCS.getModelTime()
-  	msg.real_time = DCS.getRealTime()
-    msg.briefing = mod_dictionary.getBriefingData(DCS.getMissionFilename(), 'EN')
-    msg.results = {}
-    msg.results['Blue'] = DCS.getMissionResult("blue")
-    msg.results['Red'] = DCS.getMissionResult("red")
+	local msg = {
+        command = 'getMissionDetails',
+        current_mission = DCS.getMissionName(),
+        mission_time = DCS.getModelTime(),
+        real_time = DCS.getRealTime(),
+        briefing = mod_dictionary.getBriefingData(DCS.getMissionFilename(), 'EN'),
+        results = {
+            Blue = DCS.getMissionResult("blue"),
+            Red = DCS.getMissionResult("red")
+        }
+    }
 	utils.sendBotTable(msg, json.channel)
 end
 
 function dcsbot.getMissionUpdate(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionUpdate()')
-	local msg = {}
-	msg.command = 'getMissionUpdate'
-	msg.pause = DCS.getPause()
-	msg.mission_time = DCS.getModelTime()
-  	msg.real_time = DCS.getRealTime()
+	local msg = {
+        command = 'getMissionUpdate',
+        pause = DCS.getPause(),
+        mission_time = DCS.getModelTime(),
+        real_time = DCS.getRealTime()
+    }
 	utils.sendBotTable(msg, json.channel)
 end
 

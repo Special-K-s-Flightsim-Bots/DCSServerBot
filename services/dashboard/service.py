@@ -35,12 +35,13 @@ class HeaderWidget:
         grid = Table.grid(expand=True)
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
-        message = f"[b]DCSServerBot"
+        message = f"[b]"
         if self.node.master and len(self.node.all_nodes) > 0:
-            message += " Cluster Master"
+            message += "Cluster Master | "
         elif not self.node.master:
-            message += " Cluster Agent"
-        message += f" Version {self.node.bot_version}.{self.node.sub_version} | DCS Version {self.service.dcs_version}[/]"
+            message += "Cluster Agent | "
+        message += (f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version} | "
+                    f"DCS Version {self.service.dcs_version}[/]")
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
         return Panel(grid, style="white on blue")
 

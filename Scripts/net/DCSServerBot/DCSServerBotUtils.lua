@@ -112,6 +112,8 @@ function getMulticrewAllParameters(PlayerId)
 					_master_slot = tonumber(string.sub(_player_slot, 0 , _t_start -1 ))
 					_sub_slot = tonumber(string.sub(_player_slot, _t_start + 1, _t_end ))
 				end
+			else
+				_master_slot = tonumber(_player_slot)
 			end
 			_master_type = DCS.getUnitType(_master_slot)
 
@@ -155,4 +157,13 @@ function basicSerialize(s)
 			return string.format('%q', s)
 		end
   end
+end
+
+function isWithinInterval(last_event, interval)
+    return last_event and last_event > (os.clock() - interval)
+end
+
+function loadScript(scriptPath)
+    command = 'dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. scriptPath .. '\\")'
+    net.dostring_in('mission', 'a_do_script("' .. command .. '")')
 end

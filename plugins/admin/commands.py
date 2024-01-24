@@ -503,13 +503,11 @@ class Admin(Plugin):
                 names.append(server.name)
                 status.append(server.status.name)
             if names:
+                title = f"**[{name}]**" if name == self.node.name else f"[{name}]"
                 if await server.node.upgrade_pending():
                     embed.set_footer(text="🆕 Update available")
-                    title = "🆕"
-                else:
-                    title = ""
+                    title += " 🆕"
 
-                title += f"**[{name}]**" if name == self.node.name else f"[{name}]"
                 embed.add_field(name="▬" * 32, value=title, inline=False)
                 embed.add_field(name="Instance", value='\n'.join(instances))
                 embed.add_field(name="Server", value='\n'.join(names))

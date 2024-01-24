@@ -11,7 +11,7 @@ function dcsbot.sendPopupMessage(to, message, time)
 	elseif to == 'blue' then
 		trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
 	else
-        unit = Unit.getByName(to)
+        local unit = Unit.getByName(to)
         if unit and unit:isExist() then
             trigger.action.outTextForUnit(unit:getID(), message, time)
         end
@@ -27,7 +27,7 @@ function dcsbot.playSound(to, sound)
 	elseif to == 'blue' then
 		trigger.action.outSoundForCoalition(coalition.side.BLUE, sound, time)
 	else
-        unit = Unit.getByName(to)
+        local unit = Unit.getByName(to)
         if unit and unit:isExist() then
             trigger.action.outSoundForUnit(unit:getID(), sound, time)
         end

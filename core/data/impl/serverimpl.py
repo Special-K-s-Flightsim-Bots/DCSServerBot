@@ -417,19 +417,17 @@ class ServerImpl(Server):
             await self.terminate()
         self.status = Status.SHUTDOWN
 
-    def _check_and_assign_process(self):
+    def _check_and_assign_process(self) -> bool:
         if not self.process or not self.process.is_running():
             self.process = utils.find_process("DCS_server.exe|DCS.exe", self.instance.name)
+        return self.process is not None
 
     async def is_running(self) -> bool:
-        # check if something is listening at the port
-        if utils.is_open('127.0.0.1', int(self.settings.get('port'))):
-            self._check_and_assign_process()
+        # do we have a registered and running process?
+        if self._check_and_assign_process():
             return True
-        # no, we might be in the startup phase or something might have happened to the process
-        else:
-            self._check_and_assign_process()
-        return self.process is not None
+        # we might not have the necessary permissions to read the process
+        return utils.is_open('127.0.0.1', int(self.settings.get('port')))
 
     async def terminate(self) -> None:
         if await self.is_running():

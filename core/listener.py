@@ -135,7 +135,7 @@ class EventListener(metaclass=EventListenerMeta):
 
     @event(name="onChatCommand")
     async def onChatCommand(self, server: Server, data: dict) -> None:
-        player: Player = server.get_player(id=data['from_id'], active=True)
+        player: Player = server.get_player(id=data['from'], active=True)
         command = self.__all_commands__.get(data['subcommand'])
         if not command or not player:
             return

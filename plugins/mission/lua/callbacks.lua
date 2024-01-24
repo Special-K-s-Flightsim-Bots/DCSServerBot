@@ -13,6 +13,10 @@ dcsbot.blue_slots = dcsbot.blue_slots or {}
 local mission = mission or {}
 mission.last_to_landing = {}
 mission.last_change_slot = {}
+mission.last_collision = {}
+mission.last_victim = {}
+
+local SERVER_USER_ID = 1
 
 local default_names = {
     'Player',
@@ -38,7 +42,6 @@ end
 
 function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryConnect()')
-	local msg = {}
     if locate(default_names, name) then
         return false, config.MESSAGE_PLAYER_DEFAULT_USERNAME
     end
@@ -47,8 +50,10 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         return false, config.MESSAGE_PLAYER_USERNAME
     end
 	if isBanned(ucid) then
-        msg.command = 'sendMessage'
-        msg.message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
+    	local msg = {
+            command = 'sendMessage',
+            message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
+        }
     	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
 	    return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
 	end
@@ -60,27 +65,29 @@ function mission.onMissionLoadBegin()
 		dcsbot.registerDCSServer()
 	end
 	if DCS.getCurrentMission() then
-        local msg = {}
-        msg.command = 'onMissionLoadBegin'
-        msg.current_mission = DCS.getMissionName()
-        msg.current_map = DCS.getCurrentMission().mission.theatre
-        msg.mission_time = 0
+        local msg = {
+            command = 'onMissionLoadBegin',
+            current_mission = DCS.getMissionName(),
+            current_map = DCS.getCurrentMission().mission.theatre,
+            mission_time = 0
+        }
         utils.sendBotTable(msg)
     end
 end
 
 function mission.onMissionLoadEnd()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadEnd()')
-    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/DCSServerBot.lua' .. '\\")")')
-    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/mission/mission.lua' .. '\\")")')
-    local msg = {}
-    msg.command = 'onMissionLoadEnd'
-    msg.filename = DCS.getMissionFilename()
-    msg.current_mission = DCS.getMissionName()
-    msg.current_map = DCS.getCurrentMission().mission.theatre
-    msg.mission_time = 0
-    msg.start_time = DCS.getCurrentMission().mission.start_time
-    msg.date = DCS.getCurrentMission().mission.date
+    utils.loadScript('Scripts/net/DCSServerBot/DCSServerBot.lua')
+    utils.loadScript('Scripts/net/DCSServerBot/mission/mission.lua')
+    local msg = {
+        command = 'onMissionLoadEnd',
+        filename = DCS.getMissionFilename(),
+        current_mission = DCS.getMissionName(),
+        current_map = DCS.getCurrentMission().mission.theatre,
+        mission_time = 0,
+        start_time = DCS.getCurrentMission().mission.start_time,
+        date = DCS.getCurrentMission().mission.date
+    }
 
     num_slots_red = 0
     dcsbot.red_slots = {}
@@ -175,17 +182,18 @@ end
 
 function mission.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerConnect()')
-	if id == 1 and dcsbot.registered == false then
+	if id == SERVER_USER_ID and dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
-	local msg = {}
-	msg.command = 'onPlayerConnect'
-	msg.id = id
-	msg.name = net.get_player_info(id, 'name')
-	msg.ucid = net.get_player_info(id, 'ucid')
-    msg.side = 0
+	local msg = {
+        command = 'onPlayerConnect',
+        id = id,
+        name = net.get_player_info(id, 'name'),
+        ucid = net.get_player_info(id, 'ucid'),
+        side = 0
+    }
     -- server user is never active
-    if (msg.id == 1) then
+    if (msg.id == SERVER_USER_ID) then
         msg.active = false
     else
         msg.active = true
@@ -198,19 +206,20 @@ end
 
 function mission.onPlayerStart(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStart()')
-	if id == 1 and dcsbot.registered == false then
+	if id == SERVER_USER_ID and dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
-	local msg = {}
-	msg.command = 'onPlayerStart'
-	msg.id = id
-	msg.ucid = net.get_player_info(id, 'ucid')
-	msg.name = net.get_player_info(id, 'name')
-    msg.side = 0
-    msg.slot = -1
-    msg.sub_slot = -1
+	local msg = {
+        command = 'onPlayerStart',
+        id = id,
+        ucid = net.get_player_info(id, 'ucid'),
+        name = net.get_player_info(id, 'name'),
+        side = 0,
+        slot = -1,
+        sub_slot = -1
+    }
     -- server user is never active
-    if (msg.id == 1) then
+    if (msg.id == SERVER_USER_ID) then
         msg.active = false
     else
         msg.active = true
@@ -220,24 +229,33 @@ end
 
 function mission.onPlayerStop(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStop()')
-    local msg = {}
-    msg.command = 'onPlayerStop'
-    msg.id = id
-    msg.ucid = net.get_player_info(id, 'ucid')
-    msg.name = net.get_player_info(id, 'name')
-    msg.active = false
+    local msg = {
+        command = 'onPlayerStop',
+        id = id,
+        ucid = net.get_player_info(id, 'ucid'),
+        name = net.get_player_info(id, 'name'),
+        active = false
+    }
     utils.sendBotTable(msg)
 end
 
 function mission.onPlayerChangeSlot(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerChangeSlot()')
-    local msg = {}
-    msg.command = 'onPlayerChangeSlot'
-    msg.id = id
-    msg.ucid = net.get_player_info(id, 'ucid')
-    msg.name = net.get_player_info(id, 'name')
-    msg.side = net.get_player_info(id, 'side')
+    local msg = {
+        command = 'onPlayerChangeSlot',
+        id = id,
+        ucid = net.get_player_info(id, 'ucid'),
+        name = net.get_player_info(id, 'name'),
+        side = net.get_player_info(id, 'side'),
+        active = true
+    }
     msg.unit_type, msg.slot, msg.sub_slot = utils.getMulticrewAllParameters(id)
+    msg.unit_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_NAME)
+    msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
+    msg.group_id = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUP_MISSION_ID)
+    msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
+    msg.unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
+
     -- DCS MC bug workaround
     if msg.sub_slot > 0 then
         if dcsbot.blue_slots[net.get_player_info(PlayerId, 'slot')] ~= nil then
@@ -246,70 +264,98 @@ function mission.onPlayerChangeSlot(id)
             msg.side = 1
         end
     end
-    msg.unit_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_NAME)
-    msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
-    msg.group_id = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUP_MISSION_ID)
-    msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
-    msg.unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
-    msg.active = true
     utils.sendBotTable(msg)
 end
 
 function mission.onSimulationStart()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStart()')
-    local msg = {}
-    msg.command = 'onSimulationStart'
+    local msg = {
+        command = 'onSimulationStart'
+    }
     utils.sendBotTable(msg)
 end
 
 function mission.onSimulationStop()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStop()')
     dcsbot.registered = false
-    local msg = {}
-    msg.command = 'onSimulationStop'
+    local msg = {
+        command = 'onSimulationStop'
+    }
     utils.sendBotTable(msg)
 end
 
 function mission.onSimulationPause()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationPause()')
-	local msg = {}
-	msg.command = 'onSimulationPause'
+	local msg = {
+        command = 'onSimulationPause'
+    }
 	utils.sendBotTable(msg)
 end
 
 function mission.onSimulationResume()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationResume()')
-	local msg = {}
-	msg.command = 'onSimulationResume'
+	local msg = {
+        command = 'onSimulationResume'
+    }
 	utils.sendBotTable(msg)
 end
 
-function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
-    -- ignore false takeoff or landing events
-    if eventName == 'change_slot' then
+local function handleTakeoffLanding(arg1)
+    if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
+        return
+    end
+    if utils.isWithinInterval(mission.last_to_landing[arg1], 10) then
+        return
+    else
+        mission.last_to_landing[arg1] = os.clock()
+    end
+end
+
+local eventHandlers = {
+    change_slot = function(arg1)
         mission.last_change_slot[arg1] = os.clock()
-    elseif eventName == 'takeoff' or eventName == 'landing' then
-        if mission.last_change_slot[arg1] and mission.last_change_slot[arg1] > (os.clock() - 60) then
-            return
-        end
-        if mission.last_to_landing[arg1] and mission.last_to_landing[arg1] > (os.clock() - 10) then
-            return
-        else
-            mission.last_to_landing[arg1] = os.clock()
+    end,
+    takeoff = handleTakeoffLanding,
+    landing = handleTakeoffLanding,
+    friendly_fire = function(arg1, arg2, arg3)
+        unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
+        display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
+        -- do we have collisions (weapon == unit name)
+        if display_name == arg2 then
+            -- ignore "spawn on top"
+            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
+                return
+            end
+            -- ignore multiple collisions that happened in-between 10s
+            if utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3 then
+                return
+            else
+                mission.last_collision[arg1] = os.clock()
+                mission.last_victim[arg1] = arg3
+            end
         end
     end
-	local msg = {}
-	msg.command = 'onGameEvent'
-	msg.eventName = eventName
-	msg.arg1 = arg1
-	msg.arg2 = arg2
-	msg.arg3 = arg3
-	msg.arg4 = arg4
-	msg.arg5 = arg5
-	msg.arg6 = arg6
-	msg.arg7 = arg7
-	if (msg.eventName == 'kill') then
+}
+
+function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
+    -- Call the appropriate handler based on the eventName
+    if eventHandlers[eventName] then
+      eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+    end
+
+	local msg = {
+        command = 'onGameEvent',
+        eventName = eventName,
+        arg1 = arg1,
+        arg2 = arg2,
+        arg3 = arg3,
+        arg4 = arg4,
+        arg5 = arg5,
+        arg6 = arg6,
+        arg7 = arg
+    }
+	if eventName == 'kill' then
 		msg.victimCategory = utils.getCategory(arg5)
 		msg.killerCategory = utils.getCategory(arg2)
 	end
@@ -318,7 +364,7 @@ end
 
 function mission.onPlayerTrySendChat(from, message, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
-    if from == 1 then
+    if from == SERVER_USER_ID then
         return message
     end
     local msg = {}
@@ -327,16 +373,14 @@ function mission.onPlayerTrySendChat(from, message, to)
         local elements = utils.split(message, ' ')
         msg.subcommand = string.sub(elements[1], 2)
         msg.params = { unpack(elements, 2) }
-        msg.from_id = net.get_player_info(from, 'id')
-        msg.from_name = net.get_player_info(from, 'name')
+        msg.from = net.get_player_info(from, 'id')
         msg.to = to
         utils.sendBotTable(msg)
         return ''
     else
         msg.command = 'onChatMessage'
         msg.message = message
-        msg.from_id = net.get_player_info(from, 'id')
-        msg.from_name = net.get_player_info(from, 'name')
+        msg.from = net.get_player_info(from, 'id')
         msg.to = to
         if msg.from_id ~= 1 then
             utils.sendBotTable(msg)
@@ -347,13 +391,13 @@ end
 
 function mission.onChatMessage(message, from, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
-    if not from then
-        local msg = {}
-        msg.command = 'onChatMessage'
-        msg.message = message
-        msg.from_id = net.get_player_info(from, 'id')
-        msg.from_name = net.get_player_info(from, 'name')
-        msg.to = to
+    if from ~= 0 then
+        local msg = {
+            command = 'onChatMessage',
+            message = message,
+            from = from,
+            to = to
+        }
         utils.sendBotTable(msg, config.CHAT_CHANNEL)
     end
 end
