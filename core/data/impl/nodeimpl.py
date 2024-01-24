@@ -21,7 +21,7 @@ from discord.ext import tasks
 from git import InvalidGitRepositoryError, GitCommandError
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from psycopg.errors import UndefinedTable
+from psycopg.errors import UndefinedTable, InFailedSqlTransaction
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
@@ -113,9 +113,8 @@ class NodeImpl(Node):
                         ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
                     """, (self.guild_id, self.name))
             self._master = await self.check_master()
-        except UndefinedTable:
-            # should only happen when an upgrade to 3.0 is needed
-            self.log.info("Updating database to DCSServerBot 3.x ...")
+        except (UndefinedTable, InFailedSqlTransaction):
+            # some master tables have changed, so do the update first
             self._master = True
         if self._master:
             self.update_db()
@@ -324,7 +323,7 @@ class NodeImpl(Node):
             self.dcs_version = data['version']
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int]) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
         async def shutdown_with_warning(server: Server):
             if server.is_populated():
                 shutdown_in = max(warn_times) if len(warn_times) else 0
@@ -337,16 +336,18 @@ class NodeImpl(Node):
                     shutdown_in -= 1
             await server.shutdown()
 
-        async def do_update() -> int:
+        async def do_update(branch: Optional[str] = None) -> int:
             # disable any popup on the remote machine
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
             startupinfo.wShowWindow = subprocess.SW_HIDE
             try:
+                cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
+                if branch is not None:
+                    cmd.append(f"@{branch}")
+
                 process = await asyncio.create_subprocess_exec(
-                    os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
-                    '--quiet', 'update', startupinfo=startupinfo, stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL
+                    *cmd, startupinfo=startupinfo, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
                 )
                 await process.wait()
                 return process.returncode
@@ -372,7 +373,7 @@ class NodeImpl(Node):
         # call before update hooks
         for callback in self.before_update.values():
             await callback()
-        rc = await do_update()
+        rc = await do_update(branch)
         if rc == 0:
             self.dcs_branch = self.dcs_version = None
             if self.locals['DCS'].get('desanitize', True):
@@ -543,6 +544,8 @@ class NodeImpl(Node):
                                 return False
                         # we can not find a master - take over
                         cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s", (self.name, self.guild_id))
+                        return True
+                    except UndefinedTable:
                         return True
                     except Exception as e:
                         self.log.exception(e)
