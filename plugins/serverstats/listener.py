@@ -37,6 +37,13 @@ class ServerStatsListener(EventListener):
         if server.name not in self.fps:
             return
         ping = (self.bot.latency * 1000) if not math.isinf(self.bot.latency) else -1
+        cpu = data['cpu']
+        if math.isinf(cpu):
+            cpu = -1
+        fps = self.fps[server.name]
+        if math.isinf(fps):
+            fps = -1
+
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -44,5 +51,5 @@ class ServerStatsListener(EventListener):
                                          mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (server.name, server.node.name, server.mission_id, len(server.get_active_players()),
-                  server.status.name, data['cpu'], data['mem_total'], data['mem_ram'], data['read_bytes'],
-                  data['write_bytes'], data['bytes_sent'], data['bytes_recv'], self.fps[server.name], ping))
+                  server.status.name, cpu, data['mem_total'], data['mem_ram'], data['read_bytes'],
+                  data['write_bytes'], data['bytes_sent'], data['bytes_recv'], fps, ping))

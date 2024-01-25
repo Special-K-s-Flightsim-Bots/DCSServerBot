@@ -180,12 +180,12 @@ class MissionEventListener(EventListener):
         events_channel = None
         if server.locals.get('coalitions'):
             if side == Side.RED:
-                events_channel = server.channels[Channel.COALITION_RED_EVENTS]
+                events_channel = server.channels.get(Channel.COALITION_RED_EVENTS, -1)
             elif side == Side.BLUE:
-                events_channel = server.channels[Channel.COALITION_BLUE_EVENTS]
+                events_channel = server.channels.get(Channel.COALITION_BLUE_EVENTS, -1)
         if not events_channel:
-            events_channel = server.channels.get(Channel.EVENTS)
-        if events_channel and events_channel != -1:
+            events_channel = server.channels.get(Channel.EVENTS, -1)
+        if int(events_channel) != -1:
             if events_channel not in self.queue:
                 self.queue[events_channel] = Queue()
             self.queue[events_channel].put(message)

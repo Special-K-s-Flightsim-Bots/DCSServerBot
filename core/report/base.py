@@ -12,7 +12,6 @@ from core import utils, Channel
 from discord import Interaction, SelectOption
 from discord.ui import View, Button, Select, Item
 from discord.utils import MISSING
-from os import path
 from typing import Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
 from .elements import ReportElement
@@ -41,9 +40,9 @@ class Report:
         self.env = ReportEnv(bot)
         default = f'./plugins/{plugin}/reports/{filename}'
         overwrite = f'./reports/{plugin}/{filename}'
-        if path.exists(overwrite):
+        if os.path.exists(overwrite):
             self.filename = overwrite
-        elif path.exists(default):
+        elif os.path.exists(default):
             self.filename = default
         else:
             raise FileNotFoundError(filename)

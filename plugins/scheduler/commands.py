@@ -46,6 +46,8 @@ class Scheduler(Plugin):
             now: datetime = datetime.now()
             weekday = (now + timedelta(seconds=restart_in)).weekday()
             for period, daystate in config['schedule'].items():  # type: str, dict
+                if len(daystate) != 7:
+                    server.log.error(f"Error in scheduler.yaml: {daystate} has to be 7 characters long!")
                 state = daystate[weekday]
                 # check, if the server should be running
                 if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server.status == Status.SHUTDOWN:
