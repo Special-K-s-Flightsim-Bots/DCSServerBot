@@ -346,14 +346,15 @@ class Mission(Plugin):
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         all_missions = await server.listAvailableMissions()
         if idx >= len(all_missions):
-            await interaction.response.send_message('No mission found.', ephemeral=True)
+            await interaction.followup.send('No mission found.', ephemeral=True)
             return
         path = all_missions[idx]
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
-        await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
+        await interaction.followup.send(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, 'Do you want to load this mission?',
                                             ephemeral=ephemeral):
@@ -373,14 +374,15 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer],
                      mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
-            await interaction.response.send_message("No mission found.")
+            await interaction.followup.send("No mission found.")
             return
         filename = missions[mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and server.current_mission and \
                 filename == server.current_mission.filename:
-            await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=True)
+            await interaction.followup.send("You can't delete the (only) running mission.", ephemeral=True)
             return
         name = filename[:-4]
 

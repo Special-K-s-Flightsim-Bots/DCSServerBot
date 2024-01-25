@@ -7,10 +7,11 @@ dcsbot 			= base.dcsbot
     target, the victim name (might be nil or -1 for AI)
 ]]--
 function dcsbot.punish(eventName, initiator, target)
-    msg = {}
-    msg.command = 'punish'
-    msg.eventName = eventName
-    msg.initiator = initiator
-    msg.target = target
+    local msg = {
+        command = 'punish',
+        eventName = eventName,
+        initiator = initiator,
+        target = target
+    }
     dcsbot.sendBotTable(msg)
 end

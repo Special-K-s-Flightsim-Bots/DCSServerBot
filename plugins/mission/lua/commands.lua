@@ -257,13 +257,15 @@ end
 
 function dcsbot.addMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: addMission()')
-	if not string.find(json.path, '\\') then
+    local path
+    if not string.find(json.path, '\\') then
 		path = lfs.writedir() .. 'Missions\\' .. json.path
 	else
 		path = json.path
 	end
 	net.missionlist_append(path)
 	local current_missions = net.missionlist_get()
+    local listStartIndex
     if json.autostart == true then
         listStartIndex = #current_missions['missionList']
     else
@@ -299,8 +301,9 @@ end
 
 function dcsbot.listMizFiles(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: listMizFiles()')
-	local msg = {}
-	msg.command = 'listMizFiles'
+	local msg = {
+        command = 'listMizFiles'
+    }
 	msg.missions = {}
 	for file in lfs.dir(lfs.writedir() .. 'Missions') do
 		if ((lfs.attributes(file, 'mode') ~= 'directory') and (file:sub(-4) == '.miz')) then
@@ -312,8 +315,9 @@ end
 
 function dcsbot.getWeatherInfo(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getWeatherInfo()')
-	local msg = {}
-	msg.command = 'getWeatherInfo'
+	local msg = {
+        command = 'getWeatherInfo'
+    }
 	local position = {
 		x = json.x,
 		y = json.y,
@@ -360,9 +364,10 @@ function dcsbot.getWeatherInfo(json)
 	end
 	msg.turbulence = UC.composeTurbulenceString(weather)
 	local wind = Weather.getGroundWindAtPoint({position = position})
-	msg.wind = {}
-	msg.wind.speed = wind.v
-	msg.wind.dir = UC.toPositiveDegrees(wind.a + math.pi)
+	msg.wind = {
+        speed = wind.v,
+        dir = UC.toPositiveDegrees(wind.a + math.pi)
+    }
 	utils.sendBotTable(msg, json.channel)
 end
 
@@ -387,21 +392,31 @@ function dcsbot.sendPopupMessage(json)
 	if (json.from) then
 		message = json.from .. ': ' .. message
 	end
-	time = json.time or 10
-	to = json.to or 'all'
+	local time = json.time or 10
+	local to = json.to or 'all'
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.sendPopupMessage("' .. to .. '", ' .. utils.basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
 end
 
 function dcsbot.playSound(json)
 	log.write('DCSServerBot', log.DEBUG, 'Mission: playSound()')
-	to = json.to or 'all'
+	local to = json.to or 'all'
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.playSound("' .. to .. '", ' .. utils.basicSerialize(json.sound) .. ')') .. ')')
+end
+
+local function setUserRoles(json)
+    dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
+    dcsbot.userInfo[json.ucid].roles = json.roles
 end
 
 function dcsbot.uploadUserRoles(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
-    dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
-    dcsbot.userInfo[json.ucid].roles = json.roles
+    if json.batch then
+        for _, user_role in ipairs(json.batch) do
+            setUserRoles(user_role)
+        end
+    else
+        setUserRoles(json)
+    end
 end
 
 function dcsbot.kick(json)
@@ -410,7 +425,7 @@ function dcsbot.kick(json)
         net.kick(json.id, json.reason)
         return
     end
-    plist = net.get_player_list()
+    local plist = net.get_player_list()
     for i = 2, table.getn(plist) do
         if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or
                 (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
@@ -430,11 +445,22 @@ function dcsbot.force_player_slot(json)
     end
 end
 
-function dcsbot.ban(json)
-    log.write('DCSServerBot', log.DEBUG, 'Admin: ban()')
-    banned_until = json.banned_until or 'never'
+local function single_ban(json)
+    local banned_until = json.banned_until or 'never'
     dcsbot.banList[json.ucid] = json.reason .. '.\nExpires ' .. banned_until
     dcsbot.kick(json)
+end
+
+function dcsbot.ban(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: ban()')
+    -- do we run a batch upload?
+    if json.batch then
+        for _, ban in ipairs(json.batch) do
+            single_ban(ban)
+        end
+    else
+        single_ban(json)
+    end
 end
 
 function dcsbot.unban(json)

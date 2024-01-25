@@ -103,7 +103,7 @@ class Player(DataObject):
                 'command': 'uploadUserRoles',
                 'id': self.id,
                 'ucid': self.ucid,
-                'roles': [x.name for x in self._member.roles] if self._member else []
+                'roles': [x.id for x in self._member.roles] if self._member else []
             })
 
     @property
@@ -213,10 +213,8 @@ class Player(DataObject):
             })
 
     def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
-        if self.slot <= 0:
-            [self.sendChatMessage(msg) for msg in message.splitlines()]
-        else:
-            self.sendPopupMessage(message, timeout)
+        [self.sendChatMessage(msg) for msg in message.splitlines()]
+        self.sendPopupMessage(message, timeout)
 
     def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:

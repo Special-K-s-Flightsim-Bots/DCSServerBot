@@ -77,8 +77,8 @@ end
 
 function mission.onMissionLoadEnd()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadEnd()')
-    utils.loadScript('Scripts/net/DCSServerBot/DCSServerBot.lua')
-    utils.loadScript('Scripts/net/DCSServerBot/mission/mission.lua')
+    utils.loadScript('DCSServerBot.lua')
+    utils.loadScript('mission/mission.lua')
     local msg = {
         command = 'onMissionLoadEnd',
         filename = DCS.getMissionFilename(),

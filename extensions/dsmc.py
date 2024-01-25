@@ -37,7 +37,7 @@ class DSMC(Extension):
 
         cfg = dict()
         dcs_home = self.server.instance.home
-        with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua') as infile:
+        with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua')) as infile:
             for line in infile.readlines():
                 line = line.strip()
                 if line.startswith('DSMC'):
@@ -59,8 +59,8 @@ class DSMC(Extension):
             dcs_home = self.server.instance.home
             shutil.copy2(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'),
                          os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak'))
-            with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua.bak') as infile:
-                with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua', 'w') as outfile:
+            with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak')) as infile:
+                with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), 'w') as outfile:
                     for line in infile.readlines():
                         if line.strip().startswith('DSMC_updateMissionList'):
                             line = line.replace('true', 'false', 1)
@@ -98,8 +98,8 @@ class DSMC(Extension):
             return False
         dcs_home = self.server.instance.home
         if not os.path.exists(os.path.join(dcs_home, 'DSMC')) or \
-                not os.path.exists(os.path.join(dcs_home, 'Scripts/Hooks/DSMC_hooks.lua')):
-            self.log.error(f'DSMC not installed in this server.')
+                not os.path.exists(os.path.join(dcs_home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')):
+            self.log.error(f'DSMC is not installed in this server.')
             return False
         return True
 

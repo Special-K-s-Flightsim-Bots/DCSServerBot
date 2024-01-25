@@ -362,9 +362,9 @@ def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Membe
         return False
     for role in member.roles:
         for valid_role in roles:
-            if isinstance(valid_role, str) and role.name == valid_role:
+            if isinstance(valid_role, int) and role.id == valid_role:
                 return True
-            elif isinstance(valid_role, int) and role.id == valid_role:
+            elif isinstance(valid_role, str) and role.name == valid_role:
                 return True
     return False
 

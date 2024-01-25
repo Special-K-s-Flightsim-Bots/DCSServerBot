@@ -362,7 +362,7 @@ class Scheduler(Plugin):
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[
-                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED
+                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING
                            ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
         async def do_shutdown(server: Server, *, force: bool = False, ephemeral: bool):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",

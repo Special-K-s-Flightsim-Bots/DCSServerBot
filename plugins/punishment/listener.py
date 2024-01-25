@@ -81,8 +81,8 @@ class PunishmentEventListener(EventListener):
                 if 'target' in data and data['target'] != -1:
                     target = server.get_player(name=data['target'])
                     if 'forgive' in config:
-                        target.sendChatMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
-                                               f"player {data['initiator']}.\nIf you send {self.prefix}forgive in this "
+                        target.sendUserMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
+                                               f"player {data['initiator']}.\nIf you send {self.prefix}forgive in "
                                                f"chat within the next {config['forgive']} seconds, you can pardon the "
                                                f"other player.")
                 else:
@@ -185,8 +185,8 @@ class PunishmentEventListener(EventListener):
                             player = self.bot.get_player_by_ucid(initiator)
                             if player:
                                 names.append(player.name)
-                                player.sendChatMessage(
-                                    f'You have been forgiven by {target.name} and will not be punished '
+                                player.sendUserMessage(
+                                    f'You have been forgiven by {target.name} and you will not be punished '
                                     f'for your recent actions.')
                         if not names:
                             names = ['another player']

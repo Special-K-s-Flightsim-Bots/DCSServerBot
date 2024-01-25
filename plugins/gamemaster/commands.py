@@ -337,7 +337,7 @@ class GameMaster(Plugin):
                         'command': 'uploadUserRoles',
                         'id': player.id,
                         'ucid': player.ucid,
-                        'roles': [x.name for x in after.roles]
+                        'roles': [x.id for x in after.roles]
                     })
 
     async def _create_embed(self, message: discord.Message) -> None:

@@ -40,8 +40,7 @@ class SlotBlocking(Plugin):
                     if not ucid:
                         return
                     roles = [
-                        discord.utils.get(self.bot.guilds[0].roles, name=x)
-                        for x in self.get_config(server).get('VIP', {}).get('discord', [])
+                        self.bot.get_role(x) for x in self.get_config(server).get('VIP', {}).get('discord', [])
                     ]
                     if not roles:
                         return
@@ -50,7 +49,7 @@ class SlotBlocking(Plugin):
                             server.send_to_dcs({
                                 'command': 'uploadUserRoles',
                                 'ucid': ucid,
-                                'roles': [x.name for x in after.roles]
+                                'roles': [x.id for x in after.roles]
                             })
                             break
 

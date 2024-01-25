@@ -221,10 +221,8 @@ class GameMasterEventListener(EventListener):
         try:
             if player.member:
                 roles = {
-                    Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=server.locals['coalitions']['red_role']),
-                    Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=server.locals['coalitions']['blue_role'])
+                    Coalition.RED: self.bot.get_role(server.locals['coalitions']['red_role']),
+                    Coalition.BLUE: self.bot.get_role(server.locals['coalitions']['blue_role'])
                 }
                 role = roles[player.coalition]
                 if role:
@@ -235,8 +233,8 @@ class GameMasterEventListener(EventListener):
     async def reset_coalitions(self, server: Server, discord_roles: bool):
         guild = self.bot.guilds[0]
         roles = {
-            "red": discord.utils.get(guild.roles, name=server.locals['coalitions']['red_role']),
-            "blue": discord.utils.get(guild.roles, name=server.locals['coalitions']['blue_role'])
+            "red": self.bot.get_role(server.locals['coalitions']['red_role']),
+            "blue": self.bot.get_role(server.locals['coalitions']['blue_role'])
         }
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -292,10 +290,8 @@ class GameMasterEventListener(EventListener):
         try:
             if player.member:
                 roles = {
-                    Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=server.locals['coalitions']['red_role']),
-                    Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=server.locals['coalitions']['blue_role'])
+                    Coalition.RED: self.bot.get_role(server.locals['coalitions']['red_role']),
+                    Coalition.BLUE: self.bot.get_role(server.locals['coalitions']['blue_role'])
                 }
                 await player.member.remove_roles(roles[player.coalition])
         except discord.Forbidden:

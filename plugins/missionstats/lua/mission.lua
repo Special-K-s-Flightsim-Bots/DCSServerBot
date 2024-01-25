@@ -30,9 +30,11 @@ end
 
 function onEvent(event)
 	if event then
-		local msg = {}
-		msg.command = 'onMissionEvent'
-		msg.id = event.id
+		local msg = {
+			command = 'onMissionEvent',
+			id = event.id,
+			time = event.time
+		}
 		if event.id == world.event.S_EVENT_SHOT then
 			msg.eventName = 'S_EVENT_SHOT'
 		elseif event.id == world.event.S_EVENT_HIT then
@@ -97,7 +99,6 @@ function onEvent(event)
 		else
 			return -- ignore other events
 		end
-		msg.time = event.time
 		if event.initiator then
 			msg.initiator = {}
 			category = Object.getCategory(event.initiator)

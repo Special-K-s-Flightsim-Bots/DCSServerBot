@@ -7,25 +7,6 @@ from .player import CreditPlayer
 
 class CreditSystemListener(EventListener):
 
-    def load_params_into_mission(self, server: Server):
-        config = self.plugin.get_config(server, use_cache=False)
-        if config:
-            server.send_to_dcs({
-                'command': 'loadParams',
-                'plugin': self.plugin_name,
-                'params': config
-            })
-
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # the server is running already
-        if data['channel'].startswith('sync-'):
-            self.load_params_into_mission(server)
-
-    @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self.load_params_into_mission(server)
-
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:
         default = 1
@@ -51,7 +32,7 @@ class CreditSystemListener(EventListener):
         if isinstance(config['initial_points'], int):
             return config['initial_points']
         elif isinstance(config['initial_points'], list):
-            roles = [x.name for x in player.member.roles] if player.member else []
+            roles = [x.id for x in player.member.roles] if player.member else []
             for element in config['initial_points']:
                 if 'discord' in element and element['discord'] in roles:
                     return element['points']
@@ -237,8 +218,7 @@ class CreditSystemListener(EventListener):
             gci_index = 0
 
         if gci_index not in range(0, len(active_gci)):
-            player.sendChatMessage(
-                f"Multiple GCIs found, use \"{self.prefix}tip points GCI-number\".")
+            player.sendChatMessage(f'Multiple GCIs found, use "{self.prefix}tip points gci_number".')
             for i, gci in enumerate(active_gci):
                 player.sendChatMessage(f"{i + 1}) {gci.name}")
             return

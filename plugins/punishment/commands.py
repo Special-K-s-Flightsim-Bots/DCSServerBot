@@ -79,7 +79,7 @@ class Punishment(Plugin):
 
         elif punishment['action'] == 'move_to_spec':
             server.move_to_spectators(player)
-            player.sendChatMessage(f"You've been kicked back to spectators because of: {reason}.")
+            player.sendUserMessage(f"You've been kicked back to spectators because of: {reason}.")
             await admin_channel.send(f"Player {player.display_name} (ucid={player.ucid}) moved to "
                                      f"spectators by {self.bot.member.name} for {reason}.")
 
@@ -99,7 +99,7 @@ class Punishment(Plugin):
         elif punishment['action'] == 'message':
             player.sendUserMessage(f"{player.name}, check your fire: {reason}!")  
         if points:
-            player.sendChatMessage(f"Your current punishment points are: {points}")
+            player.sendUserMessage(f"Your current punishment points are: {points}")
 
     # TODO: change to pubsub
     @tasks.loop(minutes=1.0)

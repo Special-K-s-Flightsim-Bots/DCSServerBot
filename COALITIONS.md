@@ -35,13 +35,13 @@ b) Roles for Coalitions
 # [...]
 roles:
   Admin:
-  - Admin
+  - 1234567890123456789 # role "Admin"
   DCS Admin:
-  - DCS Admin
+  - 9876543219876543210 # role "DCS Admin"
   DCS:
-  - DCS
+  - 1122334455667788990 # role "DCS"
   GameMaster:
-  - GameMaster      # GameMaster can see both sides, red and blue and fire specific commands to change the mission situation
+  - 9988776655443322110 # role "GameMaster"      # GameMaster can see both sides, red and blue and fire specific commands to change the mission situation
 # [...]
 ```
 
@@ -59,8 +59,8 @@ My Fancy Server:
   coalitions:
     lock_time: 1 day            # time in which you are not allowed to move to the opposite coalition after leaving one coalition
     allow_players_pool: false   # don't allow access to the players pool
-    blue_role: Coalition Blue   # Discord role for the blue coalition
-    red_role: Coalition Red     # Discord role for the red coalition
+    blue_role: 1234123412341234 # Discord role for the blue coalition
+    red_role: 43214321432143210 # Discord role for the red coalition
 ```
 > ⚠️ **Attention!**<br/>
 > Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 
@@ -73,11 +73,11 @@ The bot uses the following **internal** roles to apply specific permissions to c
 You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini 
 configuration file.
 
-| Role           | Description                                                                                                                                         |
-|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| GameMaster     | People with this role can see both coalitions and run specific commands that are helpful in missions.                                               |
-| Coalition Blue | People with this role are members of the blue coalition. See Coalitions below for details.                                                          |
-| Coalition Red  | People with this role are members of the red coalition. See Coalitions below for details.                                                           |
+| Role       | Description                                                                                                                                         |
+|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| GameMaster | People with this role can see both coalitions and run specific commands that are helpful in missions.                                               |
+| blue_role  | People with this role are members of the blue coalition. See Coalitions below for details.                                                          |
+| red_role   | People with this role are members of the red coalition. See Coalitions below for details.                                                           |
 
 ## Discord Commands
 These discord commands are either exclusively for coalition handling like .join and .leave or have been amended for 

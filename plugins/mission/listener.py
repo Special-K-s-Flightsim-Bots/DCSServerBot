@@ -212,26 +212,30 @@ class MissionEventListener(EventListener):
         server.current_mission.update(data)
 
     def _update_bans(self, server: Server):
+        def _get_until(until: datetime) -> str:
+            if until.year == 9999:
+                return 'never'
+            else:
+                return until.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                for ban in cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'):
-                    if ban['banned_until'].year == 9999:
-                        until = 'never'
-                    else:
-                        until = ban['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
-                    server.send_to_dcs({
-                        "command": "ban",
-                        "ucid": ban['ucid'],
-                        "reason": ban['reason'],
-                        "banned_until": until
-                    })
+                server.send_to_dcs({
+                   "command": "ban",
+                   "batch": [
+                       {
+                           "ucid": ban['ucid'],
+                           "reason": ban['reason'],
+                           "banned_until": _get_until(ban['banned_until'])
+                       }
+                       for ban in cursor.execute(
+                           'SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'
+                       )
+                    ]
+                })
 
     async def _watchlist_alert(self, server: Server, player: Player):
-        mentions = ''
-        for role_name in self.bot.roles['DCS Admin']:
-            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-            if role:
-                mentions += role.mention
+        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         embed = discord.Embed(title='Watchlist member joined!', colour=discord.Color.red())
         embed.description = "A user just joined that you put on the watchlist."
         embed.add_field(name="Server", value=server.name, inline=False)
@@ -355,7 +359,7 @@ class MissionEventListener(EventListener):
                 'command': 'uploadUserRoles',
                 'id': player.id,
                 'ucid': player.ucid,
-                'roles': [x.name for x in player.member.roles]
+                'roles': [x.id for x in player.member.roles]
             })
         if player.watchlist:
             await self._watchlist_alert(server, player)
@@ -581,11 +585,7 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
-        mentions = ''
-        for role_name in self.bot.roles['DCS Admin']:
-            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-            if role:
-                mentions += role.mention
+        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         message = ' '.join(params)
         embed = discord.Embed(title='MAYDAY // 911 Call', colour=discord.Color.blue())
         embed.set_image(url="https://media.tenor.com/pDRfpNAXfmcAAAAC/despicable-me-minions.gif")

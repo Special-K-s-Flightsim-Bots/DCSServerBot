@@ -225,7 +225,7 @@ class UserStatistics(Plugin):
                 server.send_to_dcs({
                     'command': 'uploadUserRoles',
                     'ucid': ucid,
-                    'roles': [x.name for x in member.roles]
+                    'roles': [x.id for x in member.roles]
                 })
 
     @command(description='Unlinks a member or ucid')

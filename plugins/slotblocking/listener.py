@@ -10,9 +10,27 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
+    def _migrate_roles(self, config: dict) -> None:
+        guild = self.bot.guilds[0]
+        roles = config.get('VIP', {}).get('discord', [])
+        if isinstance(roles, str) and not roles.isnumeric():
+            config['VIP']['discord'] = discord.utils.get(guild.roles, name=roles).id
+        else:
+            config['VIP']['discord'] = [
+                discord.utils.get(guild.roles, name=role).id for role in roles if not role.isnumeric()
+            ]
+        for restriction in config.get('restricted', []):
+            if 'discord' in restriction and not restriction['discord'].isnumeric():
+                role = discord.utils.get(guild.roles, name=restriction['discord'])
+                if not role:
+                    self.log.warning(f"Role {restriction['discord']} not found!")
+                else:
+                    restriction['discord'] = role.id
+
     def load_params_into_mission(self, server: Server):
         config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
+            self._migrate_roles(config)
             server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
@@ -25,6 +43,7 @@ class SlotBlockingListener(EventListener):
             if not roles:
                 return
             # get all linked members
+            batch = []
             with self.pool.connection() as conn:
                 for row in conn.execute("""
                     SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
@@ -32,14 +51,12 @@ class SlotBlockingListener(EventListener):
                     member = guild.get_member(row[1])
                     if not member:
                         continue
-                    for role in member.roles:
-                        if role in roles:
-                            server.send_to_dcs({
-                                'command': 'uploadUserRoles',
-                                'ucid': row[0],
-                                'roles': [x.name for x in member.roles]
-                            })
-                            break
+                    if any(role in roles for role in member.roles):
+                        batch.append({
+                            'ucid': row[0],
+                            'roles': [x.id for x in member.roles]
+                        })
+            server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
