@@ -16,32 +16,30 @@ local socket 	= require("socket")
 
 local dcsbotgui = {}
 
-local function establishUDPRecvSocket()
-	local host, port = config.DCS_HOST, config.DCS_PORT
-	local ip = socket.dns.toip(host)
-	dcsbotgui.UDPRecvSocket = socket.udp()
-	dcsbotgui.UDPRecvSocket:setsockname(ip, port)
-	dcsbotgui.UDPRecvSocket:settimeout(0.0001)
-	dcsbotgui.UDPRecvSocket:setoption('reuseaddr', true)
+local function createSimulationFrameHandler()
+    local host, port = config.DCS_HOST, config.DCS_PORT
+    local ip = socket.dns.toip(host)
+    local UDPRecvSocket = socket.udp()
+    UDPRecvSocket:setsockname(ip, port)
+    UDPRecvSocket:settimeout(0.0001)
+    UDPRecvSocket:setoption('reuseaddr', true)
+
+    return function()
+        local msg, err
+        repeat
+            msg, err = UDPRecvSocket:receive()
+            if not err then
+                local decoded = JSON:decode(msg)
+                local commandFunc = dcsbot[decoded.command]
+                if commandFunc then
+                    commandFunc(decoded)
+                end
+            end
+        until err
+    end
 end
 
-function dcsbotgui.onSimulationFrame()
-	-- general idea from HypeMan
-	if not dcsbotgui.UDPRecvSocket then
-		establishUDPRecvSocket()
-	end
-
-	local msg, err
-	repeat
-		msg, err = dcsbotgui.UDPRecvSocket:receive()
-		if err == nil then
-			local decoded = JSON:decode(msg)
-			if dcsbot[decoded.command] ~= nil then
-				dcsbot[decoded.command](decoded)
-			end
-		end
-	until err
-end
+dcsbotgui.onSimulationFrame = createSimulationFrameHandler()
 
 local function loadFile(path, name, plugin, env)
     if (lfs.attributes(path)) then

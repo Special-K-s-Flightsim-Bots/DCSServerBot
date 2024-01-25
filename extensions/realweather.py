@@ -70,7 +70,11 @@ class RealWeather(Extension):
     def is_installed(self) -> bool:
         if not self.config.get('enabled', True):
             return False
-        rw_home = os.path.expandvars(self.config['installation'])
+        installation = self.config.get('installation')
+        if not installation:
+            self.log.error("No 'installation' specified for RealWeather in your nodes.yaml!")
+            return False
+        rw_home = os.path.expandvars(installation)
         if not os.path.exists(os.path.join(rw_home, 'realweather.exe')):
             self.log.error(f'No realweather.exe found in {rw_home}')
             return False
