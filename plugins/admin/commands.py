@@ -659,7 +659,7 @@ class Admin(Plugin):
     @app_commands.describe(template="Take this instance configuration as a reference")
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
-                           template: app_commands.Transform[Instance, utils.InstanceTransformer]):
+                           template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
         instance = await node.add_instance(name, template=template)
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
