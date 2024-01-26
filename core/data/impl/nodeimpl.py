@@ -18,7 +18,6 @@ from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from discord.ext import tasks
-from git import InvalidGitRepositoryError, GitCommandError
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation
@@ -270,11 +269,10 @@ class NodeImpl(Node):
             shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
             os.remove(path)
 
-    async def upgrade_pending(self) -> bool:
-        self.log.debug('- Checking for updates...')
-        try:
-            import git
+    async def _upgrade_pending_git(self) -> bool:
+        import git
 
+        try:
             with closing(git.Repo('.')) as repo:
                 current_hash = repo.head.commit.hexsha
                 origin = repo.remotes.origin
@@ -282,16 +280,9 @@ class NodeImpl(Node):
                 new_hash = origin.refs[repo.active_branch.name].object.hexsha
                 if new_hash != current_hash:
                     return True
-        except (ImportError, InvalidGitRepositoryError):
-            async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL) as response:
-                    result = await response.json()
-                    current_version = __version__
-                    latest_version = result[0]["tag_name"]
-
-                    if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
-                        return True
-        except GitCommandError as ex:
+        except git.InvalidGitRepositoryError:
+            return await self.do_upgrade_non_git()
+        except git.GitCommandError as ex:
             self.log.error('  => Autoupdate failed!')
             changed_files = repo.index.diff(None)
             if changed_files:
@@ -301,11 +292,30 @@ class NodeImpl(Node):
             else:
                 self.log.error(ex)
             return False
+
+    async def _upgrade_pending_non_git(self) -> bool:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(REPO_URL) as response:
+                result = await response.json()
+                current_version = __version__
+                latest_version = result[0]["tag_name"]
+
+                if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
+                    return True
+        return False
+
+    async def upgrade_pending(self) -> bool:
+        self.log.debug('- Checking for updates...')
+        try:
+            rc = await self._upgrade_pending_git()
+        except ImportError:
+            rc = await self._upgrade_pending_non_git()
         except Exception as ex:
             self.log.exception(ex)
             raise
-        self.log.debug('- No update found for DCSServerBot.')
-        return False
+        if not rc:
+            self.log.debug('- No update found for DCSServerBot.')
+        return rc
 
     async def upgrade(self):
         if await self.upgrade_pending():
