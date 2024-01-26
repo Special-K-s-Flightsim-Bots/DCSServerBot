@@ -319,7 +319,6 @@ class Scheduler(Plugin):
                       server: app_commands.Transform[Server, utils.ServerTransformer],
                       maintenance: Optional[bool] = True, run_extensions: Optional[bool] = True,
                       mission_id: Optional[int] = None):
-        config = self.get_config(server)
         if server.status == Status.STOPPED:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
                                                     f"Please use /server start instead.", ephemeral=True)
@@ -535,8 +534,7 @@ class Scheduler(Plugin):
                         with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
                             yaml.dump(config, outfile)
                         await server.reload()
-                await interaction.response.send_message(
-                    f'Server configuration for server "{server.display_name}" updated.')
+                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')
         finally:
             await msg.delete()
 
