@@ -168,8 +168,7 @@ class NodeImpl(Node):
         else:
             del self.after_update[name]
 
-    @staticmethod
-    async def shutdown():
+    async def shutdown(self):
         await ServiceRegistry.shutdown()
         tasks = [t for t in asyncio.all_tasks() if t is not
                  asyncio.current_task()]
@@ -177,10 +176,9 @@ class NodeImpl(Node):
         await asyncio.gather(*tasks, return_exceptions=True)
         asyncio.get_event_loop().stop()
 
-    @staticmethod
-    async def restart():
+    async def restart(self):
         await ServiceRegistry.shutdown()
-        os.execv(sys.executable, ['python', 'run.py', '-n', self.node.name])
+        os.execv(sys.executable, ['python', 'run.py', '-n', self.name])
 
     def read_locals(self) -> dict:
         _locals = dict()
