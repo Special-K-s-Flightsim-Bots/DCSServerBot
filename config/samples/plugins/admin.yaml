@@ -18,6 +18,10 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: Missions
     directory: '{server.instance.home}\Missions'
     pattern: '*.miz'
+  # This is for DCS Trackfiles. Please keep in mind that these files can get really huge
+  - label: Trackfiles
+    directory: '{server.instance.home}\Tracks'
+    pattern: '*.trk'
   # This is for Tacview. If you use an instance-specific tacview directory, this needs to be changed.
   # Player-specific files aren't supported yet for download. See auto-upload to channels in the Tacview-extension.
   - label: Tacview
