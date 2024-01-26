@@ -677,7 +677,6 @@ class NodeImpl(Node):
             if server_initialized:
                 break
 
-
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
         max_bot_port = -1
         max_dcs_port = -1

@@ -124,6 +124,17 @@ class ServerImpl(Server):
         if not self._options:
             path = os.path.join(self.instance.home, 'Config', 'options.lua')
             self._options = utils.SettingsDict(self, path, 'options')
+            # no options.lua, create a minimalistic one
+            if 'graphics' not in self._options:
+                self._options["graphics"] = {
+                        "visibRange": "High"
+                }
+            if 'plugins' not in self._options:
+                self._options["plugins"] = {}
+            if 'difficulty' not in self._options:
+                self._options["difficulty"] = {}
+            if 'miscellaneous' not in self._options:
+                self._options["miscellaneous"] = {}
         return self._options
 
     def set_instance(self, instance: Instance):
