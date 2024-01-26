@@ -268,7 +268,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 database_url = next(node['database']['url'] for node in nodes.values() if node.get('database'))
                 url = urlparse(database_url)
                 hostname, port = self.get_database_host(url.hostname, url.port)
-                database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}/{url.path}?sslmode=prefer"
+                database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
             except StopIteration:
                 database_url = self.get_database_url()
 
