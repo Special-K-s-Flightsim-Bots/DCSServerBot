@@ -532,8 +532,7 @@ class Scheduler(Plugin):
                         with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
                             yaml.dump(config, outfile)
                         await server.reload()
-                await interaction.response.send_message(
-                    f'Server configuration for server "{server.display_name}" updated.')
+                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')
         finally:
             await msg.delete()
 
