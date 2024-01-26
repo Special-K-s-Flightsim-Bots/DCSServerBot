@@ -11,13 +11,12 @@ import tempfile
 import zipfile
 
 from contextlib import closing
-from git import InvalidGitRepositoryError
 from typing import Iterable, Optional
 
 from version import __version__
 
 
-def do_update_git() -> int:
+def do_update_git(delete: Optional[bool]) -> int:
     import git
 
     with closing(git.Repo('.')) as repo:
@@ -42,6 +41,8 @@ def do_update_git() -> int:
                         print('  => Autoupdate failed!')
                         print('     Please run update.cmd manually.')
                         return -1
+            except git.exc.InvalidGitRepositoryError:
+                return do_update_github(delete)
             except git.exc.GitCommandError:
                 print('  => Autoupdate failed!')
                 print('     Please revert back the changes in these files:')
@@ -136,8 +137,8 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
     args = parser.parse_args()
     try:
-        rc = do_update_git()
-    except (ImportError, InvalidGitRepositoryError):
+        rc = do_update_git(args.delete)
+    except ImportError:
         rc = do_update_github(args.delete)
     subprocess.Popen([sys.executable, 'run.py', '-n', args.node, '--noupdate'])
     sys.exit(rc)
