@@ -15,7 +15,7 @@ class SlotBlockingListener(EventListener):
         roles = config.get('VIP', {}).get('discord', [])
         if isinstance(roles, str) and not roles.isnumeric():
             config['VIP']['discord'] = discord.utils.get(guild.roles, name=roles).id
-        else:
+        elif roles:
             config['VIP']['discord'] = [
                 discord.utils.get(guild.roles, name=role).id for role in roles if not role.isnumeric()
             ]
