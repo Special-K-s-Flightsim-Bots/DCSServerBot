@@ -86,7 +86,7 @@ class CampaignFilter(StatisticsFilter):
         if period and period.startswith('campaign:'):
             period = period[9:]
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
-               f"WHERE name ILIKE '{period}')"
+               f"WHERE name ILIKE '{period}') AND m.server_name in (SELECT server_name FROM campaigns_servers)"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
