@@ -42,7 +42,7 @@ class PunishmentEventListener(EventListener):
                 # check if there is an exemption for this user
                 for exemption in config.get('exemptions', []):
                     if 'ucid' in exemption:
-                        if isinstance(exemption['ucid'], str):
+                        if not isinstance(exemption['ucid'], list):
                             ucids = [exemption['ucid']]
                         else:
                             ucids = exemption['ucid']
@@ -53,7 +53,7 @@ class PunishmentEventListener(EventListener):
                         member = self.bot.get_member_by_ucid(initiator.ucid)
                         if not member:
                             continue
-                        if isinstance(exemption['discord'], str):
+                        if not isinstance(exemption['discord'], list):
                             roles = [exemption['discord']]
                         else:
                             roles = exemption['discord']
