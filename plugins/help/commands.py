@@ -343,7 +343,7 @@ class Help(Plugin):
             message = ""
             discord_commands = await self.discord_commands_to_df(interaction)
             for index, row in discord_commands.iterrows():
-                if not role or role in row['Roles']:
+                if not role or role in row['Roles'].split(','):
                     message += f"**{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
                     if len(message) > 1900:
                         await channel.send(message)
