@@ -33,6 +33,7 @@ class DCSServerBot(commands.Bot):
         self.lock: asyncio.Lock = asyncio.Lock()
         self.synced: bool = False
         self.tree.on_error = self.on_app_command_error
+        self._roles = None
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.synced: bool = False
@@ -49,16 +50,17 @@ class DCSServerBot(commands.Bot):
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
-        roles = {
-            "Admin": ["Admin"],
-            "DCS Admin": ["DCS Admin"],
-            "DCS": ["DCS"]
-        } | self.locals.get('roles', {})
-        if 'GameMaster' not in roles:
-            roles['GameMaster'] = roles['DCS Admin']
-        if 'Alert' not in roles:
-            roles['Alert'] = roles['DCS Admin']
-        return roles
+        if not self._roles:
+            self._roles = {
+                "Admin": ["Admin"],
+                "DCS Admin": ["DCS Admin"],
+                "DCS": ["DCS"]
+            } | self.locals.get('roles', {})
+            if 'GameMaster' not in self._roles:
+                self._roles['GameMaster'] = self._roles['DCS Admin']
+            if 'Alert' not in self._roles:
+                self._roles['Alert'] = self._roles['DCS Admin']
+        return self._roles
 
     @property
     def filter(self) -> dict:

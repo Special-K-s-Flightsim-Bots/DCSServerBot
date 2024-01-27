@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin
+from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin, event
 from functools import partial
 from itertools import islice
 from typing import Optional
@@ -198,6 +198,18 @@ class VotingListener(EventListener):
             return
         all_votes[server.name] = VotingHandler(listener=self, item=item, server=server, config=config)
         await self.bot.audit("created a voting", user=player.member or player.ucid, server=server)
+
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if data['id'] == 1:
+            return
+        config = self.get_config(server)
+        if 'welcome_message' not in config:
+            return
+        player: Player = server.get_player(id=data['id'])
+        if player:
+            player.sendChatMessage(utils.format_string(config['welcome_message'], server=server, player=player,
+                                                       prefix=self.prefix))
 
     @chat_command(name="vote", help="start a voting or vote for a change")
     async def vote(self, server: Server, player: Player, params: list[str]):
