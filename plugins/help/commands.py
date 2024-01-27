@@ -344,7 +344,7 @@ class Help(Plugin):
             discord_commands = await self.discord_commands_to_df(interaction)
             for index, row in discord_commands.iterrows():
                 if not role or role in row['Roles']:
-                    message += f"**/{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
+                    message += f"**{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
                     if len(message) > 1900:
                         await channel.send(message)
                         message = ""
@@ -366,7 +366,7 @@ class Help(Plugin):
         if what == 'Commands':
             await self.generate_commands_doc(interaction, format, role, channel)
         elif what == 'Server':
-            await self.generate_server_doc(interaction, format, channel)
+            await self.generate_server_docs(interaction, format, channel)
         else:
             await interaction.response.send_message(f"Unknown option {what}", ephemeral=True)
 
