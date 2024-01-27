@@ -12,6 +12,7 @@ local table         = base.table
 local tonumber		= base.tonumber
 local DCS			= base.DCS
 local type			= base.type
+local os            = base.os
 
 local lfs			= require('lfs')
 local TableUtils 	= require('TableUtils')
