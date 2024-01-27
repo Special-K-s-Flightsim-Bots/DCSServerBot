@@ -612,3 +612,72 @@ class ServerImpl(Server):
             with suppress(NotImplementedError):
                 ret.append(await ext.render())
         return ret
+
+    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
+
+    async def setStartIndex(self, mission_id: int) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
+        else:
+            self.settings['listStartIndex'] = mission_id
+
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+        path = os.path.normpath(path)
+        missions = self.settings['missionList']
+        if path not in missions:
+            if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+                data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+                self.settings['missionList'] = data['missionList']
+            else:
+                missions.append(path)
+                self.settings['missionList'] = missions
+        elif autostart:
+            self.settings['listStartIndex'] = missions.index(path) + 1
+
+    async def deleteMission(self, mission_id: int) -> None:
+        if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
+            raise AttributeError("Can't delete the running mission!")
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
+            self.settings['missionList'] = data['missionList']
+        else:
+            missions = self.settings['missionList']
+            del missions[mission_id - 1]
+            self.settings['missionList'] = missions
+
+    async def replaceMission(self, mission_id: int, path: str) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
+        else:
+            missions: list[str] = self.settings['missionList']
+            missions[mission_id - 1] = path
+
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+        if isinstance(mission, int):
+            if mission > len(self.settings['missionList']):
+                mission = 1
+            filename = self.settings['missionList'][mission - 1]
+        else:
+            filename = mission
+        if modify_mission:
+            filename = await self.apply_mission_changes(filename)
+        stopped = self.status == Status.STOPPED
+        try:
+            idx = self.settings['missionList'].index(filename) + 1
+            if idx == int(self.settings['listStartIndex']):
+                self.send_to_dcs({"command": "startMission", "filename": filename})
+            else:
+                self.send_to_dcs({"command": "startMission", "id": idx})
+        except ValueError:
+            self.send_to_dcs({"command": "startMission", "filename": filename})
+        if not stopped:
+            # wait for a status change (STOPPED or LOADING)
+            await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
+        else:
+            self.send_to_dcs({"command": "start_server"})
+        # wait until we are running again
+        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
+
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)

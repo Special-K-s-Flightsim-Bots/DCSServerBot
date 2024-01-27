@@ -513,6 +513,9 @@ class NodeImpl(Node):
                                 else:
                                     # something went wrong, we need to upgrade again
                                     await self.upgrade()
+                            elif cluster['version'] != __version__:
+                                cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
+                                               (__version__, self.guild_id))
                             return True
                         # we are not the master, the update is pending, we will not take over
                         if cluster['update_pending']:
@@ -532,8 +535,8 @@ class NodeImpl(Node):
                                 (self.name, Json(data), 2))
                             return False
                         elif current_version > db_version:
-                            self.log.warning(f"This node is running on version {current_version} where the master "
-                                             f"still runs on {db_version}. You need to upgrade your master node!")
+                            self.log.warning(f"This node is running on version {__version__} where the master still "
+                                             f"runs on {cluster['version']}. You need to upgrade your master node!")
                         # we are not the master, but we are the preferred one, taking over
                         if self.locals.get('preferred_master', False):
                             cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
