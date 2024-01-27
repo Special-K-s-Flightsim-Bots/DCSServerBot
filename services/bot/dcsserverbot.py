@@ -49,13 +49,16 @@ class DCSServerBot(commands.Bot):
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
-        return {
+        roles = {
             "Admin": ["Admin"],
-            "Alert": ["DCS Admin"],
             "DCS Admin": ["DCS Admin"],
-            "DCS": ["DCS"],
-            "GameMaster": ["GameMaster"]
+            "DCS": ["DCS"]
         } | self.locals.get('roles', {})
+        if 'GameMaster' not in roles:
+            roles['GameMaster'] = roles['DCS Admin']
+        if 'Alert' not in roles:
+            roles['Alert'] = roles['DCS Admin']
+        return roles
 
     @property
     def filter(self) -> dict:
