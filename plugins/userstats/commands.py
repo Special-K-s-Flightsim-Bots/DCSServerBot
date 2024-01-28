@@ -180,10 +180,10 @@ class UserStatistics(Plugin):
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(ucid, discord.Member):
             if ucid == member:
-                await interaction.response.send_message(
-                    "This member is linked to this UCID already.", ephemeral=ephemeral)
+                await interaction.followup.send("This member is linked to this UCID already.", ephemeral=ephemeral)
                 return
             else:
                 _member = ucid
@@ -209,9 +209,8 @@ class UserStatistics(Plugin):
                 conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
                 # delete a token, if one existed
                 conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
-        await interaction.response.send_message(
-            f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}',
-            ephemeral=utils.get_ephemeral(interaction))
+        await interaction.followup.send(f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}',
+                                        ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
         # check if they are an active player on any of our servers
@@ -225,7 +224,7 @@ class UserStatistics(Plugin):
                 server.send_to_dcs({
                     'command': 'uploadUserRoles',
                     'ucid': ucid,
-                    'roles': [x.name for x in member.roles]
+                    'roles': [x.id for x in member.roles]
                 })
 
     @command(description='Unlinks a member or ucid')
