@@ -315,7 +315,6 @@ class PersistentReport(Report):
         try:
             env = await super().render(*args, **kwargs)
             file = discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
-            self.log.debug(f"Pushing persistent embed {self.embed_name} to channel {self.channel_id}")
             await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
                                     file=file, server=self.server)
             return env
