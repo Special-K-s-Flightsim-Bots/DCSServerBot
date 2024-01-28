@@ -176,10 +176,9 @@ class NodeImpl(Node):
         await asyncio.gather(*tasks, return_exceptions=True)
         asyncio.get_event_loop().stop()
 
-    @staticmethod
-    async def restart():
+    async def restart(self):
         await ServiceRegistry.shutdown()
-        os.execv(sys.executable, ['python', 'run.py', '-n', self.node.name])
+        os.execv(sys.executable, ['python', 'run.py', '-n', self.name])
 
     def read_locals(self) -> dict:
         _locals = dict()
@@ -678,7 +677,6 @@ class NodeImpl(Node):
                     server_initialized = False
             if server_initialized:
                 break
-
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
         max_bot_port = -1
