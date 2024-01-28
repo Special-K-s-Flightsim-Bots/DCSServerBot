@@ -33,6 +33,20 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
     return choices[:25]
 
 
+async def watchlist_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
+    with interaction.client.pool.connection() as conn:
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
+            for row in conn.execute("""
+                SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
+            """, ('%' + current + '%', '%' + current + '%')).fetchall()
+        ]
+        return choices[:25]
+
+
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
@@ -249,33 +263,20 @@ class Admin(Plugin):
     @dcs.command(description='Removes a player from the watchlist')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def unwatch(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                          sel_type=PlayerType.PLAYER)]] = None):
-        if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
-            if not ucid:
-                await interaction.response.send_message(f"Member {user.display_name} is not linked.")
-                return
-        else:
-            ucid = user
+    @app_commands.autocomplete(user=watchlist_autocomplete)
+    async def unwatch(self, interaction: discord.Interaction, user: str):
         for server in self.bus.servers.values():
-            player = server.get_player(ucid=ucid)
+            player = server.get_player(ucid=user)
             if player:
-                if not player.watchlist:
-                    await interaction.response.send_message(f"Player {player.display_name} wasn't on the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
-                else:
-                    player.watchlist = False
-                    await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
+                player.watchlist = False
+                await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
+                                                        ephemeral=utils.get_ephemeral(interaction))
                 return
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (ucid, ))
-        await interaction.response.send_message(
-            "Player {} removed from the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
-            ephemeral=utils.get_ephemeral(interaction))
+                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
+        await interaction.response.send_message(f"Player {user} removed from the watchlist.",
+                                                ephemeral=utils.get_ephemeral(interaction))
 
     @dcs.command(description='Shows the watchlist')
     @app_commands.guild_only()

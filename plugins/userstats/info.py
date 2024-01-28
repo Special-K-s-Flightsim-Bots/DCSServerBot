@@ -120,7 +120,8 @@ class History(report.EmbedElement):
                     utils.escape_string(row['name'] or 'n/a') for row in rows
                 ]))
                 self.add_field(name='Time (UTC)', value='\n'.join([
-                    f"{row['time']:%Y-%m-%d %H:%M:%S}" for row in rows
+                    f'{row["time"].replace(tzinfo=timezone.utc).strftime("%y-%m-%d %H:%Mz")} / '
+                    f'<t:{int(row["time"].replace(tzinfo=timezone.utc).timestamp())}:R>' for row in rows
                 ]))
                 self.add_field(name='_ _', value='_ _')
 

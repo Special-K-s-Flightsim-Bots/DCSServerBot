@@ -2,6 +2,7 @@ import discord
 import psycopg
 
 from contextlib import closing
+from datetime import timezone
 from discord import app_commands, SelectOption
 from core import utils, Plugin, PluginRequiredError, Group
 from psycopg.rows import dict_row
@@ -100,7 +101,7 @@ class CreditSystem(Plugin):
                 points = row['new_points'] - row['old_points']
                 if points == 0:
                     continue
-                times += f"{row['time']:%m-%d %H:%M}\n"
+                times += f"<t:{int(row['time'].replace(tzinfo=timezone.utc).timestamp())}:R>\n"
                 events += row['event'].title() + '\n'
                 deltas += f"{points}\n"
             embed.add_field(name='Time', value=times)
