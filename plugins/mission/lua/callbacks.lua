@@ -258,9 +258,9 @@ function mission.onPlayerChangeSlot(id)
 
     -- DCS MC bug workaround
     if msg.sub_slot > 0 then
-        if dcsbot.blue_slots[net.get_player_info(PlayerId, 'slot')] ~= nil then
+        if dcsbot.blue_slots[net.get_player_info(id, 'slot')] ~= nil then
             msg.side = 2
-        elseif dcsbot.red_slots[net.get_player_info(PlayerId, 'slot')] ~= nil then
+        elseif dcsbot.red_slots[net.get_player_info(id, 'slot')] ~= nil then
             msg.side = 1
         end
     end
@@ -302,10 +302,10 @@ end
 
 local function handleTakeoffLanding(arg1)
     if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
-        return
+        return False
     end
     if utils.isWithinInterval(mission.last_to_landing[arg1], 10) then
-        return
+        return False
     else
         mission.last_to_landing[arg1] = os.clock()
     end
@@ -319,16 +319,16 @@ local eventHandlers = {
     landing = handleTakeoffLanding,
     friendly_fire = function(arg1, arg2, arg3)
         unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
-        display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
+        display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(slot), "DisplayName")
         -- do we have collisions (weapon == unit name)
         if display_name == arg2 then
             -- ignore "spawn on top"
             if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
-                return
+                return False
             end
             -- ignore multiple collisions that happened in-between 10s
             if utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3 then
-                return
+                return False
             else
                 mission.last_collision[arg1] = os.clock()
                 mission.last_victim[arg1] = arg3
@@ -341,10 +341,13 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
     -- Call the appropriate handler based on the eventName
     if eventHandlers[eventName] then
-      eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        result = eventHandlers[eventName](arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        if result == false then
+            return
+        end
     end
 
-	local msg = {
+    local msg = {
         command = 'onGameEvent',
         eventName = eventName,
         arg1 = arg1,
@@ -377,21 +380,13 @@ function mission.onPlayerTrySendChat(from, message, to)
         msg.to = to
         utils.sendBotTable(msg)
         return ''
-    else
-        msg.command = 'onChatMessage'
-        msg.message = message
-        msg.from = net.get_player_info(from, 'id')
-        msg.to = to
-        if msg.from_id ~= 1 then
-            utils.sendBotTable(msg)
-        end
     end
     return message
 end
 
 function mission.onChatMessage(message, from, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
-    if from ~= 0 then
+    if from ~= 1 then
         local msg = {
             command = 'onChatMessage',
             message = message,
