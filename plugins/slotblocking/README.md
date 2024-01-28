@@ -35,14 +35,15 @@ DCS.openbeta_server:
   restricted:             # in this example we restrict by credit points
   - group_name: Rookie    # this tag has to be in the group name of the respective units (best is to prepend it)
     points: 10            # you need at least 10 credit points to join this unit
-    costs: 10             # the unit will cost you 10 points, depending on the reservations (see below)
+    costs: 10             # the unit will cost you 10 points, depending on the payback (see below)
   - group_name: Veteran
     points: 20
     costs: 10
   - group_name: Ace
     points: 50
     costs: 30
-  use_reservations: true  # If true, you will only lose "costs" credits, if you don't return the plane safely home (landing).
+  payback: true         # payback the plane costs on proper landings, otherwise charge by usage
+  multiplier: 1         # multiplier for credit points on proper landings (if payback is true, 0 = disabled, 1 = double points, 2 = triple points, etc.)
 ```
 Each unit can be either defined by its "group_name" or "unit_name", which are substrings/[pattern](https://riptutorial.com/lua/example/20315/lua-pattern-matching) of the names 
 used in your mission or by its "unit_type". The restriction can either be credit "points" that you gain by kills or 
@@ -94,7 +95,7 @@ Life will be taken if you hop in your plane already. You get it back, if you lan
 you can select another slot.<p>
 slotblocking.yaml:
 ```yaml
-use_reservations: true  # this enables the reservation system
+payback: true           # you get the costs back on landing
 restricted:
   - group_name: ".+"    # true for each unit / group 
     points:  1          # you need 1 credit point to enter
