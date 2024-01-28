@@ -50,7 +50,8 @@ class GameMaster(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
         if days > -1:
-            conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(
+                f"DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):

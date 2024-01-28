@@ -4,7 +4,7 @@ import re
 
 from contextlib import closing
 from core import report, utils, EmbedElement, NothingToPlot
-from datetime import datetime, timezone
+from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 from typing import Optional
@@ -19,7 +19,7 @@ class LSORating(report.EmbedElement):
         grade = GRADES[landing['grade']]
         comment = landing['comment'].replace('/', '')
 
-        self.add_field(name="Date/Time", value=f"{landing['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}")
+        self.add_field(name="Date/Time", value=f"{landing['time']:%y-%m-%d %H:%M:%S}")
         self.add_field(name="Plane", value=f"{landing['unit_type']}")
         self.add_field(name="Carrier", value=f"{landing['place']}")
 

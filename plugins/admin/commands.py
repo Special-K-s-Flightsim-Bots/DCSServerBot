@@ -5,7 +5,6 @@ import shutil
 
 from contextlib import closing
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType
-from datetime import timezone
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -211,7 +210,7 @@ class Admin(Plugin):
         if ban['banned_until'].year == 9999:
             until = 'never'
         else:
-            until = ban['banned_until'].astimezone(timezone.utc).strftime('%y-%m-%d %H:%M')
+            until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
         embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}")
         embed.add_field(name='Reason', value=ban['reason'])
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
@@ -456,7 +455,8 @@ class Admin(Plugin):
                             await interaction.followup.send(f"Data of user {user} deleted.")
                             return
                     if view.what in ['users', 'non-members']:
-                        sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
+                        sql = (f"SELECT ucid FROM players "
+                               f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")
                         if view.what == 'non-members':
                             sql += ' AND discord_id = -1'
                         ucids = [row[0] for row in cursor.execute(sql).fetchall()]

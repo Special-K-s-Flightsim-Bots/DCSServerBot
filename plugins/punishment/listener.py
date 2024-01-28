@@ -21,7 +21,7 @@ class PunishmentEventListener(EventListener):
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
-                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, NOW()) - hop_on)))) / 3600, 0) 
+                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, now() AT TIME ZONE 'utc') - hop_on)))) / 3600, 0) 
                            AS playtime 
                     FROM statistics WHERE player_ucid = %s
                 """, (player.ucid, ))

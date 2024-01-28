@@ -1,0 +1,1 @@
+ALTER TABLE campaigns ALTER COLUMN start SET DEFAULT (now() AT TIME ZONE 'utc');

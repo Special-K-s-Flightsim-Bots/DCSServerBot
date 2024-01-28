@@ -494,8 +494,10 @@ class ServerImpl(Server):
         self.send_to_dcs({"command": "getMissionUpdate"})
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',
-                             (self.node.name, self.name))
+                conn.execute("""
+                    UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
+                    WHERE node = %s AND server_name = %s
+                """, (self.node.name, self.name))
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False

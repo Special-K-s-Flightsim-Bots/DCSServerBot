@@ -302,9 +302,10 @@ def get_all_servers(self) -> list[str]:
     """
     with self.pool.connection() as conn:
         return [
-            row[0] for row in conn.execute(
-                "SELECT server_name FROM instances WHERE last_seen > (DATE(NOW()) - interval '1 week')"
-            ).fetchall()
+            row[0] for row in conn.execute("""
+                SELECT server_name FROM instances 
+                WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
+            """).fetchall()
         ]
 
 

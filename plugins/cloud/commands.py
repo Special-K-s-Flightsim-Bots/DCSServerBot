@@ -261,7 +261,7 @@ class CloudHandler(Plugin):
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
                     SELECT count(distinct node) as num_bots, count(distinct instance) as num_servers 
-                    FROM instances WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                    FROM instances WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
                 """)
                 if cursor.rowcount == 0:
                     num_bots = num_servers = 0

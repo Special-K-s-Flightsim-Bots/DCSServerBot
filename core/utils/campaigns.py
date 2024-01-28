@@ -24,12 +24,12 @@ def get_running_campaign(bot: DCSServerBot, server: Optional[Server] = None) -> 
                 cursor.execute("""
                     SELECT id, name FROM campaigns c, campaigns_servers s 
                     WHERE c.id = s.campaign_id AND s.server_name = %s 
-                    AND NOW() BETWEEN c.start AND COALESCE(c.stop, NOW())
+                    AND (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc')
                 """, (server.name,))
             else:
                 cursor.execute("""
                     SELECT id, name FROM campaigns
-                    WHERE NOW() BETWEEN start AND COALESCE(stop, NOW())
+                    WHERE (now() AT TIME ZONE 'utc') BETWEEN start AND COALESCE(stop, now() AT TIME ZONE 'utc')
                 """)
             if cursor.rowcount == 1:
                 row = cursor.fetchone()

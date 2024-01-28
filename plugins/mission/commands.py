@@ -6,7 +6,7 @@ import re
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, UploadStatus
-from datetime import datetime
+from datetime import datetime, timezone
 from discord import Interaction, app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
@@ -685,7 +685,7 @@ class Mission(Plugin):
                 if (datetime.now() - dt).total_seconds() > minutes * 60:
                     afk.append(player)
 
-        if len(afk):
+        if afk:
             title = 'AFK Players'
             if server:
                 title += f' on {server.name}'
@@ -694,7 +694,7 @@ class Mission(Plugin):
             for player in sorted(afk, key=lambda x: x.server.name):
                 embed.add_field(name='Name', value=player.display_name)
                 embed.add_field(name='Time',
-                                value=utils.format_time(int((datetime.now() -
+                                value=utils.format_time(int((datetime.now(timezone.utc) -
                                                              player.server.afk[player.ucid]).total_seconds())))
                 if server:
                     embed.add_field(name='_ _', value='_ _')
@@ -826,7 +826,7 @@ class Mission(Plugin):
                     player = server.get_player(ucid=ucid, active=True)
                     if not player or player.has_discord_roles(['DCS Admin', 'GameMaster']):
                         continue
-                    if (datetime.now() - dt).total_seconds() > max_time:
+                    if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
                         msg = self.get_config(server).get(
                             'message_afk', '{player.name}, you have been kicked for being AFK for '
                                            'more than {time}.'.format(player=player, time=utils.format_time(max_time)))

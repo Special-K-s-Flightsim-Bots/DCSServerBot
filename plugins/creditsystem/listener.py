@@ -141,8 +141,12 @@ class CreditSystemListener(EventListener):
                     ppk = self.get_points_per_kill(config, data)
                     if ppk:
                         old_points = player.points
+                        # We will add the PPK to the deposit to allow for multiplied packbacks
+                        # (to be configured in Slotblocking)
+                        if player.deposit:
+                            player.deposit += ppk
                         player.points += ppk
-                        player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+                        player.audit('kill', old_points, f"for killing {data['arg5']}")
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]

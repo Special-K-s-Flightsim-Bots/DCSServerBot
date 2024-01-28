@@ -120,7 +120,7 @@ class CompetitiveListener(EventListener):
                                       f"joined the {player.side.name} team!")
             # inform the players if the match is on now
             if not is_on and match.is_on():
-                match.started = datetime.now()
+                match.started = datetime.now(timezone.utc)
                 await self.inform_players(match, "The match is on! If you die, crash or leave now, you lose!")
 
     def get_rating(self, player: Player) -> Rating:
@@ -153,6 +153,7 @@ class CompetitiveListener(EventListener):
         def print_crew(players: list[Player]) -> str:
             return ' and '.join([p.name for p in players])
 
+        now = datetime.now(timezone.utc)
         if data['eventName'] == 'kill':
             # human players only
             if data['arg1'] == -1 or data['arg4'] == -1:
@@ -170,7 +171,7 @@ class CompetitiveListener(EventListener):
             match: Match = self.in_match[server.name].get(killers[0].ucid)
             if match:
                 for player in victims:
-                    match.log.append((datetime.now(), "{} in {} {} {} in {} with {}".format(
+                    match.log.append((now, "{} in {} {} {} in {} with {}".format(
                         print_crew(killers), data['arg2'],
                         'killed' if data['arg3'] != data['arg4'] else 'team-killed',
                         print_crew(victims), data['arg5'],
@@ -193,7 +194,7 @@ class CompetitiveListener(EventListener):
                 return
             match: Match = self.in_match[server.name].get(players[0].ucid)
             if match:
-                match.log.append((datetime.now(), "{} in {} died ({})".format(
+                match.log.append((now, "{} in {} died ({})".format(
                     print_crew(players), data['arg2'], data['eventName'])))
                 for player in players:
                     match.player_dead(player)
@@ -210,7 +211,7 @@ class CompetitiveListener(EventListener):
                 players = [player]
             match: Match = self.in_match[server.name].get(player.ucid)
             if match:
-                match.log.append((datetime.now(), "{} in {} died ({})".format(
+                match.log.append((now, "{} in {} died ({})".format(
                     print_crew(players), data['arg2'], data['eventName'])))
                 for player in players:
                     match.player_dead(player)
@@ -239,7 +240,7 @@ class CompetitiveListener(EventListener):
                         message += f"- {player.name}\n"
                     message += "\nThis is the log of your last match:\n"
                     for time, log in match.log:
-                        message += f"{time.astimezone(timezone.utc):%H:%M:%S}: {log}\n"
+                        message += f"{time:%H:%M:%S}: {log}\n"
                     message += "\nYour new rating is as follows:\n"
                     for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                         message += f"- {player.name}: {self.calculate_rating(self.get_rating(player))}\n"

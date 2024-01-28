@@ -160,7 +160,7 @@ class Footer(report.EmbedElement):
                     (server.name in listener.statistics):
                 text += '\n- User statistics are enabled for this server.'
                 break
-        text += f'\n\nLast updated: {datetime.now().astimezone(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
+        text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
         self.embed.set_footer(text=text)
 
 

@@ -1,9 +1,17 @@
 import discord
+import os
+
 from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands
+from pathlib import Path
 from services import DCSServerBot
 from typing import Optional, Type
+
 from .listener import SlotBlockingListener
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class SlotBlocking(Plugin):
@@ -12,6 +20,28 @@ class SlotBlocking(Plugin):
         super().__init__(bot, eventlistener=eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
+
+    def migrate(self, version: str) -> None:
+        def _change_instance(instance: dict):
+            if instance.get('use_reservations'):
+                instance['payback'] = instance['use_reservations']
+                del instance['use_reservations']
+
+        if version == '3.1':
+            path = os.path.join('config', 'plugins', self.plugin_name + '.yaml')
+            data = yaml.load(Path(path).read_text(encoding='utf-8'))
+            if self.node.name in data.keys():
+                for name, node in data.items():
+                    if name == DEFAULT_TAG:
+                        _change_instance(node)
+                        continue
+                    for instance in node.values():
+                        _change_instance(instance)
+            else:
+                for instance in data.values():
+                    _change_instance(instance)
+            with open(path, 'w', encoding='utf-8') as outfile:
+                yaml.dump(data, outfile)
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:

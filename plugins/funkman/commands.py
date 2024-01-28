@@ -74,8 +74,12 @@ class FunkMan(Plugin):
                 conn.execute('DELETE FROM bomb_runs WHERE player_ucid = %s', (ucid,))
                 conn.execute('DELETE FROM strafe_runs WHERE player_ucid = %s', (ucid,))
         elif days > -1:
-            conn.execute(f"DELETE FROM bomb_runs WHERE time < (DATE(NOW()) - interval '{days} days')")
-            conn.execute(f"DELETE FROM strafe_runs WHERE time < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(f"""
+                DELETE FROM bomb_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
+            """)
+            conn.execute(f"""
+                DELETE FROM strafe_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
+            """)
         self.log.debug('FunkMan pruned.')
 
 

@@ -58,7 +58,7 @@ class Server(DataObject):
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
     bus: ServiceBus = field(compare=False, init=False)
-    last_seen: datetime = field(compare=False, default=datetime.now())
+    last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
 
     def __post_init__(self):
         super().__post_init__()

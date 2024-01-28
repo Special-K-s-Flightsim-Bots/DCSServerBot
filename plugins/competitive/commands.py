@@ -75,11 +75,9 @@ class Competitive(Plugin):
         elif not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
             raise discord.app_commands.CheckFailure()
         if isinstance(user, discord.Member):
-            member = user
             ucid = self.bot.get_ucid_by_member(user)
         else:
             ucid = user
-            member = self.bot.get_member_by_ucid(ucid)
         if not ucid:
             await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
             return

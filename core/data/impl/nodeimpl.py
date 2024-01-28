@@ -109,7 +109,7 @@ class NodeImpl(Node):
                 with conn.transaction():
                     conn.execute("""
                         INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
+                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
                     """, (self.guild_id, self.name))
             self._master = await self.check_master()
         except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):

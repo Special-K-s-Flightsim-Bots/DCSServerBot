@@ -216,7 +216,7 @@ class MissionEventListener(EventListener):
             if until.year == 9999:
                 return 'never'
             else:
-                return until.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+                return until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
 
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -284,7 +284,7 @@ class MissionEventListener(EventListener):
             else:
                 player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
-                server.afk[player.ucid] = datetime.now()
+                server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
         for p in list(server.players.values()):
             if not p.active and not p.id == 1:
@@ -377,7 +377,7 @@ class MissionEventListener(EventListener):
         else:
             player.update(data)
         # add the player to the afk list
-        server.afk[player.ucid] = datetime.now()
+        server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -393,12 +393,27 @@ class MissionEventListener(EventListener):
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
+    def _disconnect(self, server: Server, player: Player):
+        if not player or not player.active:
+            return
+        try:
+            self.send_dcs_event(server, player.side,
+                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
+        finally:
+            player.active = False
+            if player.ucid in server.afk:
+                del server.afk[player.ucid]
+            self.display_mission_embed(server)
+            self.display_player_embed(server)
+
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        if 'side' not in data:
-            return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(id=data['id'], active=True)
         if not player:
+            return
+        # Workaround for missing disconnect events
+        if 'side' not in data:
+            self._disconnect(server, player)
             return
         try:
             if Side(data['side']) != Side.SPECTATOR:
@@ -409,7 +424,7 @@ class MissionEventListener(EventListener):
                     player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
                     data['name'], Side(data['side']).name, data['unit_type']))
             else:
-                server.afk[player.ucid] = datetime.now()
+                server.afk[player.ucid] = datetime.now(timezone.utc)
                 self.send_dcs_event(server, Side.SPECTATOR,
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                           data['name']))
@@ -428,18 +443,7 @@ class MissionEventListener(EventListener):
         elif data['eventName'] == 'disconnect':
             if data['arg1'] == 1:
                 return
-            player = server.get_player(id=data['arg1'])
-            if not player:
-                return
-            try:
-                self.send_dcs_event(server, player.side,
-                                    self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
-            finally:
-                player.active = False
-                if player.ucid in server.afk:
-                    del server.afk[player.ucid]
-                self.display_mission_embed(server)
-                self.display_player_embed(server)
+            self._disconnect(server, server.get_player(id=data['arg1'], active=True))
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
             player2 = server.get_player(id=data['arg3'])
@@ -447,7 +451,7 @@ class MissionEventListener(EventListener):
             if not player2:
                 return
             # filter AI-only events
-            if not player1 and not player2 and not server.locals.get('display_ai_chat', False):
+            if not player1 and not server.locals.get('display_ai_chat', False):
                 return
             side = player1.side if player1 else player2.side if player2 else Side.UNKNOWN
             self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(

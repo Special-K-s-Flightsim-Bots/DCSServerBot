@@ -62,7 +62,9 @@ class UserStatistics(Plugin):
             for ucid in ucids:
                 conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
         elif days > -1:
-            conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(f"""
+                DELETE FROM statistics WHERE hop_off < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
+            """)
         self.log.debug('Userstats pruned.')
 
     async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:

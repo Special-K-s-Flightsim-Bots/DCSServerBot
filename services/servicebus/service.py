@@ -297,8 +297,8 @@ class ServiceBus(Service):
 
     def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
-            until: datetime = datetime.now() + timedelta(days=days)
-            until_str = until.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+            until = datetime.utcnow() + timedelta(days=days)
+            until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
         else:
             until = datetime(year=9999, month=12, day=31)
             until_str = 'never'
@@ -345,15 +345,16 @@ class ServiceBus(Service):
                         SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
                                b.banned_until 
                         FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
-                        WHERE b.banned_until >= NOW()
+                        WHERE b.banned_until >= (now() AT TIME ZONE 'utc')
                     """)
                 ]
 
     def is_banned(self, ucid: str) -> Optional[dict]:
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()",
-                                      (ucid, )).fetchone()
+                return cursor.execute(
+                    "SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')",
+                    (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
