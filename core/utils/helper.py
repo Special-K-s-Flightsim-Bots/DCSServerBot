@@ -363,24 +363,24 @@ def get_presets() -> Iterable[str]:
     return presets
 
 
-def get_preset(name: str, filename: Optional[str] = None) -> Optional[dict]:
+def get_preset(name: str, filename: Optional[str] = None) -> Optional[Union[list, dict]]:
     """
     :param name: The name of the preset to retrieve.
     :param filename: The optional filename of the preset file to search in. If not provided, it will search for preset files in the 'config' directory.
     :return: The dictionary containing the preset data if found, or None if the preset was not found.
     """
-    def _get_preset_from_file(filename: str) -> Optional[dict]:
-        with open(filename, encoding='utf-8') as infile:
-            data = yaml.load(infile)
-            if name in data:
-                return data[name]
-        return None
+    def _read_presets_from_file(filename: Path, name: str) -> Optional[Union[list, dict]]:
+        all_presets = yaml.load(filename.read_text(encoding='utf-8'))
+        preset = all_presets.get(name)
+        if isinstance(preset, list):
+            return {k: v for d in preset for k, v in all_presets.get(d, {}).items()}
+        return preset
 
     if filename:
-        return _get_preset_from_file(filename)
+        return _read_presets_from_file(Path(filename), name)
     else:
         for file in Path('config').glob('presets*.yaml'):
-            preset = _get_preset_from_file(str(file))
+            preset = _read_presets_from_file(file, name)
             if preset:
                 return preset
     return None

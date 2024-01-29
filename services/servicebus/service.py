@@ -56,8 +56,8 @@ class ServiceBus(Service):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
-                    conn.execute("DELETE FROM files WHERE created < NOW() - interval '300 seconds'")
-                    conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
+                    conn.execute("DELETE FROM files WHERE created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')")
+                    conn.execute("DELETE FROM intercom WHERE time < ((now() AT TIME ZONE 'utc') - interval '300 seconds')")
                     if self.master:
                         conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)

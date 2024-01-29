@@ -175,9 +175,9 @@ class MonitoringService(Service):
         for server in self.bus.servers.values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
-            if not await server.is_running():
-                self.log.warning(f"Could not find a running DCS instance for server {server.name}, "
-                                 f"skipping server load gathering.")
+            if not server.process:
+                self.log.warning(f"DCSServerBot is not attached to a DCS.exe or DCS_Server.exe process on "
+                                 f"server {server.name}, skipping server load gathering.")
                 continue
             try:
                 cpu = server.process.cpu_percent()
