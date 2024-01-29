@@ -138,9 +138,9 @@ class MonitoringService(Service):
             # don't test remote servers or servers that are not initialized or shutdown
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
-            # check if the process is dead
-            if not await server.is_running():
-                message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
+            # check if the process is dead (on load it might take some seconds for the process to appear)
+            if server.process and not await server.is_running():
+                message = f'Server "{server.name}" died. Setting state to SHUTDOWN.'
                 self.log.warning(message)
                 server.status = Status.SHUTDOWN
                 if server.locals.get('ping_admin_on_crash', True):
