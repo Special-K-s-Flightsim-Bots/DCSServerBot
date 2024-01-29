@@ -23,6 +23,7 @@ __all__ = [
     "dd_to_dms",
     "get_active_runways",
     "create_writable_mission",
+    "lua_pattern_to_python_regex",
     "LICENSES_URL"
 ]
 
@@ -72,7 +73,7 @@ def desanitize(self, _filename: str = None) -> None:
     if os.path.exists('./config/MissionScripting.lua'):
         if _filename:
             self.log.error('SLmod is installed, it will overwrite your custom MissionScripting.lua again!')
-        self.log.info('- Sanitizing MissionScripting')
+        self.log.info('- Desanitizing MissionScripting')
         # don't fail, if no backup could be created (for whatever reason)
         with suppress(Exception):
             shutil.copyfile(filename, backup)
@@ -141,3 +142,24 @@ def create_writable_mission(filename: str) -> str:
             os.makedirs(dirname, exist_ok=True)
             new_filename = os.path.join(dirname, os.path.basename(filename))
     return new_filename
+
+
+def lua_pattern_to_python_regex(lua_pattern):
+    translation_dict = {
+        '%a': '[a-zA-Z]',
+        '%c': '[\\x00-\\x1f\\x7f]',
+        '%d': '\\d',
+        '%l': '[a-z]',
+        '%u': '[A-Z]',
+        '%w': '\\w',
+        '%x': '[a-fA-F0-9]',
+        '%p': '[-!\\"#$%&\'()*+,./:;<=>?@[\\\\\\]^_`{|}~]',
+        '%s': '\\s',
+        '%z': '\\x00',
+    }
+
+    python_regex = lua_pattern
+    for lua, python in translation_dict.items():
+        python_regex = python_regex.replace(lua, python)
+
+    return python_regex
