@@ -26,8 +26,11 @@ class Sorties(report.EmbedElement):
         return Flight()
 
     async def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
-        sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
-              "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
+        sql = """
+            SELECT mission_id, init_type, init_cat, event, place, time 
+            FROM missionstats s
+            WHERE event IN ('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')
+        """
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period)
         sql += ' AND init_id = %s ORDER BY 6'
@@ -42,7 +45,7 @@ class Sorties(report.EmbedElement):
                         flight = self.add_flight(flight)
                     if not flight.plane:
                         flight.plane = row['init_type']
-                    # airstarts
+                    # air starts
                     if row['event'] == 'S_EVENT_BIRTH' and row['place'] is None:
                         if not flight.start:
                             flight.start = row['time']
@@ -120,9 +123,13 @@ class MissionStats(report.EmbedElement):
 
 class ModuleStats1(report.EmbedElement):
     async def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
-        sql = "SELECT COUNT(*) as num, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, " \
-              "ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average FROM statistics s " \
-              "WHERE s.player_ucid = %(ucid)s AND s.slot = %(module)s"
+        sql = """
+            SELECT COUNT(*) as num, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, 
+                   ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average 
+            FROM statistics s, missions m 
+            WHERE s.mission_id = m.id AND s.player_ucid = %(ucid)s AND s.slot = %(module)s
+        """
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period)
 

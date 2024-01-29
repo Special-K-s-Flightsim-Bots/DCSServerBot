@@ -177,7 +177,7 @@ def convert_time_and_format(seconds: int, colon_format=False):
         time_unit_seconds = globals()["SECONDS_IN_" + label_single.upper()]
         seconds, retval = process_time(seconds, time_unit_seconds, retval, label_symbol, label_single, colon_format)
     if colon_format:
-        retval = f"{retval}:{seconds:02d}s"
+        retval = f"{retval}:{seconds:02d}s" if retval else f"{seconds:02d}s"
     else:
         retval += f" {format_time_units(seconds, 'second')} if {seconds > 0} else ''"
     return retval
@@ -190,7 +190,7 @@ def convert_time(seconds: int):
     :param seconds: The number of seconds to be converted into time representation.
     :return: The formatted string representation of time.
     """
-    return convert_time_and_format(seconds, True)
+    return convert_time_and_format(int(seconds), True)
 
 
 def format_time(seconds: int):
@@ -200,7 +200,7 @@ def format_time(seconds: int):
     :param seconds: The number of seconds to be formatted.
     :return: The formatted time string in HH:MM:SS format.
     """
-    return convert_time_and_format(seconds, False)
+    return convert_time_and_format(int(seconds), False)
 
 
 def get_utc_offset() -> str:

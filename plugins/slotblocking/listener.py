@@ -91,7 +91,7 @@ class SlotBlockingListener(EventListener):
             return getattr(data, attribute_name) if isinstance(data, CreditPlayer) else data[attribute_name]
 
         def _is_unit_match(unit: dict, attribute_name: str, attribute_value: str) -> bool:
-            if attribute_name in unit and re.match(unit[attribute_name], attribute_value):
+            if attribute_name in unit and re.search(unit[attribute_name], attribute_value):
                 return True
             return False
 
