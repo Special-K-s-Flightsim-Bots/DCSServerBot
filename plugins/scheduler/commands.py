@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import functools
 
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
@@ -239,9 +240,6 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
-        def create_launcher(server: Server):
-            return lambda: asyncio.create_task(self.launch_dcs(server))
-
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
@@ -259,7 +257,8 @@ class Scheduler(Plugin):
                             next_startup = startup_delay
                         else:
                             server.status = Status.LOADING
-                            self.loop.call_later(next_startup, create_launcher(server))
+                            self.loop.call_later(next_startup, functools.partial(asyncio.create_task,
+                                                                                 self.launch_dcs(server)))
                             next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
