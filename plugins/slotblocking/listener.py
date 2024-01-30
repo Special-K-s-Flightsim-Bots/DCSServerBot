@@ -10,7 +10,7 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
-    def _migrate_roles(self, restriction: dict, config: dict) -> None:
+    def _migrate_roles(self, config: dict) -> None:
         guild = self.bot.guilds[0]
         roles = config.get('VIP', {}).get('discord', [])
         if isinstance(roles, str) and not roles.isnumeric():
