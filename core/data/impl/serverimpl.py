@@ -277,7 +277,7 @@ class ServerImpl(Server):
 
         for key, value in message.items():
             if isinstance(value, list):
-                message[key] = [self.serialize(x) for x in value]
+                message[key] = [_serialize_value(x) for x in value]
             elif isinstance(value, dict):
                 message[key] = self.serialize(value)
             else:
