@@ -140,7 +140,6 @@ class MonitoringService(Service):
                 continue
             # check if the process is dead (on load it might take some seconds for the process to appear)
             if server.process and not await server.is_running():
-                self.log.debug(f"### Name: {server.name}, PID: {server.process.pid}")
                 message = f'Server "{server.name}" died. Setting state to SHUTDOWN.'
                 self.log.warning(message)
                 server.status = Status.SHUTDOWN
