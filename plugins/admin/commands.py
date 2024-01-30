@@ -526,16 +526,18 @@ class Admin(Plugin):
         if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
-        for n in self.node.get_active_nodes():
-            if not node or n == node.name:
-                self.bus.send_to_node({
-                    "command": "rpc",
-                    "object": "Node",
-                    "method": method
-                }, node=n)
-                await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
+        if method != 'upgrade' or node:
+            for n in self.node.get_active_nodes():
+                if not node or n == node.name:
+                    self.bus.send_to_node({
+                        "command": "rpc",
+                        "object": "Node",
+                        "method": method
+                    }, node=n)
+                    await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
         if not node or node.name == self.node.name:
-            await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
+            await interaction.followup.send("Cluster" if not node else "Master" + f' is going to {method} **NOW**.',
+                                            ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
             elif method == 'upgrade':
@@ -596,15 +598,15 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
-        if not node:
-            node = self.node
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        cluster = (node is None)
         if not await node.upgrade_pending():
-            await interaction.followup.send(f'There is no upgrade available for node {node.name}.',
+            await interaction.followup.send("There is no upgrade available for " +
+                                            ("your cluster" if cluster else ("node" + node.name)),
                                             ephemeral=ephemeral)
             return
-        if not node.master and not await utils.yn_question(
+        if node and not node.master and not await utils.yn_question(
                 interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?",
                 ephemeral=ephemeral):
             await interaction.followup.send('Aborted', ephemeral=ephemeral)
