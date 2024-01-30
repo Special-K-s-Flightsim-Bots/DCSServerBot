@@ -12,33 +12,20 @@ class SlotBlockingListener(EventListener):
 
     def _migrate_roles(self, config: dict) -> None:
         guild = self.bot.guilds[0]
-        roles = config.get('VIP', {}).get('discord', [])
-        if isinstance(roles, str) and not roles.isnumeric():
-            config['VIP']['discord'] = discord.utils.get(guild.roles, name=roles).id
-        elif roles:
-            config['VIP']['discord'] = [
-                discord.utils.get(guild.roles, name=role).id for role in roles if not role.isnumeric()
+
+        def get_role_ids(role_names):
+            if isinstance(role_names, str) and not role_names.isnumeric():
+                return discord.utils.get(guild.roles, name=role_names).id
+            return [
+                discord.utils.get(guild.roles, name=role).id
+                for role in role_names
+                if isinstance(role, str) and not role.isnumeric()
             ]
+
+        config['VIP']['discord'] = get_role_ids(config.get('VIP', {}).get('discord', []))
         for restriction in config.get('restricted', []):
             if 'discord' in restriction:
-                if isinstance(restriction['discord'], list):
-                    _roles = []
-                    for _role in restriction['discord']:
-                        if not _role.isnumeric():
-                            role = discord.utils.get(guild.roles, name=restriction['discord'])
-                            if not role:
-                                self.log.warning(f"Role {restriction['discord']} not found!")
-                            else:
-                                _roles.append(role.id)
-                        else:
-                            _roles.append(_role)
-                    restriction['discord'] = _roles
-                else:
-                    role = discord.utils.get(guild.roles, name=restriction['discord'])
-                    if not role:
-                        self.log.warning(f"Role {restriction['discord']} not found!")
-                    else:
-                        restriction['discord'] = role.id
+                restriction['discord'] = get_role_ids(restriction['discord'])
 
     def _load_params_into_mission(self, server: Server):
         config: dict = self.plugin.get_config(server, use_cache=False)
