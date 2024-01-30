@@ -19,7 +19,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from psutil import Process
-from typing import Optional, TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
@@ -267,17 +267,21 @@ class ServerImpl(Server):
             return miz.theatre
 
     def serialize(self, message: dict):
-        for key, value in message.items():
+        def _serialize_value(value: Any) -> Any:
             if isinstance(value, bool):
                 message[key] = value
             elif isinstance(value, int):
                 message[key] = str(value)
             elif isinstance(value, Enum):
                 message[key] = value.value
-            elif isinstance(value, list):
+
+        for key, value in message.items():
+            if isinstance(value, list):
                 message[key] = [self.serialize(x) for x in value]
             elif isinstance(value, dict):
                 message[key] = self.serialize(value)
+            else:
+                message[key] = _serialize_value(value)
         return message
 
     def send_to_dcs(self, message: dict):
