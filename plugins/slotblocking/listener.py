@@ -10,7 +10,7 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
-    def _migrate_roles(self, config: dict) -> None:
+    def _migrate_roles(self, restriction: dict, config: dict) -> None:
         guild = self.bot.guilds[0]
         roles = config.get('VIP', {}).get('discord', [])
         if isinstance(roles, str) and not roles.isnumeric():
@@ -20,12 +20,25 @@ class SlotBlockingListener(EventListener):
                 discord.utils.get(guild.roles, name=role).id for role in roles if not role.isnumeric()
             ]
         for restriction in config.get('restricted', []):
-            if 'discord' in restriction and not restriction['discord'].isnumeric():
-                role = discord.utils.get(guild.roles, name=restriction['discord'])
-                if not role:
-                    self.log.warning(f"Role {restriction['discord']} not found!")
+            if 'discord' in restriction:
+                if isinstance(restriction['discord'], list):
+                    _roles = []
+                    for _role in restriction['discord']:
+                        if not _role.isnumeric():
+                            role = discord.utils.get(guild.roles, name=restriction['discord'])
+                            if not role:
+                                self.log.warning(f"Role {restriction['discord']} not found!")
+                            else:
+                                _roles.append(role.id)
+                        else:
+                            _roles.append(_role)
+                    restriction['discord'] = _roles
                 else:
-                    restriction['discord'] = role.id
+                    role = discord.utils.get(guild.roles, name=restriction['discord'])
+                    if not role:
+                        self.log.warning(f"Role {restriction['discord']} not found!")
+                    else:
+                        restriction['discord'] = role.id
 
     def _load_params_into_mission(self, server: Server):
         config: dict = self.plugin.get_config(server, use_cache=False)
