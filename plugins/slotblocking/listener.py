@@ -14,7 +14,7 @@ class SlotBlockingListener(EventListener):
         guild = self.bot.guilds[0]
 
         def get_role_ids(role_names):
-            if isinstance(role_names, str) and not role_names.isnumeric():
+            if isinstance(role_names, str):
                 return discord.utils.get(guild.roles, name=role_names).id
             return [
                 discord.utils.get(guild.roles, name=role).id
@@ -22,7 +22,8 @@ class SlotBlockingListener(EventListener):
                 if isinstance(role, str) and not role.isnumeric()
             ]
 
-        config['VIP']['discord'] = get_role_ids(config.get('VIP', {}).get('discord', []))
+        if config.get('VIP', {}).get('discord', []):
+            config['VIP']['discord'] = get_role_ids(config.get('VIP', {}).get('discord', []))
         for restriction in config.get('restricted', []):
             if 'discord' in restriction:
                 restriction['discord'] = get_role_ids(restriction['discord'])
