@@ -1,6 +1,6 @@
 import asyncio
-import functools
 import discord
+import functools
 
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance

@@ -19,6 +19,7 @@ from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
+from packaging import version
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation
 from psycopg.rows import dict_row
@@ -493,8 +494,6 @@ class NodeImpl(Node):
                             cursor.execute("INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)",
                                            (self.guild_id, self.name, __version__))
                             return True
-                        current_version = version_string_to_tuple(__version__)
-                        db_version = version_string_to_tuple(cluster['version'])
                         # I am the master
                         if cluster['master'] == self.name:
                             if cluster['update_pending']:
@@ -525,7 +524,7 @@ class NodeImpl(Node):
                         if cluster['update_pending']:
                             return False
                         # we have a version mismatch on the agent, a cloud sync might still be pending
-                        if current_version < db_version:
+                        if version.parse(__version__) < version.parse(cluster['version']):
                             self.log.error(f"We are running version {__version__} where the master is on version "
                                            f"{cluster['version']} already. Trying to upgrade ...")
                             # TODO: we might not have bus access here yet, so be our own bus (dirty)
@@ -538,7 +537,7 @@ class NodeImpl(Node):
                                 "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
                                 (self.name, Json(data), 2))
                             return False
-                        elif current_version > db_version:
+                        elif version.parse(__version__) > version.parse(cluster['version']):
                             self.log.warning(f"This node is running on version {__version__} where the master still "
                                              f"runs on {cluster['version']}. You need to upgrade your master node!")
                         # we are not the master, but we are the preferred one, taking over
