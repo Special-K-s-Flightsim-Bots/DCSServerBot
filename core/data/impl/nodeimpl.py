@@ -111,7 +111,7 @@ class NodeImpl(Node):
                         INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
                         ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
                     """, (self.guild_id, self.name))
-            self._master = await self.check_master()
+            self._master = await self.heartbeat()
         except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):
             # some master tables have changed, so do the update first
             self._master = True
@@ -320,9 +320,10 @@ class NodeImpl(Node):
 
     async def upgrade(self):
         if await self.upgrade_pending():
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
+            if self.master:
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
             subprocess.Popen([sys.executable, 'update.py', '-n', self.node.name])
             sys.exit(0)
 
@@ -473,7 +474,7 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    async def check_master(self) -> bool:
+    async def heartbeat(self) -> bool:
         def version_string_to_tuple(version_string: str):
             return tuple(map(int, version_string.split(".")))
 
@@ -504,7 +505,7 @@ class NodeImpl(Node):
                                         data = {
                                             "command": "rpc",
                                             "object": "Node",
-                                            "method": "restart"
+                                            "method": "upgrade"
                                         }
                                         conn.execute(
                                             "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
@@ -526,12 +527,12 @@ class NodeImpl(Node):
                         # we have a version mismatch on the agent, a cloud sync might still be pending
                         if current_version < db_version:
                             self.log.error(f"We are running version {__version__} where the master is on version "
-                                           f"{cluster['version']} already. Restarting ...")
+                                           f"{cluster['version']} already. Trying to upgrade ...")
                             # TODO: we might not have bus access here yet, so be our own bus (dirty)
                             data = {
                                 "command": "rpc",
                                 "object": "Node",
-                                "method": "restart"
+                                "method": "upgrade"
                             }
                             conn.execute(
                                 "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",

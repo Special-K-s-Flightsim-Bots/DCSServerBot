@@ -435,7 +435,6 @@ class ServerImpl(Server):
         self.status = Status.SHUTDOWN
 
     def _check_and_assign_process(self) -> bool:
-        self.log.debug(f"### Server: {self.name}, PID: {self.process.pid if self.process else 'n/a'}")
         if not self.process or not self.process.is_running():
             self.process = utils.find_process("DCS_server.exe|DCS.exe", self.instance.name)
         return self.process is not None

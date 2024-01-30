@@ -61,8 +61,8 @@ class Main:
             try:
                 while True:
                     # wait until the master changes
-                    while self.node.master == await self.node.check_master():
-                        await asyncio.sleep(1)
+                    while self.node.master == await self.node.heartbeat():
+                        await asyncio.sleep(5)
                     # switch master
                     self.node.master = not self.node.master
                     if self.node.master:
@@ -85,6 +85,7 @@ class Main:
                                 await registry.get(name).stop()
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
+                    self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
             finally:
                 await self.node.unregister()
 
