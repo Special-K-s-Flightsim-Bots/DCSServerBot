@@ -274,6 +274,8 @@ class ServerImpl(Server):
                 message[key] = str(value)
             elif isinstance(value, Enum):
                 message[key] = value.value
+            elif isinstance(value, list):
+                message[key] = [self.serialize(x) for x in value]
             elif isinstance(value, dict):
                 message[key] = self.serialize(value)
         return message
