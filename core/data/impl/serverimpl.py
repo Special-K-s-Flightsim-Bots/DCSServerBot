@@ -274,14 +274,13 @@ class ServerImpl(Server):
                 message[key] = str(value)
             elif isinstance(value, Enum):
                 message[key] = value.value
-
-        for key, value in message.items():
-            if isinstance(value, list):
-                message[key] = [_serialize_value(x) for x in value]
             elif isinstance(value, dict):
                 message[key] = self.serialize(value)
-            else:
-                message[key] = _serialize_value(value)
+            elif isinstance(value, list):
+                message[key] = [_serialize_value(x) for x in value]
+
+        for key, value in message.items():
+            message[key] = _serialize_value(value)
         return message
 
     def send_to_dcs(self, message: dict):
