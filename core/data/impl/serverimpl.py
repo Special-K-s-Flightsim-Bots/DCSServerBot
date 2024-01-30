@@ -269,15 +269,16 @@ class ServerImpl(Server):
     def serialize(self, message: dict):
         def _serialize_value(value: Any) -> Any:
             if isinstance(value, bool):
-                message[key] = value
+                return value
             elif isinstance(value, int):
-                message[key] = str(value)
+                return str(value)
             elif isinstance(value, Enum):
-                message[key] = value.value
+                return value.value
             elif isinstance(value, dict):
-                message[key] = self.serialize(value)
+                return self.serialize(value)
             elif isinstance(value, list):
-                message[key] = [_serialize_value(x) for x in value]
+                return [_serialize_value(x) for x in value]
+            return value
 
         for key, value in message.items():
             message[key] = _serialize_value(value)
@@ -285,7 +286,7 @@ class ServerImpl(Server):
 
     def send_to_dcs(self, message: dict):
         # As Lua does not support large numbers, convert them to strings
-        message = self.serialize(message)
+        message = self.serialize(deepcopy(message))
         msg = json.dumps(message)
         self.log.debug(f"HOST->{self.name}: {msg}")
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

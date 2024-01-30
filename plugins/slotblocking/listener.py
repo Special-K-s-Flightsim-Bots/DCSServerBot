@@ -13,14 +13,21 @@ class SlotBlockingListener(EventListener):
     def _migrate_roles(self, config: dict) -> None:
         guild = self.bot.guilds[0]
 
-        def get_role_ids(role_names):
-            if isinstance(role_names, str):
-                return discord.utils.get(guild.roles, name=role_names).id
-            return [
-                discord.utils.get(guild.roles, name=role).id
-                for role in role_names
-                if isinstance(role, str) and not role.isnumeric()
-            ]
+        def get_role_ids(role_names) -> list[int]:
+            role_ids = []
+            if not isinstance(role_names, list):
+                role_names = [role_names]
+
+            for role in role_names:
+                if isinstance(role, str) and not role.isnumeric():
+                    role_id = discord.utils.get(guild.roles, name=role)
+                    if role_id:
+                        role_ids.append(role_id.id)
+                    else:
+                        self.log.warning(f'Role "{role}" from {self.plugin_name}.yaml not found in Discord.')
+                else:
+                    role_ids.append(role)
+            return role_ids
 
         if config.get('VIP', {}).get('discord', []):
             config['VIP']['discord'] = get_role_ids(config.get('VIP', {}).get('discord', []))
