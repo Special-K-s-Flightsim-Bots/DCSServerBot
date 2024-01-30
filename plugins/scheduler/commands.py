@@ -260,7 +260,8 @@ class Scheduler(Plugin):
                             next_startup = startup_delay
                         else:
                             server.status = Status.LOADING
-                            self.loop.call_later(next_startup, functools.partial(self.launch_dcs, server))
+                            self.loop.call_later(next_startup, functools.partial(asyncio.create_task,
+                                                                                 self.launch_dcs(server)))
                             next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
