@@ -600,7 +600,11 @@ class Admin(Plugin):
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        cluster = (node is None)
+        if not node:
+            node = self.node
+            cluster = True
+        else:
+            cluster = False
         if not await node.upgrade_pending():
             await interaction.followup.send("There is no upgrade available for " +
                                             ("your cluster" if cluster else ("node" + node.name)),
@@ -611,7 +615,7 @@ class Admin(Plugin):
                 ephemeral=ephemeral):
             await interaction.followup.send('Aborted', ephemeral=ephemeral)
             return
-        await self.run_on_nodes(interaction, "upgrade", node)
+        await self.run_on_nodes(interaction, "upgrade", node if not cluster else None)
 
     @node_group.command(description='Run a shell command on a node')
     @app_commands.guild_only()
