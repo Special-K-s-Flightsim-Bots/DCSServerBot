@@ -179,7 +179,7 @@ def convert_time_and_format(seconds: int, colon_format=False):
     if colon_format:
         retval = f"{retval}:{seconds:02d}s" if retval else f"{seconds:02d}s"
     else:
-        retval += f" {format_time_units(seconds, 'second')} if {seconds > 0} else ''"
+        retval += f" {format_time_units(seconds, 'second')}" if {seconds > 0} else ""
     return retval
 
 
