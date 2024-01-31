@@ -316,7 +316,7 @@ class Scheduler(Plugin):
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
-                      maintenance: Optional[bool] = True, run_extensions: Optional[bool] = True,
+                      maintenance: Optional[bool] = False, run_extensions: Optional[bool] = True,
                       mission_id: Optional[int] = None):
         if server.status == Status.STOPPED:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"

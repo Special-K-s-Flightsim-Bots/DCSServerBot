@@ -756,6 +756,19 @@ class Mission(Plugin):
         await interaction.response.send_message(f"Player {player.display_name} removed from watchlist.",
                                                 ephemeral = utils.get_ephemeral(interaction))
 
+    # New command group "/group"
+    group = Group(name="group", description="Commands to manage DCS groups")
+
+    @group.command(description='Sends a popup to a group\n')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(group=utils.group_autocomplete)
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def popup(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    group: str, message: str, time: Optional[Range[int, 1, 30]] = -1):
+        server.sendPopupMessage(group, message, time, interaction.user.display_name)
+        await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
+
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
         with self.pool.connection() as conn:

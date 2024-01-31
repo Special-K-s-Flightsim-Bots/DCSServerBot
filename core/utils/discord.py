@@ -51,6 +51,7 @@ __all__ = [
     "PlayerTransformer",
     "airbase_autocomplete",
     "mission_autocomplete",
+    "group_autocomplete",
     "server_selection",
     "get_ephemeral"
 ]
@@ -949,6 +950,19 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+
+
+async def group_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    # is a user is not allowed to run the interaction, they are not allowed to see the autocompletions also
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    server: Server = await ServerTransformer().transform(interaction,
+                                                         get_interaction_param(interaction, 'server'))
+    return [
+        app_commands.Choice(name=group_name, value=group_name)
+        for group_name in set(player.group_name for player in server.get_active_players() if player.group_id != 0)
+        if not current or current.casefold() in group_name
+    ][:25]
 
 
 class UserTransformer(app_commands.Transformer):

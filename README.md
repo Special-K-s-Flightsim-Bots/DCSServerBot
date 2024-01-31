@@ -2,7 +2,7 @@
 You've found a comprehensive solution that lets you administrate your DCS instances via Discord slash-commands, has 
 built in per-server and per-user statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support and much more! 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
-into your mind. 
+into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.
 
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 

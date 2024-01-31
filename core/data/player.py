@@ -226,8 +226,9 @@ class Player(DataObject):
             timeout = self.server.locals.get('message_timeout', 10)
         self.server.send_to_dcs({
                 "command": "sendPopupMessage",
-                "to": self.unit_name,
                 "from": sender,
+                "to": "unit",
+                "id": self.unit_name,
                 "message": message,
                 "time": timeout
         })
@@ -235,6 +236,7 @@ class Player(DataObject):
     def playSound(self, sound: str):
         self.server.send_to_dcs({
             "command": "playSound",
-            "to": self.unit_name,
+            "to": "unit",
+            "id": self.unit_name,
             "sound": sound
         })

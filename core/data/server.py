@@ -284,21 +284,23 @@ class Server(DataObject):
         else:
             raise NotImplemented()
 
-    def sendPopupMessage(self, coalition: Coalition, message: str, timeout: Optional[int] = -1, sender: str = None):
+    def sendPopupMessage(self, recipient: Union[Coalition, str], message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
         self.send_to_dcs({
             "command": "sendPopupMessage",
-            "to": coalition.value,
+            "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
+            "id": recipient.value if isinstance(recipient, Coalition) else recipient,
             "from": sender,
             "message": message,
             "time": timeout
         })
 
-    def playSound(self, coalition: Coalition, sound: str):
+    def playSound(self, recipient: Union[Coalition, str], sound: str):
         self.send_to_dcs({
             "command": "playSound",
-            "to": coalition.value,
+            "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
+            "id": recipient.value if isinstance(recipient, Coalition) else recipient,
             "sound": sound
         })
 
