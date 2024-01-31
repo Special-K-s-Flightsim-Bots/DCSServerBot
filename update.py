@@ -13,6 +13,8 @@ import zipfile
 from contextlib import closing
 from typing import Iterable, Optional
 
+from pid import PidFile, PidFileError
+
 from version import __version__
 
 
@@ -137,8 +139,13 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
     args = parser.parse_args()
     try:
-        rc = do_update_git(args.delete)
-    except ImportError:
-        rc = do_update_github(args.delete)
-    subprocess.Popen([sys.executable, 'run.py', '-n', args.node, '--noupdate'])
-    sys.exit(rc)
+        with PidFile(pidname=f"dcssb_{args.node}"):
+            try:
+                rc = do_update_git(args.delete)
+            except ImportError:
+                rc = do_update_github(args.delete)
+        subprocess.Popen([sys.executable, 'run.py', '-n', args.node, '--noupdate'])
+        sys.exit(rc)
+    except PidFileError:
+        print(f"Process already running for node {args.node}! Exiting...")
+        exit(-2)

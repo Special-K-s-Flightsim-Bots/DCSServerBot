@@ -536,7 +536,7 @@ class Admin(Plugin):
                     }, node=n)
                     await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
         if not node or node.name == self.node.name:
-            await interaction.followup.send("Cluster" if not node else "Master" + f' is going to {method} **NOW**.',
+            await interaction.followup.send(("Cluster" if not node else "Master") + f' is going to {method} **NOW**.',
                                             ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
