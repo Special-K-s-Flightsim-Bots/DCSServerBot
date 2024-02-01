@@ -226,7 +226,7 @@ class ServerImpl(Server):
         self.log.debug(f'  - Luas installed into {self.instance.name}.')
 
     def prepare(self):
-        if self.settings['name'] != self.name:
+        if self.settings.get('name', 'DCS Server') != self.name:
             self.settings['name'] = self.name
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():

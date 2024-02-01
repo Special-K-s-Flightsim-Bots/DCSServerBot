@@ -181,6 +181,34 @@ When finished, the bot should launch successfully and maybe even start your serv
 > You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
 > the servers Scripts directories.
 
+### Desanitization
+DCSServerBot desanitizes your MissionScripting environment. That means, it changes entries in Scripts\MissionScripting.lua
+of your DCS installation. If you use any other method of desanitization, DCSServerBot checks, if additional 
+desanitizations are required and conducts them.
+
+> ⚠️ **Attention!**<br>
+> DCSServerBot needs write-permissions on the DCS-installation directory.<br>
+> You can usually achieve that by giving the "User group" write permissions on it. Right click on your DCS installation
+> folder,<br>select Properties -> Security -> Edit, select "Users (...)" and tick Modify below. Then press the OK button.
+> There might be a question about changing the permission on all subdirectories - say yes in that case. 
+
+Your MissionScripting.lua should look like this after a successful bot start:
+```lua
+do
+	sanitizeModule('os')
+	--sanitizeModule('io')
+	--sanitizeModule('lfs')
+	--_G['require'] = nil
+	_G['loadlib'] = nil
+	--_G['package'] = nil
+end
+```
+
+### Custom MissionScripting.lua
+If you want to use a **custom MissionScripting.lua** that has more sanitization (for instance for LotAtc, Moose, 
+OverlordBot or the like) or additional lines to be loaded (for instance for LotAtc, or DCS-gRPC), just place the 
+MissionScripting.lua of your choice in the config directory of the bot. It will then be replaced on every bot startup.
+
 ---
 ## Configuration
 The bot configuration is held in several files in the **config** subdirectory.
@@ -371,30 +399,6 @@ See [Coalitions](./COALITIONS.md) for coalition roles.
 
 ### DCS/Hook Configuration
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
-
-### Desanitization
-DCSServerBot desanitizes your MissionScripting environment. That means, it changes entries in Scripts\MissionScripting.lua
-of your DCS installation. If you use any other method of desanitization, DCSServerBot checks, if additional 
-desanitizations are required and conducts them.<br>
-**To be able to do so, you must change the permissions on the DCS-installation directory.**
-Give the User group write permissions for instance. 
-
-Your MissionScripting.lua will look like this afterwards:
-```lua
-do
-	sanitizeModule('os')
-	--sanitizeModule('io')
-	--sanitizeModule('lfs')
-	--_G['require'] = nil
-	_G['loadlib'] = nil
-	--_G['package'] = nil
-end
-```
-
-### Custom MissionScripting.lua
-If you want to use a **custom MissionScripting.lua** that has more sanitization (for instance for LotAtc, Moose, 
-OverlordBot or the like) or additional lines to be loaded (for instance for LotAtc, or DCS-gRPC), just place the 
-MissionScripting.lua of your choice in the config directory of the bot. It will then be replaced on every bot startup.
 
 ### Sample Configuration
 To view some sample configurations for the bot or for each configurable plugin, look [here](config/samples/README.md).
