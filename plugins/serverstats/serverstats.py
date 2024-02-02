@@ -213,7 +213,7 @@ class ServerLoad(report.MultiGraphElement):
             sql += f" AND server_name = %s"
         if node:
             sql += f" AND node = '{node}'"
-        sql += " GROUP BY 1"
+        sql += " GROUP BY 1 ORDER BY 1"
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 if server_name:
