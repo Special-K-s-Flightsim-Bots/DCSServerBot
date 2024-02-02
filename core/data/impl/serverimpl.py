@@ -444,7 +444,7 @@ class ServerImpl(Server):
         if self._check_and_assign_process():
             return True
         # we might not have the necessary permissions to read the process
-        return utils.is_open('127.0.0.1', int(self.settings.get('port')))
+        return utils.is_open('127.0.0.1', int(self.settings.get('port', 10308)))
 
     async def terminate(self) -> None:
         if await self.is_running():

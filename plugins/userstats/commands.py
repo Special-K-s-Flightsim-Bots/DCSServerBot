@@ -588,7 +588,7 @@ class UserStatistics(Plugin):
         if self.get_config().get('wipe_stats_on_leave', True):
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
+                    self.bot.log.debug(f'- Deleting their statistics due to wipe_stats_on_leave')
                     ucids = [row[0] for row in conn.execute(
                         'SELECT ucid FROM players WHERE discord_id = %s', (member.id, )).fetchall()]
                     for plugin in self.bot.cogs.values():  # type: Plugin

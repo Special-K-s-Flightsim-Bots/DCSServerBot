@@ -178,12 +178,9 @@ class DCSServerBot(commands.Bot):
         if server.locals.get('coalitions'):
             channels.extend(['red', 'blue'])
         for c in channels:
-            try:
-                channel_id = int(server.channels[Channel(c)])
-                if channel_id != -1:
-                    await self.check_channel(channel_id)
-            except KeyError:
-                raise FatalException(f"Channel {c} missing for server {server.name} in config/servers.yaml!")
+            channel_id = int(server.channels[Channel(c)])
+            if channel_id != -1:
+                await self.check_channel(channel_id)
 
     async def on_ready(self):
         try:
@@ -214,7 +211,11 @@ class DCSServerBot(commands.Bot):
                         roles |= set([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
                         roles |= set([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
                         self.check_roles(roles)
-                    await self.check_channels(server)
+                    try:
+                        await self.check_channels(server)
+                    except KeyError as ex:
+                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in config/servers.yaml!")
+
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
                 await self.tree.sync(guild=self.guilds[0])

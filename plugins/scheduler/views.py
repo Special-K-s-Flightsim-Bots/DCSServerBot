@@ -80,11 +80,12 @@ class ConfigView(View):
         class ConfigModal(Modal, title="Server Configuration"):
             name = TextInput(label="Name", default=self.server.name, max_length=80, required=True)
             description = TextInput(label="Description", style=discord.TextStyle.long,
-                                    default=self.server.settings['description'], max_length=2000, required=False)
-            password = TextInput(label="Password", placeholder="n/a", default=self.server.settings['password'],
+                                    default=self.server.settings.get('description'), max_length=2000, required=False)
+            password = TextInput(label="Password", placeholder="n/a", default=self.server.settings.get('password'),
                                  max_length=20, required=False)
-            max_player = TextInput(label="Max Players", default=self.server.settings['maxPlayers'], max_length=3,
-                                   required=True)
+            port = TextInput(label="Port", default=self.server.settings.get('port', 10308), max_length=5, required=True)
+            max_player = TextInput(label="Max Players", default=self.server.settings.get('maxPlayers', 16),
+                                   max_length=3, required=True)
 
             async def on_submit(derived, interaction: discord.Interaction):
                 await interaction.response.defer()
@@ -96,6 +97,7 @@ class ConfigView(View):
                         del interaction.client.servers[old_name]
                 self.server.settings['description'] = derived.description.value
                 self.server.settings['password'] = derived.password.value
+                self.server.settings['port'] = int(derived.port.value)
                 self.server.settings['maxPlayers'] = int(derived.max_player.value)
 
         modal = ConfigModal()
