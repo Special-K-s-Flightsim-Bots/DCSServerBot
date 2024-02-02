@@ -138,14 +138,16 @@ class SlotBlockingListener(EventListener):
                 message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
             await self.bot.audit(message, server=server)
 
-    def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None):
+    def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None,
+                       payback: Optional[bool] = True):
         plane_costs = self._get_costs(server, data if data else player)
         if not plane_costs:
             return
         old_points = player.points
         player.points -= plane_costs
         player.audit('buy', old_points, 'Points taken for using a reserved module')
-        player.deposit = plane_costs
+        if payback:
+            player.deposit = plane_costs
 
     def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
         old_points = player.points
@@ -170,8 +172,24 @@ class SlotBlockingListener(EventListener):
         # if payback is enabled, we need to clear the deposit on any slot change
         if config.get('payback', False):
             player.deposit = 0
-        elif Side(data['side']) != Side.SPECTATOR and data['sub_slot'] == 0:
-            self._pay_for_plane(server, player, data)
+        elif (Side(data['side']) != Side.SPECTATOR and data['sub_slot'] == 0
+              and not self.get_config(server, plugin_name='missionstats').get('enabled', True)):
+            self._pay_for_plane(server, player, data, payback=False)
+
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
+        config = self.plugin.get_config(server)
+        if not config or config.get('payback', False):
+            return
+        if data['eventName'] == 'S_EVENT_BIRTH':
+            initiator = data['initiator']
+            # check, if they are a human player
+            if 'name' not in initiator:
+                return
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
+            # only pilots have to "pay" for their plane
+            if player and player.sub_slot == 0:
+                self._pay_for_plane(server, player, payback=False)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -185,6 +203,11 @@ class SlotBlockingListener(EventListener):
             # give points back on team-kill
             if data['arg3'] == data['arg6']:
                 self._payback(server, player, 'Credits refund for being team-killed')
+            else:
+                player.deposit = 0
+                if player.points < self._get_costs(server, player):
+                    server.move_to_spectators(player,
+                                              reason="You do not have enough credits to use this slot anymore.")
         elif data['eventName'] == 'landing':
             # payback on landing
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
@@ -194,8 +217,13 @@ class SlotBlockingListener(EventListener):
             # take deposit on takeoff
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player and player.deposit == 0 and int(player.sub_slot) == 0:
-                self._pay_for_plane(server, player)
+                self._pay_for_plane(server, player, payback=True)
         elif data['eventName'] == 'mission_end':
             # give all players their credit back, if the mission ends, and they are still airborne
             for player in server.players.values():
                 self._payback(server, player, 'Refund on mission end', plane_only=True)
+        elif data['eventName'] == 'crash':
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
+            player.deposit = 0
+            if player.points < self._get_costs(server, player):
+                server.move_to_spectators(player, reason="You do not have enough credits to use this slot anymore.")
