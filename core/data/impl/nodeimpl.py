@@ -320,7 +320,10 @@ class NodeImpl(Node):
         return rc
 
     async def upgrade(self):
-        if await self.upgrade_pending():
+        # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
+        if not self.master and self.locals.get('cloud_drive', True):
+            await self.restart()
+        elif await self.upgrade_pending():
             if self.master:
                 with self.pool.connection() as conn:
                     with conn.transaction():
