@@ -1,1 +1,1 @@
-ALTER TABLE credits_log ALTER COLUMN time SET DEFAULT now() AT TIME ZONE 'utc';
+ALTER TABLE credits_log ALTER COLUMN time SET DEFAULT (now() AT TIME ZONE 'utc');
