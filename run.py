@@ -117,7 +117,10 @@ if __name__ == "__main__":
     except (PermissionError, PidFileError):
         print(f"Process already running for node {args.node}! Exiting...")
         exit(-2)
-    except (asyncio.CancelledError, KeyboardInterrupt) as ex:
+    except KeyboardInterrupt:
+        # restart again (old handling)
+        exit(-1)
+    except asyncio.CancelledError:
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException) as ex:
