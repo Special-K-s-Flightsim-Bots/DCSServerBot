@@ -155,6 +155,7 @@ class ServiceBus(Service):
                 "public_ip": self.node.locals.get('public_ip', await utils.get_public_ip()),
                 "status": server.status.value,
                 "instance": server.instance.name,
+                "home": server.instance.home,
                 "settings": server.settings,
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
@@ -356,7 +357,7 @@ class ServiceBus(Service):
                     "SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')",
                     (ucid, )).fetchone()
 
-    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
+    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, home: str, settings: dict,
                            options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
         server = self.servers.get(server_name)
         if not server or not server.is_remote:
@@ -367,6 +368,7 @@ class ServiceBus(Service):
                 name=server_name
             )
             instance = InstanceProxy(name=instance, node=node)
+            instance.home = home
             server.instance = instance
             self.servers[server_name] = server
             server.settings = settings
