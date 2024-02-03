@@ -323,6 +323,7 @@ class NodeImpl(Node):
         # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
         if not self.master and self.locals.get('cloud_drive', True):
             await self.restart()
+            return
         elif await self.upgrade_pending():
             if self.master:
                 with self.pool.connection() as conn:
