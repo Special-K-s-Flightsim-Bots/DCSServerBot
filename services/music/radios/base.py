@@ -136,7 +136,7 @@ class Radio(ABC):
         self._mode = mode
         self.config['mode'] = mode.value
 
-    @tasks.loop(reconnect=True)
+    @tasks.loop()
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
             with suppress(Exception):

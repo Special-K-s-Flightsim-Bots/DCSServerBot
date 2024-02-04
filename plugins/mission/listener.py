@@ -110,13 +110,13 @@ class MissionEventListener(EventListener):
             await self.work_queue()
             if self.print_queue.seconds == 10:
                 self.print_queue.change_interval(seconds=2)
-        except discord.errors.DiscordException as ex:
+        except discord.DiscordException as ex:
             self.log.exception(ex)
             self.print_queue.change_interval(seconds=10)
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
 
-    @tasks.loop(seconds=5, reconnect=True)
+    @tasks.loop(seconds=5)
     async def update_player_embed(self):
         for server_name, update in self.player_embeds.copy().items():
             if update:
@@ -131,7 +131,7 @@ class MissionEventListener(EventListener):
                 finally:
                     self.player_embeds[server_name] = False
 
-    @tasks.loop(seconds=5, reconnect=True)
+    @tasks.loop(seconds=5)
     async def update_mission_embed(self):
         for server_name, update in self.mission_embeds.copy().items():
             if update:

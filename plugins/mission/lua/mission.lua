@@ -41,7 +41,9 @@ function dcsbot.sendPopupMessage2(to, id, message, time)
 	if to == 'all' then
         trigger.action.outText(message, time)
 	elseif to == 'coalition' then
-		if id == 'red' then
+		if id == 'all' then
+	        trigger.action.outText(message, time)
+		elseif id == 'red' then
 			trigger.action.outTextForCoalition(coalition.side.RED, message, time)
 		elseif id == 'blue' then
 			trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
@@ -64,7 +66,9 @@ function dcsbot.playSound2(to, id, sound)
 	if to == 'all' then
         trigger.action.outSound(sound, time)
 	elseif to == 'coalition' then
-		if id == 'red' then
+		if id == 'all' then
+	        trigger.action.outSound(sound, time)
+		elseif id == 'red' then
 			trigger.action.outSoundForCoalition(coalition.side.RED, sound)
 		elseif id == 'blue' then
 			trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)

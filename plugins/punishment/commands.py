@@ -22,6 +22,7 @@ class Punishment(Plugin):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
         self.check_punishments.add_exception_type(psycopg.DatabaseError)
+        self.check_punishments.add_exception_type(discord.DiscordException)
         self.check_punishments.start()
         self.decay_config = self.locals.get(DEFAULT_TAG, {}).get('decay')
         self.decay.add_exception_type(psycopg.DatabaseError)

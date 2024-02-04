@@ -210,7 +210,7 @@ class MonitoringService(Service):
             except (psutil.AccessDenied, PermissionError):
                 self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
 
-    @tasks.loop(minutes=1.0, reconnect=True)
+    @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
             if self.node.master:
