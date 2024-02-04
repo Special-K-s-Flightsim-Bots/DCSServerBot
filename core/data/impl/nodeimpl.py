@@ -520,7 +520,12 @@ class NodeImpl(Node):
                                 else:
                                     # something went wrong, we need to upgrade again
                                     await self.upgrade()
-                            elif cluster['version'] != __version__:
+                            elif version.parse(cluster['version']) != version.parse(__version__):
+                                if version.parse(cluster['version']) > version.parse(__version__):
+                                    self.log.warning(
+                                        f"Bot version downgraded from {cluster['version']} to {__version__}. "
+                                        f"This could lead to unexpected behavior if there have been database schema "
+                                        f"changes.")
                                 cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
                                                (__version__, self.guild_id))
                             return True

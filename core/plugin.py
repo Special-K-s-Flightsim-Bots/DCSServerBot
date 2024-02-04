@@ -464,7 +464,7 @@ class Plugin(commands.Cog):
     async def on_ready(self) -> None:
         ...
 
-    @tasks.loop(count=1, reconnect=True)
+    @tasks.loop(count=1)
     async def wait_for_on_ready(self):
         await self.on_ready()
 
