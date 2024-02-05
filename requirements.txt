@@ -2,7 +2,7 @@ discord.py==2.3.2
 pandas==2.2.0
 numpy==1.26.3
 matplotlib==3.8.2
-psycopg[binary]==3.1.17
+psycopg[binary]==3.1.18
 psycopg_pool==3.2.1
 GitPython==3.1.41
 psutil==5.9.8
@@ -11,10 +11,10 @@ aiohttp==3.9.3
 aiofiles==23.2.1
 rich==13.7.0
 eyeD3==0.9.7
-certifi==2023.11.17
-fastapi==0.109.0
+certifi==2024.2.2
+fastapi==0.109.2
 uvicorn==0.27.0.post1
-python-multipart==0.0.6
+python-multipart==0.0.7
 pypiwin32==223; sys_platform == 'win32'
 pywin32==306; sys_platform == 'win32'
 minidump==0.0.23; sys_platform == 'win32'
@@ -23,7 +23,7 @@ trueskill==0.4.5
 croniter==2.0.1
 openpyxl==3.1.2
 fuzzywuzzy==0.18.0
-python-Levenshtein==0.23.0
+python-Levenshtein==0.24.0
 requests==2.31.0
 packaging==23.2
 pid==3.0.4
