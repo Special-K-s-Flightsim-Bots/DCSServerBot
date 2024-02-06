@@ -58,7 +58,7 @@ class Report:
         self.env.params['bot'] = self.bot
         # format the embed
         if 'color' in self.report_def:
-            self.env.embed = discord.Embed(color=getattr(discord.Color, self.report_def['color'])())
+            self.env.embed = discord.Embed(color=getattr(discord.Color, self.report_def.get('color', 'blue'))())
         else:
             self.env.embed = discord.Embed()
         for name, item in self.report_def.items():

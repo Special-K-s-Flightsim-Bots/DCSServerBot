@@ -18,7 +18,7 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
-    from core import Server, Player, Node, Instance
+    from core import Server, Player, Node, Instance, Plugin
     from services import DCSServerBot, ServiceBus
 
 __all__ = [
@@ -37,6 +37,7 @@ __all__ = [
     "app_has_roles",
     "app_has_not_roles",
     "cmd_has_roles",
+    "get_role_ids",
     "format_embed",
     "embed_to_text",
     "embed_to_simpletext",
@@ -444,6 +445,23 @@ def cmd_has_roles(roles: list[str]):
     cmd_has_roles.predicate = wrapper
     wrapper.roles = roles
     return cmd_has_roles
+
+
+def get_role_ids(plugin: Plugin, role_names) -> list[int]:
+    role_ids = []
+    if not isinstance(role_names, list):
+        role_names = [role_names]
+
+    for role in role_names:
+        if isinstance(role, str) and not role.isnumeric():
+            role_id = discord.utils.get(plugin.bot.guilds[0].roles, name=role)
+            if role_id:
+                role_ids.append(role_id.id)
+            else:
+                plugin.log.warning(f'Role "{role}" from {plugin.plugin_name}.yaml not found in Discord.')
+        else:
+            role_ids.append(role)
+    return role_ids
 
 
 def app_has_roles(roles: list[str]):

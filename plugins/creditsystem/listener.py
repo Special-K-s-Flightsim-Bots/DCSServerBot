@@ -25,8 +25,7 @@ class CreditSystemListener(EventListener):
                     default = unit['default'] if data['victimCategory'] != 'Structures' else 0
         return default if data['victimCategory'] != 'Structures' else 0
 
-    @staticmethod
-    def get_initial_points(player: CreditPlayer, config: dict) -> int:
+    def get_initial_points(self, player: CreditPlayer, config: dict) -> int:
         if not config or 'initial_points' not in config:
             return 0
         if isinstance(config['initial_points'], int):
@@ -34,8 +33,10 @@ class CreditSystemListener(EventListener):
         elif isinstance(config['initial_points'], list):
             roles = [x.id for x in player.member.roles] if player.member else []
             for element in config['initial_points']:
-                if 'discord' in element and element['discord'] in roles:
-                    return element['points']
+                if 'discord' in element:
+                    role_ids = utils.get_role_ids(self.plugin, element['discord'])
+                    if any(item in roles for item in role_ids):
+                        return element['points']
                 elif 'default' in element:
                     return element['default']
         return 0
