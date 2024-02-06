@@ -18,7 +18,7 @@ from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
-    from services import ServiceBus
+    from services import ServiceBus, DCSServerBot
 
 __all__ = [
     "MonitoringService"
@@ -222,3 +222,9 @@ class MonitoringService(Service):
                 await self.serverload()
         except Exception as ex:
             self.log.exception(ex)
+
+    @monitoring.before_loop
+    async def before_loop(self):
+        if self.node.master:
+            bot: DCSServerBot = ServiceRegistry.get("Bot").bot
+            await bot.wait_until_ready()

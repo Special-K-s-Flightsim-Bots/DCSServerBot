@@ -168,3 +168,10 @@ function loadScript(scriptPath)
     command = 'dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/' .. scriptPath .. '\\")'
     net.dostring_in('mission', 'a_do_script("' .. command .. '")')
 end
+
+function getIP(s)
+    for ip in string.gmatch(s, "(%d+.%d+.%d+.%d+)") do
+        return ip
+    end
+    return nil
+end

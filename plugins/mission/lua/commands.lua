@@ -445,8 +445,17 @@ end
 
 local function single_ban(json)
     local banned_until = json.banned_until or 'never'
-    dcsbot.banList[json.ucid] = json.reason .. '.\nExpires ' .. banned_until
-    dcsbot.kick(json)
+    local reason = json.reason .. '.\nExpires ' .. banned_until
+    dcsbot.banList[json.ucid] = reason
+    local plist = net.get_player_list()
+    for i = 2, table.getn(plist) do
+        if net.get_player_info(plist[i], 'ucid') == json.ucid then
+            net.kick(plist[i], reason)
+            ipaddr = utils.getIP(net.get_player_info(plist[i], 'ipaddr'))
+            dcsbot.banList[ipaddr] = json.ucid
+            break
+        end
+    end
 end
 
 function dcsbot.ban(json)

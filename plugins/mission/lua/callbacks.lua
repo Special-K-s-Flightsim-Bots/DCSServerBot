@@ -45,18 +45,27 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     if locate(default_names, name) then
         return false, config.MESSAGE_PLAYER_DEFAULT_USERNAME
     end
-    name2 = name:gsub("[\r\n%z]", "")
+    local name2 = name:gsub("[\r\n%z]", "")
     if name ~= name2 then
         return false, config.MESSAGE_PLAYER_USERNAME
     end
-	if isBanned(ucid) then
-    	local msg = {
+    ipaddr = utils.getIP(addr)
+    if isBanned(ucid) then
+        local msg = {
             command = 'sendMessage',
             message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
         }
-    	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-	    return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
-	end
+        utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+        return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
+    elseif isBanned(ipaddr) and dcsbot.banList[dcsbot.banList[ipaddr]] then
+        local old_ucid = dcsbot.banList[ipaddr]
+        local msg = {
+            command = 'sendMessage',
+            message = 'Banned user ' .. name .. ' (ucid=' .. old_ucid .. ', IP=' .. ipaddr ..') attempted to connect with ucid ' .. ucid
+        }
+        utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+        return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[old_ucid])
+    end
 end
 
 function mission.onMissionLoadBegin()
