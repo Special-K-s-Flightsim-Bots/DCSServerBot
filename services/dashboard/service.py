@@ -36,7 +36,7 @@ class HeaderWidget:
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
         message = f"[b]"
-        if len(self.node.all_nodes) > 1:
+        if self.service.is_multinode():
             if self.node.master:
                 message += "Cluster Master | "
             else:
@@ -59,7 +59,7 @@ class ServersWidget:
         table.add_column("Server Name", justify="left", no_wrap=True)
         table.add_column("Mission Name", justify="left", no_wrap=True)
         table.add_column("Players", justify="center", min_width=4)
-        if self.service.node.master:
+        if self.service.node.master and self.service.is_multinode():
             table.add_column("Node", justify="left", min_width=8)
         for server_name, server in self.bus.servers.items():
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
@@ -67,7 +67,7 @@ class ServersWidget:
                                   server.current_mission.name).strip() if server.current_mission else "n/a"
             num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}" \
                 if server.current_mission else "n/a"
-            if self.service.node.master:
+            if self.service.node.master and self.service.is_multinode():
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
@@ -154,6 +154,9 @@ class Dashboard(Service):
         self.update_task = None
         self.stop_event = asyncio.Event()
 
+    def is_multinode(self):
+        return len(self.node.all_nodes) > 1
+
     def create_layout(self):
         layout = Layout()
         layout.split(
@@ -161,7 +164,7 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        if self.node.master and len(self.node.all_nodes) > 1:
+        if self.node.master and self.is_multinode():
             layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
         return layout
 
@@ -207,7 +210,7 @@ class Dashboard(Service):
 
         def do_update():
             self.layout['header'].update(header)
-            if self.node.master and len(self.node.all_nodes) > 1:
+            if self.node.master and self.is_multinode():
                 self.layout['servers'].update(servers)
                 self.layout['nodes'].update(nodes)
             else:
