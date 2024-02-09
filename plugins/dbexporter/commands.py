@@ -1,6 +1,8 @@
 import discord
 import json
 import os
+import psycopg
+
 from contextlib import closing
 from core import Plugin, TEventListener, utils, command
 from discord import app_commands
@@ -17,6 +19,7 @@ class DBExporter(Plugin):
         if not path.exists('./export'):
             os.makedirs('./export')
         if self.get_config().get('autoexport', False):
+            self.schedule.add_exception_type(psycopg.Error)
             self.schedule.start()
 
     async def cog_unload(self):

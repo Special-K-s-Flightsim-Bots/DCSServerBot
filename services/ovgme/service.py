@@ -6,7 +6,7 @@ import zipfile
 
 from aiohttp import ClientSession
 from contextlib import closing, suppress
-from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError
+from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils
 from filecmp import cmp
 from packaging import version
 from pathlib import Path
@@ -371,7 +371,7 @@ class OvGMEService(Service):
                         if folder == 'RootFolder':
                             self.log.warning(f"- Can't recover file {filename}, because it has been removed! "
                                              f"You might need to run a slow repair.")
-        shutil.rmtree(ovgme_path)
+        utils.safe_rmtree(ovgme_path)
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""

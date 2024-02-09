@@ -47,7 +47,7 @@ class ServiceBus(Service):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
-        self.intercom.add_exception_type(psycopg.DatabaseError)
+        self.intercom.add_exception_type(psycopg.Error)
 
     async def start(self):
         await super().start()

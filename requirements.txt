@@ -1,29 +1,89 @@
-discord.py==2.3.2
-pandas==2.2.0
-numpy==1.26.3
-matplotlib==3.8.2
-psycopg[binary]==3.1.18
-psycopg_pool==3.2.1
-GitPython==3.1.41
-psutil==5.9.8
-watchdog==3.0.0
-aiohttp==3.9.3
+# AIOFiles: File support for python's asyncio
 aiofiles==23.2.1
-rich==13.7.0
-eyeD3==0.9.7
+
+# AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
+aiohttp==3.9.3
+
+# Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2024.2.2
-fastapi==0.109.2
-uvicorn==0.27.0.post1
-python-multipart==0.0.7
-pypiwin32==223; sys_platform == 'win32'
-pywin32==306; sys_platform == 'win32'
-minidump==0.0.23; sys_platform == 'win32'
-ruamel.yaml==0.18.5
-trueskill==0.4.5
+
+# Croniter: Python iterator implementing a cron schedule format
 croniter==2.0.1
-openpyxl==3.1.2
+
+# discord.py: The python interface for the Discord API
+discord.py==2.3.2
+
+# eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
+eyeD3==0.9.7
+
+# FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
+fastapi==0.109.2
+
+# FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
-python-Levenshtein==0.24.0
-requests==2.31.0
+
+# GitPython: Python library for interacting with git repositories
+GitPython==3.1.41
+
+# Matplotlib: Python 2D plotting library
+matplotlib==3.8.2
+
+# Minidump: Windows Minidump file reader
+minidump==0.0.23; sys_platform == 'win32'
+
+# NumPy: Package for scientific computing with Python
+numpy==1.26.4
+
+# Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
+openpyxl==3.1.2
+
+# Pandas: Python data analysis library
+pandas==2.2.0
+
+# Packaging: A core package providing support for PEP 440 version identifiers
 packaging==23.2
+
+# PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
+
+# Psycopg: PostgreSQL database adapter for Python
+psycopg[binary]==3.1.18
+
+# Psycopg Pool: PostgreSQL database adapter pool for Python
+psycopg_pool==3.2.1
+
+# PSUtil: Cross-platform library to access system details and process utilities
+psutil==5.9.8
+
+# PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
+pyarrow==15.0.0
+
+# python-Levenshtein: Python extension for computing string edit distances and similarities
+python-Levenshtein==0.24.0
+
+# python-multipart: A library for parsing multipart/form-data input requests
+python-multipart==0.0.7
+
+# pywin32: Set of python extensions for Windows provided by Microsoft
+pypiwin32==223; sys_platform == 'win32'
+
+# Pywin32: Set of Python extensions for MS Windows
+pywin32==306; sys_platform == 'win32'
+
+# Requests: Python HTTP library
+requests==2.31.0
+
+# Rich: Python library for rich text and beautiful formatting in the terminal
+rich==13.7.0
+
+# ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
+ruamel.yaml==0.18.6
+
+# TrueSkill: Python module implementing the TrueSkill rating system
+trueskill==0.4.5
+
+# Uvicorn: ASGI server implemented using asyncio and uvloop
+uvicorn==0.27.0.post1
+
+# Watchdog: API library and shell utilities to monitor file system events
+watchdog==4.0.0

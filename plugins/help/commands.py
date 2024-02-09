@@ -416,14 +416,15 @@ class Help(Plugin):
 
     @command(description='Generate Documentation')
     @app_commands.guild_only()
+    @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
     async def doc(self, interaction: discord.Interaction, what: Literal['Commands', 'Server'],
-                  format: Literal['channel', 'xls'], role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
+                  fmt: Literal['channel', 'xls'], role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
                   channel: Optional[discord.TextChannel] = None):
         if what == 'Commands':
-            await self.generate_commands_doc(interaction, format, role, channel)
+            await self.generate_commands_doc(interaction, fmt, role, channel)
         elif what == 'Server':
-            await self.generate_server_docs(interaction, format, channel)
+            await self.generate_server_docs(interaction, fmt, channel)
         else:
             await interaction.response.send_message(f"Unknown option {what}", ephemeral=True)
 
