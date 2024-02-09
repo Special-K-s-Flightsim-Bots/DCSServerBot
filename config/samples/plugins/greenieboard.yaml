@@ -11,6 +11,7 @@ DEFAULT:
     --: 2
     OWO: 2
     WO: 1
+    WOFD: 1
     C: 0
 #  FunkMan:                 # if you want to use the FunkMan integration, uncomment this
 #    IMAGEPATH: ../FunkMan/funkpics/

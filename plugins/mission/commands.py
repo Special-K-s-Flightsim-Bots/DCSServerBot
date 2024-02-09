@@ -773,8 +773,9 @@ class Mission(Plugin):
     async def check_for_unban(self):
         with self.pool.connection() as conn:
             with conn.transaction():
-                # migrate active bans from the punishment system and migrate them to the new method (fix days only)
-                for row in conn.execute("""SELECT ucid FROM bans WHERE banned_until < NOW()""").fetchall():
+                for row in conn.execute("""
+                    SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
+                """).fetchall():
                     for server in self.bot.servers.values():
                         if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                             continue
@@ -782,8 +783,8 @@ class Mission(Plugin):
                             "command": "unban",
                             "ucid": row[0]
                         })
-                # delete unbanned accounts from the database
-                conn.execute("DELETE FROM bans WHERE banned_until < (NOW() - interval '1 minutes')")
+                    # delete unbanned accounts from the database
+                    conn.execute("DELETE FROM bans WHERE ucid = %s", row[0])
 
     @check_for_unban.before_loop
     async def before_check_unban(self):
