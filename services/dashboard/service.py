@@ -161,7 +161,7 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        if self.node.master and len(self.node.all_nodes) > 0:
+        if self.node.master and len(self.node.all_nodes) > 1:
             layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
         return layout
 
