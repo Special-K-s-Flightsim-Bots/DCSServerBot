@@ -207,7 +207,7 @@ class Dashboard(Service):
 
         def do_update():
             self.layout['header'].update(header)
-            if self.node.master and len(self.node.all_nodes) > 0:
+            if self.node.master and len(self.node.all_nodes) > 1:
                 self.layout['servers'].update(servers)
                 self.layout['nodes'].update(nodes)
             else:
