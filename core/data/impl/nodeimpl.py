@@ -283,7 +283,7 @@ class NodeImpl(Node):
                 if new_hash != current_hash:
                     return True
         except git.InvalidGitRepositoryError:
-            return await self.do_upgrade_non_git()
+            return await self._upgrade_pending_non_git()
         except git.GitCommandError as ex:
             self.log.error('  => Autoupdate failed!')
             changed_files = repo.index.diff(None)
