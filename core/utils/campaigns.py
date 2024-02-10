@@ -40,7 +40,7 @@ def get_running_campaign(bot: DCSServerBot, server: Optional[Server] = None) -> 
 
 def get_all_campaigns(self) -> list[str]:
     with self.pool.connection() as conn:
-        return [x[0] for x in conn.execute('SELECT name FROM campaigns').fetchall()]
+        return [x[0] for x in conn.execute('SELECT name FROM campaigns')]
 
 
 def get_campaign(self, campaign: str) -> dict:

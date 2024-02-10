@@ -145,7 +145,7 @@ class PaginationReport(Report):
         values = None
         if 'sql' in param:
             with self.pool.connection() as conn:
-                values = [x[0] for x in conn.execute(param['sql'], kwargs).fetchall()]
+                values = [x[0] for x in conn.execute(param['sql'], kwargs)]
         elif 'values' in param:
             values = param['values']
         elif 'obj' in param:

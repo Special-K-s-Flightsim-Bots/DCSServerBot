@@ -17,13 +17,13 @@ class RangeBoard(EmbedElement):
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 pilots = points = runs = ''
                 max_time = datetime.fromisocalendar(1970, 1, 1)
-                for row in cursor.execute(sql1, (num_rows, )).fetchall():
+                for row in cursor.execute(sql1, (num_rows, )):
                     pilots += utils.escape_string(row['name']) + '\n'
                     points += f"{row['points']:.2f}\n"
                     cursor.execute(sql2, (row['player_ucid'], ))
                     i = 0
                     runs += '**|'
-                    for run in cursor.fetchall():
+                    for run in cursor:
                         runs += EMOJIS[what][run['quality']] + '|'
                         i += 1
                     for i in range(i, 10):

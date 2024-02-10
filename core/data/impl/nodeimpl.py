@@ -238,7 +238,7 @@ class NodeImpl(Node):
                     # check if there is an old database already
                     cursor.execute("SELECT tablename FROM pg_catalog.pg_tables "
                                    "WHERE tablename IN ('version', 'plugins')")
-                    tables = [x[0] for x in cursor.fetchall()]
+                    tables = [x[0] for x in cursor]
                     # initial setup
                     if len(tables) == 0:
                         self.log.info('Creating Database ...')
@@ -583,7 +583,7 @@ class NodeImpl(Node):
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
-            """, (self.guild_id, self.name)).fetchall()]
+            """, (self.guild_id, self.name))]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
         self.log.debug('Running shell-command: ' + cmd)

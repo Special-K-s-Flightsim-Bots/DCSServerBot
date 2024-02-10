@@ -19,7 +19,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
                 WHERE player_ucid =  %s 
                 AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
                 GROUP BY 1 ORDER BY 2 DESC
-            """, (ucid, )).fetchall()]
+            """, (ucid, ))]
 
     try:
         user = await utils.UserTransformer().transform(interaction, utils.get_interaction_param(interaction, "user"))

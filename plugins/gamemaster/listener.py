@@ -245,7 +245,7 @@ class GameMasterEventListener(EventListener):
                         SELECT p.ucid, p.discord_id, c.coalition 
                         FROM players p, coalitions c 
                         WHERE p.ucid = c.player_ucid AND c.server_name = %s AND c.coalition IS NOT NULL
-                    """, (server.name,)).fetchall():
+                    """, (server.name,)):
                         if discord_roles and row[1] != -1:
                             member = guild.get_member(row[1])
                             if member:

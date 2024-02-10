@@ -521,7 +521,7 @@ class ServiceBus(Service):
                     idx = 0
                     for idx, row in enumerate(conn.execute("""
                         SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 10
-                    """, ("Master" if self.master else self.node.name, )).fetchall()):
+                    """, ("Master" if self.master else self.node.name, ))):
                         data = row[1]
                         try:
                             if data['command'] == 'rpc':

@@ -118,7 +118,7 @@ class Punishment(Plugin):
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
                                 AND time < (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (server_name, )).fetchall():
+                            """, (server_name, )):
                                 try:
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:
@@ -201,7 +201,7 @@ class Punishment(Plugin):
                         if isinstance(user, discord.Member):
                             ucids = [
                                 row[0] for row in cursor.execute('SELECT ucid FROM players WHERE discord_id = %s',
-                                                                 (user.id,)).fetchall()
+                                                                 (user.id,))
                             ]
                             if not ucids:
                                 await interaction.followup.send(f"User {user.display_name} is not linked.",
@@ -261,7 +261,7 @@ class Punishment(Plugin):
                     color=discord.Color.blue())
                 times = events = points = ''
                 total = 0.0
-                for row in cursor.fetchall():
+                for row in cursor:
                     times += f"{row['time']:%m-%d %H:%M}\n"
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"

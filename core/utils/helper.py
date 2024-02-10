@@ -305,7 +305,7 @@ def get_all_servers(self) -> list[str]:
             row[0] for row in conn.execute("""
                 SELECT server_name FROM instances 
                 WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
-            """).fetchall()
+            """)
         ]
 
 
@@ -336,7 +336,7 @@ def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[boo
         else:
             sql += " AND discord_id = -1"
     with self.pool.connection() as conn:
-        return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
+        return [(row[0], row[1]) for row in conn.execute(sql)]
 
 
 def is_ucid(ucid: Optional[str]) -> bool:

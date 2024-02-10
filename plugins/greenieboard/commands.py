@@ -89,7 +89,7 @@ class GreenieBoard(Plugin):
                     await interaction.response.send_message('No carrier landings recorded for this user.',
                                                             ephemeral=True)
                     return
-                landings = [dict(row) for row in cursor.fetchall()]
+                landings = [dict(row) for row in cursor]
         report = Report(self.bot, self.plugin_name, 'traps.json')
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",

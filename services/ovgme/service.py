@@ -127,7 +127,7 @@ class OvGMEService(Service):
                             SELECT * FROM ovgme_packages 
                             WHERE server_name = %s AND folder = %s 
                             ORDER BY package_name, version
-                        """, (server.name, folder)).fetchall()
+                        """, (server.name, folder))
                 ]
 
     async def get_repo_versions(self, repo: str) -> set[str]:

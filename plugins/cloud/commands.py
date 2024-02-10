@@ -230,7 +230,7 @@ class CloudHandler(Plugin):
                         WHERE synced IS FALSE 
                         ORDER BY last_seen DESC 
                         LIMIT 10
-                    """).fetchall():
+                    """):
                         cursor.execute("""
                             SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                    SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
@@ -247,7 +247,7 @@ class CloudHandler(Plugin):
                             WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
                             GROUP BY 1, 2, 3
                         """, (row['ucid'], ))
-                        for line in cursor.fetchall():
+                        for line in cursor:
                             try:
                                 line['client'] = self.client
                                 await self.post('upload', line)

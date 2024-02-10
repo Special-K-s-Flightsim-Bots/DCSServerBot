@@ -56,7 +56,7 @@ class Radio(ABC):
         with self.pool.connection() as conn:
             with conn.transaction():
                 for row in conn.execute('SELECT song_file FROM music_playlists WHERE name = %s',
-                                        (self._playlist,)).fetchall():
+                                        (self._playlist,)):
                     if os.path.exists(os.path.join(music_dir, row[0])):
                         playlist.append(row[0])
                     else:

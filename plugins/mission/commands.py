@@ -775,7 +775,7 @@ class Mission(Plugin):
             with conn.transaction():
                 for row in conn.execute("""
                     SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
-                """).fetchall():
+                """):
                     for server in self.bot.servers.values():
                         if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                             continue

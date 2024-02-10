@@ -32,7 +32,7 @@ class PlaytimesPerPlane(report.GraphElement):
                 labels = []
                 values = []
                 for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                                          (member.id if isinstance(member, discord.Member) else member,)):
                     labels.insert(0, row['slot'])
                     values.insert(0, float(row['playtime']) / 3600.0)
                 self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
@@ -70,7 +70,7 @@ class PlaytimesPerServer(report.GraphElement):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                                          (member.id if isinstance(member, discord.Member) else member,)):
                     labels.insert(0, row['server_name'])
                     values.insert(0, float(row['playtime']))
 
@@ -108,7 +108,7 @@ class PlaytimesPerMap(report.GraphElement):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                                          (member.id if isinstance(member, discord.Member) else member,)):
                     labels.insert(0, row['mission_theatre'])
                     values.insert(0, float(row['playtime']))
         if values:
@@ -149,7 +149,7 @@ class RecentActivities(report.GraphElement):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                                          (member.id if isinstance(member, discord.Member) else member,)):
                     labels.append(row['day'])
                     values.append(float(row['playtime']) / 3600.0)
 

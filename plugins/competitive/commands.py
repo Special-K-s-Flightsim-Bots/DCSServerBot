@@ -53,8 +53,7 @@ class Competitive(Plugin):
                                 VALUES (%s, %s, %s)
                             """, (player_id, skill.mu, skill.sigma))
                         else:
-                            for row in conn.execute("SELECT ucid FROM players WHERE discord_id = %s",
-                                                    (player_id, )).fetchall():
+                            for row in conn.execute("SELECT ucid FROM players WHERE discord_id = %s", (player_id, )):
                                 conn.execute("""
                                     INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
                                     VALUES (%s, %s, %s)

@@ -42,7 +42,7 @@ async def watchlist_autocomplete(interaction: discord.Interaction, current: str)
             app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
             for row in conn.execute("""
                 SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
-            """, ('%' + current + '%', '%' + current + '%')).fetchall()
+            """, ('%' + current + '%', '%' + current + '%'))
         ]
         return choices[:25]
 
@@ -460,7 +460,7 @@ class Admin(Plugin):
                                f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")
                         if view.what == 'non-members':
                             sql += ' AND discord_id = -1'
-                        ucids = [row[0] for row in cursor.execute(sql).fetchall()]
+                        ucids = [row[0] for row in cursor.execute(sql)]
                         if not ucids:
                             await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
                             return

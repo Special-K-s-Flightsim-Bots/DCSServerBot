@@ -166,7 +166,7 @@ class PunishmentEventListener(EventListener):
                                 SELECT DISTINCT init_id 
                                 FROM pu_events 
                                 WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (target.ucid, )).fetchall()
+                            """, (target.ucid, ))
                         ]
                         # there were no events, so forgive would not do anything
                         if not initiators:

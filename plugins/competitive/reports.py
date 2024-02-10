@@ -21,7 +21,7 @@ class HighscoreTrueSkill(report.GraphElement):
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                for row in cursor.execute(sql).fetchall():
+                for row in cursor.execute(sql):
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)

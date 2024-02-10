@@ -34,7 +34,7 @@ class DBExporter(Plugin):
                     SELECT table_name FROM information_schema.tables 
                     WHERE table_schema = 'public' 
                     AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
-                """).fetchall() if x[0] not in table_filter]:
+                """) if x[0] not in table_filter]:
                     rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
                     if rows:
                         with open(f'export/{table}.json', 'w') as file:
