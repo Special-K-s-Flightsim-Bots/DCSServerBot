@@ -114,7 +114,9 @@ if __name__ == "__main__":
                 Install(node=args.node).install()
                 node = NodeImpl(name=args.node)
             asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
-    except (PermissionError, PidFileError):
+    except PermissionError:
+        exit(-2)
+    except PidFileError:
         print(f"Process already running for node {args.node}! Exiting...")
         exit(-2)
     except KeyboardInterrupt:

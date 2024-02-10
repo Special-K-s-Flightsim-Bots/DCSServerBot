@@ -7,6 +7,7 @@ import math
 import os
 import shutil
 import ssl
+import stat
 
 from contextlib import suppress
 from core.const import SAVED_GAMES
@@ -69,6 +70,11 @@ def desanitize(self, _filename: str = None) -> None:
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
     else:
         filename = _filename
+    try:
+        os.chmod(filename, stat.S_IWUSR)
+    except PermissionError:
+        self.log.error(f"Can't desanitize {filename}, no write permissions!")
+        raise
     backup = filename.replace('.lua', '.bak')
     if os.path.exists('./config/MissionScripting.lua'):
         if _filename:

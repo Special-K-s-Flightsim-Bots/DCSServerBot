@@ -207,7 +207,7 @@ class ServerLoad(report.MultiGraphElement):
                    ROUND(AVG(fps), 2) AS "FPS", 
                    ROUND(AVG(ping), 2) AS "Ping" 
             FROM serverstats 
-            WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')
+            WHERE time > ((NOW() AT TIME ZONE 'UTC') - interval '1 {period}')
         """
         if server_name:
             sql += f" AND server_name = %s"
