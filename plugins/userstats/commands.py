@@ -236,11 +236,11 @@ class UserStatistics(Plugin):
     async def unlink(self, interaction: discord.Interaction,
                      user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
 
-        async def unlink_member(member: discord.Member, ucid: str):
+        async def unlink_member(member: discord.Member, ucid: str, ephemeral: bool):
             conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
-                ephemeral=utils.get_ephemeral(interaction))
+                ephemeral=ephemeral)
             await self.bot.audit(
                 f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                 user=interaction.user)
@@ -259,23 +259,25 @@ class UserStatistics(Plugin):
                         'roles': []
                     })
 
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         with self.pool.connection() as conn:
             with conn.transaction():
                 if isinstance(user, discord.Member):
                     for row in conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )):
                         ucid = row[0]
                         await clear_user_roles(ucid)
-                        await unlink_member(user, ucid)
+                        await unlink_member(user, ucid, ephemeral)
                 elif utils.is_ucid(user):
                     ucid = user
                     member = self.bot.get_member_by_ucid(ucid)
                     if not member:
-                        await interaction.response.send_message('Player is not linked!', ephemeral=True)
+                        await interaction.followup.send('Player is not linked!', ephemeral=True)
                         return
-                    await unlink_member(member, ucid)
+                    await unlink_member(member, ucid, ephemeral)
                     await clear_user_roles(ucid)
                 else:
-                    await interaction.response.send_message('Unknown player / member provided', ephemeral=True)
+                    await interaction.followup.send('Unknown player / member provided', ephemeral=True)
                     return
 
     @command(description='Find a player by name')
