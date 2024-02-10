@@ -58,7 +58,7 @@ class Server(DataObject):
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
     bus: ServiceBus = field(compare=False, init=False)
-    last_seen: datetime = field(compare=False, default=datetime.now())
+    last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
 
     def __post_init__(self):
         super().__post_init__()
@@ -109,6 +109,28 @@ class Server(DataObject):
     def status(self, status: Union[Status, str]):
         self.set_status(status)
 
+    # allow overloading of setter
+    def set_status(self, status: Union[Status, str]):
+        if isinstance(status, str):
+            new_status = Status(status)
+        else:
+            new_status = status
+        if new_status != self._status:
+            # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
+            self.last_seen = datetime.now(timezone.utc)
+            self._status = new_status
+            self.status_change.set()
+            self.status_change.clear()
+            if not isinstance(status, str) and not (self.node.master and not self.is_remote):
+                self.bus.send_to_node({
+                    "command": "rpc",
+                    "object": "Server",
+                    "server_name": self.name,
+                    "params": {
+                        "status": self._status.value
+                    }
+                }, node=self.node.name)
+
     @property
     def maintenance(self) -> bool:
         return self._maintenance
@@ -143,34 +165,12 @@ class Server(DataObject):
     def display_name(self) -> str:
         return utils.escape_string(self.name)
 
-    # allow overloading of setter
-    def set_status(self, status: Union[Status, str]):
-        if isinstance(status, str):
-            new_status = Status(status)
-        else:
-            new_status = status
-        if new_status != self._status:
-            # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
-            self.last_seen = datetime.now(timezone.utc)
-            self._status = new_status
-            self.status_change.set()
-            self.status_change.clear()
-            if not isinstance(status, str) and not (self.node.master and not self.is_remote):
-                self.bus.send_to_node({
-                    "command": "rpc",
-                    "object": "Server",
-                    "server_name": self.name,
-                    "params": {
-                        "status": self._status.value
-                    }
-                }, node=self.node.name)
-
     @property
     def coalitions(self) -> bool:
         return self.locals.get('coalitions', None) is not None
 
     async def get_missions_dir(self) -> str:
-        ...
+        raise NotImplemented()
 
     def add_player(self, player: Player):
         self.players[player.id] = player
@@ -284,21 +284,23 @@ class Server(DataObject):
         else:
             raise NotImplemented()
 
-    def sendPopupMessage(self, coalition: Coalition, message: str, timeout: Optional[int] = -1, sender: str = None):
+    def sendPopupMessage(self, recipient: Union[Coalition, str], message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
         self.send_to_dcs({
             "command": "sendPopupMessage",
-            "to": coalition.value,
+            "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
+            "id": recipient.value if isinstance(recipient, Coalition) else recipient,
             "from": sender,
             "message": message,
             "time": timeout
         })
 
-    def playSound(self, coalition: Coalition, sound: str):
+    def playSound(self, recipient: Union[Coalition, str], sound: str):
         self.send_to_dcs({
             "command": "playSound",
-            "to": coalition.value,
+            "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
+            "id": recipient.value if isinstance(recipient, Coalition) else recipient,
             "sound": sound
         })
 
@@ -316,73 +318,25 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
     async def restart(self, modify_mission: Optional[bool] = True) -> None:
-        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
+        raise NotImplemented()
 
     async def setStartIndex(self, mission_id: int) -> None:
-        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
-        else:
-            self.settings['listStartIndex'] = mission_id
+        raise NotImplemented()
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
-        path = os.path.normpath(path)
-        missions = self.settings['missionList']
-        if path not in missions:
-            if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-                data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
-                self.settings['missionList'] = data['missionList']
-            else:
-                missions.append(path)
-                self.settings['missionList'] = missions
-        elif autostart:
-            self.settings['listStartIndex'] = missions.index(path) + 1
+        raise NotImplemented()
 
     async def deleteMission(self, mission_id: int) -> None:
-        if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
-            raise AttributeError("Can't delete the running mission!")
-        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
-            self.settings['missionList'] = data['missionList']
-        else:
-            missions = self.settings['missionList']
-            del missions[mission_id - 1]
-            self.settings['missionList'] = missions
+        raise NotImplemented()
 
     async def replaceMission(self, mission_id: int, path: str) -> None:
-        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
-        else:
-            missions: list[str] = self.settings['missionList']
-            missions[mission_id - 1] = path
+        raise NotImplemented()
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
-        if isinstance(mission, int):
-            if mission > len(self.settings['missionList']):
-                mission = 1
-            filename = self.settings['missionList'][mission - 1]
-        else:
-            filename = mission
-        if modify_mission:
-            filename = await self.apply_mission_changes(filename)
-        stopped = self.status == Status.STOPPED
-        try:
-            idx = self.settings['missionList'].index(filename) + 1
-            if idx == int(self.settings['listStartIndex']):
-                self.send_to_dcs({"command": "startMission", "filename": filename})
-            else:
-                self.send_to_dcs({"command": "startMission", "id": idx})
-        except ValueError:
-            self.send_to_dcs({"command": "startMission", "filename": filename})
-        if not stopped:
-            # wait for a status change (STOPPED or LOADING)
-            await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
-        else:
-            self.send_to_dcs({"command": "start_server"})
-        # wait until we are running again
-        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
+        raise NotImplemented()
 
     async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
-        await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
+        raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
         raise NotImplemented()

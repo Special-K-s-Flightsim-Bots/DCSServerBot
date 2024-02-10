@@ -56,18 +56,18 @@ class Header(report.EmbedElement):
             self.add_field(name='Discord ID:', value=member.id)
         else:
             self.embed.description += 'a non-member user:'
-        first_seen = datetime(2999, 12, 31, tzinfo=timezone.utc)
-        last_seen = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        first_seen = datetime(2999, 12, 31)
+        last_seen = datetime(1970, 1, 1)
         banned = False
         for row in rows:
-            if row.get('first_seen') and row['first_seen'].astimezone(timezone.utc) < first_seen:
-                first_seen = row['first_seen'].astimezone(timezone.utc)
-            if row.get('last_seen') and row['last_seen'].astimezone(timezone.utc) > last_seen:
-                last_seen = row['last_seen'].astimezone(timezone.utc)
+            if row.get('first_seen') and row['first_seen'] < first_seen:
+                first_seen = row['first_seen']
+            if row.get('last_seen') and row['last_seen'] > last_seen:
+                last_seen = row['last_seen']
             if row['banned'] == 1:
                 banned = True
-        self.add_datetime_field('Last seen', last_seen)
-        self.add_datetime_field('First seen', first_seen)
+        self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
+        self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
         if rows[0]['watchlist']:
             self.add_field(name='Watchlist', value="🔍")
         if rows[0]['vip']:
@@ -75,8 +75,8 @@ class Header(report.EmbedElement):
         if banned:
             banned_until = rows[0]['banned_until']
             if banned_until.year != 9999:
-                banned_until = banned_until.astimezone(timezone.utc)
-            self.add_datetime_field('Ban expires', banned_until)
+                banned_until = banned_until
+            self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])
 
@@ -120,7 +120,8 @@ class History(report.EmbedElement):
                     utils.escape_string(row['name'] or 'n/a') for row in rows
                 ]))
                 self.add_field(name='Time (UTC)', value='\n'.join([
-                    f"{row['time'].astimezone(timezone.utc):%Y-%m-%d %H:%M:%S}" for row in rows
+                    f'{row["time"].replace(tzinfo=timezone.utc).strftime("%y-%m-%d %H:%Mz")} / '
+                    f'<t:{int(row["time"].replace(tzinfo=timezone.utc).timestamp())}:R>' for row in rows
                 ]))
                 self.add_field(name='_ _', value='_ _')
 

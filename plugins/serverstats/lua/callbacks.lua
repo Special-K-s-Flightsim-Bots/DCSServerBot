@@ -2,25 +2,24 @@ local base      = _G
 local utils 	= base.require("DCSServerBotUtils")
 
 local serverstats = serverstats or {}
-local counter     = 0
-local starttime   = -1
 
-function serverstats.onSimulationFrame()
-    if counter == 3600 then
-        if starttime == -1 then
-            starttime = os.clock()
+function createSimulateFrame()
+    local startTime = os.clock()
+    local counter = 0
+    return function()
+        if counter == 3600 then
+            local currentTime = os.clock()
+            local elapsedTime = currentTime - startTime
+            local fps = counter / elapsedTime
+            utils.sendBotTable({command = 'perfmon', fps = fps})
+            startTime = currentTime
+            counter = 0
         else
-            local endtime = os.clock()
-            msg = {}
-            msg.command = 'perfmon'
-            msg.fps = counter / (endtime-starttime)
-            utils.sendBotTable(msg)
-            starttime = endtime
+            counter = counter + 1
         end
-        counter = 0
-    else
-        counter = counter + 1
     end
 end
+
+serverstats.onSimulationFrame = createSimulateFrame()
 
 DCS.setUserCallbacks(serverstats)

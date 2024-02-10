@@ -19,23 +19,24 @@ function dcsbot.shutdown(json)
 	DCS.exitProcess()
 end
 
+function handlePassword(json, settings, passwordKey, passwordHashKey)
+    local password = json[passwordKey]
+    if password then
+        if password == '' then
+            settings['advanced'][passwordHashKey] = nil
+        else
+            settings['advanced'][passwordHashKey] = net.hash_password(password)
+        end
+    end
+end
+
 function dcsbot.setCoalitionPassword(json)
     log.write('DCSServerBot', log.DEBUG, 'Scheduler: setCoalitionPassword()')
-    settings = utils.loadSettingsRaw()
-    if json.bluePassword then
-        if json.bluePassword == '' then
-            settings['advanced']['bluePasswordHash'] = nil
-        else
-            settings['advanced']['bluePasswordHash'] = net.hash_password(json.bluePassword)
-        end
-    end
-    if json.redPassword then
-        if json.redPassword == '' then
-            settings['advanced']['redPasswordHash'] = nil
-        else
-            settings['advanced']['redPasswordHash'] = net.hash_password(json.redPassword)
-        end
-    end
+    local settings = utils.loadSettingsRaw()
+
+    handlePassword(json, settings, 'bluePassword', 'bluePasswordHash')
+    handlePassword(json, settings, 'redPassword', 'redPasswordHash')
+
     utils.saveSettings(settings)
 end
 

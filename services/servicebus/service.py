@@ -47,7 +47,7 @@ class ServiceBus(Service):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
-        self.intercom.add_exception_type(psycopg.DatabaseError)
+        self.intercom.add_exception_type(psycopg.Error)
 
     async def start(self):
         await super().start()
@@ -56,8 +56,8 @@ class ServiceBus(Service):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
-                    conn.execute("DELETE FROM files WHERE created < NOW() - interval '300 seconds'")
-                    conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
+                    conn.execute("DELETE FROM files WHERE created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')")
+                    conn.execute("DELETE FROM intercom WHERE time < ((now() AT TIME ZONE 'utc') - interval '300 seconds')")
                     if self.master:
                         conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
@@ -155,6 +155,7 @@ class ServiceBus(Service):
                 "public_ip": self.node.locals.get('public_ip', await utils.get_public_ip()),
                 "status": server.status.value,
                 "instance": server.instance.name,
+                "home": server.instance.home,
                 "settings": server.settings,
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
@@ -166,7 +167,7 @@ class ServiceBus(Service):
 
     async def register_local_servers(self):
         timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
-        local_servers = [x for x in self.servers.values() if x.status == Status.UNREGISTERED and not x.is_remote]
+        local_servers = [x for x in self.servers.values() if not x.is_remote]
         if local_servers:
             self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
         else:
@@ -297,8 +298,8 @@ class ServiceBus(Service):
 
     def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
-            until: datetime = datetime.now() + timedelta(days=days)
-            until_str = until.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+            until = datetime.utcnow() + timedelta(days=days)
+            until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
         else:
             until = datetime(year=9999, month=12, day=31)
             until_str = 'never'
@@ -345,17 +346,18 @@ class ServiceBus(Service):
                         SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
                                b.banned_until 
                         FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
-                        WHERE b.banned_until >= NOW()
+                        WHERE b.banned_until >= (now() AT TIME ZONE 'utc')
                     """)
                 ]
 
     def is_banned(self, ucid: str) -> Optional[dict]:
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()",
-                                      (ucid, )).fetchone()
+                return cursor.execute(
+                    "SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')",
+                    (ucid, )).fetchone()
 
-    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
+    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, home: str, settings: dict,
                            options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
         server = self.servers.get(server_name)
         if not server or not server.is_remote:
@@ -366,6 +368,7 @@ class ServiceBus(Service):
                 name=server_name
             )
             instance = InstanceProxy(name=instance, node=node)
+            instance.home = home
             server.instance = instance
             self.servers[server_name] = server
             server.settings = settings
@@ -511,27 +514,33 @@ class ServiceBus(Service):
 
     @tasks.loop(seconds=1)
     async def intercom(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                while True:
-                    # we read until there is no new data, then we wait for the next call (after 1 s)
-                    idx = 0
-                    for idx, row in enumerate(conn.execute("""
-                        SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 10
-                    """, ("Master" if self.master else self.node.name, )).fetchall()):
-                        data = row[1]
-                        try:
-                            if data['command'] == 'rpc':
-                                asyncio.create_task(self.handle_rpc(data))
-                            elif self.master:
-                                asyncio.create_task(self.handle_master(data))
-                            else:
-                                asyncio.create_task(self.handle_agent(data))
-                        except Exception as ex:
-                            self.log.exception(ex)
-                        conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
-                    if idx < 10:
-                        break
+        try:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    while True:
+                        # we read until there is no new data, then we wait for the next call (after 1 s)
+                        idx = 0
+                        ids_to_delete = []
+                        for idx, row in enumerate(conn.execute("""
+                            SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 100
+                        """, ("Master" if self.master else self.node.name, ))):
+                            data = row[1]
+                            try:
+                                if data['command'] == 'rpc':
+                                    asyncio.create_task(self.handle_rpc(data))
+                                elif self.master:
+                                    asyncio.create_task(self.handle_master(data))
+                                else:
+                                    asyncio.create_task(self.handle_agent(data))
+                                ids_to_delete.append(row[0])
+                            except Exception as ex:
+                                self.log.exception(ex)
+                        if ids_to_delete:
+                            conn.execute("DELETE FROM intercom WHERE id = ANY(%s::int[])", (ids_to_delete, ))
+                        if idx < 10:
+                            break
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
@@ -603,43 +612,45 @@ class ServiceBus(Service):
                     self.log.exception(ex)
 
             def process(derived, server_name: str):
-                data: dict = derived.message_queue[server_name].get()
-                while data:
-                    server: Server = self.servers.get(server_name)
-                    if not server:
-                        return
-                    try:
-                        server.last_seen = datetime.now(timezone.utc)
-                        command = data['command']
-                        if command == 'registerDCSServer':
-                            if not server.is_remote:
-                                if not self.register_server(data):
-                                    self.log.error(f"Error while registering server {server.name}.")
-                                    return
-                                if not self.master:
-                                    self.log.debug(f"Registering server {server.name} on Master node ...")
-                        elif server.status == Status.UNREGISTERED:
-                            self.log.debug(
-                                f"Command {command} for unregistered server {server.name} received, ignoring.")
-                            continue
-                        if self.master:
-                            concurrent.futures.wait(
-                                [
-                                    asyncio.run_coroutine_threadsafe(
-                                        listener.processEvent(command, server, deepcopy(data)), self.loop
-                                    )
-                                    for listener in self.eventListeners
-                                    if listener.has_event(command)
-                                ]
-                            )
-                        else:
-                            self.send_to_node(data)
-                    except Exception as ex:
-                        self.log.exception(ex)
-                    finally:
-                        derived.message_queue[server.name].task_done()
-                        data = derived.message_queue[server.name].get()
-                del derived.message_queue[server_name]
+                try:
+                    data: dict = derived.message_queue[server_name].get()
+                    while data:
+                        server: Server = self.servers.get(server_name)
+                        if not server:
+                            return
+                        try:
+                            server.last_seen = datetime.now(timezone.utc)
+                            command = data['command']
+                            if command == 'registerDCSServer':
+                                if not server.is_remote:
+                                    if not self.register_server(data):
+                                        self.log.error(f"Error while registering server {server.name}.")
+                                        return
+                                    if not self.master:
+                                        self.log.debug(f"Registering server {server.name} on Master node ...")
+                            elif server.status == Status.UNREGISTERED:
+                                self.log.debug(
+                                    f"Command {command} for unregistered server {server.name} received, ignoring.")
+                                continue
+                            if self.master:
+                                concurrent.futures.wait(
+                                    [
+                                        asyncio.run_coroutine_threadsafe(
+                                            listener.processEvent(command, server, deepcopy(data)), self.loop
+                                        )
+                                        for listener in self.eventListeners
+                                        if listener.has_event(command)
+                                    ]
+                                )
+                            else:
+                                self.send_to_node(data)
+                        except Exception as ex:
+                            self.log.exception(ex)
+                        finally:
+                            derived.message_queue[server.name].task_done()
+                            data = derived.message_queue[server.name].get()
+                finally:
+                    del derived.message_queue[server_name]
 
             def shutdown(derived):
                 super().shutdown()

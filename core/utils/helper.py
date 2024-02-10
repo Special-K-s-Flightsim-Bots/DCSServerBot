@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import builtins
-import importlib
 import json
 import time
 import luadata
@@ -18,6 +17,7 @@ import math
 
 from croniter import croniter
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator, Iterable
 from urllib.parse import urlparse
@@ -60,6 +60,16 @@ __all__ = [
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
+    """
+    Check if a given time falls within a specified timeframe.
+
+    :param time: The time to check.
+    :type time: datetime
+    :param timeframe: The timeframe to check against. Format: 'HH:MM-HH:MM' or 'HH:MM'.
+    :type timeframe: str
+    :return: True if the time falls within the timeframe, False otherwise.
+    :rtype: bool
+    """
     def parse_time(time_str: str) -> datetime:
         fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
             if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
@@ -78,32 +88,47 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
 
 
 def is_match_daystate(time: datetime, daystate: str) -> bool:
+    """
+    Check if the given time matches the daystate.
+
+    :param time: The datetime object representing the time to check.
+    :param daystate: A string that defines the daystate for each weekday.
+    :return: True if the daystate for the given time's weekday is 'Y', False otherwise.
+
+    """
     state = daystate[time.weekday()]
     return state.upper() == 'Y'
 
 
 def str_to_class(name: str):
+    """
+    Get a class from a string representation.
+
+    :param name: The string representation of the class, in the format `module_name.ClassName`.
+    :return: The class object if found, None otherwise.
+    """
+    module_name, _, class_name = name.rpartition('.')
     try:
-        if '.' in name:
-            module_name, class_name = name.rsplit('.', 1)
-            module = importlib.import_module(module_name)
-        else:
-            class_name = name
-            module = builtins
+        module = import_module(module_name) if module_name else builtins
         return getattr(module, class_name)
     except AttributeError:
         return None
 
 
 def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str:
+    """
+    Format the given string using the provided keyword arguments.
+
+    :param string_: The string to be formatted.
+    :param default_: The default value to be used when a variable is None. If not provided, an empty string will be used.
+    :param kwargs: Keyword arguments to be used for formatting.
+    :return: The formatted string.
+    """
     class NoneFormatter(string.Formatter):
         def format_field(self, value, spec):
             if value is None:
                 spec = ''
-                if default_:
-                    value = default_
-                else:
-                    value = ""
+                value = default_ or ''
             elif isinstance(value, list):
                 value = '\n'.join(value)
             elif isinstance(value, dict):
@@ -119,59 +144,72 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     return string_
 
 
-def convert_time(seconds: int):
-    retval = ""
-    days = int(seconds / 86400)
-    if days != 0:
-        retval += f"{days}d"
-    seconds = seconds - days * 86400
-    hours = int(seconds / 3600)
-    if hours != 0:
-        if len(retval):
+SECONDS_IN_DAY = 86400
+SECONDS_IN_HOUR = 3600
+SECONDS_IN_MINUTE = 60
+TIME_LABELS = [("d", "day"), ("h", "hour"), ("m", "minute")]
+
+
+def format_time_units(units, label_single, label_plural=None):
+    label = label_single if units == 1 else (label_plural or label_single + "s")
+    return f"{units} {label}"
+
+
+def process_time(seconds, time_unit_seconds, retval, label_symbol, label_single, colon_format=False):
+    units, seconds = calculate_time(time_unit_seconds, seconds)
+    if units != 0:
+        if len(retval) and colon_format:
             retval += ":"
-        retval += f"{hours:02d}h"
-    seconds = seconds - hours * 3600
-    minutes = int(seconds / 60)
-    if len(retval):
-        retval += ":"
-    retval += f"{minutes:02d}m"
+        formatted_time = format_time_units(units, label_single) if not colon_format else f"{units:02d}{label_symbol}"
+        retval += formatted_time
+    return seconds, retval
+
+
+def calculate_time(units_of_time, total_seconds):
+    units = int(total_seconds / units_of_time)
+    remaining_seconds = total_seconds - units * units_of_time
+    return units, remaining_seconds
+
+
+def convert_time_and_format(seconds: int, colon_format=False):
+    retval = ""
+    for label_symbol, label_single in TIME_LABELS:
+        time_unit_seconds = globals()["SECONDS_IN_" + label_single.upper()]
+        seconds, retval = process_time(seconds, time_unit_seconds, retval, label_symbol, label_single, colon_format)
+    if colon_format:
+        retval = f"{retval}:{seconds:02d}s" if retval else f"{seconds:02d}s"
+    else:
+        retval += f" {format_time_units(seconds, 'second')}" if seconds > 0 else ""
     return retval
+
+
+def convert_time(seconds: int):
+    """
+    Converts the given number of seconds into a formatted string representation of time.
+
+    :param seconds: The number of seconds to be converted into time representation.
+    :return: The formatted string representation of time.
+    """
+    return convert_time_and_format(int(seconds), True)
 
 
 def format_time(seconds: int):
-    retval = ""
-    days = int(seconds / 86400)
-    if days != 0:
-        retval += f"{days} day"
-        if days > 1:
-            retval += "s"
-        seconds -= days * 86400
-    hours = int(seconds / 3600)
-    if hours != 0:
-        if len(retval):
-            retval += " "
-        retval += f"{hours} hour"
-        if hours > 1:
-            retval += "s"
-        seconds -= hours * 3600
-    minutes = int(seconds / 60)
-    if minutes != 0:
-        if len(retval):
-            retval += " "
-        retval += f"{minutes} minute"
-        if minutes > 1:
-            retval += "s"
-        seconds -= minutes * 60
-    if seconds != 0:
-        if len(retval):
-            retval += " "
-        retval += f"{int(seconds)} second"
-        if seconds > 1:
-            retval += "s"
-    return retval
+    """
+    Format the given number of seconds into a human-readable format.
+
+    :param seconds: The number of seconds to be formatted.
+    :return: The formatted time string in HH:MM:SS format.
+    """
+    return convert_time_and_format(int(seconds), False)
 
 
 def get_utc_offset() -> str:
+    """
+    Return the UTC offset of the current local time in the format HH:MM.
+
+    :return: The UTC offset in the format HH:MM.
+    :rtype: str
+    """
     # Get the struct_time objects for the current local time and UTC time
     current_time = time.time()
     localtime = time.localtime(current_time)
@@ -256,16 +294,37 @@ def alternate_parse_settings(path: str):
 
 
 def get_all_servers(self) -> list[str]:
+    """
+    Get a list of all servers that have been seen in the past week.
+
+    :param self: The instance of the class.
+    :return: A list of server names.
+    """
     with self.pool.connection() as conn:
         return [
-            row[0] for row in conn.execute(
-                "SELECT server_name FROM instances WHERE last_seen > (DATE(NOW()) - interval '1 week')"
-            ).fetchall()
+            row[0] for row in conn.execute("""
+                SELECT server_name FROM instances 
+                WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
+            """)
         ]
 
 
 def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
                     vip: Optional[bool] = None) -> list[Tuple[str, str]]:
+    """
+    This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
+    * `linked`, `watchlist`, and `vip`.
+
+    :param self: The object instance of the class.
+    :param linked: Optional boolean parameter to filter players based on whether they are linked to a Discord account or not. If set to `True`, only linked players will be returned. If set
+    * to `False`, only unlinked players will be returned. If not provided, no filtering based on linking status will be applied.
+    :param watchlist: Optional boolean parameter to filter players based on whether they are on the watchlist or not. If set to `True`, only players on the watchlist will be returned. If
+    * set to `False`, only players not on the watchlist will be returned. If not provided, no filtering based on watchlist status will be applied.
+    :param vip: Optional boolean parameter to filter players based on whether they are VIP players or not. If set to `True`, only VIP players will be returned. If set to `False`, only non
+    *-VIP players will be returned. If not provided, no filtering based on VIP status will be applied.
+    :return: A list of tuples containing the UCID and name of players from the database.
+
+    """
     sql = "SELECT ucid, name FROM players WHERE length(ucid) = 32"
     if watchlist:
         sql += " AND watchlist IS NOT FALSE"
@@ -277,16 +336,23 @@ def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[boo
         else:
             sql += " AND discord_id = -1"
     with self.pool.connection() as conn:
-        return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
+        return [(row[0], row[1]) for row in conn.execute(sql)]
 
 
 def is_ucid(ucid: Optional[str]) -> bool:
-    if not ucid:
-        return False
-    return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
+    """
+    :param ucid: The UCID (User Client ID) is a unique identifier used in the system.
+    :return: Returns True if the UCID is valid, False otherwise.
+    """
+    return ucid is not None and len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
 
 
 def get_presets() -> Iterable[str]:
+    """
+    Return the set of non-hidden presets from the YAML files in the 'config' directory.
+
+    :return: A set of non-hidden presets.
+    """
     presets = set()
     for file in Path('config').glob('presets*.yaml'):
         with open(file, encoding='utf-8') as infile:
@@ -321,6 +387,14 @@ def get_preset(name: str, filename: Optional[str] = None) -> Optional[dict]:
 
 
 def is_valid_url(url: str) -> bool:
+    """
+    Check if a given URL is valid.
+
+    :param url: The URL to be validated.
+    :type url: str
+    :return: True if the URL is valid, False otherwise.
+    :rtype: bool
+    """
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc])
@@ -329,10 +403,38 @@ def is_valid_url(url: str) -> bool:
 
 
 def is_github_repo(url: str) -> bool:
+    """
+    :param url: The URL of the repository to check.
+    :return: True if the URL is a valid GitHub repository URL, False otherwise.
+
+    The `is_github_repo` function takes in a URL and determines whether it is a valid GitHub repository URL. The function returns `True` if the URL is a valid GitHub repository URL, and
+    * `False` otherwise.
+
+    To be considered a valid GitHub repository URL, the URL must meet the following criteria:
+    - The URL must pass the `is_valid_url` check, which verifies that the URL is valid.
+    - The URL must start with 'https://github.com/'.
+    - The URL must not end with '.zip'.
+
+    Example Usage:
+    ```
+    is_github_repo('https://github.com/example/repo')  # True
+    is_github_repo('https://github.com/example/repo.zip')  # False
+    ```
+    """
     return is_valid_url(url) and url.startswith('https://github.com/') and not url.endswith('.zip')
 
 
 def matches_cron(datetime_obj: datetime, cron_string: str):
+    """
+    Check if a given datetime object matches the specified cron string.
+
+    :param datetime_obj: The datetime object to be checked.
+    :type datetime_obj: datetime.datetime
+    :param cron_string: The cron string to be matched against.
+    :type cron_string: str
+    :return: True if the datetime object matches the cron string, False otherwise.
+    :rtype: bool
+    """
     cron_job = croniter(cron_string, datetime_obj)
     next_date = cron_job.get_next(datetime)
     prev_date = cron_job.get_prev(datetime)
@@ -340,6 +442,16 @@ def matches_cron(datetime_obj: datetime, cron_string: str):
 
 
 class SettingsDict(dict):
+    """
+    A dictionary subclass that represents settings stored in a file.
+
+    :param obj: The DataObject associated with this SettingsDict.
+    :type obj: DataObject
+    :param path: The path of the settings file.
+    :type path: str
+    :param root: The root key of the settings file.
+    :type root: str
+    """
     def __init__(self, obj: DataObject, path: str, root: str):
         super().__init__()
         self.path = path
@@ -350,6 +462,11 @@ class SettingsDict(dict):
         self.read_file()
 
     def read_file(self):
+        if not os.path.exists(self.path):
+            self.log.error(f"- File {self.path} does not exist! Creating an empty file.")
+            with open(self.path, 'w') as f:
+                f.write(f"{self.root} = {{}}")
+            return
         self.mtime = os.path.getmtime(self.path)
         if self.path.lower().endswith('.lua'):
             try:
@@ -401,6 +518,25 @@ class SettingsDict(dict):
 
 
 class RemoteSettingsDict(dict):
+    """
+    A dictionary subclass that allows remote access to settings on a server.
+
+    Args:
+        server (ServerProxy): The server proxy object used to communicate with the server.
+        obj (str): The name of the object containing the settings.
+        data (dict, optional): The initial data to populate the dictionary with. Defaults to None.
+
+    Attributes:
+        server (ServerProxy): The server proxy object used to communicate with the server.
+        obj (str): The name of the object containing the settings.
+
+    Raises:
+        None
+
+    Returns:
+        None
+
+    """
     def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
         self.server = server
         self.obj = obj
@@ -422,6 +558,14 @@ class RemoteSettingsDict(dict):
 
 
 def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, float, bool]:
+    """
+    Evaluate the given value, replacing placeholders with keyword arguments if necessary.
+
+    :param value: The value to evaluate. Can be a string, integer, float, or boolean.
+    :param kwargs: Additional keyword arguments to replace placeholders in the value.
+    :return: The evaluated value. Returns the input value if it is not a string or if it does not start with '$'.
+             If the input value is a string starting with '$', it will be evaluated with placeholders replaced by keyword arguments.
+    """
     if isinstance(value, (int, float, bool)) or not value.startswith('$'):
         return value
     return eval(format_string(value[1:], **kwargs))
@@ -429,6 +573,25 @@ def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, f
 
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
              debug: Optional[bool] = False, **kwargs) -> Generator[dict]:
+    """
+    :param data: The data to iterate over.
+    :param search: The search pattern to match elements in the data.
+    :param depth: The current depth of the recursion. (Optional, default=0)
+    :param debug: Flag indicating whether to print debug information. (Optional, default=False)
+    :param kwargs: Additional keyword arguments for evaluating search patterns.
+    :return: A generator that yields matching elements found in the data.
+
+    This method recursively searches for elements in the given data that match the search pattern. The search pattern is defined as a list of strings, where each string represents a step
+    * in the search process. Each element in the data will be evaluated against the search pattern, and if a match is found, it will be yielded by the generator.
+
+    The method supports various search patterns:
+    - "*" indicates iterating over elements in a list or dictionary.
+    - "[index1, index2, ...]" indicates selecting specific indexes in a list or dictionary.
+    - "$expression" indicates evaluating a search pattern with additional keyword arguments.
+
+    If the search pattern is fully matched or the data is empty, the method will yield the data itself. If debug is set to True, debug information will be printed during the search process
+    *.
+    """
     def process_iteration(_next, data, search, depth, debug):
         if isinstance(data, list):
             for value in data:
@@ -499,5 +662,12 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
 
 
 class YAMLError(Exception):
+    """
+
+    The `YAMLError` class is an exception class that is raised when there is an error encountered while parsing or scanning a YAML file.
+
+    **Methods:**
+
+    """
     def __init__(self, file: str, ex: Union[ParserError, ScannerError]):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))

@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import re
 
 from contextlib import closing
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status, FatalException
@@ -33,6 +32,7 @@ class DCSServerBot(commands.Bot):
         self.lock: asyncio.Lock = asyncio.Lock()
         self.synced: bool = False
         self.tree.on_error = self.on_app_command_error
+        self._roles = None
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.synced: bool = False
@@ -49,16 +49,17 @@ class DCSServerBot(commands.Bot):
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
-        roles = {
-            "Admin": ["Admin"],
-            "DCS Admin": ["DCS Admin"],
-            "DCS": ["DCS"]
-        } | self.locals.get('roles', {})
-        if 'GameMaster' not in roles:
-            roles['GameMaster'] = roles['DCS Admin']
-        if 'Alert' not in roles:
-            roles['Alert'] = roles['DCS Admin']
-        return roles
+        if not self._roles:
+            self._roles = {
+                "Admin": ["Admin"],
+                "DCS Admin": ["DCS Admin"],
+                "DCS": ["DCS"]
+            } | self.locals.get('roles', {})
+            if 'GameMaster' not in self._roles:
+                self._roles['GameMaster'] = self._roles['DCS Admin']
+            if 'Alert' not in self._roles:
+                self._roles['Alert'] = self._roles['DCS Admin']
+        return self._roles
 
     @property
     def filter(self) -> dict:
@@ -177,12 +178,9 @@ class DCSServerBot(commands.Bot):
         if server.locals.get('coalitions'):
             channels.extend(['red', 'blue'])
         for c in channels:
-            try:
-                channel_id = int(server.channels[Channel(c)])
-                if channel_id != -1:
-                    await self.check_channel(channel_id)
-            except KeyError:
-                raise FatalException(f"Channel {c} missing for server {server.name} in config/servers.yaml!")
+            channel_id = int(server.channels[Channel(c)])
+            if channel_id != -1:
+                await self.check_channel(channel_id)
 
     async def on_ready(self):
         try:
@@ -213,7 +211,11 @@ class DCSServerBot(commands.Bot):
                         roles |= set([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
                         roles |= set([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
                         self.check_roles(roles)
-                    await self.check_channels(server)
+                    try:
+                        await self.check_channels(server)
+                    except KeyError as ex:
+                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in config/servers.yaml!")
+
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
                 await self.tree.sync(guild=self.guilds[0])
@@ -299,7 +301,7 @@ class DCSServerBot(commands.Bot):
                 embed.add_field(name='UCID', value=user)
             if server:
                 embed.add_field(name='Server', value=server.display_name)
-            embed.set_footer(text=datetime.now().astimezone(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
+            embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
         with self.pool.connection() as conn:
             with conn.transaction():

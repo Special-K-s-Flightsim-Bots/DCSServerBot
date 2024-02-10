@@ -18,7 +18,7 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
-    from core import Server, Player, Node, Instance
+    from core import Server, Player, Node, Instance, Plugin
     from services import DCSServerBot, ServiceBus
 
 __all__ = [
@@ -37,6 +37,7 @@ __all__ = [
     "app_has_roles",
     "app_has_not_roles",
     "cmd_has_roles",
+    "get_role_ids",
     "format_embed",
     "embed_to_text",
     "embed_to_simpletext",
@@ -51,6 +52,7 @@ __all__ = [
     "PlayerTransformer",
     "airbase_autocomplete",
     "mission_autocomplete",
+    "group_autocomplete",
     "server_selection",
     "get_ephemeral"
 ]
@@ -362,9 +364,9 @@ def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Membe
         return False
     for role in member.roles:
         for valid_role in roles:
-            if isinstance(valid_role, str) and role.name == valid_role:
+            if isinstance(valid_role, int) and role.id == valid_role:
                 return True
-            elif isinstance(valid_role, int) and role.id == valid_role:
+            elif isinstance(valid_role, str) and role.name == valid_role:
                 return True
     return False
 
@@ -443,6 +445,23 @@ def cmd_has_roles(roles: list[str]):
     cmd_has_roles.predicate = wrapper
     wrapper.roles = roles
     return cmd_has_roles
+
+
+def get_role_ids(plugin: Plugin, role_names) -> list[int]:
+    role_ids = []
+    if not isinstance(role_names, list):
+        role_names = [role_names]
+
+    for role in role_names:
+        if isinstance(role, str) and not role.isnumeric():
+            role_id = discord.utils.get(plugin.bot.guilds[0].roles, name=role)
+            if role_id:
+                role_ids.append(role_id.id)
+            else:
+                plugin.log.warning(f'Role "{role}" from {plugin.plugin_name}.yaml not found in Discord.')
+        else:
+            role_ids.append(role)
+    return role_ids
 
 
 def app_has_roles(roles: list[str]):
@@ -949,6 +968,19 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+
+
+async def group_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    # is a user is not allowed to run the interaction, they are not allowed to see the autocompletions also
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    server: Server = await ServerTransformer().transform(interaction,
+                                                         get_interaction_param(interaction, 'server'))
+    return [
+        app_commands.Choice(name=group_name, value=group_name)
+        for group_name in set(player.group_name for player in server.get_active_players() if player.group_id != 0)
+        if not current or current.casefold() in group_name
+    ][:25]
 
 
 class UserTransformer(app_commands.Transformer):

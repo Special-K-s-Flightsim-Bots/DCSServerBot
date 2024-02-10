@@ -1,8 +1,8 @@
 import re
 import discord
 
-from core import EventListener, Plugin, Server, Side, Status, utils, event
-from typing import Union, cast
+from core import EventListener, Plugin, Server, Status, utils, event, Side
+from typing import Union, cast, Optional
 from plugins.creditsystem.player import CreditPlayer
 
 
@@ -10,9 +10,19 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
-    def load_params_into_mission(self, server: Server):
+    def _migrate_roles(self, config: dict) -> None:
+        guild = self.bot.guilds[0]
+
+        if config.get('VIP', {}).get('discord', []):
+            config['VIP']['discord'] = utils.get_role_ids(self.plugin, config.get('VIP', {}).get('discord', []))
+        for restriction in config.get('restricted', []):
+            if 'discord' in restriction:
+                restriction['discord'] = utils.get_role_ids(self.plugin, restriction['discord'])
+
+    def _load_params_into_mission(self, server: Server):
         config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
+            self._migrate_roles(config)
             server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
@@ -25,6 +35,7 @@ class SlotBlockingListener(EventListener):
             if not roles:
                 return
             # get all linked members
+            batch = []
             with self.pool.connection() as conn:
                 for row in conn.execute("""
                     SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
@@ -32,50 +43,58 @@ class SlotBlockingListener(EventListener):
                     member = guild.get_member(row[1])
                     if not member:
                         continue
-                    for role in member.roles:
-                        if role in roles:
-                            server.send_to_dcs({
-                                'command': 'uploadUserRoles',
-                                'ucid': row[0],
-                                'roles': [x.name for x in member.roles]
-                            })
-                            break
+                    if any(role in roles for role in member.roles):
+                        batch.append({
+                            'ucid': row[0],
+                            'roles': [x.id for x in member.roles]
+                        })
+            server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is running already
         if data['channel'].startswith('sync-'):
-            self.load_params_into_mission(server)
+            self._load_params_into_mission(server)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self.load_params_into_mission(server)
+        self._load_params_into_mission(server)
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)
-        if 'restricted' in config:
-            for unit in config['restricted']:
-                if ('unit_type' in unit and unit['unit_type'] == player.unit_type) or \
-                        ('unit_name' in unit and unit['unit_name'] in player.unit_name) or \
-                        ('group_name' in unit and unit['group_name'] in player.group_name):
-                    if player.sub_slot == 0 and 'points' in unit:
-                        return unit['points']
-                    elif player.sub_slot > 0 and 'crew' in unit:
-                        return unit['crew']
+
+        for unit in config.get('restricted', []):
+            is_unit_type = unit.get('unit_type') == player.unit_type
+            is_unit_name = unit.get('unit_name') in player.unit_name
+            is_group_name = unit.get('group_name') in player.group_name
+
+            if is_unit_type or is_unit_name or is_group_name:
+                is_player_slot = player.sub_slot == 0 and 'points' in unit
+                is_crew_slot = player.sub_slot > 0 and 'crew' in unit
+
+                if is_player_slot:
+                    return unit['points']
+                elif is_crew_slot:
+                    return unit['crew']
         return 0
 
     def _get_costs(self, server: Server, data: Union[CreditPlayer, dict]) -> int:
+        def _get_data(data: Union[CreditPlayer, dict], attribute_name: str):
+            return getattr(data, attribute_name) if isinstance(data, CreditPlayer) else data[attribute_name]
+
+        def _is_unit_match(unit: dict, attribute_name: str, attribute_value: str) -> bool:
+            if attribute_name in unit and re.search(unit[attribute_name],
+                                                    utils.lua_pattern_to_python_regex(attribute_value)):
+                return True
+            return False
+
         config = self.plugin.get_config(server)
-        unit_type = data.unit_type if isinstance(data, CreditPlayer) else data['unit_type']
-        unit_name = data.unit_name if isinstance(data, CreditPlayer) else data['unit_name']
-        group_name = data.group_name if isinstance(data, CreditPlayer) else data['group_name']
-        if 'restricted' in config:
-            for unit in config['restricted']:
-                if ('unit_type' in unit and re.match(unit['unit_type'], unit_type)) or \
-                        ('unit_name' in unit and re.match(unit['unit_name'], unit_name)) or \
-                        ('group_name' in unit and re.match(unit['group_name'], group_name)):
-                    if 'costs' in unit:
-                        return unit['costs']
+
+        attributes = ['unit_type', 'unit_name', 'group_name']
+        for unit in config.get('restricted', []):
+            for attribute in attributes:
+                if _is_unit_match(unit, attribute, _get_data(data, attribute)):
+                    return unit.get('costs', 0)
         return 0
 
     def _is_vip(self, config: dict, data: dict) -> bool:
@@ -103,94 +122,90 @@ class SlotBlockingListener(EventListener):
                 message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
             await self.bot.audit(message, server=server)
 
+    def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None,
+                       payback: Optional[bool] = True):
+        plane_costs = self._get_costs(server, data if data else player)
+        if not plane_costs:
+            return
+        old_points = player.points
+        player.points -= plane_costs
+        player.audit('buy', old_points, 'Points taken for using a reserved module')
+        if payback:
+            player.deposit = plane_costs
+
+    def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
+        old_points = player.points
+        plane_costs = self._get_costs(server, player)
+        if plane_only:
+            player.points += plane_costs
+        else:
+            player.points += player.deposit
+        player.audit('payback', old_points, reason)
+        player.deposit = 0
+
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        if not config:
+        if not config or 'side' not in data:
             return
-        if 'side' in data and 'use_reservations' in config and config['use_reservations']:
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
-            if player and player.deposit > 0:
-                old_points = player.points
-                player.points -= player.deposit
-                player.audit('buy', old_points, 'Points taken for using a reserved module')
-                player.deposit = 0
-            # if mission statistics are enabled, use BIRTH events instead
-            if player and not self.get_config(server, plugin_name='missionstats').get('enabled', True) and \
-                    Side(data['side']) != Side.SPECTATOR:
-                # only pilots have to "pay" for their plane
-                if int(data['sub_slot']) == 0:
-                    player.deposit = self._get_costs(server, data)
+        player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
+        if not player:
+            return
+        # if payback is enabled, we need to clear the deposit on any slot change
+        if config.get('payback', False):
+            player.deposit = 0
+        elif (Side(data['side']) != Side.SPECTATOR and data['sub_slot'] == 0
+              and not self.get_config(server, plugin_name='missionstats').get('enabled', True)):
+            self._pay_for_plane(server, player, data, payback=False)
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        if not config:
+        if not config or config.get('payback', False):
             return
         if data['eventName'] == 'S_EVENT_BIRTH':
             initiator = data['initiator']
             # check, if they are a human player
             if 'name' not in initiator:
                 return
-            if 'use_reservations' in config and config['use_reservations']:
-                player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
-                # only pilots have to "pay" for their plane
-                if player and player.sub_slot == 0:
-                    player.deposit = self._get_costs(server, player)
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
+            # only pilots have to "pay" for their plane
+            if player and player.sub_slot == 0:
+                self._pay_for_plane(server, player, payback=False)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        if not config or 'restricted' not in config or server.status != Status.RUNNING:
+        if not config.get('payback', False) or not config.get('restricted') or server.status != Status.RUNNING:
             return
-        if data['eventName'] == 'kill':
-            # players only lose points if they weren't killed as a teamkill
-            if data['arg4'] != -1 and data['arg3'] != data['arg6']:
-                player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg4']))
-                if player and 'use_reservations' in config and config['use_reservations']:
-                    if player.deposit > 0:
-                        old_points = player.points
-                        player.points -= player.deposit
-                        player.audit('buy', old_points, 'Points taken for being killed in a reserved module')
-                        player.deposit = 0
-                        # if the remaining points are not enough to stay in this plane, move them back to spectators
-                        if player.points < self._get_points(server, player):
-                            server.move_to_spectators(player)
-        elif data['eventName'] == 'crash':
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
+        if data['eventName'] == 'kill' and data['arg4'] != -1:
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg4']))
             if not player:
                 return
-            if 'use_reservations' in config and config['use_reservations']:
-                if player.deposit > 0:
-                    old_points = player.points
-                    player.points -= player.deposit
-                    player.audit('buy', old_points, 'Points taken for crashing in a reserved module')
-                    player.deposit = 0
+            # give points back on team-kill
+            if data['arg3'] == data['arg6']:
+                self._payback(server, player, 'Credits refund for being team-killed')
             else:
-                old_points = player.points
-                player.points -= self._get_costs(server, player)
-                player.audit('buy', old_points, 'Points taken for crashing in a reserved module')
-            if player.points < self._get_points(server, player):
-                server.move_to_spectators(player)
+                player.deposit = 0
+                if player.points < self._get_costs(server, player):
+                    server.move_to_spectators(player,
+                                              reason="You do not have enough credits to use this slot anymore.")
         elif data['eventName'] == 'landing':
-            # clear deposit on landing
+            # payback on landing
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player and player.deposit > 0:
-                player.deposit = 0
+                self._payback(server, player, 'Credits for RTB')
         elif data['eventName'] == 'takeoff':
             # take deposit on takeoff
-            if 'use_reservations' in config and config['use_reservations']:
-                player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
-                if player and player.deposit == 0 and int(player.sub_slot) == 0:
-                    player.deposit = self._get_costs(server, player)
-        elif data['eventName'] == 'disconnect':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
-            if player and player.deposit > 0:
-                old_points = player.points
-                player.points -= player.deposit
-                player.audit('buy', old_points, 'Points taken for using a reserved module')
-                player.deposit = 0
+            if player and player.deposit == 0 and int(player.sub_slot) == 0:
+                self._pay_for_plane(server, player, payback=True)
         elif data['eventName'] == 'mission_end':
             # give all players their credit back, if the mission ends, and they are still airborne
             for player in server.players.values():
-                player.deposit = 0
+                self._payback(server, player, 'Refund on mission end', plane_only=True)
+        elif data['eventName'] == 'crash':
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
+            player.deposit = 0
+            if player.points < self._get_costs(server, player):
+                server.move_to_spectators(player, reason="You do not have enough credits to use this slot anymore.")

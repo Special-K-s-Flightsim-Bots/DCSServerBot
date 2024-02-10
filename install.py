@@ -8,6 +8,7 @@ import secrets
 import shutil
 import traceback
 import sys
+
 if sys.platform == 'win32':
     import winreg
 
@@ -86,17 +87,18 @@ class Install:
                     installs.append((name, path))
             if len(installs) == 0:
                 raise FileNotFoundError
-            elif len(installs) == 1:
-                print(f"[green]- {installs[0][0]} found.[/]")
-                return installs[0][1]
             else:
+                installs.append(("Custom", ""))
                 print('I\'ve found multiple installations of DCS World on this PC:')
                 for i in range(0, len(installs)):
                     print(f'{i+1}: {installs[i][0]}')
                 num = IntPrompt.ask(prompt='Please specify, which installation you want the bot to use',
                                     choices=[str(x) for x in range(1, len(installs) + 1)],
                                     show_choices=True)
-                return installs[num-1][1]
+                path = installs[num-1][1]
+                if not path:
+                    raise FileNotFoundError
+                return path
         except (FileNotFoundError, OSError):
             return Install.get_dcs_installation_linux()
         finally:
@@ -120,34 +122,37 @@ class Install:
         while True:
             passwd = Prompt.ask('Please enter your PostgreSQL master password (user=postgres)', password=True)
             url = f'postgres://postgres:{quote(passwd)}@{host}:{port}/postgres?sslmode=prefer'
-            with psycopg.connect(url, autocommit=True) as conn:
-                with closing(conn.cursor()) as cursor:
-                    if os.path.exists('password.pkl'):
-                        with open('password.pkl', 'rb') as f:
-                            passwd = pickle.load(f)
-                    else:
-                        passwd = secrets.token_urlsafe(8)
-                        try:
-                            cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
-                        except psycopg.Error:
-                            print(f'[yellow]Existing {DCSSB_DB_USER} user found![/]')
-                            while True:
-                                passwd = Prompt.ask(f"Please enter your password for user '{DCSSB_DB_USER}'",
-                                                    password=True)
-                                try:
-                                    with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
-                                        pass
-                                    break
-                                except psycopg.Error:
-                                    print("[red]Wrong password! Try again.[/]")
-                        with open('password.pkl', 'wb') as f:
-                            pickle.dump(passwd, f)
-                        with suppress(psycopg.Error):
-                            cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
-                            cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
-                            cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
-                        print("[green]- Database user and database created.[/]")
-                    return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
+            try:
+                with psycopg.connect(url, autocommit=True) as conn:
+                    with closing(conn.cursor()) as cursor:
+                        if os.path.exists('password.pkl'):
+                            with open('password.pkl', 'rb') as f:
+                                passwd = pickle.load(f)
+                        else:
+                            passwd = secrets.token_urlsafe(8)
+                            try:
+                                cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
+                            except psycopg.Error:
+                                print(f'[yellow]Existing {DCSSB_DB_USER} user found![/]')
+                                while True:
+                                    passwd = Prompt.ask(f"Please enter your password for user '{DCSSB_DB_USER}'",
+                                                        password=True)
+                                    try:
+                                        with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
+                                            pass
+                                        break
+                                    except psycopg.Error:
+                                        print("[red]Wrong password! Try again.[/]")
+                            with open('password.pkl', 'wb') as f:
+                                pickle.dump(passwd, f)
+                            with suppress(psycopg.Error):
+                                cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
+                                cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
+                                cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
+                            print("[green]- Database user and database created.[/]")
+                        return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
+            except psycopg.OperationalError:
+                print("[red]Master password wrong. Please try again.[/]")
 
     def install_master(self) -> Tuple[dict, dict, dict]:
         print("""
@@ -320,7 +325,10 @@ If you need any further assistance, please visit the support discord, listed in 
             i.get('extensions', {}).get('SRS', {}).get('port', 5001 + idx)
             for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
         ]) + 1 if nodes else 5002
-        for name, instance in utils.findDCSInstances():
+        instances = utils.findDCSInstances()
+        if not instances == 0:
+            print("There are no DCS servers installed yet.")
+        for name, instance in instances:
             if Prompt.ask(f'\nDCS server "{name}" found.\n'
                           'Would you like to manage this server through DCSServerBot?)',
                           choices=['y', 'n'], show_choices=True, default='y') == 'y':

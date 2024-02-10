@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from core.autoexec import Autoexec
+from core.const import SAVED_GAMES
 from core.utils.helper import SettingsDict
 
 __all__ = ["InstanceImpl"]
@@ -38,6 +39,10 @@ class InstanceImpl(Instance):
                     SET port=excluded.port, server_name=excluded.server_name 
                 """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
 
+    @property
+    def home(self) -> str:
+        return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
+
     def set_server(self, server: Optional[Server]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
@@ -46,7 +51,7 @@ class InstanceImpl(Instance):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
-                    UPDATE instances SET server_name = %s, last_seen = NOW() 
+                    UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE node = %s AND instance = %s
                 """, (server.name if server else None, self.node.name, self.name))
                 if server and server.name:

@@ -27,13 +27,12 @@ class CleanupService(Service):
         for name, config in self.get_cfg_by_instance(instance).items():
             self.log.debug(f"- Running cleanup for {name} ...")
             directory = Path(utils.format_string(config['directory'], node=self.node, instance=instance))
-            delete_after = config.get('delete_after', 30)
-            for f in directory.glob(config['pattern']):
-                if f.stat().st_mtime < (now - delete_after * 86400):
-                    if os.path.isfile(f):
-                        self.log.debug(f"  => {f.name} is older then {delete_after} days, deleted.")
-                        os.chmod(f, stat.S_IWUSR)
-                        os.remove(f)
+            delete_after = int(config.get('delete_after', 30))
+            threshold_time = now - delete_after * 86400
+            for file_path in directory.glob(config['pattern']):
+                if os.path.getctime(file_path) < threshold_time:
+                    self.log.debug(f"  => {file_path.name} is older then {delete_after} days, deleting ...")
+                    utils.safe_rmtree(file_path)
 
     @tasks.loop(hours=12)
     async def schedule(self):

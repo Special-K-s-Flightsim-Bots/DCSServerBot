@@ -265,32 +265,33 @@ class MizFile:
         self._files = files
 
     def modify(self, config: Union[list, dict]) -> None:
-        def process_element(reference: dict, **kwargs):
+        def process_elements(reference: dict, **kwargs):
             if 'select' in config:
                 if debug:
                     print("Processing SELECT ...")
                 if config['select'].startswith('/'):
-                    element = next(utils.for_each(self.mission, config['select'][1:].split('/'), debug=debug, **kwargs))
+                    elements = list(utils.for_each(self.mission, config['select'][1:].split('/'), debug=debug, **kwargs))
                 else:
-                    element = next(utils.for_each(reference, config['select'].split('/'), debug=debug, **kwargs))
+                    elements = list(utils.for_each(reference, config['select'].split('/'), debug=debug, **kwargs))
             else:
-                element = reference
-            if not element:
-                if reference and 'insert' in config:
-                    if debug:
-                        print(f"Inserting new value: {config['insert']}")
-                    reference |= config['insert']
-            elif 'replace' in config:
-                for _what, _with in config['replace'].items():
-                    if isinstance(_what, int) and isinstance(element, list):
-                        element[_what - 1] = utils.evaluate(_with, reference=reference)
-                    elif isinstance(_with, dict):
-                        for key, value in _with.items():
-                            if utils.evaluate(key, **element, reference=reference):
-                                element[_what] = utils.evaluate(value, **element, reference=reference)
-                                break
-                    else:
-                        element[_what] = utils.evaluate(_with, **element, reference=reference)
+                elements = [reference]
+            for element in elements:
+                if not element:
+                    if reference and 'insert' in config:
+                        if debug:
+                            print(f"Inserting new value: {config['insert']}")
+                        reference |= config['insert']
+                elif 'replace' in config:
+                    for _what, _with in config['replace'].items():
+                        if isinstance(_what, int) and isinstance(element, list):
+                            element[_what - 1] = utils.evaluate(_with, reference=reference)
+                        elif isinstance(_with, dict):
+                            for key, value in _with.items():
+                                if utils.evaluate(key, **element, reference=reference):
+                                    element[_what] = utils.evaluate(value, **element, reference=reference)
+                                    break
+                        else:
+                            element[_what] = utils.evaluate(_with, **element, reference=reference)
 
         def check_where(reference: dict, config: Union[list, str], debug: bool, **kwargs: dict) -> bool:
             if isinstance(config, str):
@@ -322,9 +323,9 @@ class MizFile:
                 if debug:
                     print("Processing WHERE ...")
                 if check_where(reference, config['where'], debug=debug, **kwargs):
-                    process_element(reference, **kwargs)
+                    process_elements(reference, **kwargs)
             else:
-                process_element(reference, **kwargs)
+                process_elements(reference, **kwargs)
 
 
 class UnsupportedMizFileException(Exception):

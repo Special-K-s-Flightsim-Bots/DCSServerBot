@@ -220,4 +220,4 @@ class StatsPagination(Pagination):
                 else:
                     cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s WHERE '
                                    'c.id = s.campaign_id AND c.name ILIKE %s', (period,))
-                return [x[0] for x in cursor.fetchall()]
+                return [x[0] for x in cursor]

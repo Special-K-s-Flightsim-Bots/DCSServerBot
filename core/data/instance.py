@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import os
+from core import DataObject
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
-
-from core import DataObject
-from ..const import SAVED_GAMES
 
 if TYPE_CHECKING:
     from core import Server
@@ -30,7 +27,7 @@ class Instance(DataObject):
 
     @property
     def home(self) -> str:
-        return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
+        raise NotImplementedError()
 
     @property
     def dcs_port(self) -> int:

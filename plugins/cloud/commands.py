@@ -197,28 +197,26 @@ class CloudHandler(Plugin):
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
         if self.config.get('dcs-ban', False):
-            bans: list[str] = [x['ucid'] for x in self.bus.bans() if x['banned_by'] == self.plugin_name]
-            for ban in await self.get('bans'):
-                if ban['ucid'] not in bans:
-                    self.bus.ban(ucid=ban['ucid'], reason='DGSA: ' + ban['reason'], banned_by=self.plugin_name)
-                else:
-                    bans.remove(ban['ucid'])
-            # we might need to unban someone that is no longer on the list
-            for unban in bans:
-                self.bus.unban(unban)
+            self_bans: set = {x['ucid'] for x in self.bus.bans() if x['banned_by'] == self.plugin_name}
+            external_bans: set = {ban['ucid'] for ban in await self.get('bans')}
+            # find UCIDs to ban (in external_bans but not in self_bans)
+            for ucid in external_bans - self_bans:
+                reason = next(ban['reason'] for ban in await self.get('bans') if ban['ucid'] == ucid)
+                self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
+            # find UCIDs to unban (in self_bans but not in external_bans)
+            for ucid in self_bans - external_bans:
+                self.bus.unban(ucid)
         if self.config.get('discord-ban', False):
             bans: dict = await self.get('discord-bans')
-            users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
+            users_to_ban = {await self.bot.fetch_user(x['discord_id']) for x in bans}
             guild = self.bot.guilds[0]
             guild_bans = [entry async for entry in guild.bans()]
-            banned_users = [x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')]
+            banned_users = {x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')}
             # unban users that should not be banned anymore
-            for user in [x for x in banned_users if x not in users_to_ban]:
+            for user in banned_users - users_to_ban:
                 await guild.unban(user, reason='DGSA: ban revoked.')
-            # ban users that were not banned yet
-            for user in [x for x in users_to_ban if x not in banned_users]:
-                if user.id == self.bot.owner_id:
-                    continue
+            # ban users that were not banned yet (omit the owner)
+            for user in users_to_ban - banned_users - {self.bot.owner_id}:
                 reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
                 await guild.ban(user, reason='DGSA: ' + reason)
 
@@ -232,7 +230,7 @@ class CloudHandler(Plugin):
                         WHERE synced IS FALSE 
                         ORDER BY last_seen DESC 
                         LIMIT 10
-                    """).fetchall():
+                    """):
                         cursor.execute("""
                             SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                    SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
@@ -249,7 +247,7 @@ class CloudHandler(Plugin):
                             WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
                             GROUP BY 1, 2, 3
                         """, (row['ucid'], ))
-                        for line in cursor.fetchall():
+                        for line in cursor:
                             try:
                                 line['client'] = self.client
                                 await self.post('upload', line)
@@ -263,7 +261,7 @@ class CloudHandler(Plugin):
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
                     SELECT count(distinct node) as num_bots, count(distinct instance) as num_servers 
-                    FROM instances WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                    FROM instances WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
                 """)
                 if cursor.rowcount == 0:
                     num_bots = num_servers = 0

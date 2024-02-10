@@ -19,7 +19,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from psutil import Process
-from typing import Optional, TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
@@ -124,6 +124,17 @@ class ServerImpl(Server):
         if not self._options:
             path = os.path.join(self.instance.home, 'Config', 'options.lua')
             self._options = utils.SettingsDict(self, path, 'options')
+            # no options.lua, create a minimalistic one
+            if 'graphics' not in self._options:
+                self._options["graphics"] = {
+                        "visibRange": "High"
+                }
+            if 'plugins' not in self._options:
+                self._options["plugins"] = {}
+            if 'difficulty' not in self._options:
+                self._options["difficulty"] = {}
+            if 'miscellaneous' not in self._options:
+                self._options["miscellaneous"] = {}
         return self._options
 
     def set_instance(self, instance: Instance):
@@ -161,21 +172,6 @@ class ServerImpl(Server):
             super().set_status(status)
 
     def _install_luas(self):
-        def rmtree(top):
-            import stat
-            for root, dirs, files in os.walk(top, topdown=False):
-                for name in files:
-                    filename = os.path.join(root, name)
-                    os.chmod(filename, stat.S_IWUSR)
-                    os.remove(filename)
-                for name in dirs:
-                    dirname = os.path.join(root, name)
-                    os.chmod(dirname, stat.S_IWUSR)
-                    os.rmdir(dirname)
-            os.chmod(top, stat.S_IWUSR)
-            os.rmdir(top)
-
-        # Example from pathutils.py
         dcs_path = os.path.join(self.instance.home, 'Scripts')
         if not os.path.exists(dcs_path):
             os.mkdir(dcs_path)
@@ -183,7 +179,7 @@ class ServerImpl(Server):
         bot_home = os.path.join(dcs_path, 'net', 'DCSServerBot')
         if os.path.exists(bot_home):
             self.log.debug('  - Updating Hooks ...')
-            rmtree(bot_home)
+            utils.safe_rmtree(bot_home)
             ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
         else:
             self.log.debug('  - Installing Hooks ...')
@@ -215,7 +211,7 @@ class ServerImpl(Server):
         self.log.debug(f'  - Luas installed into {self.instance.name}.')
 
     def prepare(self):
-        if self.settings['name'] != self.name:
+        if self.settings.get('name', 'DCS Server') != self.name:
             self.settings['name'] = self.name
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
@@ -433,7 +429,7 @@ class ServerImpl(Server):
         if self._check_and_assign_process():
             return True
         # we might not have the necessary permissions to read the process
-        return utils.is_open('127.0.0.1', int(self.settings.get('port')))
+        return utils.is_open('127.0.0.1', int(self.settings.get('port', 10308)))
 
     async def terminate(self) -> None:
         if await self.is_running():
@@ -489,8 +485,10 @@ class ServerImpl(Server):
         self.send_to_dcs({"command": "getMissionUpdate"})
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',
-                             (self.node.name, self.name))
+                conn.execute("""
+                    UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
+                    WHERE node = %s AND server_name = %s
+                """, (self.node.name, self.name))
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False
@@ -607,3 +605,72 @@ class ServerImpl(Server):
             with suppress(NotImplementedError):
                 ret.append(await ext.render())
         return ret
+
+    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
+
+    async def setStartIndex(self, mission_id: int) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
+        else:
+            self.settings['listStartIndex'] = mission_id
+
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+        path = os.path.normpath(path)
+        missions = self.settings['missionList']
+        if path not in missions:
+            if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+                data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+                self.settings['missionList'] = data['missionList']
+            else:
+                missions.append(path)
+                self.settings['missionList'] = missions
+        elif autostart:
+            self.settings['listStartIndex'] = missions.index(path) + 1
+
+    async def deleteMission(self, mission_id: int) -> None:
+        if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
+            raise AttributeError("Can't delete the running mission!")
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
+            self.settings['missionList'] = data['missionList']
+        else:
+            missions = self.settings['missionList']
+            del missions[mission_id - 1]
+            self.settings['missionList'] = missions
+
+    async def replaceMission(self, mission_id: int, path: str) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
+        else:
+            missions: list[str] = self.settings['missionList']
+            missions[mission_id - 1] = path
+
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+        if isinstance(mission, int):
+            if mission > len(self.settings['missionList']):
+                mission = 1
+            filename = self.settings['missionList'][mission - 1]
+        else:
+            filename = mission
+        if modify_mission:
+            filename = await self.apply_mission_changes(filename)
+        stopped = self.status == Status.STOPPED
+        try:
+            idx = self.settings['missionList'].index(filename) + 1
+            if idx == int(self.settings['listStartIndex']):
+                self.send_to_dcs({"command": "startMission", "filename": filename})
+            else:
+                self.send_to_dcs({"command": "startMission", "id": idx})
+        except ValueError:
+            self.send_to_dcs({"command": "startMission", "filename": filename})
+        if not stopped:
+            # wait for a status change (STOPPED or LOADING)
+            await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
+        else:
+            self.send_to_dcs({"command": "start_server"})
+        # wait until we are running again
+        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
+
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)

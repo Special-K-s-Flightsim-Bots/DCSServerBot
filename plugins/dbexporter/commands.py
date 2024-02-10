@@ -1,6 +1,8 @@
 import discord
 import json
 import os
+import psycopg
+
 from contextlib import closing
 from core import Plugin, TEventListener, utils, command
 from discord import app_commands
@@ -17,6 +19,7 @@ class DBExporter(Plugin):
         if not path.exists('./export'):
             os.makedirs('./export')
         if self.get_config().get('autoexport', False):
+            self.schedule.add_exception_type(psycopg.Error)
             self.schedule.start()
 
     async def cog_unload(self):
@@ -31,7 +34,7 @@ class DBExporter(Plugin):
                     SELECT table_name FROM information_schema.tables 
                     WHERE table_schema = 'public' 
                     AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
-                """).fetchall() if x[0] not in table_filter]:
+                """) if x[0] not in table_filter]:
                     rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
                     if rows:
                         with open(f'export/{table}.json', 'w') as file:

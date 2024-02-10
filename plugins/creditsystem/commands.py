@@ -36,7 +36,7 @@ class CreditSystem(Plugin):
                 return list(cursor.execute("""
                     SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
                     FROM campaigns c LEFT OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) 
-                    WHERE NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) 
+                    WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
                     GROUP BY 1, 2
                 """, (ucid, )).fetchall())
 
@@ -47,7 +47,7 @@ class CreditSystem(Plugin):
                     SELECT s.event, s.old_points, s.new_points, remark, time 
                     FROM credits_log s, campaigns c 
                     WHERE s.player_ucid = %s AND s.campaign_id = c.id 
-                    AND NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) 
+                    AND (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
                     ORDER BY s.time DESC LIMIT 10
                 """, (ucid, )).fetchall())
 
@@ -101,7 +101,7 @@ class CreditSystem(Plugin):
                 points = row['new_points'] - row['old_points']
                 if points == 0:
                     continue
-                times += f"{row['time'].astimezone(timezone.utc):%m-%d %H:%M}\n"
+                times += f"<t:{int(row['time'].replace(tzinfo=timezone.utc).timestamp())}:R>\n"
                 events += row['event'].title() + '\n'
                 deltas += f"{points}\n"
             embed.add_field(name='Time', value=times)

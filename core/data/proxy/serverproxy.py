@@ -212,3 +212,83 @@ class ServerProxy(Server):
             "server_name": self.name
         }, timeout=60, node=self.node.name)
         return data['return']
+
+    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "restart",
+            "server_name": self.name,
+            "params": {
+                "modify_mission": modify_mission
+            }
+        }, timeout=300, node=self.node.name)
+
+    async def setStartIndex(self, mission_id: int) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setStartIndex",
+            "server_name": self.name,
+            "params": {
+                "mission_id": mission_id
+            }
+        }, timeout=60, node=self.node.name)
+
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "addMission",
+            "server_name": self.name,
+            "params": {
+                "path": path,
+                "autostart": autostart
+            }
+        }, timeout=60, node=self.node.name)
+
+    async def deleteMission(self, mission_id: int) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "deleteMission",
+            "server_name": self.name,
+            "params": {
+                "mission_id": mission_id
+            }
+        }, timeout=60, node=self.node.name)
+
+    async def replaceMission(self, mission_id: int, path: str) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "replaceMission",
+            "server_name": self.name,
+            "params": {
+                "mission_id": mission_id,
+                "path": path
+            }
+        }, timeout=60, node=self.node.name)
+
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "loadMission",
+            "server_name": self.name,
+            "params": {
+                "mission": mission,
+                "modify_mission": modify_mission
+            }
+        }, timeout=300, node=self.node.name)
+
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "loadNextMission",
+            "server_name": self.name,
+            "params": {
+                "modify_mission": modify_mission
+            }
+        }, timeout=300, node=self.node.name)

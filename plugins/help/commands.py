@@ -2,7 +2,7 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, Command, utils
+from core import Plugin, Report, ReportEnv, command, Command, utils, ServiceRegistry
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
@@ -343,8 +343,8 @@ class Help(Plugin):
             message = ""
             discord_commands = await self.discord_commands_to_df(interaction)
             for index, row in discord_commands.iterrows():
-                if not role or role in row['Roles']:
-                    message += f"**/{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
+                if not role or role in row['Roles'].split(','):
+                    message += f"**{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
                     if len(message) > 1900:
                         await channel.send(message)
                         message = ""
@@ -353,20 +353,78 @@ class Help(Plugin):
         else:
             await interaction.response.send_message("Please provide a role for channel output.", ephemeral=True)
 
+    async def server_info_to_df(self) -> pd.DataFrame:
+        df = pd.DataFrame(columns=['Node', 'Instance', 'Name', 'Password', 'Max Players', 'DCS Port', 'Bot Port'])
+        for server in self.bus.servers.values():
+            data_df = pd.DataFrame(
+                [(server.node.name, server.instance.name, server.name, server.settings.get('password'),
+                  server.settings.get('maxPlayers', 16), server.instance.dcs_port, server.instance.bot_port)],
+                columns=df.columns)
+            index = data_df.columns.get_loc('DCS Port') + 1
+            for ext in server.extensions.values():
+                if ext.name == 'SRS':
+                    data_df.insert(index, 'SRS Port', ext.locals['Server Settings'].get('SERVER_PORT', 5002), True)
+                    index += 1
+                elif ext.name == 'Tacview':
+                    data_df.insert(index, 'Tacview Port', ext.locals.get('tacviewRealTimeTelemetryPort', 42674), True)
+                    index += 1
+                    if ext.locals.get('tacviewRemoteControlEnabled', False):
+                        data_df.insert(index, 'Tacview Remote Control', ext.locals.get('tacviewRemoteControlPort', 42675),
+                                       True)
+                        index += 1
+                elif ext.name == 'LotAtc':
+                    data_df.insert(index, 'LotAtc Port', ext.locals.get('port', 10310), True)
+                    index += 1
+                elif ext.name == 'DCS Olympus':
+                    data_df.insert(index, 'Olympus Client', ext.config.get('client', {}).get('port', 3000), True)
+                    data_df.insert(index + 1, 'Olympus Server', ext.config.get('server', {}).get('port', 3001), True)
+                    index += 2
+                elif ext.name == 'Sneaker':
+                    port = ext.config['bind'].split(':')[1]
+                    data_df.insert(index, 'Sneaker Port', port, True)
+                    index += 1
+
+            df = pd.concat([df, data_df], ignore_index=True)
+        return df
+
     async def generate_server_docs(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
                                    channel: Optional[discord.TextChannel] = None):
-        pass
+        await interaction.response.defer()
+        server_info = (await self.server_info_to_df()).sort_values(['Node', 'Instance'])
+        output = BytesIO()
+        with pd.ExcelWriter(output) as writer:
+            server_info.to_excel(writer, sheet_name='Server Info', index=False)
+            worksheet = writer.sheets['Server Info']
+            # Apply a filter to all the columns.
+            worksheet.auto_filter.ref = worksheet.calculate_dimension()
+
+            # Get the max length of content in columns and resize the lengths
+            for col in worksheet.columns:
+                max_length = 0
+                column = col[0]
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(cell.value)
+                    except:
+                        pass
+                adjusted_width = max_length + 3  # Add buffer width
+                worksheet.column_dimensions[column.column_letter].width = adjusted_width
+
+        output.seek(0)
+        await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'))
 
     @command(description='Generate Documentation')
     @app_commands.guild_only()
+    @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
     async def doc(self, interaction: discord.Interaction, what: Literal['Commands', 'Server'],
-                  format: Literal['channel', 'xls'], role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
+                  fmt: Literal['channel', 'xls'], role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
                   channel: Optional[discord.TextChannel] = None):
         if what == 'Commands':
-            await self.generate_commands_doc(interaction, format, role, channel)
+            await self.generate_commands_doc(interaction, fmt, role, channel)
         elif what == 'Server':
-            await self.generate_server_doc(interaction, format, channel)
+            await self.generate_server_docs(interaction, fmt, channel)
         else:
             await interaction.response.send_message(f"Unknown option {what}", ephemeral=True)
 

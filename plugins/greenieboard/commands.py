@@ -4,7 +4,6 @@ import shutil
 
 from contextlib import closing
 from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG
-from datetime import timezone
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from psycopg.rows import dict_row
@@ -64,7 +63,7 @@ class GreenieBoard(Plugin):
     async def info(self, interaction: discord.Interaction,
                    user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
         def format_landing(landing: dict) -> str:
-            return (f"{landing['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S} - "
+            return (f"{landing['time']:%y-%m-%d %H:%M:%S} - "
                     f"{landing['unit_type']}@{landing['place']}: {landing['grade']}")
 
         ephemeral = utils.get_ephemeral(interaction)
@@ -90,7 +89,7 @@ class GreenieBoard(Plugin):
                     await interaction.response.send_message('No carrier landings recorded for this user.',
                                                             ephemeral=True)
                     return
-                landings = [dict(row) for row in cursor.fetchall()]
+                landings = [dict(row) for row in cursor]
         report = Report(self.bot, self.plugin_name, 'traps.json')
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",

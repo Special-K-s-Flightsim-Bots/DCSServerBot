@@ -35,7 +35,7 @@ class Playlist:
             self._items = [
                 row[0] for row in conn.execute(
                     'SELECT song_file FROM music_playlists WHERE name = %s ORDER BY song_id',
-                    (self.playlist,)).fetchall()
+                    (self.playlist,))
             ]
 
     @property
@@ -79,7 +79,7 @@ class Playlist:
 
 def get_all_playlists(interaction: discord.Interaction) -> list[str]:
     with interaction.client.pool.connection() as conn:
-        return [x[0] for x in conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1').fetchall()]
+        return [x[0] for x in conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')]
 
 
 async def playlist_autocomplete(

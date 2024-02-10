@@ -7,25 +7,6 @@ from .player import CreditPlayer
 
 class CreditSystemListener(EventListener):
 
-    def load_params_into_mission(self, server: Server):
-        config = self.plugin.get_config(server, use_cache=False)
-        if config:
-            server.send_to_dcs({
-                'command': 'loadParams',
-                'plugin': self.plugin_name,
-                'params': config
-            })
-
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # the server is running already
-        if data['channel'].startswith('sync-'):
-            self.load_params_into_mission(server)
-
-    @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self.load_params_into_mission(server)
-
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:
         default = 1
@@ -44,17 +25,18 @@ class CreditSystemListener(EventListener):
                     default = unit['default'] if data['victimCategory'] != 'Structures' else 0
         return default if data['victimCategory'] != 'Structures' else 0
 
-    @staticmethod
-    def get_initial_points(player: CreditPlayer, config: dict) -> int:
+    def get_initial_points(self, player: CreditPlayer, config: dict) -> int:
         if not config or 'initial_points' not in config:
             return 0
         if isinstance(config['initial_points'], int):
             return config['initial_points']
         elif isinstance(config['initial_points'], list):
-            roles = [x.name for x in player.member.roles] if player.member else []
+            roles = [x.id for x in player.member.roles] if player.member else []
             for element in config['initial_points']:
-                if 'discord' in element and element['discord'] in roles:
-                    return element['points']
+                if 'discord' in element:
+                    role_ids = utils.get_role_ids(self.plugin, element['discord'])
+                    if any(item in roles for item in role_ids):
+                        return element['points']
                 elif 'default' in element:
                     return element['default']
         return 0
@@ -67,7 +49,7 @@ class CreditSystemListener(EventListener):
         player = cast(CreditPlayer, server.get_player(id=data['id']))
         if player.points == -1:
             player.points = self.get_initial_points(player, config)
-            player.audit('init', player.points, 'Initial points received')
+            player.audit('init', 0, 'Initial points received')
         else:
             server.send_to_dcs({
                 'command': 'updateUserPoints',
@@ -155,13 +137,18 @@ class CreditSystemListener(EventListener):
         if data['eventName'] == 'kill':
             # players gain points only, if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
+                multiplier = config.get('multiplier', 0)
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
                     ppk = self.get_points_per_kill(config, data)
                     if ppk:
                         old_points = player.points
+                        # We will add the PPK to the deposit to allow for multiplied packbacks
+                        # (to be configured in Slotblocking)
+                        if multiplier:
+                            player.deposit += ppk * multiplier
                         player.points += ppk
-                        player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+                        player.audit('kill', old_points, f"for killing {data['arg5']}")
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
@@ -237,8 +224,7 @@ class CreditSystemListener(EventListener):
             gci_index = 0
 
         if gci_index not in range(0, len(active_gci)):
-            player.sendChatMessage(
-                f"Multiple GCIs found, use \"{self.prefix}tip points GCI-number\".")
+            player.sendChatMessage(f'Multiple GCIs found, use "{self.prefix}tip points gci_number".')
             for i, gci in enumerate(active_gci):
                 player.sendChatMessage(f"{i + 1}) {gci.name}")
             return

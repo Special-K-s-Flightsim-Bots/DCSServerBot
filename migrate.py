@@ -140,6 +140,8 @@ def migrate(node: str):
         if not os.path.exists('config/main.yaml'):
             print("[red]ATTENTION:[/]The Master Node needs to be migrated first! Aborting.")
             exit(-2)
+        bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
+        single_admin = ('admin_channel' in bot)
     else:
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
@@ -147,8 +149,8 @@ def migrate(node: str):
                         choices=['y', 'n'], default='n')
         if yn.lower() != 'y':
             exit(-2)
-    single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
-                              choices=['y', 'n'], default='n') == 'y'
+        single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
+                                  choices=['y', 'n'], default='n') == 'y'
     print("Now, lean back and enjoy the migration...\n")
 
     try:

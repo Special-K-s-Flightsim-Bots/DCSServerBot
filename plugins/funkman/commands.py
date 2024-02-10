@@ -1,12 +1,11 @@
 import os
-
-from configparser import ConfigParser
-from typing import Optional
-
 import psycopg
 
+from configparser import ConfigParser
 from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG, Server
 from services import DCSServerBot
+from typing import Optional
+
 from .listener import FunkManEventListener
 
 # ruamel YAML support
@@ -28,13 +27,13 @@ class FunkMan(Plugin):
             if 'install' not in config:
                 raise PluginConfigurationError(self.plugin_name, 'install')
             funkpath = os.path.expandvars(config['install'])
-            if not os.path.exists(funkpath) or not os.path.exists(funkpath + os.path.sep + 'FunkMan.ini'):
+            if not os.path.exists(funkpath) or not os.path.exists(os.path.join(funkpath, 'FunkMan.ini')):
                 self.log.error(f"No FunkMan installation found at {funkpath}!")
                 raise PluginConfigurationError(self.plugin_name, 'install')
             if 'CHANNELID_MAIN' not in config:
                 self.log.info('  => Migrating FunkMan.ini ...')
                 ini = ConfigParser()
-                ini.read(config['install'] + os.path.sep + 'FunkMan.ini')
+                ini.read(os.path.join(config['install'], 'FunkMan.ini'))
                 if 'CHANNELID_MAIN' in ini['FUNKBOT']:
                     config['CHANNELID_MAIN'] = ini['FUNKBOT']['CHANNELID_MAIN']
                 if 'CHANNELID_RANGE' in ini['FUNKBOT']:
@@ -75,8 +74,12 @@ class FunkMan(Plugin):
                 conn.execute('DELETE FROM bomb_runs WHERE player_ucid = %s', (ucid,))
                 conn.execute('DELETE FROM strafe_runs WHERE player_ucid = %s', (ucid,))
         elif days > -1:
-            conn.execute(f"DELETE FROM bomb_runs WHERE time < (DATE(NOW()) - interval '{days} days')")
-            conn.execute(f"DELETE FROM strafe_runs WHERE time < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(f"""
+                DELETE FROM bomb_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
+            """)
+            conn.execute(f"""
+                DELETE FROM strafe_runs WHERE time < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
+            """)
         self.log.debug('FunkMan pruned.')
 
 

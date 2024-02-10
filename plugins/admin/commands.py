@@ -5,7 +5,6 @@ import shutil
 
 from contextlib import closing
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType
-from datetime import timezone
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -32,6 +31,20 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
         if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
     ]
     return choices[:25]
+
+
+async def watchlist_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
+    with interaction.client.pool.connection() as conn:
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
+            for row in conn.execute("""
+                SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
+            """, ('%' + current + '%', '%' + current + '%'))
+        ]
+        return choices[:25]
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -211,7 +224,7 @@ class Admin(Plugin):
         if ban['banned_until'].year == 9999:
             until = 'never'
         else:
-            until = ban['banned_until'].astimezone(timezone.utc).strftime('%y-%m-%d %H:%M')
+            until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
         embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}")
         embed.add_field(name='Reason', value=ban['reason'])
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
@@ -250,33 +263,20 @@ class Admin(Plugin):
     @dcs.command(description='Removes a player from the watchlist')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def unwatch(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                          sel_type=PlayerType.PLAYER)]] = None):
-        if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
-            if not ucid:
-                await interaction.response.send_message(f"Member {user.display_name} is not linked.")
-                return
-        else:
-            ucid = user
+    @app_commands.autocomplete(user=watchlist_autocomplete)
+    async def unwatch(self, interaction: discord.Interaction, user: str):
         for server in self.bus.servers.values():
-            player = server.get_player(ucid=ucid)
+            player = server.get_player(ucid=user)
             if player:
-                if not player.watchlist:
-                    await interaction.response.send_message(f"Player {player.display_name} wasn't on the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
-                else:
-                    player.watchlist = False
-                    await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
+                player.watchlist = False
+                await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
+                                                        ephemeral=utils.get_ephemeral(interaction))
                 return
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (ucid, ))
-        await interaction.response.send_message(
-            "Player {} removed from the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
-            ephemeral=utils.get_ephemeral(interaction))
+                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
+        await interaction.response.send_message(f"Player {user} removed from the watchlist.",
+                                                ephemeral=utils.get_ephemeral(interaction))
 
     @dcs.command(description='Shows the watchlist')
     @app_commands.guild_only()
@@ -456,10 +456,11 @@ class Admin(Plugin):
                             await interaction.followup.send(f"Data of user {user} deleted.")
                             return
                     if view.what in ['users', 'non-members']:
-                        sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
+                        sql = (f"SELECT ucid FROM players "
+                               f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")
                         if view.what == 'non-members':
                             sql += ' AND discord_id = -1'
-                        ucids = [row[0] for row in cursor.execute(sql).fetchall()]
+                        ucids = [row[0] for row in cursor.execute(sql)]
                         if not ucids:
                             await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
                             return
@@ -525,16 +526,18 @@ class Admin(Plugin):
         if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
-        for n in self.node.get_active_nodes():
-            if not node or n == node.name:
-                self.bus.send_to_node({
-                    "command": "rpc",
-                    "object": "Node",
-                    "method": method
-                }, node=n)
-                await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
+        if method != 'upgrade' or node:
+            for n in self.node.get_active_nodes():
+                if not node or n == node.name:
+                    self.bus.send_to_node({
+                        "command": "rpc",
+                        "object": "Node",
+                        "method": method
+                    }, node=n)
+                    await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
         if not node or node.name == self.node.name:
-            await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
+            await interaction.followup.send(("Cluster" if not node else "Master") + f' is going to {method} **NOW**.',
+                                            ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
             elif method == 'upgrade':
@@ -595,20 +598,24 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
-        if not node:
-            node = self.node
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
+        if not node:
+            node = self.node
+            cluster = True
+        else:
+            cluster = False
         if not await node.upgrade_pending():
-            await interaction.followup.send(f'There is no upgrade available for node {node.name}.',
+            await interaction.followup.send("There is no upgrade available for " +
+                                            ("your cluster" if cluster else ("node" + node.name)),
                                             ephemeral=ephemeral)
             return
-        if not node.master and not await utils.yn_question(
+        if node and not node.master and not await utils.yn_question(
                 interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?",
                 ephemeral=ephemeral):
             await interaction.followup.send('Aborted', ephemeral=ephemeral)
             return
-        await self.run_on_nodes(interaction, "upgrade", node)
+        await self.run_on_nodes(interaction, "upgrade", node if not cluster else None)
 
     @node_group.command(description='Run a shell command on a node')
     @app_commands.guild_only()
@@ -659,7 +666,7 @@ class Admin(Plugin):
     @app_commands.describe(template="Take this instance configuration as a reference")
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
-                           template: app_commands.Transform[Instance, utils.InstanceTransformer]):
+                           template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
         instance = await node.add_instance(name, template=template)
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)

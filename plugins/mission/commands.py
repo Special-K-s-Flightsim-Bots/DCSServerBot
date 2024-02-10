@@ -6,7 +6,7 @@ import re
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, UploadStatus
-from datetime import datetime
+from datetime import datetime, timezone
 from discord import Interaction, app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
@@ -24,7 +24,7 @@ yaml = YAML()
 
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
@@ -43,7 +43,7 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def orig_mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
@@ -63,7 +63,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
 
 
 async def presets_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user):
+    if not await interaction.command._check_can_run(interaction):
         return []
     try:
         choices: list[app_commands.Choice[str]] = [
@@ -346,14 +346,15 @@ class Mission(Plugin):
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         all_missions = await server.listAvailableMissions()
         if idx >= len(all_missions):
-            await interaction.response.send_message('No mission found.', ephemeral=True)
+            await interaction.followup.send('No mission found.', ephemeral=True)
             return
         path = all_missions[idx]
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
-        await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
+        await interaction.followup.send(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, 'Do you want to load this mission?',
                                             ephemeral=ephemeral):
@@ -373,14 +374,15 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer],
                      mission_id: int):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
-            await interaction.response.send_message("No mission found.")
+            await interaction.followup.send("No mission found.")
             return
         filename = missions[mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and server.current_mission and \
                 filename == server.current_mission.filename:
-            await interaction.response.send_message("You can't delete the (only) running mission.", ephemeral=True)
+            await interaction.followup.send("You can't delete the (only) running mission.", ephemeral=True)
             return
         name = filename[:-4]
 
@@ -683,7 +685,7 @@ class Mission(Plugin):
                 if (datetime.now() - dt).total_seconds() > minutes * 60:
                     afk.append(player)
 
-        if len(afk):
+        if afk:
             title = 'AFK Players'
             if server:
                 title += f' on {server.name}'
@@ -692,7 +694,7 @@ class Mission(Plugin):
             for player in sorted(afk, key=lambda x: x.server.name):
                 embed.add_field(name='Name', value=player.display_name)
                 embed.add_field(name='Time',
-                                value=utils.format_time(int((datetime.now() -
+                                value=utils.format_time(int((datetime.now(timezone.utc) -
                                                              player.server.afk[player.ucid]).total_seconds())))
                 if server:
                     embed.add_field(name='_ _', value='_ _')
@@ -754,12 +756,26 @@ class Mission(Plugin):
         await interaction.response.send_message(f"Player {player.display_name} removed from watchlist.",
                                                 ephemeral = utils.get_ephemeral(interaction))
 
+    # New command group "/group"
+    group = Group(name="group", description="Commands to manage DCS groups")
+
+    @group.command(description='Sends a popup to a group\n')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(group=utils.group_autocomplete)
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def popup(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    group: str, message: str, time: Optional[Range[int, 1, 30]] = -1):
+        server.sendPopupMessage(group, message, time, interaction.user.display_name)
+        await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
+
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
         with self.pool.connection() as conn:
             with conn.transaction():
-                # migrate active bans from the punishment system and migrate them to the new method (fix days only)
-                for row in conn.execute("""SELECT ucid FROM bans WHERE banned_until < NOW()""").fetchall():
+                for row in conn.execute("""
+                    SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
+                """):
                     for server in self.bot.servers.values():
                         if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                             continue
@@ -767,8 +783,8 @@ class Mission(Plugin):
                             "command": "unban",
                             "ucid": row[0]
                         })
-                # delete unbanned accounts from the database
-                conn.execute("DELETE FROM bans WHERE banned_until < (NOW() - interval '1 minutes')")
+                    # delete unbanned accounts from the database
+                    conn.execute("DELETE FROM bans WHERE ucid = %s", row[0])
 
     @check_for_unban.before_loop
     async def before_check_unban(self):
@@ -824,7 +840,7 @@ class Mission(Plugin):
                     player = server.get_player(ucid=ucid, active=True)
                     if not player or player.has_discord_roles(['DCS Admin', 'GameMaster']):
                         continue
-                    if (datetime.now() - dt).total_seconds() > max_time:
+                    if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
                         msg = self.get_config(server).get(
                             'message_afk', '{player.name}, you have been kicked for being AFK for '
                                            'more than {time}.'.format(player=player, time=utils.format_time(max_time)))

@@ -150,7 +150,7 @@ class GreenieBoardEventListener(EventListener):
             if not os.path.exists(filepath):
                 os.mkdir(filepath)
             try:
-                filename = filepath + os.path.sep + f'{uuid.uuid4()}.png'
+                filename = os.path.join(filepath, f'{uuid.uuid4()}.png')
                 fig, _ = self.funkplot.PlotTrapSheet(data)
                 fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
                 plt.close(fig)

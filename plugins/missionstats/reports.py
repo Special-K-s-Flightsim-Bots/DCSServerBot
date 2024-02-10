@@ -26,8 +26,11 @@ class Sorties(report.EmbedElement):
         return Flight()
 
     async def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
-        sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
-              "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
+        sql = """
+            SELECT mission_id, init_type, init_cat, event, place, time 
+            FROM missionstats s
+            WHERE event IN ('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')
+        """
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period)
         sql += ' AND init_id = %s ORDER BY 6'
@@ -36,13 +39,13 @@ class Sorties(report.EmbedElement):
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 flight = Flight()
                 mission_id = -1
-                for row in cursor.execute(sql, (ucid, )).fetchall():
+                for row in cursor.execute(sql, (ucid, )):
                     if row['mission_id'] != mission_id:
                         mission_id = row['mission_id']
                         flight = self.add_flight(flight)
                     if not flight.plane:
                         flight.plane = row['init_type']
-                    # airstarts
+                    # air starts
                     if row['event'] == 'S_EVENT_BIRTH' and row['place'] is None:
                         if not flight.start:
                             flight.start = row['time']
@@ -103,7 +106,7 @@ class MissionStats(report.EmbedElement):
                         Side.RED: {}
                     }
                     self.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
-                    for row in cursor.fetchall():
+                    for row in cursor:
                         s = Side(int(row['init_side']))
                         for name, value in row.items():
                             if name == 'init_side':
@@ -120,9 +123,13 @@ class MissionStats(report.EmbedElement):
 
 class ModuleStats1(report.EmbedElement):
     async def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
-        sql = "SELECT COUNT(*) as num, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, " \
-              "ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average FROM statistics s " \
-              "WHERE s.player_ucid = %(ucid)s AND s.slot = %(module)s"
+        sql = """
+            SELECT COUNT(*) as num, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, 
+                   ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average 
+            FROM statistics s, missions m 
+            WHERE s.mission_id = m.id AND s.player_ucid = %(ucid)s AND s.slot = %(module)s
+        """
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period)
 
@@ -167,7 +174,7 @@ class ModuleStats2(report.EmbedElement):
                         AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
                         GROUP BY 1, 2 
                     ) y WHERE x.weapon = y.weapon AND x.shots <> 0 ORDER BY 1, 6 DESC
-                """, self.env.params).fetchall():
+                """, self.env.params):
                     if row['weapon'] == 'Gun':
                         continue
                     if category != row['target_cat']:
@@ -202,7 +209,7 @@ class Refuelings(report.EmbedElement):
         numbers = []
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                for row in cursor.execute(sql, (ucid, )).fetchall():
+                for row in cursor.execute(sql, (ucid, )):
                     modules.append(row[0])
                     numbers.append(str(row[1]))
         if len(modules):

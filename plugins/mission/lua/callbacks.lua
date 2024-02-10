@@ -45,18 +45,27 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     if locate(default_names, name) then
         return false, config.MESSAGE_PLAYER_DEFAULT_USERNAME
     end
-    name2 = name:gsub("[\r\n%z]", "")
+    local name2 = name:gsub("[\r\n%z]", "")
     if name ~= name2 then
         return false, config.MESSAGE_PLAYER_USERNAME
     end
-	if isBanned(ucid) then
-    	local msg = {
+    ipaddr = utils.getIP(addr)
+    if isBanned(ucid) then
+        local msg = {
             command = 'sendMessage',
             message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
         }
-    	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-	    return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
-	end
+        utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+        return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
+    elseif isBanned(ipaddr) and dcsbot.banList[dcsbot.banList[ipaddr]] then
+        local old_ucid = dcsbot.banList[ipaddr]
+        local msg = {
+            command = 'sendMessage',
+            message = 'Banned user ' .. name .. ' (ucid=' .. old_ucid .. ', IP=' .. ipaddr ..') attempted to connect with ucid ' .. ucid
+        }
+        utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+        return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[old_ucid])
+    end
 end
 
 function mission.onMissionLoadBegin()
@@ -77,8 +86,8 @@ end
 
 function mission.onMissionLoadEnd()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadEnd()')
-    utils.loadScript('Scripts/net/DCSServerBot/DCSServerBot.lua')
-    utils.loadScript('Scripts/net/DCSServerBot/mission/mission.lua')
+    utils.loadScript('DCSServerBot.lua')
+    utils.loadScript('mission/mission.lua')
     local msg = {
         command = 'onMissionLoadEnd',
         filename = DCS.getMissionFilename(),
@@ -108,7 +117,6 @@ function mission.onMissionLoadEnd()
     msg.weather = DCS.getCurrentMission().mission.weather
     local clouds = msg.weather.clouds
     if clouds.preset ~= nil then
-        local presets
         local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
 
         local env = {
@@ -323,14 +331,15 @@ local eventHandlers = {
         -- do we have collisions (weapon == unit name)
         if display_name == arg2 then
             -- ignore "spawn on top"
-            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
+            if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg3], 60) then
                 return False
             end
             -- ignore multiple collisions that happened in-between 10s
-            if utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3 then
+            if (utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3) or (utils.isWithinInterval(mission.last_collision[arg3], 10) and mission.last_victim[arg3] == arg1) then
                 return False
             else
                 mission.last_collision[arg1] = os.clock()
+                mission.last_collision[arg3] = os.clock()
                 mission.last_victim[arg1] = arg3
             end
         end
@@ -370,14 +379,15 @@ function mission.onPlayerTrySendChat(from, message, to)
     if from == SERVER_USER_ID then
         return message
     end
-    local msg = {}
     if string.sub(message, 1, 1) == config.CHAT_COMMAND_PREFIX then
-        msg.command = 'onChatCommand'
         local elements = utils.split(message, ' ')
-        msg.subcommand = string.sub(elements[1], 2)
-        msg.params = { unpack(elements, 2) }
-        msg.from = net.get_player_info(from, 'id')
-        msg.to = to
+        local msg = {
+            command = 'onChatCommand',
+            subcommand = string.sub(elements[1], 2),
+            params = { unpack(elements, 2) },
+            from = net.get_player_info(from, 'id'),
+            to = to
+        }
         utils.sendBotTable(msg)
         return ''
     end

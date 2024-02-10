@@ -110,13 +110,13 @@ class MissionEventListener(EventListener):
             await self.work_queue()
             if self.print_queue.seconds == 10:
                 self.print_queue.change_interval(seconds=2)
-        except discord.errors.DiscordException as ex:
+        except discord.DiscordException as ex:
             self.log.exception(ex)
             self.print_queue.change_interval(seconds=10)
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
 
-    @tasks.loop(seconds=5, reconnect=True)
+    @tasks.loop(seconds=5)
     async def update_player_embed(self):
         for server_name, update in self.player_embeds.copy().items():
             if update:
@@ -131,7 +131,7 @@ class MissionEventListener(EventListener):
                 finally:
                     self.player_embeds[server_name] = False
 
-    @tasks.loop(seconds=5, reconnect=True)
+    @tasks.loop(seconds=5)
     async def update_mission_embed(self):
         for server_name, update in self.mission_embeds.copy().items():
             if update:
@@ -180,12 +180,12 @@ class MissionEventListener(EventListener):
         events_channel = None
         if server.locals.get('coalitions'):
             if side == Side.RED:
-                events_channel = server.channels[Channel.COALITION_RED_EVENTS]
+                events_channel = server.channels.get(Channel.COALITION_RED_EVENTS, -1)
             elif side == Side.BLUE:
-                events_channel = server.channels[Channel.COALITION_BLUE_EVENTS]
+                events_channel = server.channels.get(Channel.COALITION_BLUE_EVENTS, -1)
         if not events_channel:
-            events_channel = server.channels.get(Channel.EVENTS)
-        if events_channel and events_channel != -1:
+            events_channel = server.channels.get(Channel.EVENTS, -1)
+        if int(events_channel) != -1:
             if events_channel not in self.queue:
                 self.queue[events_channel] = Queue()
             self.queue[events_channel].put(message)
@@ -212,26 +212,30 @@ class MissionEventListener(EventListener):
         server.current_mission.update(data)
 
     def _update_bans(self, server: Server):
+        def _get_until(until: datetime) -> str:
+            if until.year == 9999:
+                return 'never'
+            else:
+                return until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                for ban in cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'):
-                    if ban['banned_until'].year == 9999:
-                        until = 'never'
-                    else:
-                        until = ban['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
-                    server.send_to_dcs({
-                        "command": "ban",
-                        "ucid": ban['ucid'],
-                        "reason": ban['reason'],
-                        "banned_until": until
-                    })
+                server.send_to_dcs({
+                   "command": "ban",
+                   "batch": [
+                       {
+                           "ucid": ban['ucid'],
+                           "reason": ban['reason'],
+                           "banned_until": _get_until(ban['banned_until'])
+                       }
+                       for ban in cursor.execute(
+                           'SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'
+                       )
+                    ]
+                })
 
     async def _watchlist_alert(self, server: Server, player: Player):
-        mentions = ''
-        for role_name in self.bot.roles['DCS Admin']:
-            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-            if role:
-                mentions += role.mention
+        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         embed = discord.Embed(title='Watchlist member joined!', colour=discord.Color.red())
         embed.description = "A user just joined that you put on the watchlist."
         embed.add_field(name="Server", value=server.name, inline=False)
@@ -280,7 +284,7 @@ class MissionEventListener(EventListener):
             else:
                 player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
-                server.afk[player.ucid] = datetime.now()
+                server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
         for p in list(server.players.values()):
             if not p.active and not p.id == 1:
@@ -355,7 +359,7 @@ class MissionEventListener(EventListener):
                 'command': 'uploadUserRoles',
                 'id': player.id,
                 'ucid': player.ucid,
-                'roles': [x.name for x in player.member.roles]
+                'roles': [x.id for x in player.member.roles]
             })
         if player.watchlist:
             await self._watchlist_alert(server, player)
@@ -373,7 +377,7 @@ class MissionEventListener(EventListener):
         else:
             player.update(data)
         # add the player to the afk list
-        server.afk[player.ucid] = datetime.now()
+        server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -389,12 +393,27 @@ class MissionEventListener(EventListener):
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
+    def _disconnect(self, server: Server, player: Player):
+        if not player or not player.active:
+            return
+        try:
+            self.send_dcs_event(server, player.side,
+                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
+        finally:
+            player.active = False
+            if player.ucid in server.afk:
+                del server.afk[player.ucid]
+            self.display_mission_embed(server)
+            self.display_player_embed(server)
+
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        if 'side' not in data:
-            return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(id=data['id'], active=True)
         if not player:
+            return
+        # Workaround for missing disconnect events
+        if 'side' not in data:
+            self._disconnect(server, player)
             return
         try:
             if Side(data['side']) != Side.SPECTATOR:
@@ -405,7 +424,7 @@ class MissionEventListener(EventListener):
                     player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
                     data['name'], Side(data['side']).name, data['unit_type']))
             else:
-                server.afk[player.ucid] = datetime.now()
+                server.afk[player.ucid] = datetime.now(timezone.utc)
                 self.send_dcs_event(server, Side.SPECTATOR,
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                           data['name']))
@@ -424,18 +443,7 @@ class MissionEventListener(EventListener):
         elif data['eventName'] == 'disconnect':
             if data['arg1'] == 1:
                 return
-            player = server.get_player(id=data['arg1'])
-            if not player:
-                return
-            try:
-                self.send_dcs_event(server, player.side,
-                                    self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
-            finally:
-                player.active = False
-                if player.ucid in server.afk:
-                    del server.afk[player.ucid]
-                self.display_mission_embed(server)
-                self.display_player_embed(server)
+            self._disconnect(server, server.get_player(id=data['arg1'], active=True))
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
             player2 = server.get_player(id=data['arg3'])
@@ -443,7 +451,7 @@ class MissionEventListener(EventListener):
             if not player2:
                 return
             # filter AI-only events
-            if not player1 and not player2 and not server.locals.get('display_ai_chat', False):
+            if not player1 and not server.locals.get('display_ai_chat', False):
                 return
             side = player1.side if player1 else player2.side if player2 else Side.UNKNOWN
             self.send_dcs_event(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
@@ -581,11 +589,7 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
-        mentions = ''
-        for role_name in self.bot.roles['DCS Admin']:
-            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-            if role:
-                mentions += role.mention
+        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         message = ' '.join(params)
         embed = discord.Embed(title='MAYDAY // 911 Call', colour=discord.Color.blue())
         embed.set_image(url="https://media.tenor.com/pDRfpNAXfmcAAAAC/despicable-me-minions.gif")

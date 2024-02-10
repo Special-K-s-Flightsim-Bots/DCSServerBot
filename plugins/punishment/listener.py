@@ -21,7 +21,7 @@ class PunishmentEventListener(EventListener):
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
-                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, NOW()) - hop_on)))) / 3600, 0) 
+                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, now() AT TIME ZONE 'utc') - hop_on)))) / 3600, 0) 
                            AS playtime 
                     FROM statistics WHERE player_ucid = %s
                 """, (player.ucid, ))
@@ -81,8 +81,8 @@ class PunishmentEventListener(EventListener):
                 if 'target' in data and data['target'] != -1:
                     target = server.get_player(name=data['target'])
                     if 'forgive' in config:
-                        target.sendChatMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
-                                               f"player {data['initiator']}.\nIf you send {self.prefix}forgive in this "
+                        target.sendUserMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
+                                               f"player {data['initiator']}.\nIf you send {self.prefix}forgive in "
                                                f"chat within the next {config['forgive']} seconds, you can pardon the "
                                                f"other player.")
                 else:
@@ -106,12 +106,14 @@ class PunishmentEventListener(EventListener):
             competitive: Optional[Competitive] = self.bot.cogs.get('Competitive')
             if competitive:
                 player: Player = server.get_player(id=data['arg1'])
-                if competitive.eventlistener.in_match[server.name].get(player.ucid):
+                if not player or competitive.eventlistener.in_match[server.name].get(player.ucid):
                     return
         if self.plugin.get_config(server) and server.status == Status.RUNNING:
             if data['eventName'] == 'friendly_fire':
                 if data['arg1'] != -1 and data['arg1'] != data['arg3']:
                     initiator = server.get_player(id=data['arg1'])
+                    if not initiator:
+                        return
                     target = server.get_player(id=data['arg3']) if data['arg3'] != -1 else None
                     data['initiator'] = initiator.name
                     if target:
@@ -164,7 +166,7 @@ class PunishmentEventListener(EventListener):
                                 SELECT DISTINCT init_id 
                                 FROM pu_events 
                                 WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (target.ucid, )).fetchall()
+                            """, (target.ucid, ))
                         ]
                         # there were no events, so forgive would not do anything
                         if not initiators:
@@ -185,8 +187,8 @@ class PunishmentEventListener(EventListener):
                             player = self.bot.get_player_by_ucid(initiator)
                             if player:
                                 names.append(player.name)
-                                player.sendChatMessage(
-                                    f'You have been forgiven by {target.name} and will not be punished '
+                                player.sendUserMessage(
+                                    f'You have been forgiven by {target.name} and you will not be punished '
                                     f'for your recent actions.')
                         if not names:
                             names = ['another player']

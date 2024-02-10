@@ -75,11 +75,7 @@ class BotService(Service):
         await super().stop()
 
     async def alert(self, message: str, server: Optional[Server] = None, node: Optional[str] = None) -> None:
-        mentions = ''
-        for role_name in self.bot.roles['Alert']:
-            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-            if role:
-                mentions += role.mention
+        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert']])
         message = mentions + ' ' + utils.escape_string(message)
         if not server and node:
             try:

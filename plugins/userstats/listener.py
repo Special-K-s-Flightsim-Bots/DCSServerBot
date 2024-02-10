@@ -157,7 +157,7 @@ class UserStatisticsEventListener(EventListener):
                                                 player.side.value))
                         # close dead entries in the database (if existent)
                         cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
-                        for row in cursor.fetchall():
+                        for row in cursor:
                             if row[0] not in ucids:
                                 cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
 

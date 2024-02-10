@@ -50,7 +50,8 @@ class GameMaster(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
         if days > -1:
-            conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(
+                f"DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
@@ -337,7 +338,7 @@ class GameMaster(Plugin):
                         'command': 'uploadUserRoles',
                         'id': player.id,
                         'ucid': player.ucid,
-                        'roles': [x.name for x in after.roles]
+                        'roles': [x.id for x in after.roles]
                     })
 
     async def _create_embed(self, message: discord.Message) -> None:

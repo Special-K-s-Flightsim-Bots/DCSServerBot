@@ -18,7 +18,7 @@ from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
-    from services import ServiceBus
+    from services import ServiceBus, DCSServerBot
 
 __all__ = [
     "MonitoringService"
@@ -138,9 +138,9 @@ class MonitoringService(Service):
             # don't test remote servers or servers that are not initialized or shutdown
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
-            # check if the process is dead
-            if not await server.is_running():
-                message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
+            # check if the process is dead (on load it might take some seconds for the process to appear)
+            if server.process and not await server.is_running():
+                message = f'Server "{server.name}" died. Setting state to SHUTDOWN.'
                 self.log.warning(message)
                 server.status = Status.SHUTDOWN
                 if server.locals.get('ping_admin_on_crash', True):
@@ -175,9 +175,9 @@ class MonitoringService(Service):
         for server in self.bus.servers.values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
-            if not await server.is_running():
-                self.log.warning(f"Could not find a running DCS instance for server {server.name}, "
-                                 f"skipping server load gathering.")
+            if not server.process:
+                self.log.warning(f"DCSServerBot is not attached to a DCS.exe or DCS_Server.exe process on "
+                                 f"server {server.name}, skipping server load gathering.")
                 continue
             try:
                 cpu = server.process.cpu_percent()
@@ -210,7 +210,7 @@ class MonitoringService(Service):
             except (psutil.AccessDenied, PermissionError):
                 self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
 
-    @tasks.loop(minutes=1.0, reconnect=True)
+    @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
             if self.node.master:
@@ -222,3 +222,9 @@ class MonitoringService(Service):
                 await self.serverload()
         except Exception as ex:
             self.log.exception(ex)
+
+    @monitoring.before_loop
+    async def before_loop(self):
+        if self.node.master:
+            bot: DCSServerBot = ServiceRegistry.get("Bot").bot
+            await bot.wait_until_ready()

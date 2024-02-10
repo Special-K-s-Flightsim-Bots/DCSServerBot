@@ -19,6 +19,7 @@ from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
+from packaging import version
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation
 from psycopg.rows import dict_row
@@ -109,9 +110,9 @@ class NodeImpl(Node):
                 with conn.transaction():
                     conn.execute("""
                         INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = NOW() AT TIME ZONE 'UTC'
+                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
                     """, (self.guild_id, self.name))
-            self._master = await self.check_master()
+            self._master = await self.heartbeat()
         except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):
             # some master tables have changed, so do the update first
             self._master = True
@@ -167,8 +168,7 @@ class NodeImpl(Node):
         else:
             del self.after_update[name]
 
-    @staticmethod
-    async def shutdown():
+    async def shutdown(self):
         await ServiceRegistry.shutdown()
         tasks = [t for t in asyncio.all_tasks() if t is not
                  asyncio.current_task()]
@@ -216,7 +216,10 @@ class NodeImpl(Node):
     def init_db(self):
         url = self.config.get("database", self.locals.get('database'))['url']
         pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 5)
-        pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
+        if self.master:
+            pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
+        else:
+            pool_max = pool_min
         db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max)
         return db_pool
 
@@ -235,7 +238,7 @@ class NodeImpl(Node):
                     # check if there is an old database already
                     cursor.execute("SELECT tablename FROM pg_catalog.pg_tables "
                                    "WHERE tablename IN ('version', 'plugins')")
-                    tables = [x[0] for x in cursor.fetchall()]
+                    tables = [x[0] for x in cursor]
                     # initial setup
                     if len(tables) == 0:
                         self.log.info('Creating Database ...')
@@ -280,7 +283,7 @@ class NodeImpl(Node):
                 if new_hash != current_hash:
                     return True
         except git.InvalidGitRepositoryError:
-            return await self.do_upgrade_non_git()
+            return await self._upgrade_pending_non_git()
         except git.GitCommandError as ex:
             self.log.error('  => Autoupdate failed!')
             changed_files = repo.index.diff(None)
@@ -317,10 +320,15 @@ class NodeImpl(Node):
         return rc
 
     async def upgrade(self):
-        if await self.upgrade_pending():
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
+        # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
+        if not self.master and self.locals.get('cloud_drive', True):
+            await self.restart()
+            return
+        elif await self.upgrade_pending():
+            if self.master:
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
             subprocess.Popen([sys.executable, 'update.py', '-n', self.node.name])
             sys.exit(0)
 
@@ -471,7 +479,7 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    async def check_master(self) -> bool:
+    async def heartbeat(self) -> bool:
         def version_string_to_tuple(version_string: str):
             return tuple(map(int, version_string.split(".")))
 
@@ -490,8 +498,6 @@ class NodeImpl(Node):
                             cursor.execute("INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)",
                                            (self.guild_id, self.name, __version__))
                             return True
-                        current_version = version_string_to_tuple(__version__)
-                        db_version = version_string_to_tuple(cluster['version'])
                         # I am the master
                         if cluster['master'] == self.name:
                             if cluster['update_pending']:
@@ -502,7 +508,7 @@ class NodeImpl(Node):
                                         data = {
                                             "command": "rpc",
                                             "object": "Node",
-                                            "method": "restart"
+                                            "method": "upgrade"
                                         }
                                         conn.execute(
                                             "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
@@ -514,27 +520,35 @@ class NodeImpl(Node):
                                 else:
                                     # something went wrong, we need to upgrade again
                                     await self.upgrade()
+                            elif version.parse(cluster['version']) != version.parse(__version__):
+                                if version.parse(cluster['version']) > version.parse(__version__):
+                                    self.log.warning(
+                                        f"Bot version downgraded from {cluster['version']} to {__version__}. "
+                                        f"This could lead to unexpected behavior if there have been database schema "
+                                        f"changes.")
+                                cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
+                                               (__version__, self.guild_id))
                             return True
                         # we are not the master, the update is pending, we will not take over
                         if cluster['update_pending']:
                             return False
                         # we have a version mismatch on the agent, a cloud sync might still be pending
-                        if current_version < db_version:
+                        if version.parse(__version__) < version.parse(cluster['version']):
                             self.log.error(f"We are running version {__version__} where the master is on version "
-                                           f"{cluster['version']} already. Restarting ...")
+                                           f"{cluster['version']} already. Trying to upgrade ...")
                             # TODO: we might not have bus access here yet, so be our own bus (dirty)
                             data = {
                                 "command": "rpc",
                                 "object": "Node",
-                                "method": "restart"
+                                "method": "upgrade"
                             }
                             conn.execute(
                                 "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
                                 (self.name, Json(data), 2))
                             return False
-                        elif current_version > db_version:
-                            self.log.warning(f"This node is running on version {current_version} where the master "
-                                             f"still runs on {db_version}. You need to upgrade your master node!")
+                        elif version.parse(__version__) > version.parse(cluster['version']):
+                            self.log.warning(f"This node is running on version {__version__} where the master still "
+                                             f"runs on {cluster['version']}. You need to upgrade your master node!")
                         # we are not the master, but we are the preferred one, taking over
                         if self.locals.get('preferred_master', False):
                             cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
@@ -559,8 +573,9 @@ class NodeImpl(Node):
                     except Exception as e:
                         self.log.exception(e)
                     finally:
-                        cursor.execute("UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE node = %s",
-                                       (self.name,))
+                        cursor.execute("""
+                            UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
+                        """, (self.guild_id, self.name))
 
     def get_active_nodes(self) -> list[str]:
         with self.pool.connection() as conn:
@@ -569,7 +584,7 @@ class NodeImpl(Node):
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
-            """, (self.guild_id, self.name)).fetchall()]
+            """, (self.guild_id, self.name))]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
         self.log.debug('Running shell-command: ' + cmd)

@@ -55,7 +55,8 @@ class Player(DataObject):
                                p.manual, c.coalition, p.watchlist, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                         LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
-                        WHERE p.ucid = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
+                        WHERE p.ucid = %s 
+                        AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
                     """, (self.ucid, ))
                     # existing member found?
                     if cursor.rowcount == 1:
@@ -69,7 +70,8 @@ class Player(DataObject):
                         self._watchlist = row[4]
                         self._vip = row[5]
                     cursor.execute("""
-                        INSERT INTO players (ucid, discord_id, name, last_seen) VALUES (%s, -1, %s, NOW()) 
+                        INSERT INTO players (ucid, discord_id, name, last_seen) 
+                        VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
                         ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
                         """, (self.ucid, self.name))
         # if automatch is enabled, try to match the user
@@ -103,7 +105,7 @@ class Player(DataObject):
                 'command': 'uploadUserRoles',
                 'id': self.id,
                 'ucid': self.ucid,
-                'roles': [x.name for x in self._member.roles] if self._member else []
+                'roles': [x.id for x in self._member.roles] if self._member else []
             })
 
     @property
@@ -195,7 +197,10 @@ class Player(DataObject):
                         self.group_id = data['group_id']
                     if 'unit_display_name' in data:
                         self.unit_display_name = data['unit_display_name']
-                    cursor.execute('UPDATE players SET last_seen = NOW() WHERE ucid = %s', (self.ucid, ))
+                    cursor.execute("""
+                        UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
+                        WHERE ucid = %s
+                    """, (self.ucid, ))
 
     def has_discord_roles(self, roles: list[str]) -> bool:
         valid_roles = []
@@ -213,18 +218,17 @@ class Player(DataObject):
             })
 
     def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
-        if self.slot <= 0:
-            [self.sendChatMessage(msg) for msg in message.splitlines()]
-        else:
-            self.sendPopupMessage(message, timeout)
+        [self.sendChatMessage(msg) for msg in message.splitlines()]
+        self.sendPopupMessage(message, timeout)
 
     def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
             timeout = self.server.locals.get('message_timeout', 10)
         self.server.send_to_dcs({
                 "command": "sendPopupMessage",
-                "to": self.unit_name,
                 "from": sender,
+                "to": "unit",
+                "id": self.unit_name,
                 "message": message,
                 "time": timeout
         })
@@ -232,6 +236,7 @@ class Player(DataObject):
     def playSound(self, sound: str):
         self.server.send_to_dcs({
             "command": "playSound",
-            "to": self.unit_name,
+            "to": "unit",
+            "id": self.unit_name,
             "sound": sound
         })

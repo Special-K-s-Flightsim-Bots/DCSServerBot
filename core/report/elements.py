@@ -271,7 +271,7 @@ class SQLTable(EmbedElement):
                 header = None
                 cols = []
                 elements = 0
-                for row in cursor.fetchall():
+                for row in cursor:
                     elements = len(row)
                     if not header:
                         header = list(row.keys())
@@ -344,7 +344,7 @@ class SQLBarChart(BarChart):
                     await super().render(cursor.fetchone())
                 elif cursor.rowcount > 1:
                     values = {}
-                    for row in cursor.fetchall():
+                    for row in cursor:
                         d = list(row.values())
                         values[d[0]] = d[1]
                     await super().render(values)
@@ -399,7 +399,7 @@ class SQLPieChart(PieChart):
                     await super().render(cursor.fetchone())
                 elif cursor.rowcount > 1:
                     values = {}
-                    for row in cursor.fetchall():
+                    for row in cursor:
                         d = list(row.values())
                         values[d[0]] = d[1]
                     await super().render(values)

@@ -9,6 +9,7 @@ import traceback
 from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException
 from install import Install
 from migrate import migrate
+from pid import PidFile, PidFileError
 
 # Register all services
 import services
@@ -61,8 +62,8 @@ class Main:
             try:
                 while True:
                     # wait until the master changes
-                    while self.node.master == await self.node.check_master():
-                        await asyncio.sleep(1)
+                    while self.node.master == await self.node.heartbeat():
+                        await asyncio.sleep(5)
                     # switch master
                     self.node.master = not self.node.master
                     if self.node.master:
@@ -85,6 +86,7 @@ class Main:
                                 await registry.get(name).stop()
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
+                    self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
             finally:
                 await self.node.unregister()
 
@@ -101,16 +103,24 @@ if __name__ == "__main__":
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
     args = parser.parse_args()
+    # Call the DCSServerBot 2.x migration utility
     if os.path.exists('config/dcsserverbot.ini'):
         migrate(node=args.node)
     try:
-        node = NodeImpl(name=args.node)
-    except FatalException:
-        Install(node=args.node).install()
-        node = NodeImpl(name=args.node)
-    try:
-        asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
-    except (asyncio.CancelledError, KeyboardInterrupt) as ex:
+        with PidFile(pidname=f"dcssb_{args.node}"):
+            try:
+                node = NodeImpl(name=args.node)
+            except FatalException:
+                Install(node=args.node).install()
+                node = NodeImpl(name=args.node)
+            asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
+    except (PermissionError, PidFileError):
+        print(f"Process already running for node {args.node}! Exiting...")
+        exit(-2)
+    except KeyboardInterrupt:
+        # restart again (old handling)
+        exit(-1)
+    except asyncio.CancelledError:
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException) as ex:

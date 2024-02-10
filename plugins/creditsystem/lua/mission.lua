@@ -10,10 +10,11 @@ dcsbot 			= base.dcsbot
 local _points = {}
 
 function dcsbot.addUserPoints(user, points)
-    local msg = {}
-    msg.command = 'addUserPoints'
-    msg.name = user
-    msg.points = points
+    local msg = {
+        command = 'addUserPoints',
+        name = user,
+        points = points
+    }
     dcsbot.sendBotTable(msg)
 end
 

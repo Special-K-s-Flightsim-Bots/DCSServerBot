@@ -47,6 +47,8 @@ class Scheduler(Plugin):
             now: datetime = datetime.now()
             weekday = (now + timedelta(seconds=restart_in)).weekday()
             for period, daystate in config['schedule'].items():  # type: str, dict
+                if len(daystate) != 7:
+                    server.log.error(f"Error in scheduler.yaml: {daystate} has to be 7 characters long!")
                 state = daystate[weekday]
                 # check, if the server should be running
                 if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server.status == Status.SHUTDOWN:
@@ -313,9 +315,8 @@ class Scheduler(Plugin):
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer],
-                      maintenance: Optional[bool] = True, run_extensions: Optional[bool] = True,
+                      maintenance: Optional[bool] = False, run_extensions: Optional[bool] = True,
                       mission_id: Optional[int] = None):
-        config = self.get_config(server)
         if server.status == Status.STOPPED:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
                                                     f"Please use /server start instead.", ephemeral=True)
@@ -358,7 +359,7 @@ class Scheduler(Plugin):
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[
-                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED
+                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING
                            ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
         async def do_shutdown(server: Server, *, force: bool = False, ephemeral: bool):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",

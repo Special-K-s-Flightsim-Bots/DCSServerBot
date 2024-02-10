@@ -5,7 +5,6 @@ import psycopg
 from contextlib import closing, suppress
 from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, PluginInstallationError, \
     command, DEFAULT_TAG, Report
-from datetime import timezone
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
@@ -80,7 +79,7 @@ class Punishment(Plugin):
 
         elif punishment['action'] == 'move_to_spec':
             server.move_to_spectators(player)
-            player.sendChatMessage(f"You've been kicked back to spectators because of: {reason}.")
+            player.sendUserMessage(f"You've been kicked back to spectators because of: {reason}.")
             await admin_channel.send(f"Player {player.display_name} (ucid={player.ucid}) moved to "
                                      f"spectators by {self.bot.member.name} for {reason}.")
 
@@ -100,7 +99,7 @@ class Punishment(Plugin):
         elif punishment['action'] == 'message':
             player.sendUserMessage(f"{player.name}, check your fire: {reason}!")  
         if points:
-            player.sendChatMessage(f"Your current punishment points are: {points}")
+            player.sendUserMessage(f"Your current punishment points are: {points}")
 
     # TODO: change to pubsub
     @tasks.loop(minutes=1.0)
@@ -119,7 +118,7 @@ class Punishment(Plugin):
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
                                 AND time < (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (server_name, )).fetchall():
+                            """, (server_name, )):
                                 try:
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:
@@ -202,7 +201,7 @@ class Punishment(Plugin):
                         if isinstance(user, discord.Member):
                             ucids = [
                                 row[0] for row in cursor.execute('SELECT ucid FROM players WHERE discord_id = %s',
-                                                                 (user.id,)).fetchall()
+                                                                 (user.id,))
                             ]
                             if not ucids:
                                 await interaction.followup.send(f"User {user.display_name} is not linked.",
@@ -262,8 +261,8 @@ class Punishment(Plugin):
                     color=discord.Color.blue())
                 times = events = points = ''
                 total = 0.0
-                for row in cursor.fetchall():
-                    times += f"{row['time'].astimezone(timezone.utc):%m-%d %H:%M}\n"
+                for row in cursor:
+                    times += f"{row['time']:%m-%d %H:%M}\n"
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
                     total += float(row['points'])
@@ -280,7 +279,7 @@ class Punishment(Plugin):
                     if ban['banned_until'].year == 9999:
                         until = 'never'
                     else:
-                        until = ban['banned_until'].astimezone(timezone.utc).strftime('%y-%m-%d %H:%M')
+                        until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
                     embed.add_field(name="Ban expires", value=until)
                     embed.add_field(name="Reason", value=ban['reason'])
                     embed.add_field(name='_ _', value='_ _')

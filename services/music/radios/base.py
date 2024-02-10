@@ -56,7 +56,7 @@ class Radio(ABC):
         with self.pool.connection() as conn:
             with conn.transaction():
                 for row in conn.execute('SELECT song_file FROM music_playlists WHERE name = %s',
-                                        (self._playlist,)).fetchall():
+                                        (self._playlist,)):
                     if os.path.exists(os.path.join(music_dir, row[0])):
                         playlist.append(row[0])
                     else:
@@ -136,7 +136,7 @@ class Radio(ABC):
         self._mode = mode
         self.config['mode'] = mode.value
 
-    @tasks.loop(reconnect=True)
+    @tasks.loop()
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
             with suppress(Exception):

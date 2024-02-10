@@ -7,7 +7,7 @@ function dcsbot.updateUserPoints(json)
     log.write('DCSServerBot', log.DEBUG, 'CreditSystem: updateUserPoints()')
     dcsbot.userInfo[json.ucid].points = tonumber(json.points)
 
-    plist = net.get_player_list()
+    local plist = net.get_player_list()
     for i = 2, table.getn(plist) do
         if (net.get_player_info(plist[i], 'ucid') == json.ucid) then
             name = net.get_player_info(plist[i], 'name')

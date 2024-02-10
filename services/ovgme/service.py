@@ -6,8 +6,9 @@ import zipfile
 
 from aiohttp import ClientSession
 from contextlib import closing, suppress
-from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError
+from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils
 from filecmp import cmp
+from packaging import version
 from pathlib import Path
 from psycopg.rows import dict_row
 from typing import Optional, Tuple, TYPE_CHECKING
@@ -59,18 +60,6 @@ class OvGMEService(Service):
         self.log.debug("  => Re-installing any OvGME-packages into the DCS installation folder ...")
         await self.install_packages()
 
-    @staticmethod
-    def is_greater(v1: str, v2: str):
-        parts1 = [int(x) for x in v1.split('.')]
-        parts2 = [int(x) for x in v2.split('.')]
-        for i in range(0, max(len(parts1), len(parts2))):
-            left = parts1[i] if len(parts1) > i else 0
-            right = parts2[i] if len(parts2) > i else 0
-            if left == right:
-                continue
-            return left > right
-        return False
-
     async def install_packages(self):
         for server_name, server in self.bus.servers.copy().items():
             if server.is_remote:
@@ -84,11 +73,11 @@ class OvGMEService(Service):
 
             for package in config.get('packages', []):
                 if package.get('version', 'latest') == 'latest':
-                    version = await self.get_latest_version(package)
+                    _version = await self.get_latest_version(package)
                 else:
-                    version = package['version']
+                    _version = package['version']
                 installed = self.get_installed_package(server, package['source'], package['name'])
-                if (not installed or installed != version) and \
+                if (not installed or installed != _version) and \
                         server.status != Status.SHUTDOWN:
                     self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
                     break
@@ -96,22 +85,22 @@ class OvGMEService(Service):
                 server.maintenance = True
                 try:
                     if not installed:
-                        if not await self.install_package(server, package['source'], package['name'], version,
+                        if not await self.install_package(server, package['source'], package['name'], _version,
                                                           package.get('repo')):
-                            self.log.warning(f"- Package {package['name']}_v{version} not found!")
-                    elif installed != version:
-                        if self.is_greater(installed, version):
+                            self.log.warning(f"- Package {package['name']}_v{_version} not found!")
+                    elif installed != _version:
+                        if version.parse(installed) > version.parse(_version):
                             self.log.debug(f"- Installed package {package['name']}_v{installed} is newer than the "
                                            f"configured version. Skipping.")
                             continue
                         if not await self.uninstall_package(server, package['source'], package['name'], installed):
                             self.log.warning(f"- Package {package['name']}_v{installed} could not be uninstalled on "
                                              f"server {server.name}!")
-                        elif not await self.install_package(server, package['source'], package['name'], version):
-                            self.log.warning(f"- Package {package['name']}_v{version} could not be installed on "
+                        elif not await self.install_package(server, package['source'], package['name'], _version):
+                            self.log.warning(f"- Package {package['name']}_v{_version} could not be installed on "
                                              f"server {server.name}!")
                         else:
-                            self.log.info(f"- Package {package['name']}_v{installed} updated to v{version}.")
+                            self.log.info(f"- Package {package['name']}_v{installed} updated to v{_version}.")
                 finally:
                     if maintenance:
                         server.maintenance = maintenance
@@ -138,7 +127,7 @@ class OvGMEService(Service):
                             SELECT * FROM ovgme_packages 
                             WHERE server_name = %s AND folder = %s 
                             ORDER BY package_name, version
-                        """, (server.name, folder)).fetchall()
+                        """, (server.name, folder))
                 ]
 
     async def get_repo_versions(self, repo: str) -> set[str]:
@@ -217,9 +206,9 @@ class OvGMEService(Service):
         path = os.path.expandvars(config[package['source']])
         available = [self.parse_filename(x) for x in os.listdir(path) if package['name'] in x]
         max_version = None
-        for _, version in available:
-            if not max_version or self.is_greater(version, max_version):
-                max_version = version
+        for _, _version in available:
+            if not max_version or version.parse(_version) > version.parse(max_version):
+                max_version = _version
         return max_version
 
     async def get_latest_version(self, package: dict) -> str:
@@ -382,7 +371,7 @@ class OvGMEService(Service):
                         if folder == 'RootFolder':
                             self.log.warning(f"- Can't recover file {filename}, because it has been removed! "
                                              f"You might need to run a slow repair.")
-        shutil.rmtree(ovgme_path)
+        utils.safe_rmtree(ovgme_path)
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""

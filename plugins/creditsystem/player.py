@@ -48,22 +48,26 @@ class CreditPlayer(Player):
         else:
             self._points = p
         campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
-        if not campaign_id:
-            return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    INSERT INTO credits (campaign_id, player_ucid, points) 
-                    VALUES (%s, %s, %s) 
-                    ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points
-                """, (campaign_id, self.ucid, self._points))
-                self.server.send_to_dcs({
-                    'command': 'updateUserPoints',
-                    'ucid': self.ucid,
-                    'points': self._points
-                })
+        if campaign_id:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO credits (campaign_id, player_ucid, points) 
+                        VALUES (%s, %s, %s) 
+                        ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points
+                    """, (campaign_id, self.ucid, self._points))
+        else:
+            self.log.warning("No campaign active, not writing default points to database!")
+        # sending points to DCS
+        self.server.send_to_dcs({
+            'command': 'updateUserPoints',
+            'ucid': self.ucid,
+            'points': self._points
+        })
 
     def audit(self, event: str, old_points: int, remark: str):
+        if old_points == self.points:
+            return
         campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
         if not campaign_id:
             return

@@ -14,7 +14,7 @@ running and if there is new data to be displayed.
 DEFAULT:
   update_interval: 60         # interval in seconds when the embed should update (default = 60)
 DCS.openbeta_server:
-  json_file_path: '%USERPROFILE%\Saved Games\DCS.openbeta\Missions\Saves\player_stats.json' # this is the default - if using a server it will likely be DCS.openbeta_server
+  json_file_path: '%USERPROFILE%\Saved Games\DCS.openbeta_server\Missions\Saves\player_stats.json' # this is the default
   channel: 1122334455667788   # channel, where to upload the stats into (default: Status channel)
 ```
 Every parameter has a default value, which means, that you do not need to specify a configuration file at all.

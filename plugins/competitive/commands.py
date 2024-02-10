@@ -53,8 +53,7 @@ class Competitive(Plugin):
                                 VALUES (%s, %s, %s)
                             """, (player_id, skill.mu, skill.sigma))
                         else:
-                            for row in conn.execute("SELECT ucid FROM players WHERE discord_id = %s",
-                                                    (player_id, )).fetchall():
+                            for row in conn.execute("SELECT ucid FROM players WHERE discord_id = %s", (player_id, )):
                                 conn.execute("""
                                     INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
                                     VALUES (%s, %s, %s)
@@ -75,11 +74,9 @@ class Competitive(Plugin):
         elif not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
             raise discord.app_commands.CheckFailure()
         if isinstance(user, discord.Member):
-            member = user
             ucid = self.bot.get_ucid_by_member(user)
         else:
             ucid = user
-            member = self.bot.get_member_by_ucid(ucid)
         if not ucid:
             await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
             return

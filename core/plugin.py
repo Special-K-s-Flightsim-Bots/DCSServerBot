@@ -19,6 +19,7 @@ from discord.app_commands.commands import CommandCallback, GroupT, P, T
 from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from os import path
+from packaging import version
 from pathlib import Path
 from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Tuple
 
@@ -323,7 +324,7 @@ class Plugin(commands.Cog):
                         # old variant, to be migrated
                         if installed.startswith('v'):
                             installed = installed[1:]
-                        while installed != self.plugin_version:
+                        while version.parse(installed) < version.parse(self.plugin_version):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if path.exists(updates_file):
                                 with open(updates_file) as updates_sql:
@@ -463,7 +464,7 @@ class Plugin(commands.Cog):
     async def on_ready(self) -> None:
         ...
 
-    @tasks.loop(count=1, reconnect=True)
+    @tasks.loop(count=1)
     async def wait_for_on_ready(self):
         await self.on_ready()
 

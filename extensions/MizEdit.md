@@ -19,6 +19,9 @@ So - why not do that on our own, without the need of the editor?
 Each mission change is represented in a small data-structure in yaml. I've called these "presets", as they usually will
 work as a fixed setting for any mission you have, like any weather preset you know already from the recent DCS versions.
 
+> If you want to lookup the presets used in DCS, you can take a look at 
+> `C:\Program Files\Eagle Dynamics\DCS World OpenBeta\Config\Effects\clouds.lua`.
+
 ### config/presets.yaml
 As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
 a name. Presets can be chained to create a combination of presets as a separate preset.
