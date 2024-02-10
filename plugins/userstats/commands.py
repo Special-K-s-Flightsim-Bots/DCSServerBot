@@ -235,35 +235,48 @@ class UserStatistics(Plugin):
     @app_commands.describe(user='Name of player, member or UCID')
     async def unlink(self, interaction: discord.Interaction,
                      user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
-        if isinstance(user, discord.Member):
-            member = user
-            ucid = self.bot.get_ucid_by_member(member)
-        else:
-            ucid = user
-            member = self.bot.get_member_by_ucid(ucid)
-        if not ucid or not member:
-            await interaction.response.send_message('Member not linked!', ephemeral=True)
-            return
+
+        async def unlink_player(ucid: str):
+            conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
+            await interaction.response.send_message(
+                f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
+                ephemeral=utils.get_ephemeral(interaction))
+            await self.bot.audit(
+                f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
+                user=interaction.user)
+
+        async def clear_user_roles(ucid: str):
+            # change the link status of that member if they are an active player
+            for server_name, server in self.bot.servers.items():
+                player = server.get_player(ucid=ucid)
+                if player:
+                    player.member = None
+                    player.verified = False
+                else:
+                    server.send_to_dcs({
+                        'command': 'uploadUserRoles',
+                        'ucid': ucid,
+                        'roles': []
+                    })
+
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
-        await interaction.response.send_message(
-            f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
-            ephemeral=utils.get_ephemeral(interaction))
-        await self.bot.audit(f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
-                             user=interaction.user)
-        # change the link status of that member if they are an active player
-        for server_name, server in self.bot.servers.items():
-            player = server.get_player(ucid=ucid)
-            if player:
-                player.member = None
-                player.verified = False
-            else:
-                server.send_to_dcs({
-                    'command': 'uploadUserRoles',
-                    'ucid': ucid,
-                    'roles': []
-                })
+                if isinstance(user, discord.Member):
+                    for row in conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )):
+                        ucid = row[0]
+                        await clear_user_roles(ucid)
+                        await unlink_player(ucid)
+                elif utils.is_ucid(user):
+                    ucid = user
+                    member = self.bot.get_member_by_ucid(ucid)
+                    if not member:
+                        await interaction.response.send_message('Player is not linked!', ephemeral=True)
+                        return
+                    await unlink_player(ucid)
+                    await clear_user_roles(ucid)
+                else:
+                    await interaction.response.send_message('Unknown player / member provided', ephemeral=True)
+                    return
 
     @command(description='Find a player by name')
     @utils.app_has_role('DCS Admin')
@@ -359,7 +372,7 @@ class UserStatistics(Plugin):
                     SELECT ucid, name FROM players 
                     WHERE discord_id = -1 AND name IS NOT NULL 
                     ORDER BY last_seen DESC
-                """).fetchall():
+                """):
                     matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
@@ -412,7 +425,7 @@ class UserStatistics(Plugin):
                         SELECT ucid, name FROM players 
                         WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE 
                         ORDER BY last_seen DESC
-                    """, (member.id, )).fetchall():
+                    """, (member.id, )):
                         matched_member = self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
@@ -590,7 +603,7 @@ class UserStatistics(Plugin):
                 with conn.transaction():
                     self.bot.log.debug(f'- Deleting their statistics due to wipe_stats_on_leave')
                     ucids = [row[0] for row in conn.execute(
-                        'SELECT ucid FROM players WHERE discord_id = %s', (member.id, )).fetchall()]
+                        'SELECT ucid FROM players WHERE discord_id = %s', (member.id, ))]
                     for plugin in self.bot.cogs.values():  # type: Plugin
                         await plugin.prune(conn, ucids=ucids)
 
