@@ -66,6 +66,8 @@ class CreditPlayer(Player):
         })
 
     def audit(self, event: str, old_points: int, remark: str):
+        if old_points == self.points:
+            return
         campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
         if not campaign_id:
             return

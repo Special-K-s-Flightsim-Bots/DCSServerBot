@@ -43,7 +43,6 @@ DCS.openbeta_server:
     points: 50
     costs: 30
   payback: true         # payback the plane costs on proper landings, otherwise charge by usage
-  multiplier: 1         # multiplier for credit points on proper landings (if payback is true, 0 = disabled, 1 = double points, 2 = triple points, etc.)
 ```
 Each unit can be either defined by its "group_name" or "unit_name", which are substrings/[pattern](https://riptutorial.com/lua/example/20315/lua-pattern-matching) of the names 
 used in your mission or by its "unit_type". The restriction can either be credit "points" that you gain by kills or 

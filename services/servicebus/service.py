@@ -514,27 +514,33 @@ class ServiceBus(Service):
 
     @tasks.loop(seconds=1)
     async def intercom(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                while True:
-                    # we read until there is no new data, then we wait for the next call (after 1 s)
-                    idx = 0
-                    for idx, row in enumerate(conn.execute("""
-                        SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 10
-                    """, ("Master" if self.master else self.node.name, ))):
-                        data = row[1]
-                        try:
-                            if data['command'] == 'rpc':
-                                asyncio.create_task(self.handle_rpc(data))
-                            elif self.master:
-                                asyncio.create_task(self.handle_master(data))
-                            else:
-                                asyncio.create_task(self.handle_agent(data))
-                        except Exception as ex:
-                            self.log.exception(ex)
-                        conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
-                    if idx < 10:
-                        break
+        try:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    while True:
+                        # we read until there is no new data, then we wait for the next call (after 1 s)
+                        idx = 0
+                        ids_to_delete = []
+                        for idx, row in enumerate(conn.execute("""
+                            SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 100
+                        """, ("Master" if self.master else self.node.name, ))):
+                            data = row[1]
+                            try:
+                                if data['command'] == 'rpc':
+                                    asyncio.create_task(self.handle_rpc(data))
+                                elif self.master:
+                                    asyncio.create_task(self.handle_master(data))
+                                else:
+                                    asyncio.create_task(self.handle_agent(data))
+                                ids_to_delete.append(row[0])
+                            except Exception as ex:
+                                self.log.exception(ex)
+                        if ids_to_delete:
+                            conn.execute("DELETE FROM intercom WHERE id = ANY(%s::int[])", (ids_to_delete, ))
+                        if idx < 10:
+                            break
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
@@ -606,43 +612,45 @@ class ServiceBus(Service):
                     self.log.exception(ex)
 
             def process(derived, server_name: str):
-                data: dict = derived.message_queue[server_name].get()
-                while data:
-                    server: Server = self.servers.get(server_name)
-                    if not server:
-                        return
-                    try:
-                        server.last_seen = datetime.now(timezone.utc)
-                        command = data['command']
-                        if command == 'registerDCSServer':
-                            if not server.is_remote:
-                                if not self.register_server(data):
-                                    self.log.error(f"Error while registering server {server.name}.")
-                                    return
-                                if not self.master:
-                                    self.log.debug(f"Registering server {server.name} on Master node ...")
-                        elif server.status == Status.UNREGISTERED:
-                            self.log.debug(
-                                f"Command {command} for unregistered server {server.name} received, ignoring.")
-                            continue
-                        if self.master:
-                            concurrent.futures.wait(
-                                [
-                                    asyncio.run_coroutine_threadsafe(
-                                        listener.processEvent(command, server, deepcopy(data)), self.loop
-                                    )
-                                    for listener in self.eventListeners
-                                    if listener.has_event(command)
-                                ]
-                            )
-                        else:
-                            self.send_to_node(data)
-                    except Exception as ex:
-                        self.log.exception(ex)
-                    finally:
-                        derived.message_queue[server.name].task_done()
-                        data = derived.message_queue[server.name].get()
-                del derived.message_queue[server_name]
+                try:
+                    data: dict = derived.message_queue[server_name].get()
+                    while data:
+                        server: Server = self.servers.get(server_name)
+                        if not server:
+                            return
+                        try:
+                            server.last_seen = datetime.now(timezone.utc)
+                            command = data['command']
+                            if command == 'registerDCSServer':
+                                if not server.is_remote:
+                                    if not self.register_server(data):
+                                        self.log.error(f"Error while registering server {server.name}.")
+                                        return
+                                    if not self.master:
+                                        self.log.debug(f"Registering server {server.name} on Master node ...")
+                            elif server.status == Status.UNREGISTERED:
+                                self.log.debug(
+                                    f"Command {command} for unregistered server {server.name} received, ignoring.")
+                                continue
+                            if self.master:
+                                concurrent.futures.wait(
+                                    [
+                                        asyncio.run_coroutine_threadsafe(
+                                            listener.processEvent(command, server, deepcopy(data)), self.loop
+                                        )
+                                        for listener in self.eventListeners
+                                        if listener.has_event(command)
+                                    ]
+                                )
+                            else:
+                                self.send_to_node(data)
+                        except Exception as ex:
+                            self.log.exception(ex)
+                        finally:
+                            derived.message_queue[server.name].task_done()
+                            data = derived.message_queue[server.name].get()
+                finally:
+                    del derived.message_queue[server_name]
 
             def shutdown(derived):
                 super().shutdown()

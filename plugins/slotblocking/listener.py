@@ -139,9 +139,7 @@ class SlotBlockingListener(EventListener):
         if plane_only:
             player.points += plane_costs
         else:
-            achieved_points = player.deposit - plane_costs
-            multiplier = self.get_config(server).get('multiplier', 1)
-            player.points += plane_costs + (achieved_points * multiplier)
+            player.points += player.deposit
         player.audit('payback', old_points, reason)
         player.deposit = 0
 

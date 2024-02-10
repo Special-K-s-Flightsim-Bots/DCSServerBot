@@ -573,8 +573,9 @@ class NodeImpl(Node):
                     except Exception as e:
                         self.log.exception(e)
                     finally:
-                        cursor.execute("UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE node = %s",
-                                       (self.name,))
+                        cursor.execute("""
+                            UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
+                        """, (self.guild_id, self.name))
 
     def get_active_nodes(self) -> list[str]:
         with self.pool.connection() as conn:

@@ -49,7 +49,7 @@ class CreditSystemListener(EventListener):
         player = cast(CreditPlayer, server.get_player(id=data['id']))
         if player.points == -1:
             player.points = self.get_initial_points(player, config)
-            player.audit('init', player.points, 'Initial points received')
+            player.audit('init', 0, 'Initial points received')
         else:
             server.send_to_dcs({
                 'command': 'updateUserPoints',
@@ -137,6 +137,7 @@ class CreditSystemListener(EventListener):
         if data['eventName'] == 'kill':
             # players gain points only, if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
+                multiplier = config.get('multiplier', 0)
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
                     ppk = self.get_points_per_kill(config, data)
@@ -144,8 +145,8 @@ class CreditSystemListener(EventListener):
                         old_points = player.points
                         # We will add the PPK to the deposit to allow for multiplied packbacks
                         # (to be configured in Slotblocking)
-                        if player.deposit:
-                            player.deposit += ppk
+                        if multiplier:
+                            player.deposit += ppk * multiplier
                         player.points += ppk
                         player.audit('kill', old_points, f"for killing {data['arg5']}")
 
