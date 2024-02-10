@@ -297,6 +297,8 @@ class PaginationReport(Report):
                     env.filename = None
             if view:
                 await view.wait()
+            else:
+                message = None
         except Exception as ex:
             self.log.exception(ex)
             raise
