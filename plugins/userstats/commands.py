@@ -236,7 +236,7 @@ class UserStatistics(Plugin):
     async def unlink(self, interaction: discord.Interaction,
                      user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
 
-        async def unlink_player(ucid: str):
+        async def unlink_member(member: discord.Member, ucid: str):
             conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
             await interaction.response.send_message(
                 f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
@@ -265,14 +265,14 @@ class UserStatistics(Plugin):
                     for row in conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )):
                         ucid = row[0]
                         await clear_user_roles(ucid)
-                        await unlink_player(ucid)
+                        await unlink_member(user, ucid)
                 elif utils.is_ucid(user):
                     ucid = user
                     member = self.bot.get_member_by_ucid(ucid)
                     if not member:
                         await interaction.response.send_message('Player is not linked!', ephemeral=True)
                         return
-                    await unlink_player(ucid)
+                    await unlink_member(member, ucid)
                     await clear_user_roles(ucid)
                 else:
                     await interaction.response.send_message('Unknown player / member provided', ephemeral=True)
