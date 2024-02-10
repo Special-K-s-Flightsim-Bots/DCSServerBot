@@ -1,14 +1,16 @@
 import asyncio
+import glob
 import os
 import shlex
-import shutil
 import subprocess
 import time
-from typing import TYPE_CHECKING
+import sys
 
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
+from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 from zipfile import ZipFile
 
 if TYPE_CHECKING:
@@ -32,7 +34,7 @@ class BackupService(Service):
         await super().start()
         self.schedule.start()
         delete_after = self.locals.get('delete_after', 'never')
-        if isinstance(delete_after, int) or (isinstance(delete_after, str) and delete_after.lower() != 'never'):
+        if isinstance(delete_after, int) or delete_after.isnumeric():
             self.delete.start()
 
     async def stop(self, *args, **kwargs):
@@ -40,7 +42,7 @@ class BackupService(Service):
             return
         self.schedule.stop()
         delete_after = self.locals.get('delete_after', 'never')
-        if isinstance(delete_after, int) or (isinstance(delete_after, str) and delete_after.lower() != 'never'):
+        if isinstance(delete_after, int) or delete_after.isnumeric():
             self.delete.stop()
 
     def mkdir(self) -> str:
@@ -100,12 +102,12 @@ class BackupService(Service):
             raise FileNotFoundError(cmd)
         filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
         path = os.path.join(target, filename)
-        database = f"{os.path.basename(self.node.config['database']['url'])}"
-        args = shlex.split(f'-U postgres -F t -f "{path}" -d "{database}"')
+        database = urlparse(self.node.config['database']['url']).path.strip('/')
+        args = shlex.split(f'--no-owner --no-privileges -U postgres -F t -f "{path}" -d "{database}"')
         os.environ['PGPASSWORD'] = config['password']
         self.log.info("Backing up database...")
-        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd, stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL)
+        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         rc = process.returncode
         if rc == 0:
             self.log.info("Backup of database complete.")
@@ -113,6 +115,18 @@ class BackupService(Service):
         else:
             self.log.info(f"Backup of database failed. Code: {rc}")
             return False
+
+    def recover_database(self, date: str):
+        target = os.path.expandvars(self.locals.get('target'))
+        path = os.path.join(target, f"{self.node.name.lower()}_{date}", f"db_{date}_*.tar")
+        filename = glob.glob(path)[0]
+        os.execv(sys.executable, ['python', 'recover.py', '-n', self.node.name, '-f', filename])
+
+    def recover_bot(self, filename: str):
+        ...
+
+    def recover_server(self, filename: str):
+        ...
 
     @staticmethod
     def can_run(config: dict):
@@ -145,12 +159,12 @@ class BackupService(Service):
             path = os.path.expandvars(self.locals['target'])
             if not os.path.exists(path):
                 return
-            now = time.time()
-            for f in [os.path.join(path, x) for x in os.listdir(path)]:
-                if os.stat(f).st_mtime < (now - int(self.locals['delete_after']) * 86400):
-                    if os.path.isfile(f):
-                        os.remove(f)
-                    else:
-                        shutil.rmtree(f)
+            delete_after = int(self.locals['delete_after'])
+            threshold_time = time.time() - delete_after * 86400
+            for file in os.listdir(path):
+                file_path = os.path.join(path, file)
+                if os.path.getctime(file_path) < threshold_time:
+                    self.log.debug(f"  => {file} is older then {delete_after} days, deleting ...")
+                    utils.safe_rmtree(file_path)
         except Exception as ex:
             self.log.exception(ex)
