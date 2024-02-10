@@ -103,6 +103,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | Extension        | Scope                                                                                                             | 
 |------------------|-------------------------------------------------------------------------------------------------------------------|
 | MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up [here](./extensions/MizEdit.md)! |
+| DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                                 |
 | DCS-SRS          | Market leader in DCS VOIP integration.                                                                            |
 | Tacview          | Well known flight data capture and analysis tool.                                                                 |
 | LotAtc           | Simple display only extension.                                                                                    |

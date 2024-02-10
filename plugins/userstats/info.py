@@ -61,22 +61,22 @@ class Header(report.EmbedElement):
         banned = False
         for row in rows:
             if row.get('first_seen') and row['first_seen'] < first_seen:
-                first_seen = row['first_seen'].replace(tzinfo=timezone.utc)
+                first_seen = row['first_seen']
             if row.get('last_seen') and row['last_seen'] > last_seen:
-                last_seen = row['last_seen'].replace(tzinfo=timezone.utc)
+                last_seen = row['last_seen']
             if row['banned'] == 1:
                 banned = True
-        self.add_datetime_field('Last seen', last_seen)
-        self.add_datetime_field('First seen', first_seen)
+        self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
+        self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
         if rows[0]['watchlist']:
             self.add_field(name='Watchlist', value="🔍")
         if rows[0]['vip']:
             self.add_field(name="VIP", value="⭐")
         if banned:
-            banned_until = rows[0]['banned_until'].replace(tzinfo=timezone.utc)
+            banned_until = rows[0]['banned_until']
             if banned_until.year != 9999:
                 banned_until = banned_until
-            self.add_datetime_field('Ban expires', banned_until)
+            self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])
 
