@@ -176,7 +176,7 @@ class SlotBlockingListener(EventListener):
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
-        if not config.get('payback', False) or not config.get('restricted') or server.status != Status.RUNNING:
+        if not config.get('payback', False) or server.status != Status.RUNNING:
             return
         if data['eventName'] == 'kill' and data['arg4'] != -1:
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg4']))

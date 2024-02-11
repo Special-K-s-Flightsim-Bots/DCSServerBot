@@ -480,9 +480,6 @@ class NodeImpl(Node):
                 self.autoupdate.cancel()
 
     async def heartbeat(self) -> bool:
-        def version_string_to_tuple(version_string: str):
-            return tuple(map(int, version_string.split(".")))
-
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -491,12 +488,18 @@ class NodeImpl(Node):
                             SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
                             WHERE guild_id = %s FOR UPDATE
                         """, (self.guild_id, )).fetchall()
-                        cluster = cursor.execute("SELECT * FROM cluster WHERE guild_id = %s",
-                                                 (self.guild_id, )).fetchone()
+                        cluster = cursor.execute("""
+                            SELECT c.master, c.version, c.update_pending 
+                            FROM cluster c, nodes n 
+                            WHERE c.guild_id = %s AND c.guild_id = n.guild_id AND c.master = n.node
+                        """, (self.guild_id, )).fetchone()
                         # No master there? we take it!
                         if not cluster:
-                            cursor.execute("INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)",
-                                           (self.guild_id, self.name, __version__))
+                            cursor.execute("""
+                                INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)
+                                ON CONFLICT (guild_id) DO UPDATE 
+                                SET master = excluded.master, version = excluded.version
+                            """, (self.guild_id, self.name, __version__))
                             return True
                         # I am the master
                         if cluster['master'] == self.name:
