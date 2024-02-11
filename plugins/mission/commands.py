@@ -857,8 +857,13 @@ class Mission(Plugin):
         # ignore bot messages or messages that do not contain miz attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
             return
-        # only DCS Admin role is allowed to upload missions
-        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+        # read the default config, if there is any
+        config = self.get_config().get('uploads', {})
+        # check, if upload is enabled
+        if not config.get('enabled', True):
+            return
+        # check if the user has the correct role to upload, defaults to DCS Admin
+        if not utils.check_roles(config.get('discord', self.bot.roles['DCS Admin']), message.author):
             return
         # check if the upload happens in the servers admin channel (if provided)
         server: Server = self.bot.get_server(message, admin_only=True)

@@ -102,7 +102,8 @@ class BackupService(Service):
             raise FileNotFoundError(cmd)
         filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
         path = os.path.join(target, filename)
-        database = urlparse(self.node.config['database']['url']).path.strip('/')
+        url = self.node.config.get("database", self.node.locals.get('database'))['url']
+        database = urlparse(url).path.strip('/')
         args = shlex.split(f'--no-owner --no-privileges -U postgres -F t -f "{path}" -d "{database}"')
         os.environ['PGPASSWORD'] = config['password']
         self.log.info("Backing up database...")

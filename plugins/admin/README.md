@@ -7,11 +7,10 @@ command. There is a default list being loaded, if no list is provided.
 
 ```yaml
 DEFAULT:  # The DEFAULT section is valid for all your servers
-  # we only have a download section atm
   downloads:
   # that's for your DCS logs. It should work for all your servers.
   - label: DCS Logs
-    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
+    directory: '{server.instance.home}\logs'
     pattern: 'dcs*.log'
   # That is for the DCSSB logs. Should work for all your servers.
   - label: DCSServerBot Logs
@@ -19,14 +18,17 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     pattern: 'dcssb-*.log*'
   # This is for your missions. If you use a central mission directory, you might want to amend that.
   - label: Missions
-    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
+    directory: '{server.instance.home}\Missions'
     pattern: '*.miz'
+  # This is for DCS Trackfiles. Please keep in mind that these files can get really huge
+  - label: Trackfiles
+    directory: '{server.instance.home}\Tracks'
+    pattern: '*.trk'
   # This is for Tacview. If you use an instance-specific tacview directory, this needs to be changed.
   # Player-specific files aren't supported yet for download. See auto-upload to channels in the Tacview-extension.
   - label: Tacview
     directory: '%USERPROFILE%\Documents\Tacview'
     pattern: 'Tacview-*.acmi'
-    target: <id:1122334455667788> # tacview files will be uploaded in this channel instead
   # If you decided to use dedicated chat logs per server (default), this is where you can find them.
   - label: Chat Logs
     directory: logs
@@ -42,6 +44,9 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: Plugin Config Files
     directory: .\config\plugins
     pattern: '*.yaml'
+    discord:      # only Admin users can download these config files
+      - Admin
+    audit: true   # each download is audited
   # The service configuration files of DCSSB. You can upload changed configurations again to your admin channels.
   # Be aware, the bot.yaml contains your Discord TOKEN in a readable format.
   - label: Service Config Files
@@ -50,6 +55,10 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     discord:      # only Admin users can download these config files
       - Admin
     audit: true   # each download is audited
+  uploads:        # The uploads section defines who is allowed to upload config files
+    enabled: true # If false, uploads are disabled (default: true)
+    discord:
+      - Admin     # Only Admin users are allowed to upload (default: Admin)
 ```
 When using the /download command, you can select which "label" you want to download.<br/>
 If "target" is not provided, the file will be sent as a DM. If sending as a DM exceeds the limits of 25 MB, it tries to 
@@ -81,12 +90,15 @@ download to the current channel. Discord limits may apply.</br>
 | /reload            | plugin            | all           | Admin     | Reloads a DCSServerBot plugin.                                                                                                                   |
 
 ## Config File Uploads
-Every config file that either the bot uses for itself (`main.yaml`, etc.) or the different plugins use (`<plugin>.yaml`)
-can be uploaded in the admin channels by a user belonging to the Admin group. The files will be replaced, the dedicated 
-plugin will be reloaded or the bot will be restarted (security question applies), if you update the main config files. 
+All configuration files utilized by the bot itself (such as `main.yaml`) or by various plugins (like `<plugin>.yaml`) 
+can be uploaded via the admin channels, provided this feature is enabled. When these files are updated, they will 
+overwrite the existing ones, and depending on the file type, either the specific plugin will be reloaded or the entire 
+bot will be restarted (subject to a security confirmation). You also have the ability to set specific roles that are 
+permitted to upload files.
 
-**All changes will happen on the node that is controlling the server of that specific admin channel!**<br>
-If you use a central cloud folder for your configuration, it will be replaced on this one.
+> ⚠️ **Attention!**<br>
+> **The modifications will take place on the node which oversees the server associated with the particular admin channel!**<br>
+> If you're using a central cloud folder for your configurations, the existing configuration in that folder will be replaced.
 
 ## Tables
 ### Bans

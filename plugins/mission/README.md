@@ -3,9 +3,19 @@ The mission plugin adds commands for amending the mission list, persistent missi
 in your status channels and ATIS like information for the missions' airports. 
 
 ## Uploading of Missions
-You can upload .miz files in the configured admin channel of your server(s). You need the DCS Admin role for that.
-Existing missions will be replaced (with security question) and if the server is running with that mission, it will be
-restarted (another security question will apply). Newly added missions will be auto-added to the mission list.
+You can upload .miz files in the configured admin channel of your server(s). Existing missions will be replaced (with 
+security question) and if the server is running with that mission, it will be restarted (another security question 
+will apply). Newly added missions will be auto-added to the mission list.<br>
+
+You can configure the behaviour of the mission upload feature with an optional config/plugins/mission.yaml:
+```yaml
+DEFAULT:
+  uploads:          # Configure how mission uploads are handled
+    enabled: true   # Here you can disable the feature at all (default: true = enabled)
+    discord:
+      - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
+```
+
 
 ## Auto-Scanning
 If you set `autoscan: true` in your server configuration of your servers.yaml, all miz files that were added into the 
