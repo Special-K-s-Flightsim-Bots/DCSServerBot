@@ -276,13 +276,18 @@ class PaginationReport(Report):
         func = super().render
 
         message = None
-        view = self.PaginationReportView(name, values, start_index, func, self.keep_image, *args, **kwargs)
-        env = await view.render(values[start_index])
+        if len(values) > 1:
+            view = self.PaginationReportView(name, values, start_index, func, self.keep_image, *args, **kwargs)
+            env = await view.render(values[start_index])
+        else:
+            view = None
+            kwargs[name] = values[0]
+            env = await func(*args, **kwargs)
         try:
             try:
                 message = await self.interaction.followup.send(
                     embed=env.embed,
-                    view=view,
+                    view=view or MISSING,
                     file=discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
                 )
             finally:
@@ -290,7 +295,10 @@ class PaginationReport(Report):
                     if env.buffer:
                         env.buffer.close()
                     env.filename = None
-            await view.wait()
+            if view:
+                await view.wait()
+            else:
+                message = None
         except Exception as ex:
             self.log.exception(ex)
             raise

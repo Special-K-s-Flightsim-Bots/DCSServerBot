@@ -18,7 +18,7 @@
     "param":
     {
       "name": "node",
-      "sql": "SELECT DISTINCT node FROM serverstats"
+      "sql": "SELECT node FROM nodes"
     }
   },
   "elements":
