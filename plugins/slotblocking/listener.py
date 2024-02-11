@@ -131,14 +131,17 @@ class SlotBlockingListener(EventListener):
         player.points -= plane_costs
         player.audit('buy', old_points, 'Points taken for using a reserved module')
         if payback:
+            self.log.debug(f'### Player {player.name} puts their planes costs of {plane_costs} on deposit.')
             player.deposit = plane_costs
 
     def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
         old_points = player.points
         plane_costs = self._get_costs(server, player)
         if plane_only:
+            self.log.debug(f"### {reason}: Player {player.name} gets back the planes costs of {plane_costs}.")
             player.points += plane_costs
         else:
+            self.log.debug(f"### {reason}: Player {player.name} gets back their deposit of {player.deposit}.")
             player.points += player.deposit
         player.audit('payback', old_points, reason)
         player.deposit = 0
@@ -153,6 +156,7 @@ class SlotBlockingListener(EventListener):
             return
         # if payback is enabled, we need to clear the deposit on any slot change
         if config.get('payback', False):
+            self.log.debug(f"### Player {player.name}: deposit cleared due to slot change.")
             player.deposit = 0
         elif (Side(data['side']) != Side.SPECTATOR and data['sub_slot'] == 0
               and not self.get_config(server, plugin_name='missionstats').get('enabled', True)):
@@ -187,6 +191,7 @@ class SlotBlockingListener(EventListener):
                 self._payback(server, player, 'Credits refund for being team-killed')
             else:
                 player.deposit = 0
+                self.log.debug(f"### Player {player.name}: deposit cleared due to being killed.")
                 if player.points < self._get_costs(server, player):
                     server.move_to_spectators(player,
                                               reason="You do not have enough credits to use this slot anymore.")
@@ -207,5 +212,6 @@ class SlotBlockingListener(EventListener):
         elif data['eventName'] == 'crash':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             player.deposit = 0
+            self.log.debug(f"### Player {player.name}: deposit cleared due to crash.")
             if player.points < self._get_costs(server, player):
                 server.move_to_spectators(player, reason="You do not have enough credits to use this slot anymore.")

@@ -143,10 +143,11 @@ class CreditSystemListener(EventListener):
                     ppk = self.get_points_per_kill(config, data)
                     if ppk:
                         old_points = player.points
-                        # We will add the PPK to the deposit to allow for multiplied packbacks
+                        # We will add the PPK to the deposit to allow for multiplied paybacks
                         # (to be configured in Slotblocking)
                         if multiplier:
                             player.deposit += ppk * multiplier
+                            self.log.debug(f"### Player {player.name} killed {data['arg5']}. Deposit: {player.deposit}")
                         player.points += ppk
                         player.audit('kill', old_points, f"for killing {data['arg5']}")
 
