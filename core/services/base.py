@@ -47,7 +47,7 @@ class Service(ABC):
         return self.running
 
     def read_locals(self) -> dict:
-        filename = f'./config/services/{self.name.lower()}.yaml'
+        filename = os.path.join(self.node.config_dir, 'services', f'{self.name.lower()}.yaml')
         if not os.path.exists(filename):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')

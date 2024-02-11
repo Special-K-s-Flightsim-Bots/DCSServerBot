@@ -1,6 +1,7 @@
 import asyncio
 import discord
 import functools
+import os
 
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
@@ -35,7 +36,7 @@ class Scheduler(Plugin):
             config = {self.node.name: {}}
             for instance in self.bus.node.instances:
                 config[self.node.name][instance.name] = {}
-            with open("config/plugins/scheduler.yaml", 'w') as outfile:
+            with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w') as outfile:
                 yaml.dump(config, outfile)
         return config
 
@@ -519,7 +520,8 @@ class Scheduler(Plugin):
             if not await view.wait() and not view.cancelled:
                 if view.channel_update:
                     if not await view.wait() and not view.cancelled and view.channel_update:
-                        with open('config/servers.yaml') as infile:
+                        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+                        with open(config_file, mode='r') as infile:
                             config = yaml.load(infile)
                         config[server.name] = {
                             "channels": {
@@ -530,7 +532,7 @@ class Scheduler(Plugin):
                         if not self.bot.locals.get('admin_channel'):
                             config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin',
                                                                                                              -1)
-                        with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
+                        with open(config_file, mode='w', encoding='utf-8') as outfile:
                             yaml.dump(config, outfile)
                         await server.reload()
                 await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')

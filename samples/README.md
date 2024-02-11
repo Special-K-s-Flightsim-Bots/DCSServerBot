@@ -1,5 +1,5 @@
 # Configuration Samples
-In the subfolder `samples`, you'll find some configuration-file samples for the bot and the different available plugins.
+In the subfolder `./samples`, you'll find some configuration-file samples for the bot and the different available plugins.
 
 ## main.yaml / nodes.yaml / servers.yaml
 See [README](../../README.md)
@@ -79,6 +79,6 @@ The example for "DCS.openbeta_server" shows the point-based slotblocking system.
 specific targets (see list). On the other hand, slots can be blocked until a specific amount of points has been reached
 by that user ("points"). The "costs" determine, what happens to the users points when he uses this plane.
 There is deposit-like system included, that reserves points when you use a plane and returns them to the user, whenever 
-they bring back the plane intact (landing). Another takeoff will create another deposit. If they crash or get killed, 
-the deposit is gone, and they'll finally lose their points. This can be enabled with `use_reservations: true` like in 
-the example.
+they bring back the plane intact (landing). Each takeoff will create a deposit. If they crash or get killed, 
+the deposit is gone, and they'll finally lose their points. This can be enabled with `payback: true` like in 
+the sample.

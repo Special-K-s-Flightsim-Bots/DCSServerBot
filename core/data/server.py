@@ -70,13 +70,14 @@ class Server(DataObject):
         raise NotImplemented()
 
     def read_locals(self) -> dict:
-        if os.path.exists('config/servers.yaml'):
+        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+        if os.path.exists(config_file):
             try:
-                data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+                data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except (ParserError, ScannerError) as ex:
-                raise YAMLError('config/servers.yaml', ex)
+                raise YAMLError(config_file, ex)
             if not data.get(self.name) and self.name != 'n/a':
-                self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
+                self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:
                 _locals['message_ban'] = 'You are banned from this server. Reason: {}'

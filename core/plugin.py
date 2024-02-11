@@ -378,8 +378,8 @@ class Plugin(commands.Cog):
         shutil.move(old_file, BACKUP_FOLDER)
 
     def read_locals(self) -> dict:
-        old_file = f'./config/{self.plugin_name}.json'
-        new_file = f'./config/plugins/{self.plugin_name}.yaml'
+        old_file = os.path.join(self.node.config_dir, f'{self.plugin_name}.json')
+        new_file = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
         if path.exists(old_file):
             self.log.info('  => Migrating old JSON config format to YAML ...')
             self.migrate_to_3(self.node.name, self.plugin_name)

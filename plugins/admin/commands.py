@@ -138,7 +138,7 @@ class Admin(Plugin):
         config = super().read_locals()
         if not config:
             self.log.info('  - No admin.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/plugins/admin.yaml', 'config/plugins/admin.yaml')
+            shutil.copyfile('samples/plugins/admin.yaml', os.path.join(self.node.config_dir, 'plugins', 'admin.yaml'))
             config = super().read_locals()
         return config
 
@@ -679,7 +679,8 @@ class Admin(Plugin):
             except Exception as ex:
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
-                with open('config/servers.yaml') as infile:
+                config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+                with open(config_file, mode='r') as infile:
                     config = yaml.load(infile)
                 config[server.name] = {
                     "channels": {
@@ -689,7 +690,7 @@ class Admin(Plugin):
                 }
                 if not self.bot.locals.get('admin_channel'):
                     config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin', -1)
-                with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
+                with open(config_file, mode='w', encoding='utf-8') as outfile:
                     yaml.dump(config, outfile)
                 await server.reload()
                 server.status = Status.SHUTDOWN
@@ -784,13 +785,13 @@ Please make sure you forward the following ports:
         att = message.attachments[0]
         name = att.filename[:-5]
         if name in ['main', 'nodes', 'presets', 'servers']:
-            target_path = 'config'
+            target_path = self.node.config_dir
             plugin = False
         elif name in ['backup', 'bot']:
-            target_path = os.path.join('config', 'services')
+            target_path = os.path.join(self.node.config_dir, 'services')
             plugin = False
         elif name in self.node.plugins:
-            target_path = os.path.join('config', 'plugins')
+            target_path = os.path.join(self.node.config_dir, 'plugins')
             plugin = True
         else:
             return False

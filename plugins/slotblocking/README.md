@@ -6,7 +6,7 @@ assigned in this plugins configuration.
 
 ## Configuration
 The slot blocking is configured with a file named config/plugins/slotblocking.yaml. 
-You'll find a sample file in the samples directory:
+You'll find a sample file in the ./samples directory:
 ```yaml
 DEFAULT:            # Default section - true for all your servers.
   VIP:              # define a VIP group

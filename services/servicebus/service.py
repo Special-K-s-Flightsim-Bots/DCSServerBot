@@ -361,7 +361,7 @@ class ServiceBus(Service):
                            options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
         server = self.servers.get(server_name)
         if not server or not server.is_remote:
-            node = NodeProxy(self.node, node, public_ip)
+            node = NodeProxy(self.node, node, public_ip, self.node.config_dir)
             server = ServerProxy(
                 node=node,
                 port=-1,

@@ -15,8 +15,8 @@ __all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: Any, name: str, public_ip: str):
-        super().__init__(name)
+    def __init__(self, local_node: Any, name: str, public_ip: str, config_dir: Optional[str] = './config'):
+        super().__init__(name, config_dir)
         self.local_node = local_node
         self.pool = self.local_node.pool
         self.log = self.local_node.log
@@ -50,10 +50,11 @@ class NodeProxy(Node):
 
     def read_locals(self) -> dict:
         _locals = dict()
-        if os.path.exists('config/nodes.yaml'):
-            node: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8')).get(self.name)
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        if os.path.exists(config_file):
+            node: dict = yaml.load(Path(config_file).read_text(encoding='utf-8')).get(self.name)
             if not node:
-                self.log.warning(f'No configuration found for node "{self.name}" in config/nodes.yaml!')
+                self.log.warning(f'No configuration found for node "{self.name}" in {config_file}!')
                 return {}
             for name, element in node.items():
                 if name == 'instances':

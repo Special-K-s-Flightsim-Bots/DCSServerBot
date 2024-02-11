@@ -287,6 +287,7 @@ NODENAME:                       # this will be your hostname
   instances:
     DCS.openbeta_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.
+      missions_dir: '%USERPROFILE%\Documents\Missions'        # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
       affinity: 2,3             # Optional: set the CPU-affinity for this instance.
@@ -319,7 +320,6 @@ My Fancy Server:                # Your server name, as displayed in the server l
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
   afk_time: 300                 # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
-  missions_dir: %USERPROFILE%\Documents\Missions  # Central missions dir, if wanted. Default is the Missions dir below the instance home folder.
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
   channels:
     status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right click on your channel and select "Copy Channel ID".
@@ -402,7 +402,7 @@ See [Coalitions](./COALITIONS.md) for coalition roles.
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
 
 ### Sample Configuration
-To view some sample configurations for the bot or for each configurable plugin, look [here](config/samples/README.md).
+To view some sample configurations for the bot or for each configurable plugin, look [here](samples/README.md).
 
 ### Additional Security Features
 Players that have no pilot ID (empty or whitespace) or that share an account with others, will not be able to join your 

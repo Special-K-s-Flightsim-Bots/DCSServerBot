@@ -1,3 +1,4 @@
+import aiofiles
 import asyncio
 import os
 import re
@@ -162,13 +163,14 @@ class Tacview(Extension):
             if not os.path.exists(logfile):
                 self.log_pos = 0
                 return
-            with open(logfile, encoding='utf-8', errors='ignore') as file:
+            async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
                 # if we were started with an existing logfile, seek to the file end, else seek to the last position
                 if self.log_pos == -1:
-                    file.seek(0, 2)
+                    await file.seek(0, 2)
                 else:
-                    file.seek(self.log_pos, 0)
-                for line in file.readlines():
+                    await file.seek(self.log_pos, 0)
+                lines = await file.readlines()
+                for line in lines:
                     if 'TACVIEW.DLL (Main): End of flight data recorder.' in line:
                         self.check_log.cancel()
                         self.log_pos = -1
@@ -176,7 +178,7 @@ class Tacview(Extension):
                     match = self.exp.search(line)
                     if match:
                         await self.send_tacview_file(match.group('filename')[1:-1])
-                self.log_pos = file.tell()
+                self.log_pos = await file.tell()
         except Exception as ex:
             self.log.exception(ex)
 

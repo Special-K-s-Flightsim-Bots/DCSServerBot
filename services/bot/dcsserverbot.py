@@ -214,7 +214,7 @@ class DCSServerBot(commands.Bot):
                     try:
                         await self.check_channels(server)
                     except KeyError as ex:
-                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in config/servers.yaml!")
+                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in servers.yaml!")
 
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])

@@ -32,4 +32,4 @@ DCS.openbeta_server:
   - group_name: Ace
     points: 50
     costs: 30
-  use_reservations: true  # If true, you will only lose "costs" credits, if you don't return the plane safely home (landing).
+  payback: true     # If true, you will only lose "costs" credits, if you don't return the plane safely home (landing).
