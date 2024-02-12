@@ -607,7 +607,7 @@ class Admin(Plugin):
             cluster = False
         if not await node.upgrade_pending():
             await interaction.followup.send("There is no upgrade available for " +
-                                            ("your cluster" if cluster else ("node" + node.name)),
+                                            ("your cluster" if cluster else ("node " + node.name)),
                                             ephemeral=ephemeral)
             return
         if node and not node.master and not await utils.yn_question(
