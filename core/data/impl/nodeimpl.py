@@ -466,10 +466,14 @@ class NodeImpl(Node):
                 self.autoupdate.start()
         else:
             branch, old_version = await self.get_dcs_branch_and_version()
-            new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
-                                                       password=self.locals['DCS'].get('dcs_password'))
-            if new_version and old_version != new_version:
-                self.log.warning(f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+            try:
+                new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
+                                                           password=self.locals['DCS'].get('dcs_password'))
+                if new_version and old_version != new_version:
+                    self.log.warning(
+                        f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+            except Exception:
+                self.log.warning("Version check failed, possible auth-server outage.")
 
     async def unregister(self):
         with self.pool.connection() as conn:
