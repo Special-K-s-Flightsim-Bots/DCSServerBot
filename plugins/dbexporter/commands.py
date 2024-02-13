@@ -37,7 +37,7 @@ class DBExporter(Plugin):
                 """) if x[0] not in table_filter]:
                     rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
                     if rows:
-                        with open(f'export/{table}.json', 'w') as file:
+                        with open(f'export/{table}.json', mode='w', encoding='utf-8') as file:
                             file.writelines([json.dumps(x[0]) + '\n' for x in rows])
 
     @command(description='Exports database tables as json.')

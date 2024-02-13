@@ -16,7 +16,7 @@ from pathlib import Path
 def read_trapsheet(filename: str) -> dict[str, ndarray]:
     # read a trap sheet into a dictionary as numpy arrays
     d = {}
-    with open(filename) as f:
+    with open(filename, mode='r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
 
         for k in reader.fieldnames:

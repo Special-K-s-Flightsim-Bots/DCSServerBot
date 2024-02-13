@@ -45,6 +45,15 @@ class RestAPI(Plugin):
         await self.task
         await super().cog_unload()
 
+    def read_locals(self) -> dict:
+        config = super().read_locals()
+        if not config:
+            self.log.info('No restapi.yaml found, copying the sample.')
+            shutil.copyfile('samples/plugins/restapi.yaml',
+                            os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml'))
+            config = super().read_locals()
+        return config
+
     def topkills(self):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -156,9 +165,6 @@ class RestAPI(Plugin):
 async def setup(bot: DCSServerBot):
     global app
 
-    if not os.path.exists('config/plugins/restapi.yaml'):
-        bot.log.info('No restapi.yaml found, copying the sample.')
-        shutil.copyfile('config/samples/plugins/restapi.yaml', 'config/plugins/restapi.yaml')
     app = FastAPI()
     restapi = RestAPI(bot)
     await bot.add_cog(restapi)

@@ -25,7 +25,7 @@ class Autoexec:
             return
         exp = re.compile('(?P<key>.*)=(?P<value>.*)')
         mydict = dict()
-        with open(file, 'r') as cfg:
+        with open(file, mode='r', encoding='utf-8') as cfg:
             for line in [x.strip() for x in cfg.readlines()]:
                 if line.startswith('if ') or line.startswith('--'):
                     continue
@@ -99,7 +99,7 @@ class Autoexec:
         if path.exists(outfile):
             shutil.copy(outfile, outfile + '.bak')
         os.makedirs(os.path.dirname(outfile), exist_ok=True)
-        with open(outfile, 'w') as outcfg:
+        with open(outfile, mode='w', encoding='utf-8') as outcfg:
             for key, value in self.values.items():
                 if key == 'log':
                     outcfg.write(f"{key}.{value}\n")

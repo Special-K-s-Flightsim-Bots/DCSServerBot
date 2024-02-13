@@ -1,3 +1,5 @@
+import os
+
 from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, Tuple
@@ -40,11 +42,12 @@ class FatalException(Exception):
 
 class Node:
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, config_dir: Optional[str] = './config'):
         self.name = name
+        self.config_dir = config_dir
         self.instances: list[Instance] = list()
         self.locals = None
-        self.config = self.read_config()
+        self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])
 
     @property
@@ -68,7 +71,7 @@ class Node:
         raise NotImplemented()
 
     @staticmethod
-    def read_config(file: Optional[str] = 'config/main.yaml') -> dict:
+    def read_config(file) -> dict:
         try:
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
             # set defaults
@@ -95,7 +98,7 @@ class Node:
         except FileNotFoundError:
             raise FatalException()
         except (ParserError, ScannerError) as ex:
-            raise YAMLError('config/main.yaml', ex)
+            raise YAMLError(file, ex)
 
     def read_locals(self) -> dict:
         raise NotImplemented()

@@ -86,7 +86,7 @@ def desanitize(self, _filename: str = None) -> None:
         shutil.copyfile('./config/MissionScripting.lua', filename)
         return
     try:
-        with open(filename, 'r') as infile:
+        with open(filename, mode='r', encoding='utf-8') as infile:
             orig = infile.readlines()
         output = []
         dirty = False
@@ -108,7 +108,7 @@ def desanitize(self, _filename: str = None) -> None:
             self.log.info(f'- Desanitizing {filename}')
             # backup original file
             shutil.copyfile(filename, backup)
-            with open(filename, 'w') as outfile:
+            with open(filename, mode='w', encoding='utf-8') as outfile:
                 outfile.writelines(output)
     except (OSError, IOError) as e:
         self.log.error(f"Can't access {filename}. Make sure, {self.node.installation} is writable.")
@@ -137,7 +137,7 @@ def get_active_runways(runways, wind):
 
 def create_writable_mission(filename: str) -> str:
     try:
-        with open(filename, 'a'):
+        with open(filename, mode='a'):
             new_filename = filename
     except PermissionError:
         if '.dcssb' in filename:

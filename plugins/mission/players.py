@@ -7,7 +7,8 @@ class Main(report.EmbedElement):
         coalitions = {
             Side.SPECTATOR: {"names": [], "units": []},
             Side.BLUE: {"names": [], "units": []},
-            Side.RED: {"names": [], "units": []}
+            Side.RED: {"names": [], "units": []},
+            Side.NEUTRAL: {"names": [], "units": []}
         }
         for player in players:
             coalitions[player.side]['names'].append(player.display_name)
@@ -20,7 +21,11 @@ class Main(report.EmbedElement):
             self.add_field(name='Red', value='_ _')
             self.add_field(name='Name', value='\n'.join(coalitions[Side.RED]['names']) or '_ _')
             self.add_field(name='Unit', value='\n'.join(coalitions[Side.RED]['units']) or '_ _')
-        # Neutral
+        if Coalition.NEUTRAL in sides and len(coalitions[Side.NEUTRAL]['names']):
+            self.add_field(name='Neutral', value='_ _')
+            self.add_field(name='Name', value='\n'.join(coalitions[Side.NEUTRAL]['names']) or '_ _')
+            self.add_field(name='Unit', value='\n'.join(coalitions[Side.NEUTRAL]['units']) or '_ _')
+        # Spectators
         if len(coalitions[Side.SPECTATOR]['names']):
             self.add_field(name='Spectator', value='_ _')
             self.add_field(name='Name', value='\n'.join(coalitions[Side.SPECTATOR]['names']) or '_ _')

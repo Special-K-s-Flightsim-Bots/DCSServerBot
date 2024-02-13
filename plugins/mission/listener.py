@@ -43,6 +43,18 @@ class MissionEventListener(EventListener):
             'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}```',
             'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected```'
         },
+        Side.NEUTRAL: {
+            'takeoff': '```ansi\n\u001b[0;32mNEUTRAL player {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;32mNEUTRAL player {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;32mNEUTRAL player {} ejected.```',
+            'crash': '```ansi\n\u001b[0;32mNEUTRAL player {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;32mNEUTRAL player {} died.```',
+            'kill': '```ansi\n\u001b[0;32mNEUTRAL {} in {} killed {} {} in {} with {}.```',
+            'friendly_fire': '```ansi\n\u001b[1;33mNEUTRAL {} FRIENDLY FIRE onto {} with {}.```',
+            'self_kill': '```ansi\n\u001b[0;32mNEUTRAL player {} killed themselves - Ooopsie!```',
+            'change_slot': '```ansi\n\u001b[0;32m{} player {} occupied {} {}```',
+            'disconnect': '```ansi\n\u001b[0;32mNEUTRAL player {} disconnected```'
+        },
         Side.SPECTATOR: {
             'connect': '```\nPlayer {} connected to server```',
             'disconnect': '```\nPlayer {} disconnected```',

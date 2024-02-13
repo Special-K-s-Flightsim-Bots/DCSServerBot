@@ -187,10 +187,11 @@ class ServerImpl(Server):
         try:
             admin_channel = self.channels.get(Channel.ADMIN)
             if not admin_channel:
-                data = yaml.load(Path('config/services/bot.yaml'))
+                data = yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')))
                 admin_channel = data.get('admin_channel', -1)
-            with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), 'r') as template:
-                with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w', encoding='utf-8') as outfile:
+            with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), mode='r',
+                      encoding='utf-8') as template:
+                with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), mode='w', encoding='utf-8') as outfile:
                     for line in template.readlines():
                         line = utils.format_string(line, node=self.node, instance=self.instance, server=self,
                                                    admin_channel=admin_channel)
@@ -281,13 +282,13 @@ class ServerImpl(Server):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         def update_config(old_name, new_name: str, update_settings: bool = False):
             # update servers.yaml
-            filename = 'config/servers.yaml'
+            filename = os.path.join(self.node.config_dir, 'servers.yaml')
             if os.path.exists(filename):
                 data = yaml.load(Path(filename).read_text(encoding='utf-8'))
                 if old_name in data and new_name not in data:
                     data[new_name] = deepcopy(data[old_name])
                     del data[old_name]
-                    with open(filename, 'w', encoding='utf-8') as outfile:
+                    with open(filename, mode='w', encoding='utf-8') as outfile:
                         yaml.dump(data, outfile)
             # update serverSettings.lua if requested
             if update_settings:
@@ -579,7 +580,8 @@ class ServerImpl(Server):
         return new_filename
 
     async def persist_settings(self):
-        with open('config/servers.yaml') as infile:
+        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
         if self.name not in config:
             config[self.name] = {}
@@ -596,7 +598,7 @@ class ServerImpl(Server):
             "require_pure_models": self.settings.get('require_pure_models', True),
             "maxPlayers": self.settings.get('maxPlayers', 16)
         }
-        with open('config/servers.yaml', 'w') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
 
     async def render_extensions(self) -> list[dict]:

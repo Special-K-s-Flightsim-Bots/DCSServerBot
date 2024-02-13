@@ -361,7 +361,7 @@ class ServiceBus(Service):
                            options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
         server = self.servers.get(server_name)
         if not server or not server.is_remote:
-            node = NodeProxy(self.node, node, public_ip)
+            node = NodeProxy(self.node, node, public_ip, self.node.config_dir)
             server = ServerProxy(
                 node=node,
                 port=-1,
@@ -470,7 +470,10 @@ class ServiceBus(Service):
                     "return": rc if rc is not None else ''
                 }, node=data.get('node'))
         except Exception as ex:
-            self.log.exception(ex, exc_info=True)
+            if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
+                self.log.warning("Timeout error during an RPC call!")
+            else:
+                self.log.exception(ex, exc_info=True)
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",

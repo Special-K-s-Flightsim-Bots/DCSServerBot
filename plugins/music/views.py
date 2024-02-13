@@ -40,7 +40,9 @@ class MusicPlayer(View):
         self.config = self.service.get_config(self.server, self.radio_name)
         embed = discord.Embed(colour=discord.Colour.blue())
         embed.add_field(name="Frequency", value=self.config['frequency'] + " " + self.config['modulation'])
-        embed.add_field(name="Coalition", value="Red" if self.config['coalition'] == 1 else "Blue")
+        embed.add_field(name="Coalition", value="Red" if self.config['coalition'] == 1 else
+                                                "Blue" if self.config['coalition'] == 2 else
+                                                "Neutral")
         embed.title = "Music Player"
         current = await self.service.get_current_song(self.server, self.radio_name)
         if current:

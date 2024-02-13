@@ -402,7 +402,7 @@ See [Coalitions](./COALITIONS.md) for coalition roles.
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
 
 ### Sample Configuration
-To view some sample configurations for the bot or for each configurable plugin, look [here](config/samples/README.md).
+To view some sample configurations for the bot or for each configurable plugin, look [here](samples/README.md).
 
 ### Additional Security Features
 Players that have no pilot ID (empty or whitespace) or that share an account with others, will not be able to join your 

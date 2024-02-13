@@ -42,7 +42,7 @@ class PretenseStats(Plugin):
                 if self.last_mtime.get(server.name, 0) == mtime:
                     continue
                 self.last_mtime[server.name] = mtime
-                with open(json_file_path, 'r', encoding='utf8') as json_file:
+                with open(json_file_path, mode='r', encoding='utf8') as json_file:
                     data = json.load(json_file)
 
                 report = PersistentReport(self.bot, self.plugin_name, "pretense.json", embed_name="leaderboard",

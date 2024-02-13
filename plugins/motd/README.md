@@ -3,7 +3,7 @@ This plugin adds a message of the day to the server, that is displayed either on
 
 ## Configuration
 The plugin is configured via yaml, as many others. If you don't generate your custom yaml file (sample available in the 
-config/samples directory), the plugin will not generate any messages.
+samples directory), the plugin will not generate any messages.
 
 To be able to create a message on "birth", MISSION_STATISTICS = true has to be enabled on your server.
 

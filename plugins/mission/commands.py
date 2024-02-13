@@ -446,7 +446,7 @@ class Mission(Plugin):
                      presets_file: Optional[str] = 'config/presets.yaml'):
         ephemeral = utils.get_ephemeral(interaction)
         try:
-            with open(presets_file, encoding='utf-8') as infile:
+            with open(presets_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
@@ -526,7 +526,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         miz = MizFile(self.bot, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
-            with open('config/presets.yaml', encoding='utf-8') as infile:
+            with open('config/presets.yaml', mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         else:
             presets = dict()
@@ -548,7 +548,7 @@ class Mission(Plugin):
             "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
             "halo": miz.halo
         }
-        with open(f'config/presets.yaml', 'w', encoding='utf-8') as outfile:
+        with open(f'config/presets.yaml', mode='w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)
         if interaction.response.is_done():
             await interaction.followup.send(f'Preset "{name}" added.', ephemeral=ephemeral)
@@ -775,7 +775,7 @@ class Mission(Plugin):
             with conn.transaction():
                 for row in conn.execute("""
                     SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
-                """):
+                """).fetchall():
                     for server in self.bot.servers.values():
                         if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                             continue
@@ -857,8 +857,13 @@ class Mission(Plugin):
         # ignore bot messages or messages that do not contain miz attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
             return
-        # only DCS Admin role is allowed to upload missions
-        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+        # read the default config, if there is any
+        config = self.get_config().get('uploads', {})
+        # check, if upload is enabled
+        if not config.get('enabled', True):
+            return
+        # check if the user has the correct role to upload, defaults to DCS Admin
+        if not utils.check_roles(config.get('discord', self.bot.roles['DCS Admin']), message.author):
             return
         # check if the upload happens in the servers admin channel (if provided)
         server: Server = self.bot.get_server(message, admin_only=True)

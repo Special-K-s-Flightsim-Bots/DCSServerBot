@@ -4,7 +4,6 @@
 # At the moment, this only holds the downloads configuration. #
 ###############################################################
 DEFAULT:  # The DEFAULT section is valid for all your servers
-  # we only have a download section atm
   downloads:
   # that's for your DCS logs. It should work for all your servers.
   - label: DCS Logs
@@ -42,6 +41,8 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: Plugin Config Files
     directory: .\config\plugins
     pattern: '*.yaml'
+    discord:      # only Admin users can download these config files
+      - Admin
     audit: true   # each download is audited
   # The service configuration files of DCSSB. You can upload changed configurations again to your admin channels.
   # Be aware, the bot.yaml contains your Discord TOKEN in a readable format.
@@ -51,3 +52,7 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
     discord:      # only Admin users can download these config files
       - Admin
     audit: true   # each download is audited
+  uploads:        # The uploads section defines who is allowed to upload config files
+    enabled: true # If false, uploads are disabled in general
+    discord:
+      - Admin     # Only Admin users are allowed to upload

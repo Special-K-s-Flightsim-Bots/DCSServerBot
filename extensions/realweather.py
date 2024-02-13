@@ -29,7 +29,7 @@ class RealWeather(Extension):
         rw_home = os.path.expandvars(self.config['installation'])
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
-        with open(os.path.join(rw_home, 'config.json')) as infile:
+        with open(os.path.join(rw_home, 'config.json'), mode='r', encoding='utf-8') as infile:
             cfg = json.load(infile)
         config = self.get_config(filename)
         # create proper configuration
@@ -43,7 +43,7 @@ class RealWeather(Extension):
                 else:
                     cfg[name] = config[name]
         cwd = await self.server.get_missions_dir()
-        with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
+        with open(os.path.join(cwd, 'config.json'), mode='w', encoding='utf-8') as outfile:
             json.dump(cfg, outfile, indent=2)
         out = asyncio.subprocess.DEVNULL if not self.config.get('debug', False) else None
         proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd,

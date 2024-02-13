@@ -13,7 +13,7 @@ class DSMC(Extension):
         hook = os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')
         try:
             version = []
-            with open(hook) as infile:
+            with open(hook, mode='r', encoding='utf-8') as infile:
                 content = infile.read()
             version_parts = ['DSMC_MainVersion', 'DSMC_SubVersion', 'DSMC_SubSubVersion']
             for part in version_parts:
@@ -37,7 +37,7 @@ class DSMC(Extension):
 
         cfg = dict()
         dcs_home = self.server.instance.home
-        with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua')) as infile:
+        with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), mode='r', encoding='utf-8') as infile:
             for line in infile.readlines():
                 line = line.strip()
                 if line.startswith('DSMC'):
@@ -59,8 +59,10 @@ class DSMC(Extension):
             dcs_home = self.server.instance.home
             shutil.copy2(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'),
                          os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak'))
-            with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak')) as infile:
-                with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), 'w') as outfile:
+            with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak'), mode='r',
+                      encoding='utf-8') as infile:
+                with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), mode='w',
+                          encoding='utf-8') as outfile:
                     for line in infile.readlines():
                         if line.strip().startswith('DSMC_updateMissionList'):
                             line = line.replace('true', 'false', 1)

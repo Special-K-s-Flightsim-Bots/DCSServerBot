@@ -18,7 +18,8 @@ class FunkMan(Plugin):
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
-            raise PluginInstallationError('funkman', "Can't find config/plugins/funkman.yaml, please create one!")
+            raise PluginInstallationError('funkman',
+                                          f"Can't find {self.node.config_dir}/plugins/funkman.yaml, please create one!")
         return config
 
     async def install(self) -> bool:
@@ -45,7 +46,8 @@ class FunkMan(Plugin):
                         config['IMAGEPATH'] = config['install'] + ini['FUNKPLOT']['IMAGEPATH'][1:]
                     else:
                         config['IMAGEPATH'] = ini['FUNKPLOT']['IMAGEPATH']
-                with open('config/plugins/funkman.yaml', 'w') as outfile:
+                with open(os.path.join(self.node.config_dir, 'plugins', 'funkman.yaml'), mode='w',
+                          encoding='utf-8') as outfile:
                     yaml.dump({DEFAULT_TAG: config}, outfile)
             return True
         return False

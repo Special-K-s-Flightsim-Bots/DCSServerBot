@@ -28,7 +28,7 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[Tupl
     for folder in OVGME_FOLDERS:
         packages = []
         for x in os.listdir(os.path.expandvars(config[folder])):
-            if x.startswith('.'):
+            if x.startswith('.') or x.casefold() in ['desktop.ini']:
                 continue
             package, version = service.parse_filename(x)
             if package:
@@ -120,9 +120,9 @@ class OvGME(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        if os.path.exists('config/plugins/ovgme.yaml'):
-            self.log.warning(
-                "  => OvGME: your ovgme.yaml does belong into config/services/ovgme.yaml, not in /config/plugins!")
+        if os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')):
+            self.log.warning(f"  => OvGME: your ovgme.yaml belongs into {self.node.config_dir}/services/ovgme.yaml, "
+                             f"not in {self.node.config_dir}/plugins!")
         self.service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')

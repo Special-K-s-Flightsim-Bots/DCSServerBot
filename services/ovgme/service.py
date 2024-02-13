@@ -175,7 +175,7 @@ class OvGMEService(Service):
                 if os.path.exists(outpath) and not force:
                     self.log.warning(f"  => OvGME: File {folder}/{filename} exists!")
                     raise FileExistsError(outpath)
-                with open(outpath, 'wb') as outfile:
+                with open(outpath, mode='wb') as outfile:
                     outfile.write(await response.read())
         self.log.info(f"  => OvGME: {folder}/{filename} downloaded.")
 
@@ -230,7 +230,7 @@ class OvGMEService(Service):
         path = os.path.expandvars(config['SavedGames'])
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         os.makedirs(ovgme_path, exist_ok=True)
-        with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
+        with open(os.path.join(ovgme_path, 'install.log'), mode='w', encoding=ENCODING) as log:
             package = os.path.join(path, f"{package_name}_v{version}")
             if os.path.isdir(package):
                 for root, dirs, files in os.walk(package):
@@ -260,7 +260,7 @@ class OvGMEService(Service):
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         os.makedirs(ovgme_path, exist_ok=True)
         if os.path.isfile(filename) and filename.endswith(".zip"):
-            with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
+            with open(os.path.join(ovgme_path, 'install.log'), mode='w', encoding=ENCODING) as log:
                 with zipfile.ZipFile(filename, 'r') as zfile:
                     ovgme = self.is_ovgme(zfile, package_name)
                     if ovgme:
@@ -284,7 +284,7 @@ class OvGMEService(Service):
                             os.makedirs(os.path.join(target, _name), exist_ok=True)
                         else:
                             with zfile.open(name) as infile:
-                                with open(os.path.join(target, _name), 'wb') as outfile:
+                                with open(os.path.join(target, _name), mode='wb') as outfile:
                                     outfile.write(infile.read())
         elif os.path.isdir(filename):
             with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:

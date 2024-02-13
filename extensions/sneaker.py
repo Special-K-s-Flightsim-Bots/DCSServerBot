@@ -21,7 +21,7 @@ class Sneaker(Extension):
         cfg = {"servers": []}
         filename = os.path.join('config', 'sneaker.json')
         if os.path.exists(filename):
-            with open(filename) as file:
+            with open(filename, mode='r', encoding='utf-8') as file:
                 cfg = json.load(file)
         for s in cfg['servers']:
             if s['name'] == self.server.name:
@@ -43,7 +43,7 @@ class Sneaker(Extension):
                 if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
             ]
         ]
-        with open(filename, 'w') as file:
+        with open(filename, mode='w', encoding='utf-8') as file:
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:

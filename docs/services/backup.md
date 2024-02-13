@@ -4,7 +4,7 @@ servers. It runs on a configurable schedule or can be launched by commands from 
 
 ## Configuration
 The backup service can be configured with a yaml file /config/services/backup.yaml, that you might need to create.
-A sample is in the ./samples directory.
+A sample is in the /samples directory.
 
 ```yaml
 target: G:\My Drive\Backup    # A directory of your choice, best case on a cloud drive

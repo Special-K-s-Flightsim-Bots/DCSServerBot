@@ -66,8 +66,8 @@ REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str):
-        super().__init__(name)
+    def __init__(self, name: str, config_dir: Optional[str] = './config'):
+        super().__init__(name, config_dir)
         self.node = self  # to be able to address self.node
         self._public_ip: Optional[str] = None
         self.bot_version = __version__[:__version__.rfind('.')]
@@ -75,7 +75,7 @@ class NodeImpl(Node):
         self.dcs_branch = None
         self.dcs_version = None
         self.all_nodes: Optional[dict[str, dict]] = None
-        self.instances: list[InstanceImpl] = list()
+        self.instances: list[Instance] = list()
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
@@ -182,16 +182,17 @@ class NodeImpl(Node):
 
     def read_locals(self) -> dict:
         _locals = dict()
-        if os.path.exists('config/nodes.yaml'):
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        if os.path.exists(config_file):
             try:
-                self.all_nodes: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+                self.all_nodes: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except (ParserError, ScannerError) as ex:
-                raise YAMLError('config/nodes.yaml', ex)
+                raise YAMLError('config_file', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:
-                raise FatalException(f'No configuration found for node {self.name} in nodes.yaml!')
+                raise FatalException(f'No configuration found for node {self.name} in {config_file}!')
             return node
-        raise FatalException(f"No config/nodes.yaml found. Exiting.")
+        raise FatalException(f"No {config_file} found. Exiting.")
 
     def init_logger(self):
         log = logging.getLogger(name='dcsserverbot')
@@ -734,13 +735,14 @@ class NodeImpl(Node):
         autoexec = Autoexec(instance=instance)
         autoexec.webgui_port = instance.webgui_port
         autoexec.crash_report_mode = "silent"
-        with open('config/nodes.yaml') as infile:
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open(config_file, mode='r') as infile:
             config = yaml.load(infile)
         config[self.name]['instances'][instance.name] = {
             "home": instance.home,
             "bot_port": instance.bot_port
         }
-        with open('config/nodes.yaml', 'w') as outfile:
+        with open(config_file, mode='w') as outfile:
             yaml.dump(config, outfile)
         settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
@@ -754,10 +756,11 @@ class NodeImpl(Node):
         return instance
 
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
-        with open('config/nodes.yaml') as infile:
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open('config_file', mode='r') as infile:
             config = yaml.load(infile)
         del config[self.name]['instances'][instance.name]
-        with open('config/nodes.yaml', 'w') as outfile:
+        with open(config_file, mode='w') as outfile:
             yaml.dump(config, outfile)
         self.instances.remove(instance)
         with self.pool.connection() as conn:
@@ -767,7 +770,8 @@ class NodeImpl(Node):
             shutil.rmtree(instance.home, ignore_errors=True)
 
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
-        with open('config/nodes.yaml') as infile:
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open(config_file, mode='r') as infile:
             config = yaml.load(infile)
         new_home = os.path.join(os.path.dirname(instance.home), new_name)
         os.rename(instance.home, new_home)
@@ -782,7 +786,7 @@ class NodeImpl(Node):
         instance.name = new_name
         instance.locals['home'] = new_home
         del config[self.name]['instances'][instance.name]
-        with open('config/nodes.yaml', 'w') as outfile:
+        with open(config_file, mode='w') as outfile:
             yaml.dump(config, outfile)
 
     async def find_all_instances(self) -> list[Tuple[str, str]]:
@@ -795,17 +799,19 @@ class NodeImpl(Node):
         server.status = Status.SHUTDOWN
         ServiceRegistry.get("ServiceBus").servers[server.name] = server
         instance.server = server
-        with open('config/nodes.yaml') as infile:
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        with open(config_file, mode='r') as infile:
             config = yaml.load(infile)
         config[self.name]['instances'][instance.name]['server'] = server.name
-        with open('config/nodes.yaml', 'w') as outfile:
+        with open(config_file, mode='w') as outfile:
             yaml.dump(config, outfile)
 
     async def unregister_server(self, server: Server) -> None:
+        config_file = os.path.join(self.config_dir, 'nodes.yaml')
         instance = server.instance
         instance.server = None
-        with open('config/nodes.yaml') as infile:
+        with open(config_file, mode='r') as infile:
             config = yaml.load(infile)
         del config[self.name]['instances'][instance.name]['server']
-        with open('config/nodes.yaml', 'w') as outfile:
+        with open(config_file, mode='w') as outfile:
             yaml.dump(config, outfile)

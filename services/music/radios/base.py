@@ -94,7 +94,7 @@ class Radio(ABC):
             configs[self.server.instance.name]['radios'][self.name] = config
         else:
             configs[self.server.instance.name]['radios'][self.name] |= config
-        with open(os.path.join('config', 'services', 'music.yaml'), 'w', encoding='utf-8') as outfile:
+        with open(os.path.join('config', 'services', 'music.yaml'), mode='w', encoding='utf-8') as outfile:
             yaml.dump(configs, outfile)
 
     def is_running(self) -> bool:

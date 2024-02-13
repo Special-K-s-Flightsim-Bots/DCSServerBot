@@ -89,7 +89,7 @@ class CloudHandler(Plugin):
         config = super().read_locals()
         if not config:
             self.log.info('No cloud.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/plugins/cloud.yaml', 'config/plugins/cloud.yaml')
+            shutil.copyfile('samples/plugins/cloud.yaml', os.path.join(self.node.config_dir, 'plugins', 'cloud.yaml'))
             config = super().read_locals()
         return config
 
@@ -230,7 +230,7 @@ class CloudHandler(Plugin):
                         WHERE synced IS FALSE 
                         ORDER BY last_seen DESC 
                         LIMIT 10
-                    """):
+                    """).fetchall():
                         cursor.execute("""
                             SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                    SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
@@ -299,7 +299,4 @@ class CloudHandler(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    if not os.path.exists('config/plugins/cloud.yaml'):
-        bot.log.info('No cloud.yaml found, copying the sample.')
-        shutil.copyfile('config/samples/plugins/cloud.yaml', 'config/plugins/cloud.yaml')
     await bot.add_cog(CloudHandler(bot, CloudListener))

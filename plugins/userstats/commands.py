@@ -264,7 +264,7 @@ class UserStatistics(Plugin):
         with self.pool.connection() as conn:
             with conn.transaction():
                 if isinstance(user, discord.Member):
-                    for row in conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )):
+                    for row in conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )).fetchall():
                         ucid = row[0]
                         await clear_user_roles(ucid)
                         await unlink_member(user, ucid, ephemeral)

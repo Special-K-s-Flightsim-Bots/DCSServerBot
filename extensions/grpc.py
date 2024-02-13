@@ -57,14 +57,14 @@ class gRPC(Extension):
         path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
         cfg = dict()
         if os.path.exists(path):
-            with open(path, 'r') as file:
+            with open(path, mode='r', encoding='utf-8') as file:
                 read_file(file, cfg)
         return cfg
 
     async def prepare(self) -> bool:
         config = self.config.copy()
         filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
-        with open(filename, 'r') as infile:
+        with open(filename, mode='r', encoding='utf-8') as infile:
             orig = infile.readlines()
         dirty = False
         for idx, line in enumerate(orig):
@@ -74,7 +74,7 @@ class gRPC(Extension):
                 dirty = True
                 break
         if dirty:
-            with open(filename, 'w') as outfile:
+            with open(filename, mode='w', encoding='utf-8') as outfile:
                 outfile.writelines(orig)
             self.log.info(f"  => {self.name}: MissionScripting.lua amended.")
         if 'enabled' in config:
@@ -83,7 +83,7 @@ class gRPC(Extension):
             self.locals = self.locals | config
             self.locals['autostart'] = True
             path = os.path.join(self.server.instance.home, 'Config', 'dcs-grpc.lua')
-            with open(path, 'w', encoding='utf-8') as outfile:
+            with open(path, mode='w', encoding='utf-8') as outfile:
                 for key, value in self.locals.items():
                     outfile.write(f"{key} = {self.unparse(value)}\n")
         port = self.locals.get('port', 50051)

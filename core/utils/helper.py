@@ -270,7 +270,7 @@ def alternate_parse_settings(path: str):
     exp2 = re.compile(r'cfg\["(?P<key1>.*)"\]\[(?P<key2>.*)\] = (?P<value>.*)')
 
     settings = dict()
-    with open(path, encoding='utf-8') as infile:
+    with open(path, mode='r', encoding='utf-8') as infile:
         for idx, line in enumerate(infile.readlines()):
             if idx == 0:
                 continue
@@ -355,7 +355,7 @@ def get_presets() -> Iterable[str]:
     """
     presets = set()
     for file in Path('config').glob('presets*.yaml'):
-        with open(file, encoding='utf-8') as infile:
+        with open(file, mode='r', encoding='utf-8') as infile:
             presets |= set([
                 name for name, value in yaml.load(infile).items()
                 if isinstance(value, dict) and not value.get('hidden', False)
@@ -464,7 +464,7 @@ class SettingsDict(dict):
     def read_file(self):
         if not os.path.exists(self.path):
             self.log.error(f"- File {self.path} does not exist! Creating an empty file.")
-            with open(self.path, 'w') as f:
+            with open(self.path, mode='w', encoding='utf-8') as f:
                 f.write(f"{self.root} = {{}}")
             return
         self.mtime = os.path.getmtime(self.path)
@@ -478,7 +478,7 @@ class SettingsDict(dict):
                     self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
                     raise ex
         elif self.path.lower().endswith('.yaml'):
-            with open(self.path, encoding='utf-8') as file:
+            with open(self.path, mode='r', encoding='utf-8') as file:
                 data = yaml.load(file)
         if data:
             self.clear()
@@ -491,11 +491,11 @@ class SettingsDict(dict):
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         if self.path.lower().endswith('.lua'):
-            with open(tmpname, 'wb') as outfile:
+            with open(tmpname, mode='wb') as outfile:
                 outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t',
                                                                      indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.json'):
-            with open(tmpname, "w", encoding='utf-8') as outfile:
+            with open(tmpname, mode="w", encoding='utf-8') as outfile:
                 yaml.dump(self, outfile)
         shutil.copy2(tmpname, self.path)
         self.mtime = os.path.getmtime(self.path)

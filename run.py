@@ -102,14 +102,16 @@ if __name__ == "__main__":
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
+    parser.add_argument('-c', '--config', help='Path to configuration', default='./config')
     args = parser.parse_args()
+    config_dir = args.config
     # Call the DCSServerBot 2.x migration utility
-    if os.path.exists('config/dcsserverbot.ini'):
+    if os.path.exists(os.path.join(config_dir, 'dcsserverbot.ini')):
         migrate(node=args.node)
     try:
         with PidFile(pidname=f"dcssb_{args.node}"):
             try:
-                node = NodeImpl(name=args.node)
+                node = NodeImpl(name=args.node, config_dir=config_dir)
             except FatalException:
                 Install(node=args.node).install()
                 node = NodeImpl(name=args.node)

@@ -48,7 +48,7 @@ def post_migrate_admin(node: str):
                 "pattern": "*.yaml"
             })
 
-    with open('config/plugins/admin.yaml', encoding='utf-8') as infile:
+    with open('config/plugins/admin.yaml', mode='r', encoding='utf-8') as infile:
         data = yaml.load(infile)
     for element in data:
         if element == 'commands':
@@ -59,7 +59,7 @@ def post_migrate_admin(node: str):
             for name, instance in data[element].items():
                 _migrate(instance)
 
-    with open('config/plugins/admin.yaml', 'w', encoding='utf-8') as outfile:
+    with open('config/plugins/admin.yaml', mode='w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)
 
 
@@ -73,7 +73,7 @@ def post_migrate_music(node: str):
         del _data['radios']['Radio 1']['name']
         del _data['sink']
 
-    with open('config/plugins/music.yaml', encoding='utf-8') as infile:
+    with open('config/plugins/music.yaml', mode='r', encoding='utf-8') as infile:
         data = yaml.load(infile)
     for element in data:
         if element == 'commands':
@@ -83,18 +83,18 @@ def post_migrate_music(node: str):
         elif element == element:
             for name, instance in data[element].items():
                 _migrate(instance)
-    with open('config/plugins/music.yaml', 'w', encoding='utf-8') as outfile:
+    with open('config/plugins/music.yaml', mode='w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)
 
 
 def post_migrate_greenieboard(node: str):
-    with open('config/plugins/greenieboard.yaml') as infile:
+    with open('config/plugins/greenieboard.yaml', mode='r', encoding='utf-8') as infile:
         data = yaml.load(infile)
     # we only need to do a post migration is there were server specific settings
     if node not in data:
         return
     if os.path.exists('config/services/cleanup.yaml'):
-        with open('config/services/cleanup.yaml', encoding='utf-8') as infile:
+        with open('config/services/cleanup.yaml', mode='r', encoding='utf-8') as infile:
             cleanups = yaml.load(infile)
     else:
         cleanups = {}
@@ -123,9 +123,9 @@ def post_migrate_greenieboard(node: str):
             }
             del instance['FunkMan']['delete_after']
     if cleanup:
-        with open('config/services/cleanup.yaml', 'w', encoding='utf-8') as outfile:
+        with open('config/services/cleanup.yaml', mode='w', encoding='utf-8') as outfile:
             yaml.dump(cleanups, outfile)
-        with open('config/plugins/greenieboard.yaml', 'w', encoding='utf-8') as outfile:
+        with open('config/plugins/greenieboard.yaml', mode='w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
 
 
@@ -185,7 +185,7 @@ def migrate(node: str):
                     data[DEFAULT_TAG] = {
                         "command_prefix": cfg['BOT']['COMMAND_PREFIX']
                     }
-                    with open('config/plugins/commands.yaml', 'w', encoding='utf-8') as out:
+                    with open('config/plugins/commands.yaml', mode='w', encoding='utf-8') as out:
                         yaml.dump(data, out)
                     print(f"- Migrated config/commands.json to config/plugins/commands.yaml")
                 else:
@@ -285,7 +285,7 @@ def migrate(node: str):
             bot['roles'] = {}
             for role in ['Admin', 'DCS Admin', 'DCS', 'GameMaster']:
                 bot['roles'][role] = [x.strip() for x in cfg['ROLES'][role].split(',')]
-            with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
+            with open('config/services/bot.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(bot, out)
                 print("- Created config/services/bot.yaml")
 
@@ -410,7 +410,7 @@ def migrate(node: str):
                 if isinstance(schedule['presets'], dict):
                     presets |= schedule['presets']
                 else:
-                    with open(schedule['presets'], 'r', encoding='utf-8') as pin:
+                    with open(schedule['presets'], mode='r', encoding='utf-8') as pin:
                         presets |= json.load(pin)
                     shutil.move(schedule['presets'], BACKUP_FOLDER.format(node))
                 del schedule['presets']
@@ -420,7 +420,7 @@ def migrate(node: str):
         directory = nodes[node].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
                                                                              TACVIEW_DEFAULT_DIR)
         if os.path.exists('config/services/cleanup.yaml'):
-            with open('config/services/cleanup.yaml', encoding='utf-8') as infile:
+            with open('config/services/cleanup.yaml', mode='r', encoding='utf-8') as infile:
                 cleanup = yaml.load(infile)
         else:
             cleanup = {}
@@ -443,35 +443,35 @@ def migrate(node: str):
         with suppress(KeyError):
             del nodes[node]['extensions']['Tacview']['delete_after']
         if cleanup:
-            with open('config/services/cleanup.yaml', 'w', encoding='utf-8') as outfile:
+            with open('config/services/cleanup.yaml', mode='w', encoding='utf-8') as outfile:
                 yaml.dump(cleanup, outfile)
 
         # write main configuration
         if master:
-            with open('config/main.yaml', 'w', encoding='utf-8') as out:
+            with open('config/main.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(main, out)
                 print("- Created config/main.yaml")
-        with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
+        with open('config/nodes.yaml', mode='w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
             print("- Created / updated config/nodes.yaml")
-        with open('config/servers.yaml', 'w', encoding='utf-8') as out:
+        with open('config/servers.yaml', mode='w', encoding='utf-8') as out:
             yaml.dump(servers, out)
             print("- Created / updated config/servers.yaml")
         # write plugin configuration
         if scheduler:
-            with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
+            with open('config/plugins/scheduler.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(all_schedulers, out)
                 print("- Created / updated config/plugins/scheduler.yaml")
             if presets:
-                with open('config/presets.yaml', 'w', encoding='utf-8') as out:
+                with open('config/presets.yaml', mode='w', encoding='utf-8') as out:
                     yaml.dump(presets, out)
                 print("- Created config/presets.yaml")
         if userstats:
-            with open('config/plugins/userstats.yaml', 'w', encoding='utf-8') as out:
+            with open('config/plugins/userstats.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(all_userstats, out)
             print("- Created / updated config/plugins/missionstats.yaml")
         if missionstats:
-            with open('config/plugins/missionstats.yaml', 'w', encoding='utf-8') as out:
+            with open('config/plugins/missionstats.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(all_missionstats, out)
             print("- Created / updated config/plugins/missionstats.yaml")
         # shutil.move('config/default.ini', BACKUP_FOLDER)

@@ -214,7 +214,7 @@ class DCSServerBot(commands.Bot):
                     try:
                         await self.check_channels(server)
                     except KeyError as ex:
-                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in config/servers.yaml!")
+                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in servers.yaml!")
 
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
@@ -284,7 +284,9 @@ class DCSServerBot(commands.Bot):
             if 'audit_channel' in self.locals:
                 self.audit_channel = self.get_channel(int(self.locals['audit_channel']))
         if self.audit_channel:
-            if isinstance(user, str):
+            if not user:
+                member = self.member
+            elif isinstance(user, str):
                 member = self.get_member_by_ucid(user) if utils.is_ucid(user) else None
             else:
                 member = user
@@ -293,9 +295,7 @@ class DCSServerBot(commands.Bot):
                 embed.set_author(name=member.name, icon_url=member.avatar)
                 embed.set_thumbnail(url=member.avatar)
                 embed.description = f'<@{member.id}> ' + message
-            elif not user:
-                embed.set_author(name=self.member.name, icon_url=self.member.avatar)
-                embed.set_thumbnail(url=self.member.avatar)
+            else:
                 embed.description = message
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)

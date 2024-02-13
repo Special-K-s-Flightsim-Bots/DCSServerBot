@@ -195,7 +195,7 @@ class GreenieBoard(EmbedElement):
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 pilots = points = landings = ''
                 max_time = datetime.fromisocalendar(1970, 1, 1)
-                for row in cursor.execute(sql1, (num_rows, )):
+                for row in cursor.execute(sql1, (num_rows, )).fetchall():
                     pilots += utils.escape_string(row['name']) + '\n'
                     points += f"{row['points']:.2f}\n"
                     cursor.execute(sql2, (row['player_ucid'], ))

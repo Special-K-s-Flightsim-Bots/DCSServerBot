@@ -1,4 +1,5 @@
 import discord
+import os
 import psycopg
 import shutil
 
@@ -20,7 +21,8 @@ class GreenieBoard(Plugin):
         config = super().read_locals()
         if not config:
             self.log.info('No greenieboard.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/plugins/greenieboard.yaml', 'config/plugins/greenieboard.yaml')
+            shutil.copyfile('samples/plugins/greenieboard.yaml',
+                            os.path.join(self.node.config_dir, 'plugins', 'greenieboard.yaml'))
             config = super().read_locals()
         return config
 

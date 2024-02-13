@@ -138,7 +138,7 @@ class Admin(Plugin):
         config = super().read_locals()
         if not config:
             self.log.info('  - No admin.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/plugins/admin.yaml', 'config/plugins/admin.yaml')
+            shutil.copyfile('samples/plugins/admin.yaml', os.path.join(self.node.config_dir, 'plugins', 'admin.yaml'))
             config = super().read_locals()
         return config
 
@@ -306,10 +306,15 @@ class Admin(Plugin):
                      node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
-        branch, old_version = await node.get_dcs_branch_and_version()
-        new_version = await utils.getLatestVersion(branch,
-                                                   userid=node.locals['DCS'].get('dcs_user'),
-                                                   password=node.locals['DCS'].get('dcs_password'))
+        try:
+            branch, old_version = await node.get_dcs_branch_and_version()
+            new_version = await utils.getLatestVersion(branch,
+                                                       userid=node.locals['DCS'].get('dcs_user'),
+                                                       password=node.locals['DCS'].get('dcs_password'))
+        except Exception:
+            await interaction.followup.send("Can't get version information from ED, possible auth-server outage.",
+                                            ephemeral=True)
+            return
         if old_version == new_version:
             await interaction.followup.send(
                 f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=ephemeral)
@@ -415,7 +420,7 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send('Here is your file:', ephemeral=ephemeral)
         else:
-            with open(os.path.expandvars(target), 'wb') as outfile:
+            with open(os.path.expandvars(target), mode='wb') as outfile:
                 outfile.write(file)
             await interaction.followup.send('File copied to the specified location.', ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
@@ -607,7 +612,7 @@ class Admin(Plugin):
             cluster = False
         if not await node.upgrade_pending():
             await interaction.followup.send("There is no upgrade available for " +
-                                            ("your cluster" if cluster else ("node" + node.name)),
+                                            ("your cluster" if cluster else ("node " + node.name)),
                                             ephemeral=ephemeral)
             return
         if node and not node.master and not await utils.yn_question(
@@ -679,7 +684,8 @@ class Admin(Plugin):
             except Exception as ex:
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
-                with open('config/servers.yaml') as infile:
+                config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+                with open(config_file, mode='r', encoding='utf-8') as infile:
                     config = yaml.load(infile)
                 config[server.name] = {
                     "channels": {
@@ -689,7 +695,7 @@ class Admin(Plugin):
                 }
                 if not self.bot.locals.get('admin_channel'):
                     config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin', -1)
-                with open('config/servers.yaml', 'w', encoding='utf-8') as outfile:
+                with open(config_file, mode='w', encoding='utf-8') as outfile:
                     yaml.dump(config, outfile)
                 await server.reload()
                 server.status = Status.SHUTDOWN
@@ -756,8 +762,13 @@ Please make sure you forward the following ports:
         # ignore bot messages or messages that do not contain yaml attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
-        # only Admin role is allowed to upload config files
-        if not utils.check_roles(self.bot.roles['Admin'], message.author):
+        # read the default config, if there is any
+        config = self.get_config().get('uploads', {})
+        # check, if upload is enabled
+        if not config.get('enabled', True):
+            return
+        # check if the user has the correct role to upload, defaults to Admin
+        if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
             return
         # check if the upload happens in the servers admin channel (if provided)
         server: Server = self.bot.get_server(message, admin_only=True)
@@ -779,13 +790,13 @@ Please make sure you forward the following ports:
         att = message.attachments[0]
         name = att.filename[:-5]
         if name in ['main', 'nodes', 'presets', 'servers']:
-            target_path = 'config'
+            target_path = self.node.config_dir
             plugin = False
         elif name in ['backup', 'bot']:
-            target_path = os.path.join('config', 'services')
+            target_path = os.path.join(self.node.config_dir, 'services')
             plugin = False
         elif name in self.node.plugins:
-            target_path = os.path.join('config', 'plugins')
+            target_path = os.path.join(self.node.config_dir, 'plugins')
             plugin = True
         else:
             return False
