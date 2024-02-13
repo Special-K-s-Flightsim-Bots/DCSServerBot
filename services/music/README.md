@@ -16,7 +16,7 @@ DEFAULT:
       mode: 1                     # mode 1 = repeat (at the end of the list), mode 2 = shuffle
       frequency: '30.0'           # channel where the music should be played
       modulation: FM              # modulation, AM or FM
-      coalition: 1                # coalition 1 = red, 2 = blue
+      coalition: 1                # coalition 1 = red, 2 = blue, 3 = neutral
       volume: '0.5'               # 50% volume
       display_name: Jungle Beats  # Name of the radio as displayed in SRS
     Radio 2:                      

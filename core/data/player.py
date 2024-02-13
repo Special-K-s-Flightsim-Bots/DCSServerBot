@@ -66,7 +66,7 @@ class Player(DataObject):
                             self._verified = row[2]
                         self.banned = row[1]
                         if row[3]:
-                            self.coalition = Coalition.RED if row[3] == 'red' else Coalition.BLUE
+                            self.coalition = Coalition(row[3])
                         self._watchlist = row[4]
                         self._vip = row[5]
                     cursor.execute("""
@@ -152,6 +152,8 @@ class Player(DataObject):
             side = Side.BLUE
         elif coalition == Coalition.RED:
             side = Side.RED
+        elif coalition == Coalition.NEUTRAL:
+            side = Side.NEUTRAL
         else:
             side = Side.SPECTATOR
         self.server.send_to_dcs({
