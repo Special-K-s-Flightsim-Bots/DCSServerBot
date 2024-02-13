@@ -1,13 +1,6 @@
 .env
 __pycache__/
 *.db
-config/dcsserverbot.ini
-config/*.json
-config/*.yaml
-config/*.lua
-config/plugins/*.yaml
-config/services/*.yaml
-config/backup/*
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 .stignore
@@ -21,3 +14,4 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /fonts/
 /Music/
 /logs/
+/config/
