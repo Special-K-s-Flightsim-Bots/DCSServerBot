@@ -798,15 +798,15 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
     return inner(interaction.data['options'])
 
 
-def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
+def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
     """
     :param bot: The instance of the DCSServerBot class.
     :return: A list of discord.Member objects representing all the members linked to DCS accounts in the bot's guild.
     """
     members: list[discord.Member] = []
-    with bot.pool.connection() as conn:
+    with interaction.client.pool.connection() as conn:
         for row in conn.execute("SELECT DISTINCT discord_id FROM players WHERE discord_id <> -1"):
-            member = bot.guilds[0].get_member(row[0])
+            member = interaction.guild.get_member(row[0])
             if member:
                 members.append(member)
     return members
@@ -1001,7 +1001,7 @@ class UserTransformer(app_commands.Transformer):
             if is_ucid(value):
                 return interaction.client.get_member_by_ucid(value) or value
             elif value.isnumeric():
-                return interaction.client.guilds[0].get_member(int(value))
+                return interaction.guild.get_member(int(value))
             else:
                 return None
         else:
@@ -1024,7 +1024,7 @@ class UserTransformer(app_commands.Transformer):
         if (self.linked is None or self.linked) and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
             ret.extend([
                 app_commands.Choice(name='@' + member.display_name, value=str(member.id))
-                for member in get_all_linked_members(interaction.client)
+                for member in get_all_linked_members(interaction)
                 if not current or current.casefold() in member.display_name.casefold()
             ])
         return ret[:25]

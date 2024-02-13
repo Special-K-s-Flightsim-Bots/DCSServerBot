@@ -126,7 +126,7 @@ class Install:
                 with psycopg.connect(url, autocommit=True) as conn:
                     with closing(conn.cursor()) as cursor:
                         if os.path.exists('password.pkl'):
-                            with open('password.pkl', 'rb') as f:
+                            with open('password.pkl', mode='rb') as f:
                                 passwd = pickle.load(f)
                         else:
                             passwd = secrets.token_urlsafe(8)
@@ -143,7 +143,7 @@ class Install:
                                         break
                                     except psycopg.Error:
                                         print("[red]Wrong password! Try again.[/]")
-                            with open('password.pkl', 'wb') as f:
+                            with open('password.pkl', mode='wb') as f:
                                 pickle.dump(passwd, f)
                             with suppress(psycopg.Error):
                                 cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
@@ -400,29 +400,29 @@ DCSServerBot needs the following permissions on them to work:
                 self.log.info(f"Instance {instance} added.")
         print("\n\nAll set. Writing / updating your config files now...")
         if master:
-            with open('config/main.yaml', 'w', encoding='utf-8') as out:
+            with open('config/main.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(main, out)
                 print("- Created config/main.yaml")
             self.log.info("./config/main.yaml written.")
             os.makedirs('config/services', exist_ok=True)
-            with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
+            with open('config/services/bot.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(bot, out)
                 print("- Created config/services/bot.yaml")
             self.log.info("./config/services/bot.yaml written.")
-        with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
+        with open('config/nodes.yaml', mode='w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
             if os.path.exists('password.pkl'):
                 os.remove('password.pkl')
             print("- Created config/nodes.yaml")
         self.log.info("./config/nodes.yaml written.")
-        with open('config/servers.yaml', 'w', encoding='utf-8') as out:
+        with open('config/servers.yaml', mode='w', encoding='utf-8') as out:
             yaml.dump(servers, out)
             print("- Created config/servers.yaml")
         self.log.info("./config/servers.yaml written.")
         # write plugin configuration
         if scheduler:
             os.makedirs('config/plugins', exist_ok=True)
-            with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
+            with open('config/plugins/scheduler.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(schedulers, out)
                 print("- Created config/plugins/scheduler.yaml")
             self.log.info("./config/plugins/scheduler.yaml written.")

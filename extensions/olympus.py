@@ -30,7 +30,7 @@ class Olympus(Extension):
 
     def load_config(self) -> Optional[dict]:
         try:
-            with open(os.path.join(self.home, 'olympus.json'), 'r') as file:
+            with open(os.path.join(self.home, 'olympus.json'), mode='r', encoding='utf-8') as file:
                 return json.load(file)
         except FileNotFoundError:
             return {}

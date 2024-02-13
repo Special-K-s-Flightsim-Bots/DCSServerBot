@@ -446,7 +446,7 @@ class Mission(Plugin):
                      presets_file: Optional[str] = 'config/presets.yaml'):
         ephemeral = utils.get_ephemeral(interaction)
         try:
-            with open(presets_file, encoding='utf-8') as infile:
+            with open(presets_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
@@ -526,7 +526,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         miz = MizFile(self.bot, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
-            with open('config/presets.yaml', encoding='utf-8') as infile:
+            with open('config/presets.yaml', mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         else:
             presets = dict()
@@ -548,7 +548,7 @@ class Mission(Plugin):
             "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
             "halo": miz.halo
         }
-        with open(f'config/presets.yaml', 'w', encoding='utf-8') as outfile:
+        with open(f'config/presets.yaml', mode='w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)
         if interaction.response.is_done():
             await interaction.followup.send(f'Preset "{name}" added.', ephemeral=ephemeral)
@@ -775,7 +775,7 @@ class Mission(Plugin):
             with conn.transaction():
                 for row in conn.execute("""
                     SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
-                """):
+                """).fetchall():
                     for server in self.bot.servers.values():
                         if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                             continue

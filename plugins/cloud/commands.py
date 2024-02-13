@@ -230,7 +230,7 @@ class CloudHandler(Plugin):
                         WHERE synced IS FALSE 
                         ORDER BY last_seen DESC 
                         LIMIT 10
-                    """):
+                    """).fetchall():
                         cursor.execute("""
                             SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                    SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 

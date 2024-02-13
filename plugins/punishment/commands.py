@@ -118,7 +118,7 @@ class Punishment(Plugin):
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
                                 AND time < (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (server_name, )):
+                            """, (server_name, )).fetchall():
                                 try:
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:

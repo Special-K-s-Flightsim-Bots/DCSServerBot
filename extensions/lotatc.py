@@ -16,7 +16,7 @@ class LotAtc(Extension):
         cfg = {}
         for path in [os.path.join(self.home, 'config.lua'), os.path.join(self.home, 'config.custom.lua')]:
             try:
-                with open(path, 'r', encoding='utf-8') as file:
+                with open(path, mode='r', encoding='utf-8') as file:
                     content = file.read()
                 content = content.replace('lotatc_inst.options', 'cfg')
                 cfg |= luadata.unserialize(content)
@@ -37,7 +37,7 @@ class LotAtc(Extension):
         if len(config):
             self.locals = self.locals | config
             path = os.path.join(self.home, 'config.custom.lua')
-            with open(path, 'wb') as outfile:
+            with open(path, mode='wb') as outfile:
                 outfile.write((f"lotatc_inst.options = " + luadata.serialize(self.locals, indent='\t',
                                                                              indent_level=0)).encode('utf-8'))
             self.log.debug(f"  => New {path} written.")

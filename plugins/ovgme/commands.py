@@ -28,7 +28,7 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[Tupl
     for folder in OVGME_FOLDERS:
         packages = []
         for x in os.listdir(os.path.expandvars(config[folder])):
-            if x.startswith('.'):
+            if x.startswith('.') or x.casefold() in ['desktop.ini']:
                 continue
             package, version = service.parse_filename(x)
             if package:

@@ -306,10 +306,15 @@ class Admin(Plugin):
                      node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
-        branch, old_version = await node.get_dcs_branch_and_version()
-        new_version = await utils.getLatestVersion(branch,
-                                                   userid=node.locals['DCS'].get('dcs_user'),
-                                                   password=node.locals['DCS'].get('dcs_password'))
+        try:
+            branch, old_version = await node.get_dcs_branch_and_version()
+            new_version = await utils.getLatestVersion(branch,
+                                                       userid=node.locals['DCS'].get('dcs_user'),
+                                                       password=node.locals['DCS'].get('dcs_password'))
+        except Exception:
+            await interaction.followup.send("Can't get version information from ED, possible auth-server outage.",
+                                            ephemeral=True)
+            return
         if old_version == new_version:
             await interaction.followup.send(
                 f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=ephemeral)
@@ -415,7 +420,7 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send('Here is your file:', ephemeral=ephemeral)
         else:
-            with open(os.path.expandvars(target), 'wb') as outfile:
+            with open(os.path.expandvars(target), mode='wb') as outfile:
                 outfile.write(file)
             await interaction.followup.send('File copied to the specified location.', ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
@@ -680,7 +685,7 @@ class Admin(Plugin):
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
                 config_file = os.path.join(self.node.config_dir, 'servers.yaml')
-                with open(config_file, mode='r') as infile:
+                with open(config_file, mode='r', encoding='utf-8') as infile:
                     config = yaml.load(infile)
                 config[server.name] = {
                     "channels": {

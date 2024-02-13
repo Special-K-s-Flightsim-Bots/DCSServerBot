@@ -38,8 +38,9 @@ class SRS(Extension):
         port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-        with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua')) as infile:
-            with open(autoconnect, 'w') as outfile:
+        with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua'), mode='r',
+                  encoding='utf-8') as infile:
+            with open(autoconnect, mode='w', encoding='utf-8') as outfile:
                 for line in infile.readlines():
                     if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
                         line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
@@ -81,7 +82,7 @@ class SRS(Extension):
             dirty = True
         if dirty:
             path = os.path.expandvars(self.config['config'])
-            with open(path, 'w') as ini:
+            with open(path, mode='w', encoding='utf-8') as ini:
                 self.cfg.write(ini)
             self.locals = self.load_config()
         # Check port conflicts

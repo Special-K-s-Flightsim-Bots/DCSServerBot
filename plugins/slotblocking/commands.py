@@ -40,7 +40,7 @@ class SlotBlocking(Plugin):
             else:
                 for instance in data.values():
                     _change_instance(instance)
-            with open(path, 'w', encoding='utf-8') as outfile:
+            with open(path, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(data, outfile)
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,

@@ -36,7 +36,8 @@ class Scheduler(Plugin):
             config = {self.node.name: {}}
             for instance in self.bus.node.instances:
                 config[self.node.name][instance.name] = {}
-            with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w') as outfile:
+            with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
+                      encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
         return config
 
@@ -521,7 +522,7 @@ class Scheduler(Plugin):
                 if view.channel_update:
                     if not await view.wait() and not view.cancelled and view.channel_update:
                         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
-                        with open(config_file, mode='r') as infile:
+                        with open(config_file, mode='r', encoding='utf-8') as infile:
                             config = yaml.load(infile)
                         config[server.name] = {
                             "channels": {

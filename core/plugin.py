@@ -311,7 +311,7 @@ class Plugin(commands.Cog):
                     if cursor.rowcount == 0:
                         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
                         if path.exists(tables_file):
-                            with open(tables_file) as tables_sql:
+                            with open(tables_file, mode='r') as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
@@ -327,7 +327,7 @@ class Plugin(commands.Cog):
                         while version.parse(installed) < version.parse(self.plugin_version):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if path.exists(updates_file):
-                                with open(updates_file) as updates_sql:
+                                with open(updates_file, mode='r') as updates_sql:
                                     for query in updates_sql.readlines():
                                         self.log.debug(query.rstrip())
                                         cursor.execute(query.rstrip())
@@ -349,7 +349,7 @@ class Plugin(commands.Cog):
         os.makedirs(BACKUP_FOLDER.format(node), exist_ok=True)
         old_file = f'config/{plugin_name}.json'
         new_file = f'config/plugins/{plugin_name}.yaml'
-        with open(old_file, 'r', encoding='utf-8') as infile:
+        with open(old_file, mode='r', encoding='utf-8') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
             all_new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
@@ -373,7 +373,7 @@ class Plugin(commands.Cog):
                 del all_new[node]
         else:
             all_new = old
-        with open(new_file, 'w', encoding='utf-8') as outfile:
+        with open(new_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(all_new, outfile)
         shutil.move(old_file, BACKUP_FOLDER)
 

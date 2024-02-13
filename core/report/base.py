@@ -46,7 +46,7 @@ class Report:
             self.filename = default
         else:
             raise FileNotFoundError(filename)
-        with open(self.filename, encoding='utf-8') as file:
+        with open(self.filename, mode='r', encoding='utf-8') as file:
             self.report_def = json.load(file)
 
     async def render(self, *args, **kwargs) -> ReportEnv:

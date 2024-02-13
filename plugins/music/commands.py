@@ -174,7 +174,7 @@ class Music(Plugin):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(att.url) as response:
                         if response.status == 200:
-                            with open(filename, 'wb') as outfile:
+                            with open(filename, mode='wb') as outfile:
                                 outfile.write(await response.read())
                             await message.channel.send('File {} uploaded.'.format(utils.escape_string(att.filename)))
                         else:
