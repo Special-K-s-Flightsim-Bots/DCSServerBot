@@ -1,17 +1,17 @@
-import os
-from pathlib import Path
-
 import aiohttp
 import ipaddress
+import os
 import psutil
 import socket
 import stat
+import subprocess
 import sys
 if sys.platform == 'win32':
     import pywintypes
     import win32api
 
 from contextlib import closing, suppress
+from pathlib import Path
 from typing import Optional, Union
 
 API_URLS = [
@@ -23,6 +23,7 @@ __all__ = [
     "is_open",
     "get_public_ip",
     "find_process",
+    "is_process_running",
     "get_windows_version",
     "safe_rmtree"
 ]
@@ -52,6 +53,13 @@ def find_process(proc: str, instance: str):
         except Exception:
             continue
     return None
+
+
+def is_process_running(process: Union[subprocess.Popen, psutil.Process]):
+    if isinstance(process, subprocess.Popen):
+        return process.poll() is None
+    elif isinstance(process, psutil.Process):
+        return process.is_running()
 
 
 MS_LSB_MULTIPLIER = 65536

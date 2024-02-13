@@ -85,5 +85,5 @@ class MizEdit(Extension):
     def is_running(self) -> bool:
         return True
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         return True

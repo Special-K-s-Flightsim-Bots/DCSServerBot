@@ -39,7 +39,7 @@ class Extension(ABC):
         self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
         return True
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         # avoid race conditions
         if not self.is_running():
             return True

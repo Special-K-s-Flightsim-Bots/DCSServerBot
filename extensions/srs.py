@@ -7,9 +7,11 @@ import subprocess
 import ssl
 import sys
 
+import psutil
 from discord.ext import tasks
 from configparser import RawConfigParser
 from core import Extension, utils, Server
+from psutil import Process
 from typing import Optional
 
 ports: dict[int, str] = dict()
@@ -21,7 +23,7 @@ class SRS(Extension):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
         super().__init__(server, config)
-        self.process = None
+        self.process: Optional[psutil.Process] = None
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
@@ -59,27 +61,30 @@ class SRS(Extension):
             shutil.copy2(autoconnect, autoconnect + '.bak')
             os.remove(autoconnect)
 
+    async def _maybe_update_config(self, section, key, value_key, to_lower=False):
+        if value_key in self.config:
+            value = str(self.config[value_key])
+            if to_lower:
+                value = value.lower()
+            if self.cfg[section][key] != value:
+                self.cfg.set(section, key, value)
+                self.log.info(f"  => {self.server.name}: {key} set to {self.config[value_key]}")
+                return True
+        return False
+
     async def prepare(self) -> bool:
         global ports
 
-        # Set SRS port if necessary
-        dirty = False
-        if 'port' in self.config and int(self.cfg['Server Settings']['SERVER_PORT']) != int(self.config['port']):
-            self.cfg.set('Server Settings', 'SERVER_PORT', str(self.config['port']))
-            self.log.info(f"  => {self.server.name}: SERVER_PORT set to {self.config['port']}")
-            dirty = True
-        if 'awacs' in self.config and self.cfg['General Settings']['EXTERNAL_AWACS_MODE'] != str(self.config['awacs']).lower():
-            self.cfg.set('General Settings', 'EXTERNAL_AWACS_MODE', str(self.config['awacs']).lower())
-            self.log.info(f"  => {self.server.name}: EXTERNAL_AWACS_MODE set to {self.config['awacs']}")
-            dirty = True
-        if 'blue_password' in self.config and self.cfg['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'] != self.config['blue_password']:
-            self.cfg.set('External AWACS Mode Settings', 'EXTERNAL_AWACS_MODE_BLUE_PASSWORD', self.config['blue_password'])
-            self.log.info(f"  => {self.server.name}: EXTERNAL_AWACS_MODE_BLUE_PASSWORD set to {self.config['blue_password']}")
-            dirty = True
-        if 'red_password' in self.config and self.cfg['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'] != self.config['red_password']:
-            self.cfg.set('External AWACS Mode Settings', 'EXTERNAL_AWACS_MODE_RED_PASSWORD', self.config['red_password'])
-            self.log.info(f"  => {self.server.name}: EXTERNAL_AWACS_MODE_RED_PASSWORD set to {self.config['red_password']}")
-            dirty = True
+        dirty = await self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
+        dirty = await self._maybe_update_config('General Settings',
+                                                'EXTERNAL_AWACS_MODE',
+                                                'awacs', to_lower=True) or dirty
+        dirty = await self._maybe_update_config('External AWACS Mode Settings',
+                                                'EXTERNAL_AWACS_MODE_BLUE_PASSWORD',
+                                                'blue_password') or dirty
+        dirty = await self._maybe_update_config('External AWACS Mode Settings',
+                                                'EXTERNAL_AWACS_MODE_RED_PASSWORD',
+                                                'red_password') or dirty
         if dirty:
             path = os.path.expandvars(self.config['config'])
             with open(path, mode='w', encoding='utf-8') as ini:
@@ -87,7 +92,7 @@ class SRS(Extension):
             self.locals = self.load_config()
         # Check port conflicts
         port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
-        if port in ports and ports[port] != self.server.name:
+        if ports.get(port, self.server.name) != self.server.name:
             self.log.error(f"  => {self.server.name}: {self.name} port {port} already in use by server {ports[port]}!")
             return False
         else:
@@ -112,21 +117,29 @@ class SRS(Extension):
             else:
                 info = None
             out = asyncio.subprocess.DEVNULL if not self.config.get('debug', False) else None
-            self.process = await asyncio.create_subprocess_exec(
+            p = subprocess.Popen([
                 self.get_exe_path(),
-                '-cfg={}'.format(os.path.expandvars(self.config['config'])),
-                startupinfo=info, stdout=out, stderr=out)
+                f"-cfg={os.path.expandvars(self.config['config'])}"
+            ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
+            self.process = Process(p.pid)
         return self.is_running()
 
-    async def shutdown(self):
+    def shutdown(self) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
-            p = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
-            if p:
-                p.kill()
+            super().shutdown()
+            if self.process and self.process.is_running():
+                self.process.terminate()
                 self.process = None
-            return await super().shutdown()
+            return True
+
+    def _check_and_assign_process(self) -> bool:
+        if not self.process or not self.process.is_running():
+            self.process = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
+        return self.process is not None
 
     def is_running(self) -> bool:
+        if self._check_and_assign_process():
+            return True
         server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'

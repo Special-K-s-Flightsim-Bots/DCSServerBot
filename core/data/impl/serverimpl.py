@@ -249,7 +249,7 @@ class ServerImpl(Server):
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()
         if filename:
-            miz = MizFile(self.node, filename)
+            miz = await asyncio.to_thread(MizFile, self.node, filename)
             return miz.theatre
 
     def serialize(self, message: dict):
@@ -349,7 +349,7 @@ class ServerImpl(Server):
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
             p = subprocess.Popen(
-                [exe, '--server', '--norender', '-w', self.instance.name], executable=path
+                [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
             )
             self.process = Process(p.pid)
             self.log.debug(f"  => DCS server starting up with PID {p.pid}")
@@ -409,7 +409,7 @@ class ServerImpl(Server):
     async def shutdown_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if x.is_running()]:
             try:
-                await ext.shutdown()
+                ext.shutdown()
             except Exception as ex:
                 self.log.exception(ex)
 
@@ -563,7 +563,7 @@ class ServerImpl(Server):
             if 'modify' in value:
                 miz.modify(value['modify'])
 
-        miz = MizFile(self, filename)
+        miz = await asyncio.to_thread(MizFile, self, filename)
         if isinstance(preset, list):
             for p in preset:
                 if not isinstance(p, dict):

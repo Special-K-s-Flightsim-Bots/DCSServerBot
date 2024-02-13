@@ -1,4 +1,5 @@
 import asyncio
+import atexit
 import json
 import os
 import stat
@@ -18,7 +19,7 @@ class Olympus(Extension):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         super().__init__(server, config)
         self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
-        self.process = None
+        self.process: Optional[subprocess.Popen] = None
 
     @property
     def name(self) -> str:
@@ -83,17 +84,20 @@ class Olympus(Extension):
                                f"server {client_ports[client_port]}!")
                 return False
             client_ports[client_port] = self.server.name
+
             # Starting Olympus Configurator
-            subprocess.run([
-                os.path.basename(self.nodejs),
-                "configurator.js",
-                "-a", self.config.get('server', {}).get('address', '*'),
-                "-c", str(client_port),
-                "-b", str(server_port),
-                "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
-                "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
-                "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
-            ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
+            def run_subprocess():
+                subprocess.run([
+                    os.path.basename(self.nodejs),
+                    "configurator.js",
+                    "-a", self.config.get('server', {}).get('address', '*'),
+                    "-c", str(client_port),
+                    "-b", str(server_port),
+                    "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
+                    "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
+                    "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
+                ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
+            await asyncio.to_thread(run_subprocess)
             self.locals = self.load_config()
             return await super().prepare()
         except Exception as ex:
@@ -104,9 +108,10 @@ class Olympus(Extension):
         await super().startup()
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
         try:
-            self.process = await asyncio.create_subprocess_exec(
-                self.nodejs, r".\bin\www", cwd=os.path.join(self.home, "client"), stdout=out, stderr=out
-            )
+            self.process = subprocess.Popen([
+                self.nodejs, r".\bin\www"
+            ], cwd=os.path.join(self.home, "client"), stdout=out, stderr=out, close_fds=True)
+            atexit.register(self.shutdown)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
             return False
@@ -126,10 +131,9 @@ class Olympus(Extension):
             server_ip = '127.0.0.1'
         return utils.is_open(server_ip, self.locals.get('client', {}).get('port', 3000))
 
-    async def shutdown(self) -> bool:
-        if self.process is not None and self.process.returncode is None:
-            await super().shutdown()
+    def shutdown(self) -> bool:
+        if self.process and self.process.poll() is None:
+            super().shutdown()
             self.process.terminate()
-            await self.process.wait()
             self.process = None
         return True

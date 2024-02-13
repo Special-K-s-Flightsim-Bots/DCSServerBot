@@ -24,11 +24,6 @@ class CreditPlayer(Player):
                                    (campaign_id, self.ucid))
                     if cursor.rowcount == 1:
                         self._points = cursor.fetchone()[0]
-                        self.server.send_to_dcs({
-                            'command': 'updateUserPoints',
-                            'ucid': self.ucid,
-                            'points': self._points
-                        })
                     else:
                         self.log.debug(
                             f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')

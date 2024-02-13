@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 
 from core import Server, Status, Coalition, utils
 from typing import Optional
@@ -12,7 +13,7 @@ class SRSRadio(Radio):
 
     def __init__(self, name: str, server: Server):
         super().__init__(name, server)
-        self.process: Optional[asyncio.subprocess.Process] = None
+        self.process: Optional[subprocess.Popen] = None
 
     async def play(self, file: str) -> None:
         if self.current and self.process:
@@ -21,6 +22,7 @@ class SRSRadio(Radio):
             await self.stop()
             return
         self.log.debug(f"Playing {file} ...")
+
         try:
             try:
                 srs_inst = os.path.expandvars(self.server.extensions['SRS'].config['installation'])
@@ -28,7 +30,7 @@ class SRSRadio(Radio):
             except KeyError:
                 raise RadioInitError("You need to set the SRS path in your nodes.yaml!")
             self.current = file
-            self.process = await asyncio.create_subprocess_exec(
+            self.process = subprocess.Popen([
                 os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe"),
                 "-f", self.config['frequency'],
                 "-m", str(self.config['modulation']),
@@ -36,10 +38,8 @@ class SRSRadio(Radio):
                 "-v", self.config.get('volume', '1.0'),
                 "-p", srs_port,
                 "-n", self.config.get('display_name', 'DCSSB MusicBox'),
-                "-i", file,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
-            )
+                "-i", file
+            ],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if 'popup' in self.config:
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
@@ -48,16 +48,18 @@ class SRSRadio(Radio):
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
                 self.server.sendChatMessage(Coalition.ALL, utils.format_string(self.config['popup'], **kwargs))
-            await self.process.wait()
+            await asyncio.to_thread(self.process.wait)
         except Exception as ex:
             self.log.exception(ex)
         finally:
             self.current = None
+            self.process = None
 
     async def skip(self) -> None:
-        if self.process is not None and self.process.returncode is None:
-            self.process.kill()
+        if self.process and self.process.poll() is None:
+            self.process.terminate()
             self.current = None
+            self.process = None
 
     async def stop(self) -> None:
         if self.queue_worker.is_running():

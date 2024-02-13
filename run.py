@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import os
 import platform
+import sys
 import traceback
 
 from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException
@@ -115,6 +116,8 @@ if __name__ == "__main__":
             except FatalException:
                 Install(node=args.node).install()
                 node = NodeImpl(name=args.node)
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
     except PermissionError:
         exit(-2)

@@ -105,7 +105,7 @@ class DSMC(Extension):
             return False
         return True
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         return True
 
     def is_running(self) -> bool:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import atexit
 import json
 import os
 import subprocess
@@ -74,17 +75,18 @@ class Sneaker(Extension):
                                             os.path.expandvars(self.config['config'])],
                                            executable=os.path.expandvars(self.config['cmd']),
                                            stdout=out, stderr=out)
+                atexit.register(self.shutdown)
         servers.add(self.server.name)
         return self.is_running()
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         global process, servers
 
         servers.remove(self.server.name)
-        if not servers and process is not None:
-            process.kill()
+        if not servers and process.poll() is not None:
+            process.terminate()
             process = None
-            return await super().shutdown()
+            return super().shutdown()
         elif 'config' not in self.config:
             if process and process.returncode is None:
                 process.kill()
@@ -102,7 +104,7 @@ class Sneaker(Extension):
     def is_running(self) -> bool:
         global process, servers
 
-        if process is not None and process.poll() is None:
+        if process and process.poll() is None:
             return self.server.name in servers
         else:
             process = None

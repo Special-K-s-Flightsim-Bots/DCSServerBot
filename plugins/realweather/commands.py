@@ -3,6 +3,7 @@ import discord
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 
 from core import Plugin, command, utils, Status, Server, PluginInstallationError, MizFile, UnsupportedMizFileException
@@ -48,13 +49,15 @@ class RealWeather(Plugin):
         cwd = await server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), mode='w', encoding='utf-8') as outfile:
             json.dump(cfg, outfile, indent=2)
-        proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd,
-                                                    stdout=asyncio.subprocess.DEVNULL,
-                                                    stderr=asyncio.subprocess.DEVNULL)
-        await proc.wait()
+
+        def run_subprocess():
+            subprocess.run([os.path.join(rw_home, 'realweather.exe')], cwd=cwd, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+        await asyncio.to_thread(run_subprocess)
+
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
-        MizFile(self, tmpname)
+        await asyncio.to_thread(MizFile, self, tmpname)
         # mission is good, take it
         new_filename = utils.create_writable_mission(filename)
         shutil.copy2(tmpname, new_filename)
