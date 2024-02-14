@@ -449,6 +449,9 @@ class ServerImpl(Server):
                 return filename
         new_filename = filename
         try:
+            # make a backup
+            if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
+                shutil.copy2(filename, filename + '.orig')
             # process all mission modifications
             dirty = False
             for ext in self.extensions.values():
@@ -459,9 +462,6 @@ class ServerImpl(Server):
             # we did not change anything in the mission
             if not dirty:
                 return filename
-            # make a backup
-            if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-                shutil.copy2(filename, filename + '.orig')
             # check if the original mission can be written
             if filename != new_filename:
                 missions: list[str] = self.settings['missionList']
