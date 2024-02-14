@@ -75,7 +75,7 @@ class NodeProxy(Node):
         return data['return']
 
     async def upgrade(self):
-        await self.bus.send_to_node({
+        self.bus.send_to_node({
             "command": "rpc",
             "object": "Node",
             "method": "upgrade"
