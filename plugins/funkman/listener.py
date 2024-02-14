@@ -47,7 +47,7 @@ class FunkManEventListener(EventListener):
 
         color = 0x00ff00
         urlIm = "https://i.imgur.com/1bWgcV7.png"
-        if isinstance(points, int):
+        if isinstance(points, int) or isinstance(points, float):
             if points == 0:
                 color = 0x000000  # black
                 urlIm = "https://i.imgur.com/rZpu9c0.png"
