@@ -152,6 +152,7 @@ class Mission(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
             return
+        await interaction.response.defer()
         airbase = server.current_mission.airbases[idx]
         data = await server.send_to_dcs_sync({
             "command": "getWeatherInfo",
@@ -162,7 +163,7 @@ class Mission(Plugin):
         report = Report(self.bot, self.plugin_name, 'atis.json')
         env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
         timeout = self.bot.locals.get('message_autodelete', 300)
-        await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        await interaction.followup.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @mission.command(description='Shows briefing of the active mission')
     @utils.app_has_role('DCS')
@@ -180,6 +181,7 @@ class Mission(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
             return
+        await interaction.response.defer()
         timeout = self.bot.locals.get('message_autodelete', 300)
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
@@ -187,7 +189,7 @@ class Mission(Plugin):
         mission_info['passwords'] = read_passwords(server)
         report = Report(self.bot, self.plugin_name, 'briefing.json')
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
-        await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        await interaction.followup.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @mission.command(description='Restarts the current active mission\n')
     @app_commands.guild_only()
