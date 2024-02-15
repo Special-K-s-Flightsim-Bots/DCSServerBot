@@ -214,7 +214,7 @@ class ServerLoad(report.MultiGraphElement):
             sql += f" AND server_name = %(server_name)s GROUP BY 1"
         if not server_name:
             sql = f"""
-                SELECT time, AVG(users) AS users, AVG(cpu) AS cpu, SUM(mem_paged) AS mem_paged, SUM(mem_ram) AS mem_ram, 
+                SELECT time, SUM(users) AS users, SUM(cpu) AS cpu, SUM(mem_paged) AS mem_paged, SUM(mem_ram) AS mem_ram, 
                              SUM(read) AS read, SUM(write) AS write, ROUND(AVG(sent)) AS sent, ROUND(AVG(recv)) AS recv, 
                              ROUND(AVG(fps), 2) AS fps, ROUND(AVG(ping), 2) AS ping        
                 FROM ({sql} GROUP BY 1, server_name) x
