@@ -195,33 +195,39 @@ class UsersPerDayTime(report.GraphElement):
 
 class ServerLoad(report.MultiGraphElement):
 
-    async def render(self, server_name: Optional[str], period: str, node: Optional[str]):
+    async def render(self, node: str, period: str, server_name: Optional[str] = None):
         sql = f"""
-            SELECT date_trunc('minute', time) AS time, AVG(users) AS "Users", AVG(cpu) AS "CPU", 
-                   AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS "Memory (paged)",  
-                   AVG(mem_ram)/(1024*1024) AS "Memory (RAM)", 
-                   SUM(read_bytes)/1024 AS "Read", 
-                   SUM(write_bytes)/1024 AS "Write", 
-                   ROUND(AVG(bytes_sent)) AS "Sent", 
-                   ROUND(AVG(bytes_recv)) AS "Recv", 
-                   ROUND(AVG(fps), 2) AS "FPS", 
-                   ROUND(AVG(ping), 2) AS "Ping" 
+            SELECT date_trunc('minute', time) AS time, AVG(users) AS users, AVG(cpu) AS cpu, 
+                   AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS mem_paged,  
+                   AVG(mem_ram)/(1024*1024) AS mem_ram, 
+                   SUM(read_bytes)/1024 AS read, 
+                   SUM(write_bytes)/1024 AS write, 
+                   ROUND(AVG(bytes_sent)) AS sent, 
+                   ROUND(AVG(bytes_recv)) AS recv, 
+                   ROUND(AVG(fps), 2) AS fps, 
+                   ROUND(AVG(ping), 2) AS ping 
             FROM serverstats 
             WHERE time > ((NOW() AT TIME ZONE 'UTC') - interval '1 {period}')
+            AND node = %(node)s 
         """
         if server_name:
-            sql += f" AND server_name = %s"
-        if node:
-            sql += f" AND node = '{node}'"
-        sql += " GROUP BY 1 ORDER BY 1"
+            sql += f" AND server_name = %(server_name)s GROUP BY 1"
+        if not server_name:
+            sql = f"""
+                SELECT time, AVG(users) AS users, AVG(cpu) AS cpu, SUM(mem_paged) AS mem_paged, SUM(mem_ram) AS mem_ram, 
+                             SUM(read) AS read, SUM(write) AS write, ROUND(AVG(sent)) AS sent, ROUND(AVG(recv)) AS recv, 
+                             ROUND(AVG(fps), 2) AS fps, ROUND(AVG(ping), 2) AS ping        
+                FROM ({sql} GROUP BY 1, server_name) x
+                GROUP BY 1
+            """
+        sql += " ORDER BY 1"
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                if server_name:
-                    cursor.execute(sql, (server_name, ))
-                else:
-                    cursor.execute(sql)
+                cursor.execute(sql, {"node": node, "server_name": server_name})
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
+                    series.columns = ['time', 'Users', 'CPU', 'Memory (paged)', 'Memory (RAM)', 'Read', 'Write', 'Sent',
+                                      'Recv', 'FPS', 'Ping']
                     for column in [
                         'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
                     ]:
