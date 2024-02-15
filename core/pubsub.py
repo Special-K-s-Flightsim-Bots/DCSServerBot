@@ -83,7 +83,7 @@ class PubSub:
                 await conn.set_autocommit(False)
 
     async def close(self):
-        async with self.node.pool.connection() as conn:
+        async with self.node.apool.connection() as conn:
             try:
                 await conn.set_autocommit(True)
                 self._stop_event.set()
