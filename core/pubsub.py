@@ -57,7 +57,7 @@ class PubSub:
                                 if node == self.node.name or (self.node.master and node == 'Master'):
                                     await self._process(cursor, handler)
                     finally:
-                        conn.set_autocommit(False)
+                        await conn.set_autocommit(False)
 
     # TODO: dirty, needs to be changed when we use AsyncPG in general
     def publish(self, conn: psycopg.Connection, data: dict) -> None:
