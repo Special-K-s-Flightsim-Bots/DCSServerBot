@@ -24,7 +24,7 @@ from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
-from psycopg_pool import ConnectionPool
+from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple
 from version import __version__
 
@@ -99,12 +99,13 @@ class NodeImpl(Node):
             self.plugins.append('cloud')
         self.db_version = None
         self.pool = None
+        self.apool= None
         self._master = None
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def post_init(self):
-        self.pool = self.init_db()
+        self.pool, self.apool = self.init_db()
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -214,7 +215,7 @@ class NodeImpl(Node):
         log.addHandler(ch)
         return log
 
-    def init_db(self):
+    def init_db(self) -> Tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 5)
         if self.master:
@@ -223,7 +224,9 @@ class NodeImpl(Node):
             pool_max = pool_min
         db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max,
                                  check=ConnectionPool.check_connection)
-        return db_pool
+        db_apool = AsyncConnectionPool(conninfo=url, min_size=2, max_size=4,
+                                       check=AsyncConnectionPool.check_connection)
+        return db_pool, db_apool
 
     def init_instances(self):
         for _name, _element in self.locals['instances'].items():
