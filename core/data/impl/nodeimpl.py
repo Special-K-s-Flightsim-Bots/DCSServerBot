@@ -221,7 +221,8 @@ class NodeImpl(Node):
             pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         else:
             pool_max = pool_min
-        db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max)
+        db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max,
+                                 check=ConnectionPool.check_connection)
         return db_pool
 
     def init_instances(self):
@@ -243,7 +244,7 @@ class NodeImpl(Node):
                     # initial setup
                     if len(tables) == 0:
                         self.log.info('Creating Database ...')
-                        with open('sql/tables.sql') as tables_sql:
+                        with open('sql/tables.sql', mode='r') as tables_sql:
                             for query in tables_sql.readlines():
                                 self.log.debug(query.rstrip())
                                 cursor.execute(query.rstrip())
@@ -257,7 +258,7 @@ class NodeImpl(Node):
                         self.db_version = cursor.fetchone()[0]
                         while os.path.exists(f'sql/update_{self.db_version}.sql'):
                             old_version = self.db_version
-                            with open('sql/update_{}.sql'.format(self.db_version)) as tables_sql:
+                            with open(f'sql/update_{self.db_version}.sql', mode='r') as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
@@ -294,6 +295,9 @@ class NodeImpl(Node):
                     self.log.error(f'     ./{item.a_path}')
             else:
                 self.log.error(ex)
+            return False
+        except ValueError as ex:
+            self.log.error(ex)
             return False
 
     async def _upgrade_pending_non_git(self) -> bool:
@@ -335,7 +339,7 @@ class NodeImpl(Node):
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
-            with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
+            with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
                 data = json.load(cfg)
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
@@ -356,22 +360,29 @@ class NodeImpl(Node):
 
         async def do_update(branch: Optional[str] = None) -> int:
             # disable any popup on the remote machine
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            try:
-                cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
-                if branch is not None:
-                    cmd.append(f"@{branch}")
+            if sys.platform == 'win32':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+                startupinfo.wShowWindow = subprocess.SW_HIDE
+            else:
+                startupinfo = None
 
-                process = await asyncio.create_subprocess_exec(
-                    *cmd, startupinfo=startupinfo, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
-                )
-                await process.wait()
-                return process.returncode
-            except Exception as ex:
-                self.log.exception(ex)
-                return -1
+            def run_subprocess() -> int:
+                try:
+                    cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
+                    if branch is not None:
+                        cmd.append(f"@{branch}")
+
+                    process = subprocess.run(
+                        cmd, startupinfo=startupinfo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                    return process.returncode
+                except Exception as ex:
+                    self.log.exception(ex)
+                    return -1
+
+            return await asyncio.to_thread(run_subprocess)
 
         self.update_pending = True
         servers = []
@@ -391,7 +402,7 @@ class NodeImpl(Node):
         # call before update hooks
         for callback in self.before_update.values():
             await callback()
-        rc = await do_update(branch)
+        rc = await do_update()
         if rc == 0:
             self.dcs_branch = self.dcs_version = None
             if self.locals['DCS'].get('desanitize', True):
@@ -416,16 +427,23 @@ class NodeImpl(Node):
         return rc
 
     async def handle_module(self, what: str, module: str):
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        proc = await asyncio.create_subprocess_exec(
-            os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
-            '--quiet', what, module, startupinfo=startupinfo)
-        await proc.wait()
+        if sys.platform == 'win32':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+        else:
+            startupinfo = None
+
+        def run_subprocess():
+            subprocess.run(
+                [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', what, module],
+                startupinfo=startupinfo
+            )
+
+        await asyncio.to_thread(run_subprocess)
 
     async def get_installed_modules(self) -> list[str]:
-        with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
+        with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
             data = json.load(cfg)
         return data['modules']
 
@@ -467,10 +485,14 @@ class NodeImpl(Node):
                 self.autoupdate.start()
         else:
             branch, old_version = await self.get_dcs_branch_and_version()
-            new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
-                                                       password=self.locals['DCS'].get('dcs_password'))
-            if new_version and old_version != new_version:
-                self.log.warning(f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+            try:
+                new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
+                                                           password=self.locals['DCS'].get('dcs_password'))
+                if new_version and old_version != new_version:
+                    self.log.warning(
+                        f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+            except Exception:
+                self.log.warning("Version check failed, possible auth-server outage.")
 
     async def unregister(self):
         with self.pool.connection() as conn:
@@ -514,13 +536,13 @@ class NodeImpl(Node):
                                             "object": "Node",
                                             "method": "upgrade"
                                         }
-                                        conn.execute(
-                                            "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
-                                            (node, Json(data), 2))
+                                        conn.execute("""
+                                            INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
+                                        """, (self.guild_id, node, Json(data)))
                                     # clear the update flag
-                                    cursor.execute(
-                                        "UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s",
-                                        (__version__, self.guild_id))
+                                    cursor.execute("""
+                                        UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s
+                                    """, (__version__, self.guild_id))
                                 else:
                                     # something went wrong, we need to upgrade again
                                     await self.upgrade()
@@ -546,9 +568,9 @@ class NodeImpl(Node):
                                 "object": "Node",
                                 "method": "upgrade"
                             }
-                            conn.execute(
-                                "INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
-                                (self.name, Json(data), 2))
+                            conn.execute("""
+                                INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
+                            """, (self.guild_id, self.name, Json(data)))
                             return False
                         elif version.parse(__version__) > version.parse(cluster['version']):
                             self.log.warning(f"This node is running on version {__version__} where the master still "
@@ -591,11 +613,12 @@ class NodeImpl(Node):
             """, (self.guild_id, self.name))]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
+        def run_subprocess():
+            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return proc.communicate()
+
         self.log.debug('Running shell-command: ' + cmd)
-        process = await asyncio.create_subprocess_shell(cmd,
-                                                        stdout=asyncio.subprocess.PIPE,
-                                                        stderr=asyncio.subprocess.PIPE)
-        stdout, stderr = await process.communicate()
+        stdout, stderr = await asyncio.to_thread(run_subprocess)
         return (stdout.decode('cp1252', 'ignore') if stdout else None,
                 stderr.decode('cp1252', 'ignore') if stderr else None)
 
@@ -608,8 +631,8 @@ class NodeImpl(Node):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     with open(path, mode='rb') as file:
-                        conn.execute("INSERT INTO files (name, data) VALUES (%s, %s)",
-                                     (path, psycopg.Binary(file.read())))
+                        conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
+                                     (self.guild_id, path, psycopg.Binary(file.read())))
                     return conn.execute("SELECT currval('files_id_seq')").fetchone()[0]
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
@@ -622,7 +645,7 @@ class NodeImpl(Node):
                     try:
                         # make sure the directory exists
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
-                        with open(filename, 'wb') as outfile:
+                        with open(filename, mode='wb') as outfile:
                             outfile.write(await response.read())
                     except Exception as ex:
                         self.log.error(ex)
@@ -647,7 +670,8 @@ class NodeImpl(Node):
 
     async def rename_server(self, server: Server, new_name: str):
         if not self.master:
-            self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
+            self.log.error(
+                f"Rename request received for server {server.name} that should have gone to the master node!")
             return
         # we are doing the plugin changes, as we are the master
         ServiceRegistry.get('Bot').rename_server(server, new_name)
@@ -663,9 +687,13 @@ class NodeImpl(Node):
         if self.update_pending:
             return
         try:
-            branch, old_version = await self.get_dcs_branch_and_version()
-            new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
-                                                       password=self.locals['DCS'].get('dcs_password'))
+            try:
+                branch, old_version = await self.get_dcs_branch_and_version()
+                new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
+                                                           password=self.locals['DCS'].get('dcs_password'))
+            except Exception:
+                self.log.warning("Update check failed, possible server outage at ED.")
+                return
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
@@ -732,13 +760,13 @@ class NodeImpl(Node):
         autoexec.webgui_port = instance.webgui_port
         autoexec.crash_report_mode = "silent"
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r') as infile:
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
         config[self.name]['instances'][instance.name] = {
             "home": instance.home,
             "bot_port": instance.bot_port
         }
-        with open(config_file, mode='w') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
         settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
@@ -753,10 +781,10 @@ class NodeImpl(Node):
 
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open('config_file', mode='r') as infile:
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
         del config[self.name]['instances'][instance.name]
-        with open(config_file, mode='w') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
         self.instances.remove(instance)
         with self.pool.connection() as conn:
@@ -767,7 +795,7 @@ class NodeImpl(Node):
 
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r') as infile:
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
         new_home = os.path.join(os.path.dirname(instance.home), new_name)
         os.rename(instance.home, new_home)
@@ -782,7 +810,7 @@ class NodeImpl(Node):
         instance.name = new_name
         instance.locals['home'] = new_home
         del config[self.name]['instances'][instance.name]
-        with open(config_file, mode='w') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
 
     async def find_all_instances(self) -> list[Tuple[str, str]]:
@@ -796,18 +824,18 @@ class NodeImpl(Node):
         ServiceRegistry.get("ServiceBus").servers[server.name] = server
         instance.server = server
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r') as infile:
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
         config[self.name]['instances'][instance.name]['server'] = server.name
-        with open(config_file, mode='w') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
 
     async def unregister_server(self, server: Server) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         instance = server.instance
         instance.server = None
-        with open(config_file, mode='r') as infile:
+        with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
         del config[self.name]['instances'][instance.name]['server']
-        with open(config_file, mode='w') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)

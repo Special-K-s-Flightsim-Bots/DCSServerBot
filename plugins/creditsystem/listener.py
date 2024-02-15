@@ -147,7 +147,6 @@ class CreditSystemListener(EventListener):
                         # (to be configured in Slotblocking)
                         if multiplier:
                             player.deposit += ppk * multiplier
-                            self.log.debug(f"### Player {player.name} killed {data['arg5']}. Deposit: {player.deposit}")
                         player.points += ppk
                         player.audit('kill', old_points, f"for killing {data['arg5']}")
 

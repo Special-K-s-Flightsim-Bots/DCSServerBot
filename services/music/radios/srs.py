@@ -30,16 +30,20 @@ class SRSRadio(Radio):
             except KeyError:
                 raise RadioInitError("You need to set the SRS path in your nodes.yaml!")
             self.current = file
-            self.process = subprocess.Popen([
-                os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe"),
-                "-f", self.config['frequency'],
-                "-m", str(self.config['modulation']),
-                "-c", str(self.config['coalition']),
-                "-v", self.config.get('volume', '1.0'),
-                "-p", srs_port,
-                "-n", self.config.get('display_name', 'DCSSB MusicBox'),
-                "-i", file
-            ],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            def run_subprocess():
+                return subprocess.Popen([
+                    os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe"),
+                    "-f", self.config['frequency'],
+                    "-m", str(self.config['modulation']),
+                    "-c", str(self.config['coalition']),
+                    "-v", self.config.get('volume', '1.0'),
+                    "-p", srs_port,
+                    "-n", self.config.get('display_name', 'DCSSB MusicBox'),
+                    "-i", file
+                ],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            self.process = await asyncio.to_thread(run_subprocess)
             if 'popup' in self.config:
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)

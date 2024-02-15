@@ -27,12 +27,15 @@ class Lardoon(Extension):
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
         if not process or process.returncode is not None:
-            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
-            cmd = os.path.basename(self.config['cmd'])
-            self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
-            process = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
-                                       executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=out, stderr=out)
+
+            def run_subprocess():
+                out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+                cmd = os.path.basename(self.config['cmd'])
+                self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
+                return subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
+                                        executable=os.path.expandvars(self.config['cmd']),
+                                        stdout=out, stderr=out)
+            process = await asyncio.to_thread(run_subprocess)
             atexit.register(self.shutdown)
             servers.add(self.server.name)
         return self.is_running()

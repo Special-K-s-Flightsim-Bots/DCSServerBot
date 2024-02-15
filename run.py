@@ -36,7 +36,8 @@ class Main:
             if (cloud_drive and self.node.master) or not cloud_drive:
                 await self.node.upgrade()
         elif await self.node.upgrade_pending():
-            self.log.warning("There is a new update for DCSServerBot available!")
+            self.log.warning(
+                "New update for DCSServerBot available! Use /node upgrade or enable autoupdate to apply it.")
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:

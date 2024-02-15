@@ -3,7 +3,6 @@ import asyncio
 import concurrent
 import inspect
 import json
-import psycopg
 import uuid
 
 from _operator import attrgetter
@@ -11,11 +10,10 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Mission, Node, utils
+    InstanceProxy, NodeProxy, Mission, Node, utils, PubSub
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timedelta, timezone
-from discord.ext import tasks
 from enum import Enum
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
@@ -47,21 +45,37 @@ class ServiceBus(Service):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
-        self.intercom.add_exception_type(psycopg.Error)
+        # main.yaml database connection has priority for intercom
+        url = self.node.config.get("database", self.node.locals.get('database'))['url']
+        self.intercom_channel = PubSub(self.node, 'intercom', url)
+        # nodes.yaml database connection has priority for broadcasts
+        url = self.node.locals.get("database", self.node.config.get('database'))['url']
+        self.broadcasts_channel = PubSub(self.node, 'broadcasts', url)
 
     async def start(self):
         await super().start()
         try:
-            # cleanup the intercom channels
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
-                    conn.execute("DELETE FROM files WHERE created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')")
-                    conn.execute("DELETE FROM intercom WHERE time < ((now() AT TIME ZONE 'utc') - interval '300 seconds')")
-                    if self.master:
-                        conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
+            # Start the DCS listener
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
             await self.start_udp_listener()
+
+            # cleanup the intercom and broadcast channels
+            await self.intercom_channel.clear()
+            await self.broadcasts_channel.clear()
+            # cleanup the files
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
+                        DELETE FROM files 
+                        WHERE guild_id = %s AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
+                    """, (self.node.guild_id, ))
+
+            # subscribe to the intercom and broadcast channels
+            self.loop.create_task(
+                self.intercom_channel.subscribe(self.handle_rpc))
+            self.loop.create_task(
+                self.broadcasts_channel.subscribe(self.handle_master if self.master else self.handle_agent))
+
             await self.init_servers()
             if self.master:
                 self.bot = ServiceRegistry.get("Bot").bot
@@ -79,13 +93,13 @@ class ServiceBus(Service):
                         "node": self.node.name
                     }
                 })
-            self.intercom.start()
+
         except Exception as ex:
             self.log.exception(ex)
 
     async def stop(self):
-        self.intercom.cancel()
-        self.log.debug('- Intercom stopped.')
+        await self.broadcasts_channel.close()
+        await self.intercom_channel.close()
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -146,7 +160,7 @@ class ServiceBus(Service):
 
     async def send_init(self, server: Server):
         _, dcs_version = await self.node.get_dcs_branch_and_version()
-        self.send_to_node({
+        await self.send_to_node_sync({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "init_remote_server",
@@ -391,15 +405,20 @@ class ServiceBus(Service):
     def send_to_node(self, data: dict, *, node: Optional[Union[Node, str]] = None):
         if isinstance(node, Node):
             node = node.name
-        priority = 1 if data.get('command', '') == 'rpc' else 0
         if self.master:
             if node and node != self.node.name:
                 self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
                 with self.pool.connection() as conn:
                     with conn.transaction():
-                        conn.execute("INSERT INTO intercom (node, data, priority) VALUES (%s, %s, %s)",
-                                     (node, Json(data), priority))
-            elif data['command'] != 'rpc':
+                        if data.get('command', '') == 'rpc':
+                            self.intercom_channel.publish(conn, {
+                                'guild_id': self.node.guild_id, 'node': node, 'data': Json(data)
+                            })
+                        else:
+                            self.broadcasts_channel.publish(conn, {
+                                'guild_id': self.node.guild_id, 'node': node, 'data': Json(data)
+                            })
+            elif data.get('command', '') != 'rpc':
                 server_name = data['server_name']
                 if server_name not in self.udp_server.message_queue:
                     self.log.debug(f"Message received for unregistered server {server_name} - ignoring.")
@@ -411,9 +430,15 @@ class ServiceBus(Service):
             data['node'] = self.node.name
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    conn.execute("INSERT INTO intercom (node, data, priority) VALUES ('Master', %s, %s)",
-                                 (Json(data), priority))
-                    self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
+                    if data.get('command', '') == 'rpc':
+                        self.intercom_channel.publish(conn, {
+                            'guild_id': self.node.guild_id, 'node': 'Master', 'data': Json(data)
+                        })
+                    else:
+                        self.broadcasts_channel.publish(conn, {
+                            'guild_id': self.node.guild_id, 'node': 'Master', 'data': Json(data)
+                        })
+            self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
     async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 30.0, *,
                                 node: Optional[Union[Node, str]] = None):
@@ -514,36 +539,6 @@ class ServiceBus(Service):
         else:
             server: Server = self.servers[server_name]
             server.send_to_dcs(data)
-
-    @tasks.loop(seconds=1)
-    async def intercom(self):
-        try:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    while True:
-                        # we read until there is no new data, then we wait for the next call (after 1 s)
-                        idx = 0
-                        ids_to_delete = []
-                        for idx, row in enumerate(conn.execute("""
-                            SELECT id, data FROM intercom WHERE node = %s ORDER BY priority desc, id LIMIT 100
-                        """, ("Master" if self.master else self.node.name, ))):
-                            data = row[1]
-                            try:
-                                if data['command'] == 'rpc':
-                                    asyncio.create_task(self.handle_rpc(data))
-                                elif self.master:
-                                    asyncio.create_task(self.handle_master(data))
-                                else:
-                                    asyncio.create_task(self.handle_agent(data))
-                                ids_to_delete.append(row[0])
-                            except Exception as ex:
-                                self.log.exception(ex)
-                        if ids_to_delete:
-                            conn.execute("DELETE FROM intercom WHERE id = ANY(%s::int[])", (ids_to_delete, ))
-                        if idx < 10:
-                            break
-        except Exception as ex:
-            self.log.exception(ex)
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:

@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import asyncio
 import atexit
 import json
 import os
@@ -47,6 +49,16 @@ class Sneaker(Extension):
         with open(filename, mode='w', encoding='utf-8') as file:
             json.dump(cfg, file, indent=2)
 
+    def _run_subprocess(self, config: str):
+        cmd = os.path.basename(self.config['cmd'])
+        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+        self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
+                       f"--config {config}")
+        return subprocess.Popen([
+            cmd, "--bind", self.config['bind'], "--config", config
+        ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
+
+
     async def startup(self) -> bool:
         global process, servers
 
@@ -54,27 +66,14 @@ class Sneaker(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
-        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
         if 'config' not in self.config:
             if process and process.returncode is None:
                 process.kill()
             self.create_config()
-            cmd = os.path.basename(self.config['cmd'])
-            self.log.debug(
-                f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config/sneaker.json")
-            process = subprocess.Popen([
-                cmd, "--bind", self.config['bind'],
-                "--config", os.path.join('config', 'sneaker.json')
-            ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
+            process = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
         else:
             if not process:
-                cmd = os.path.basename(self.config['cmd'])
-                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
-                               f"--config {self.config['config']}")
-                process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
-                                            os.path.expandvars(self.config['config'])],
-                                           executable=os.path.expandvars(self.config['cmd']),
-                                           stdout=out, stderr=out)
+                process = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
                 atexit.register(self.shutdown)
         servers.add(self.server.name)
         return self.is_running()
@@ -94,17 +93,13 @@ class Sneaker(Extension):
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                            f"--config config/sneaker.json")
-            process = subprocess.Popen([
-                cmd,
-                "--bind", self.config['bind'],
-                "--config", os.path.join('config', 'sneaker.json')
-            ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            process = self._run_subprocess(os.path.join('config', 'sneaker.json'))
         return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if process and process.poll() is None:
+        if process is not None and process.poll() is None:
             return self.server.name in servers
         else:
             process = None

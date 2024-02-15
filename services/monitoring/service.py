@@ -139,7 +139,7 @@ class MonitoringService(Service):
             if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
             # check if the process is dead (on load it might take some seconds for the process to appear)
-            if server.process and not await server.is_running():
+            if not await server.is_running():
                 message = f'Server "{server.name}" died. Setting state to SHUTDOWN.'
                 self.log.warning(message)
                 server.status = Status.SHUTDOWN
@@ -149,7 +149,7 @@ class MonitoringService(Service):
                 return
             # No, check if the process is still doing something
             try:
-                server.keep_alive()
+                await server.keep_alive()
                 # check if server is alive
                 if server.status == Status.LOADING:
                     max_hung = int(server.instance.locals.get('max_hung_minutes', 3)) * 2

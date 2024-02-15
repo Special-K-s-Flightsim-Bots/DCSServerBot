@@ -82,6 +82,7 @@ class ServerImpl(Server):
 
     def __post_init__(self):
         super().__post_init__()
+        self.lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT DO NOTHING", (self.name, ))
@@ -409,7 +410,7 @@ class ServerImpl(Server):
     async def shutdown_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if x.is_running()]:
             try:
-                ext.shutdown()
+                await asyncio.to_thread(ext.shutdown)
             except Exception as ex:
                 self.log.exception(ex)
 
@@ -417,23 +418,17 @@ class ServerImpl(Server):
         if await self.is_running():
             if not force:
                 await super().shutdown(False)
-            await self.terminate()
+            self._terminate()
         self.status = Status.SHUTDOWN
 
-    def _check_and_assign_process(self) -> bool:
-        if not self.process or not self.process.is_running():
-            self.process = utils.find_process("DCS_server.exe|DCS.exe", self.instance.name)
-        return self.process is not None
-
     async def is_running(self) -> bool:
-        # do we have a registered and running process?
-        if self._check_and_assign_process():
-            return True
-        # we might not have the necessary permissions to read the process
-        return utils.is_open('127.0.0.1', int(self.settings.get('port', 10308)))
+        async with self.lock:
+            if not self.process or not self.process.is_running():
+                self.process = await asyncio.to_thread(utils.find_process, "DCS_server.exe|DCS.exe", self.instance.name)
+            return self.process is not None
 
-    async def terminate(self) -> None:
-        if await self.is_running():
+    def _terminate(self) -> None:
+        if self.process and self.process.is_running():
             self.process.kill()
         self.process = None
 
@@ -482,7 +477,7 @@ class ServerImpl(Server):
             if autoscan:
                 self.locals['autoscan'] = True
 
-    def keep_alive(self):
+    async def keep_alive(self):
         self.send_to_dcs({"command": "getMissionUpdate"})
         with self.pool.connection() as conn:
             with conn.transaction():

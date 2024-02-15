@@ -116,13 +116,13 @@ class SRS(Extension):
                 info.wShowWindow = win32con.SW_MINIMIZE
             else:
                 info = None
-            out = asyncio.subprocess.DEVNULL if not self.config.get('debug', False) else None
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             p = subprocess.Popen([
                 self.get_exe_path(),
                 f"-cfg={os.path.expandvars(self.config['config'])}"
             ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
             self.process = Process(p.pid)
-        return self.is_running()
+        return await asyncio.to_thread(self.is_running)
 
     def shutdown(self) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
@@ -132,18 +132,10 @@ class SRS(Extension):
                 self.process = None
             return True
 
-    def _check_and_assign_process(self) -> bool:
-        if not self.process or not self.process.is_running():
-            self.process = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
-        return self.process is not None
-
     def is_running(self) -> bool:
-        if self._check_and_assign_process():
-            return True
-        server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
-        if server_ip == '0.0.0.0':
-            server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+        if not self.process or not self.process.is_running():
+            self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+        return self.process is not None
 
     def get_inst_path(self) -> str:
         return os.path.join(

@@ -97,6 +97,7 @@ class Olympus(Extension):
                     "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
                     "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
                 ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
+
             await asyncio.to_thread(run_subprocess)
             self.locals = self.load_config()
             return await super().prepare()
@@ -107,10 +108,13 @@ class Olympus(Extension):
     async def startup(self) -> bool:
         await super().startup()
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+
+        def run_subprocess():
+            return subprocess.Popen([self.nodejs, r".\bin\www"], cwd=os.path.join(self.home, "client"),
+                                    stdout=out, stderr=out)
+
         try:
-            self.process = subprocess.Popen([
-                self.nodejs, r".\bin\www"
-            ], cwd=os.path.join(self.home, "client"), stdout=out, stderr=out, close_fds=True)
+            self.process = await asyncio.to_thread(run_subprocess)
             atexit.register(self.shutdown)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
