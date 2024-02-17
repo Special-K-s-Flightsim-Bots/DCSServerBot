@@ -343,7 +343,12 @@ class ServerImpl(Server):
             self.log.error(f"No executable found to start a DCS server in {basepath}!")
             return
         # check if all missions are existing
-        missions = [x for x in self.settings['missionList'] if os.path.exists(x)]
+        missions = []
+        for mission in self.settings['missionList']:
+            if os.path.exists(mission):
+                missions.append(mission)
+            else:
+                self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
         if len(missions) != len(self.settings['missionList']):
             self.settings['missionList'] = missions
             self.log.warning('Removed non-existent missions from serverSettings.lua')
