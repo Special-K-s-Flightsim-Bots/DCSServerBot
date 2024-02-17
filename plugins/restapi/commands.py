@@ -4,7 +4,6 @@ import os
 import shutil
 import uvicorn
 
-from contextlib import closing
 from core import Plugin, DEFAULT_TAG
 from datetime import datetime
 from fastapi import FastAPI, APIRouter, Form
@@ -54,79 +53,85 @@ class RestAPI(Plugin):
             config = super().read_locals()
         return config
 
-    def topkills(self):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("""
+    async def topkills(self):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
                     SELECT p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1 ORDER BY 2 DESC LIMIT 10
-                """).fetchall()
+                """)
+                return await cursor.fetchall()
 
-    def topkdr(self):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("""
+    async def topkdr(self):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
                     SELECT p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1 ORDER BY 4 DESC LIMIT 10
-                """).fetchall()
+                """)
+                return await cursor.fetchall()
 
-    def trueskill(self):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("""
+    async def trueskill(self):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
                     SELECT 
                         p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
-                        p.skill_mu AS "TrueSkill" 
-                    FROM statistics s, players p 
+                        t.skill_mu AS "TrueSkill" 
+                    FROM statistics s, players p, trueskill t 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
-                    GROUP BY 1 ORDER BY 4 DESC LIMIT 10
-                """).fetchall()
+                    GROUP BY 1,4 ORDER BY 4 DESC LIMIT 10
+                """)
+                return await cursor.fetchall()
 
-    def getuser(self, nick: str = Form(default=None)):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("""
+    async def getuser(self, nick: str = Form(default=None)):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
                     SELECT name AS \"nick\", last_seen AS \"date\" FROM players WHERE name ILIKE %s ORDER BY 2 DESC
-                """, ('%' + nick + '%', )).fetchall()
+                """, ('%' + nick + '%', ))
+                return await cursor.fetchall()
 
-    def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+    async def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT weapon, shots, hits, 
+                           ROUND(CASE WHEN shots = 0 THEN 0 ELSE hits/shots::DECIMAL END, 2) AS "pk"
+                    FROM (
+                        SELECT weapon, SUM(CASE WHEN event='S_EVENT_SHOT' THEN 1 ELSE 0 END) AS "shots", 
+                               SUM(CASE WHEN event='S_EVENT_HIT' THEN 1 ELSE 0 END) AS "hits" 
+                        FROM missionstats 
+                        WHERE init_id = (SELECT ucid FROM players WHERE name = %s AND last_seen = %s)
+                        AND weapon IS NOT NULL
+                        GROUP BY weapon
+                    ) x
+                    ORDER BY 4 DESC
+                """, (nick, datetime.fromisoformat(date)))
                 return {
-                    "missilePK": dict([(row['weapon'], row['pk']) for row in cursor.execute("""
-                        SELECT weapon, shots, hits, 
-                               ROUND(CASE WHEN shots = 0 THEN 0 ELSE hits/shots::DECIMAL END, 2) AS "pk"
-                        FROM (
-                            SELECT weapon, SUM(CASE WHEN event='S_EVENT_SHOT' THEN 1 ELSE 0 END) AS "shots", 
-                                   SUM(CASE WHEN event='S_EVENT_HIT' THEN 1 ELSE 0 END) AS "hits" 
-                            FROM missionstats 
-                            WHERE init_id = (SELECT ucid FROM players WHERE name = %s AND last_seen = %s)
-                            AND weapon IS NOT NULL
-                            GROUP BY weapon
-                        ) x
-                        ORDER BY 4 DESC
-                    """, (nick, datetime.fromisoformat(date))).fetchall()])
+                    "missilePK": dict([(row['weapon'], row['pk']) async for row in cursor])
                 }
 
-    def stats(self, nick: str = Form(default=None), date: str = Form(default=None)):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                row = cursor.execute("SELECT ucid FROM players WHERE name = %s AND last_seen = %s",
-                                     (nick, datetime.fromisoformat(date))).fetchone()
+    async def stats(self, nick: str = Form(default=None), date: str = Form(default=None)):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT ucid FROM players WHERE name = %s AND last_seen = %s",
+                                     (nick, datetime.fromisoformat(date)))
+                row = await cursor.fetchone()
                 if row:
                     ucid = row['ucid']
                 else:
                     return {}
-                data = cursor.execute("""
+                await cursor.execute("""
                     SELECT overall.deaths, overall.aakills, 
                            ROUND(CASE WHEN overall.deaths = 0 
                                       THEN overall.aakills 
@@ -143,22 +148,25 @@ class RestAPI(Plugin):
                             SELECT player_ucid, max(mission_id) FROM statistics WHERE player_ucid = %s GROUP BY 1
                         )
                     ) lastsession
-                """, (ucid, ucid)).fetchone()
-                data['killsByModule'] = cursor.execute("""
+                """, (ucid, ucid))
+                data = await cursor.fetchone()
+                await cursor.execute("""
                     SELECT slot AS "module", SUM(pvp) AS "kills" 
                     FROM statistics 
                     WHERE player_ucid = %s 
                     GROUP BY 1 HAVING SUM(pvp) > 1 
                     ORDER BY 2 DESC
-                """, (ucid, )).fetchall()
-                data['kdrByModule'] = cursor.execute("""
+                """, (ucid,))
+                data['killsByModule'] = await cursor.fetchall()
+                await cursor.execute("""
                     SELECT slot AS "module", 
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp) / SUM(deaths::DECIMAL) END AS "kdr" 
                     FROM statistics 
                     WHERE player_ucid = %s 
                     GROUP BY 1 HAVING SUM(pvp) > 1 
                     ORDER BY 2 DESC
-                """, (ucid, )).fetchall()
+                """, (ucid,))
+                data['kdrByModule'] = await cursor.fetchall()
                 return data
 
 

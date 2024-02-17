@@ -1,7 +1,6 @@
 import discord
 import math
 
-from contextlib import closing
 from core import report, utils, Side, Server, Coalition
 from psycopg.rows import dict_row
 from typing import Optional
@@ -42,15 +41,15 @@ class HighscorePlaytime(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
                 if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                    await cursor.execute(sql, (server_name, ))
                 else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+                    await cursor.execute(sql)
+                async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
@@ -110,15 +109,15 @@ class HighscoreElement(report.GraphElement):
             sql += f' AND SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) > 1800'
         sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
                 if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                    await cursor.execute(sql, (server_name, ))
                 else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+                    await cursor.execute(sql)
+                async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)

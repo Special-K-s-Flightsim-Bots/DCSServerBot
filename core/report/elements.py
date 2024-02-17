@@ -9,7 +9,6 @@ import sys
 import uuid
 
 from abc import ABC, abstractmethod
-from contextlib import closing
 from core import utils
 from datetime import timedelta, datetime
 from discord import ButtonStyle, Interaction
@@ -53,6 +52,7 @@ class ReportElement(ABC):
         self.node = self.bot.node
         self.log = env.bot.log
         self.pool = env.bot.pool
+        self.apool = env.bot.apool
 
     @abstractmethod
     async def render(self, **kwargs):
@@ -233,6 +233,7 @@ class Graph(ReportElement):
                 plt.close(self.env.figure)
                 self.env.figure = None
 
+
 def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: bool):
     if isinstance(no_data, str):
         element.add_field(name='_ _', value=no_data)
@@ -243,11 +244,11 @@ def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: b
 
 class SQLField(EmbedElement):
     async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount > 0:
-                    row = cursor.fetchone()
+                    row = await cursor.fetchone()
                     name = list(row.keys())[0]
                     value = row[name]
                     if isinstance(value, datetime):
@@ -261,9 +262,9 @@ class SQLField(EmbedElement):
 class SQLTable(EmbedElement):
     async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None,
                      ansi_colors: Optional[bool] = False):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 0:
                     if no_data:
                         _display_no_data(self, no_data, inline)
@@ -271,7 +272,7 @@ class SQLTable(EmbedElement):
                 header = None
                 cols = []
                 elements = 0
-                for row in cursor:
+                async for row in cursor:
                     elements = len(row)
                     if not header:
                         header = list(row.keys())
@@ -337,14 +338,14 @@ class BarChart(GraphElement):
 
 class SQLBarChart(BarChart):
     async def render(self, sql: str):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
-                    await super().render(cursor.fetchone())
+                    await super().render(await cursor.fetchone())
                 elif cursor.rowcount > 1:
                     values = {}
-                    for row in cursor:
+                    async for row in cursor:
                         d = list(row.values())
                         values[d[0]] = d[1]
                     await super().render(values)
@@ -392,14 +393,14 @@ class PieChart(GraphElement):
 
 class SQLPieChart(PieChart):
     async def render(self, sql: str):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
-                    await super().render(cursor.fetchone())
+                    await super().render(await cursor.fetchone())
                 elif cursor.rowcount > 1:
                     values = {}
-                    for row in cursor:
+                    async for row in cursor:
                         d = list(row.values())
                         values[d[0]] = d[1]
                     await super().render(values)

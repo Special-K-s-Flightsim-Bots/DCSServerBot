@@ -475,11 +475,11 @@ class Scheduler(Plugin):
                         "command": "setCoalitionPassword",
                         ("redPassword" if coalition == 'red' else "bluePassword"): derived.password.value or ''
                     })
-                    with self.pool.connection() as conn:
-                        with conn.transaction():
-                            conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                    async with self.apool.connection() as conn:
+                        async with conn.transaction():
+                            await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
                                 'blue_password' if coalition == 'blue' else 'red_password'),
-                                         (self.password, server.name))
+                                (self.password, server.name))
                     await self.bot.audit(f"changed password for coalition {coalition}",
                                          user=interaction.user, server=server)
                 else:

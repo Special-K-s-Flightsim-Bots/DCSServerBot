@@ -43,18 +43,18 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 
 class MissionStatistics(Plugin):
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Missionstats ...')
         if ucids:
             for ucid in ucids:
-                conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
+                await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
         elif days > -1:
-            conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
+            await conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Missionstats pruned.')
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        conn.execute("UPDATE missionstats SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
-        conn.execute("UPDATE missionstats SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
+        await conn.execute("UPDATE missionstats SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
+        await conn.execute("UPDATE missionstats SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     @command(description='Display Mission Statistics')
     @app_commands.guild_only()
@@ -87,13 +87,13 @@ class MissionStatistics(Plugin):
             return
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(ucid)
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
                 name = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'sorties.json')
@@ -131,13 +131,13 @@ class MissionStatistics(Plugin):
             return
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(ucid)
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
                 name = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
@@ -158,13 +158,13 @@ class MissionStatistics(Plugin):
             return
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(ucid)
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
                 name = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
@@ -180,13 +180,13 @@ class MissionStatistics(Plugin):
             user = interaction.user
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(ucid)
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
                 name = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'nemesis.json')
@@ -202,13 +202,13 @@ class MissionStatistics(Plugin):
             user = interaction.user
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(ucid)
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
                 name = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'antagonist.json')

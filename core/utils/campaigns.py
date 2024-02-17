@@ -43,14 +43,15 @@ def get_all_campaigns(self) -> list[str]:
         return [x[0] for x in conn.execute('SELECT name FROM campaigns')]
 
 
-def get_campaign(self, campaign: str) -> dict:
-    with self.pool.connection() as conn:
-        with closing(conn.cursor(row_factory=dict_row)) as cursor:
-            return cursor.execute("""
+async def get_campaign(self, campaign: str) -> dict:
+    async with self.apool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cursor:
+            await cursor.execute("""
                 SELECT id, name, description, start, stop 
                 FROM campaigns 
                 WHERE name = %s 
-            """, (campaign, )).fetchone()
+            """, (campaign, ))
+            return await cursor.fetchone()
 
 
 async def campaign_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

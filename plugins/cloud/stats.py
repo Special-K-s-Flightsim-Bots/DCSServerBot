@@ -8,7 +8,7 @@ from typing import Optional
 
 
 class GuildPagination(Pagination):
-    def values(self, data: DataFrame, **kwargs) -> list[str]:
+    async def values(self, data: DataFrame, **kwargs) -> list[str]:
         return data['guild'].unique().tolist()
 
 

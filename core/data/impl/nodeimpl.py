@@ -1,3 +1,4 @@
+import aiofiles
 import aiohttp
 import asyncio
 import certifi
@@ -98,8 +99,8 @@ class NodeImpl(Node):
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
         self.db_version = None
-        self.pool = None
-        self.apool= None
+        self.pool: Optional[ConnectionPool] = None
+        self.apool: Optional[AsyncConnectionPool] = None
         self._master = None
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
@@ -107,9 +108,9 @@ class NodeImpl(Node):
     async def post_init(self):
         self.pool, self.apool = self.init_db()
         try:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
                         ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
                     """, (self.guild_id, self.name))
@@ -118,7 +119,7 @@ class NodeImpl(Node):
             # some master tables have changed, so do the update first
             self._master = True
         if self._master:
-            self.update_db()
+            await self.update_db()
         self.init_instances()
 
     @property
@@ -217,15 +218,13 @@ class NodeImpl(Node):
 
     def init_db(self) -> Tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
-        pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 5)
-        if self.master:
-            pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
-        else:
-            pool_max = pool_min
-        db_pool = ConnectionPool(url, min_size=pool_min, max_size=pool_max,
-                                 check=ConnectionPool.check_connection)
-        db_apool = AsyncConnectionPool(conninfo=url, min_size=2, max_size=4,
-                                       check=AsyncConnectionPool.check_connection)
+        pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 4)
+        pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
+        max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
+        db_pool = ConnectionPool(url, min_size=2, max_size=4,
+                                 check=ConnectionPool.check_connection, max_idle=max_idle)
+        db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
+                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle)
         return db_pool, db_apool
 
     def init_instances(self):
@@ -235,39 +234,39 @@ class NodeImpl(Node):
             self.instances.append(instance)
         del self.locals['instances']
 
-    def update_db(self):
+    async def update_db(self):
         # Initialize the database
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    # check if there is an old database already
-                    cursor.execute("SELECT tablename FROM pg_catalog.pg_tables "
-                                   "WHERE tablename IN ('version', 'plugins')")
-                    tables = [x[0] for x in cursor]
-                    # initial setup
-                    if len(tables) == 0:
-                        self.log.info('Creating Database ...')
-                        with open('sql/tables.sql', mode='r') as tables_sql:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                # check if there is an old database already
+                cursor = await conn.execute("""
+                    SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')
+                """)
+                tables = [x[0] async for x in cursor]
+                # initial setup
+                if len(tables) == 0:
+                    self.log.info('Creating Database ...')
+                    with open('sql/tables.sql', mode='r') as tables_sql:
+                        for query in tables_sql.readlines():
+                            self.log.debug(query.rstrip())
+                            await cursor.execute(query.rstrip())
+                    self.log.info('Database created.')
+                else:
+                    # version table missing (DB version <= 1.4)
+                    if 'version' not in tables:
+                        await conn.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY)")
+                        await conn.execute("INSERT INTO version (version) VALUES ('v1.4')")
+                    cursor = await conn.execute('SELECT version FROM version')
+                    self.db_version = (await cursor.fetchone())[0]
+                    while os.path.exists(f'sql/update_{self.db_version}.sql'):
+                        old_version = self.db_version
+                        with open(f'sql/update_{self.db_version}.sql', mode='r') as tables_sql:
                             for query in tables_sql.readlines():
                                 self.log.debug(query.rstrip())
-                                cursor.execute(query.rstrip())
-                        self.log.info('Database created.')
-                    else:
-                        # version table missing (DB version <= 1.4)
-                        if 'version' not in tables:
-                            cursor.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);"
-                                           "INSERT INTO version (version) VALUES ('v1.4');")
-                        cursor.execute('SELECT version FROM version')
-                        self.db_version = cursor.fetchone()[0]
-                        while os.path.exists(f'sql/update_{self.db_version}.sql'):
-                            old_version = self.db_version
-                            with open(f'sql/update_{self.db_version}.sql', mode='r') as tables_sql:
-                                for query in tables_sql.readlines():
-                                    self.log.debug(query.rstrip())
-                                    cursor.execute(query.rstrip())
-                            cursor.execute('SELECT version FROM version')
-                            self.db_version = cursor.fetchone()[0]
-                            self.log.info(f'Database upgraded from {old_version} to {self.db_version}.')
+                                await conn.execute(query.rstrip())
+                        cursor = await conn.execute('SELECT version FROM version')
+                        self.db_version = (await cursor.fetchone())[0]
+                        self.log.info(f'Database upgraded from {old_version} to {self.db_version}.')
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
@@ -334,9 +333,10 @@ class NodeImpl(Node):
             return
         elif await self.upgrade_pending():
             if self.master:
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s", (self.guild_id, ))
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
+                                           (self.guild_id, ))
             subprocess.Popen([sys.executable, 'update.py', '-n', self.node.name])
             sys.exit(0)
 
@@ -498,30 +498,32 @@ class NodeImpl(Node):
                 self.log.warning("Version check failed, possible auth-server outage.")
 
     async def unregister(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
         if self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
     async def heartbeat(self) -> bool:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cursor:
                     try:
-                        all_nodes = cursor.execute("""
+                        await cursor.execute("""
                             SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
                             WHERE guild_id = %s FOR UPDATE
-                        """, (self.guild_id, )).fetchall()
-                        cluster = cursor.execute("""
+                        """, (self.guild_id, ))
+                        all_nodes = await cursor.fetchall()
+                        await cursor.execute("""
                             SELECT c.master, c.version, c.update_pending 
                             FROM cluster c, nodes n 
                             WHERE c.guild_id = %s AND c.guild_id = n.guild_id AND c.master = n.node
-                        """, (self.guild_id, )).fetchone()
+                        """, (self.guild_id, ))
+                        cluster = await cursor.fetchone()
                         # No master there? we take it!
                         if not cluster:
-                            cursor.execute("""
+                            await cursor.execute("""
                                 INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)
                                 ON CONFLICT (guild_id) DO UPDATE 
                                 SET master = excluded.master, version = excluded.version
@@ -532,18 +534,18 @@ class NodeImpl(Node):
                             if cluster['update_pending']:
                                 if not await self.upgrade_pending():
                                     # we have just finished updating, so restart all other nodes (if there are any)
-                                    for node in self.get_active_nodes():
+                                    for node in await self.get_active_nodes():
                                         # TODO: we might not have bus access here yet, so be our own bus (dirty)
                                         data = {
                                             "command": "rpc",
                                             "object": "Node",
                                             "method": "upgrade"
                                         }
-                                        conn.execute("""
+                                        await conn.execute("""
                                             INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
                                         """, (self.guild_id, node, Json(data)))
                                     # clear the update flag
-                                    cursor.execute("""
+                                    await cursor.execute("""
                                         UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s
                                     """, (__version__, self.guild_id))
                                 else:
@@ -555,8 +557,8 @@ class NodeImpl(Node):
                                         f"Bot version downgraded from {cluster['version']} to {__version__}. "
                                         f"This could lead to unexpected behavior if there have been database schema "
                                         f"changes.")
-                                cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
-                                               (__version__, self.guild_id))
+                                await cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
+                                                     (__version__, self.guild_id))
                             return True
                         # we are not the master, the update is pending, we will not take over
                         if cluster['update_pending']:
@@ -571,7 +573,7 @@ class NodeImpl(Node):
                                 "object": "Node",
                                 "method": "upgrade"
                             }
-                            conn.execute("""
+                            await cursor.execute("""
                                 INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
                             """, (self.guild_id, self.name, Json(data)))
                             return False
@@ -580,8 +582,8 @@ class NodeImpl(Node):
                                              f"runs on {cluster['version']}. You need to upgrade your master node!")
                         # we are not the master, but we are the preferred one, taking over
                         if self.locals.get('preferred_master', False):
-                            cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
-                                           (self.name, self.guild_id))
+                            await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                 (self.name, self.guild_id))
                             return True
                         # else, check if the running master is probably dead...
                         for row in all_nodes:
@@ -590,30 +592,32 @@ class NodeImpl(Node):
                             if row['node'] == cluster['master']:
                                 if (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
                                     # the master is dead, long live the master
-                                    cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
-                                                   (self.name, self.guild_id))
+                                    await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                         (self.name, self.guild_id))
                                     return True
                                 return False
                         # we can not find a master - take over
-                        cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s", (self.name, self.guild_id))
+                        await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                             (self.name, self.guild_id))
                         return True
                     except UndefinedTable:
                         return True
                     except Exception as e:
                         self.log.exception(e)
                     finally:
-                        cursor.execute("""
+                        await cursor.execute("""
                             UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
                         """, (self.guild_id, self.name))
 
-    def get_active_nodes(self) -> list[str]:
-        with self.pool.connection() as conn:
-            return [row[0] for row in conn.execute("""
+    async def get_active_nodes(self) -> list[str]:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
                 SELECT node FROM nodes 
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
-            """, (self.guild_id, self.name))]
+            """, (self.guild_id, self.name))
+            return [row[0] async for row in cursor]
 
     async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
         def run_subprocess():
@@ -628,15 +632,16 @@ class NodeImpl(Node):
     async def read_file(self, path: str) -> Union[bytes, int]:
         path = os.path.expandvars(path)
         if self.node.master:
-            with open(path, mode='rb') as file:
-                return file.read()
+            async with aiofiles.open(path, mode='rb') as file:
+                return await file.read()
         else:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    with open(path, mode='rb') as file:
-                        conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
-                                     (self.guild_id, path, psycopg.Binary(file.read())))
-                    return conn.execute("SELECT currval('files_id_seq')").fetchone()[0]
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async with aiofiles.open(path, mode='rb') as file:
+                        await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
+                                           (self.guild_id, path, psycopg.Binary(await file.read())))
+                    cursor = await conn.execute("SELECT currval('files_id_seq')")
+                    return (await cursor.fetchone())[0]
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         if os.path.exists(filename) and not overwrite:
@@ -648,8 +653,8 @@ class NodeImpl(Node):
                     try:
                         # make sure the directory exists
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
-                        with open(filename, mode='wb') as outfile:
-                            outfile.write(await response.read())
+                        async with aiofiles.open(filename, mode='wb') as outfile:
+                            await outfile.write(await response.read())
                     except Exception as ex:
                         self.log.error(ex)
                         return UploadStatus.WRITE_ERROR
@@ -677,7 +682,7 @@ class NodeImpl(Node):
                 f"Rename request received for server {server.name} that should have gone to the master node!")
             return
         # we are doing the plugin changes, as we are the master
-        ServiceRegistry.get('Bot').rename_server(server, new_name)
+        await ServiceRegistry.get('Bot').rename_server(server, new_name)
         # update the ServiceBus
         ServiceRegistry.get('ServiceBus').rename_server(server, new_name)
         # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
@@ -790,9 +795,9 @@ class NodeImpl(Node):
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
         self.instances.remove(instance)
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
         if remove_files:
             shutil.rmtree(instance.home, ignore_errors=True)
 
@@ -804,9 +809,9 @@ class NodeImpl(Node):
         os.rename(instance.home, new_home)
         config[self.name]['instances'][new_name] = config[self.name]['instances'][instance.name].copy()
         config[self.name]['instances'][new_name]['home'] = new_home
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     UPDATE instances SET instance = %s 
                     WHERE node = %s AND instance = %s
                 """, (new_name, instance.node.name, instance.name, ))

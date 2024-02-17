@@ -1,6 +1,6 @@
 import aiohttp
+
 from core import EventListener, Server, Player, Side, event
-from contextlib import closing
 from psycopg.rows import dict_row
 
 
@@ -18,10 +18,10 @@ class CloudListener(EventListener):
             return
         if player.side == Side.SPECTATOR:
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    cursor.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute("""
                         SELECT s.player_ucid, m.mission_theatre, s.slot, SUM(s.kills) as kills, 
                                SUM(s.pvp) as pvp, SUM(deaths) as deaths, SUM(ejections) as ejections, 
                                SUM(crashes) as crashes, SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
@@ -38,7 +38,7 @@ class CloudListener(EventListener):
                         GROUP BY 1, 2, 3
                     """, (player.ucid, server.current_mission.map, player.unit_type))
                 if cursor.rowcount > 0:
-                    row = cursor.fetchone()
+                    row = await cursor.fetchone()
                     row['client'] = self.plugin.client
                     try:
                         await self.plugin.post('upload', row)

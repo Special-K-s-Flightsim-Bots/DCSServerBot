@@ -298,16 +298,16 @@ class ServerImpl(Server):
         old_name = self.name
         try:
             # rename the server in the database
-            with self.pool.connection() as conn:
-                with conn.transaction():
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
                     # we need to remove any older server that might have had the same name
-                    conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
-                    conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                 (new_name, self.name))
-                    conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
-                                 (new_name, self.name))
-                    conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                 (new_name, self.name))
+                    await conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
+                    await conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                                       (new_name, self.name))
+                    await conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
+                                       (new_name, self.name))
+                    await conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                                       (new_name, self.name))
                     # only the master can take care of a cluster-wide rename
                     if self.node.master:
                         await self.node.rename_server(self, new_name)
@@ -389,7 +389,7 @@ class ServerImpl(Server):
                 self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
         if modify_mission:
             await self.apply_mission_changes()
-        await asyncio.create_task(asyncio.to_thread(self.do_startup))
+        await asyncio.to_thread(self.do_startup)
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         try:
@@ -479,9 +479,9 @@ class ServerImpl(Server):
 
     async def keep_alive(self):
         self.send_to_dcs({"command": "getMissionUpdate"})
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE node = %s AND server_name = %s
                 """, (self.node.name, self.name))
@@ -571,7 +571,7 @@ class ServerImpl(Server):
             self.log.error(f"{preset} is not a dictionary!")
         # write new mission
         new_filename = utils.create_writable_mission(filename)
-        miz.save(new_filename)
+        await asyncio.to_thread(miz.save, new_filename)
         return new_filename
 
     async def persist_settings(self):

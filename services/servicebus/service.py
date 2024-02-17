@@ -63,9 +63,9 @@ class ServiceBus(Service):
             await self.intercom_channel.clear()
             await self.broadcasts_channel.clear()
             # cleanup the files
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         DELETE FROM files 
                         WHERE guild_id = %s AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
                     """, (self.node.guild_id, ))
@@ -74,7 +74,7 @@ class ServiceBus(Service):
             self.loop.create_task(
                 self.intercom_channel.subscribe(self.handle_rpc))
             self.loop.create_task(
-                self.broadcasts_channel.subscribe(self.handle_master if self.master else self.handle_agent))
+                self.broadcasts_channel.subscribe(self.handle_broadcast_event))
 
             await self.init_servers()
             if self.master:
@@ -140,13 +140,14 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     async def init_servers(self):
-        with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             for instance in self.node.instances:
                 try:
-                    row = conn.execute("""
+                    cursor = await conn.execute("""
                         SELECT server_name FROM instances 
                         WHERE node=%s AND instance=%s AND server_name IS NOT NULL
-                    """, (self.node.name, instance.name)).fetchone()
+                    """, (self.node.name, instance.name))
+                    row = await cursor.fetchone()
                     # was there a server bound to this instance?
                     if row:
                         server: ServerImpl = DataObjectFactory().new(
@@ -310,16 +311,16 @@ class ServiceBus(Service):
             self.udp_server.message_queue[new_name] = Queue()
             self.executor.submit(self.udp_server.process, new_name)
 
-    def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
+    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
             until = datetime.utcnow() + timedelta(days=days)
             until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
         else:
             until = datetime(year=9999, month=12, day=31)
             until_str = 'never'
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO bans (ucid, banned_by, reason, banned_until) 
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT DO NOTHING
@@ -337,10 +338,10 @@ class ServiceBus(Service):
             if player:
                 player.banned = True
 
-    def unban(self, ucid: str):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
+    async def unban(self, ucid: str):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                 continue
@@ -352,24 +353,24 @@ class ServiceBus(Service):
             if player:
                 player.banned = False
 
-    def bans(self) -> list[dict]:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return [
-                    x for x in cursor.execute("""
-                        SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
-                               b.banned_until 
-                        FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
-                        WHERE b.banned_until >= (now() AT TIME ZONE 'utc')
-                    """)
-                ]
+    async def bans(self) -> list[dict]:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
+                           b.banned_until 
+                    FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
+                    WHERE b.banned_until >= (now() AT TIME ZONE 'utc')
+                """)
+                return [x async for x in cursor]
 
-    def is_banned(self, ucid: str) -> Optional[dict]:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute(
-                    "SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')",
-                    (ucid, )).fetchone()
+    async def is_banned(self, ucid: str) -> Optional[dict]:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')
+                """, (ucid, ))
+                return await cursor.fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, home: str, settings: dict,
                            options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
@@ -511,7 +512,17 @@ class ServiceBus(Service):
                     }
                 }, node=data.get('node'))
 
+    async def handle_broadcast_event(self, data: dict) -> None:
+        if self.master:
+            await self.handle_master(data)
+        else:
+            await self.handle_agent(data)
+
     async def handle_master(self, data: dict):
+        if 'node' not in data:
+            self.log.error(f"Event without Node: {json.dumps(data)}")
+            self.log.error(f"Master is {self.master}")
+            return
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         server_name = data['server_name']
         if server_name not in self.udp_server.message_queue:

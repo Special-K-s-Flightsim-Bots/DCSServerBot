@@ -1,4 +1,5 @@
 import discord
+
 from core import DataObjectFactory, Member, Player, Server, Report
 from discord.ui import View, Button
 from services import DCSServerBot
@@ -31,7 +32,7 @@ class InfoView(View):
                 button = Button(emoji="💯")
                 button.callback = self.on_verify
                 self.add_item(button)
-        banned = self.is_banned()
+        banned = await self.is_banned()
         if banned:
             button = Button(emoji="✅")
             button.callback = self.on_unban
@@ -44,7 +45,7 @@ class InfoView(View):
             button = Button(emoji="⏏️")
             button.callback = self.on_kick
             self.add_item(button)
-        watchlist = self.is_watchlist()
+        watchlist = await self.is_watchlist()
         if watchlist:
             button = Button(emoji="🆓")
             button.callback = self.on_unwatch
@@ -60,12 +61,13 @@ class InfoView(View):
         env = await report.render(member=self.member, player=self.player, banned=banned, watchlist=watchlist)
         return env.embed
 
-    def is_banned(self) -> bool:
-        return self.bot.bus.is_banned(self.ucid) is not None
+    async def is_banned(self) -> bool:
+        return await self.bot.bus.is_banned(self.ucid) is not None
 
-    def is_watchlist(self) -> bool:
-        with self.bot.pool.connection() as conn:
-            row = conn.execute("SELECT watchlist FROM players WHERE ucid = %s", (self.ucid, )).fetchone()
+    async def is_watchlist(self) -> bool:
+        async with self.bot.apool.connection() as conn:
+            cursor = await conn.execute("SELECT watchlist FROM players WHERE ucid = %s", (self.ucid,))
+            row = await cursor.fetchone()
         return row[0] if row else False
 
     async def on_cancel(self, interaction: discord.Interaction):
@@ -75,13 +77,13 @@ class InfoView(View):
     async def on_ban(self, interaction: discord.Interaction):
         await interaction.response.defer()
         # TODO: reason modal
-        self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
+        await self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
         await interaction.followup.send("User has been banned.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self.bot.bus.unban(self.ucid)
+        await self.bot.bus.unban(self.ucid)
         await interaction.followup.send("User has been unbanned.", ephemeral=self.ephemeral)
         self.stop()
 
@@ -94,28 +96,28 @@ class InfoView(View):
 
     async def on_unlink(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self._member.unlink(self.ucid)
+        await self._member.unlink(self.ucid)
         await interaction.followup.send("Member has been unlinked.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self._member.link(self.ucid)
+        await self._member.link(self.ucid)
         await interaction.followup.send("Member has been verified.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_watch(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        with self.bot.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (self.ucid, ))
+        async with self.bot.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (self.ucid, ))
         await interaction.followup.send("User is now on the watchlist.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_unwatch(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        with self.bot.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (self.ucid, ))
+        async with self.bot.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (self.ucid, ))
         await interaction.followup.send("User removed from the watchlist.", ephemeral=self.ephemeral)
         self.stop()

@@ -3,6 +3,7 @@ import re
 import string
 import sys
 import uuid
+
 from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event
 from matplotlib import pyplot as plt
 from pathlib import Path
@@ -79,19 +80,19 @@ class GreenieBoardEventListener(EventListener):
         # make sure the config cache is re-read on mission changes
         self.plugin.get_config(server, use_cache=False)
 
-    def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
+    async def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
         points = data.get('points', config['ratings'][data['grade']])
         if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
-            cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
+            await cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
             cp.points += points
         case = data.get('case', 1 if not night else 3)
         wire = data.get('wire')
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
                                               wire, night, points, trapsheet) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -128,19 +129,19 @@ class GreenieBoardEventListener(EventListener):
             self.log.error(f'GreenieBoard: No trapsheet with pattern ({filename}) could be found!')
             return None
 
-    def process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
+    async def process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
         if not data['grade'].startswith("WO"):
             data['trapsheet'] = self.get_trapsheet(config, server, player, data)
-        self.process_lso_event(config, server, player, data)
+        await self.process_lso_event(config, server, player, data)
 
-    def process_sc_event(self, config: dict, server: Server, player: Player, data: dict):
+    async def process_sc_event(self, config: dict, server: Server, player: Player, data: dict):
         data['details'] = get_element(data['comment'], 'details')
         data['grade'] = get_element(data['comment'], 'grade').replace('---', '--')
         data['wire'] = get_element(data['comment'], 'wire')
-        self.process_lso_event(config, server, player, data)
+        await self.process_lso_event(config, server, player, data)
 
-    def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
+    async def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
         if 'FunkMan' not in config:
             self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
             return
@@ -164,7 +165,7 @@ class GreenieBoardEventListener(EventListener):
             'name': data['carriername']
         }
         data['time'] = sum(x * int(t) for x, t in zip([3600, 60, 1], data['mitime'].split(":"))) - int(server.current_mission.start_time)
-        self.process_lso_event(config, server, player, data)
+        await self.process_lso_event(config, server, player, data)
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
@@ -183,10 +184,10 @@ class GreenieBoardEventListener(EventListener):
                                      'Please use the Funkman protocol instead.')
                     return
                 if data['eventName'] == 'S_EVENT_AIRBOSS':
-                    self.process_airboss_event(config, server, player, data)
+                    await self.process_airboss_event(config, server, player, data)
                     update = True
             elif data['eventName'] == 'S_EVENT_LANDING_QUALITY_MARK':
-                self.process_sc_event(config, server, player, data)
+                await self.process_sc_event(config, server, player, data)
                 update = True
             if update:
                 await self.send_chat_message(player, data)
@@ -197,6 +198,6 @@ class GreenieBoardEventListener(EventListener):
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['name']) if 'name' in data else None
         if player:
-            self.process_funkman_event(config, server, player, data)
+            await self.process_funkman_event(config, server, player, data)
             await self.send_chat_message(player, data)
             await self.update_greenieboard(server)

@@ -127,8 +127,8 @@ class OvGME(Plugin):
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     # New command group "/mods"
     mods = Group(name="mods", description="Commands to manage custom mods in your DCS server")
@@ -219,7 +219,7 @@ class OvGME(Plugin):
                 await interaction.response.defer()
                 try:
                     folder, package, version = derived.available[int(interaction.data['values'][0])]
-                    current = self.service.get_installed_package(server, folder, package)
+                    current = await self.service.get_installed_package(server, folder, package)
                     if current:
                         derived.embed.set_footer(text=f"Updating mod {package}, please wait ...")
                         await interaction.edit_original_response(embed=derived.embed)
@@ -339,7 +339,7 @@ class OvGME(Plugin):
             return
         folder, package = mod.split('/')
         await interaction.response.defer(ephemeral=ephemeral)
-        current = self.service.get_installed_package(server, folder, package)
+        current = await self.service.get_installed_package(server, folder, package)
         if current == version:
             await interaction.followup.send(f"Package {package}_v{version} is already installed.")
             return

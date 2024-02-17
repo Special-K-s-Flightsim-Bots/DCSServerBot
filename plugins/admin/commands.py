@@ -3,7 +3,6 @@ import discord
 import os
 import shutil
 
-from contextlib import closing
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
@@ -37,12 +36,13 @@ async def watchlist_autocomplete(interaction: discord.Interaction, current: str)
     if not await interaction.command._check_can_run(interaction):
         return []
     show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
-    with interaction.client.pool.connection() as conn:
+    async with interaction.client.apool.connection() as conn:
+        cursor = await conn.execute("""
+                        SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
+        """, ('%' + current + '%', '%' + current + '%'))
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
-            for row in conn.execute("""
-                SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
-            """, ('%' + current + '%', '%' + current + '%'))
+            async for row in cursor
         ]
         return choices[:25]
 
@@ -162,7 +162,7 @@ class Admin(Plugin):
             async def on_submit(derived, interaction: discord.Interaction):
                 days = int(derived.period.value) if derived.period.value else None
                 if isinstance(derived.user, discord.Member):
-                    ucid = self.bot.get_ucid_by_member(derived.user)
+                    ucid = await self.bot.get_ucid_by_member(derived.user)
                     if not ucid:
                         await interaction.response.send_message(f"Member {derived.user.display_name} is not linked!",
                                                                 ephemeral=True)
@@ -171,12 +171,12 @@ class Admin(Plugin):
                 else:
                     ucid = derived.user
                     # check if we should ban a member
-                    name = self.bot.get_member_or_name_by_ucid(ucid)
+                    name = await self.bot.get_member_or_name_by_ucid(ucid)
                     if isinstance(name, discord.Member):
                         name = name.display_name
                     elif not name:
                         name = ucid
-                self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
+                await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {name} banned on all servers" +
                                                         (f" for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
@@ -194,8 +194,8 @@ class Admin(Plugin):
     @app_commands.rename(ucid="user")
     @app_commands.autocomplete(ucid=bans_autocomplete)
     async def unban(self, interaction: discord.Interaction, ucid: str):
-        self.bus.unban(ucid)
-        name = self.bot.get_member_or_name_by_ucid(ucid)
+        await self.bus.unban(ucid)
+        name = await self.bot.get_member_or_name_by_ucid(ucid)
         if isinstance(name, discord.Member):
             name = name.display_name
         elif not name:
@@ -210,7 +210,7 @@ class Admin(Plugin):
     @app_commands.autocomplete(user=bans_autocomplete)
     async def bans(self, interaction: discord.Interaction, user: str):
         try:
-            ban = next(x for x in self.bus.bans() if x['ucid'] == user)
+            ban = next(x for x in await self.bus.bans() if x['ucid'] == user)
         except StopIteration:
             await interaction.response.send_message(f"User with UCID {user} is not banned.", ephemeral=True)
             return
@@ -236,7 +236,7 @@ class Admin(Plugin):
                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
                         sel_type=PlayerType.PLAYER)]]):
         if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 await interaction.response.send_message(f"Member {user.display_name} is not linked.")
                 return
@@ -253,9 +253,9 @@ class Admin(Plugin):
                     await interaction.response.send_message(f"Player {player.display_name} is now on the watchlist.",
                                                             ephemeral=utils.get_ephemeral(interaction))
                 return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
         await interaction.response.send_message(
             "Player {} is now on the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
             ephemeral=utils.get_ephemeral(interaction))
@@ -272,9 +272,9 @@ class Admin(Plugin):
                 await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
                                                         ephemeral=utils.get_ephemeral(interaction))
                 return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
         await interaction.response.send_message(f"Player {user} removed from the watchlist.",
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -283,8 +283,9 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def watchlist(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        with self.pool.connection() as conn:
-            watches = conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE").fetchall()
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE")
+            watches = await cursor.fetchall()
             if not watches:
                 await interaction.response.send_message("The watchlist is currently empty.", ephemeral=ephemeral)
                 return
@@ -450,14 +451,14 @@ class Admin(Plugin):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
 
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor() as cursor:
                     if user:
                         for plugin in self.bot.cogs.values():  # type: Plugin
                             await plugin.prune(conn, ucids=[user])
-                            cursor.execute('DELETE FROM players WHERE ucid = %s', (user, ))
-                            cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (user, ))
+                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (user, ))
+                            await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (user, ))
                             await interaction.followup.send(f"Data of user {user} deleted.")
                             return
                     if view.what in ['users', 'non-members']:
@@ -465,7 +466,8 @@ class Admin(Plugin):
                                f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")
                         if view.what == 'non-members':
                             sql += ' AND discord_id = -1'
-                        ucids = [row[0] for row in cursor.execute(sql)]
+                        await cursor.execute(sql)
+                        ucids = [row[0] async for row in cursor]
                         if not ucids:
                             await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
                             return
@@ -476,8 +478,8 @@ class Admin(Plugin):
                         for plugin in self.bot.cogs.values():  # type: Plugin
                             await plugin.prune(conn, ucids=ucids)
                         for ucid in ucids:
-                            cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                            cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid,))
+                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                            await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid,))
                         await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
                     elif view.what == 'data':
                         days = int(view.age)
@@ -532,7 +534,7 @@ class Admin(Plugin):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         if method != 'upgrade' or node:
-            for n in self.node.get_active_nodes():
+            for n in await self.node.get_active_nodes():
                 if not node or n == node.name:
                     self.bus.send_to_node({
                         "command": "rpc",
@@ -818,9 +820,9 @@ Please make sure you forward the following ports:
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
-        ucid = self.bot.get_ucid_by_member(member)
+        ucid = await self.bot.get_ucid_by_member(member)
         if ucid and self.bot.locals.get('autoban', False):
-            self.bus.unban(ucid)
+            await self.bus.unban(ucid)
         if self.bot.locals.get('greeting_dm'):
             channel = await member.create_dm()
             await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
@@ -828,10 +830,10 @@ Please make sure you forward the following ports:
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         self.bot.log.debug(f'Member {member.display_name} has left the discord')
-        ucid = self.bot.get_ucid_by_member(member)
+        ucid = await self.bot.get_ucid_by_member(member)
         if ucid and self.bot.locals.get('autoban', False):
             self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
-            self.bus.ban(ucid, self.bot.member.display_name, 'Player left discord.')
+            await self.bus.ban(ucid, self.bot.member.display_name, 'Player left discord.')
 
 
 async def setup(bot: DCSServerBot):

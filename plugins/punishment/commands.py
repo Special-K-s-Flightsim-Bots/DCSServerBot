@@ -2,7 +2,7 @@ import asyncio
 import discord
 import psycopg
 
-from contextlib import closing, suppress
+from contextlib import suppress
 from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, PluginInstallationError, \
     command, DEFAULT_TAG, Report
 from discord import app_commands
@@ -33,20 +33,20 @@ class Punishment(Plugin):
         self.check_punishments.cancel()
         await super().cog_unload()
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-        conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+        await conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        conn.execute("UPDATE pu_events SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
-        conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
+        await conn.execute("UPDATE pu_events SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
+        await conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
         player: Player = server.get_player(ucid=ucid, active=True)
         member = self.bot.get_member_by_ucid(ucid)
         admin_channel = self.bot.get_admin_channel(server)
         if punishment['action'] == 'ban':
-            self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))
+            await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))
             if member:
                 message = "Member {} banned by {} for {}.".format(utils.escape_string(member.display_name),
                                                                   utils.escape_string(self.bot.member.name), reason)
@@ -87,7 +87,7 @@ class Punishment(Plugin):
             player: CreditPlayer = cast(CreditPlayer, player)
             old_points = player.points
             player.points -= punishment['penalty']
-            player.audit('punishment', old_points, f"Punished for {reason}")
+            await player.audit('punishment', old_points, f"Punished for {reason}")
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
                                    f"Your current credit points are: {player.points}")
             await admin_channel.send(f"Player {player.display_name} (ucid={player.ucid}) punished "
@@ -105,20 +105,22 @@ class Punishment(Plugin):
     @tasks.loop(minutes=1.0)
     async def check_punishments(self):
         async with self.eventlistener.lock:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async with conn.cursor(row_factory=dict_row) as cursor:
                         for server_name, server in self.bot.servers.items():
                             config = self.get_config(server)
                             # we are not initialized correctly yet
                             if not config:
                                 continue
                             forgive = config.get('forgive', 30)
-                            for row in cursor.execute(f"""
+                            await cursor.execute(f"""
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
                                 AND time < (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (server_name, )).fetchall():
+                            """, (server_name,))
+                            rows = await cursor.fetchall()
+                            for row in rows:
                                 try:
                                     if 'punishments' in config:
                                         for punishment in config['punishments']:
@@ -136,7 +138,7 @@ class Punishment(Plugin):
                                             await self.punish(server, row['init_id'], punishment, reason, row['points'])
                                             break
                                 finally:
-                                    cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
+                                    await cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
 
     @check_punishments.before_loop
     async def before_check(self):
@@ -149,15 +151,15 @@ class Punishment(Plugin):
     async def decay(self):
         if self.decay_config:
             self.log.debug('Punishment - Running decay ...')
-            with self.pool.connection() as conn:
-                with conn.transaction():
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
                     for d in self.decay_config:
                         days = d['days']
-                        conn.execute(f"""
+                        await conn.execute(f"""
                             UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
                             WHERE time < (timezone('utc', now()) - interval '{days} days') AND decay_run < %s
                         """, (d['weight'], days, days))
-                        conn.execute("DELETE FROM pu_events WHERE points = 0.0")
+                        await conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
     @command(name='punish', description='Adds punishment points to a user')
     @utils.app_has_role('DCS Admin')
@@ -169,7 +171,7 @@ class Punishment(Plugin):
 
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 await interaction.response.send_message(f"User {user.display_name} is not linked.", ephemeral=ephemeral)
                 return
@@ -178,9 +180,9 @@ class Punishment(Plugin):
         else:
             await interaction.response.send_message("You must provide a valid UCID to be punished.", ephemeral=True)
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO pu_events (init_id, server_name, event, points)
                     VALUES (%s, %s, %s, %s) 
                 """, (ucid, server.name, reason, points))
@@ -195,30 +197,27 @@ class Punishment(Plugin):
         if await utils.yn_question(interaction,
                                    'This will delete all the punishment points for this user and unban them '
                                    'if they were banned.\nAre you sure (Y/N)?', ephemeral=ephemeral):
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    with closing(conn.cursor()) as cursor:
-                        if isinstance(user, discord.Member):
-                            ucids = [
-                                row[0] for row in cursor.execute('SELECT ucid FROM players WHERE discord_id = %s',
-                                                                 (user.id,))
-                            ]
-                            if not ucids:
-                                await interaction.followup.send(f"User {user.display_name} is not linked.",
-                                                                ephemeral=True)
-                        else:
-                            ucids = [user]
-                        for ucid in ucids:
-                            cursor.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
-                            cursor.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
-                            cursor.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
-                            for server_name, server in self.bot.servers.items():
-                                server.send_to_dcs({
-                                    "command": "unban",
-                                    "ucid": ucid
-                                })
-                    await interaction.followup.send('All punishment points deleted and player unbanned '
-                                                    '(if they were banned by the bot before).', ephemeral=ephemeral)
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    if isinstance(user, discord.Member):
+                        cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id,))
+                        ucids = [row[0] async for row in cursor]
+                        if not ucids:
+                            await interaction.followup.send(f"User {user.display_name} is not linked.",
+                                                            ephemeral=True)
+                    else:
+                        ucids = [user]
+                    for ucid in ucids:
+                        await conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
+                        await conn.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
+                        await conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
+                        for server_name, server in self.bot.servers.items():
+                            server.send_to_dcs({
+                                "command": "unban",
+                                "ucid": ucid
+                            })
+                await interaction.followup.send('All punishment points deleted and player unbanned '
+                                                '(if they were banned by the bot before).', ephemeral=ephemeral)
 
     @command(description='Displays your current penalty points')
     @app_commands.guild_only()
@@ -235,7 +234,7 @@ class Punishment(Plugin):
                 ucid = user
                 user = self.bot.get_member_by_ucid(ucid) or ucid
             else:
-                ucid = self.bot.get_ucid_by_member(user)
+                ucid = await self.bot.get_ucid_by_member(user)
                 if not ucid:
                     await interaction.response.send_message(
                         f"Member {utils.escape_string(user.display_name)} is not linked to any DCS user.",
@@ -243,14 +242,14 @@ class Punishment(Plugin):
                     return
         else:
             user = interaction.user
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 await interaction.response.send_message(f"Use `/linkme` to link your account first.", ephemeral=True)
                 return
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
-                               (ucid, ))
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
+                                     (ucid, ))
                 if cursor.rowcount == 0:
                     await interaction.response.send_message('User has no penalty points.', ephemeral=ephemeral)
                     return
@@ -261,7 +260,7 @@ class Punishment(Plugin):
                     color=discord.Color.blue())
                 times = events = points = ''
                 total = 0.0
-                for row in cursor:
+                async for row in cursor:
                     times += f"{row['time']:%m-%d %H:%M}\n"
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
@@ -274,7 +273,7 @@ class Punishment(Plugin):
                 embed.set_footer(text='Points decay over time, you might see different results on different days.')
                 embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
                 # check bans
-                ban = self.bus.is_banned(ucid)
+                ban = await self.bus.is_banned(ucid)
                 if ban:
                     if ban['banned_until'].year == 9999:
                         until = 'never'
@@ -300,7 +299,7 @@ class Punishment(Plugin):
         if isinstance(user, str):
             ucid = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 await interaction.response.send_message("This member is not linked.", ephemeral=True)
                 return

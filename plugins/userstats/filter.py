@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from contextlib import closing
 from core import utils, Pagination, ReportEnv, const
 from services import DCSServerBot
 from typing import Any, Optional
@@ -209,15 +208,15 @@ class MissionStatisticsFilter(StatisticsFilter):
 class StatsPagination(Pagination):
     def __init__(self, env: ReportEnv):
         super().__init__(env)
-        self.pool = env.bot.pool
+        self.apool = env.bot.apool
         self.log = env.bot.log
 
-    def values(self, period: str, **kwargs) -> list[str]:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
+    async def values(self, period: str, **kwargs) -> list[str]:
+        async with self.apool.connection() as conn:
+            async with conn.cursor() as cursor:
                 if period in [None, 'all', 'day', 'week', 'month', 'year', 'today', 'yesterday']:
-                    cursor.execute('SELECT DISTINCT server_name FROM missions')
+                    await cursor.execute('SELECT DISTINCT server_name FROM missions')
                 else:
-                    cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s WHERE '
-                                   'c.id = s.campaign_id AND c.name ILIKE %s', (period,))
-                return [x[0] for x in cursor]
+                    await cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s '
+                                         'WHERE c.id = s.campaign_id AND c.name ILIKE %s', (period,))
+                return [x[0] async for x in cursor]

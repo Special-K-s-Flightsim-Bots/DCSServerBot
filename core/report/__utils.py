@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import closing
 from core import utils
 from core.report.errors import ValueNotInRange
 from psycopg.rows import dict_row
@@ -39,11 +38,11 @@ async def parse_input(self, kwargs: dict, params: list[Any]):
             elif 'default' in param:
                 new_args[param['name']] = param['default']
         elif 'sql' in param:
-            with self.pool.connection() as conn:
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    cursor.execute(utils.format_string(param['sql'], **kwargs), kwargs)
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute(utils.format_string(param['sql'], **kwargs), kwargs)
                     if cursor.rowcount == 1:
-                        for name, value in cursor.fetchone().items():
+                        for name, value in (await cursor.fetchone()).items():
                             new_args[name] = value
         elif 'callback' in param:
             try:

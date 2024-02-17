@@ -57,7 +57,7 @@ class MonitoringService(Service):
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     async def check_nodes(self):
-        active_nodes: list[str] = self.node.get_active_nodes()
+        active_nodes: list[str] = await self.node.get_active_nodes()
         used_nodes: set[str] = set()
         for server in [x for x in self.bus.servers.values() if x.is_remote]:
             if server.node.name not in active_nodes:

@@ -31,6 +31,7 @@ class Service(ABC):
         self.node: NodeImpl = node
         self.log = node.log
         self.pool = node.pool
+        self.apool = node.apool
         self.config = node.config
         self.locals = self.read_locals()
         self._config = dict[str, dict]()

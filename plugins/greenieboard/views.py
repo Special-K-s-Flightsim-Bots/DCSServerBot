@@ -1,4 +1,5 @@
 import discord
+
 from core import utils
 from datetime import datetime
 from discord import TextStyle, SelectOption
@@ -18,7 +19,7 @@ class TrapModal(Modal):
         super().__init__(title="Enter the trap details")
         self.bot = bot
         self.log = bot.log
-        self.pool = bot.pool
+        self.apool = bot.apool
         self.config = config
         self.user = user
         self.unit_type = unit_type
@@ -38,13 +39,13 @@ class TrapModal(Modal):
             raise TypeError('Wire needs to be one of 1 to 4.')
 
         if isinstance(self.user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(self.user)
+            ucid = await self.bot.get_ucid_by_member(self.user)
         else:
             ucid = self.user
 
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, night, 
                                               points, wire, trapcase) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)

@@ -2,7 +2,6 @@ import discord
 import psycopg
 import random
 
-from contextlib import closing
 from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
@@ -60,15 +59,15 @@ class UserStatistics(Plugin):
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
-                conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+                await conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
         elif days > -1:
-            conn.execute(f"""
+            await conn.execute(f"""
                 DELETE FROM statistics WHERE hop_off < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
             """)
         self.log.debug('Userstats pruned.')
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        conn.execute("UPDATE statistics SET player_ucid = %s WHERE player_ucid = %s", (new_ucid, old_ucid))
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
+        await conn.execute("UPDATE statistics SET player_ucid = %s WHERE player_ucid = %s", (new_ucid, old_ucid))
 
     @command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
@@ -97,29 +96,29 @@ class UserStatistics(Plugin):
         if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 if _server:
-                    conn.execute("""
+                    await conn.execute("""
                         DELETE FROM statistics WHERE mission_id in (
                             SELECT id FROM missions WHERE server_name = %s
                         )
                         """, (_server.name,))
-                    conn.execute("""
+                    await conn.execute("""
                         DELETE FROM missionstats WHERE mission_id in (
                             SELECT id FROM missions WHERE server_name = %s
                         )
                     """, (_server.name,))
-                    conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
+                    await conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
                     await interaction.followup.send(f'Statistics for server "{_server.display_name}" have been wiped.',
                                                     ephemeral=ephemeral)
                     await self.bot.audit('reset statistics', user=interaction.user, server=_server)
                 else:
-                    conn.execute("TRUNCATE TABLE statistics")
-                    conn.execute("TRUNCATE TABLE missionstats")
-                    conn.execute("TRUNCATE TABLE missions")
+                    await conn.execute("TRUNCATE TABLE statistics")
+                    await conn.execute("TRUNCATE TABLE missionstats")
+                    await conn.execute("TRUNCATE TABLE missions")
                     if 'greenieboard' in self.node.plugins:
-                        conn.execute("TRUNCATE TABLE greenieboard")
+                        await conn.execute("TRUNCATE TABLE greenieboard")
                     await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=ephemeral)
                     await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
 
@@ -139,7 +138,7 @@ class UserStatistics(Plugin):
         if isinstance(user, discord.Member):
             name = user.display_name
         else:
-            name = self.bot.get_member_or_name_by_ucid(user)
+            name = await self.bot.get_member_or_name_by_ucid(user)
             if isinstance(name, discord.Member):
                 name = name.display_name
         file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
@@ -189,7 +188,7 @@ class UserStatistics(Plugin):
                 return
             else:
                 _member = ucid
-                ucid = self.bot.get_ucid_by_member(ucid)
+                ucid = await self.bot.get_ucid_by_member(ucid)
         else:
             _member = self.bot.get_member_by_ucid(ucid)
         if _member and not await utils.yn_question(interaction,
@@ -197,20 +196,21 @@ class UserStatistics(Plugin):
                                                    f"Do you want to relink?",
                                                    ephemeral=ephemeral):
             return
-        _ucid = self.bot.get_ucid_by_member(member)
+        _ucid = await self.bot.get_ucid_by_member(member)
         if _ucid and not await utils.yn_question(interaction,
                                                  f"Member {member.display_name} is linked to UCID {_ucid} already. "
                                                  f"Do you want to relink?",
                                                  ephemeral=ephemeral):
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 # delete an old mapping, if one existed
-                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s',
-                             (member.id, ))
-                conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
+                await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s',
+                                   (member.id, ))
+                await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                   (member.id, ucid))
                 # delete a token, if one existed
-                conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
+                await conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
         await interaction.followup.send(f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}',
                                         ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
@@ -237,7 +237,7 @@ class UserStatistics(Plugin):
                      user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
 
         async def unlink_member(member: discord.Member, ucid: str, ephemeral: bool):
-            conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
+            await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
             await interaction.followup.send(
                 f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
                 ephemeral=ephemeral)
@@ -261,10 +261,11 @@ class UserStatistics(Plugin):
 
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        with self.pool.connection() as conn:
-            with conn.transaction():
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 if isinstance(user, discord.Member):
-                    for row in conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )).fetchall():
+                    cursor = conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
+                    async for row in cursor:
                         ucid = row[0]
                         await clear_user_roles(ucid)
                         await unlink_member(user, ucid, ephemeral)
@@ -286,8 +287,8 @@ class UserStatistics(Plugin):
     async def find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        with self.pool.connection() as conn:
-            rows = conn.execute("""
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
                 SELECT distinct ucid, name, max(last_seen) FROM (
                     SELECT ucid, name, last_seen FROM players
                     UNION
@@ -297,7 +298,8 @@ class UserStatistics(Plugin):
                 GROUP BY ucid, name
                 ORDER BY 3 DESC
                 LIMIT 25
-            """, ('%' + name + '%', )).fetchall()
+            """, ('%' + name + '%', ))
+            rows = await cursor.fetchall()
             options = [
                 SelectOption(label=f"{row[1]} (last seen: {row[2]:%Y-%m-%d %H:%M})"[:100], value=str(idx))
                 for idx, row in enumerate(rows)
@@ -366,15 +368,16 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS Admin')
     async def linkcheck(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 # check all unmatched players
                 unmatched = []
-                for row in cursor.execute("""
+                await cursor.execute("""
                     SELECT ucid, name FROM players 
                     WHERE discord_id = -1 AND name IS NOT NULL 
                     ORDER BY last_seen DESC
-                """):
+                                """)
+                async for row in cursor:
                     matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
@@ -383,10 +386,10 @@ class UserStatistics(Plugin):
                 return
         n = await utils.selection_list(self.bot, interaction, unmatched, self.format_unmatched)
         if n != -1:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                 (unmatched[n]['match'].id, unmatched[n]['ucid']))
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                       (unmatched[n]['match'].id, unmatched[n]['ucid']))
                     await self.bot.audit(
                         f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
                         user=interaction.user)
@@ -415,19 +418,20 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS Admin')
     async def mislinks(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 # check all matched members
                 suspicious = []
                 for member in self.bot.get_all_members():
                     # ignore bots
                     if member.bot:
                         continue
-                    for row in cursor.execute("""
+                    await cursor.execute("""
                         SELECT ucid, name FROM players 
                         WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE 
                         ORDER BY last_seen DESC
-                    """, (member.id, )):
+                    """, (member.id, ))
+                    async for row in cursor:
                         matched_member = self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
@@ -440,11 +444,11 @@ class UserStatistics(Plugin):
         n = await utils.selection_list(self.bot, interaction, suspicious, self.format_suspicious)
         if n != -1:
             ephemeral = utils.get_ephemeral(interaction)
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
-                                 (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
-                                  'match' in suspicious[n], suspicious[n]['ucid']))
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                                       (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
+                                        'match' in suspicious[n], suspicious[n]['ucid']))
                     await self.bot.audit(
                         f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
                         user=interaction.user)
@@ -482,15 +486,17 @@ class UserStatistics(Plugin):
             await send_token(member.ucid)
             return
 
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor() as cursor:
                     # in the very unlikely event that we have generated the very same random number twice
                     while True:
                         try:
                             token = str(random.randrange(1000, 9999))
-                            cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
-                                           (token, interaction.user.id))
+                            await cursor.execute("""
+                                INSERT INTO players (ucid, discord_id, last_seen) 
+                                VALUES (%s, %s, NOW())
+                            """, (token, interaction.user.id))
                             break
                         except psycopg.DatabaseError:
                             pass
@@ -523,8 +529,8 @@ class UserStatistics(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS** of user '
                                                 f'"{user.display_name}".\n\nAre you sure?', ephemeral=ephemeral):
-            with self.pool.connection() as conn:
-                with conn.transaction():
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
                     for plugin in self.bot.cogs.values():  # type: Plugin
                         await plugin.prune(conn, ucids=[member.ucid])
                 await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.',
@@ -532,9 +538,9 @@ class UserStatistics(Plugin):
 
     @tasks.loop(hours=1)
     async def expire_token(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     DELETE FROM players 
                     WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(now() AT TIME ZONE 'utc') - interval '2 days')
                 """)
@@ -601,11 +607,11 @@ class UserStatistics(Plugin):
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         if self.get_config().get('wipe_stats_on_leave', True):
-            with self.pool.connection() as conn:
-                with conn.transaction():
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (member.id,))
                     self.bot.log.debug(f'- Deleting their statistics due to wipe_stats_on_leave')
-                    ucids = [row[0] for row in conn.execute(
-                        'SELECT ucid FROM players WHERE discord_id = %s', (member.id, ))]
+                    ucids = [row[0] async for row in cursor]
                     for plugin in self.bot.cogs.values():  # type: Plugin
                         await plugin.prune(conn, ucids=ucids)
 

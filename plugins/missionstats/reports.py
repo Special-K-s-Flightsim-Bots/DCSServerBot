@@ -1,5 +1,5 @@
 import pandas as pd
-from contextlib import closing
+
 from core import report, ReportEnv, utils, Side, Coalition
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,11 +35,12 @@ class Sorties(report.EmbedElement):
         sql += ' AND ' + flt.filter(self.env.bot, period)
         sql += ' AND init_id = %s ORDER BY 6'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 flight = Flight()
                 mission_id = -1
-                for row in cursor.execute(sql, (ucid, )):
+                await cursor.execute(sql, (ucid, ))
+                async for row in cursor:
                     if row['mission_id'] != mission_id:
                         mission_id = row['mission_id']
                         flight = self.add_flight(flight)
@@ -97,16 +98,16 @@ class MissionStats(report.EmbedElement):
                                        if unit_type in coalition_data['units'] else 0)
             value += '{}\n'.format(len(coalition_data['statics']))
             self.add_field(name=coalition.name, value=value)
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, self.env.params)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, self.env.params)
                 if cursor.rowcount > 0:
                     elements = {
                         Side.BLUE: {},
                         Side.RED: {}
                     }
                     self.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
-                    for row in cursor:
+                    async for row in cursor:
                         s = Side(int(row['init_side']))
                         for name, value in row.items():
                             if name == 'init_side':
@@ -133,9 +134,10 @@ class ModuleStats1(report.EmbedElement):
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period)
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                row = cursor.execute(sql, self.env.params).fetchone()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, self.env.params)
+                row = await cursor.fetchone()
                 self.add_field(name='Usages', value=str(row['num']))
                 self.add_field(name='Total Playtime', value=utils.convert_time(row['total'] or 0))
                 self.add_field(name='Average Playtime', value=utils.convert_time(row['average'] or 0))
@@ -145,9 +147,9 @@ class ModuleStats2(report.EmbedElement):
     async def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
         weapons = hs_ratio = ks_ratio = ''
         category = None
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                for row in cursor.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
                     SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd 
                     FROM (
                         SELECT CASE WHEN COALESCE(m.weapon, '') = '' OR m.event = 'S_EVENT_SHOOTING_START' 
@@ -174,7 +176,8 @@ class ModuleStats2(report.EmbedElement):
                         AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
                         GROUP BY 1, 2 
                     ) y WHERE x.weapon = y.weapon AND x.shots <> 0 ORDER BY 1, 6 DESC
-                """, self.env.params):
+                """, self.env.params)
+                async for row in cursor:
                     if row['weapon'] == 'Gun':
                         continue
                     if category != row['target_cat']:
@@ -207,11 +210,11 @@ class Refuelings(report.EmbedElement):
 
         modules = []
         numbers = []
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                for row in cursor.execute(sql, (ucid, )):
-                    modules.append(row[0])
-                    numbers.append(str(row[1]))
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute(sql, (ucid, ))
+            async for row in cursor:
+                modules.append(row[0])
+                numbers.append(str(row[1]))
         if len(modules):
             self.add_field(name='Module', value='\n'.join(modules))
             self.add_field(name='Refuelings', value='\n'.join(numbers))

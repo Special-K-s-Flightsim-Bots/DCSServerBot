@@ -47,18 +47,18 @@ class GameMaster(Plugin):
                     server.settings['advanced'] = advanced
         return init
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
         if days > -1:
-            conn.execute(
+            await conn.execute(
                 f"DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        conn.execute('UPDATE coalitions SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
+        await conn.execute('UPDATE coalitions SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     @command(description='Send a chat message to a running DCS instance')
     @app_commands.guild_only()
@@ -230,7 +230,7 @@ class GameMaster(Plugin):
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
     async def info(self, interaction: discord.Interaction, campaign: str):
         report = Report(self.bot, self.plugin_name, 'campaign.json')
-        env = await report.render(campaign=utils.get_campaign(self, campaign), title='Campaign Overview')
+        env = await report.render(campaign=await utils.get_campaign(self, campaign), title='Campaign Overview')
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @campaign.command(description="Add new campaign")
@@ -269,9 +269,9 @@ class GameMaster(Plugin):
                          server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         try:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         INSERT INTO campaigns_servers (campaign_id, server_name) 
                         SELECT id, %s FROM campaigns WHERE name = %s 
                         ON CONFLICT DO NOTHING

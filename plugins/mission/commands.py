@@ -91,21 +91,21 @@ class Mission(Plugin):
         self.update_channel_name.cancel()
         await super().cog_unload()
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
         if days > -1:
             # noinspection PyTypeChecker
-            conn.execute(f"""
+            await conn.execute(f"""
                 DELETE FROM missions 
                 WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
             """)
         self.log.debug('Mission pruned.')
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        conn.execute("""
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
+        await conn.execute("""
             UPDATE bans SET ucid = %s WHERE ucid = %s AND NOT EXISTS (SELECT 1 FROM bans WHERE ucid = %s)
         """, (new_ucid, old_ucid, new_ucid))
 
@@ -171,11 +171,11 @@ class Mission(Plugin):
     async def briefing(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[Status.RUNNING, Status.PAUSED])]):
-        def read_passwords(server: Server) -> dict:
-            with self.pool.connection() as conn:
-                row = conn.execute(
-                    'SELECT blue_password, red_password FROM servers WHERE server_name = %s',
-                    (server.name,)).fetchone()
+        async def read_passwords(server: Server) -> dict:
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
+                                            (server.name,))
+                row = await cursor.fetchone()
                 return {"Blue": row[0], "Red": row[1]}
 
         if server.status not in [Status.RUNNING, Status.PAUSED]:
@@ -186,7 +186,7 @@ class Mission(Plugin):
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
         })
-        mission_info['passwords'] = read_passwords(server)
+        mission_info['passwords'] = await read_passwords(server)
         report = Report(self.bot, self.plugin_name, 'briefing.json')
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
         await interaction.followup.send(embed=env.embed)
@@ -440,7 +440,6 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(presets_file=presets_autocomplete)
-    @app_commands.rename(presets_file='presets')
     @app_commands.describe(presets_file='Select the file where you have stored your presets')
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -563,8 +562,7 @@ class Mission(Plugin):
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=orig_mission_autocomplete)
     async def rollback(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[
-                           Status.RUNNING, Status.PAUSED, Status.STOPPED])], mission_id: int):
+                       server: app_commands.Transform[Server, utils.ServerTransformer], mission_id: int):
         missions = await server.getMissionList()
         if mission_id >= len(missions):
             await interaction.response.send_message("No mission found.")
@@ -637,7 +635,7 @@ class Mission(Plugin):
 
             async def on_submit(derived, interaction: discord.Interaction):
                 days = int(derived.period.value) if derived.period.value else None
-                self.bus.ban(derived.player.ucid, interaction.user.display_name, derived.reason.value, days)
+                await self.bus.ban(derived.player.ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {player.display_name} banned on all servers " +
                                                         (f"for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
@@ -676,6 +674,7 @@ class Mission(Plugin):
             await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         afk: list[Player] = list()
         for s in self.bot.servers.values():
             if server and s != server:
@@ -702,10 +701,9 @@ class Mission(Plugin):
                     embed.add_field(name='_ _', value='_ _')
                 else:
                     embed.add_field(name='Server', value=player.server.display_name)
-            await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(f"No player is AFK for more than {minutes} minutes.",
-                                                    ephemeral=ephemeral)
+            await interaction.followup.send(f"No player is AFK for more than {minutes} minutes.", ephemeral=ephemeral)
 
     @player.command(description='Sends a popup to a player\n')
     @app_commands.guild_only()
@@ -773,11 +771,13 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                for row in conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute("""
                     SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
-                """).fetchall():
+                """)
+                rows = await cursor.fetchall()
+                for row in rows:
                     for server in self.bot.servers.values():
                         if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                             continue
@@ -936,10 +936,10 @@ class Mission(Plugin):
     async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
         self.bot.log.debug(f"Member {member.display_name} has been banned.")
         if not self.bot.locals.get('no_dcs_autoban', False):
-            ucid = self.bot.get_ucid_by_member(member)
+            ucid = await self.bot.get_ucid_by_member(member)
             if ucid:
-                self.bus.ban(ucid, 'Discord',
-                             self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
+                await self.bus.ban(ucid, 'Discord',
+                                   self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
 
 
 async def setup(bot: DCSServerBot):

@@ -108,6 +108,7 @@ class EventListener(metaclass=EventListenerMeta):
         self.node = plugin.node
         self.log = plugin.log
         self.pool = plugin.pool
+        self.apool = plugin.apool
         self.locals: dict = plugin.locals
         self.loop = plugin.loop
         self.prefix = self.node.config.get('chat_command_prefix', '-')

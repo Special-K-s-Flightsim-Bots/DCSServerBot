@@ -18,7 +18,7 @@ class PubSub:
 
     async def _process(self, cursor: psycopg.AsyncCursor, handler: Callable):
         ids_to_delete = []
-        async for row in await cursor.execute(f"""
+        await cursor.execute(f"""
             SELECT id, data 
             FROM {self.name} 
             WHERE guild_id = %(guild_id)s AND node = %(node)s 
@@ -26,7 +26,8 @@ class PubSub:
         """, {
             'guild_id': self.node.guild_id,
             'node': "Master" if self.node.master else self.node.name
-        }):
+        })
+        async for row in cursor:
             try:
                 asyncio.create_task(handler(row[1]))
             except Exception as ex:

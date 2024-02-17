@@ -25,18 +25,21 @@ def get_tag(file) -> Tag:
 
 class Playlist:
 
-    def __init__(self, playlist: str):
+    def __init__(self):
         self.service = ServiceRegistry.get("Music")
         self.log = self.service.log
-        self.pool = self.service.pool
+        self.apool = self.service.apool
+        self.playlist = None
+        self._items = []
+
+    @classmethod
+    async def create(cls, playlist: str):
+        self = Playlist()
         self.playlist = playlist
-        # initialize the playlist if there is one stored in the database
-        with self.pool.connection() as conn:
-            self._items = [
-                row[0] for row in conn.execute(
-                    'SELECT song_file FROM music_playlists WHERE name = %s ORDER BY song_id',
-                    (self.playlist,))
-            ]
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute('SELECT song_file FROM music_playlists WHERE name = $1 ORDER BY song_id', playlist)
+            self._items = [row[0] async for row in cursor]
+        return self
 
     @property
     def name(self) -> str:
@@ -52,34 +55,37 @@ class Playlist:
     def size(self) -> int:
         return len(self._items)
 
-    def add(self, item: str) -> None:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("INSERT INTO music_playlists (name, song_id, song_file) "
-                             "VALUES (%s, nextval('music_song_id_seq'), %s)",
-                             (self.playlist, item))
+    async def add(self, item: str) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO music_playlists (name, song_id, song_file) 
+                    VALUES (%s, nextval('music_song_id_seq'), %s)
+                """, (self.playlist, item))
                 self._items.append(item)
 
-    def remove(self, item: str) -> None:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s', (self.playlist, item))
+    async def remove(self, item: str) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s',
+                                   (self.playlist, item))
                 self._items.remove(item)
                 # if no item remains, make sure any server mapping to this list is deleted, too
                 if not self._items:
-                    conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist, ))
+                    await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist, ))
 
-    def clear(self) -> None:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
-                conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
+    async def clear(self) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
+                await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
                 self._items.clear()
 
 
-def get_all_playlists(interaction: discord.Interaction) -> list[str]:
-    with interaction.client.pool.connection() as conn:
-        return [x[0] for x in conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')]
+async def get_all_playlists(interaction: discord.Interaction) -> list[str]:
+    async with interaction.client.pool.connection() as conn:
+        cursor = await conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')
+        return [x[0] async for x in cursor]
 
 
 async def playlist_autocomplete(
@@ -89,7 +95,7 @@ async def playlist_autocomplete(
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        playlists = get_all_playlists(interaction)
+        playlists = await get_all_playlists(interaction)
         return [
             app_commands.Choice(name=playlist, value=playlist)
             for playlist in playlists if not current or current.casefold() in playlist.casefold()
@@ -129,7 +135,7 @@ async def songs_autocomplete(
     try:
         service: MusicService = ServiceRegistry.get("Music")
         music_dir = await service.get_music_dir()
-        playlist = Playlist(utils.get_interaction_param(interaction, 'playlist'))
+        playlist = await Playlist.create(utils.get_interaction_param(interaction, 'playlist'))
         ret = []
         for song in playlist.items:
             title = get_tag(os.path.join(music_dir, song)).title or song

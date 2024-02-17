@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import warnings
-from contextlib import closing
-from core import const, report
+
+from core import const, report, EmbedElement, utils
 from matplotlib.ticker import FuncFormatter
 from psycopg.rows import dict_row
 from typing import Optional
@@ -23,19 +23,16 @@ class ServerUsage(report.EmbedElement):
             WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL
         """
         if server_name:
-            sql += f' AND m.server_name = %s'
+            sql += f' AND m.server_name = %(server_name)s'
         if period:
             sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = playtimes = players = members = ''
-                if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
-                else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+                await cursor.execute(sql, {"server_name": server_name})
+                async for row in cursor:
                     servers += row['server_name'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f}\n'.format(row['players'])
@@ -64,21 +61,17 @@ class TopMissionPerServer(report.EmbedElement):
         """
         sql_right = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'
         if server_name:
-            sql_inner += f' AND m.server_name = %s'
+            sql_inner += f' AND m.server_name = %(server_name)s'
         if period:
             sql_inner += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql_inner += ' GROUP BY 1, 2'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = missions = playtimes = ''
-                if server_name:
-                    rows = cursor.execute(sql_left + sql_inner + sql_right.format(
-                        '= 1' if not server_name else f'<= {limit}'), (server_name, )).fetchall()
-                else:
-                    rows = cursor.execute(sql_left + sql_inner + sql_right.format(
-                        '= 1' if not server_name else f'<= {limit}')).fetchall()
-                for row in rows:
+                await cursor.execute(sql_left + sql_inner + sql_right.format(
+                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name})
+                async for row in cursor:
                     servers += row['server_name'] + '\n'
                     missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
@@ -102,19 +95,16 @@ class TopModulesPerServer(report.EmbedElement):
             WHERE m.id = s.mission_id
         """
         if server_name:
-            sql += ' AND m.server_name = %s'
+            sql += ' AND m.server_name = %(server_name)s'
         if period:
             sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 modules = playtimes = players = ''
-                if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
-                else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+                await cursor.execute(sql, {"server_name": server_name})
+                async for row in cursor:
                     modules += row['slot'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f} ({:.0f})\n'.format(row['players'], row['num_usage'])
@@ -135,18 +125,15 @@ class UniquePast14(report.GraphElement):
             AND s.mission_id = m.id
         """
         if server_name:
-            sql += f" AND m.server_name = %s"
+            sql += f" AND m.server_name = %(server_name)s"
         sql += ' GROUP BY d.date'
 
         labels = []
         values = []
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
-                else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"server_name": server_name})
+                async for row in cursor:
                     labels.append(row['date'].strftime('%a %m-%d'))
                     values.append(row['players'])
                 self.axes.bar(labels, values, width=0.5, color='dodgerblue')
@@ -174,23 +161,26 @@ class UsersPerDayTime(report.GraphElement):
             AND s.mission_id = m.id
         """
         if server_name:
-            sql += f" AND m.server_name = %s"
+            sql += f" AND m.server_name = %(server_name)s"
         if period:
             sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql += ' GROUP BY 1, 2'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 values = np.zeros((24, 7))
-                if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
-                else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+                await cursor.execute(sql, {"server_name": server_name})
+                async for row in cursor:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
                 self.axes.imshow(values, cmap='cividis', aspect='auto')
                 self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
                 self.axes.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: const.WEEKDAYS[int(np.clip(x, 0, 6))]))
+
+
+class ServerLoadHeader(EmbedElement):
+    async def render(self, node: str, period: str, server_name: Optional[str] = None):
+        self.env.embed.description = \
+            f"Node: {node}" if not server_name else f"Server: {utils.escape_string(server_name)}"
 
 
 class ServerLoad(report.MultiGraphElement):
@@ -221,11 +211,11 @@ class ServerLoad(report.MultiGraphElement):
                 GROUP BY 1
             """
         sql += " ORDER BY 1"
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, {"node": node, "server_name": server_name})
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"node": node, "server_name": server_name})
                 if cursor.rowcount > 0:
-                    series = pd.DataFrame.from_dict(cursor.fetchall())
+                    series = pd.DataFrame.from_dict(await cursor.fetchall())
                     series.columns = ['time', 'Users', 'CPU', 'Memory (paged)', 'Memory (RAM)', 'Read', 'Write', 'Sent',
                                       'Recv', 'FPS', 'Ping']
                     for column in [
