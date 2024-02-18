@@ -496,7 +496,7 @@ class Admin(Plugin):
 
     node_group = Group(name="node", description="Commands to manage your nodes")
 
-    @node_group.command(name='stats', description='Statistics of your nodes')
+    @node_group.command(description='Statistics of your nodes')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def statistics(self, interaction: discord.Interaction,

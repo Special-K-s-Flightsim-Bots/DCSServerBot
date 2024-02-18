@@ -185,7 +185,7 @@ class MonitoringService(Service):
                     INSERT INTO nodestats (node, pool_size, pool_available, requests_waiting, requests_wait_ms, workers)
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (self.node.name, pstats.get('pool_size', 0), pstats.get('pool_available', 0),
-                      pstats.get('requests_waiting', 0), wait_time, bus.executor._work_queue.qsize()))
+                      pstats.get('requests_waiting', 0), wait_time, len(bus.executor._threads)))
         last_wait_time = pstats.get('requests_wait_ms', 0)
 
     async def serverload(self):

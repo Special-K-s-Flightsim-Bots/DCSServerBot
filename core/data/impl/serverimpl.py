@@ -647,6 +647,7 @@ class ServerImpl(Server):
         else:
             missions: list[str] = self.settings['missionList']
             missions[mission_id - 1] = path
+            self.settings['missionList'] = missions
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
         if isinstance(mission, int):
