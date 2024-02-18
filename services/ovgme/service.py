@@ -261,13 +261,12 @@ class OvGMEService(Service):
         return True
 
     def is_ovgme(self, zfile: zipfile.ZipFile, package_name: str) -> bool:
-        dirs = ""
-        for dirs in [
-            x.filename.strip('/') for x in zfile.filelist if x.is_dir() and len(x.filename.strip('/').split('/')) == 1
-        ]:
-            if dirs.lower() in ['mods', 'scripts', 'kneeboards', 'liveries']:
-                return False
-        return package_name in dirs
+        for zip_path in zfile.namelist():
+            parts = zip_path.split('/')
+            if (len(parts) >= 2 and package_name in parts[0] and
+                    parts[1].lower() in ['mods', 'scripts', 'kneeboard', 'liveries']):
+                return True
+        return False
 
     async def do_install(self, server: Server, folder: str, package_name: str, version: str, path: str,
                          filename: str) -> bool:
@@ -280,7 +279,7 @@ class OvGMEService(Service):
             with zipfile.ZipFile(filename, 'r') as zfile:
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
-                    root = zfile.namelist()[0]
+                    root = (zfile.namelist()[0]).split('/')[0] + '/'
                 for name in zfile.namelist():
                     if ovgme:
                         _name = name.replace(root, '')
