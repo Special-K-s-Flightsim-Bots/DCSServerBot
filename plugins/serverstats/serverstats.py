@@ -23,15 +23,15 @@ class ServerUsage(report.EmbedElement):
             WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL
         """
         if server_name:
-            sql += f' AND m.server_name = %(server_name)s'
+            sql += " AND m.server_name = %(server_name)s"
         if period:
-            sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
+            sql += " AND DATE(s.hop_on) > (DATE(now() AT TIME ZONE 'utc') - ('1 ' || %(period)s)::interval)"
         sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = playtimes = players = members = ''
-                await cursor.execute(sql, {"server_name": server_name})
+                await cursor.execute(sql, {"server_name": server_name, "period": period})
                 async for row in cursor:
                     servers += row['server_name'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
@@ -59,18 +59,18 @@ class TopMissionPerServer(report.EmbedElement):
             FROM missions m, statistics s 
             WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL
         """
-        sql_right = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'
+        sql_right = ") AS x) AS y WHERE rn {} ORDER BY 3 DESC"
         if server_name:
-            sql_inner += f' AND m.server_name = %(server_name)s'
+            sql_inner += " AND m.server_name = %(server_name)s"
         if period:
-            sql_inner += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
-        sql_inner += ' GROUP BY 1, 2'
+            sql_inner += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql_inner += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = missions = playtimes = ''
                 await cursor.execute(sql_left + sql_inner + sql_right.format(
-                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name})
+                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name, "period": period})
                 async for row in cursor:
                     servers += row['server_name'] + '\n'
                     missions += row['mission_name'][:20] + '\n'
@@ -95,15 +95,15 @@ class TopModulesPerServer(report.EmbedElement):
             WHERE m.id = s.mission_id
         """
         if server_name:
-            sql += ' AND m.server_name = %(server_name)s'
+            sql += " AND m.server_name = %(server_name)s"
         if period:
-            sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
+            sql += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
         sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 modules = playtimes = players = ''
-                await cursor.execute(sql, {"server_name": server_name})
+                await cursor.execute(sql, {"server_name": server_name, "period": period})
                 async for row in cursor:
                     modules += row['slot'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
@@ -161,15 +161,15 @@ class UsersPerDayTime(report.GraphElement):
             AND s.mission_id = m.id
         """
         if server_name:
-            sql += f" AND m.server_name = %(server_name)s"
+            sql += " AND m.server_name = %(server_name)s"
         if period:
-            sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
-        sql += ' GROUP BY 1, 2'
+            sql += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 values = np.zeros((24, 7))
-                await cursor.execute(sql, {"server_name": server_name})
+                await cursor.execute(sql, {"server_name": server_name, "period": period})
                 async for row in cursor:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
                 self.axes.imshow(values, cmap='cividis', aspect='auto')
@@ -186,7 +186,7 @@ class ServerLoadHeader(EmbedElement):
 class ServerLoad(report.MultiGraphElement):
 
     async def render(self, node: str, period: str, server_name: Optional[str] = None):
-        sql = f"""
+        sql = """
             SELECT date_trunc('minute', time) AS time, AVG(users) AS users, AVG(cpu) AS cpu, 
                    AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS mem_paged,  
                    AVG(mem_ram)/(1024*1024) AS mem_ram, 
@@ -197,11 +197,11 @@ class ServerLoad(report.MultiGraphElement):
                    ROUND(AVG(fps), 2) AS fps, 
                    ROUND(AVG(ping), 2) AS ping 
             FROM serverstats 
-            WHERE time > ((NOW() AT TIME ZONE 'UTC') - interval '1 {period}')
+            WHERE time > ((NOW() AT TIME ZONE 'UTC') - ('1 ' || %(period)s)::interval)
             AND node = %(node)s 
         """
         if server_name:
-            sql += f" AND server_name = %(server_name)s GROUP BY 1"
+            sql += " AND server_name = %(server_name)s GROUP BY 1"
         if not server_name:
             sql = f"""
                 SELECT time, SUM(users) AS users, SUM(cpu) AS cpu, SUM(mem_paged) AS mem_paged, SUM(mem_ram) AS mem_ram, 
@@ -213,7 +213,7 @@ class ServerLoad(report.MultiGraphElement):
         sql += " ORDER BY 1"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"node": node, "server_name": server_name})
+                await cursor.execute(sql, {"node": node, "server_name": server_name, "period": period})
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(await cursor.fetchall())
                     series.columns = ['time', 'Users', 'CPU', 'Memory (paged)', 'Memory (RAM)', 'Read', 'Write', 'Sent',

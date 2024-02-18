@@ -7,16 +7,16 @@ from core import report
 class NodeStats(report.MultiGraphElement):
 
     async def render(self, node: str, period: str):
-        sql = f"""
+        sql = """
             SELECT date_trunc('minute', time) AS time, pool_size, requests_waiting, requests_wait_ms, workers
             FROM nodestats 
-            WHERE time > ((NOW() AT TIME ZONE 'UTC') - interval '1 {period}')
+            WHERE time > ((NOW() AT TIME ZONE 'UTC') - ('1 ' || %s)::interval)
             AND node = %s 
             ORDER BY 1
         """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, (node, ))
+                await cursor.execute(sql, (period, node))
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(await cursor.fetchall())
                     series.columns = ['time', 'DB Pool', 'Waiting (Req)', 'Waiting (ms)', 'Worker Threads']
