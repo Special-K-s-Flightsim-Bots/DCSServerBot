@@ -59,6 +59,7 @@ class PunishmentEventListener(EventListener):
                             roles = exemption['discord']
                         if utils.check_roles(roles, member):
                             self.log.debug(f"Member {member.name} not penalized due to exemption.")
+                            return
                 if 'default' in penalty:
                     points = penalty['default']
                 else:
