@@ -52,7 +52,7 @@ class CreditPlayer(Player):
                         ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points
                     """, (campaign_id, self.ucid, self._points))
         else:
-            self.log.warning("No campaign active, not writing default points to database!")
+            self.log.debug("No campaign active, player points will vanish after a bot restart.")
         # sending points to DCS
         self.server.send_to_dcs({
             'command': 'updateUserPoints',

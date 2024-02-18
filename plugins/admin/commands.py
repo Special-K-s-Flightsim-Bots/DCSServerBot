@@ -3,14 +3,15 @@ import discord
 import os
 import shutil
 
-from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType
+from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
+    PaginationReport
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
 from discord.ui import TextInput, Modal
 from io import BytesIO
 from services import DCSServerBot
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .views import CleanupView
@@ -494,6 +495,17 @@ class Admin(Plugin):
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
     node_group = Group(name="node", description="Commands to manage your nodes")
+
+    @node_group.command(name='stats', description='Statistics of your nodes')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def statistics(self, interaction: discord.Interaction,
+                         node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None,
+                         period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
+        report = PaginationReport(self.bot, interaction, self.plugin_name, 'nodestats.json')
+        if not node:
+            node = self.node
+        await report.render(node=node.name, period=period)
 
     @node_group.command(name='list', description='Status of all nodes')
     @app_commands.guild_only()

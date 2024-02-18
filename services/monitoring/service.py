@@ -24,6 +24,8 @@ __all__ = [
     "MonitoringService"
 ]
 
+last_wait_time = 0
+
 
 @ServiceRegistry.register("Monitoring")
 class MonitoringService(Service):
@@ -171,6 +173,21 @@ class MonitoringService(Service):
             except Exception as ex:
                 self.log.exception(ex)
 
+    async def nodestats(self):
+        global last_wait_time
+
+        bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        pstats: dict = self.apool.get_stats()
+        wait_time = pstats.get('requests_wait_ms', 0) - last_wait_time
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO nodestats (node, pool_size, pool_available, requests_waiting, requests_wait_ms, workers)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (self.node.name, pstats.get('pool_size', 0), pstats.get('pool_available', 0),
+                      pstats.get('requests_waiting', 0), wait_time, bus.executor._work_queue.qsize()))
+        last_wait_time = pstats.get('requests_wait_ms', 0)
+
     async def serverload(self):
         for server in self.bus.servers.values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
@@ -220,6 +237,8 @@ class MonitoringService(Service):
             await self.heartbeat()
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()
+            if self.node.locals.get('nodestats', False):
+                await self.nodestats()
         except Exception as ex:
             self.log.exception(ex)
 
