@@ -74,6 +74,8 @@ class MonitoringService(Service):
     async def check_affinity(server: Server, affinity: Union[list[int], str]):
         if isinstance(affinity, str):
             affinity = [int(x.strip()) for x in affinity.split(',')]
+        elif isinstance(affinity, int):
+            affinity = [affinity]
         if not server.process:
             server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
         if server.process:
