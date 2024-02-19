@@ -58,6 +58,15 @@ class Sneaker(Extension):
             cmd, "--bind", self.config['bind'], "--config", config
         ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
 
+    def _terminate_process(self):
+        global process
+
+        if process:
+            if process.poll() is None:
+                process.terminate()
+                if process and process.poll() is None:
+                    process.kill()
+            process = None
 
     async def startup(self) -> bool:
         global process, servers
@@ -67,8 +76,7 @@ class Sneaker(Extension):
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         if 'config' not in self.config:
-            if process and process.returncode is None:
-                process.kill()
+            self._terminate_process()
             self.create_config()
             process = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
         else:
@@ -82,13 +90,11 @@ class Sneaker(Extension):
         global process, servers
 
         servers.remove(self.server.name)
-        if not servers and process.poll() is not None:
-            process.terminate()
-            process = None
+        if not servers:
+            self._terminate_process()
             return super().shutdown()
         elif 'config' not in self.config:
-            if process and process.returncode is None:
-                process.kill()
+            self._terminate_process()
             self.create_config()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
@@ -101,9 +107,8 @@ class Sneaker(Extension):
 
         if process is not None and process.poll() is None:
             return self.server.name in servers
-        else:
-            process = None
-            return False
+        process = None
+        return False
 
     @property
     def version(self) -> Optional[str]:

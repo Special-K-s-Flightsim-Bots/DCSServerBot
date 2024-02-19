@@ -72,7 +72,8 @@ class SchedulerListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # init and start extensions if necessary
         try:
-            await server.init_extensions()
+            if data['channel'].startswith('-sync'):
+                await server.init_extensions()
             await server.startup_extensions()
         except (TimeoutError, asyncio.TimeoutError):
             self.log.error(f"Timeout while loading extensions for server {server.name}!")

@@ -26,7 +26,7 @@ class Lardoon(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
-        if not process or process.returncode is not None:
+        if not process or process.poll() is not None:
 
             def run_subprocess():
                 out = subprocess.DEVNULL if not self.config.get('debug', False) else None
