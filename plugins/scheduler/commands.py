@@ -3,6 +3,7 @@ import discord
 import functools
 import os
 
+from contextlib import suppress
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
 from datetime import datetime, timedelta
@@ -115,10 +116,11 @@ class Scheduler(Plugin):
                             if 'sound' in config['warn']:
                                 server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
                                                                                     time=warn_time))
-                            events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
-                            if events_channel:
-                                await events_channel.send(warn_text.format(item=item, what=what,
-                                                                           when=utils.format_time(warn_time)))
+                            with suppress(Exception):
+                                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                                if events_channel:
+                                    await events_channel.send(warn_text.format(item=item, what=what,
+                                                                               when=utils.format_time(warn_time)))
                 await asyncio.sleep(1)
                 restart_in -= 1
 
