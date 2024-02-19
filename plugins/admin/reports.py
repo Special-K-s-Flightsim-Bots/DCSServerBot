@@ -27,8 +27,8 @@ class NodeStats(report.MultiGraphElement):
                     ax3 = self.axes[1].twinx()
                     series.plot(ax=ax3, x='time', y=['Waiting (ms)'], xticks=[], xlabel='', color='red')
                     ax3.legend(['Waiting (ms)'], loc='upper right')
-                    series.plot(ax=self.axes[2], x='time', y=['Worker Threads'], title='Worker Threads',
-                                xlabel='', ylabel='Threads', kind='area', stacked=True)
+                    series.plot(ax=self.axes[2], x='time', y=['Worker Threads'], title='Worker Threads', xlabel='',
+                                ylabel='Threads')
                 else:
                     for i in range(0, 2):
                         self.axes[i].bar([], [])

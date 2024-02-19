@@ -456,7 +456,7 @@ class ServiceBus(Service):
     async def handle_rpc(self, data: dict):
         # handle synchronous responses
         if data.get('channel', '').startswith('sync-') and 'return' in data:
-            self.log.debug(f"{data.get('node', 'Master')}->Master: {json.dumps(data)}")
+            self.log.debug(f"{data.get('node', 'MASTER')}->{self.node.name}: {json.dumps(data)}")
             if data['channel'] in self.listeners:
                 f = self.listeners[data['channel']]
                 if not f.done():

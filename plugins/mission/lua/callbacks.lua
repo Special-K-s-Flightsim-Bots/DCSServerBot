@@ -328,6 +328,7 @@ local eventHandlers = {
     friendly_fire = function(arg1, arg2, arg3)
         unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
         display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(slot), "DisplayName")
+        log.write('DCSServerBot', log.DEBUG, 'Mission: friendly_file: weapon = ' .. arg2 .. ', module = ' .. display_name)
         -- do we have collisions (weapon == unit name)
         if display_name == arg2 then
             -- ignore "spawn on top"
@@ -341,6 +342,7 @@ local eventHandlers = {
                 mission.last_collision[arg1] = os.clock()
                 mission.last_collision[arg3] = os.clock()
                 mission.last_victim[arg1] = arg3
+                mission.last_victim[arg3] = arg1
             end
         end
     end
