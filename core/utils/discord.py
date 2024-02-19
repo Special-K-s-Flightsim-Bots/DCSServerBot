@@ -876,7 +876,7 @@ class NodeTransformer(app_commands.Transformer):
             return []
         try:
             all_nodes = [interaction.client.node.name]
-            all_nodes.extend(interaction.client.node.get_active_nodes())
+            all_nodes.extend(await interaction.client.node.get_active_nodes())
             return [
                 app_commands.Choice(name=x, value=x)
                 for x in all_nodes
