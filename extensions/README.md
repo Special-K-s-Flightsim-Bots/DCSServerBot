@@ -262,6 +262,7 @@ MyNode:
         Lardoon:
           enabled: true
           debug: true               # Show the sneaker console output in the DCSSB console. Default = false
+          tacviewExportPath: 'G:\My Drive\Tacview Files'  # Alternative drive for tacview files (default: auto-detect from Tacview)
 ```
 Don't forget to add some kind of security before exposing services like that to the outside world, with for instance
 a nginx reverse proxy.</br>

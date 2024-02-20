@@ -94,7 +94,9 @@ class Lardoon(Extension):
         if self.schedule.minutes != minutes:
             self.schedule.change_interval(minutes=minutes)
         try:
-            path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+            path = self.config.get('tacviewExportPath',
+                                   self.server.options['plugins']['Tacview'].get('tacviewExportPath',
+                                                                                 TACVIEW_DEFAULT_DIR))
             if not path:
                 path = TACVIEW_DEFAULT_DIR
             cmd = os.path.expandvars(self.config['cmd'])
