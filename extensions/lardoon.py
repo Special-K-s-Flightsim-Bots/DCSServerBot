@@ -99,7 +99,9 @@ class Lardoon(Extension):
                 path = TACVIEW_DEFAULT_DIR
             cmd = os.path.expandvars(self.config['cmd'])
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+            self.log.debug("Lardoon: Scheduled import run ...")
             await asyncio.to_thread(run_subprocess, cmd, ["import", "-p", path], out)
+            self.log.debug("Lardoon: Scheduled prune run ...")
             await asyncio.to_thread(run_subprocess, cmd, ["prune", "--no-dry-run"], out)
         except Exception as ex:
             self.log.exception(ex)
