@@ -310,10 +310,10 @@ end
 
 local function handleTakeoffLanding(arg1)
     if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
-        return False
+        return false
     end
     if utils.isWithinInterval(mission.last_to_landing[arg1], 10) then
-        return False
+        return false
     else
         mission.last_to_landing[arg1] = os.clock()
     end
@@ -322,27 +322,38 @@ end
 local eventHandlers = {
     change_slot = function(arg1)
         mission.last_change_slot[arg1] = os.clock()
+        log.write('DCSServerBot', log.DEBUG, 'Mission: change_slot(' .. arg1 .. ') = ' .. mission.last_change_slot[arg1])
     end,
     takeoff = handleTakeoffLanding,
     landing = handleTakeoffLanding,
     friendly_fire = function(arg1, arg2, arg3)
         unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
         display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(slot), "DisplayName")
-        log.write('DCSServerBot', log.DEBUG, 'Mission: friendly_file: weapon = ' .. arg2 .. ', module = ' .. display_name)
         -- do we have collisions (weapon == unit name)
         if display_name == arg2 then
             -- ignore "spawn on top"
             if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg3], 60) then
-                return False
+                return false
             end
             -- ignore multiple collisions that happened in-between 10s
             if (utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3) or (utils.isWithinInterval(mission.last_collision[arg3], 10) and mission.last_victim[arg3] == arg1) then
-                return False
+                return false
             else
                 mission.last_collision[arg1] = os.clock()
                 mission.last_collision[arg3] = os.clock()
                 mission.last_victim[arg1] = arg3
                 mission.last_victim[arg3] = arg1
+            end
+        end
+    end,
+    kill = function(arg1,arg2,arg3,arg4,arg5,arg6,arg7)
+        unit_type, slot, sub_slot = utils.getMulticrewAllParameters(arg1)
+        display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(slot), "DisplayName")
+        -- do we have collision kill (weapon == unit name)
+        if display_name == arg7 then
+            -- ignore collision kills that happened in-between 10s
+            if (utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg4) or (utils.isWithinInterval(mission.last_collision[arg4], 10) and mission.last_victim[arg4] == arg1) then
+                return false
             end
         end
     end
