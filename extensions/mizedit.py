@@ -50,7 +50,7 @@ class MizEdit(Extension):
             else:
                 # no preset found for the current time, so don't change anything
                 return []
-        if isinstance(presets, list):
+        elif isinstance(presets, list):
             presets = random.choice(presets)
         if isinstance(presets, str):
             all_presets = [x.strip() for x in presets.split(',')]
