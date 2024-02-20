@@ -72,7 +72,7 @@ class SchedulerListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # init and start extensions if necessary
         try:
-            if data['channel'].startswith('-sync'):
+            if data['channel'].startswith('sync-'):
                 await server.init_extensions()
             await server.startup_extensions()
         except (TimeoutError, asyncio.TimeoutError):
