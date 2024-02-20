@@ -123,7 +123,7 @@ class UserStatisticsEventListener(EventListener):
                                                                                           data['current_map']))
                         await cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
                         if cursor.rowcount == 1:
-                            mission_id = await cursor.fetchone()[0]
+                            mission_id = (await cursor.fetchone())[0]
                         else:
                             self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
                                            'gathered for this session.')

@@ -23,7 +23,7 @@ class PunishmentEventListener(EventListener):
                        AS playtime 
                 FROM statistics WHERE player_ucid = %s
             """, (player.ucid, ))
-            return await cursor.fetchone()[0] if cursor.rowcount > 0 else 0
+            return (await cursor.fetchone())[0] if cursor.rowcount > 0 else 0
 
     async def _get_punishment_points(self, player: Player) -> int:
         async with self.apool.connection() as conn:

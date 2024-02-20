@@ -352,7 +352,7 @@ class DCSServerBot(commands.Bot):
             sql += 'ORDER BY last_seen DESC'
             cursor = await conn.execute(sql, (member.id, ))
             if cursor.rowcount >= 1:
-                return await cursor.fetchone()[0]
+                return (await cursor.fetchone())[0]
             else:
                 return None
 

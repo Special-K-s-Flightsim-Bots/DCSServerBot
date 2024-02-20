@@ -79,7 +79,7 @@ class CreditSystemListener(EventListener):
                 AND m.server_name = cs.server_name 
                 AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
             """, (ucid, campaign_id))
-            return int(await cursor.fetchone()[0])
+            return int((await cursor.fetchone())[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
 
