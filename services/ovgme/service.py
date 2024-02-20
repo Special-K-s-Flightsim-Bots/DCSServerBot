@@ -370,7 +370,7 @@ class OvGMEService(Service):
                 await self.download_from_repo(repo, folder, package_name=package_name, version=version)
                 return await self.install_package(server, folder, package_name, version)
             return False
-        await self.do_install(server, folder, package_name, version, path, filename)
+        return await self.do_install(server, folder, package_name, version, path, filename)
 
     async def do_uninstall(self, server: Server, folder: str, package_name: str, version: str, ovgme_path: str) -> bool:
         target = self.node.installation if folder == 'RootFolder' else server.instance.home
@@ -431,4 +431,4 @@ class OvGMEService(Service):
                     return False
                 else:
                     self.log.info("- Recreation successful.")
-        await self.do_uninstall(server, folder, package_name, version, ovgme_path)
+        return await self.do_uninstall(server, folder, package_name, version, ovgme_path)
