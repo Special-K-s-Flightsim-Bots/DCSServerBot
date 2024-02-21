@@ -193,7 +193,7 @@ class ServiceBus(Service):
                 server.status = Status.UNREGISTERED
                 await self.send_init(server)
             if await server.is_running():
-                calls[server.name] = server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                calls[server.name] = await server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
             else:
                 server.status = Status.SHUTDOWN
                 if server.maintenance:

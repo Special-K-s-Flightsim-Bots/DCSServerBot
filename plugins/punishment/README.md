@@ -110,7 +110,7 @@ Decay can only be configured once, so there is no need for a server specific con
 
 | Command  | Parameter | Role      | Description                                            |
 |----------|-----------|-----------|--------------------------------------------------------|
-| .forgive |           | all       | Forgive the last actions that happend to your player.  |
+| .forgive |           | all       | Forgive the last actions that happened to your player. |
 
 ## How to use the penalty system inside of missions
 To use the penalty system inside of missions, you can use this lua-function:
