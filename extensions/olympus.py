@@ -1,10 +1,12 @@
 import asyncio
 import atexit
+import hashlib
 import json
 import os
 import stat
 import subprocess
 import sys
+from json import JSONDecodeError
 
 from core import Extension, utils, Server
 from typing import Optional
@@ -20,6 +22,12 @@ class Olympus(Extension):
         super().__init__(server, config)
         self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         self.process: Optional[subprocess.Popen] = None
+        if self.version == '1.0.3':
+            self.backend_tag = 'server'
+            self.frontend_tag = 'client'
+        else:
+            self.backend_tag = 'backend'
+            self.frontend_tag = 'frontend'
 
     @property
     def name(self) -> str:
@@ -29,12 +37,22 @@ class Olympus(Extension):
     def version(self) -> Optional[str]:
         return utils.get_windows_version(os.path.join(self.home, 'bin', 'olympus.dll'))
 
+    @property
+    def config_path(self) -> str:
+        if self.version == '1.0.3':
+            return os.path.join(self.home, 'olympus.json')
+        else:
+            return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
+
     def load_config(self) -> Optional[dict]:
         try:
-            with open(os.path.join(self.home, 'olympus.json'), mode='r', encoding='utf-8') as file:
+            with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
         except FileNotFoundError:
-            return {}
+            self.log.error(f"{self.name}: Config file not found.")
+        except JSONDecodeError:
+            self.log.error(f"{self.name}: Config file corrupt.")
+        return {}
 
     def is_installed(self) -> bool:
         if not self.config.get('enabled', True):
@@ -51,7 +69,7 @@ class Olympus(Extension):
         if 'url' in self.config:
             value = self.config['url']
         else:
-            value = f"http://{self.node.public_ip}:{self.config.get('client', {}).get('port', 3000)}"
+            value = f"http://{self.node.public_ip}:{self.config.get(self.frontend_tag, {}).get('port', 3000)}"
         return {
             "name": self.name,
             "version": self.version,
@@ -63,43 +81,42 @@ class Olympus(Extension):
 
         if not self.is_installed():
             return False
-        self.log.debug(f"Launching {self.name} configurator ...")
+        self.log.debug(f"Preparing {self.name} configuration ...")
         try:
-            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             try:
-                os.chmod(os.path.join(self.home, 'olympus.json'), stat.S_IWUSR)
+                os.chmod(self.config_path, stat.S_IWUSR)
             except PermissionError:
                 self.log.warning(
                     f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
                 return False
-            server_port = self.config.get('server', {}).get('port', 3001)
+            server_port = self.config.get(self.backend_tag, {}).get('port', 3001)
             if server_ports.get(server_port, self.server.name) != self.server.name:
                 self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
                                f"server {server_ports[server_port]}!")
                 return False
             server_ports[server_port] = self.server.name
-            client_port = self.config.get('client', {}).get('port', 3000)
+            client_port = self.config.get(self.frontend_tag, {}).get('port', 3000)
             if client_ports.get(client_port, self.server.name) != self.server.name:
                 self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
                                f"server {client_ports[client_port]}!")
                 return False
             client_ports[client_port] = self.server.name
 
-            # Starting Olympus Configurator
-            def run_subprocess():
-                subprocess.run([
-                    os.path.basename(self.nodejs),
-                    "configurator.js",
-                    "-a", self.config.get('server', {}).get('address', '*'),
-                    "-c", str(client_port),
-                    "-b", str(server_port),
-                    "-p", self.config.get('authentication', {}).get('gameMasterPassword', ''),
-                    "--bp", self.config.get('authentication', {}).get('blueCommanderPassword', ''),
-                    "--rp", self.config.get('authentication', {}).get('redCommanderPassword', '')
-                ], executable=self.nodejs, cwd=os.path.join(self.home, 'client'), stdout=out, stderr=out)
-
-            await asyncio.to_thread(run_subprocess)
             self.locals = self.load_config()
+            self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', 'localhost')
+            self.locals[self.backend_tag]['port'] = server_port
+            self.locals[self.frontend_tag]['port'] = client_port
+            self.locals['authentication'] = {
+                "gameMasterPassword": hashlib.sha256(
+                    self.config.get('authentication', {}).get('gameMasterPassword', '').encode('utf-8')).hexdigest(),
+                "blueCommanderPassword": hashlib.sha256(
+                    self.config.get('authentication', {}).get('blueCommanderPassword', '').encode('utf-8')).hexdigest(),
+                "redCommanderPassword": hashlib.sha256(
+                    self.config.get('authentication', {}).get('redCommanderPassword', '').encode('utf-8')).hexdigest()
+            }
+            with open(self.config_path, 'w', encoding='utf-8') as cfg:
+                json.dump(self.locals, cfg, indent=2)
+
             return await super().prepare()
         except Exception as ex:
             self.log.exception(ex)
@@ -110,9 +127,11 @@ class Olympus(Extension):
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
 
         def run_subprocess():
-            return subprocess.Popen([self.nodejs, r".\bin\www"], cwd=os.path.join(self.home, "client"),
-                                    stdout=out, stderr=out)
-
+            args = [self.nodejs, r".\bin\www"]
+            if self.version != '1.0.3':
+                args.append('--config')
+                args.append(self.config_path)
+            return subprocess.Popen(args, cwd=os.path.join(self.home, self.frontend_tag), stdout=out, stderr=out)
         try:
             self.process = await asyncio.to_thread(run_subprocess)
             atexit.register(self.shutdown)
@@ -130,10 +149,10 @@ class Olympus(Extension):
         return False
 
     def is_running(self) -> bool:
-        server_ip = self.locals.get('server', {}).get('address', '*')
+        server_ip = self.locals.get(self.backend_tag, {}).get('address', '*')
         if server_ip == '*':
             server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals.get('client', {}).get('port', 3000))
+        return utils.is_open(server_ip, self.locals.get(self.frontend_tag, {}).get('port', 3000))
 
     def shutdown(self) -> bool:
         if self.process and self.process.poll() is None:

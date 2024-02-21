@@ -423,9 +423,7 @@ class OvGMEService(Service):
             self.log.warning(f"- Can't find {os.path.join(ovgme_path, 'install.log')}. Trying to recreate ...")
             # try to recreate it
             if folder == 'SavedGames':
-                if not await asyncio.create_task(asyncio.to_thread(
-                        self.recreate_install_log, server, package_name, version
-                )):
+                if not await self.recreate_install_log(server, package_name, version):
                     self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
                     return False
                 else:

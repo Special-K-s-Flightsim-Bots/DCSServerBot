@@ -268,7 +268,57 @@ Don't forget to add some kind of security before exposing services like that to 
 a nginx reverse proxy.</br>
 If you plan to build Lardoon on your own, I'd recommend the fork of [Team LimaKilo](https://github.com/team-limakilo/lardoon).
 
-### DCS Olympus
+### DCS Olympus (v1.0.4 and above, for v1.0.3 see below)
+[DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
+real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
+is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [OvGME](../services/ovgme/README.md) service like so:
+```yaml
+DEFAULT:
+  SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'
+  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'
+DCS_MERCS:
+  packages:
+  - name: DCSOlympus
+    version: latest
+    source: SavedGames
+```
+To use the DCS Olympus client, you need [Node.js](https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi) installed.
+Click on the link, download and install it. Remember the installation location, as you need to provide it in the 
+configuration.
+
+Then you can add the DCS Olympus extension like so to your nodes.yaml:
+```yaml
+MyNode:
+  # [...]
+  extensions:
+    Olympus:
+      nodejs: '%ProgramFiles%\nodejs'
+  # [...]
+  instances:
+    DCS.openbeta_server:
+      # [...]
+      extensions:
+        Olympus:
+          debug: true                     # Show the Olympus console in the DCSSB console, default = false
+          url: http://myfancyurl:3000/   # optional: your own URL, if available
+          backend:
+            port: 3001                    # server port for DCS Olympus internal communication (needs to be unique)                   
+          authentication:
+            gameMasterPassword: secret    # Game Master password
+            blueCommanderPassword: blue   # Blue Tactical Commander password
+            redCommanderPassword: red     # Red Tactical Commander password
+          frontend:
+            port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
+    instance2:
+      # [...]
+      extensions:
+        Olympus:
+          enabled: false                  # Don't enable DCS Olympus on your instance2
+```
+> ⚠️ **Attention!**<br>
+> You need to forward the frontend port from your router to the PC running DCS and DCS Olympus.
+
+### DCS Olympus (v1.0.3)
 [DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
 real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
 is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [OvGME](../services/ovgme/README.md) service like so:
