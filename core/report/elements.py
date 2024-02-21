@@ -236,7 +236,7 @@ class Graph(ReportElement):
 
 def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: bool):
     if isinstance(no_data, str):
-        element.add_field(name='_ _', value=no_data)
+        element.add_field(name='_ _', value=no_data, inline=inline)
     else:
         for name, value in no_data.items():
             element.add_field(name=name, value=value, inline=inline)
@@ -267,7 +267,7 @@ class SQLTable(EmbedElement):
                 await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 0:
                     if no_data:
-                        _display_no_data(self, no_data, inline)
+                        _display_no_data(self, no_data, False)
                     return
                 header = None
                 cols = []

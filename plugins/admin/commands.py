@@ -27,7 +27,7 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
         return []
     choices: list[app_commands.Choice[int]] = [
         app_commands.Choice(name=f"{x['name']} ({x['ucid']})" if x['name'] else x['ucid'], value=x['ucid'])
-        for x in interaction.client.bus.bans()
+        for x in await interaction.client.bus.bans()
         if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
     ]
     return choices[:25]
