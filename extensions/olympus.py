@@ -22,7 +22,7 @@ class Olympus(Extension):
         super().__init__(server, config)
         self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         self.process: Optional[subprocess.Popen] = None
-        if self.version == '1.0.3':
+        if self.version == '1.0.3.0':
             self.backend_tag = 'server'
             self.frontend_tag = 'client'
         else:
@@ -39,7 +39,7 @@ class Olympus(Extension):
 
     @property
     def config_path(self) -> str:
-        if self.version == '1.0.3':
+        if self.version == '1.0.3.0':
             return os.path.join(self.home, 'olympus.json')
         else:
             return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
@@ -103,7 +103,7 @@ class Olympus(Extension):
             client_ports[client_port] = self.server.name
 
             self.locals = self.load_config()
-            default_address = '*' if self.version == '1.0.3' else 'localhost'
+            default_address = '*' if self.version == '1.0.3.0' else 'localhost'
             self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', default_address)
             self.locals[self.backend_tag]['port'] = server_port
             self.locals[self.frontend_tag]['port'] = client_port
@@ -129,7 +129,7 @@ class Olympus(Extension):
 
         def run_subprocess():
             args = [self.nodejs, r".\bin\www"]
-            if self.version != '1.0.3':
+            if self.version != '1.0.3.0':
                 args.append('--config')
                 args.append(self.config_path)
             return subprocess.Popen(args, cwd=os.path.join(self.home, self.frontend_tag), stdout=out, stderr=out)
