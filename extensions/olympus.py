@@ -103,7 +103,8 @@ class Olympus(Extension):
             client_ports[client_port] = self.server.name
 
             self.locals = self.load_config()
-            self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', 'localhost')
+            default_address = '*' if self.version == '1.0.3' else 'localhost'
+            self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', default_address)
             self.locals[self.backend_tag]['port'] = server_port
             self.locals[self.frontend_tag]['port'] = client_port
             self.locals['authentication'] = {
