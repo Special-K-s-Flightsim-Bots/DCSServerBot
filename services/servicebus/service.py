@@ -193,13 +193,13 @@ class ServiceBus(Service):
                 server.status = Status.UNREGISTERED
                 await self.send_init(server)
             if await server.is_running():
-                calls[server.name] = await server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                calls[server.name] = server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
             else:
                 server.status = Status.SHUTDOWN
                 if server.maintenance:
                     self.log.warning(
                         f'  => Maintenance mode enabled for Server {server.name}')
-        ret = await asyncio.gather(*calls.values(), return_exceptions=True)
+        ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
         num = 0
         for i, name in enumerate(calls.keys()):
             server = self.servers[name]
