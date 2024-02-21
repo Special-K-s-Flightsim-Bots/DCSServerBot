@@ -190,10 +190,10 @@ class ServiceBus(Service):
         calls: dict[str, Any] = dict()
         for server in local_servers:
             if not self.master:
-                server.status = Status.UNREGISTERED
                 await self.send_init(server)
             if await server.is_running():
-                calls[server.name] = server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                calls[server.name] = asyncio.create_task(server.send_to_dcs_sync({"command": "registerDCSServer"},
+                                                                                 timeout))
             else:
                 server.status = Status.SHUTDOWN
                 if server.maintenance:
@@ -497,7 +497,7 @@ class ServiceBus(Service):
                 }, node=data.get('node'))
         except Exception as ex:
             if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
-                self.log.warning("Timeout error during an RPC call!")
+                self.log.warning(f"Timeout error during an RPC call: {data.get('object')}.!")
             else:
                 self.log.exception(ex, exc_info=True)
             if data.get('channel', '').startswith('sync-'):

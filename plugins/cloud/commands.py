@@ -249,7 +249,7 @@ class CloudHandler(Plugin):
                             WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
                             GROUP BY 1, 2, 3
                         """, (row['ucid'], ))
-                        for line in cursor:
+                        async for line in cursor:
                             try:
                                 line['client'] = self.client
                                 await self.post('upload', line)
