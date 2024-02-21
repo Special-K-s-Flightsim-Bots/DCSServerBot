@@ -221,11 +221,10 @@ class OvGMEService(Service):
 
     async def get_installed_package(self, server: Server, folder: str, package_name: str) -> Optional[str]:
         async with self.apool.connection() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute("""
-                    SELECT version FROM ovgme_packages WHERE server_name = %s AND package_name = %s AND folder = %s
-                """, (server.name, package_name, folder))
-                return cursor.fetchone()[0] if cursor.rowcount == 1 else None
+            cursor = await conn.execute("""
+                SELECT version FROM ovgme_packages WHERE server_name = %s AND package_name = %s AND folder = %s
+            """, (server.name, package_name, folder))
+            return (await cursor.fetchone())[0] if cursor.rowcount == 1 else None
 
     async def recreate_install_log(self, server: Server, package_name: str, version: str) -> bool:
         config = self.get_config(server)
