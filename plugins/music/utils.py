@@ -37,7 +37,8 @@ class Playlist:
         self = Playlist()
         self.playlist = playlist
         async with self.apool.connection() as conn:
-            cursor = await conn.execute('SELECT song_file FROM music_playlists WHERE name = $1 ORDER BY song_id', playlist)
+            cursor = await conn.execute('SELECT song_file FROM music_playlists WHERE name = %s ORDER BY song_id',
+                                        (playlist, ))
             self._items = [row[0] async for row in cursor]
         return self
 
