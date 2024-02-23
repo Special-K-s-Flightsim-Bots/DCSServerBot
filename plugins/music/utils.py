@@ -83,7 +83,7 @@ class Playlist:
 
 
 async def get_all_playlists(interaction: discord.Interaction) -> list[str]:
-    async with interaction.client.pool.connection() as conn:
+    async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')
         return [x[0] async for x in cursor]
 
