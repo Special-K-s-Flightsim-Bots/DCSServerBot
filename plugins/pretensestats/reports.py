@@ -70,6 +70,10 @@ class Top10Pilots(report.EmbedElement):
         # Extract player scores from the JSON data
         player_scores = {}
         stats = data.get("stats", {})
+        if not isinstance(stats, dict):
+            self.log.warning(f"PretenseStats: Error in processing the json file. "
+                             f"Please check that you use the right one!")
+            return
         for player, stats in stats.items():
             if isinstance(stats, dict):  # Check if stats is a dictionary
                 xp = stats.get("XP", 0)

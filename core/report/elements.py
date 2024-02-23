@@ -220,7 +220,7 @@ class Graph(ReportElement):
                 return
             # only render the graph, if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
-                await asyncio.create_task(asyncio.to_thread(self._plot))
+                await asyncio.to_thread(self._plot)
             self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
             footer = self.env.embed.footer.text or ''
             if footer is None:
@@ -228,6 +228,8 @@ class Graph(ReportElement):
             else:
                 footer += '\nClick on the image to zoom in.'
             self.env.embed.set_footer(text=footer)
+        except RuntimeError:
+            pass
         finally:
             if self.env.figure:
                 plt.close(self.env.figure)
