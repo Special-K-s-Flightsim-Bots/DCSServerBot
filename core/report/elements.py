@@ -171,6 +171,7 @@ class Graph(ReportElement):
     def __init__(self, env: ReportEnv):
         super().__init__(env)
         plt.switch_backend('agg')
+        self.plot_lock = asyncio.Lock()
 
     def _plot(self):
         plt.subplots_adjust(hspace=0.5, wspace=0.5)
@@ -178,6 +179,10 @@ class Graph(ReportElement):
         self.env.buffer = BytesIO()
         self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
         self.env.buffer.seek(0)
+
+    async def _async_plot(self):
+        async with self.plot_lock:
+            self._plot()
 
     async def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
                      facecolor: Optional[str] = None):
@@ -220,7 +225,7 @@ class Graph(ReportElement):
                 return
             # only render the graph, if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
-                await asyncio.to_thread(self._plot)
+                await self._async_plot()
             self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
             footer = self.env.embed.footer.text or ''
             if footer is None:
@@ -228,8 +233,6 @@ class Graph(ReportElement):
             else:
                 footer += '\nClick on the image to zoom in.'
             self.env.embed.set_footer(text=footer)
-        except RuntimeError:
-            pass
         finally:
             if self.env.figure:
                 plt.close(self.env.figure)
