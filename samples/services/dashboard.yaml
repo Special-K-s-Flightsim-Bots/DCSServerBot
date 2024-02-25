@@ -1,0 +1,13 @@
+DEFAULT:  # you must configure the colors below the default tag
+  header:
+    background: white on navy_blue
+    border: white
+  servers:
+    background: white on dark_blue
+    border: white
+  nodes:
+    background: white on dark_blue
+    border: white
+  log:
+    background: white on grey15
+    border: white

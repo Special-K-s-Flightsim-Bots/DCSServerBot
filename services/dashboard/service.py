@@ -44,7 +44,8 @@ class HeaderWidget:
         message += (f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version} | "
                     f"DCS Version {self.service.dcs_version}[/]")
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
-        return Panel(grid, style="white on navy_blue")
+        return Panel(grid, style=self.service.get_config().get("header", {}).get("background", "white on navy_blue"),
+                     border_style=self.service.get_config().get("header", {}).get("border", "white"))
 
 
 class ServersWidget:
@@ -71,7 +72,9 @@ class ServersWidget:
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
-        return Panel(table, title="[b]Servers", padding=1, style="white on dark_blue")
+        return Panel(table, title="[b]Servers", padding=1,
+                     style=self.service.get_config().get("servers", {}).get("background", "white on dark_blue"),
+                     border_style=self.service.get_config().get("servers", {}).get("border", "white"))
 
 
 class NodeWidget:
@@ -102,13 +105,16 @@ class NodeWidget:
                 table.add_row(f"[green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
-        return Panel(table, title="[b]Nodes", padding=1, style="white on dark_blue")
+        return Panel(table, title="[b]Nodes", padding=1,
+                     style=self.service.get_config().get("nodes", {}).get("background", "white on dark_blue"),
+                     border_style=self.service.get_config().get("nodes", {}).get("border", "white"))
 
 
 class LogWidget:
     """Display log messages"""
-    def __init__(self, queue: Queue):
-        self.queue = queue
+    def __init__(self, service: Service):
+        self.service = service
+        self.queue = service.queue
         self.buffer: list[str] = []
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
@@ -131,7 +137,9 @@ class LogWidget:
                          range(init, len(self.buffer))])
         if len(self.buffer) > 100:
             self.buffer = self.buffer[-100:]
-        yield Panel(msg, title="[b]Log", height=options.max_height, style="white on grey15")
+        yield Panel(msg, title="[b]Log", height=options.max_height,
+                    style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
+                    border_style=self.service.get_config().get("log", {}).get("border", "white"))
 
 
 @ServiceRegistry.register("Dashboard")
@@ -205,7 +213,7 @@ class Dashboard(Service):
             self.layout['nodes'].update(NodeWidget(self))
         else:
             self.layout['main'].update(ServersWidget(self))
-        self.layout['log'].update(LogWidget(self.queue))
+        self.layout['log'].update(LogWidget(self))
         try:
             with Live(self.layout, refresh_per_second=4, screen=False):
                 while not self.stop_event.is_set():
