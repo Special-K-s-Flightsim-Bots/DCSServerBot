@@ -299,7 +299,7 @@ class UserStatisticsEventListener(EventListener):
                         if death_type in self.SQL_EVENT_UPDATES.keys():
                             pilot: Player = server.get_player(id=data['arg4'])
                             for crew_member in server.get_crew_members(pilot):
-                                conn.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
+                                await conn.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'pilot_death']:
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
