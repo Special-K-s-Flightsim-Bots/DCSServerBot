@@ -55,7 +55,7 @@ class UserStatistics(Plugin):
         self.expire_token.cancel()
         await super().cog_unload()
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
