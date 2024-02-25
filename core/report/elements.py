@@ -7,6 +7,7 @@ import numpy as np
 import os
 import sys
 import uuid
+import warnings
 
 from abc import ABC, abstractmethod
 from core import utils
@@ -177,6 +178,7 @@ class Graph(ReportElement):
         plt.subplots_adjust(hspace=0.5, wspace=0.5)
         self.env.filename = f'{uuid.uuid4()}.png'
         self.env.buffer = BytesIO()
+        warnings.filterwarnings("ignore", category=UserWarning, message=".*Glyph.*")
         self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
         self.env.buffer.seek(0)
 

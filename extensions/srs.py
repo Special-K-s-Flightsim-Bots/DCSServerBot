@@ -2,12 +2,12 @@ import aiohttp
 import asyncio
 import certifi
 import os
+import psutil
 import shutil
 import subprocess
 import ssl
 import sys
 
-import psutil
 from discord.ext import tasks
 from configparser import RawConfigParser
 from core import Extension, utils, Server
@@ -108,12 +108,13 @@ class SRS(Extension):
         await super().startup()
         if self.config.get('autostart', True):
             self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.config['config']}\"")
-            if sys.platform == 'win32' and self.config.get('minimized', False):
+            if sys.platform == 'win32' and self.config.get('minimized', True):
+                import win32process
                 import win32con
 
                 info = subprocess.STARTUPINFO()
-                info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-                info.wShowWindow = win32con.SW_MINIMIZE
+                info.dwFlags |= win32process.STARTF_USESHOWWINDOW
+                info.wShowWindow = win32con.SW_SHOWMINNOACTIVE
             else:
                 info = None
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None

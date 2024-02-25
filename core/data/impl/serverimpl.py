@@ -6,6 +6,10 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
+
+if sys.platform == 'win32':
+    import win32con, win32gui
 
 from collections import OrderedDict
 from contextlib import suppress
@@ -396,6 +400,21 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.exception(ex)
 
+    def _window_enumeration_handler(self, hwnd, top_windows):
+        top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
+
+    def _minimize(self):
+            top_windows = []
+            win32gui.EnumWindows(self._window_enumeration_handler, top_windows)
+
+            # Fetch the window name of the process
+            window_name = self.instance.name
+
+            for i in top_windows:
+                if window_name.lower() in i[1].lower():
+                    win32gui.ShowWindow(i[0], win32con.SW_MINIMIZE)
+                    break
+
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
         for ext in self.extensions.values():
@@ -410,6 +429,8 @@ class ServerImpl(Server):
         self.status = Status.LOADING
         try:
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+            if sys.platform == 'win32':
+                self._minimize()
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch
             if not await self.is_running():
