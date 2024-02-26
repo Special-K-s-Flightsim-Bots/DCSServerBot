@@ -184,10 +184,12 @@ class MonitoringService(Service):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO nodestats (node, pool_size, pool_available, requests_waiting, requests_wait_ms, workers)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO nodestats (node, pool_size, pool_available, requests_waiting, requests_wait_ms, 
+                                           workers, qsize)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (self.node.name, pstats.get('pool_size', 0), pstats.get('pool_available', 0),
-                      pstats.get('requests_waiting', 0), wait_time, len(bus.executor._threads)))
+                      pstats.get('requests_waiting', 0), wait_time, len(bus.executor._threads),
+                      sum(x.qsize() for x in bus.udp_server.message_queue.values())))
         last_wait_time = pstats.get('requests_wait_ms', 0)
 
     async def serverload(self):
