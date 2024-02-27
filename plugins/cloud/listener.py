@@ -19,28 +19,27 @@ class CloudListener(EventListener):
         if player.side == Side.SPECTATOR:
             return
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor(row_factory=dict_row) as cursor:
-                    await cursor.execute("""
-                        SELECT s.player_ucid, m.mission_theatre, s.slot, SUM(s.kills) as kills, 
-                               SUM(s.pvp) as pvp, SUM(deaths) as deaths, SUM(ejections) as ejections, 
-                               SUM(crashes) as crashes, SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
-                               SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
-                               SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
-                               SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
-                               SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships, 
-                               SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
-                               SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                               ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
-                        FROM statistics s, missions m 
-                        WHERE s.player_ucid = %s AND m.mission_theatre = %s AND s.slot = %s AND s.hop_off IS NOT null 
-                        AND s.mission_id = m.id 
-                        GROUP BY 1, 2, 3
-                    """, (player.ucid, server.current_mission.map, player.unit_type))
-                if cursor.rowcount > 0:
-                    row = await cursor.fetchone()
-                    row['client'] = self.plugin.client
-                    try:
-                        await self.plugin.post('upload', row)
-                    except aiohttp.ClientError:
-                        self.log.warn('Cloud service not available atm, skipping statistics upload.')
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT s.player_ucid, m.mission_theatre, s.slot, SUM(s.kills) as kills, 
+                           SUM(s.pvp) as pvp, SUM(deaths) as deaths, SUM(ejections) as ejections, 
+                           SUM(crashes) as crashes, SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                           SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                           SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                           SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                           SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships, 
+                           SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                           SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
+                    FROM statistics s, missions m 
+                    WHERE s.player_ucid = %s AND m.mission_theatre = %s AND s.slot = %s AND s.hop_off IS NOT null 
+                    AND s.mission_id = m.id 
+                    GROUP BY 1, 2, 3
+                """, (player.ucid, server.current_mission.map, player.unit_type))
+            row = await cursor.fetchone()
+            if row:
+                row['client'] = self.plugin.client
+                try:
+                    await self.plugin.post('upload', row)
+                except aiohttp.ClientError:
+                    self.log.warn('Cloud service not available atm, skipping statistics upload.')

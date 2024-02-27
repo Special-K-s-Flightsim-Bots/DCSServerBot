@@ -656,6 +656,8 @@ class ServiceBus(Service):
                                 if not_done:
                                     # Logging the commands that could not be processed due to timeout
                                     self.log.warning(f"Command {data} was not processed due to a timeout.")
+                                    self.log.warning(f"Pool: {self.node.pool.get_stats()}")
+                                    self.log.warning(f"APool: {self.node.apool.get_stats()}")
                                     for future in not_done:
                                         future.cancel()
                             else:

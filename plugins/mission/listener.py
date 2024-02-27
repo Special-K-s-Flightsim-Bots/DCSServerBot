@@ -439,8 +439,7 @@ class MissionEventListener(EventListener):
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                           data['name']))
         finally:
-            if player:
-                await player.update(data)
+            await player.update(data)
             self.display_player_embed(server)
 
     @event(name="onGameEvent")
