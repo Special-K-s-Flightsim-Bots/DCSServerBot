@@ -784,7 +784,7 @@ class Mission(Plugin):
                             "ucid": row[0]
                         })
                     # delete unbanned accounts from the database
-                    conn.execute("DELETE FROM bans WHERE ucid = %s", row[0])
+                    conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
 
     @check_for_unban.before_loop
     async def before_check_unban(self):
