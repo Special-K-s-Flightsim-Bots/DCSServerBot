@@ -1,7 +1,7 @@
 import pandas as pd
 from psycopg.rows import dict_row
 
-from core import report
+from core import report, ServiceRegistry
 
 
 class NodeStats(report.MultiGraphElement):
@@ -32,7 +32,8 @@ class NodeStats(report.MultiGraphElement):
                     series.plot(ax=self.axes[2], x='time', y=['Worker Threads'], title='Worker Threads', xlabel='',
                                 ylabel='Threads')
                     self.axes[2].legend(loc='upper left')
-                    self.axes[2].set_ylim(0, len(self.bot.servers) + 1)
+                    bus = ServiceRegistry.get("ServiceBus")
+                    self.axes[2].set_ylim(0, bus.executor._max_workers + 1)
                     ax4 = self.axes[2].twinx()
                     series.plot(ax=ax4, x='time', y=['Queue Length'], xlabel='', color='red')
                     ax4.legend(['Queue Length'], loc='upper right')

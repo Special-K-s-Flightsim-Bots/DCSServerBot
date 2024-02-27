@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import os
 import platform
+import psycopg
 import sys
 import traceback
 
@@ -111,7 +112,7 @@ if __name__ == "__main__":
     if os.path.exists(os.path.join(config_dir, 'dcsserverbot.ini')):
         migrate(node=args.node)
     try:
-        with PidFile(pidname=f"dcssb_{args.node}"):
+        with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
                 node = NodeImpl(name=args.node, config_dir=config_dir)
             except FatalException:
@@ -131,7 +132,7 @@ if __name__ == "__main__":
     except asyncio.CancelledError:
         # do not restart again
         exit(-2)
-    except (YAMLError, FatalException) as ex:
+    except (YAMLError, FatalException, psycopg.OperationalError) as ex:
         print(ex)
         # do not restart again
         exit(-2)

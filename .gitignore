@@ -1,6 +1,7 @@
 .env
 __pycache__/
 *.db
+*.pid
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 .stignore

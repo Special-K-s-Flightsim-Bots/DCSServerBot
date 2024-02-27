@@ -5,6 +5,7 @@ import discord
 import inspect
 import json
 import os
+import psycopg
 import sys
 
 from abc import ABC, abstractmethod
@@ -108,8 +109,12 @@ class Report:
                             except (TimeoutError, asyncio.TimeoutError):
                                 self.log.error(f"Timeout while processing report {self.filename}! "
                                                f"Some elements might be empty.")
+                            except psycopg.OperationalError:
+                                self.log.error(f"Database error while processing report {self.filename}! "
+                                               f"Some elements might be empty.")
                             except Exception as ex:
-                                self.log.exception(ex)
+                                self.log.error(f"Error while processing report {self.filename}! "
+                                               f"Some elements might be empty.", exc_info=True)
                         else:
                             raise UnknownReportElement(element['class'])
                     else:
@@ -301,7 +306,7 @@ class PaginationReport(Report):
             else:
                 message = None
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"Exception while processing report {self.filename}!")
             raise
         finally:
             if message:
@@ -328,7 +333,8 @@ class PersistentReport(Report):
                                     file=file, server=self.server)
             return env
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"Exception while processing report {self.filename}!")
+            raise
         finally:
             if env and env.filename:
                 env.buffer.close()

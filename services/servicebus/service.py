@@ -622,6 +622,7 @@ class ServiceBus(Service):
 
             def process(derived, server_name: str):
                 try:
+                    timeout = 60.0 if self.node.locals.get('slow_system', False) else 30.0
                     data: dict = derived.message_queue[server_name].get()
                     while data:
                         server: Server = self.servers.get(server_name)
@@ -642,15 +643,21 @@ class ServiceBus(Service):
                                     f"Command {command} for unregistered server {server.name} received, ignoring.")
                                 continue
                             if self.master:
-                                concurrent.futures.wait(
-                                    [
-                                        asyncio.run_coroutine_threadsafe(
-                                            listener.processEvent(command, server, deepcopy(data)), self.loop
-                                        )
-                                        for listener in self.eventListeners
-                                        if listener.has_event(command)
-                                    ]
-                                )
+                                futures = [
+                                    asyncio.run_coroutine_threadsafe(
+                                        listener.processEvent(command, server, deepcopy(data)), self.loop
+                                    )
+                                    for listener in self.eventListeners
+                                    if listener.has_event(command)
+                                ]
+
+                                done, not_done = concurrent.futures.wait(futures, timeout=timeout)
+
+                                if not_done:
+                                    # Logging the commands that could not be processed due to timeout
+                                    self.log.warning(f"Command {command} was not processed due to a timeout.")
+                                    for future in not_done:
+                                        future.cancel()
                             else:
                                 self.send_to_node(data)
                         except Exception as ex:
@@ -659,6 +666,7 @@ class ServiceBus(Service):
                             derived.message_queue[server.name].task_done()
                             data = derived.message_queue[server.name].get()
                 finally:
+                    self.log.debug(f"Listener for server {server_name} stopped.")
                     del derived.message_queue[server_name]
 
             def shutdown(derived):

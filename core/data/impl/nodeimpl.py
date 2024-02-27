@@ -221,10 +221,11 @@ class NodeImpl(Node):
         pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 4)
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
+        timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
         db_pool = ConnectionPool(url, min_size=2, max_size=4,
                                  check=ConnectionPool.check_connection, max_idle=max_idle)
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
-                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle)
+                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
         return db_pool, db_apool
 
     def init_instances(self):

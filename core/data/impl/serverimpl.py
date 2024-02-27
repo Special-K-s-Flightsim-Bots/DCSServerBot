@@ -176,15 +176,16 @@ class ServerImpl(Server):
                         self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
             elif self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
                 # make sure, mission names are unique
-                current_mission = self._settings['missionList'][int(self._settings['listStartIndex']) - 1]
-                self._settings['missionList'] = list(
-                    OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
-                )
-                try:
-                    new_start = self._settings['missionList'].index(current_mission)
-                except ValueError:
-                    new_start = 0
-                self._settings['listStartIndex'] = new_start + 1
+                current_mission = self._get_current_mission_file()
+                if current_mission:
+                    self._settings['missionList'] = list(
+                        OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
+                    )
+                    try:
+                        new_start = self._settings['missionList'].index(current_mission)
+                    except ValueError:
+                        new_start = 0
+                    self._settings['listStartIndex'] = new_start + 1
             super().set_status(status)
 
     def _install_luas(self):
@@ -243,7 +244,7 @@ class ServerImpl(Server):
             self.observer = Observer()
             self.observer.start()
 
-    async def get_current_mission_file(self) -> Optional[str]:
+    def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
             start_index = int(settings.get('listStartIndex', 1))
@@ -261,6 +262,9 @@ class ServerImpl(Server):
         else:
             filename = self.current_mission.filename
         return os.path.normpath(filename) if filename else None
+
+    async def get_current_mission_file(self) -> Optional[str]:
+        return self._get_current_mission_file()
 
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()

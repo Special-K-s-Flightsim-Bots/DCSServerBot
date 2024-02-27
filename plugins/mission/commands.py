@@ -771,22 +771,25 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
-                """)
-                rows = await cursor.fetchall()
-                for row in rows:
-                    for server in self.bot.servers.values():
-                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                            continue
-                        server.send_to_dcs({
-                            "command": "unban",
-                            "ucid": row[0]
-                        })
-                    # delete unbanned accounts from the database
-                    await conn.execute("DELETE FROM bans WHERE ucid = %s", row[0])
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    cursor = await conn.execute("""
+                        SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
+                    """)
+                    rows = await cursor.fetchall()
+                    for row in rows:
+                        for server in self.bot.servers.values():
+                            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                                continue
+                            server.send_to_dcs({
+                                "command": "unban",
+                                "ucid": row[0]
+                            })
+                        # delete unbanned accounts from the database
+                        await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
+        except Exception as ex:
+            self.log.exception(ex)
 
     @check_for_unban.before_loop
     async def before_check_unban(self):
