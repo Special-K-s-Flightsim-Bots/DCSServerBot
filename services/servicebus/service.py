@@ -654,11 +654,12 @@ class ServiceBus(Service):
                                 done, not_done = concurrent.futures.wait(futures, timeout=timeout)
 
                                 if not_done:
-                                    listeners = [x for x in self.eventListeners if x.has_event(command)]
-                                    pos = futures.index(not_done[0])
                                     # Logging the commands that could not be processed due to timeout
-                                    self.log.warning(f"Command {data} was not processed at {listeners[pos].plugin_name} due to a timeout.")
+                                    self.log.warning(f"Command {data} was not processed due to a timeout.")
+                                    listeners = [x for x in self.eventListeners if x.has_event(command)]
                                     for future in not_done:
+                                        pos = futures.index(future)
+                                        self.log.warning(f"Not processed: {listeners[pos].plugin_name}")
                                         future.cancel()
                             else:
                                 self.send_to_node(data)
