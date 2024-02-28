@@ -215,7 +215,7 @@ class Dashboard(Service):
             self.layout['main'].update(ServersWidget(self))
         self.layout['log'].update(LogWidget(self))
         try:
-            with Live(self.layout, refresh_per_second=4, screen=False):
+            with Live(self.layout, refresh_per_second=1, screen=False):
                 while not self.stop_event.is_set():
                     await asyncio.sleep(1)
         except Exception as ex:
