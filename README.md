@@ -279,6 +279,7 @@ NODENAME:                       # this will be your hostname
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
+  nodestats: true               # Enable node statistics (database pool and event queue sizes), default: true
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
