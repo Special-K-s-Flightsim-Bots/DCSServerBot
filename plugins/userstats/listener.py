@@ -1,6 +1,7 @@
 import psycopg
 
 from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command, DataObjectFactory
+from psycopg import AsyncConnection
 from typing import Union
 
 
@@ -222,109 +223,118 @@ class UserStatisticsEventListener(EventListener):
         self.statistics.discard(server.name)
         await self.close_mission_stats(server)
 
-    @event(name="onGameEvent")
-    async def onGameEvent(self, server: Server, data: dict) -> None:
-        # ignore game events until the server is not initialized correctly
-        # if server.status != Status.RUNNING:
-        #    return
-        if data['eventName'] == 'disconnect':
-            if data['arg1'] != 1:
+    async def _handle_disconnect_event(self, conn: AsyncConnection, server: Server, data: dict) -> None:
+        if data['arg1'] != 1:
+            player: Player = server.get_player(id=data['arg1'])
+            if not player:
+                self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
+                return
+            await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, player.ucid))
+
+    async def _handle_kill_killer(self, conn: AsyncConnection, server: Server, data: dict) -> None:
+        if data['arg4'] != -1:
+            # selfkill
+            if data['arg1'] == data['arg4']:
+                kill_type = 'self_kill'
+            # teamkills
+            elif data['arg3'] == data['arg6']:
+                kill_type = 'teamkill'
+            # PVP
+            elif data['victimCategory'] == 'Planes':
+                kill_type = 'pvp_planes'
+            elif data['victimCategory'] == 'Helicopters':
+                kill_type = 'pvp_helicopters'
+        elif data['victimCategory'] == 'Planes':
+            kill_type = 'kill_planes'
+        elif data['victimCategory'] == 'Helicopters':
+            kill_type = 'kill_helicopters'
+        elif data['victimCategory'] == 'Ships':
+            kill_type = 'kill_ships'
+        elif data['victimCategory'] == 'Air Defence':
+            kill_type = 'kill_sams'
+        elif data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry', 'Fortification', 'Artillery', 'MissilesSS']:
+            kill_type = 'kill_ground'
+        else:
+            kill_type = 'kill_other'  # Static objects
+        if kill_type in self.SQL_EVENT_UPDATES.keys():
+            pilot: Player = server.get_player(id=data['arg1'])
+            for crew_member in server.get_crew_members(pilot):
+                await conn.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
+
+    async def _handle_kill_victim(self, conn: AsyncConnection, server: Server, data: dict) -> None:
+        if data['arg1'] != -1:
+            if data['arg1'] == data['arg4']:  # self kill
+                death_type = 'self_kill'
+            elif data['arg3'] == data['arg6']:  # killed by team member - no death counted
+                death_type = 'teamdeath'
+            # PVP
+            elif data['killerCategory'] == 'Planes':
+                death_type = 'deaths_pvp_planes'
+            elif data['killerCategory'] == 'Helicopters':
+                death_type = 'deaths_pvp_helicopters'
+        elif data['killerCategory'] == 'Planes':
+            death_type = 'deaths_planes'
+        elif data['killerCategory'] == 'Helicopters':
+            death_type = 'deaths_helicopters'
+        elif data['killerCategory'] == 'Ships':
+            death_type = 'deaths_ships'
+        elif data['killerCategory'] == 'Air Defence':
+            death_type = 'deaths_sams'
+        elif data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']:
+            death_type = 'deaths_ground'
+        else:
+            death_type = 'other'
+        if death_type in self.SQL_EVENT_UPDATES.keys():
+            pilot: Player = server.get_player(id=data['arg4'])
+            for crew_member in server.get_crew_members(pilot):
+                await conn.execute(self.SQL_EVENT_UPDATES[death_type],
+                                   (server.mission_id, crew_member.ucid))
+
+    async def _handle_kill_event(self, conn: AsyncConnection, server: Server, data: dict) -> None:
+        # Player is an AI => return
+        if data['arg1'] != -1:
+            await self._handle_kill_killer(conn, server, data)
+        # Victim is an AI => return
+        if data['arg4'] != -1:
+            await self._handle_kill_victim(conn, server, data)
+
+    async def _handle_common_event(self, conn: AsyncConnection, server: Server, data: dict) -> None:
+        if data['arg1'] != -1:
+            if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
                 player: Player = server.get_player(id=data['arg1'])
                 if not player:
-                    self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
                     return
-                async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, player.ucid))
-        elif data['eventName'] == 'kill':
-            # Player is not an AI
-            if data['arg1'] != -1:
-                if data['arg4'] != -1:
-                    # selfkill
-                    if data['arg1'] == data['arg4']:
-                        kill_type = 'self_kill'
-                    # teamkills
-                    elif data['arg3'] == data['arg6']:
-                        kill_type = 'teamkill'
-                    # PVP
-                    elif data['victimCategory'] == 'Planes':
-                        kill_type = 'pvp_planes'
-                    elif data['victimCategory'] == 'Helicopters':
-                        kill_type = 'pvp_helicopters'
-                elif data['victimCategory'] == 'Planes':
-                    kill_type = 'kill_planes'
-                elif data['victimCategory'] == 'Helicopters':
-                    kill_type = 'kill_helicopters'
-                elif data['victimCategory'] == 'Ships':
-                    kill_type = 'kill_ships'
-                elif data['victimCategory'] == 'Air Defence':
-                    kill_type = 'kill_sams'
-                elif data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry', 'Fortification', 'Artillery',
-                                                'MissilesSS']:
-                    kill_type = 'kill_ground'
-                else:
-                    kill_type = 'kill_other'  # Static objects
-                if kill_type in self.SQL_EVENT_UPDATES.keys():
-                    pilot: Player = server.get_player(id=data['arg1'])
-                    async with self.apool.connection() as conn:
-                        async with conn.transaction():
-                            for crew_member in server.get_crew_members(pilot):
-                                await conn.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
+                await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                   (server.mission_id, player.ucid))
 
-                    # Victim is not an AI
-                    if data['arg4'] != -1:
-                        if data['arg1'] != -1:
-                            if data['arg1'] == data['arg4']:  # self kill
-                                death_type = 'self_kill'
-                            elif data['arg3'] == data['arg6']:  # killed by team member - no death counted
-                                death_type = 'teamdeath'
-                            # PVP
-                            elif data['killerCategory'] == 'Planes':
-                                death_type = 'deaths_pvp_planes'
-                            elif data['killerCategory'] == 'Helicopters':
-                                death_type = 'deaths_pvp_helicopters'
-                        elif data['killerCategory'] == 'Planes':
-                            death_type = 'deaths_planes'
-                        elif data['killerCategory'] == 'Helicopters':
-                            death_type = 'deaths_helicopters'
-                        elif data['killerCategory'] == 'Ships':
-                            death_type = 'deaths_ships'
-                        elif data['killerCategory'] == 'Air Defence':
-                            death_type = 'deaths_sams'
-                        elif data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery',
-                                                        'MissilesSS']:
-                            death_type = 'deaths_ground'
-                        else:
-                            death_type = 'other'
-                        if death_type in self.SQL_EVENT_UPDATES.keys():
-                            pilot: Player = server.get_player(id=data['arg4'])
-                            for crew_member in server.get_crew_members(pilot):
-                                await conn.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
-        elif data['eventName'] in ['takeoff', 'landing', 'crash', 'pilot_death']:
-            if data['arg1'] != -1:
-                if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
-                    async with self.apool.connection() as conn:
-                        async with conn.transaction():
-                            player: Player = server.get_player(id=data['arg1'])
-                            if not player:
-                                return
-                            await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
-                                               (server.mission_id, player.ucid))
-        elif data['eventName'] == 'eject':
-            if data['arg1'] != -1:
-                if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
-                    # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
-                    pilot: Player = server.get_player(id=data['arg1'])
-                    crew_members = server.get_crew_members(pilot)
-                    if len(crew_members) == 1:
-                        async with self.apool.connection() as conn:
-                            async with conn.transaction():
-                                await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
-                                                   (server.mission_id, crew_members[0].ucid))
-        elif data['eventName'] == 'mission_end':
-            config = self.get_config(server)
-            if 'highscore' in config:
-                await self.plugin.render_highscore(config['highscore'], server, True)
+    async def _handle_eject_event(self, conn: AsyncConnection, server: Server, data: dict) -> None:
+        if data['arg1'] != -1:
+            if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
+                # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
+                pilot: Player = server.get_player(id=data['arg1'])
+                crew_members = server.get_crew_members(pilot)
+                if len(crew_members) == 1:
+                    await conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                       (server.mission_id, crew_members[0].ucid))
+
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
+        event_name = data['eventName']
+
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                if event_name == 'disconnect':
+                    await self._handle_disconnect_event(conn, server, data)
+                elif event_name == 'kill':
+                    await self._handle_kill_event(conn, server, data)
+                elif event_name in ['takeoff', 'landing', 'crash', 'pilot_death']:
+                    await self._handle_common_event(conn, server, data)
+                elif event_name == 'eject':
+                    await self._handle_eject_event(conn, server, data)
+                elif event_name == 'mission_end':
+                    config = self.get_config(server)
+                    if 'highscore' in config:
+                        await self.plugin.render_highscore(config['highscore'], server, True)
 
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):

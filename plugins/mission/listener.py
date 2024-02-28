@@ -273,7 +273,7 @@ class MissionEventListener(EventListener):
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
-        elif data['channel'].startswith('sync-'):
+        elif server.is_remote or data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
         # all players are inactive for now

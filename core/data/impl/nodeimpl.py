@@ -389,15 +389,17 @@ class NodeImpl(Node):
             return await asyncio.to_thread(run_subprocess)
 
         self.update_pending = True
-        servers = []
+        to_start = []
+        in_maintenance = []
         tasks = []
         bus: ServiceBus = ServiceRegistry.get('ServiceBus')
         for server in [x for x in bus.servers.values() if not x.is_remote]:
             if server.maintenance:
-                servers.append(server)
+                in_maintenance.append(server)
             else:
                 server.maintenance = True
             if server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
+                to_start.append(server)
                 tasks.append(asyncio.create_task(shutdown_with_warning(server)))
         # wait for DCS servers to shut down
         if tasks:
@@ -416,11 +418,11 @@ class NodeImpl(Node):
             for callback in self.after_update.values():
                 await callback()
             self.log.info(f"{self.installation} updated to the latest version.")
-        for server in [x for x in bus.servers.values() if self.locals['DCS'].get('cloud', False) or not x.is_remote]:
-            if server not in servers:
+        for server in [x for x in bus.servers.values() if not x.is_remote]:
+            if server not in in_maintenance:
                 # let the scheduler do its job
                 server.maintenance = False
-            else:
+            if server in to_start:
                 try:
                     # the server was running before (being in maintenance mode), so start it again
                     await server.startup()
