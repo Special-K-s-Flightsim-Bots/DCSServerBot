@@ -8,10 +8,10 @@ import subprocess
 import ssl
 import sys
 
-from discord.ext import tasks
 from configparser import RawConfigParser
+from contextlib import suppress
 from core import Extension, utils, Server
-from psutil import Process
+from discord.ext import tasks
 from typing import Optional
 
 ports: dict[int, str] = dict()
@@ -122,15 +122,18 @@ class SRS(Extension):
                 self.get_exe_path(),
                 f"-cfg={os.path.expandvars(self.config['config'])}"
             ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
-            self.process = Process(p.pid)
+            self.process = psutil.Process(p.pid)
         return await asyncio.to_thread(self.is_running)
 
     def shutdown(self) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
-            super().shutdown()
-            if self.process and self.process.is_running():
+            if self.is_running():
                 self.process.terminate()
+                if self.process.is_running():
+                    with suppress(psutil.NoSuchProcess):
+                        self.process.kill()
                 self.process = None
+                return super().shutdown()
             return True
 
     def is_running(self) -> bool:

@@ -470,7 +470,9 @@ class ServerImpl(Server):
 
     def _terminate(self) -> None:
         if self.process and self.process.is_running():
-            self.process.kill()
+            self.process.terminate()
+            if self.process.is_running():
+                self.process.kill()
         self.process = None
 
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:

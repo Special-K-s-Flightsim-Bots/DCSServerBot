@@ -3,12 +3,14 @@ import atexit
 import hashlib
 import json
 import os
+import psutil
 import stat
 import subprocess
 import sys
-from json import JSONDecodeError
 
+from contextlib import suppress
 from core import Extension, utils, Server
+from json import JSONDecodeError
 from typing import Optional
 
 server_ports: dict[int, str] = dict()
@@ -21,7 +23,7 @@ class Olympus(Extension):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         super().__init__(server, config)
         self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
-        self.process: Optional[subprocess.Popen] = None
+        self.process: Optional[psutil.Process] = None
         if self.version == '1.0.3.0':
             self.backend_tag = 'server'
             self.frontend_tag = 'client'
@@ -128,13 +130,15 @@ class Olympus(Extension):
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
 
         def run_subprocess():
-            args = [self.nodejs, r".\bin\www"]
+            args = [self.nodejs, os.path.join(self.home, self.frontend_tag, 'bin', 'www')]
             if self.version != '1.0.3.0':
                 args.append('--config')
                 args.append(self.config_path)
             return subprocess.Popen(args, cwd=os.path.join(self.home, self.frontend_tag), stdout=out, stderr=out)
+
         try:
-            self.process = await asyncio.to_thread(run_subprocess)
+            p = await asyncio.to_thread(run_subprocess)
+            self.process = psutil.Process(p.pid)
             atexit.register(self.shutdown)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
@@ -150,14 +154,17 @@ class Olympus(Extension):
         return False
 
     def is_running(self) -> bool:
-        server_ip = self.locals.get(self.backend_tag, {}).get('address', '*')
-        if server_ip == '*':
-            server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals.get(self.frontend_tag, {}).get('port', 3000))
+        if not self.process or not self.process.is_running():
+            cmd = os.path.basename(self.nodejs)
+            self.process = utils.find_process(cmd, self.server.instance.name)
+        return self.process is not None
 
     def shutdown(self) -> bool:
-        if self.process and self.process.poll() is None:
+        if self.is_running():
             super().shutdown()
             self.process.terminate()
+            if self.process.is_running():
+                with suppress(psutil.NoSuchProcess):
+                    self.process.kill()
             self.process = None
         return True

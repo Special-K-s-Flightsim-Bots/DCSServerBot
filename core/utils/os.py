@@ -43,13 +43,16 @@ async def get_public_ip():
                     return ipaddress.ip_address(await resp.text()).compressed
 
 
-def find_process(proc: str, instance: str):
+def find_process(proc: str, instance: Optional[str] = None):
     for p in psutil.process_iter(['cmdline']):
         try:
             if os.path.basename(p.info['cmdline'][0]).casefold() in [proc.casefold() for proc in proc.split("|")]:
-                for c in p.info['cmdline']:
-                    if instance in c.replace('\\', '/').split('/'):
-                        return p
+                if instance:
+                    for c in p.info['cmdline']:
+                        if instance in c.replace('\\', '/').split('/'):
+                            return p
+                else:
+                    return p
         except Exception:
             continue
     return None

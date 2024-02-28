@@ -346,6 +346,7 @@ token: AAaahhg2347286adhjdjasd2347263473        # Your TOKEN, as received from t
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
+autorole: join                                  # "join": Give everyone the DCS role on join. "linkme": Give everyone the DCS role on successful link. Not set - don't do anything. 
 no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
 message_ban: User has been banned on Discord.   # Default reason to show people that try to join your DCS servers when they are banned on Discord.
 message_autodelete: 300                         # Most of the Discord messages are private messages. If not, this is the timeout after that they vanish. Default is 300 (5 mins). 
@@ -363,9 +364,9 @@ roles:                                          # Roles mapping. The bot uses in
   DCS Admin:                                    # Map your Discord role "Moderator" and "Staff" to the bots "DCS Admin" role (default: DCS Admin)
   - Moderator
   - Staff
-  GameMaster:                                   # Give the GameMaster role to anybody with the Staff role in your Discord.
+  GameMaster:                                   # Map the GameMaster role to anybody with the Staff role in your Discord.
   - Staff
-  DCS:                                          # Give the bots DCS role to everyone in your discord. Only everyone needs the leading @!
+  DCS:                                          # Map the bots DCS role to everyone in your discord. Only everyone needs the leading @!
   - @everyone
 
 ```

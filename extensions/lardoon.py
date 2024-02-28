@@ -1,15 +1,17 @@
 import asyncio
 import atexit
 import os
+import psutil
 import subprocess
 
+from contextlib import suppress
 from core import Extension, Server, utils
 from discord.ext import tasks
 from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
 
 # Globals
-process: Optional[subprocess.Popen] = None
+process: Optional[psutil.Process] = None
 servers: set[str] = set()
 imports: set[str] = set()
 
@@ -19,6 +21,16 @@ class Lardoon(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
 
+    def _terminate_process(self):
+        global process
+
+        if process is not None and process.is_running():
+            process.terminate()
+            if process.is_running():
+                with suppress(psutil.NoSuchProcess):
+                    process.kill()
+        process = None
+
     async def startup(self) -> bool:
         global process, servers
 
@@ -26,7 +38,7 @@ class Lardoon(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
-        if not process or process.poll() is not None:
+        if not process or not process.is_running():
 
             def run_subprocess():
                 out = subprocess.DEVNULL if not self.config.get('debug', False) else None
@@ -35,30 +47,28 @@ class Lardoon(Extension):
                 return subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
                                         executable=os.path.expandvars(self.config['cmd']),
                                         stdout=out, stderr=out)
-            process = await asyncio.to_thread(run_subprocess)
+            p = await asyncio.to_thread(run_subprocess)
+            process = psutil.Process(p.pid)
             atexit.register(self.shutdown)
-            servers.add(self.server.name)
-        return self.is_running()
+        servers.add(self.server.name)
+        return True
 
     def shutdown(self) -> bool:
         global process, servers
 
         servers.remove(self.server.name)
-        if process is not None and process.returncode is None and not servers:
-            process.kill()
-            process = None
-            return super().shutdown()
-        else:
-            return True
+        if not servers:
+            super().shutdown()
+            self._terminate_process()
+        return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if process is not None and process.poll() is None:
-            return self.server.name in servers
-        else:
-            process = None
-            return False
+        if not process or not process.is_running():
+            cmd = os.path.basename(self.config['cmd'])
+            process = utils.find_process(cmd)
+        return process is not None and self.server.name in servers
 
     @property
     def version(self) -> Optional[str]:
@@ -87,7 +97,7 @@ class Lardoon(Extension):
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
-        def run_subprocess(cmd, args, out=None):
+        def run_subprocess(args):
             subprocess.run([cmd] + args, stdout=out, stderr=out)
 
         minutes = self.config.get('minutes', 5)
@@ -102,8 +112,8 @@ class Lardoon(Extension):
             cmd = os.path.expandvars(self.config['cmd'])
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
             self.log.debug("Lardoon: Scheduled import run ...")
-            await asyncio.to_thread(run_subprocess, cmd, ["import", "-p", path], out)
+            await asyncio.to_thread(run_subprocess, ["import", "-p", path])
             self.log.debug("Lardoon: Scheduled prune run ...")
-            await asyncio.to_thread(run_subprocess, cmd, ["prune", "--no-dry-run"], out)
+            await asyncio.to_thread(run_subprocess, ["prune", "--no-dry-run"])
         except Exception as ex:
             self.log.exception(ex)

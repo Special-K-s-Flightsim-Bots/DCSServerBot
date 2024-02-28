@@ -4,13 +4,15 @@ import asyncio
 import atexit
 import json
 import os
+import psutil
 import subprocess
 
-from typing import Optional, cast
+from contextlib import suppress
 from core import Extension, Status, ServiceRegistry, Server, utils
 from services import ServiceBus
+from typing import Optional, cast
 
-process: Optional[subprocess.Popen] = None
+process: Optional[psutil.Process] = None
 servers: set[str] = set()
 
 
@@ -61,12 +63,12 @@ class Sneaker(Extension):
     def _terminate_process(self):
         global process
 
-        if process:
-            if process.poll() is None:
-                process.terminate()
-                if process and process.poll() is None:
+        if process is not None and process.is_running():
+            process.terminate()
+            if process.is_running():
+                with suppress(psutil.NoSuchProcess):
                     process.kill()
-            process = None
+        process = None
 
     async def startup(self) -> bool:
         global process, servers
@@ -78,11 +80,12 @@ class Sneaker(Extension):
         if 'config' not in self.config:
             self._terminate_process()
             self.create_config()
-            process = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
-        else:
-            if not process:
-                process = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
-                atexit.register(self.shutdown)
+            p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
+            process = psutil.Process(p.pid)
+        elif not process or not process.is_running():
+            p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
+            process = psutil.Process(p.pid)
+            atexit.register(self.shutdown)
         servers.add(self.server.name)
         return self.is_running()
 
@@ -91,24 +94,25 @@ class Sneaker(Extension):
 
         servers.remove(self.server.name)
         if not servers:
+            super().shutdown()
             self._terminate_process()
-            return super().shutdown()
         elif 'config' not in self.config:
             self._terminate_process()
             self.create_config()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                            f"--config config/sneaker.json")
-            process = self._run_subprocess(os.path.join('config', 'sneaker.json'))
+            p = self._run_subprocess(os.path.join('config', 'sneaker.json'))
+            process = psutil.Process(p.pid)
         return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if process is not None and process.poll() is None:
-            return self.server.name in servers
-        process = None
-        return False
+        if not process or not process.is_running():
+            cmd = os.path.basename(self.config['cmd'])
+            process = utils.find_process(cmd)
+        return process is not None and self.server.name in servers
 
     @property
     def version(self) -> Optional[str]:

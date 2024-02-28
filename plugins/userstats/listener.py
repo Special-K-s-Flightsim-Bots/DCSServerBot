@@ -1,3 +1,4 @@
+import discord
 import psycopg
 
 from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command, DataObjectFactory
@@ -363,6 +364,14 @@ class UserStatisticsEventListener(EventListener):
                         player.member = member.member
                     member.verified = True
                     await conn.execute('DELETE FROM players WHERE ucid = %s', (token,))
+                    # If autorole is enabled, give the user the DCS role:
+                    if self.bot.locals.get('autorole', '') == 'linkme':
+                        role = self.bot.roles['DCS'][0]
+                        if role != '@everyone':
+                            try:
+                                await player.member.add_roles(self.bot.get_role(role))
+                            except discord.Forbidden:
+                                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
                     # make sure we update all tables with the new UCID
                     if old_ucid and old_ucid != player.ucid:
                         for plugin in self.bot.cogs.values():  # type: Plugin
