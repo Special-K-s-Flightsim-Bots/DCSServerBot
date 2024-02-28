@@ -284,6 +284,7 @@ NODENAME:                       # this will be your hostname
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
+    minimized: true             # Start DCS minimized (default: true)
   instances:
     DCS.openbeta_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.

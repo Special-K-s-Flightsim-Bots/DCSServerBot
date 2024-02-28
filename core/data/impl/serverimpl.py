@@ -433,7 +433,7 @@ class ServerImpl(Server):
         self.status = Status.LOADING
         try:
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
-            if sys.platform == 'win32':
+            if sys.platform == 'win32' and self.node.locals.get('DCS', {}).get('minimized', True):
                 self._minimize()
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch
