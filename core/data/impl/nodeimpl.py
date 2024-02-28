@@ -1,6 +1,7 @@
 import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import discord
 import json
@@ -327,6 +328,10 @@ class NodeImpl(Node):
             self.log.debug('- No update found for DCSServerBot.')
         return rc
 
+    @staticmethod
+    def _launch_update_script(node_name: str):
+        subprocess.Popen([sys.executable, 'update.py', '-n', node_name])
+
     async def upgrade(self):
         # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
         if not self.master and self.locals.get('cloud_drive', True):
@@ -338,7 +343,7 @@ class NodeImpl(Node):
                     async with conn.transaction():
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
-            subprocess.Popen([sys.executable, 'update.py', '-n', self.node.name])
+            atexit.register(NodeImpl._launch_update_script, self.node.name)
             sys.exit(0)
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
