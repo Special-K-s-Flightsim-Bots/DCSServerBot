@@ -8,7 +8,7 @@ from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
 from services import DCSServerBot, OvGMEService
-from typing import Tuple, cast, Optional, Literal
+from typing import Tuple, Optional, Literal
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 
@@ -43,7 +43,7 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[Tupl
 async def installed_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -61,7 +61,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -79,7 +79,7 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_versions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -101,7 +101,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
 async def repo_version_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         repo = utils.get_interaction_param(interaction, 'url')
 
@@ -123,7 +123,7 @@ class OvGME(Plugin):
         if os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')):
             self.log.warning(f"  => OvGME: your ovgme.yaml belongs into {self.node.config_dir}/services/ovgme.yaml, "
                              f"not in {self.node.config_dir}/plugins!")
-        self.service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+        self.service: OvGMEService = ServiceRegistry.get("OvGME")
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 

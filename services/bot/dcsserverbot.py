@@ -4,7 +4,7 @@ import discord
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Status, FatalException
 from datetime import datetime, timezone
 from discord.ext import commands
-from typing import Optional, Union, Tuple, TYPE_CHECKING, Any, Iterable, cast
+from typing import Optional, Union, Tuple, TYPE_CHECKING, Any, Iterable
 
 if TYPE_CHECKING:
     from ..servicebus import ServiceBus
@@ -24,7 +24,7 @@ class DCSServerBot(commands.Bot):
         self.log = self.node.log
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
-        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.eventListeners: list[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.mission_stats = None

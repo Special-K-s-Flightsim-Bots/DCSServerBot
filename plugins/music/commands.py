@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
 from services import DCSServerBot, MusicService
-from typing import Type, Optional, cast
+from typing import Type, Optional
 
 from .listener import MusicEventListener
 from .utils import (radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag,
@@ -20,7 +20,7 @@ class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        self.service: MusicService = ServiceRegistry.get("Music")
         if not self.service.locals:
             raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 

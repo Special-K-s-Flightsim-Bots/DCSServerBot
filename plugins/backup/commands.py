@@ -5,8 +5,7 @@ import re
 from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError
 from discord import app_commands
 from pathlib import Path
-from services import DCSServerBot, BackupService
-from typing import cast
+from services import DCSServerBot
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -54,7 +53,7 @@ async def date_autocomplete(interaction: discord.Interaction, current: str) -> l
 class Backup(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.service = cast(BackupService, ServiceRegistry.get("Backup"))
+        self.service = ServiceRegistry.get("Backup")
 
     def read_locals(self) -> dict:
         if not os.path.exists('config/services/backup.yaml'):

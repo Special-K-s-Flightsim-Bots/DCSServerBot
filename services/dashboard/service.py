@@ -13,8 +13,7 @@ from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
-from services import ServiceBus
-from typing import cast, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from core import Node
@@ -192,7 +191,7 @@ class Dashboard(Service):
     async def start(self):
         await super().start()
         self.layout = self.create_layout()
-        self.bus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.bus = ServiceRegistry.get("ServiceBus")
         self.dcs_branch, self.dcs_version = await self.node.get_dcs_branch_and_version()
         self.hook_logging()
         self.stop_event.clear()

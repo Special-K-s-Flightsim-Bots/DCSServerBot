@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from psutil import Process
-from typing import Optional, Union, TYPE_CHECKING, cast
+from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
@@ -62,7 +62,7 @@ class Server(DataObject):
 
     def __post_init__(self):
         super().__post_init__()
-        self.bus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 

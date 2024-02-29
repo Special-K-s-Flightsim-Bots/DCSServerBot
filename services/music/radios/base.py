@@ -7,7 +7,7 @@ from core import Server, ServiceRegistry
 from discord.ext import tasks
 from enum import Enum
 from random import randrange
-from typing import Optional, TYPE_CHECKING, cast
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..service import MusicService
@@ -32,7 +32,7 @@ class Radio(ABC):
 
     def __init__(self, name: str, server: Server):
         self.name = name
-        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        self.service: MusicService = ServiceRegistry.get("Music")
         self.log = self.service.log
         self.pool = self.service.pool
         self.apool = self.service.apool

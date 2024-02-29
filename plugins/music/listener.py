@@ -1,8 +1,6 @@
 import asyncio
 
 from core import EventListener, Server, event, ServiceRegistry, Plugin
-from typing import cast
-
 from services.music.service import MusicService
 
 
@@ -10,7 +8,7 @@ class MusicEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        self.service: MusicService = ServiceRegistry.get("Music")
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:

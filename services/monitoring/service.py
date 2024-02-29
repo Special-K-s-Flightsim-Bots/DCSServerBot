@@ -11,7 +11,7 @@ if sys.platform == 'win32':
 
 from datetime import datetime, timezone
 from discord.ext import tasks
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, Union
 
 from core import Status, utils, Server, ServerImpl, Autoexec
 from core.services.base import Service
@@ -31,7 +31,7 @@ last_wait_time = 0
 class MonitoringService(Service):
     def __init__(self, node, name: str):
         super().__init__(node, name)
-        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.io_counters = {}
         self.net_io_counters = None
 
@@ -178,7 +178,7 @@ class MonitoringService(Service):
     async def nodestats(self):
         global last_wait_time
 
-        bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         pstats: dict = self.apool.get_stats()
         wait_time = pstats.get('requests_wait_ms', 0) - last_wait_time
         async with self.apool.connection() as conn:

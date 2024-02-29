@@ -7,7 +7,7 @@ import shutil
 from core import Extension, utils, ServiceRegistry, Server
 from discord.ext import tasks
 from services import ServiceBus
-from typing import Optional, cast
+from typing import Optional
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 rtt_ports: dict[int, str] = dict()
@@ -18,7 +18,7 @@ class Tacview(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get('ServiceBus'))
+        self.bus: ServiceBus = ServiceRegistry.get('ServiceBus')
         self.log_pos = -1
         self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
 
