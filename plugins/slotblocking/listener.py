@@ -4,7 +4,6 @@ import re
 from core import EventListener, Plugin, Server, Status, utils, event, Side
 from plugins.creditsystem.player import CreditPlayer
 from typing import Union, cast, Optional
-from uvicorn.loops import asyncio
 
 
 class SlotBlockingListener(EventListener):
