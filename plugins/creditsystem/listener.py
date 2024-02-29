@@ -66,9 +66,13 @@ class CreditSystemListener(EventListener):
             if not player:
                 return
             old_points = player.points
-            player.points += int(data['points'])
+            multiplier = self.plugin.get_config(server).get('multiplier', 0)
+            points_to_add = int(data['points'])
+            if multiplier:
+                player.deposit += points_to_add * multiplier
+            player.points += points_to_add
             if old_points != player.points:
-                await player.audit('mission', old_points, 'Unknown mission achievement')
+                await player.audit('mission', old_points, data.get('reason', 'Unknown mission achievement'))
 
     async def get_flighttime(self, ucid: str, campaign_id: int) -> int:
         async with self.apool.connection() as conn:

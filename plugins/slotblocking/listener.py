@@ -1,13 +1,16 @@
+import asyncio
 import re
 
 from core import EventListener, Plugin, Server, Status, utils, event, Side
-from typing import Union, cast, Optional
 from plugins.creditsystem.player import CreditPlayer
+from typing import Union, cast, Optional
+from uvicorn.loops import asyncio
 
 
 class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
+        self.lock = asyncio.Lock()
 
     def _migrate_roles(self, config: dict) -> None:
         if config.get('VIP', {}).get('discord', []):
@@ -122,24 +125,30 @@ class SlotBlockingListener(EventListener):
 
     async def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None,
                              payback: Optional[bool] = True):
-        plane_costs = self._get_costs(server, data if data else player)
-        if not plane_costs:
-            return
-        old_points = player.points
-        player.points -= plane_costs
-        await player.audit('buy', old_points, 'Points taken for using a reserved module')
-        if payback:
-            player.deposit = plane_costs
+        async with self.lock:
+            if player.deposit != 0:
+                return
+            plane_costs = self._get_costs(server, data if data else player)
+            if not plane_costs:
+                return
+            old_points = player.points
+            player.points -= plane_costs
+            await player.audit('buy', old_points, 'Points taken for using a reserved module')
+            if payback:
+                player.deposit = plane_costs
 
     async def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
-        old_points = player.points
-        plane_costs = self._get_costs(server, player)
-        if plane_only:
-            player.points += plane_costs
-        else:
-            player.points += player.deposit
-        await player.audit('payback', old_points, reason)
-        player.deposit = 0
+        async with self.lock:
+            if player.deposit == 0:
+                return
+            old_points = player.points
+            plane_costs = self._get_costs(server, player)
+            if plane_only:
+                player.points += plane_costs
+            else:
+                player.points += player.deposit
+            await player.audit('payback', old_points, reason)
+            player.deposit = 0
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
