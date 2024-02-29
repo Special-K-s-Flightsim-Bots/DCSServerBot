@@ -27,7 +27,7 @@ from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolat
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple
+from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple, cast
 from version import __version__
 
 from core.autoexec import Autoexec
@@ -399,7 +399,7 @@ class NodeImpl(Node):
         to_start = []
         in_maintenance = []
         tasks = []
-        bus: ServiceBus = ServiceRegistry.get('ServiceBus')
+        bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get('ServiceBus'))
         for server in [x for x in bus.servers.values() if not x.is_remote]:
             if server.maintenance:
                 in_maintenance.append(server)
@@ -733,7 +733,7 @@ class NodeImpl(Node):
         # wait for all servers to be in a proper state
         while True:
             await asyncio.sleep(1)
-            bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+            bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
             if not bus:
                 continue
             server_initialized = True

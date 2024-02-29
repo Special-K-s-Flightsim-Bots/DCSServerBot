@@ -9,7 +9,7 @@ from discord import app_commands
 from eyed3.id3 import Tag
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from services import MusicService
@@ -113,7 +113,7 @@ async def all_songs_autocomplete(
         return []
     try:
         ret = []
-        service: MusicService = ServiceRegistry.get("Music")
+        service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
         music_dir = await service.get_music_dir()
         for song in [
             file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)
@@ -134,7 +134,7 @@ async def songs_autocomplete(
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        service: MusicService = ServiceRegistry.get("Music")
+        service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
         music_dir = await service.get_music_dir()
         playlist = await Playlist.create(utils.get_interaction_param(interaction, 'playlist'))
         ret = []
@@ -156,7 +156,7 @@ async def radios_autocomplete(interaction: discord.Interaction, current: str) ->
             interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        service: MusicService = ServiceRegistry.get("Music")
+        service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x, value=x) for x in service.get_config(server)['radios'].keys()
             if not current or current.casefold() in x.casefold()

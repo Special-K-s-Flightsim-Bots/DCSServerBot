@@ -1,7 +1,7 @@
 from __future__ import annotations
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Type
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -30,7 +30,7 @@ class DataObject:
 
 class DataObjectFactory:
     _instance = None
-    _registry = dict[str, DataObject]()
+    _registry: dict[str, Type[DataObject]] = {}
 
     def __new__(cls) -> DataObjectFactory:
         if cls._instance is None:
@@ -47,4 +47,5 @@ class DataObjectFactory:
 
     @classmethod
     def new(cls, class_name: str, **kwargs) -> Any:
+        # noinspection PyArgumentList
         return cls._registry[class_name](**kwargs)

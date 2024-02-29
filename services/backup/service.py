@@ -9,7 +9,7 @@ import sys
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -26,7 +26,7 @@ class BackupService(Service):
         if not self.locals:
             self.log.debug("  - No backup.yaml configured, skipping backup service.")
             return
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
 
     async def start(self):
         if not self.locals:

@@ -4,7 +4,7 @@ import os
 import sys
 
 from core import ServiceRegistry, Service, Server
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from .radios import Radio, Mode
 
@@ -20,7 +20,7 @@ class MusicService(Service):
 
     def __init__(self, node, name: str):
         super().__init__(node, name)
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
         self.radios: dict[str, dict[str, Radio]] = dict()
 
     def get_config(self, server: Optional[Server] = None, radio_name: Optional[str] = None) -> dict:

@@ -1,6 +1,7 @@
 import asyncio
+
 from core.services.base import Service
-from typing import Callable, Any
+from typing import Callable, Any, Type
 
 __all__ = ["ServiceRegistry"]
 
@@ -8,7 +9,7 @@ __all__ = ["ServiceRegistry"]
 class ServiceRegistry:
     _instance = None
     _node = None
-    _registry: dict[str, Service] = dict[str, Service]()
+    _registry: dict[str, Type[Service]] = {}
     _master_only: set[str] = set[str]()
     _plugins: dict[str, str] = dict[str, str]()
     _singletons: dict[str, Service] = dict[str, Service]()
@@ -41,6 +42,7 @@ class ServiceRegistry:
     def new(cls, name: str, *args, **kwargs) -> Service:
         instance = cls.get(name)
         if not instance:
+            # noinspection PyArgumentList
             instance = cls._registry[name](node=cls._node, name=name, *args, **kwargs)
             cls._singletons[name] = instance
         return instance
@@ -65,7 +67,7 @@ class ServiceRegistry:
         return name in cls._master_only
 
     @classmethod
-    def services(cls) -> dict[str, Service]:
+    def services(cls) -> dict[str, Type[Service]]:
         return cls._registry
 
     @classmethod

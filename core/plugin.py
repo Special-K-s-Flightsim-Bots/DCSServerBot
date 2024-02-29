@@ -20,7 +20,7 @@ from discord.utils import MISSING, _shorten
 from os import path
 from packaging import version
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Tuple
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Tuple, cast
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
@@ -229,7 +229,7 @@ class Plugin(commands.Cog):
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
         self.node = bot.node
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
         self.log = self.bot.log
         self.pool = self.bot.pool
         self.apool = self.bot.apool

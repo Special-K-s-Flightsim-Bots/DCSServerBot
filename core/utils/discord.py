@@ -800,7 +800,7 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
 
 def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
     """
-    :param bot: The instance of the DCSServerBot class.
+    :param interaction: the discord Interaction
     :return: A list of discord.Member objects representing all the members linked to DCS accounts in the bot's guild.
     """
     members: list[discord.Member] = []

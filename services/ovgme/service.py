@@ -12,7 +12,7 @@ from filecmp import cmp
 from packaging import version
 from pathlib import Path
 from psycopg.rows import dict_row
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ class OvGMEService(Service):
         super().__init__(node, name)
         if not os.path.exists('config/services/ovgme.yaml'):
             raise ServiceInstallationError(service='OvGME', reason="config/services/ovgme.yaml missing!")
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
         self._config = dict[str, dict]()
 
     async def start(self):
