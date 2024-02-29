@@ -466,7 +466,6 @@ class UserStatistics(Plugin):
 
     @command(description='Link your DCS and Discord user')
     @app_commands.guild_only()
-    @utils.app_has_role('DCS')
     async def linkme(self, interaction: discord.Interaction):
         async def send_token(token: str):
             await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "

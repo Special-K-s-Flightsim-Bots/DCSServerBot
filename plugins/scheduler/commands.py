@@ -5,11 +5,12 @@ import os
 
 from contextlib import suppress
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
-    Instance
+    Instance, DEFAULT_TAG
 from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
+from pathlib import Path
 from services import DCSServerBot
 from typing import Type, Optional, Literal
 
@@ -40,6 +41,33 @@ class Scheduler(Plugin):
             with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
                       encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
+        # check the configuration
+        else:
+            filename = os.path.join(self.node.config_dir, 'servers.yaml')
+            if os.path.exists(filename):
+                servers = yaml.load(Path(filename).read_text(encoding='utf-8'))
+            else:
+                servers = {}
+            all_instances = utils.findDCSInstances()
+            # check instances
+            for instance_name in config.keys():
+                if instance_name == DEFAULT_TAG:
+                    continue
+                elif instance_name not in self.node.instances:
+                    self.log.warning(f"Scheduler: Instance {instance_name} not configured in your nodes.yaml!")
+                    continue
+                try:
+                    server_name = next(x[0] for x in all_instances if x[1] == instance_name)
+                except StopIteration:
+                    self.log.warning(f"Scheduler: Instance {instance_name} not found in this server!")
+                    continue
+                matching_instances = [x[1] for x in all_instances if x[0] == server_name]
+                if len(matching_instances) > 1:
+                    self.log.warning("Scheduler: Server {} is configured in more than one instance: {}".format(
+                        server_name, ','.join(matching_instances)))
+                if server_name not in servers:
+                    self.log.warning(
+                        f"Scheduler: Server {server_name} from instance {instance_name} not found in servers.yaml!")
         return config
 
     @staticmethod
