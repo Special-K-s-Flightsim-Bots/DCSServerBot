@@ -1,7 +1,6 @@
 import aiofiles
 import aiohttp
 import asyncio
-import atexit
 import certifi
 import discord
 import json
@@ -16,6 +15,7 @@ import subprocess
 import sys
 import time
 
+from collections import defaultdict
 from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
@@ -230,6 +230,12 @@ class NodeImpl(Node):
         return db_pool, db_apool
 
     def init_instances(self):
+        grouped = defaultdict(list)
+        for server_name, instance_name in utils.findDCSInstances():
+            grouped[server_name].append(instance_name)
+        duplicates = {server_name: instances for server_name, instances in grouped.items() if len(instances) > 1}
+        for server_name, instances in duplicates.items():
+            self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(server_name, ', '.join(instances)))
         for _name, _element in self.locals['instances'].items():
             instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
                                                              locals=_element)
