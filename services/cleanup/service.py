@@ -1,6 +1,5 @@
 import asyncio
 import os
-import stat
 import time
 
 from core import ServiceRegistry, Service, utils, DEFAULT_TAG, Instance

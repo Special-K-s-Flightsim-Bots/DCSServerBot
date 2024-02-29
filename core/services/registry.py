@@ -39,7 +39,7 @@ class ServiceRegistry:
         return inner_wrapper
 
     @classmethod
-    def new(cls, name: str, *args, **kwargs) -> Service:
+    def new(cls, name: str, *args, **kwargs) -> Any:
         instance = cls.get(name)
         if not instance:
             # noinspection PyArgumentList
@@ -48,7 +48,7 @@ class ServiceRegistry:
         return instance
 
     @classmethod
-    def get(cls, name: str) -> Service:
+    def get(cls, name: str) -> Any:
         return cls._singletons.get(name)
 
     @classmethod

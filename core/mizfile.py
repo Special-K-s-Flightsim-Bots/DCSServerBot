@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 
 from datetime import datetime
-from typing import Union, Any, Optional, Generator
+from typing import Union, Any, Optional
 
 from core import utils
 
