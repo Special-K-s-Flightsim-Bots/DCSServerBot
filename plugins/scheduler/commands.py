@@ -260,6 +260,7 @@ class Scheduler(Plugin):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         if next_startup == 0:
+                            # noinspection PyAsyncCall
                             asyncio.create_task(self.launch_dcs(server))
                             next_startup = startup_delay
                         else:
@@ -270,6 +271,7 @@ class Scheduler(Plugin):
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
                     ]:
+                        # noinspection PyAsyncCall
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)

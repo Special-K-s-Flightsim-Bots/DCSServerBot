@@ -43,6 +43,7 @@ class OvGMEService(Service):
         await super().start()
         self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
         self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
+        # noinspection PyAsyncCall
         asyncio.create_task(self.install_packages())
 
     async def stop(self):

@@ -51,10 +51,12 @@ class Main:
                     if self.node.config.get('use_dashboard', True):
                         self.log.info("  => Dashboard started.")
                         dashboard = registry.new(name)
+                        # noinspection PyAsyncCall
                         asyncio.create_task(dashboard.start())
                     continue
                 else:
                     try:
+                        # noinspection PyAsyncCall
                         asyncio.create_task(registry.new(name).start())
                         self.log.debug(f"  => {name} loaded.")
                     except ServiceInstallationError as ex:
@@ -76,6 +78,7 @@ class Main:
                         for name in registry.services().keys():
                             if registry.master_only(name):
                                 try:
+                                    # noinspection PyAsyncCall
                                     asyncio.create_task(registry.new(name).start())
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")

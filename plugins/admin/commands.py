@@ -597,6 +597,7 @@ class Admin(Plugin):
         for server in self.bus.servers.values():
             if server.node.name == node.name:
                 server.maintenance = True
+                # noinspection PyAsyncCall
                 asyncio.create_task(server.shutdown())
         await interaction.followup.send(f"Node {node.name} is now offline.")
 
@@ -610,6 +611,7 @@ class Admin(Plugin):
         for server in self.bus.servers.values():
             if server.node.name == node.name:
                 server.maintenance = False
+                # noinspection PyAsyncCall
                 asyncio.create_task(server.startup())
         await interaction.followup.send(f"Node {node.name} is now online.")
 
