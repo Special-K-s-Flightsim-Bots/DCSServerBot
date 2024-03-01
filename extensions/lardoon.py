@@ -45,10 +45,14 @@ class Lardoon(Extension):
                                         executable=os.path.expandvars(self.config['cmd']),
                                         stdout=out, stderr=out)
             p = await asyncio.to_thread(run_subprocess)
-            process = psutil.Process(p.pid)
-            atexit.register(self.shutdown)
+            try:
+                process = psutil.Process(p.pid)
+                atexit.register(self.shutdown)
+            except psutil.NoSuchProcess:
+                self.log.error(f"Error during launch of {self.config['cmd']}!")
+                return False
         servers.add(self.server.name)
-        return True
+        return await asyncio.to_thread(self.is_running)
 
     def shutdown(self) -> bool:
         global process, servers

@@ -118,20 +118,25 @@ class SRS(Extension):
             else:
                 info = None
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
-            p = subprocess.Popen([
-                self.get_exe_path(),
-                f"-cfg={os.path.expandvars(self.config['config'])}"
-            ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
-            self.process = psutil.Process(p.pid)
+
+            def run_subprocess():
+                return subprocess.Popen([
+                    self.get_exe_path(),
+                    f"-cfg={os.path.expandvars(self.config['config'])}"
+                ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
+
+            p = await asyncio.to_thread(run_subprocess)
+            try:
+                self.process = psutil.Process(p.pid)
+            except psutil.NoSuchProcess:
+                self.log.error(f"Error during launch of {self.config['cmd']}!")
+                return False
         return await asyncio.to_thread(self.is_running)
 
     def shutdown(self) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
             if self.is_running():
-                self.process.terminate()
-                if self.process.is_running():
-                    with suppress(psutil.NoSuchProcess):
-                        self.process.kill()
+                self.process.kill()
                 self.process = None
                 return super().shutdown()
             return True
