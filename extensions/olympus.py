@@ -138,7 +138,11 @@ class Olympus(Extension):
 
         try:
             p = await asyncio.to_thread(run_subprocess)
-            self.process = psutil.Process(p.pid)
+            try:
+                self.process = psutil.Process(p.pid)
+            except psutil.NoSuchProcess:
+                self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
+                return False
             atexit.register(self.shutdown)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
@@ -162,9 +166,6 @@ class Olympus(Extension):
     def shutdown(self) -> bool:
         if self.is_running():
             super().shutdown()
-            self.process.terminate()
-            if self.process.is_running():
-                with suppress(psutil.NoSuchProcess):
-                    self.process.kill()
+            self.process.kill()
             self.process = None
         return True

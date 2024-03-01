@@ -25,10 +25,7 @@ class Lardoon(Extension):
         global process
 
         if process is not None and process.is_running():
-            process.terminate()
-            if process.is_running():
-                with suppress(psutil.NoSuchProcess):
-                    process.kill()
+            process.kill()
         process = None
 
     async def startup(self) -> bool:
