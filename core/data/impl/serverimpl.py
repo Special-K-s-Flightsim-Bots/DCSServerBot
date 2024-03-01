@@ -444,14 +444,16 @@ class ServerImpl(Server):
     async def startup_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if not x.is_running()]:
             try:
-                await ext.startup()
+                # noinspection PyAsyncCall
+                asyncio.create_task(ext.startup())
             except Exception as ex:
                 self.log.exception(ex)
 
     async def shutdown_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if x.is_running()]:
             try:
-                await asyncio.to_thread(ext.shutdown)
+                # noinspection PyAsyncCall
+                asyncio.create_task(asyncio.to_thread(ext.shutdown))
             except Exception as ex:
                 self.log.exception(ex)
 

@@ -622,7 +622,7 @@ class ServiceBus(Service):
 
             def process(derived, server_name: str):
                 try:
-                    timeout = 60.0 if self.node.locals.get('slow_system', False) else 30.0
+                    timeout = 120.0 if self.node.locals.get('slow_system', False) else 60.0
                     data: dict = derived.message_queue[server_name].get()
                     while data:
                         server: Server = self.servers.get(server_name)

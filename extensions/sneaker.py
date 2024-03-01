@@ -84,7 +84,7 @@ class Sneaker(Extension):
                 process = psutil.Process(p.pid)
                 atexit.register(self.shutdown)
             servers.add(self.server.name)
-            return self.is_running()
+            return await asyncio.to_thread(self.is_running)
         except psutil.NoSuchProcess:
             self.log.error(f"Error during launch of {self.config['cmd']}!")
             return False
