@@ -63,10 +63,7 @@ class Sneaker(Extension):
         global process
 
         if process is not None and process.is_running():
-            process.terminate()
-            if process.is_running():
-                with suppress(psutil.NoSuchProcess):
-                    process.kill()
+            process.kill()
         process = None
 
     async def startup(self) -> bool:
@@ -76,17 +73,21 @@ class Sneaker(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
-        if 'config' not in self.config:
-            self._terminate_process()
-            self.create_config()
-            p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
-            process = psutil.Process(p.pid)
-        elif not process or not process.is_running():
-            p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
-            process = psutil.Process(p.pid)
-            atexit.register(self.shutdown)
-        servers.add(self.server.name)
-        return self.is_running()
+        try:
+            if 'config' not in self.config:
+                self._terminate_process()
+                self.create_config()
+                p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
+                process = psutil.Process(p.pid)
+            elif not process or not process.is_running():
+                p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
+                process = psutil.Process(p.pid)
+                atexit.register(self.shutdown)
+            servers.add(self.server.name)
+            return self.is_running()
+        except psutil.NoSuchProcess:
+            self.log.error(f"Error during launch of {self.config['cmd']}!")
+            return False
 
     def shutdown(self) -> bool:
         global process, servers
@@ -102,7 +103,11 @@ class Sneaker(Extension):
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                            f"--config config/sneaker.json")
             p = self._run_subprocess(os.path.join('config', 'sneaker.json'))
-            process = psutil.Process(p.pid)
+            try:
+                process = psutil.Process(p.pid)
+            except psutil.NoSuchProcess:
+                self.log.error(f"Error during launch of {self.config['cmd']}!")
+                return False
         return True
 
     def is_running(self) -> bool:
