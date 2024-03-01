@@ -12,9 +12,9 @@ from .listener import MissionStatisticsEventListener
 
 async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
 
-    def get_modules(ucid: str) -> list[str]:
-        with interaction.client.pool.connection() as conn:
-            return [row[0] for row in conn.execute("""
+    async def get_modules(ucid: str) -> list[str]:
+        async with interaction.client.apool.connection() as conn:
+            return [row[0] async for row in await conn.execute("""
                 SELECT DISTINCT slot, COUNT(*) FROM statistics 
                 WHERE player_ucid =  %s 
                 AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
@@ -28,12 +28,12 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
         if isinstance(user, str):
             ucid = user
         else:
-            ucid = interaction.client.get_ucid_by_member(user)
+            ucid = await interaction.client.get_ucid_by_member(user)
         if not ucid:
             return []
         ret = [
             app_commands.Choice(name=x, value=x)
-            for x in get_modules(ucid)
+            for x in await get_modules(ucid)
             if not current or current.casefold() in x.casefold()
         ]
         return ret[:25]
