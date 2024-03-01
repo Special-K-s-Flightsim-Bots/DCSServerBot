@@ -71,10 +71,10 @@ class ServiceBus(Service):
                     """, (self.node.guild_id, ))
 
             # subscribe to the intercom and broadcast channels
-            self.loop.create_task(
-                self.intercom_channel.subscribe(self.handle_rpc))
-            self.loop.create_task(
-                self.broadcasts_channel.subscribe(self.handle_broadcast_event))
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.intercom_channel.subscribe(self.handle_rpc))
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.broadcasts_channel.subscribe(self.handle_broadcast_event))
 
             await self.init_servers()
             if self.master:
