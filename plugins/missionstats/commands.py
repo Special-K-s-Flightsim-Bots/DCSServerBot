@@ -28,7 +28,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
         if isinstance(user, str):
             ucid = user
         else:
-            ucid = interaction.client.get_ucid_by_member(user)
+            ucid = await interaction.client.get_ucid_by_member(user)
         if not ucid:
             return []
         ret = [
