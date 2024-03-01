@@ -659,7 +659,7 @@ class ServiceBus(Service):
                                     listeners = [x for x in self.eventListeners if x.has_event(command)]
                                     for future in not_done:
                                         pos = futures.index(future)
-                                        self.log.warning(f"Not processed: {listeners[pos].plugin_name}")
+                                        self.log.debug(f"Not processed: {listeners[pos].plugin_name}")
                                         future.cancel()
                             else:
                                 self.send_to_node(data)
