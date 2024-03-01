@@ -1,6 +1,7 @@
 import asyncio
+import os
+
 from core import EventListener, utils, Server, Player, Status, event, chat_command
-from os import path
 
 
 class SchedulerListener(EventListener):
@@ -22,21 +23,10 @@ class SchedulerListener(EventListener):
             })
         elif method.startswith('run:'):
             cmd = method[4:].strip()
-            dcs_installation = path.normpath(path.expandvars(self.node.locals['DCS']['installation']))
-            dcs_home = path.normpath(server.instance.home)
+            dcs_installation = os.path.normpath(os.path.expandvars(self.node.locals['DCS']['installation']))
+            dcs_home = os.path.normpath(server.instance.home)
             cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server)
-            if server.is_remote:
-                self.bot.bus.send_to_node({
-                    "command": "rpc",
-                    "object": "Node",
-                    "method": "shell_command",
-                    "params": {
-                        "cmd": cmd
-                    }
-                }, node=server.node.name)
-            else:
-                self.log.debug('Running shell-command: ' + cmd)
-                await asyncio.create_subprocess_shell(cmd)
+            await self.node.shell_command(cmd)
 
     async def process(self, server: Server, what: dict) -> None:
         if 'shutdown' in what['command']:
@@ -82,7 +72,8 @@ class SchedulerListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # init and start extensions if necessary
         try:
-            await server.init_extensions()
+            if data['channel'].startswith('sync-'):
+                await server.init_extensions()
             await server.startup_extensions()
         except (TimeoutError, asyncio.TimeoutError):
             self.log.error(f"Timeout while loading extensions for server {server.name}!")

@@ -2,7 +2,7 @@ import asyncio
 import os
 
 from abc import ABC
-from contextlib import suppress, closing
+from contextlib import suppress
 from core import Server, ServiceRegistry
 from discord.ext import tasks
 from enum import Enum
@@ -35,17 +35,19 @@ class Radio(ABC):
         self.service: MusicService = ServiceRegistry.get("Music")
         self.log = self.service.log
         self.pool = self.service.pool
+        self.apool = self.service.apool
         self.server = server
         self._current = None
         self._mode = Mode(int(self.config['mode']))
         self.songs: list[str] = []
         self._playlist = None
+        # TODO: async
         self.playlist = self._get_active_playlist()
         self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
 
     def _get_active_playlist(self) -> Optional[str]:
         with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute('SELECT playlist_name FROM music_radios WHERE server_name = %s AND radio_name = %s',
                                (self.server.name, self.name))
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else None

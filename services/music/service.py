@@ -80,7 +80,7 @@ class MusicService(Service):
                     "server": server.name,
                     "radio_name": radio_name or ""
                 }
-            }, node=server.node.name)
+            }, node=server.node.name, timeout=60)
             return
         if server.name in self.radios:
             for name, radio in self.radios[server.name].items():
@@ -98,7 +98,7 @@ class MusicService(Service):
                     "server": server.name,
                     "radio_name": radio_name or ""
                 }
-            }, node=server.node.name)
+            }, node=server.node.name, timeout=120)
             return
         if server.name in self.radios:
             for name, radio in self.radios[server.name].items():

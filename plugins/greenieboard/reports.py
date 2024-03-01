@@ -2,7 +2,6 @@ import discord
 import os
 import re
 
-from contextlib import closing
 from core import report, utils, EmbedElement, NothingToPlot
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
@@ -137,7 +136,7 @@ class HighscoreTraps(report.GraphElement):
               "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
               "AND g.player_ucid = p.ucid AND g.unit_type = s.slot AND g.time BETWEEN s.hop_on AND s.hop_off "
         if server_name:
-            sql += "AND m.server_name = %s"
+            sql += "AND m.server_name = %(server_name)s"
             self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([
@@ -151,15 +150,12 @@ class HighscoreTraps(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                if server_name:
-                    rows = cursor.execute(sql, (server_name, )).fetchall()
-                else:
-                    rows = cursor.execute(sql).fetchall()
-                for row in rows:
+                await cursor.execute(sql, {"server_name": server_name})
+                async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
@@ -191,17 +187,19 @@ class GreenieBoard(EmbedElement):
                 'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s'
         sql2 += ' ORDER BY ID DESC LIMIT 10'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 pilots = points = landings = ''
                 max_time = datetime.fromisocalendar(1970, 1, 1)
-                for row in cursor.execute(sql1, (num_rows, )).fetchall():
+                await cursor.execute(sql1, (num_rows, ))
+                rows = await cursor.fetchall()
+                for row in rows:
                     pilots += utils.escape_string(row['name']) + '\n'
                     points += f"{row['points']:.2f}\n"
-                    cursor.execute(sql2, (row['player_ucid'], ))
+                    await cursor.execute(sql2, (row['player_ucid'], ))
                     i = 0
                     landings += '**|'
-                    for landing in cursor:
+                    async for landing in cursor:
                         if landing['night']:
                             landings += const.NIGHT_EMOJIS[landing['grade']] + '|'
                         else:

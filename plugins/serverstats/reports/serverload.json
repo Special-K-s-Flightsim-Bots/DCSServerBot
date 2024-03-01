@@ -1,7 +1,6 @@
 {
   "color": "blue",
   "title": "Server Load ({period})",
-  "description": "Host: {node}",
   "input": [
     {
       "name": "period",
@@ -23,6 +22,9 @@
   },
   "elements":
   [
+    {
+      "class": "plugins.serverstats.serverstats.ServerLoadHeader"
+    },
     {
       "type": "Graph",
       "params":

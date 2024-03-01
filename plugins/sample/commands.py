@@ -34,7 +34,7 @@ class Sample(Plugin):
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function.
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         # If a server rename takes place, you might want to update data in your created tables
         # if they contain a server_name value. You usually don't need to implement this function.
         ...

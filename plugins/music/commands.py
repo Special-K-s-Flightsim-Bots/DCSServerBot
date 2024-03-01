@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
 from services import DCSServerBot, MusicService
-from typing import Type, Optional, cast
+from typing import Type, Optional
 
 from .listener import MusicEventListener
 from .utils import (radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag,
@@ -20,7 +20,7 @@ class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        self.service: MusicService = ServiceRegistry.get("Music")
         if not self.service.locals:
             raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 
@@ -42,7 +42,7 @@ class Music(Plugin):
                      _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                              Status.PAUSED])],
                      radio_name: str):
-        playlists = get_all_playlists(interaction)
+        playlists = await get_all_playlists(interaction)
         if not playlists:
             await interaction.response.send_message(
                 f"You don't have any playlists to play. Please create one with /playlist add", ephemeral=True)
@@ -107,8 +107,8 @@ class Music(Plugin):
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=all_songs_autocomplete)
     async def add(self, interaction: discord.Interaction, playlist: str, song: str):
-        p = Playlist(playlist)
-        p.add(song)
+        p = await Playlist.create(playlist)
+        await p.add(song)
         song = os.path.join(await self.service.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
         await interaction.response.send_message(
@@ -123,9 +123,9 @@ class Music(Plugin):
         if not await utils.yn_question(interaction, 'Do you really want to add ALL songs to the playlist?',
                                        ephemeral=ephemeral):
             return
-        p = Playlist(playlist)
+        p = await Playlist.create(playlist)
         for song in [file for file in Path(await self.service.get_music_dir()).glob('*.mp3')]:
-            p.add(song.name)
+            await p.add(song.name)
             title = get_tag(song).title or song.name
             await interaction.followup.send(
                 '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist),
@@ -137,9 +137,9 @@ class Music(Plugin):
     @app_commands.autocomplete(song=songs_autocomplete)
     async def delete(self, interaction: discord.Interaction, playlist: str, song: str):
         ephemeral = utils.get_ephemeral(interaction)
-        p = Playlist(playlist)
+        p = await Playlist.create(playlist)
         try:
-            p.remove(song)
+            await p.remove(song)
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
             await interaction.response.send_message(

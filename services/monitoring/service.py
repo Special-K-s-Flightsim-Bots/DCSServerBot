@@ -24,6 +24,8 @@ __all__ = [
     "MonitoringService"
 ]
 
+last_wait_time = 0
+
 
 @ServiceRegistry.register("Monitoring")
 class MonitoringService(Service):
@@ -57,7 +59,7 @@ class MonitoringService(Service):
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     async def check_nodes(self):
-        active_nodes: list[str] = self.node.get_active_nodes()
+        active_nodes: list[str] = await self.node.get_active_nodes()
         used_nodes: set[str] = set()
         for server in [x for x in self.bus.servers.values() if x.is_remote]:
             if server.node.name not in active_nodes:
@@ -151,7 +153,7 @@ class MonitoringService(Service):
                 return
             # No, check if the process is still doing something
             try:
-                server.keep_alive()
+                await server.keep_alive()
                 # check if server is alive
                 if server.status == Status.LOADING:
                     max_hung = int(server.instance.locals.get('max_hung_minutes', 3)) * 2
@@ -172,6 +174,23 @@ class MonitoringService(Service):
                             self.log.exception(ex)
             except Exception as ex:
                 self.log.exception(ex)
+
+    async def nodestats(self):
+        global last_wait_time
+
+        bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        pstats: dict = self.apool.get_stats()
+        wait_time = pstats.get('requests_wait_ms', 0) - last_wait_time
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO nodestats (node, pool_size, pool_available, requests_waiting, requests_wait_ms, 
+                                           workers, qsize)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (self.node.name, pstats.get('pool_size', 0), pstats.get('pool_available', 0),
+                      pstats.get('requests_waiting', 0), wait_time, len(bus.executor._threads),
+                      sum(x.qsize() for x in bus.udp_server.message_queue.values())))
+        last_wait_time = pstats.get('requests_wait_ms', 0)
 
     async def serverload(self):
         for server in self.bus.servers.values():
@@ -222,6 +241,8 @@ class MonitoringService(Service):
             await self.heartbeat()
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()
+            if self.node.locals.get('nodestats', True):
+                await self.nodestats()
         except Exception as ex:
             self.log.exception(ex)
 

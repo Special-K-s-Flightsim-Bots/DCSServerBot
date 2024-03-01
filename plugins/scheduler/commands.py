@@ -3,6 +3,7 @@ import discord
 import functools
 import os
 
+from contextlib import suppress
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
 from datetime import datetime, timedelta
@@ -115,10 +116,11 @@ class Scheduler(Plugin):
                             if 'sound' in config['warn']:
                                 server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
                                                                                     time=warn_time))
-                            events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
-                            if events_channel:
-                                await events_channel.send(warn_text.format(item=item, what=what,
-                                                                           when=utils.format_time(warn_time)))
+                            with suppress(Exception):
+                                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                                if events_channel:
+                                    await events_channel.send(warn_text.format(item=item, what=what,
+                                                                               when=utils.format_time(warn_time)))
                 await asyncio.sleep(1)
                 restart_in -= 1
 
@@ -257,6 +259,7 @@ class Scheduler(Plugin):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         if next_startup == 0:
+                            # noinspection PyAsyncCall
                             asyncio.create_task(self.launch_dcs(server))
                             next_startup = startup_delay
                         else:
@@ -267,6 +270,7 @@ class Scheduler(Plugin):
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
                     ]:
+                        # noinspection PyAsyncCall
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
@@ -474,11 +478,11 @@ class Scheduler(Plugin):
                         "command": "setCoalitionPassword",
                         ("redPassword" if coalition == 'red' else "bluePassword"): derived.password.value or ''
                     })
-                    with self.pool.connection() as conn:
-                        with conn.transaction():
-                            conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                    async with self.apool.connection() as conn:
+                        async with conn.transaction():
+                            await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
                                 'blue_password' if coalition == 'blue' else 'red_password'),
-                                         (self.password, server.name))
+                                (self.password, server.name))
                     await self.bot.audit(f"changed password for coalition {coalition}",
                                          user=interaction.user, server=server)
                 else:

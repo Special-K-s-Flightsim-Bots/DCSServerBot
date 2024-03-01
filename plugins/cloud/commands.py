@@ -9,7 +9,7 @@ import psycopg
 import shutil
 import ssl
 
-from contextlib import closing, suppress
+from contextlib import suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -82,6 +82,7 @@ class CloudHandler(Plugin):
             self.cloud_sync.cancel()
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.cloud_bans.cancel()
+        # noinspection PyAsyncCall
         asyncio.create_task(self.session.close())
         await super().cog_unload()
 
@@ -110,7 +111,7 @@ class CloudHandler(Plugin):
         else:
             await send(data)
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         # we must not fail due to a cloud unavailability
         with suppress(Exception):
             await self.post('update_ucid', {"old_ucid": old_ucid, "new_ucid": new_ucid})
@@ -144,8 +145,8 @@ class CloudHandler(Plugin):
         if 'token' not in self.config:
             await interaction.response.send_message('No cloud sync configured.', ephemeral=ephemeral)
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 sql = 'UPDATE players SET synced = false'
                 if member:
                     if isinstance(member, str):
@@ -153,9 +154,9 @@ class CloudHandler(Plugin):
                     else:
                         sql += ' WHERE discord_id = %s'
                         member = member.id
-                    conn.execute(sql, (member, ))
+                    await conn.execute(sql, (member, ))
                 else:
-                    conn.execute(sql)
+                    await conn.execute(sql)
                 await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
 
     @cloud.command(description='Generate Cloud Statistics')
@@ -171,14 +172,14 @@ class CloudHandler(Plugin):
         if not user:
             user = interaction.user
         if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
             name = user.display_name
         else:
             ucid = user
-            name = self.bot.get_member_or_name_by_ucid(ucid)
+            name = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(name, discord.Member):
                 name = name.display_name
         await interaction.response.defer()
@@ -197,15 +198,15 @@ class CloudHandler(Plugin):
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
         if self.config.get('dcs-ban', False):
-            self_bans: set = {x['ucid'] for x in self.bus.bans() if x['banned_by'] == self.plugin_name}
+            self_bans: set = {x['ucid'] for x in await self.bus.bans() if x['banned_by'] == self.plugin_name}
             external_bans: set = {ban['ucid'] for ban in await self.get('bans')}
             # find UCIDs to ban (in external_bans but not in self_bans)
             for ucid in external_bans - self_bans:
                 reason = next(ban['reason'] for ban in await self.get('bans') if ban['ucid'] == ucid)
-                self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
+                await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
             # find UCIDs to unban (in self_bans but not in external_bans)
             for ucid in self_bans - external_bans:
-                self.bus.unban(ucid)
+                await self.bus.unban(ucid)
         if self.config.get('discord-ban', False):
             bans: dict = await self.get('discord-bans')
             users_to_ban = {await self.bot.fetch_user(x['discord_id']) for x in bans}
@@ -222,16 +223,18 @@ class CloudHandler(Plugin):
 
     @tasks.loop(seconds=10)
     async def cloud_sync(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    for row in cursor.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute("""
                         SELECT ucid FROM players 
                         WHERE synced IS FALSE 
                         ORDER BY last_seen DESC 
                         LIMIT 10
-                    """).fetchall():
-                        cursor.execute("""
+                    """)
+                    rows = await cursor.fetchall()
+                    for row in rows:
+                        await cursor.execute("""
                             SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                    SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
                                    SUM(ejections) as ejections, SUM(crashes) as crashes, 
@@ -247,26 +250,26 @@ class CloudHandler(Plugin):
                             WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
                             GROUP BY 1, 2, 3
                         """, (row['ucid'], ))
-                        for line in cursor:
+                        async for line in cursor:
                             try:
                                 line['client'] = self.client
                                 await self.post('upload', line)
                             except TypeError as ex:
                                 self.log.warning(f"Could not replicate user {row['ucid']}: {ex}")
-                        cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
 
     @tasks.loop(hours=1)
     async def register(self):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("""
                     SELECT count(distinct node) as num_bots, count(distinct instance) as num_servers 
                     FROM instances WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
                 """)
                 if cursor.rowcount == 0:
                     num_bots = num_servers = 0
                 else:
-                    row = cursor.fetchone()
+                    row = await cursor.fetchone()
                     num_bots = row[0]
                     num_servers = row[1]
         try:

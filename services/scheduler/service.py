@@ -45,7 +45,7 @@ class SchedulerService(Service):
             else:
                 func(**kwargs)
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"Scheduler: error while processing action {action}", exc_info=ex)
 
     @tasks.loop(minutes=1)
     async def schedule(self):

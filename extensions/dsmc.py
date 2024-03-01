@@ -101,11 +101,11 @@ class DSMC(Extension):
         dcs_home = self.server.instance.home
         if not os.path.exists(os.path.join(dcs_home, 'DSMC')) or \
                 not os.path.exists(os.path.join(dcs_home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')):
-            self.log.error(f'DSMC is not installed in this server.')
+            self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")
             return False
         return True
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         return True
 
     def is_running(self) -> bool:

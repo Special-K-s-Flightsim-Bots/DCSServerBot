@@ -3,7 +3,6 @@ import json
 import os
 import psycopg
 
-from contextlib import closing
 from core import Plugin, TEventListener, utils, command
 from discord import app_commands
 from discord.ext import tasks
@@ -27,18 +26,18 @@ class DBExporter(Plugin):
             self.schedule.cancel()
         await super().cog_unload()
 
-    def do_export(self, table_filter: list[str]):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                for table in [x[0] for x in cursor.execute("""
-                    SELECT table_name FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
-                    AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
-                """) if x[0] not in table_filter]:
-                    rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
-                    if rows:
-                        with open(f'export/{table}.json', mode='w', encoding='utf-8') as file:
-                            file.writelines([json.dumps(x[0]) + '\n' for x in rows])
+    async def do_export(self, table_filter: list[str]):
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
+            """)
+            for table in [x[0] async for x in cursor if x[0] not in table_filter]:
+                cursor = await conn.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t')
+                if cursor.rowcount > 0:
+                    with open(f'export/{table}.json', mode='w', encoding='utf-8') as file:
+                        file.writelines([json.dumps(x[0]) + '\n' async for x in cursor])
 
     @command(description='Exports database tables as json.')
     @app_commands.guild_only()
@@ -46,13 +45,13 @@ class DBExporter(Plugin):
     async def export(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
-        self.do_export([])
+        await self.do_export([])
         await interaction.delete_original_response()
         await interaction.followup.send('Database dumped to ./export', ephemeral=ephemeral)
 
     @tasks.loop(hours=1.0)
     async def schedule(self):
-        self.do_export(self.get_config().get('tablefilter', []))
+        await self.do_export(self.get_config().get('tablefilter', []))
 
 
 async def setup(bot: DCSServerBot):

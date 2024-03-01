@@ -1,8 +1,7 @@
 import asyncio
 import discord
 
-from contextlib import closing
-from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Player, Status, FatalException
+from core import NodeImpl, ServiceRegistry, EventListener, Server, Channel, utils, Status, FatalException
 from datetime import datetime, timezone
 from discord.ext import commands
 from typing import Optional, Union, Tuple, TYPE_CHECKING, Any, Iterable
@@ -21,6 +20,7 @@ class DCSServerBot(commands.Bot):
         self.sub_version: str = kwargs['sub_version']
         self.node: NodeImpl = kwargs['node']
         self.pool = self.node.pool
+        self.apool = self.node.apool
         self.log = self.node.log
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
@@ -303,9 +303,9 @@ class DCSServerBot(commands.Bot):
                 embed.add_field(name='Server', value=server.display_name)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO audit (node, event, server_name, discord_id, ucid)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (self.node.name, message, server.name if server else None,
@@ -318,62 +318,55 @@ class DCSServerBot(commands.Bot):
             admin_channel = int(server.channels.get(Channel.ADMIN, -1))
         return self.get_channel(admin_channel)
 
-    def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                search = f'%{name}%'
-                cursor.execute('SELECT ucid, name FROM players WHERE LOWER(name) like LOWER(%s) '
-                               'ORDER BY last_seen DESC LIMIT 1', (search, ))
-                if cursor.rowcount >= 1:
-                    res = cursor.fetchone()
-                    return res[0], res[1]
-                else:
-                    return None, None
+    async def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
+        async with self.apool.connection() as conn:
+            search = f'%{name}%'
+            cursor = await conn.execute("""
+                SELECT ucid, name FROM players 
+                WHERE LOWER(name) like LOWER(%s) 
+                ORDER BY last_seen DESC LIMIT 1
+            """, (search, ))
+            if cursor.rowcount >= 1:
+                res = await cursor.fetchone()
+                return res[0], res[1]
+            else:
+                return None, None
 
-    def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
-                if verified:
-                    sql += ' AND discord_id <> -1 AND manual IS TRUE'
-                cursor.execute(sql, (ucid, ))
-                if cursor.rowcount == 1:
-                    row = cursor.fetchone()
-                    return self.guilds[0].get_member(row[0]) or row[1]
-                else:
-                    return None
+    async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
+        async with self.apool.connection() as conn:
+            sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
+            if verified:
+                sql += ' AND discord_id <> -1 AND manual IS TRUE'
+            cursor = await conn.execute(sql, (ucid, ))
+            if cursor.rowcount == 1:
+                row = await cursor.fetchone()
+                return self.guilds[0].get_member(row[0]) or row[1]
+            else:
+                return None
 
-    def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                sql = 'SELECT ucid FROM players WHERE discord_id = %s AND LENGTH(ucid) = 32 '
-                if verified:
-                    sql += 'AND manual IS TRUE '
-                sql += 'ORDER BY last_seen DESC'
-                cursor.execute(sql, (member.id, ))
-                if cursor.rowcount >= 1:
-                    return cursor.fetchone()[0]
-                else:
-                    return None
+    async def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
+        async with self.apool.connection() as conn:
+            sql = 'SELECT ucid FROM players WHERE discord_id = %s AND LENGTH(ucid) = 32 '
+            if verified:
+                sql += 'AND manual IS TRUE '
+            sql += 'ORDER BY last_seen DESC'
+            cursor = await conn.execute(sql, (member.id, ))
+            if cursor.rowcount >= 1:
+                return (await cursor.fetchone())[0]
+            else:
+                return None
 
+    # TODO: change to async (after change in DataClasses)
     def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[discord.Member]:
         with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
-                if verified:
-                    sql += ' AND manual IS TRUE'
-                cursor.execute(sql, (ucid, ))
-                if cursor.rowcount == 1:
-                    return self.guilds[0].get_member(cursor.fetchone()[0])
-                else:
-                    return None
-
-    def get_player_by_ucid(self, ucid: str, active: Optional[bool] = True) -> Optional[Player]:
-        for server in self.servers.values():
-            player = server.get_player(ucid=ucid, active=active)
-            if player:
-                return player
-        return None
+            sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
+            if verified:
+                sql += ' AND manual IS TRUE'
+            cursor = conn.execute(sql, (ucid, ))
+            if cursor.rowcount == 1:
+                return self.guilds[0].get_member(cursor.fetchone()[0])
+            else:
+                return None
 
     def match_user(self, data: dict, rematch=False) -> Optional[discord.Member]:
         if not rematch:
@@ -419,12 +412,13 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return
 
-            with self.pool.connection() as conn:
+            async with self.apool.connection() as conn:
                 # check if we have a message persisted already
-                row = conn.execute("""
+                cursor = await conn.execute("""
                     SELECT embed FROM message_persistence 
                     WHERE server_name = %s AND embed_name = %s
-                """, (server.name if server else 'Master', embed_name)).fetchone()
+                """, (server.name if server else 'Master', embed_name))
+                row = await cursor.fetchone()
 
             message = None
             if row:
@@ -441,9 +435,9 @@ class DCSServerBot(commands.Bot):
                     return
             if not row or not message:
                 message = await channel.send(embed=embed, file=file)
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("""
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
                             INSERT INTO message_persistence (server_name, embed_name, embed) 
                             VALUES (%s, %s, %s) 
                             ON CONFLICT (server_name, embed_name) 

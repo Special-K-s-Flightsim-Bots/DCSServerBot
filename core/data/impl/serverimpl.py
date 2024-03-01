@@ -6,7 +6,12 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 
+if sys.platform == 'win32':
+    import win32con, win32gui
+
+from collections import OrderedDict
 from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
@@ -82,6 +87,7 @@ class ServerImpl(Server):
 
     def __post_init__(self):
         super().__post_init__()
+        self.lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT DO NOTHING", (self.name, ))
@@ -116,7 +122,6 @@ class ServerImpl(Server):
                 self._settings['missionList'] = []
             elif isinstance(self._settings['missionList'], dict):
                 self._settings['missionList'] = list(self._settings['missionList'].values())
-            self._settings['missionList'] = [os.path.normpath(x) for x in self._settings['missionList']]
         return self._settings
 
     @property
@@ -169,6 +174,18 @@ class ServerImpl(Server):
                     elif self.observer.emitters:
                         self.observer.unschedule_all()
                         self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
+            elif self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
+                # make sure, mission names are unique
+                current_mission = self._get_current_mission_file()
+                if current_mission:
+                    self._settings['missionList'] = list(
+                        OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
+                    )
+                    try:
+                        new_start = self._settings['missionList'].index(current_mission)
+                    except ValueError:
+                        new_start = 0
+                    self._settings['listStartIndex'] = new_start + 1
             super().set_status(status)
 
     def _install_luas(self):
@@ -227,7 +244,7 @@ class ServerImpl(Server):
             self.observer = Observer()
             self.observer.start()
 
-    async def get_current_mission_file(self) -> Optional[str]:
+    def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
             start_index = int(settings.get('listStartIndex', 1))
@@ -246,10 +263,13 @@ class ServerImpl(Server):
             filename = self.current_mission.filename
         return os.path.normpath(filename) if filename else None
 
+    async def get_current_mission_file(self) -> Optional[str]:
+        return self._get_current_mission_file()
+
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()
         if filename:
-            miz = MizFile(self.node, filename)
+            miz = await asyncio.to_thread(MizFile, self.node, filename)
             return miz.theatre
 
     def serialize(self, message: dict):
@@ -297,16 +317,16 @@ class ServerImpl(Server):
         old_name = self.name
         try:
             # rename the server in the database
-            with self.pool.connection() as conn:
-                with conn.transaction():
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
                     # we need to remove any older server that might have had the same name
-                    conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
-                    conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                 (new_name, self.name))
-                    conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
-                                 (new_name, self.name))
-                    conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                 (new_name, self.name))
+                    await conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
+                    await conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                                       (new_name, self.name))
+                    await conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
+                                       (new_name, self.name))
+                    await conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                                       (new_name, self.name))
                     # only the master can take care of a cluster-wide rename
                     if self.node.master:
                         await self.node.rename_server(self, new_name)
@@ -341,15 +361,20 @@ class ServerImpl(Server):
         else:
             self.log.error(f"No executable found to start a DCS server in {basepath}!")
             return
-#        # check if all missions are existing
-#        missions = [x for x in self.settings['missionList'] if os.path.exists(x)]
-#        if len(missions) != len(self.settings['missionList']):
-#            self.settings['missionList'] = missions
-#            self.log.warning('Removed non-existent missions from serverSettings.lua')
+        # check if all missions are existing
+        missions = []
+        for mission in self.settings['missionList']:
+            if os.path.exists(mission):
+                missions.append(mission)
+            else:
+                self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
+        if len(missions) != len(self.settings['missionList']):
+            self.settings['missionList'] = missions
+            self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         try:
             p = subprocess.Popen(
-                [exe, '--server', '--norender', '-w', self.instance.name], executable=path
+                [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
             )
             self.process = Process(p.pid)
             self.log.debug(f"  => DCS server starting up with PID {p.pid}")
@@ -379,6 +404,21 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.exception(ex)
 
+    def _window_enumeration_handler(self, hwnd, top_windows):
+        top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
+
+    def _minimize(self):
+            top_windows = []
+            win32gui.EnumWindows(self._window_enumeration_handler, top_windows)
+
+            # Fetch the window name of the process
+            window_name = self.instance.name
+
+            for i in top_windows:
+                if window_name.lower() in i[1].lower():
+                    win32gui.ShowWindow(i[0], win32con.SW_MINIMIZE)
+                    break
+
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
         for ext in self.extensions.values():
@@ -388,11 +428,13 @@ class ServerImpl(Server):
                 self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
         if modify_mission:
             await self.apply_mission_changes()
-        await asyncio.create_task(asyncio.to_thread(self.do_startup))
+        await asyncio.to_thread(self.do_startup)
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         try:
             await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+            if sys.platform == 'win32' and self.node.locals.get('DCS', {}).get('minimized', True):
+                self._minimize()
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch
             if not await self.is_running():
@@ -409,7 +451,7 @@ class ServerImpl(Server):
     async def shutdown_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if x.is_running()]:
             try:
-                await ext.shutdown()
+                await asyncio.to_thread(ext.shutdown)
             except Exception as ex:
                 self.log.exception(ex)
 
@@ -417,24 +459,20 @@ class ServerImpl(Server):
         if await self.is_running():
             if not force:
                 await super().shutdown(False)
-            await self.terminate()
+            self._terminate()
         self.status = Status.SHUTDOWN
 
-    def _check_and_assign_process(self) -> bool:
-        if not self.process or not self.process.is_running():
-            self.process = utils.find_process("DCS_server.exe|DCS.exe", self.instance.name)
-        return self.process is not None
-
     async def is_running(self) -> bool:
-        # do we have a registered and running process?
-        if self._check_and_assign_process():
-            return True
-        # we might not have the necessary permissions to read the process
-        return utils.is_open('127.0.0.1', int(self.settings.get('port', 10308)))
+        async with self.lock:
+            if not self.process or not self.process.is_running():
+                self.process = await asyncio.to_thread(utils.find_process, "DCS_server.exe|DCS.exe", self.instance.name)
+            return self.process is not None
 
-    async def terminate(self) -> None:
-        if await self.is_running():
-            self.process.kill()
+    def _terminate(self) -> None:
+        if self.process and self.process.is_running():
+            self.process.terminate()
+            if self.process.is_running():
+                self.process.kill()
         self.process = None
 
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
@@ -449,6 +487,9 @@ class ServerImpl(Server):
                 return filename
         new_filename = filename
         try:
+            # make a backup
+            if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
+                shutil.copy2(filename, filename + '.orig')
             # process all mission modifications
             dirty = False
             for ext in self.extensions.values():
@@ -459,9 +500,6 @@ class ServerImpl(Server):
             # we did not change anything in the mission
             if not dirty:
                 return filename
-            # make a backup
-            if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-                shutil.copy2(filename, filename + '.orig')
             # check if the original mission can be written
             if filename != new_filename:
                 missions: list[str] = self.settings['missionList']
@@ -482,11 +520,11 @@ class ServerImpl(Server):
             if autoscan:
                 self.locals['autoscan'] = True
 
-    def keep_alive(self):
+    async def keep_alive(self):
         self.send_to_dcs({"command": "getMissionUpdate"})
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     UPDATE instances SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE node = %s AND server_name = %s
                 """, (self.node.name, self.name))
@@ -563,7 +601,7 @@ class ServerImpl(Server):
             if 'modify' in value:
                 miz.modify(value['modify'])
 
-        miz = MizFile(self, filename)
+        miz = await asyncio.to_thread(MizFile, self, filename)
         if isinstance(preset, list):
             for p in preset:
                 if not isinstance(p, dict):
@@ -576,7 +614,7 @@ class ServerImpl(Server):
             self.log.error(f"{preset} is not a dictionary!")
         # write new mission
         new_filename = utils.create_writable_mission(filename)
-        miz.save(new_filename)
+        await asyncio.to_thread(miz.save, new_filename)
         return new_filename
 
     async def persist_settings(self):
@@ -648,7 +686,7 @@ class ServerImpl(Server):
             missions: list[str] = self.settings['missionList']
             missions[mission_id - 1] = path
             self.settings['missionList'] = missions
-    
+
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
         if isinstance(mission, int):
             if mission > len(self.settings['missionList']):

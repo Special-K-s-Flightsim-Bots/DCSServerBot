@@ -4,9 +4,24 @@ servers, the number of people flying, other nodes, if you're part of a cluster a
 dcssb-_node_.log file.
 
 ## Configuration
-There is no configuration for the dashboard yet.
+You can configure the colors of the dashboard in the respective config/services/dashboard.yaml like so:
+```yaml
+DEFAULT:
+  header:
+    background: white on navy_blue
+    border: white
+  servers:
+    background: white on dark_blue
+    border: white
+  nodes:
+    background: white on dark_blue
+    border: white
+  log:
+    background: white on grey15
+    border: white
+```
 
-You can disable the dashboard atm in your main.yaml like so:
+You can disable the dashboard in your main.yaml like so:
 ```yaml
 use_dashboard: false  # disable the Dashboard (default: true)
 ```

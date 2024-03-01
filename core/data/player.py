@@ -166,43 +166,42 @@ class Player(DataObject):
     def display_name(self) -> str:
         return utils.escape_string(self.name)
 
-    def update(self, data: dict):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    if 'id' in data:
-                        # if the ID has changed (due to reconnect), we need to update the server list
-                        if self.id != data['id']:
-                            del self.server.players[self.id]
-                            self.server.players[data['id']] = self
-                            self.id = data['id']
-                    if 'active' in data:
-                        self.active = data['active']
-                    if 'name' in data and self.name != data['name']:
-                        self.name = data['name']
-                        cursor.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
-                    if 'side' in data:
-                        self.side = Side(data['side'])
-                    if 'slot' in data:
-                        self.slot = int(data['slot'])
-                    if 'sub_slot' in data:
-                        self.sub_slot = data['sub_slot']
-                    if 'unit_callsign' in data:
-                        self.unit_callsign = data['unit_callsign']
-                    if 'unit_name' in data:
-                        self.unit_name = data['unit_name']
-                    if 'unit_type' in data:
-                        self.unit_type = data['unit_type']
-                    if 'group_name' in data:
-                        self.group_name = data['group_name']
-                    if 'group_id' in data:
-                        self.group_id = data['group_id']
-                    if 'unit_display_name' in data:
-                        self.unit_display_name = data['unit_display_name']
-                    cursor.execute("""
-                        UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
-                        WHERE ucid = %s
-                    """, (self.ucid, ))
+    async def update(self, data: dict):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                if 'id' in data:
+                    # if the ID has changed (due to reconnect), we need to update the server list
+                    if self.id != data['id']:
+                        del self.server.players[self.id]
+                        self.server.players[data['id']] = self
+                        self.id = data['id']
+                if 'active' in data:
+                    self.active = data['active']
+                if 'name' in data and self.name != data['name']:
+                    self.name = data['name']
+                    await conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
+                if 'side' in data:
+                    self.side = Side(data['side'])
+                if 'slot' in data:
+                    self.slot = int(data['slot'])
+                if 'sub_slot' in data:
+                    self.sub_slot = data['sub_slot']
+                if 'unit_callsign' in data:
+                    self.unit_callsign = data['unit_callsign']
+                if 'unit_name' in data:
+                    self.unit_name = data['unit_name']
+                if 'unit_type' in data:
+                    self.unit_type = data['unit_type']
+                if 'group_name' in data:
+                    self.group_name = data['group_name']
+                if 'group_id' in data:
+                    self.group_id = data['group_id']
+                if 'unit_display_name' in data:
+                    self.unit_display_name = data['unit_display_name']
+                await conn.execute("""
+                    UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
+                    WHERE ucid = %s
+                """, (self.ucid, ))
 
     def has_discord_roles(self, roles: list[str]) -> bool:
         valid_roles = []

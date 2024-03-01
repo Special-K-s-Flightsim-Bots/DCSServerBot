@@ -9,8 +9,8 @@ from services import DCSServerBot
 
 class Battleground(Plugin):
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
-        conn.execute("UPDATE bg_geometry SET server = %s WHERE server= %s", (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
+        await conn.execute("UPDATE bg_geometry SET server = %s WHERE server= %s", (new_name, old_name))
 
     battleground = Group(name="battleground", description="DCSBattleground commands")
 
@@ -36,9 +36,9 @@ class Battleground(Plugin):
                 continue
             done = True
             screenshots = [att.url for att in [screenshot]]  # TODO: add multiple ones
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
                         VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
                     """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
@@ -53,9 +53,9 @@ class Battleground(Plugin):
     @utils.app_has_role('DCS Admin')
     async def reset(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
-        with self.pool.connection() as conn:
-            with conn.transation():
-                conn.execute("DELETE FROM bg_geometry WHERE server = %s", (server.name, ))
+        async with self.apool.connection() as conn:
+            async with conn.transation():
+                await conn.execute("DELETE FROM bg_geometry WHERE server = %s", (server.name, ))
         await interaction.response.send_message(f"Recon data deleted for server {server.name}", ephemeral=True)
 
 

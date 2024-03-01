@@ -1,11 +1,11 @@
 from __future__ import annotations
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Type
 
 if TYPE_CHECKING:
     from logging import Logger
-    from psycopg_pool import ConnectionPool
+    from psycopg_pool import ConnectionPool, AsyncConnectionPool
 
 __all__ = [
     "DataObject",
@@ -17,18 +17,20 @@ __all__ = [
 class DataObject:
     node: Any = field(compare=False, repr=False)
     pool: ConnectionPool = field(compare=False, repr=False, init=False)
+    apool: AsyncConnectionPool = field(compare=False, repr=False, init=False)
     log: Logger = field(compare=False, repr=False, init=False)
     config: ConfigParser = field(compare=False, repr=False, init=False)
 
     def __post_init__(self):
         self.pool = self.node.pool
+        self.apool = self.node.apool
         self.log = self.node.log
         self.config = self.node.config
 
 
 class DataObjectFactory:
     _instance = None
-    _registry = dict[str, DataObject]()
+    _registry: dict[str, Type[DataObject]] = {}
 
     def __new__(cls) -> DataObjectFactory:
         if cls._instance is None:
@@ -45,4 +47,5 @@ class DataObjectFactory:
 
     @classmethod
     def new(cls, class_name: str, **kwargs) -> Any:
+        # noinspection PyArgumentList
         return cls._registry[class_name](**kwargs)

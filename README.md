@@ -279,11 +279,13 @@ NODENAME:                       # this will be your hostname
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
+  nodestats: true               # Enable node statistics (database pool and event queue sizes), default: true
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
+    minimized: true             # Start DCS minimized (default: true)
   instances:
     DCS.openbeta_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.
@@ -345,6 +347,7 @@ token: AAaahhg2347286adhjdjasd2347263473        # Your TOKEN, as received from t
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
+autorole: join                                  # "join": Give everyone the DCS role on join. "linkme": Give everyone the DCS role on successful link. Not set - don't do anything. 
 no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
 message_ban: User has been banned on Discord.   # Default reason to show people that try to join your DCS servers when they are banned on Discord.
 message_autodelete: 300                         # Most of the Discord messages are private messages. If not, this is the timeout after that they vanish. Default is 300 (5 mins). 
@@ -362,9 +365,9 @@ roles:                                          # Roles mapping. The bot uses in
   DCS Admin:                                    # Map your Discord role "Moderator" and "Staff" to the bots "DCS Admin" role (default: DCS Admin)
   - Moderator
   - Staff
-  GameMaster:                                   # Give the GameMaster role to anybody with the Staff role in your Discord.
+  GameMaster:                                   # Map the GameMaster role to anybody with the Staff role in your Discord.
   - Staff
-  DCS:                                          # Give the bots DCS role to everyone in your discord. Only everyone needs the leading @!
+  DCS:                                          # Map the bots DCS role to everyone in your discord. Only everyone needs the leading @!
   - @everyone
 
 ```

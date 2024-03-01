@@ -1,6 +1,5 @@
 import discord
 
-from contextlib import closing
 from core import report
 from psycopg.rows import dict_row
 from typing import Optional
@@ -17,11 +16,12 @@ class HighscoreTrueSkill(report.GraphElement):
             LIMIT {limit}
         """
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                for row in cursor.execute(sql):
+                await cursor.execute(sql)
+                async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)

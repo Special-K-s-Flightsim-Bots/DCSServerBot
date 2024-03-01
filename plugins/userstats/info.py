@@ -1,5 +1,5 @@
 import discord
-from contextlib import closing
+
 from core import report, Side, Player, DataObjectFactory, Member, utils
 from datetime import datetime, timezone
 from typing import Union, Optional
@@ -36,18 +36,20 @@ class Header(report.EmbedElement):
             """
         else:
             sql += f"'{member.id}'"
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                rows = cursor.execute(sql).fetchall()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql)
+                rows = await cursor.fetchall()
                 if not rows:
                     self.embed.description = 'User "{}" is not linked or unknown.'.format(
                         utils.escape_string(member if isinstance(member, str) else member.display_name)
                     )
                     if isinstance(member, str) and utils.is_ucid(member):
-                        rows = cursor.execute("""
-                            SELECT 1 as banned, reason, banned_by, banned_until 
-                            FROM bans WHERE ucid = %s
-                        """, (member, )).fetchall()
+                        await cursor.execute("""
+                                                    SELECT 1 as banned, reason, banned_by, banned_until 
+                                                    FROM bans WHERE ucid = %s
+                                                """, (member,))
+                        rows = await cursor.fetchall()
                         if not rows:
                             return
         self.embed.description = f'Information about '
@@ -89,9 +91,10 @@ class UCIDs(report.EmbedElement):
                    f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
         else:
             sql += f"'{member.id}'"
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                rows = cursor.execute(sql).fetchall()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql)
+                rows = await cursor.fetchall()
                 if not rows:
                     return
                 self.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
@@ -110,9 +113,10 @@ class History(report.EmbedElement):
         else:
             sql += f"= '{member}'"
         sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                rows = cursor.execute(sql).fetchall()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql)
+                rows = await cursor.fetchall()
                 if not rows:
                     return
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)

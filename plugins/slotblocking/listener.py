@@ -1,25 +1,24 @@
+import asyncio
 import re
-import discord
 
 from core import EventListener, Plugin, Server, Status, utils, event, Side
-from typing import Union, cast, Optional
 from plugins.creditsystem.player import CreditPlayer
+from typing import Union, cast, Optional
 
 
 class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
+        self.lock = asyncio.Lock()
 
     def _migrate_roles(self, config: dict) -> None:
-        guild = self.bot.guilds[0]
-
         if config.get('VIP', {}).get('discord', []):
             config['VIP']['discord'] = utils.get_role_ids(self.plugin, config.get('VIP', {}).get('discord', []))
         for restriction in config.get('restricted', []):
             if 'discord' in restriction:
                 restriction['discord'] = utils.get_role_ids(self.plugin, restriction['discord'])
 
-    def _load_params_into_mission(self, server: Server):
+    async def _load_params_into_mission(self, server: Server):
         config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
             self._migrate_roles(config)
@@ -36,10 +35,11 @@ class SlotBlockingListener(EventListener):
                 return
             # get all linked members
             batch = []
-            with self.pool.connection() as conn:
-                for row in conn.execute("""
-                    SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
-                """).fetchall():
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute("""
+                     SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
+                """)
+                async for row in cursor:
                     member = guild.get_member(row[1])
                     if not member:
                         continue
@@ -54,11 +54,11 @@ class SlotBlockingListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is running already
         if data['channel'].startswith('sync-'):
-            self._load_params_into_mission(server)
+            await self._load_params_into_mission(server)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self._load_params_into_mission(server)
+        await self._load_params_into_mission(server)
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)
@@ -122,29 +122,32 @@ class SlotBlockingListener(EventListener):
                 message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
             await self.bot.audit(message, server=server)
 
-    def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None,
-                       payback: Optional[bool] = True):
-        plane_costs = self._get_costs(server, data if data else player)
-        if not plane_costs:
-            return
-        old_points = player.points
-        player.points -= plane_costs
-        player.audit('buy', old_points, 'Points taken for using a reserved module')
-        if payback:
-            self.log.debug(f'### Player {player.name} puts their planes costs of {plane_costs} on deposit.')
-            player.deposit = plane_costs
+    async def _pay_for_plane(self, server: Server, player: CreditPlayer, data: Optional[dict] = None,
+                             payback: Optional[bool] = True):
+        async with self.lock:
+            if player.deposit != 0:
+                return
+            plane_costs = self._get_costs(server, data if data else player)
+            if not plane_costs:
+                return
+            old_points = player.points
+            player.points -= plane_costs
+            await player.audit('buy', old_points, 'Points taken for using a reserved module')
+            if payback:
+                player.deposit = plane_costs
 
-    def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
-        old_points = player.points
-        plane_costs = self._get_costs(server, player)
-        if plane_only:
-            self.log.debug(f"### {reason}: Player {player.name} gets back the planes costs of {plane_costs}.")
-            player.points += plane_costs
-        else:
-            self.log.debug(f"### {reason}: Player {player.name} gets back their deposit of {player.deposit}.")
-            player.points += player.deposit
-        player.audit('payback', old_points, reason)
-        player.deposit = 0
+    async def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
+        async with self.lock:
+            if player.deposit == 0:
+                return
+            old_points = player.points
+            plane_costs = self._get_costs(server, player)
+            if plane_only:
+                player.points += plane_costs
+            else:
+                player.points += player.deposit
+            await player.audit('payback', old_points, reason)
+            player.deposit = 0
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
@@ -156,11 +159,10 @@ class SlotBlockingListener(EventListener):
             return
         # if payback is enabled, we need to clear the deposit on any slot change
         if config.get('payback', False):
-            self.log.debug(f"### Player {player.name}: deposit cleared due to slot change.")
             player.deposit = 0
         elif (Side(data['side']) != Side.SPECTATOR and data['sub_slot'] == 0
               and not self.get_config(server, plugin_name='missionstats').get('enabled', True)):
-            self._pay_for_plane(server, player, data, payback=False)
+            await self._pay_for_plane(server, player, data, payback=False)
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
@@ -175,7 +177,7 @@ class SlotBlockingListener(EventListener):
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
             # only pilots have to "pay" for their plane
             if player and player.sub_slot == 0:
-                self._pay_for_plane(server, player, payback=False)
+                await self._pay_for_plane(server, player, payback=False)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -188,10 +190,9 @@ class SlotBlockingListener(EventListener):
                 return
             # give points back on team-kill
             if data['arg3'] == data['arg6']:
-                self._payback(server, player, 'Credits refund for being team-killed')
+                await self._payback(server, player, 'Credits refund for being team-killed')
             else:
                 player.deposit = 0
-                self.log.debug(f"### Player {player.name}: deposit cleared due to being killed.")
                 if player.points < self._get_costs(server, player):
                     server.move_to_spectators(player,
                                               reason="You do not have enough credits to use this slot anymore.")
@@ -199,19 +200,18 @@ class SlotBlockingListener(EventListener):
             # payback on landing
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player and player.deposit > 0:
-                self._payback(server, player, 'Credits for RTB')
+                await self._payback(server, player, 'Credits for RTB')
         elif data['eventName'] == 'takeoff':
             # take deposit on takeoff
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player and player.deposit == 0 and int(player.sub_slot) == 0:
-                self._pay_for_plane(server, player, payback=True)
+                await self._pay_for_plane(server, player, payback=True)
         elif data['eventName'] == 'mission_end':
             # give all players their credit back, if the mission ends, and they are still airborne
             for player in server.players.values():
-                self._payback(server, player, 'Refund on mission end', plane_only=True)
+                await self._payback(server, player, 'Refund on mission end', plane_only=True)
         elif data['eventName'] == 'crash':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             player.deposit = 0
-            self.log.debug(f"### Player {player.name}: deposit cleared due to crash.")
             if player.points < self._get_costs(server, player):
                 server.move_to_spectators(player, reason="You do not have enough credits to use this slot anymore.")

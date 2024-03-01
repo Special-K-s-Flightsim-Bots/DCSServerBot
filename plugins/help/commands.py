@@ -2,7 +2,7 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, Command, utils, ServiceRegistry
+from core import Plugin, Report, ReportEnv, command, Command, utils
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput

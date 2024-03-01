@@ -3,7 +3,6 @@ import os
 import psycopg
 import shutil
 
-from contextlib import closing
 from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
@@ -44,17 +43,17 @@ class GreenieBoard(Plugin):
             self._config[server.node.name][server.instance.name] = default | specific
         return self._config[server.node.name][server.instance.name]
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
         if ucids:
             for ucid in ucids:
-                conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
+                await conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
         elif days > -1:
-            conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
+            await conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
-        conn.execute('UPDATE greenieboard SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
+        await conn.execute('UPDATE greenieboard SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     # New command group "/traps"
     traps = Group(name="traps", description="Commands to display and manage carrier traps")
@@ -73,25 +72,25 @@ class GreenieBoard(Plugin):
             user = interaction.user
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(ucid)
+            user = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(user, discord.Member):
                 name = user.display_name
             else:
                 name = user
         else:
-            ucid = self.bot.get_ucid_by_member(user)
+            ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
         num_landings = max(self.get_config().get('num_landings', 25), 25)
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
                                "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
                                "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
                 if cursor.rowcount == 0:
                     await interaction.response.send_message('No carrier landings recorded for this user.',
                                                             ephemeral=True)
                     return
-                landings = [dict(row) for row in cursor]
+                landings = [dict(row) async for row in cursor]
         report = Report(self.bot, self.plugin_name, 'traps.json')
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",

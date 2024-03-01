@@ -1,6 +1,5 @@
 import string
 
-from contextlib import closing
 from typing import Literal
 
 from core import EmbedElement, utils
@@ -13,17 +12,19 @@ from .const import EMOJIS, StrafeQuality, BombQuality
 class RangeBoard(EmbedElement):
 
     async def render(self, server_name: str, num_rows: int, sql1: str, sql2: str, what: Literal['strafe', 'bomb']):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 pilots = points = runs = ''
                 max_time = datetime.fromisocalendar(1970, 1, 1)
-                for row in cursor.execute(sql1, (num_rows, )).fetchall():
+                await cursor.execute(sql1, (num_rows, ))
+                rows = await cursor.fetchall()
+                for row in rows:
                     pilots += utils.escape_string(row['name']) + '\n'
                     points += f"{row['points']:.2f}\n"
-                    cursor.execute(sql2, (row['player_ucid'], ))
+                    await cursor.execute(sql2, (row['player_ucid'], ))
                     i = 0
                     runs += '**|'
-                    for run in cursor:
+                    async for run in cursor:
                         runs += EMOJIS[what][run['quality']] + '|'
                         i += 1
                     for i in range(i, 10):

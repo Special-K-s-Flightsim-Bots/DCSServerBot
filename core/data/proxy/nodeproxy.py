@@ -19,6 +19,7 @@ class NodeProxy(Node):
         super().__init__(name, config_dir)
         self.local_node = local_node
         self.pool = self.local_node.pool
+        self.apool = self.local_node.apool
         self.log = self.local_node.log
         self._public_ip = public_ip
         self.locals = self.read_locals()
@@ -75,7 +76,7 @@ class NodeProxy(Node):
         return data['return']
 
     async def upgrade(self):
-        await self.bus.send_to_node({
+        self.bus.send_to_node({
             "command": "rpc",
             "object": "Node",
             "method": "upgrade"
@@ -143,11 +144,11 @@ class NodeProxy(Node):
                 "path": path
             }
         }, timeout=60, node=self.name)
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                file = conn.execute("SELECT data FROM files WHERE id = %s", (data['return'], ),
-                                    binary=True).fetchone()[0]
-                conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (data['return'], ), binary=True)
+                file = (await cursor.fetchone())[0]
+                await conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
         return file
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:

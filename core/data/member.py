@@ -55,17 +55,17 @@ class Member(DataObject):
                 conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (flag, self._ucid))
         self._verified = flag
 
-    def link(self, ucid: str, verified: bool = True):
+    async def link(self, ucid: str, verified: bool = True):
         self._verified = verified
         self._ucid = ucid
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
-                             (self.member.id, verified, ucid))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                                   (self.member.id, verified, ucid))
 
-    def unlink(self, ucid):
+    async def unlink(self, ucid):
         self._ucid = None
         self._verified = False
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))

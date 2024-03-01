@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 
 from core import Extension, MizFile, utils, DEFAULT_TAG
@@ -45,15 +46,19 @@ class RealWeather(Extension):
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), mode='w', encoding='utf-8') as outfile:
             json.dump(cfg, outfile, indent=2)
-        out = asyncio.subprocess.DEVNULL if not self.config.get('debug', False) else None
-        proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd,
-                                                    stdout=out, stderr=out)
-        rc = await proc.wait()
-        if rc != 0:
+
+        def run_subprocess():
+            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+            subprocess.check_call([os.path.join(rw_home, 'realweather.exe')], stdout=out, stderr=out, cwd=cwd)
+
+        try:
+            await asyncio.to_thread(run_subprocess)
+        except subprocess.CalledProcessError:
             raise RealWeatherException(f"Error in RealWeather. Enable debug in your extension to see more.")
+
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
-        MizFile(self, tmpname)
+        await asyncio.to_thread(MizFile, self, tmpname)
         # mission is good, take it
         new_filename = utils.create_writable_mission(filename)
         shutil.copy2(tmpname, new_filename)
@@ -91,7 +96,7 @@ class RealWeather(Extension):
             return False
         return True
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         return True
 
     def is_running(self) -> bool:

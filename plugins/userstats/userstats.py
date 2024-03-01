@@ -1,7 +1,6 @@
 import discord
 import matplotlib.pyplot as plt
 import numpy as np
-from contextlib import closing
 from core import report, utils
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
@@ -27,12 +26,12 @@ class PlaytimesPerPlane(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += ' GROUP BY s.slot ORDER BY 2'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)):
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+                async for row in cursor:
                     labels.insert(0, row['slot'])
                     values.insert(0, float(row['playtime']) / 3600.0)
                 self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
@@ -67,10 +66,10 @@ class PlaytimesPerServer(report.GraphElement):
 
         labels = []
         values = []
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+                async for row in cursor:
                     labels.insert(0, row['server_name'])
                     values.insert(0, float(row['playtime']))
 
@@ -105,10 +104,10 @@ class PlaytimesPerMap(report.GraphElement):
 
         labels = []
         values = []
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+                async for row in cursor:
                     labels.insert(0, row['mission_theatre'])
                     values.insert(0, float(row['playtime']))
         if values:
@@ -146,10 +145,10 @@ class RecentActivities(report.GraphElement):
 
         labels = []
         values = []
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                for row in cursor.execute(sql,
-                                          (member.id if isinstance(member, discord.Member) else member,)):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+                async for row in cursor:
                     labels.append(row['day'])
                     values.append(float(row['playtime']) / 3600.0)
 
@@ -180,9 +179,9 @@ class FlightPerformance(report.GraphElement):
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -190,7 +189,7 @@ class FlightPerformance(report.GraphElement):
 
                     labels = []
                     values = []
-                    for name, value in dict(cursor.fetchone()).items():
+                    for name, value in dict(await cursor.fetchone()).items():
                         if value and int(value) > 0:
                             labels.append(name)
                             values.append(value)
@@ -209,8 +208,8 @@ class FlightPerformance(report.GraphElement):
 
 class KDRatio(report.MultiGraphElement):
 
-    def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
-                              flt: StatisticsFilter):
+    async def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+                                    flt: StatisticsFilter):
         sql = """
             SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", 
                    COALESCE(SUM(pvp), 0) as "Player Kills", 
@@ -231,9 +230,9 @@ class KDRatio(report.MultiGraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = []
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -242,7 +241,7 @@ class KDRatio(report.MultiGraphElement):
                     labels = []
                     values = []
                     explode = []
-                    result = cursor.fetchone()
+                    result = await cursor.fetchone()
                     for name, value in dict(result).items():
                         if value and int(value) > 0:
                             labels.append(name)
@@ -273,8 +272,8 @@ class KDRatio(report.MultiGraphElement):
                     ax.set_visible(False)
         return retval
 
-    def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
-                        flt: StatisticsFilter):
+    async def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+                              flt: StatisticsFilter) -> bool:
         sql = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, ' \
               'COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(' \
               'kills_ground), 0) as ground FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
@@ -288,14 +287,14 @@ class KDRatio(report.MultiGraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = False
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 # if no data was found, return False as no chart was drawn
                 if cursor.rowcount > 0:
                     labels = []
                     values = []
-                    for name, value in dict(cursor.fetchone()).items():
+                    for name, value in dict(await cursor.fetchone()).items():
                         labels.append(name.replace('_', ' ').title())
                         values.append(value)
                     xpos = 0
@@ -321,8 +320,8 @@ class KDRatio(report.MultiGraphElement):
                         retval = True
         return retval
 
-    def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str,
-                         period: str, flt: StatisticsFilter):
+    async def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str,
+                               period: str, flt: StatisticsFilter) -> bool:
         sql = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
               'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, players p, ' \
               'missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
@@ -335,12 +334,12 @@ class KDRatio(report.MultiGraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = False
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
-                result = cursor.fetchone()
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+                result = await cursor.fetchone()
                 # if no data was found, return False as no chart was drawn
-                if cursor.rowcount > 0:
+                if result:
                     labels = []
                     values = []
                     for name, value in dict(result).items():
@@ -371,10 +370,10 @@ class KDRatio(report.MultiGraphElement):
         return retval
 
     async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
-        retval = self.draw_kill_performance(self.axes[1], member, server_name, period, flt)
+        retval = await self.draw_kill_performance(self.axes[1], member, server_name, period, flt)
         i = 0
-        if ('AI Kills' in retval or 'Player Kills' in retval) and \
-                (self.draw_kill_types(self.axes[2], member, server_name, period, flt) is True):
+        if (('AI Kills' in retval or 'Player Kills' in retval) and
+                ((await self.draw_kill_types(self.axes[2], member, server_name, period, flt)) is True)):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1
@@ -406,8 +405,8 @@ class KDRatio(report.MultiGraphElement):
             i += 1
         else:
             self.axes[2].set_visible(False)
-        if ('Deaths by AI' in retval or 'Deaths by Player' in retval) and \
-                (self.draw_death_types(self.axes[0], (i == 0), member, server_name, period, flt) is True):
+        if (('Deaths by AI' in retval or 'Deaths by Player' in retval) and
+                ((await self.draw_death_types(self.axes[0], (i == 0), member, server_name, period, flt)) is True)):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1

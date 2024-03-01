@@ -8,7 +8,7 @@ from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
 from services import DCSServerBot, OvGMEService
-from typing import Tuple, cast, Optional, Literal
+from typing import Tuple, Optional, Literal
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 
@@ -43,7 +43,7 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[Tupl
 async def installed_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -61,7 +61,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -79,7 +79,7 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_versions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -101,7 +101,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
 async def repo_version_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    service: OvGMEService = ServiceRegistry.get("OvGME")
     try:
         repo = utils.get_interaction_param(interaction, 'url')
 
@@ -123,12 +123,12 @@ class OvGME(Plugin):
         if os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')):
             self.log.warning(f"  => OvGME: your ovgme.yaml belongs into {self.node.config_dir}/services/ovgme.yaml, "
                              f"not in {self.node.config_dir}/plugins!")
-        self.service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+        self.service: OvGMEService = ServiceRegistry.get("OvGME")
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     # New command group "/mods"
     mods = Group(name="mods", description="Commands to manage custom mods in your DCS server")
@@ -219,7 +219,7 @@ class OvGME(Plugin):
                 await interaction.response.defer()
                 try:
                     folder, package, version = derived.available[int(interaction.data['values'][0])]
-                    current = self.service.get_installed_package(server, folder, package)
+                    current = await self.service.get_installed_package(server, folder, package)
                     if current:
                         derived.embed.set_footer(text=f"Updating mod {package}, please wait ...")
                         await interaction.edit_original_response(embed=derived.embed)
@@ -339,7 +339,7 @@ class OvGME(Plugin):
             return
         folder, package = mod.split('/')
         await interaction.response.defer(ephemeral=ephemeral)
-        current = self.service.get_installed_package(server, folder, package)
+        current = await self.service.get_installed_package(server, folder, package)
         if current == version:
             await interaction.followup.send(f"Package {package}_v{version} is already installed.")
             return

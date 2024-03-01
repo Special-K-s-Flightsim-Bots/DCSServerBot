@@ -5,6 +5,7 @@ import discord
 import inspect
 import json
 import os
+import psycopg
 import sys
 
 from abc import ABC, abstractmethod
@@ -36,7 +37,7 @@ class Report:
     def __init__(self, bot: DCSServerBot, plugin: str, filename: str):
         self.bot = bot
         self.log = bot.log
-        self.pool = bot.pool
+        self.apool = bot.apool
         self.env = ReportEnv(bot)
         default = f'./plugins/{plugin}/reports/{filename}'
         overwrite = f'./reports/{plugin}/{filename}'
@@ -108,8 +109,12 @@ class Report:
                             except (TimeoutError, asyncio.TimeoutError):
                                 self.log.error(f"Timeout while processing report {self.filename}! "
                                                f"Some elements might be empty.")
+                            except psycopg.OperationalError:
+                                self.log.error(f"Database error while processing report {self.filename}! "
+                                               f"Some elements might be empty.")
                             except Exception as ex:
-                                self.log.exception(ex)
+                                self.log.error(f"Error while processing report {self.filename}! "
+                                               f"Some elements might be empty.", exc_info=True)
                         else:
                             raise UnknownReportElement(element['class'])
                     else:
@@ -122,7 +127,7 @@ class Pagination(ABC):
         self.env = env
 
     @abstractmethod
-    def values(self, **kwargs) -> list[Any]:
+    async def values(self, **kwargs) -> list[Any]:
         ...
 
 
@@ -140,12 +145,12 @@ class PaginationReport(Report):
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
-    def read_param(self, param: dict, **kwargs) -> Tuple[str, list]:
+    async def read_param(self, param: dict, **kwargs) -> Tuple[str, list]:
         name = param['name']
         values = None
         if 'sql' in param:
-            with self.pool.connection() as conn:
-                values = [x[0] for x in conn.execute(param['sql'], kwargs)]
+            async with self.apool.connection() as conn:
+                values = [x[0] async for x in await conn.execute(param['sql'], kwargs)]
         elif 'values' in param:
             values = param['values']
         elif 'obj' in param:
@@ -155,7 +160,7 @@ class PaginationReport(Report):
             elif isinstance(obj, dict):
                 values = obj.keys()
         elif 'class' in param:
-            values = cast(Pagination, utils.str_to_class(param['class'])(self.env)).values(**kwargs)
+            values = await cast(Pagination, utils.str_to_class(param['class'])(self.env)).values(**kwargs)
         elif self.pagination:
             values = self.pagination
         return name, values
@@ -262,7 +267,7 @@ class PaginationReport(Report):
     async def render(self, *args, **kwargs) -> ReportEnv:
         if not self.interaction.response.is_done():
             await self.interaction.response.defer()
-        name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
+        name, values = await self.read_param(self.report_def['pagination']['param'], **kwargs)
         start_index = 0
         if 'start_index' in kwargs:
             start_index = kwargs['start_index']
@@ -288,7 +293,8 @@ class PaginationReport(Report):
                 message = await self.interaction.followup.send(
                     embed=env.embed,
                     view=view or MISSING,
-                    file=discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
+                    file=discord.File(fp=env.buffer or env.filename,
+                                      filename=os.path.basename(env.filename)) if env.filename else MISSING
                 )
             finally:
                 if not self.keep_image and env.filename:
@@ -300,7 +306,7 @@ class PaginationReport(Report):
             else:
                 message = None
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"Exception while processing report {self.filename}!")
             raise
         finally:
             if message:
@@ -321,12 +327,14 @@ class PersistentReport(Report):
         env = None
         try:
             env = await super().render(*args, **kwargs)
-            file = discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
+            file = discord.File(fp=env.buffer or env.filename,
+                                filename=os.path.basename(env.filename)) if env.filename else MISSING
             await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
                                     file=file, server=self.server)
             return env
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"Exception while processing report {self.filename}!")
+            raise
         finally:
             if env and env.filename:
                 env.buffer.close()

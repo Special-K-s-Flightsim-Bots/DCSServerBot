@@ -800,7 +800,7 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
 
 def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:
     """
-    :param bot: The instance of the DCSServerBot class.
+    :param interaction: the discord Interaction
     :return: A list of discord.Member objects representing all the members linked to DCS accounts in the bot's guild.
     """
     members: list[discord.Member] = []
@@ -876,7 +876,7 @@ class NodeTransformer(app_commands.Transformer):
             return []
         try:
             all_nodes = [interaction.client.node.name]
-            all_nodes.extend(interaction.client.node.get_active_nodes())
+            all_nodes.extend(await interaction.client.node.get_active_nodes())
             return [
                 app_commands.Choice(name=x, value=x)
                 for x in all_nodes

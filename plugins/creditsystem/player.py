@@ -24,11 +24,6 @@ class CreditPlayer(Player):
                                    (campaign_id, self.ucid))
                     if cursor.rowcount == 1:
                         self._points = cursor.fetchone()[0]
-                        self.server.send_to_dcs({
-                            'command': 'updateUserPoints',
-                            'ucid': self.ucid,
-                            'points': self._points
-                        })
                     else:
                         self.log.debug(
                             f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')
@@ -65,15 +60,15 @@ class CreditPlayer(Player):
             'points': self._points
         })
 
-    def audit(self, event: str, old_points: int, remark: str):
+    async def audit(self, event: str, old_points: int, remark: str):
         if old_points == self.points:
             return
         campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
         if not campaign_id:
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
                     INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (campaign_id, event, self.ucid, old_points, self._points, remark))

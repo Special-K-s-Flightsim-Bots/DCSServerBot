@@ -9,11 +9,12 @@ dcsbot 			= base.dcsbot
 ]]--
 local _points = {}
 
-function dcsbot.addUserPoints(user, points)
+function dcsbot.addUserPoints(user, points, reason)
     local msg = {
         command = 'addUserPoints',
         name = user,
-        points = points
+        points = points,
+        reason = reason or 'Unknown mission achievement'
     }
     dcsbot.sendBotTable(msg)
 end

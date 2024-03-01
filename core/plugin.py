@@ -9,7 +9,6 @@ import psycopg
 import shutil
 import sys
 
-from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.services.registry import ServiceRegistry
@@ -233,6 +232,7 @@ class Plugin(commands.Cog):
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.log = self.bot.log
         self.pool = self.bot.pool
+        self.apool = self.bot.apool
         self.loop = self.bot.loop
         self.locals = self.read_locals()
         if self.plugin_name != 'commands' and 'commands' in self.locals:
@@ -280,7 +280,7 @@ class Plugin(commands.Cog):
                     break
 
     async def install(self) -> bool:
-        if self._init_db():
+        if await self._init_db():
             # create report directories for convenience
             source_path = f'./plugins/{self.plugin_name}/reports'
             if path.exists(source_path):
@@ -299,14 +299,14 @@ class Plugin(commands.Cog):
     async def after_dcs_update(self) -> None:
         ...
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None) -> None:
         ...
 
-    def _init_db(self) -> bool:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
+    async def _init_db(self) -> bool:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor() as cursor:
+                    await cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
                     # first installation
                     if cursor.rowcount == 0:
                         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
@@ -314,13 +314,15 @@ class Plugin(commands.Cog):
                             with open(tables_file, mode='r') as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
-                                    cursor.execute(query.rstrip())
-                        cursor.execute('INSERT INTO plugins (plugin, version) VALUES (%s, %s) ON CONFLICT (plugin) DO '
-                                       'NOTHING', (self.plugin_name, self.plugin_version))
+                                    await cursor.execute(query.rstrip())
+                        await cursor.execute("""
+                            INSERT INTO plugins (plugin, version) VALUES (%s, %s) 
+                            ON CONFLICT (plugin) DO NOTHING
+                        """, (self.plugin_name, self.plugin_version))
                         self.log.info(f'  => {self.plugin_name.title()} installed.')
                         return True
                     else:
-                        installed = cursor.fetchone()[0]
+                        installed = (await cursor.fetchone())[0]
                         # old variant, to be migrated
                         if installed.startswith('v'):
                             installed = installed[1:]
@@ -330,7 +332,7 @@ class Plugin(commands.Cog):
                                 with open(updates_file, mode='r') as updates_sql:
                                     for query in updates_sql.readlines():
                                         self.log.debug(query.rstrip())
-                                        cursor.execute(query.rstrip())
+                                        await cursor.execute(query.rstrip())
                                 ver, rev = installed.split('.')
                                 installed = ver + '.' + str(int(rev) + 1)
                             elif int(self.plugin_version[0]) == 3 and int(installed[0]) < 3:
@@ -340,8 +342,8 @@ class Plugin(commands.Cog):
                                 installed = ver + '.' + str(int(rev) + 1)
                             self.migrate(installed)
                             self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
-                        cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
-                                       (self.plugin_version, self.plugin_name))
+                        await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
+                                             (self.plugin_version, self.plugin_name))
                         return False
 
     @staticmethod
@@ -453,11 +455,11 @@ class Plugin(commands.Cog):
             self._config[server.node.name][server.instance.name] = default | specific
         return self._config[server.node.name][server.instance.name]
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place
         ...
 
-    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+    async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         # this function has to be implemented in your own plugins, if the ucid of a user changed (steam <=> standalone)
         ...
 

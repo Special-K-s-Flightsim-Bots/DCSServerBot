@@ -44,12 +44,12 @@ class ServerStatsListener(EventListener):
         if math.isinf(fps):
             fps = -1
 
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                INSERT INTO serverstats (server_name, node, mission_id, users, status, cpu, mem_total, 
-                                         mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (server.name, server.node.name, server.mission_id, len(server.get_active_players()),
-                  server.status.name, cpu, data['mem_total'], data['mem_ram'], data['read_bytes'],
-                  data['write_bytes'], data['bytes_sent'], data['bytes_recv'], fps, ping))
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO serverstats (server_name, node, mission_id, users, status, cpu, mem_total, 
+                                             mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (server.name, server.node.name, server.mission_id, len(server.get_active_players()),
+                      server.status.name, cpu, data['mem_total'], data['mem_ram'], data['read_bytes'],
+                      data['write_bytes'], data['bytes_sent'], data['bytes_recv'], fps, ping))

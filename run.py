@@ -4,6 +4,8 @@ import argparse
 import asyncio
 import os
 import platform
+import psycopg
+import sys
 import traceback
 
 from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException
@@ -35,7 +37,8 @@ class Main:
             if (cloud_drive and self.node.master) or not cloud_drive:
                 await self.node.upgrade()
         elif await self.node.upgrade_pending():
-            self.log.warning("There is a new update for DCSServerBot available!")
+            self.log.warning(
+                "New update for DCSServerBot available! Use /node upgrade or enable autoupdate to apply it.")
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
@@ -48,10 +51,12 @@ class Main:
                     if self.node.config.get('use_dashboard', True):
                         self.log.info("  => Dashboard started.")
                         dashboard = registry.new(name)
+                        # noinspection PyAsyncCall
                         asyncio.create_task(dashboard.start())
                     continue
                 else:
                     try:
+                        # noinspection PyAsyncCall
                         asyncio.create_task(registry.new(name).start())
                         self.log.debug(f"  => {name} loaded.")
                     except ServiceInstallationError as ex:
@@ -73,6 +78,7 @@ class Main:
                         for name in registry.services().keys():
                             if registry.master_only(name):
                                 try:
+                                    # noinspection PyAsyncCall
                                     asyncio.create_task(registry.new(name).start())
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")
@@ -109,12 +115,14 @@ if __name__ == "__main__":
     if os.path.exists(os.path.join(config_dir, 'dcsserverbot.ini')):
         migrate(node=args.node)
     try:
-        with PidFile(pidname=f"dcssb_{args.node}"):
+        with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
                 node = NodeImpl(name=args.node, config_dir=config_dir)
             except FatalException:
                 Install(node=args.node).install()
                 node = NodeImpl(name=args.node)
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
     except PermissionError:
         exit(-2)
@@ -127,7 +135,7 @@ if __name__ == "__main__":
     except asyncio.CancelledError:
         # do not restart again
         exit(-2)
-    except (YAMLError, FatalException) as ex:
+    except (YAMLError, FatalException, psycopg.OperationalError) as ex:
         print(ex)
         # do not restart again
         exit(-2)

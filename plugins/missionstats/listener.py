@@ -1,4 +1,3 @@
-import asyncio
 from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report
 from discord.ext import tasks
 
@@ -63,7 +62,7 @@ class MissionStatisticsEventListener(EventListener):
     async def onSimulationStart(self, server: Server, data: dict) -> None:
         self._toggle_mission_stats(server)
 
-    def _update_database(self, server: Server, config: dict, data: dict):
+    async def _update_database(self, server: Server, config: dict, data: dict):
         def get_value(values: dict, index1, index2):
             if index1 not in values:
                 return None
@@ -96,9 +95,9 @@ class MissionStatisticsEventListener(EventListener):
                 'place': get_value(data, 'place', 'name'),
                 'comment': data['comment'] if 'comment' in data else ''
             }
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
                         INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
                                                   target_id, target_side, target_type, target_cat, weapon, place, 
                                                   comment) 
@@ -111,7 +110,7 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config.get('persistence', True):
-            await asyncio.to_thread(self._update_database, server, config, data)
+            await self._update_database(server, config, data)
         if not data['server_name'] in self.bot.mission_stats or not data.get('initiator'):
             return
         stats = self.bot.mission_stats[data['server_name']]
@@ -209,7 +208,9 @@ class MissionStatisticsEventListener(EventListener):
             config = self.get_config(server)
             if 'mission_end' in config:
                 title = config['mission_end'].get('title', 'Mission Result')
-                stats = self.bot.mission_stats[server.name]
+                stats = self.bot.mission_stats.get(server.name)
+                if not stats:
+                    return
                 if config['mission_end'].get('persistent', False):
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed_me', server=server,

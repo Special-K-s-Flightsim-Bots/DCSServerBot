@@ -1,6 +1,6 @@
 import discord
 
-from core import Server, Channel
+from core import Server
 from discord.ui import Modal, TextInput, View, Button
 
 from services import DCSServerBot
@@ -83,8 +83,9 @@ class ConfigView(View):
                                     default=self.server.settings.get('description'), max_length=2000, required=False)
             password = TextInput(label="Password", placeholder="n/a", default=self.server.settings.get('password'),
                                  max_length=20, required=False)
-            port = TextInput(label="Port", default=self.server.settings.get('port', 10308), max_length=5, required=True)
-            max_player = TextInput(label="Max Players", default=self.server.settings.get('maxPlayers', 16),
+            port = TextInput(label="Port", default=str(self.server.settings.get('port', 10308)), max_length=5,
+                             required=True)
+            max_player = TextInput(label="Max Players", default=str(self.server.settings.get('maxPlayers', 16)),
                                    max_length=3, required=True)
 
             async def on_submit(derived, interaction: discord.Interaction):

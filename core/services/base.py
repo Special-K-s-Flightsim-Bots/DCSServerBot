@@ -31,6 +31,7 @@ class Service(ABC):
         self.node: NodeImpl = node
         self.log = node.log
         self.pool = node.pool
+        self.apool = node.apool
         self.config = node.config
         self.locals = self.read_locals()
         self._config = dict[str, dict]()
@@ -58,7 +59,7 @@ class Service(ABC):
 
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:
-            return self.locals.get(DEFAULT_TAG)
+            return self.locals.get(DEFAULT_TAG, {})
         if server.node.name not in self._config:
             self._config[server.node.name] = {}
         if server.instance.name not in self._config[server.node.name]:
@@ -66,7 +67,7 @@ class Service(ABC):
                     self.locals.get(DEFAULT_TAG, {}) |
                     self.locals.get(server.node.name, self.locals).get(server.instance.name, {})
             )
-        return self._config[server.node.name][server.instance.name]
+        return self._config.get(server.node.name, {}).get(server.instance.name, {})
 
 
 class ServiceInstallationError(Exception):

@@ -4,7 +4,6 @@ import discord
 import os
 import shlex
 
-from contextlib import closing
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command, ServiceRegistry
 from datetime import datetime, timezone
@@ -216,22 +215,23 @@ class MissionEventListener(EventListener):
             server.send_to_dcs(data)
 
     @staticmethod
-    def _update_mission(server: Server, data: dict) -> None:
+    async def _update_mission(server: Server, data: dict) -> None:
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(
                 Mission.__name__, node=server.node, server=server, map=data['current_map'],
                 name=data['current_mission'])
         server.current_mission.update(data)
 
-    def _update_bans(self, server: Server):
+    async def _update_bans(self, server: Server):
         def _get_until(until: datetime) -> str:
             if until.year == 9999:
                 return 'never'
             else:
                 return until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
 
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()')
                 server.send_to_dcs({
                    "command": "ban",
                    "batch": [
@@ -240,9 +240,7 @@ class MissionEventListener(EventListener):
                            "reason": ban['reason'],
                            "banned_until": _get_until(ban['banned_until'])
                        }
-                       for ban in cursor.execute(
-                           'SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'
-                       )
+                       async for ban in cursor
                     ]
                 })
 
@@ -266,16 +264,16 @@ class MissionEventListener(EventListener):
         # the server is starting up
         # if not data['channel'].startswith('sync-'):
         #    return
-        self._update_bans(server)
+        await self._update_bans(server)
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
-        self._update_mission(server, data)
+        await self._update_mission(server, data)
         if 'players' not in data:
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
-        elif data['channel'].startswith('sync-'):
+        elif server.is_remote or data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
         # all players are inactive for now
@@ -294,7 +292,7 @@ class MissionEventListener(EventListener):
                     group_name=p['group_name'])
                 server.add_player(player)
             else:
-                player.update(p)
+                await player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
@@ -307,14 +305,14 @@ class MissionEventListener(EventListener):
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
-        self._update_mission(server, data)
+        await self._update_mission(server, data)
         if server.settings:
             self.display_mission_embed(server)
         self.display_player_embed(server)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self._update_mission(server, data)
+        await self._update_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
@@ -365,7 +363,7 @@ class MissionEventListener(EventListener):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
-            player.update(data)
+            await player.update(data)
         if player.member:
             server.send_to_dcs({
                 'command': 'uploadUserRoles',
@@ -387,7 +385,7 @@ class MissionEventListener(EventListener):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
-            player.update(data)
+            await player.update(data)
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
@@ -441,8 +439,7 @@ class MissionEventListener(EventListener):
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                           data['name']))
         finally:
-            if player:
-                player.update(data)
+            await player.update(data)
             self.display_player_embed(server)
 
     @event(name="onGameEvent")

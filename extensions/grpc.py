@@ -1,4 +1,3 @@
-import luadata
 import os
 import re
 
@@ -98,6 +97,6 @@ class gRPC(Extension):
         if not self.config.get('enabled', True):
             return False
         if not os.path.exists(os.path.join(self.home, 'dcs_grpc.dll')):
-            self.log.error(f"  => {self.server.name}: Can't load extension, DCS-gRPC not correctly installed.")
+            self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")
             return False
         return True

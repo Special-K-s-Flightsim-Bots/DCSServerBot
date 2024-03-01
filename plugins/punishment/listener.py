@@ -1,9 +1,8 @@
 import asyncio
-from contextlib import closing
-from typing import Optional
 
 from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils
 from plugins.competitive.commands import Competitive
+from typing import Optional
 
 
 class PunishmentEventListener(EventListener):
@@ -17,20 +16,20 @@ class PunishmentEventListener(EventListener):
         # make sure the config cache is re-read on mission changes
         self.plugin.get_config(server, use_cache=False)
 
-    def _get_flight_hours(self, player: Player) -> int:
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("""
-                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, now() AT TIME ZONE 'utc') - hop_on)))) / 3600, 0) 
-                           AS playtime 
-                    FROM statistics WHERE player_ucid = %s
-                """, (player.ucid, ))
-                return cursor.fetchone()[0] if cursor.rowcount > 0 else 0
+    async def _get_flight_hours(self, player: Player) -> int:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, now() AT TIME ZONE 'utc') - hop_on)))) / 3600, 0) 
+                       AS playtime 
+                FROM statistics WHERE player_ucid = %s
+            """, (player.ucid, ))
+            return (await cursor.fetchone())[0] if cursor.rowcount > 0 else 0
 
-    def _get_punishment_points(self, player: Player) -> int:
-        with self.pool.connection() as conn:
-            return conn.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s",
-                                (player.ucid, )).fetchone()[0]
+    async def _get_punishment_points(self, player: Player) -> int:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s",
+                                        (player.ucid, ))
+            return (await cursor.fetchone())[0]
 
     async def _punish(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -65,7 +64,7 @@ class PunishmentEventListener(EventListener):
                 else:
                     points = penalty['human'] if 'target' in data else penalty['AI']
                 # apply flight hours to points
-                hours = self._get_flight_hours(initiator)
+                hours = await self._get_flight_hours(initiator)
                 if 'flightHoursWeight' in config:
                     weight = 1
                     for fhw in config['flightHoursWeight']:
@@ -90,9 +89,9 @@ class PunishmentEventListener(EventListener):
                     target = None
                 # add the event to the database
                 async with self.lock:
-                    with self.pool.connection() as conn:
-                        with conn.transaction():
-                            conn.execute("""
+                    async with self.apool.connection() as conn:
+                        async with conn.transaction():
+                            await conn.execute("""
                                 INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
                                 VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
                             """, (initiator.ucid, target.ucid if target else None, data['server_name'],
@@ -145,7 +144,7 @@ class PunishmentEventListener(EventListener):
         if data['id'] == 1:
             return
         player: Player = server.get_player(id=data['id'])
-        points = self._get_punishment_points(player)
+        points = await self._get_punishment_points(player)
         if points > 0:
             player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")
 
@@ -158,45 +157,43 @@ class PunishmentEventListener(EventListener):
 
         forgive = config.get('forgive', 30)
         async with self.lock:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    with closing(conn.cursor()) as cursor:
-                        # get the punishments
-                        initiators = [
-                            x[0] for x in cursor.execute(f"""
-                                SELECT DISTINCT init_id 
-                                FROM pu_events 
-                                WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (target.ucid, ))
-                        ]
-                        # there were no events, so forgive would not do anything
-                        if not initiators:
-                            target.sendChatMessage('There is nothing to forgive (anymore).')
-                            return
-                        # clean the punishment table from these events
-                        cursor.execute(f"""
-                            DELETE FROM pu_events 
-                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
-                        """, (target.ucid, ))
-                        # cancel pending punishment tasks
-                        cursor.execute(f"""
-                            DELETE FROM pu_events_sdw 
-                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
-                        """, (target.ucid, ))
-                        names = []
-                        for initiator in initiators:
-                            player = self.bot.get_player_by_ucid(initiator)
-                            if player:
-                                names.append(player.name)
-                                player.sendUserMessage(
-                                    f'You have been forgiven by {target.name} and you will not be punished '
-                                    f'for your recent actions.')
-                        if not names:
-                            names = ['another player']
-                        target.sendChatMessage(
-                            'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    # get the punishments
+                    cursor = await conn.execute(f"""
+                        SELECT DISTINCT init_id 
+                        FROM pu_events 
+                        WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
+                    """, (target.ucid, ))
+                    initiators = [x[0] async for x in cursor]
+                    # there were no events, so forgive would not do anything
+                    if not initiators:
+                        target.sendChatMessage('There is nothing to forgive (anymore).')
+                        return
+                    # clean the punishment table from these events
+                    await conn.execute(f"""
+                        DELETE FROM pu_events 
+                        WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
+                    """, (target.ucid, ))
+                    # cancel pending punishment tasks
+                    await conn.execute(f"""
+                        DELETE FROM pu_events_sdw 
+                        WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
+                    """, (target.ucid, ))
+                    names = []
+                    for initiator in initiators:
+                        player = server.get_player(ucid=initiator)
+                        if player:
+                            names.append(player.name)
+                            player.sendUserMessage(
+                                f'You have been forgiven by {target.name} and you will not be punished '
+                                f'for your recent actions.')
+                    if not names:
+                        names = ['another player']
+                    target.sendChatMessage(
+                        'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
 
     @chat_command(name="penalty", help="displays your penalty points")
     async def penalty(self, server: Server, player: Player, params: list[str]):
-        points = self._get_punishment_points(player)
+        points = await self._get_punishment_points(player)
         player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")

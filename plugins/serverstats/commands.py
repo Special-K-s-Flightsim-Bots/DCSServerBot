@@ -24,8 +24,8 @@ class ServerStats(Plugin):
         self.cleanup.cancel()
         await super().cog_unload()
 
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server: Server,
                              ephemeral: bool):
@@ -75,9 +75,9 @@ class ServerStats(Plugin):
 
     @tasks.loop(hours=12.0)
     async def cleanup(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
 
 async def setup(bot: DCSServerBot):
