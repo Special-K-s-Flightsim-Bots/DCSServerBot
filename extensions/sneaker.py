@@ -59,13 +59,6 @@ class Sneaker(Extension):
             cmd, "--bind", self.config['bind'], "--config", config
         ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
 
-    def _terminate_process(self):
-        global process
-
-        if process is not None and process.is_running():
-            process.kill()
-        process = None
-
     async def startup(self) -> bool:
         global process, servers
 
@@ -75,7 +68,7 @@ class Sneaker(Extension):
             return False
         try:
             if 'config' not in self.config:
-                self._terminate_process()
+                await asyncio.to_thread(utils.terminate_process, process)
                 self.create_config()
                 p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
                 process = psutil.Process(p.pid)
@@ -85,28 +78,38 @@ class Sneaker(Extension):
                 atexit.register(self.shutdown)
             servers.add(self.server.name)
             return await asyncio.to_thread(self.is_running)
-        except psutil.NoSuchProcess:
-            self.log.error(f"Error during launch of {self.config['cmd']}!")
+        except Exception as ex:
+            self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
             return False
 
     def shutdown(self) -> bool:
         global process, servers
 
+        def terminate() -> bool:
+            try:
+                utils.terminate_process(process)
+                return True
+            except Exception as ex:
+                self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+                return False
+
         servers.remove(self.server.name)
         if not servers:
             super().shutdown()
-            self._terminate_process()
+            return terminate()
         elif 'config' not in self.config:
-            self._terminate_process()
-            self.create_config()
-            cmd = os.path.basename(self.config['cmd'])
-            self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
-                           f"--config config/sneaker.json")
-            p = self._run_subprocess(os.path.join('config', 'sneaker.json'))
-            try:
-                process = psutil.Process(p.pid)
-            except psutil.NoSuchProcess:
-                self.log.error(f"Error during launch of {self.config['cmd']}!")
+            if terminate():
+                self.create_config()
+                cmd = os.path.basename(self.config['cmd'])
+                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
+                               f"--config config/sneaker.json")
+                p = self._run_subprocess(os.path.join('config', 'sneaker.json'))
+                try:
+                    process = psutil.Process(p.pid)
+                except Exception as ex:
+                    self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
+                    return False
+            else:
                 return False
         return True
 

@@ -25,7 +25,8 @@ __all__ = [
     "find_process",
     "is_process_running",
     "get_windows_version",
-    "safe_rmtree"
+    "safe_rmtree",
+    "terminate_process"
 ]
 
 
@@ -101,3 +102,13 @@ def safe_rmtree(path: Union[str, Path]):
                 os.rmdir(dirname)
         os.chmod(path, stat.S_IWUSR)
         os.rmdir(path)
+
+
+def terminate_process(process: Optional[psutil.Process]):
+    if process is not None and process.is_running():
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except psutil.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=3)
