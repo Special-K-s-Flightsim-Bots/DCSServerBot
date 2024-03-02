@@ -50,11 +50,31 @@ class Olympus(Extension):
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
-        except FileNotFoundError:
-            self.log.error(f"{self.name}: Config file not found.")
-        except JSONDecodeError:
-            self.log.error(f"{self.name}: Config file corrupt.")
-        return {}
+        except Exception as ex:
+            self.log.warning(f"{self.name}: Config file not found or corrupt, using defaults")
+            elevation_provider = {
+                "provider": "https://srtm.fasma.org/{lat}{lng}.SRTMGL3S.hgt.zip",
+                "username": None,
+                "password": None
+            }
+            backend = {
+                "address": "localhost",
+                "port": 3001
+            }
+            frontend = {
+                "port": 3000,
+                "elevationProvider": elevation_provider
+            }
+            if self.version == '1.0.3.0':
+                return {
+                    "server": backend,
+                    "client": frontend
+                }
+            else:
+                return {
+                    "backend": backend,
+                    "frontend": frontend
+                }
 
     def is_installed(self) -> bool:
         if not self.config.get('enabled', True):
@@ -87,6 +107,8 @@ class Olympus(Extension):
         try:
             try:
                 os.chmod(self.config_path, stat.S_IWUSR)
+            except FileNotFoundError:
+                pass
             except PermissionError:
                 self.log.warning(
                     f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
@@ -122,7 +144,7 @@ class Olympus(Extension):
 
             return await super().prepare()
         except Exception as ex:
-            self.log.exception(ex)
+            self.log.error(f"Error during launch of {self.name}: {str(ex)}")
             return False
 
     async def startup(self) -> bool:
