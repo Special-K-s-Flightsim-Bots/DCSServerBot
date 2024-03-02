@@ -24,7 +24,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from psutil import Process
-from typing import Optional, TYPE_CHECKING, Union, Any
+from typing import Optional, TYPE_CHECKING, Union, Any, Callable, Type, Coroutine
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
@@ -442,20 +442,24 @@ class ServerImpl(Server):
             raise
 
     async def startup_extensions(self) -> None:
-        for ext in [x for x in self.extensions.values() if not x.is_running()]:
-            try:
-                # noinspection PyAsyncCall
-                asyncio.create_task(ext.startup())
-            except Exception as ex:
-                self.log.exception(ex)
+        not_running_extensions = [ext for ext in self.extensions.values() if not ext.is_running()]
+        startup_coroutines = [ext.startup() for ext in not_running_extensions]
+
+        results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
+
+        for res in results:
+            if isinstance(res, Exception):
+                self.log.error(f"Error during startup_extension()", exc_info=True)
 
     async def shutdown_extensions(self) -> None:
-        for ext in [x for x in self.extensions.values() if x.is_running()]:
-            try:
-                # noinspection PyAsyncCall
-                asyncio.create_task(asyncio.to_thread(ext.shutdown))
-            except Exception as ex:
-                self.log.exception(ex)
+        running_extensions = [ext for ext in self.extensions.values() if ext.is_running()]
+        shutdown_coroutines = [asyncio.to_thread(ext.shutdown) for ext in running_extensions]
+
+        results = await asyncio.gather(*shutdown_coroutines, return_exceptions=True)
+
+        for res in results:
+            if isinstance(res, Exception):
+                self.log.error(f"Error during shutdown_extension()", exc_info=True)
 
     async def shutdown(self, force: bool = False) -> None:
         if await self.is_running():

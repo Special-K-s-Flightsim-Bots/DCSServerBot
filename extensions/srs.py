@@ -136,15 +136,28 @@ class SRS(Extension):
     def shutdown(self) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
             if self.is_running():
-                self.process.kill()
-                self.process = None
-                return super().shutdown()
+                try:
+                    super().shutdown()
+                    if not self.process:
+                        self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+                    if self.process:
+                        utils.terminate_process(self.process)
+                        self.process = None
+                        return True
+                    else:
+                        self.log.warning(f"  => Could not find the SRS process.")
+                        self.log.warning(f"  => Please move your SRS configuration to "
+                                         f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
+                except Exception as ex:
+                    self.log.error(f'Error during shutdown of SRS: {str(ex)}')
+                    return False
             return True
 
     def is_running(self) -> bool:
-        if not self.process or not self.process.is_running():
-            self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
-        return self.process is not None
+        server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+        if server_ip == '0.0.0.0':
+            server_ip = '127.0.0.1'
+        return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
 
     def get_inst_path(self) -> str:
         return os.path.join(

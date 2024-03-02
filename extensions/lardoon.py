@@ -21,13 +21,6 @@ class Lardoon(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
 
-    def _terminate_process(self):
-        global process
-
-        if process is not None and process.is_running():
-            process.kill()
-        process = None
-
     async def startup(self) -> bool:
         global process, servers
 
@@ -60,7 +53,13 @@ class Lardoon(Extension):
         servers.remove(self.server.name)
         if not servers:
             super().shutdown()
-            self._terminate_process()
+            try:
+                utils.terminate_process(process)
+                process = None
+                return True
+            except Exception as ex:
+                self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+                return False
         return True
 
     def is_running(self) -> bool:
