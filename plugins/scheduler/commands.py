@@ -234,7 +234,8 @@ class Scheduler(Plugin):
                             return
                 elif 'mission_time' in rconf:
                     if (server.current_mission.mission_time + warn_time) >= rconf['mission_time'] * 60:
-                        asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
+                        real_warn_time = int((rconf['mission_time'] * 60) - server.current_mission.mission_time)
+                        asyncio.create_task(self.restart_mission(server, config, rconf, real_warn_time))
                         return
 
         if 'restart' in config and not server.restart_pending:

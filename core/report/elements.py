@@ -66,6 +66,8 @@ class EmbedElement(ReportElement):
         self.embed = env.embed
 
     def add_field(self, *, name, value, inline=True):
+        if len(self.embed.fields) >= 25:
+            return
         return self.embed.add_field(name=name[:256] or '_ _',
                                     value=(value[:1024] if isinstance(value, str) else value) or '_ _',
                                     inline=inline)

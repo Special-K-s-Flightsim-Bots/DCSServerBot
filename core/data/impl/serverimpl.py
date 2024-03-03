@@ -436,7 +436,7 @@ class ServerImpl(Server):
             if sys.platform == 'win32' and self.node.locals.get('DCS', {}).get('minimized', True):
                 self._minimize()
         except (TimeoutError, asyncio.TimeoutError):
-            # server crashed during launch
+            # server crashed during launch?
             if not await self.is_running():
                 self.status = Status.SHUTDOWN
             raise
