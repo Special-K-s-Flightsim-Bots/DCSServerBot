@@ -10,6 +10,8 @@ The plugin can be configured via yaml in config/plugins/userstats.yaml. If such 
 ```yaml
 DEFAULT:
   wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
+  greeting_message_members: "{player.name}, welcome back to {server.name}!"
+  greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:
