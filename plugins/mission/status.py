@@ -118,7 +118,7 @@ class ExtensionsInfo(report.EmbedElement):
         await report.Ruler(self.env).render()
         footer = self.embed.footer.text or ''
         for ext in extensions:
-            self.embed.add_field(name=ext['name'], value=ext['value'])
+            self.add_field(name=ext['name'], value=ext['value'])
             footer += ', ' + ext['name']
             if ext.get('version'):
                 footer += ' v' + ext['version']
@@ -135,7 +135,7 @@ class ScheduleInfo(report.EmbedElement):
             if 'schedule' in config:
                 await report.Ruler(self.env).render(text="This server runs on the following schedule:")
                 utc_diff = utils.get_utc_offset()
-                self.embed.add_field(name=f'Time (UTC{utc_diff})', value='\n'.join(config['schedule'].keys()))
+                self.add_field(name=f'Time (UTC{utc_diff})', value='\n'.join(config['schedule'].keys()))
                 value = ''
                 for schedule in config['schedule'].values():
                     for c in schedule:
@@ -146,10 +146,10 @@ class ScheduleInfo(report.EmbedElement):
                         elif c == 'P':
                             value += '☑️|'
                     value += '\n'
-                self.embed.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
-                self.embed.add_field(name='_ _', value='✅ = Server running\n'
-                                                       '❌ = Server not running\n'
-                                                       '☑️ = Server shuts down without players')
+                self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
+                self.add_field(name='_ _', value='✅ = Server running\n'
+                                                 '❌ = Server not running\n'
+                                                 '☑️ = Server shuts down without players')
 
 
 class Footer(report.EmbedElement):
@@ -180,7 +180,7 @@ class All(report.EmbedElement):
                 value += f"Password: {server.settings['password']}"
             else:
                 name = '🔓 ' + name
-            self.embed.add_field(name=name, value=f"```{value}```", inline=False)
+            self.add_field(name=name, value=f"```{value}```", inline=False)
             num += 1
         if num == 0:
-            self.embed.add_field(name="_ _", value="There are currently no servers running.")
+            self.add_field(name="_ _", value="There are currently no servers running.")

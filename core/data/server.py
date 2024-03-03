@@ -205,11 +205,8 @@ class Server(DataObject):
         return members
 
     def is_populated(self) -> bool:
-        if self.status != Status.RUNNING:
-            return False
-        for player in self.players.values():
-            if player.active and player.side != Side.SPECTATOR:
-                return True
+        if self.status == Status.RUNNING and self.get_active_players():
+            return True
         return False
 
     def is_public(self) -> bool:
