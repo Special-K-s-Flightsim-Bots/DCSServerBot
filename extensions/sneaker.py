@@ -12,6 +12,7 @@ from typing import Optional
 
 process: Optional[psutil.Process] = None
 servers: set[str] = set()
+lock = asyncio.Lock()
 
 
 class Sneaker(Extension):
@@ -19,7 +20,6 @@ class Sneaker(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get("ServiceBus")
-        self.lock = asyncio.Lock()
 
     def create_config(self):
         cfg = {"servers": []}
@@ -60,7 +60,7 @@ class Sneaker(Extension):
         ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
 
     async def startup(self) -> bool:
-        global process, servers
+        global process, servers, lock
 
         await super().startup()
         if 'Tacview' not in self.server.options['plugins']:
@@ -69,7 +69,7 @@ class Sneaker(Extension):
         try:
             if 'config' not in self.config:
                 # we need to lock here, to avoid race conditions on parallel server startups
-                async with self.lock:
+                async with lock:
                     await asyncio.to_thread(utils.terminate_process, process)
                     self.create_config()
                     p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
