@@ -7,7 +7,6 @@ import os
 import psutil
 import subprocess
 
-from contextlib import suppress
 from core import Extension, Status, ServiceRegistry, Server, utils
 from typing import Optional
 
@@ -20,6 +19,7 @@ class Sneaker(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get("ServiceBus")
+        self.lock = asyncio.Lock()
 
     def create_config(self):
         cfg = {"servers": []}
@@ -68,16 +68,18 @@ class Sneaker(Extension):
             return False
         try:
             if 'config' not in self.config:
-                await asyncio.to_thread(utils.terminate_process, process)
-                self.create_config()
-                p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
-                process = psutil.Process(p.pid)
+                # we need to lock here, to avoid race conditions on parallel server startups
+                async with self.lock:
+                    await asyncio.to_thread(utils.terminate_process, process)
+                    self.create_config()
+                    p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
+                    process = psutil.Process(p.pid)
             elif not process or not process.is_running():
                 p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
                 process = psutil.Process(p.pid)
                 atexit.register(self.shutdown)
             servers.add(self.server.name)
-            return await asyncio.to_thread(self.is_running)
+            return True
         except Exception as ex:
             self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
             return False

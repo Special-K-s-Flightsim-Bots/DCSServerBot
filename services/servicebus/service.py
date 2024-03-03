@@ -650,8 +650,8 @@ class ServiceBus(Service):
                                     for listener in self.eventListeners
                                     if listener.has_event(command)
                                 ]
-
-                                done, not_done = concurrent.futures.wait(futures, timeout=timeout)
+                                done, not_done = concurrent.futures.wait(
+                                    futures, timeout=timeout if command != 'registerDCSServer' else None)
 
                                 if not_done:
                                     # Logging the commands that could not be processed due to timeout
