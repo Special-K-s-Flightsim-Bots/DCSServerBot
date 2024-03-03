@@ -23,6 +23,8 @@ class gRPC(Extension):
             return value[1:-1].split(',')
         elif value.startswith('"'):
             return value.strip('"')
+        elif value.startswith("'"):
+            return value.strip("'")
         elif value == 'true':
             return True
         elif value == 'false':
