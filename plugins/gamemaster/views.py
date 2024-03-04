@@ -22,13 +22,16 @@ class CampaignModal(Modal):
         try:
             self.start = datetime.strptime(self.start.value, '%Y-%m-%d %H:%M')
         except ValueError:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Wrong format for start, try again.", ephemeral=True)
             raise
         try:
             self.end = datetime.strptime(self.end.value, '%Y-%m-%d %H:%M') if self.end.value else None
         except ValueError:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Wrong format for end, try again.", ephemeral=True)
             raise
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
 
@@ -45,4 +48,5 @@ class ScriptModal(Modal):
             "command": "do_script",
             "script": self.script.value
         })
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message('Script sent.', ephemeral=self.ephemeral)

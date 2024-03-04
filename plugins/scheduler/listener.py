@@ -37,6 +37,7 @@ class SchedulerListener(EventListener):
             await self.bot.audit(message, server=server, user=what.get('user'))
         if 'restart' in what['command']:
             if server.status == Status.SHUTDOWN:
+                # noinspection PyUnresolvedReferences
                 await self.plugin.launch_dcs(server)
             else:
                 await server.restart()
@@ -93,7 +94,7 @@ class SchedulerListener(EventListener):
 #            server.on_empty.clear()
 
     @event(name="onSimulationPause")
-    async def onSimulationPause(self, server: Server, data: dict) -> None:
+    async def onSimulationPause(self, server: Server, _: dict) -> None:
         if server.on_empty:
             self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_empty.copy()))
             server.on_empty.clear()
@@ -111,13 +112,13 @@ class SchedulerListener(EventListener):
                 server.on_mission_end.clear()
 
     @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
             await self.run(server, config['onMissionStart'])
 
     @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
         # invalidate the config cache
         self.plugin.get_config(server, use_cache=False)
         server.restart_pending = False
@@ -125,26 +126,26 @@ class SchedulerListener(EventListener):
         server.on_mission_end.clear()
 
     @event(name="onMissionEnd")
-    async def onMissionEnd(self, server: Server, data: dict) -> None:
+    async def onMissionEnd(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             await self.run(server, config['onMissionEnd'])
 
     @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
+    async def onSimulationStop(self, server: Server, _: dict) -> None:
         try:
             await server.shutdown_extensions()
         except (TimeoutError, asyncio.TimeoutError):
             self.log.error(f"Timeout while shutting down extensions for server {server.name}!")
 
     @event(name="onShutdown")
-    async def onShutdown(self, server: Server, data: dict) -> None:
+    async def onShutdown(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:
             await self.run(server, config['onShutdown'])
 
     @chat_command(name="maintenance", aliases=["maint"], roles=['DCS Admin'], help="enable maintenance mode")
-    async def maintenance(self, server: Server, player: Player, params: list[str]):
+    async def maintenance(self, server: Server, player: Player, _: list[str]):
         if not server.maintenance:
             server.maintenance = True
             server.restart_pending = False
@@ -156,7 +157,7 @@ class SchedulerListener(EventListener):
             player.sendChatMessage('Maintenance mode is already active.')
 
     @chat_command(name="clear", roles=['DCS Admin'], help="disable maintenance mode")
-    async def clear(self, server: Server, player: Player, params: list[str]):
+    async def clear(self, server: Server, player: Player, _: list[str]):
         if server.maintenance:
             server.maintenance = False
             player.sendChatMessage('Maintenance mode disabled/cleared.')

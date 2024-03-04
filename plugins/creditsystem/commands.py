@@ -63,6 +63,7 @@ class CreditSystem(Plugin):
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if member:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
                                                         ephemeral=True)
                 return
@@ -72,6 +73,7 @@ class CreditSystem(Plugin):
             else:
                 ucid = await self.bot.get_ucid_by_member(member)
                 if not ucid:
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(f"Member {utils.escape_string(member.display_name)} is "
                                                             f"not linked to any DCS user.", ephemeral=True)
                     return
@@ -79,11 +81,13 @@ class CreditSystem(Plugin):
             member = interaction.user
             ucid = await self.bot.get_ucid_by_member(member)
             if not ucid:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
         data = await self.get_credits(ucid)
         name = member.display_name if isinstance(member, discord.Member) else member
         if not data:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'{name} has no campaign credits.', ephemeral=True)
             return
         embed = discord.Embed(title=f"Campaign Credits for {name}", color=discord.Color.blue())
@@ -109,17 +113,20 @@ class CreditSystem(Plugin):
             embed.add_field(name='Event', value=events)
             embed.add_field(name='Points', value=deltas)
             embed.set_footer(text='Log will show the last 10 events only.')
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def _admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
         ephemeral = utils.get_ephemeral(interaction)
         receiver = await self.bot.get_ucid_by_member(to)
         if not receiver:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'{utils.escape_string(to.display_name)} needs to properly link '
                                                     f'their DCS account to receive donations.', ephemeral=ephemeral)
             return
         data = await self.get_credits(receiver)
         if not data:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('It seems like there is no campaign running on your server(s).',
                                                     ephemeral=ephemeral)
             return
@@ -135,6 +142,7 @@ class CreditSystem(Plugin):
                                       ])
         else:
             n = 0
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         p_receiver: Optional[CreditPlayer] = None
         for server in self.bot.servers.values():
@@ -171,7 +179,7 @@ class CreditSystem(Plugin):
                     """, (data[n]['id'], receiver, donation))
                     cursor = await conn.execute("""
                         SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s
-                    """,(data[n]['id'], receiver))
+                    """, (data[n]['id'], receiver))
                     new_points_receiver = (await cursor.fetchone())[0]
                     await conn.execute("""
                         INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
@@ -201,23 +209,28 @@ class CreditSystem(Plugin):
             await self._admin_donate(interaction, to, donation)
             return
         if interaction.user == to:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You can't donate to yourself.", ephemeral=True)
             return
         if donation < 1:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Your donation has to be > 0.", ephemeral=True)
             return
         receiver = await self.bot.get_ucid_by_member(to)
         if not receiver:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'{utils.escape_string(to.display_name)} needs to properly link '
                                                     f'their DCS account to receive donations.', ephemeral=True)
             return
         donor = await self.bot.get_ucid_by_member(interaction.user)
         if not donor:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'You need to properly link your DCS account to give donations!',
                                                     ephemeral=True)
             return
         data = await self.get_credits(donor)
         if not data:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"You don't have any credit points to donate.", ephemeral=True)
             return
         elif len(data) > 1:
@@ -228,6 +241,7 @@ class CreditSystem(Plugin):
                                       ])
         else:
             n = 0
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if data[n]['credits'] < donation:
             await interaction.followup.send(

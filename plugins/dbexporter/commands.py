@@ -44,6 +44,7 @@ class DBExporter(Plugin):
     @utils.app_has_role('Admin')
     async def export(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         await self.do_export([])
         await interaction.delete_original_response()

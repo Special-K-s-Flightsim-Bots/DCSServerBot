@@ -17,6 +17,7 @@ class CleanupView(View):
     ])
     async def set_what(self, interaction: discord.Interaction, select: Select):
         self.what = select.values[0]
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
     @discord.ui.select(placeholder="Which age to be pruned?", options=[
@@ -27,16 +28,19 @@ class CleanupView(View):
     ])
     async def set_age(self, interaction: discord.Interaction, select: Select):
         self.age = select.values[0]
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
     @discord.ui.button(label='Prune', style=discord.ButtonStyle.danger, emoji='⚠')
-    async def prune(self, interaction: discord.Interaction, button: Button):
+    async def prune(self, interaction: discord.Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.cmd = "prune"
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: Button):
+    async def cancel(self, interaction: discord.Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.cmd = "cancel"
         self.stop()

@@ -71,10 +71,12 @@ class InfoView(View):
         return row[0] if row else False
 
     async def on_cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     async def on_ban(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         # TODO: reason modal
         await self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
@@ -82,12 +84,14 @@ class InfoView(View):
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.bot.bus.unban(self.ucid)
         await interaction.followup.send("User has been unbanned.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_kick(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         # TODO: reason modal
         self.server.kick(player=self.player)
@@ -95,18 +99,21 @@ class InfoView(View):
         self.stop()
 
     async def on_unlink(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self._member.unlink(self.ucid)
         await interaction.followup.send("Member has been unlinked.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self._member.link(self.ucid)
         await interaction.followup.send("Member has been verified.", ephemeral=self.ephemeral)
         self.stop()
 
     async def on_watch(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
             async with conn.transaction():
@@ -115,6 +122,7 @@ class InfoView(View):
         self.stop()
 
     async def on_unwatch(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
             async with conn.transaction():

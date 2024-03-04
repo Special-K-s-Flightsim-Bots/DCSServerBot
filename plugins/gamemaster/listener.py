@@ -20,7 +20,7 @@ class GameMasterEventListener(EventListener):
         self.chat_log = dict()
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _: dict) -> None:
         if not server.locals.get('chat_log') or server.name in self.chat_log:
             return
         os.makedirs('logs', exist_ok=True)
@@ -96,7 +96,8 @@ class GameMasterEventListener(EventListener):
                 await self._password(server, player)
 
     async def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
-                 description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
+                       description: Optional[str] = None, start: Optional[datetime] = None,
+                       end: Optional[datetime] = None):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 if command == 'add':
@@ -149,13 +150,13 @@ class GameMasterEventListener(EventListener):
             await self.resetCampaign(data)
 
     @event(name="stopCampaign")
-    async def stopCampaign(self, server: Server, data: dict) -> None:
+    async def stopCampaign(self, server: Server, _: dict) -> None:
         _, name = utils.get_running_campaign(self.bot, server)
         if name:
             await self.campaign('delete', name=name)
 
     @event(name="resetCampaign")
-    async def resetCampaign(self, server: Server, data: dict) -> None:
+    async def resetCampaign(self, server: Server, _: dict) -> None:
         _, name = utils.get_running_campaign(self.bot, server)
         if name:
             await self.campaign('delete', name=name)
@@ -274,7 +275,7 @@ class GameMasterEventListener(EventListener):
         await self._join(server, player, params)
 
     @chat_command(name="leave", help="leave your coalition")
-    async def leave(self, server: Server, player: Player, params: list[str]):
+    async def leave(self, server: Server, player: Player, _: list[str]):
         if not await self.get_coalition(server, player):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                    f"{self.prefix}join blue|red.")
@@ -301,11 +302,11 @@ class GameMasterEventListener(EventListener):
             player.coalition = None
 
     @chat_command(name="red", help="join the red side")
-    async def red(self, server: Server, player: Player, params: list[str]):
+    async def red(self, server: Server, player: Player, _: list[str]):
         await self._join(server, player, ["red"])
 
     @chat_command(name="blue", help="join the blue side")
-    async def blue(self, server: Server, player: Player, params: list[str]):
+    async def blue(self, server: Server, player: Player, _: list[str]):
         await self._join(server, player, ["blue"])
 
     async def _coalition(self, server: Server, player: Player):
@@ -317,7 +318,7 @@ class GameMasterEventListener(EventListener):
                                    f"{self.prefix}join blue|red.")
 
     @chat_command(name="coalition", help="displays your current coalition")
-    async def coalition(self, server: Server, player: Player, params: list[str]):
+    async def coalition(self, server: Server, player: Player, _: list[str]):
         if not server.locals.get('coalitions'):
             player.sendChatMessage("Coalitions are not enabled on this server.")
         await self._coalition(server, player)
@@ -335,7 +336,7 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage("There is no password set for your coalition.")
 
     @chat_command(name="password", aliases=["passwd"], help="displays the coalition password")
-    async def password(self, server: Server, player: Player, params: list[str]):
+    async def password(self, server: Server, player: Player, _: list[str]):
         if not server.locals.get('coalitions'):
             player.sendChatMessage("Coalitions are not enabled on this server.")
         await self._password(server, player)

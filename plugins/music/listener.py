@@ -21,12 +21,12 @@ class MusicEventListener(EventListener):
             await self.service.start_radios(server=server)
 
     @event(name="onPlayerStart")
-    async def onPlayerStart(self, server: Server, data: dict) -> None:
+    async def onPlayerStart(self, server: Server, _: dict) -> None:
         if len(server.get_active_players()) == 1:
             await self.service.start_radios(server=server)
 
     @event(name="onPlayerStop")
-    async def onPlayerStop(self, server: Server, data: dict) -> None:
+    async def onPlayerStop(self, server: Server, _: dict) -> None:
         if not server.get_active_players():
             await self.service.stop_radios(server=server)
 

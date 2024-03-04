@@ -48,14 +48,16 @@ async def watchlist_autocomplete(interaction: discord.Interaction, current: str)
         return choices[:25]
 
 
-async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def available_modules_autocomplete(interaction: discord.Interaction,
+                                         current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
         userid = node.locals['DCS'].get('dcs_user')
         password = node.locals['DCS'].get('dcs_password')
-        available_modules = set(await node.get_available_modules(userid, password)) - set(await node.get_installed_modules())
+        available_modules = (set(await node.get_available_modules(userid, password)) -
+                             set(await node.get_installed_modules()))
         return [
             app_commands.Choice(name=x, value=x)
             for x in available_modules
@@ -65,7 +67,8 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
         interaction.client.log.exception(ex)
 
 
-async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def installed_modules_autocomplete(interaction: discord.Interaction,
+                                         current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
@@ -165,6 +168,7 @@ class Admin(Plugin):
                 if isinstance(derived.user, discord.Member):
                     ucid = await self.bot.get_ucid_by_member(derived.user)
                     if not ucid:
+                        # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(f"Member {derived.user.display_name} is not linked!",
                                                                 ephemeral=True)
                         return
@@ -178,15 +182,17 @@ class Admin(Plugin):
                     elif not name:
                         name = ucid
                 await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Player {name} banned on all servers" +
                                                         (f" for {days} days." if days else ""),
                                                         ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
                                      (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
 
-            async def on_error(derived, interaction: discord.Interaction, error: Exception) -> None:
+            async def on_error(derived, _: discord.Interaction, error: Exception) -> None:
                 self.log.exception(error)
 
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(BanModal(user))
 
     @dcs.command(description='Unbans a user by name or ucid')
@@ -201,6 +207,7 @@ class Admin(Plugin):
             name = name.display_name
         elif not name:
             name = ucid
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Player {name} unbanned on all servers.",
                                                 ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
@@ -213,6 +220,7 @@ class Admin(Plugin):
         try:
             ban = next(x for x in await self.bus.bans() if x['ucid'] == user)
         except StopIteration:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"User with UCID {user} is not banned.", ephemeral=True)
             return
         embed = discord.Embed(title='Bans Information', color=discord.Color.blue())
@@ -228,6 +236,7 @@ class Admin(Plugin):
             until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
         embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}")
         embed.add_field(name='Reason', value=ban['reason'])
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     @dcs.command(description='Moves a player onto the watchlist')
@@ -239,6 +248,7 @@ class Admin(Plugin):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Member {user.display_name} is not linked.")
                 return
         else:
@@ -247,18 +257,22 @@ class Admin(Plugin):
             player = server.get_player(ucid=ucid)
             if player:
                 if player.watchlist:
-                    await interaction.response.send_message(f"Player {player.display_name} was already on the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        f"Player {player.display_name} was already on the watchlist.",
+                        ephemeral=utils.get_ephemeral(interaction))
                 else:
                     player.watchlist = True
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(f"Player {player.display_name} is now on the watchlist.",
                                                             ephemeral=utils.get_ephemeral(interaction))
                 return
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
-        await interaction.response.send_message(
-            "Player {} is now on the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message("Player {} is now on the watchlist.".format(
+            user.display_name if isinstance(user, discord.Member) else ucid),
             ephemeral=utils.get_ephemeral(interaction))
 
     @dcs.command(description='Removes a player from the watchlist')
@@ -270,12 +284,14 @@ class Admin(Plugin):
             player = server.get_player(ucid=user)
             if player:
                 player.watchlist = False
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
                                                         ephemeral=utils.get_ephemeral(interaction))
                 return
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Player {user} removed from the watchlist.",
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -288,6 +304,7 @@ class Admin(Plugin):
             cursor = await conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE")
             watches = await cursor.fetchall()
             if not watches:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("The watchlist is currently empty.", ephemeral=ephemeral)
                 return
             embed = discord.Embed(colour=discord.Colour.blue())
@@ -298,6 +315,7 @@ class Admin(Plugin):
                 names += utils.escape_string(row[1]) + "\n"
             embed.add_field(name="UCIDs", value=ucids)
             embed.add_field(name="Names", value=names)
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed)
 
     @dcs.command(description='Update your DCS installations')
@@ -307,6 +325,7 @@ class Admin(Plugin):
     async def update(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         try:
             branch, old_version = await node.get_dcs_branch_and_version()
@@ -381,6 +400,7 @@ class Admin(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        what: str, filename: str) -> None:
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         path = os.path.join(config['directory'].format(server=server), filename)
@@ -439,6 +459,7 @@ class Admin(Plugin):
             embed.description = "You are going to delete data from your database. Be advised.\n\n" \
                                 "Please select the data to be pruned:"
             view = CleanupView()
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
             try:
                 await view.wait()
@@ -512,6 +533,7 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=f"DCSServerBot Cluster Overview", color=discord.Color.blue())
         # TODO: there should be a list of nodes, with impls / proxies
@@ -556,8 +578,8 @@ class Admin(Plugin):
                     }, node=n)
                     await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
         if not node or node.name == self.node.name:
-            await interaction.followup.send(("All nodes are" if not node else "Master is") + f' going to {method} **NOW**.',
-                                            ephemeral=ephemeral)
+            await interaction.followup.send(
+                ("All nodes are" if not node else "Master is") + f' going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
             elif method == 'upgrade':
@@ -570,6 +592,7 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def exit(self, interaction: discord.Interaction,
                    node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message("`/node exit` is deprecated. Please use either `/node shutdown` or "
                                                 "`/node restart` instead.", ephemeral=True)
 
@@ -593,6 +616,7 @@ class Admin(Plugin):
     async def offline(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         for server in self.bus.servers.values():
             if server.node.name == node.name:
@@ -607,6 +631,7 @@ class Admin(Plugin):
     async def online(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         for server in self.bus.servers.values():
             if server.node.name == node.name:
@@ -621,6 +646,7 @@ class Admin(Plugin):
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if not node:
             node = self.node
@@ -646,6 +672,7 @@ class Admin(Plugin):
                     node: app_commands.Transform[Node, utils.NodeTransformer],
                     cmd: str):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         stdout, stderr = await node.shell_command(cmd)
         embed = discord.Embed(colour=discord.Color.blue())
@@ -663,6 +690,7 @@ class Admin(Plugin):
     @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
             if await self.bot.reload(plugin.lower()):
@@ -697,6 +725,7 @@ class Admin(Plugin):
             embed = discord.Embed(title="Instance created.\nDo you want to configure the server for this instance?",
                                   color=discord.Color.blue())
             try:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(embed=embed, view=view)
             except Exception as ex:
                 self.log.exception(ex)
@@ -728,6 +757,7 @@ Please make sure you forward the following ports:
 ```
             """)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}, see log.",
                                                     ephemeral=True)
 
@@ -739,6 +769,7 @@ Please make sure you forward the following ports:
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         if instance.server:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"The instance is in use by server \"{instance.server.name}\". "
                                                     f"Please migrate this server to another node first.",
                                                     ephemeral=ephemeral)
@@ -762,6 +793,7 @@ Please make sure you forward the following ports:
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
         ephemeral = utils.get_ephemeral(interaction)
         if instance.server and instance.server.status != Status.SHUTDOWN:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {instance.server.name} has to be shut down before "
                                                     f"renaming the instance!", ephemeral=ephemeral)
             return

@@ -67,6 +67,7 @@ class GameMaster(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    message: str):
         if server.status != Status.RUNNING:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
         server.send_to_dcs({
@@ -75,6 +76,7 @@ class GameMaster(Plugin):
             "message": message,
             "from": interaction.user.display_name
         })
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Sends a popup to a coalition')
@@ -84,9 +86,11 @@ class GameMaster(Plugin):
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     to: Literal['all', 'red', 'blue'], message: str, time: Optional[Range[int, 1, 30]] = -1):
         if server.status != Status.RUNNING:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
         server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Sends a popup to all servers')
@@ -95,6 +99,7 @@ class GameMaster(Plugin):
     async def broadcast(self, interaction: discord.Interaction, to: Literal['all', 'red', 'blue'], message: str,
                         time: Optional[Range[int, 1, 30]] = -1):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
@@ -112,6 +117,7 @@ class GameMaster(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    flag: str, value: Optional[int] = None):
         if server.status != Status.RUNNING:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
@@ -121,9 +127,11 @@ class GameMaster(Plugin):
                 "flag": flag,
                 "value": value
             })
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Flag {flag} set to {value}.", ephemeral=ephemeral)
         else:
             data = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Flag {flag} has value {data['value']}.", ephemeral=ephemeral)
 
     @command(description='Set or get a mission variable')
@@ -133,9 +141,11 @@ class GameMaster(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                        name: str, value: Optional[str] = None):
         if server.status != Status.RUNNING:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if value is not None:
             server.send_to_dcs({
@@ -164,13 +174,16 @@ class GameMaster(Plugin):
                             Status.RUNNING, Status.PAUSED
                         ])]):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
         if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'Server "{server.name}" is {server.status.name}. Aborted.',
                                                     ephemeral=True)
             return
         modal = ScriptModal(server, utils.get_ephemeral(interaction))
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
 
     @command(description='Loads a lua file into the mission')
@@ -183,6 +196,7 @@ class GameMaster(Plugin):
                              ])],
                              filename: str):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
             return
         filename = os.path.join('Missions', 'Scripts', filename)
@@ -190,6 +204,7 @@ class GameMaster(Plugin):
             "command": "do_script_file",
             "file": filename.replace('\\', '/')
         })
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message('Script loaded.', ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Mass coalition leave for users')
@@ -222,6 +237,7 @@ class GameMaster(Plugin):
     async def _list(self, interaction: discord.Interaction, active: Optional[bool] = True):
         report = Report(self.bot, self.plugin_name, 'active-campaigns.json' if active else 'all-campaigns.json')
         env = await report.render()
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @campaign.command(description="Campaign info")
@@ -231,6 +247,7 @@ class GameMaster(Plugin):
     async def info(self, interaction: discord.Interaction, campaign: str):
         report = Report(self.bot, self.plugin_name, 'campaign.json')
         env = await report.render(campaign=await utils.get_campaign(self, campaign), title='Campaign Overview')
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @campaign.command(description="Add new campaign")
@@ -239,8 +256,10 @@ class GameMaster(Plugin):
     async def add(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         modal = CampaignModal(self.eventlistener)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Aborted.', ephemeral=ephemeral)
             return
         try:
@@ -276,9 +295,11 @@ class GameMaster(Plugin):
                         SELECT id, %s FROM campaigns WHERE name = %s 
                         ON CONFLICT DO NOTHING
                         """, (server.name, campaign))
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} added to campaign {campaign}.",
                                                     ephemeral=ephemeral)
         except psycopg.errors.UniqueViolation:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} is already part of the campaign {campaign}!",
                                                     ephemeral=ephemeral)
 
@@ -302,6 +323,7 @@ class GameMaster(Plugin):
     async def start(self, interaction: discord.Interaction, campaign: str):
         ephemeral = utils.get_ephemeral(interaction)
         try:
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
             servers: list[Server] = await utils.server_selection(self.bus, interaction,
                                                                  title="Select all servers for this campaign",

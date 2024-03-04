@@ -57,7 +57,7 @@ class SlotBlockingListener(EventListener):
             await self._load_params_into_mission(server)
 
     @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
         await self._load_params_into_mission(server)
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:

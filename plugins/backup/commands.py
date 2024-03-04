@@ -72,6 +72,7 @@ class Backup(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if what == 'database' and not node.master:
             node = self.node
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         try:
             rc = await self.bus.send_to_node_sync({

@@ -57,6 +57,7 @@ class ServerView(View):
         return self.env.embed
 
     async def load_mission(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.env.embed.set_footer(text="Loading mission, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
@@ -70,6 +71,7 @@ class ServerView(View):
         pass
 
     async def run(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if self.server.status == Status.STOPPED:
             self.env.embed.set_footer(text="Starting, please wait ...")
@@ -83,12 +85,14 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def pause(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.server.current_mission.pause()
         await self.render(interaction)
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def stop_server(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.env.embed.set_footer(text="Stopping server, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
@@ -97,6 +101,7 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def reload(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.env.embed.set_footer(text="Restarting, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
@@ -108,6 +113,7 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def quit(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -123,15 +129,18 @@ class PresetView(View):
     @discord.ui.select(placeholder="Select the preset(s) you want to apply")
     async def callback(self, interaction: discord.Interaction, select: Select):
         self.result = select.values
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
     @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
-    async def ok(self, interaction: discord.Interaction, button: Button):
+    async def ok(self, interaction: discord.Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: Button):
+    async def cancel(self, interaction: discord.Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = None
         self.stop()

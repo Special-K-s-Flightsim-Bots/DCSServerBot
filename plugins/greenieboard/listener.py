@@ -69,14 +69,14 @@ class GreenieBoardEventListener(EventListener):
                     player.name, carrier, data['grade'].replace('_', '\\_'), details))
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _: dict) -> None:
         try:
             await self.update_greenieboard(server)
         except FileNotFoundError as ex:
             self.log.error(f'  => File not found: {ex}')
 
     @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
         # make sure the config cache is re-read on mission changes
         self.plugin.get_config(server, use_cache=False)
 

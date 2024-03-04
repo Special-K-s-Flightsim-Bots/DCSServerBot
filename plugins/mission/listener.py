@@ -316,7 +316,7 @@ class MissionEventListener(EventListener):
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _: dict) -> None:
         server.status = Status.PAUSED
         self.display_mission_embed(server)
 
@@ -334,7 +334,7 @@ class MissionEventListener(EventListener):
         self.display_mission_embed(server)
 
     @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
+    async def onSimulationStop(self, server: Server, _: dict) -> None:
         server.status = Status.STOPPED
         for p in server.get_active_players():
             p.side = Side.SPECTATOR
@@ -342,12 +342,12 @@ class MissionEventListener(EventListener):
         self.display_player_embed(server)
 
     @event(name="onSimulationPause")
-    async def onSimulationPause(self, server: Server, data: dict) -> None:
+    async def onSimulationPause(self, server: Server, _: dict) -> None:
         server.status = Status.PAUSED
         self.display_mission_embed(server)
 
     @event(name="onSimulationResume")
-    async def onSimulationResume(self, server: Server, data: dict) -> None:
+    async def onSimulationResume(self, server: Server, _: dict) -> None:
         server.status = Status.RUNNING
         self.display_mission_embed(server)
 
@@ -489,7 +489,8 @@ class MissionEventListener(EventListener):
             # report teamkills from players to admins (only on public servers)
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
                     and data['arg3'] == data['arg6']:
-                name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
+                name = ('Member ' + player1.member.display_name) \
+                    if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members. Please investigate."
                 # show the server name on central admin channels
                 if self.bot.locals.get('admin_channel'):
@@ -531,7 +532,7 @@ class MissionEventListener(EventListener):
         player.sendChatMessage(f"No ATIS information found for {name}.")
 
     @chat_command(name="restart", roles=['DCS Admin'], usage="[time]", help="restart the running mission")
-    async def restart(self, server: Server, player: Player, params: list[str]):
+    async def restart(self, server: Server, _: Player, params: list[str]):
         delay = int(params[0]) if len(params) > 0 else 0
         if delay > 0:
             message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
@@ -541,7 +542,7 @@ class MissionEventListener(EventListener):
         self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
 
     @chat_command(name="list", roles=['DCS Admin'], help="lists available missions")
-    async def _list(self, server: Server, player: Player, params: list[str]):
+    async def _list(self, server: Server, player: Player, _: list[str]):
         missions = await server.getMissionList()
         message = 'The following missions are available:\n'
         for i in range(0, len(missions)):
@@ -552,7 +553,7 @@ class MissionEventListener(EventListener):
         player.sendUserMessage(message, 30)
 
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
-    async def load(self, server: Server, player: Player, params: list[str]):
+    async def load(self, server: Server, _: Player, params: list[str]):
         self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")

@@ -108,10 +108,6 @@ class FlightPerformance(report.GraphElement):
             absolute = int(round(pct / 100. * np.sum(allvals)))
             return f'{absolute}'
 
-        def crashes(x):
-            x['crashes_with_deaths'] = x['crashes'] - x['ejections']
-            return x
-
         labels = []
         values = []
         if guild:
@@ -127,7 +123,7 @@ class FlightPerformance(report.GraphElement):
             if value and value > 0:
                 labels.append(name)
                 values.append(value)
-        if len(values) > 0:
+        if values:
             patches, texts, pcts = \
                 self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                               wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)

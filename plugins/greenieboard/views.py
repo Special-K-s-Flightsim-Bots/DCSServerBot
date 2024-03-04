@@ -26,6 +26,7 @@ class TrapModal(Modal):
         self.success = False
 
     async def on_submit(self, interaction: discord.Interaction, /) -> None:
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         time = datetime.strptime(self.time.value, '%H:%M').time()
         night = time.hour >= 20 or time.hour <= 6
@@ -75,6 +76,7 @@ class TrapView(View):
                        ])
     async def callback(self, interaction: discord.Interaction, select: Select):
         modal = TrapModal(self.bot, config=self.config, user=self.user, unit_type=select.values[0])
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         await modal.wait()
         self.success = modal.success

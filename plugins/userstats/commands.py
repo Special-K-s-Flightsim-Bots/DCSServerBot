@@ -78,10 +78,12 @@ class UserStatistics(Plugin):
         if not _server:
             for s in self.bus.servers.values():
                 if s.status in [Status.RUNNING, Status.PAUSED]:
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
                         f'Please stop all servers before deleting the statistics!', ephemeral=True)
                     return
         elif _server.status in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f'Please stop server "{_server.display_name}" before deleting the statistics!', ephemeral=True)
             return
@@ -131,6 +133,7 @@ class UserStatistics(Plugin):
                          user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
             return
         if not user:
@@ -154,6 +157,7 @@ class UserStatistics(Plugin):
                         period: Optional[str] = None, limit: Optional[int] = None):
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
             return
         file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
@@ -161,6 +165,7 @@ class UserStatistics(Plugin):
             report = PaginationReport(self.bot, interaction, self.plugin_name, file)
             await report.render(interaction=interaction, period=period, server_name=None, flt=flt, limit=limit)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             report = Report(self.bot, self.plugin_name, file)
             env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt,
@@ -181,6 +186,7 @@ class UserStatistics(Plugin):
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(ucid, discord.Member):
             if ucid == member:
@@ -260,6 +266,7 @@ class UserStatistics(Plugin):
                     })
 
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -287,6 +294,7 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     async def find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -321,11 +329,14 @@ class UserStatistics(Plugin):
 
     async def _info(self, interaction: discord.Interaction, member: Union[discord.Member, str]):
         if not member:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("This user does not exist. Try `/find` to find them in the "
                                                     "historic data.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
         if isinstance(member, str):
             ucid = member
@@ -350,7 +361,7 @@ class UserStatistics(Plugin):
             await msg.delete()
 
     @staticmethod
-    def format_unmatched(data, marker, marker_emoji):
+    def format_unmatched(data, _, __):
         embed = discord.Embed(title='Unlinked Players', color=discord.Color.blue())
         embed.description = 'These players could be possibly linked:'
         ids = players = members = ''
@@ -368,6 +379,7 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def linkcheck(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -400,7 +412,7 @@ class UserStatistics(Plugin):
                         ephemeral=True)
 
     @staticmethod
-    def format_suspicious(data, marker, marker_emoji):
+    def format_suspicious(data, _, __):
         embed = discord.Embed(title='Possibly Mislinked Players', color=discord.Color.blue())
         embed.description = 'These players could be possibly mislinked:'
         ids = players = members = ''
@@ -418,6 +430,7 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def mislinks(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -473,6 +486,7 @@ class UserStatistics(Plugin):
                                             f"```{self.eventlistener.prefix}linkme {token}```\n"
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         member = DataObjectFactory().new('Member', node=self.node, member=interaction.user)
         if (utils.is_ucid(member.ucid) and member.verified and
@@ -509,6 +523,7 @@ class UserStatistics(Plugin):
                        number: Range[int, 1]):
         report = Report(self.bot, self.plugin_name, 'inactive.json')
         env = await report.render(period=f"{number} {period}")
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Delete statistics for users')
@@ -518,11 +533,13 @@ class UserStatistics(Plugin):
         if not user:
             user = interaction.user
         elif user != interaction.user and not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return
         member = DataObjectFactory().new('Member', node=self.node, member=user)
         if not member.verified:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)
             return

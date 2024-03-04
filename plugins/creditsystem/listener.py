@@ -162,7 +162,7 @@ class CreditSystemListener(EventListener):
                 await self.process_achievements(server, player)
 
     @chat_command(name="credits", help="displays your credits")
-    async def credits(self, server: Server, player: CreditPlayer, params: list[str]):
+    async def credits(self, _: Server, player: CreditPlayer, __: list[str]):
         message = f"You currently have {player.points} credit points"
         if player.deposit > 0:
             message += f", {player.deposit} on deposit"

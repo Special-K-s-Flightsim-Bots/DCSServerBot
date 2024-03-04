@@ -149,6 +149,7 @@ class OvGME(Plugin):
                 derived.embed = embed
 
             async def shutdown(derived, interaction: discord.Interaction):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 derived.embed.set_footer(text=f"Shutting down {server.name}, please wait ...")
                 await interaction.edit_original_response(embed=derived.embed)
@@ -209,6 +210,7 @@ class OvGME(Plugin):
                     derived.embed.set_footer(text=f"⚠️ Server {server.name} needs to be shut down to change mods.")
                 else:
                     for i in range(1, len(derived.children)):
+                        # noinspection PyUnresolvedReferences
                         if isinstance(derived.children[i], Button) and derived.children[i].label == "Shutdown":
                             derived.remove_item(derived.children[i])
                 button = Button(label="Quit", style=discord.ButtonStyle.red, row=2)
@@ -216,6 +218,7 @@ class OvGME(Plugin):
                 derived.add_item(button)
 
             async def install(derived, interaction: discord.Interaction):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 try:
                     folder, package, version = derived.available[int(interaction.data['values'][0])]
@@ -249,6 +252,7 @@ class OvGME(Plugin):
                     self.log.exception(ex)
 
             async def uninstall(derived, interaction: discord.Interaction):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 folder, mod, version = derived.installed[int(interaction.data['values'][0])]
                 derived.embed.set_footer(text=f"Uninstalling mod {mod}, please wait ...")
@@ -264,13 +268,14 @@ class OvGME(Plugin):
 
             async def download(derived, interaction: discord.Interaction):
                 class UploadModal(Modal, title="Download a new Mod"):
-                    url = TextInput(label="URL / GitHub Repo", placeholder='https://github.com/...', style=TextStyle.short,
-                                    required=True)
+                    url = TextInput(label="URL / GitHub Repo", placeholder='https://github.com/...',
+                                    style=TextStyle.short, required=True)
                     dest = TextInput(label="Destination (S=Saved Games / R=Root Folder)", style=TextStyle.short,
                                      required=True, min_length=1, max_length=1)
                     version = TextInput(label="Version", style=TextStyle.short, required=False, default='latest')
 
                     async def on_submit(_, interaction: discord.Interaction) -> None:
+                        # noinspection PyUnresolvedReferences
                         await interaction.response.defer()
 
                 async def download(modal: UploadModal):
@@ -284,6 +289,7 @@ class OvGME(Plugin):
                         raise ValueError("Not a valid URL!")
 
                 modal = UploadModal()
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_modal(modal)
                 if not await modal.wait():
                     if not utils.is_valid_url(modal.url.value):
@@ -316,6 +322,7 @@ class OvGME(Plugin):
                            installed=await get_installed_mods(self.service, server),
                            available=await get_available_mods(self.service, server))
         await view.render()
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
         try:
             await view.wait()
@@ -332,12 +339,15 @@ class OvGME(Plugin):
                        mod: str, version: str):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status != Status.SHUTDOWN:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} needs to be shut down to install mods.")
             return
         if '/' not in mod:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Mod {mod} not found.")
             return
         folder, package = mod.split('/')
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         current = await self.service.get_installed_package(server, folder, package)
         if current == version:
@@ -368,9 +378,11 @@ class OvGME(Plugin):
                         mod: str):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status != Status.SHUTDOWN:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Server {server.name} needs to be shut down to uninstall mods.")
             return
         folder, package, version = mod.split('/')
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         msg = await interaction.followup.send(f"Uninstalling mod {package}, please wait ...", ephemeral=ephemeral)
         if not await self.service.uninstall_package(server, folder, package, version):
@@ -382,12 +394,13 @@ class OvGME(Plugin):
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
     async def _list(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         installed: dict[str, list[Tuple[str, str]]] = dict()
         for folder in OVGME_FOLDERS:
             installed[folder] = await self.service.get_installed_packages(server, folder)
         if not len(installed[OVGME_FOLDERS[0]]) and not len(installed[OVGME_FOLDERS[1]]):
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"No mod installed on server {server.name}.", ephemeral=ephemeral)
             return
         embed = discord.Embed(color=discord.Color.blue())
@@ -397,6 +410,7 @@ class OvGME(Plugin):
                 embed.add_field(name="Folder", value=folder)
                 embed.add_field(name="Mod", value='\n'.join([x[0] for x in installed[folder]]))
                 embed.add_field(name="Version", value='\n'.join([x[1] for x in installed[folder]]))
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed)
 
     @mods.command(description='Download a mod to your installation directory')
@@ -408,15 +422,17 @@ class OvGME(Plugin):
                        version: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
         if not utils.is_valid_url(url):
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("{url} is not a valid URL.", ephemeral=True)
             return
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if utils.is_github_repo(url) and not version:
             version = await self.service.get_latest_repo_version(url)
         if version:
             package_name = self.service.extract_repo_name(url).split('/')[-1]
             msg = await interaction.followup.send(f"Downloading {package_name}_v{version} from GitHub ...",
-                                            ephemeral=ephemeral)
+                                                  ephemeral=ephemeral)
             try:
                 await self.service.download_from_repo(url, folder, version=version)
             except FileExistsError:

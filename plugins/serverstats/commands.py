@@ -29,6 +29,7 @@ class ServerStats(Plugin):
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server: Server,
                              ephemeral: bool):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server.name, node=server.node.name)

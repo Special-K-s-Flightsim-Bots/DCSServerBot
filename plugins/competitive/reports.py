@@ -11,7 +11,7 @@ class HighscoreTrueSkill(report.GraphElement):
         sql = f"""
             SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, t.skill_mu - 3 * t.skill_sigma AS value
             FROM players p, trueskill t
-            WHERE p.ucid = t.player_ucid AND skill_mu IS NOT NULL
+            WHERE p.ucid = t.player_ucid
             ORDER BY 3 DESC 
             LIMIT {limit}
         """

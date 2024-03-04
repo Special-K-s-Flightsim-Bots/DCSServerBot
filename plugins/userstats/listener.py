@@ -186,7 +186,7 @@ class UserStatisticsEventListener(EventListener):
                 await conn.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
 
     @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
+    async def onSimulationStop(self, server: Server, _: dict) -> None:
         await self.close_mission_stats(server)
 
     @event(name="onPlayerStart")
@@ -220,7 +220,7 @@ class UserStatisticsEventListener(EventListener):
                                        (server.mission_id, data['ucid'], self.get_unit_type(data), data['side']))
 
     @event(name="disableUserStats")
-    async def disableUserStats(self, server: Server, data: dict) -> None:
+    async def disableUserStats(self, server: Server, _: dict) -> None:
         self.statistics.discard(server.name)
         await self.close_mission_stats(server)
 
@@ -335,6 +335,7 @@ class UserStatisticsEventListener(EventListener):
                 elif event_name == 'mission_end':
                     config = self.get_config(server)
                     if 'highscore' in config:
+                        # noinspection PyUnresolvedReferences
                         await self.plugin.render_highscore(config['highscore'], server, True)
 
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")

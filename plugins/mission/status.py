@@ -4,12 +4,18 @@ from typing import Optional
 
 
 STATUS_IMG = {
-    Status.LOADING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/loading_256.png?raw=true',
-    Status.PAUSED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/pause_256.png?raw=true',
-    Status.RUNNING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/play_256.png?raw=true',
-    Status.STOPPED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
-    Status.SHUTDOWN: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
-    Status.UNREGISTERED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
+    Status.LOADING:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/loading_256.png?raw=true',
+    Status.PAUSED:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/pause_256.png?raw=true',
+    Status.RUNNING:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/play_256.png?raw=true',
+    Status.STOPPED:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+    Status.SHUTDOWN:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+    Status.UNREGISTERED:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
 }
 
 
@@ -77,7 +83,8 @@ class WeatherInfo(report.EmbedElement):
             self.add_field(name='QNH (QFF)', value='{:.2f} inHg\n'.format(weather['qnh'] * const.MMHG_IN_INHG) +
                                                    '{} hPa\n'.format(int(weather['qnh'] * const.MMHG_IN_HPA)))
             if server.current_mission.clouds and 'preset' in server.current_mission.clouds:
-                self.add_field(name='Clouds', value=server.current_mission.clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n'))
+                self.add_field(name='Clouds',
+                               value=server.current_mission.clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n'))
             else:
                 self.add_field(name='Weather', value='Dynamic')
             self.add_field(name='Wind',
@@ -156,6 +163,7 @@ class Footer(report.EmbedElement):
     async def render(self, server: Server):
         text = self.embed.footer.text or ''
         for listener in self.bot.eventListeners:
+            # noinspection PyUnresolvedReferences
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server.name in listener.statistics):
                 text += '\n- User statistics are enabled for this server.'

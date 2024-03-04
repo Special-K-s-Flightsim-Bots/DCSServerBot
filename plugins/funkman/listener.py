@@ -102,7 +102,7 @@ class FunkManEventListener(EventListener):
         plt.close(fig)
         return filename, buffer
 
-    async def send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
+    async def send_fig(self, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
         filename, buffer = self.save_fig(fig)
         with buffer:
             await channel.send(file=discord.File(fp=buffer, filename=filename),
@@ -153,7 +153,7 @@ class FunkManEventListener(EventListener):
         if not fig:
             self.log.error("Bomb result could not be plotted (due to missing data?)")
             return
-        await self.send_fig(server, fig, channel)
+        await self.send_fig(fig, channel)
 
     @event(name="moose_strafe_result")
     async def moose_strafe_result(self, server: Server, data: dict) -> None:
@@ -175,7 +175,7 @@ class FunkManEventListener(EventListener):
         if not fig:
             self.log.error("Strafe result could not be plotted (due to missing data?)")
             return
-        await self.send_fig(server, fig, channel)
+        await self.send_fig(fig, channel)
 
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:

@@ -20,6 +20,7 @@ class Battleground(Plugin):
     async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, screenshot: discord.Attachment):
         mgrs = mgrs.replace(' ', '')
         if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('The second parameter needs to be a MGRS coordinate '
                                                     '(ex: 38TLN0274366889)', ephemeral=True)
             return
@@ -43,8 +44,10 @@ class Battleground(Plugin):
                         VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
                     """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
                           side, server.name))
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Recon data added - {side} side - {server.name}")
         if not done:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Coalitions have to be enabled and you need to use this command '
                                                     'in one of your coalition channels.', ephemeral=True)
 
@@ -56,6 +59,7 @@ class Battleground(Plugin):
         async with self.apool.connection() as conn:
             async with conn.transation():
                 await conn.execute("DELETE FROM bg_geometry WHERE server = %s", (server.name, ))
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Recon data deleted for server {server.name}", ephemeral=True)
 
 

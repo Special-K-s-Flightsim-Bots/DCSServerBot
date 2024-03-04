@@ -46,6 +46,7 @@ class Sample(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[
                          Status.RUNNING, Status.PAUSED, Status.STOPPED])
                      ], text: str):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
         data = await server.send_to_dcs_sync({

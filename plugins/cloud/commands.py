@@ -124,6 +124,7 @@ class CloudHandler(Plugin):
     @utils.app_has_role('Admin')
     async def status(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f'Checking cloud connection ...', ephemeral=ephemeral)
         try:
             await self.get('verify')
@@ -143,6 +144,7 @@ class CloudHandler(Plugin):
                          Union[discord.Member, str], utils.UserTransformer]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('No cloud sync configured.', ephemeral=ephemeral)
             return
         async with self.apool.connection() as conn:
@@ -157,6 +159,7 @@ class CloudHandler(Plugin):
                     await conn.execute(sql, (member, ))
                 else:
                     await conn.execute(sql)
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
 
     @cloud.command(description='Generate Cloud Statistics')
@@ -166,6 +169,7 @@ class CloudHandler(Plugin):
                          user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
                          period: Optional[str]):
         if 'token' not in self.config:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Cloud statistics are not activated in this Discord.',
                                                     ephemeral=True)
             return
@@ -174,6 +178,7 @@ class CloudHandler(Plugin):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
             name = user.display_name
@@ -182,6 +187,7 @@ class CloudHandler(Plugin):
             name = await self.bot.get_member_or_name_by_ucid(ucid)
             if isinstance(name, discord.Member):
                 name = name.display_name
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
             response = await self.get(f'stats/{ucid}')
@@ -274,6 +280,7 @@ class CloudHandler(Plugin):
                     num_servers = row[1]
         try:
             _, dcs_version = await self.node.get_dcs_branch_and_version()
+            # noinspection PyUnresolvedReferences
             bot = {
                 "guild_id": self.bot.guilds[0].id,
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
@@ -293,7 +300,7 @@ class CloudHandler(Plugin):
             await self.post('register', bot)
         except aiohttp.ClientError:
             self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
-        except Exception as error:
+        except Exception:
             self.log.debug("Error while registering: ", exc_info=True)
 
     @register.before_loop

@@ -71,19 +71,19 @@ class CompetitiveListener(EventListener):
             await self.set_rating(p, r_losers[idx])
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _: dict) -> None:
         if server.name not in self.in_match:
             self.in_match[server.name] = dict()
         if server.name not in self.matches:
             self.matches[server.name] = dict()
 
     @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _: dict) -> None:
         self.matches[server.name] = dict()
         self.in_match[server.name] = dict()
 
     @event(name="onSimulationStop")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _: dict) -> None:
         self.matches[server.name] = dict()
         self.in_match[server.name] = dict()
 
@@ -206,7 +206,7 @@ class CompetitiveListener(EventListener):
             if not player:
                 # we should never get here
                 return
-            # if the pilot of a MC aircraft leaves, both pilots get booted
+            # if the pilot of an MC aircraft leaves, both pilots get booted
             if player.slot == 0:
                 players = server.get_crew_members(server.get_player(id=data['arg1']))
             else:
@@ -224,7 +224,7 @@ class CompetitiveListener(EventListener):
         await self._onGameEvent(server, data)
 
     @chat_command(name="skill", help="Show your TrueSkill")
-    async def skill(self, server: Server, player: Player, params: list[str]):
+    async def skill(self, _: Server, player: Player, __: list[str]):
         player.sendChatMessage(f"Your TrueSkill rating is {self.calculate_rating(await self.get_rating(player))}")
 
     @tasks.loop(seconds=5)

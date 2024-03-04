@@ -83,10 +83,14 @@ class GreenieBoard(Plugin):
         num_landings = max(self.get_config().get('num_landings', 25), 25)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
-                               "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
-                               "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
+                await cursor.execute("""
+                    SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, 
+                           g.time, g.points, g.trapsheet 
+                    FROM greenieboard g, players p 
+                    WHERE p.ucid = %s AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s
+                """, (ucid, num_landings))
                 if cursor.rowcount == 0:
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message('No carrier landings recorded for this user.',
                                                             ephemeral=True)
                     return
@@ -118,11 +122,13 @@ class GreenieBoard(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         config = self.get_config()
         if 'ratings' not in config:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 'You need to specify ratings in your greenieboard.json to use add_trap!', ephemeral=True)
             return
 
         view = TrapView(self.bot, config, user)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(view=view)
         try:
             await view.wait()

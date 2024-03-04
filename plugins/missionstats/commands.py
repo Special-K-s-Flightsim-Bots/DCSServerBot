@@ -63,9 +63,11 @@ class MissionStatistics(Plugin):
                            server: app_commands.Transform[Server, utils.ServerTransformer(
                                status=[Status.RUNNING, Status.PAUSED])]):
         if server.name not in self.bot.mission_stats:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 "Mission statistics not initialized yet or not active for this server.", ephemeral=True)
             return
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         stats = self.bot.mission_stats[server.name]
         report = Report(self.bot, self.plugin_name, 'missionstats.json')
@@ -83,6 +85,7 @@ class MissionStatistics(Plugin):
             user = interaction.user
         flt = MissionStatisticsFilter()
         if period and not flt.supports(self.bot, period):
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Please provide a valid period.', ephemeral=True)
             return
         if isinstance(user, str):
@@ -95,6 +98,7 @@ class MissionStatistics(Plugin):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'sorties.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
@@ -102,7 +106,7 @@ class MissionStatistics(Plugin):
 
     @staticmethod
     def format_modules(data):
-        embed = discord.Embed(title=f"Select a module from the list", color=discord.Color.blue())
+        embed = discord.Embed(title=f"Pick a module from the list", color=discord.Color.blue())
         ids = modules = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
@@ -123,10 +127,12 @@ class MissionStatistics(Plugin):
         if not user:
             user = interaction.user
         if not module:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('You need to chose a module!', ephemeral=True)
             return
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Please provide a valid period or campaign name!', ephemeral=True)
             return
         if isinstance(user, str):
@@ -139,6 +145,7 @@ class MissionStatistics(Plugin):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
         env = await report.render(member_name=name, ucid=ucid, period=period, module=module, flt=flt)
@@ -154,6 +161,7 @@ class MissionStatistics(Plugin):
             user = interaction.user
         flt = MissionStatisticsFilter()
         if period and not flt.supports(self.bot, period):
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('Please provide a valid period.', ephemeral=True)
             return
         if isinstance(user, str):
@@ -166,6 +174,7 @@ class MissionStatistics(Plugin):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
@@ -188,6 +197,7 @@ class MissionStatistics(Plugin):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'nemesis.json')
         env = await report.render(ucid=ucid, member_name=name)
@@ -210,6 +220,7 @@ class MissionStatistics(Plugin):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             name = user.display_name
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'antagonist.json')
         env = await report.render(ucid=ucid, member_name=name)

@@ -12,7 +12,7 @@ class PunishmentEventListener(EventListener):
         self.lock = asyncio.Lock()
 
     @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
         # make sure the config cache is re-read on mission changes
         self.plugin.get_config(server, use_cache=False)
 
@@ -73,6 +73,7 @@ class PunishmentEventListener(EventListener):
                     points = points * weight
                 # check if an action should be run immediately
                 if 'action' in penalty:
+                    # noinspection PyUnresolvedReferences
                     await self.plugin.punish(server, initiator.ucid, penalty,
                                              penalty['reason'] if 'reason' in penalty else penalty['event'])
                 # ignore events where no punishment points were given
@@ -149,7 +150,7 @@ class PunishmentEventListener(EventListener):
             player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")
 
     @chat_command(name="forgive", help="forgive another user for teamhits/-kills")
-    async def forgive(self, server: Server, target: Player, params: list[str]):
+    async def forgive(self, server: Server, target: Player, _: list[str]):
         config = self.plugin.get_config(server)
         if 'forgive' not in config:
             target.sendChatMessage(f'{self.prefix}forgive is not enabled on this server.')
@@ -194,6 +195,6 @@ class PunishmentEventListener(EventListener):
                         'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
 
     @chat_command(name="penalty", help="displays your penalty points")
-    async def penalty(self, server: Server, player: Player, params: list[str]):
+    async def penalty(self, _: Server, player: Player, __: list[str]):
         points = await self._get_punishment_points(player)
         player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")
