@@ -364,8 +364,14 @@ class ServerImpl(Server):
         # check if all missions are existing
         missions = []
         for mission in self.settings['missionList']:
+            if '.dcssb' in mission:
+                secondary = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
+            else:
+                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
             if os.path.exists(mission):
                 missions.append(mission)
+            elif os.path.exists(secondary):
+                missions.append(secondary)
             else:
                 self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
         if len(missions) != len(self.settings['missionList']):
