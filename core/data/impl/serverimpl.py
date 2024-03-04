@@ -24,7 +24,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from psutil import Process
-from typing import Optional, TYPE_CHECKING, Union, Any, Callable, Type, Coroutine
+from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
@@ -132,7 +132,7 @@ class ServerImpl(Server):
             # no options.lua, create a minimalistic one
             if 'graphics' not in self._options:
                 self._options["graphics"] = {
-                        "visibRange": "High"
+                    "visibRange": "High"
                 }
             if 'plugins' not in self._options:
                 self._options["plugins"] = {}
@@ -364,8 +364,14 @@ class ServerImpl(Server):
         # check if all missions are existing
         missions = []
         for mission in self.settings['missionList']:
+            if '.dcssb' in mission:
+                secondary = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
+            else:
+                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
             if os.path.exists(mission):
                 missions.append(mission)
+            elif os.path.exists(secondary):
+                missions.append(secondary)
             else:
                 self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
         if len(missions) != len(self.settings['missionList']):
@@ -547,7 +553,7 @@ class ServerImpl(Server):
                 filename = name
                 break
         else:
-            filename = os.path.normpath(os.path.join(await self.get_missions_dir(), filename))
+            filename = os.path.normpath(os.path.join(self.instance.missions_dir, filename))
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
@@ -558,7 +564,7 @@ class ServerImpl(Server):
         return UploadStatus.OK
 
     async def listAvailableMissions(self) -> list[str]:
-        return [str(x) for x in sorted(Path(PurePath(await self.get_missions_dir())).glob("*.miz"))]
+        return [str(x) for x in sorted(Path(PurePath(self.instance.missions_dir)).glob("*.miz"))]
 
     async def getMissionList(self) -> list[str]:
         return self.settings.get('missionList', [])

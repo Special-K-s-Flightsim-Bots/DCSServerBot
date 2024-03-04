@@ -947,9 +947,16 @@ class Mission(Plugin):
                     await message.channel.send('Upload aborted.')
                     return
             if rc != UploadStatus.OK:
-                await server.uploadMission(att.filename, att.url, force=True)
+                if (await server.uploadMission(att.filename, att.url, force=True)) != UploadStatus.OK:
+                    await message.channel.send(f'Error while uploading: {rc.name}')
+                    return
 
-            filename = os.path.normpath(os.path.join(await server.get_missions_dir(), att.filename))
+            # get the real filename after the upload
+            filename = next((file for file in await server.getMissionList()
+                             if os.path.basename(file) == os.path.basename(att.filename)), None)
+            if not filename:
+                await message.channel.send('Error while uploading: File not found in severSettings.lua')
+                return
             name = utils.escape_string(os.path.basename(att.filename)[:-4])
             await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
