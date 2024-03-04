@@ -194,7 +194,7 @@ function onEvent(event)
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'
 				msg.target.unit = event.target
-				if msg.target.unit:isExist() then
+				if msg.target.unit.isExist ~= nil and msg.target.unit:isExist() then
 					msg.target.unit_name = msg.target.unit:getName()
 					if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
 						msg.target.coalition = msg.target.unit:getCoalition()
