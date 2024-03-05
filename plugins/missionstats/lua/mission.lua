@@ -18,6 +18,11 @@ world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
 world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
 world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
 
+-- ECW
+world.event.S_EVENT_ECW_TROOP_DROP   = world.event.S_EVENT_MAX + 1050
+world.event.S_EVENT_ECW_TROOP_KILL   = world.event.S_EVENT_MAX + 1051
+world.event.S_EVENT_ECW_TROOP_PICKUP = world.event.S_EVENT_MAX + 1052
+
 dcsbot.mission_stats_enabled = false
 
 dcsbot.eventHandler = {}
@@ -96,6 +101,13 @@ function onEvent(event)
 			msg.eventName = 'S_EVENT_NEW_CARGO'
 		elseif event.id == world.event.S_EVENT_DELETE_CARGO then
 			msg.eventName = 'S_EVENT_DELETE_CARGO'
+		-- ECW
+		elseif event.id == world.event.S_EVENT_ECW_TROOP_DROP then
+			msg.eventName = 'S_EVENT_ECW_TROOP_DROP'
+		elseif event.id == world.event.S_EVENT_ECW_TROOP_KILL then
+			msg.eventName = 'S_EVENT_ECW_TROOP_KILL'
+		elseif event.id == world.event.S_EVENT_ECW_TROOP_PICKUP then
+			msg.eventName = 'S_EVENT_ECW_TROOP_PICKUP'
 		else
 			return -- ignore other events
 		end
