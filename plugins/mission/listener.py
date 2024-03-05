@@ -169,7 +169,12 @@ class MissionEventListener(EventListener):
             channel_id = server.channels[Channel.EVENTS]
         channel = self.bot.get_channel(channel_id)
         if channel:
-            await channel.send("```" + data['message'] + "```")
+            message = "```" + data['message'] + "```"
+            if 'mention' in data:
+                message = ''.join([
+                    self.bot.get_role(role).mention for role in self.bot.roles[data['mention']]
+                ]) + message
+            await channel.send(message)
 
     @event(name="sendEmbed")
     async def sendEmbed(self, server: Server, data: dict) -> None:
@@ -491,7 +496,7 @@ class MissionEventListener(EventListener):
                     and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) \
                     if player1.member else ('Player ' + player1.display_name)
-                message = f"{name} (ucid={player1.ucid}) is killing team members. Please investigate."
+                message = f"{name} (ucid={player1.ucid}) is killing team members."
                 # show the server name on central admin channels
                 if self.bot.locals.get('admin_channel'):
                     message = f"{server.display_name}: " + message

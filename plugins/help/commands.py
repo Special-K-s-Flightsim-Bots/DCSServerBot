@@ -2,7 +2,7 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, Command, utils
+from core import Plugin, Report, ReportEnv, command, Command, utils, get_translation
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
@@ -12,6 +12,8 @@ from services import DCSServerBot
 from typing import cast, Optional, Literal
 
 from .listener import HelpListener
+
+_ = get_translation('help')
 
 
 @cache
@@ -119,16 +121,16 @@ class Help(Plugin):
             if not await cmd._check_can_run(interaction):
                 raise PermissionError()
             help_embed = discord.Embed(color=discord.Color.blue())
-            help_embed.title = f"Command: {name}"
+            help_embed.title = _("Command: {}").format(name)
             help_embed.description = cmd.description
             usage = get_usage(cmd)
-            help_embed.add_field(name='Usage', value=f"{name} {usage}", inline=False)
+            help_embed.add_field(name=_('Usage'), value=f"{name} {usage}", inline=False)
             if usage:
-                help_embed.set_footer(text='<> mandatory, [] non-mandatory')
+                help_embed.set_footer(text=_('<> mandatory, [] non-mandatory'))
             return help_embed
 
         async def print_commands(self, interaction: discord.Interaction, *, plugin: str) -> discord.Embed:
-            title = f'{self.bot.user.display_name} Help'
+            title = _('{} Help').format(self.bot.user.display_name)
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
             help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
             cmds = []
@@ -138,12 +140,12 @@ class Help(Plugin):
                     cmds.append(name + ' ' + get_usage(cmd))
                     descriptions.append(cmd.description)
             if cmds:
-                help_embed.add_field(name='Command', value='\n'.join(cmds))
-                help_embed.add_field(name='Description', value='\n'.join(descriptions))
+                help_embed.add_field(name=_('Command'), value='\n'.join(cmds))
+                help_embed.add_field(name=_('Description'), value='\n'.join(descriptions))
                 help_embed.add_field(name='_ _', value='_ _')
             else:
-                help_embed.add_field(name='There are no commands for your role in this plugin.', value='_ _')
-            help_embed.set_footer(text='Use /help [command] if you want help for a specific command.')
+                help_embed.add_field(name=_('There are no commands for your role in this plugin.'), value='_ _')
+            help_embed.set_footer(text=_('Use /help [command] if you want help for a specific command.'))
             return help_embed
 
         async def paginate(self, plugin: str, interaction: discord.Interaction):
@@ -164,7 +166,7 @@ class Help(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.edit_message(view=self, embed=embed)
 
-        @discord.ui.select(placeholder="Select the plugin you want help for")
+        @discord.ui.select(placeholder=_("Select the plugin you want help for"))
         async def callback(self, interaction: discord.Interaction, select: Select):
             self.index = [x.value for x in self.options].index(select.values[0])
             await self.paginate(select.values[0], interaction)
@@ -195,7 +197,7 @@ class Help(Plugin):
             await interaction.response.defer()
             self.stop()
 
-    @command(description='The help command')
+    @command(description=_('The help command'))
     @app_commands.guild_only()
     @app_commands.autocomplete(cmd=commands_autocomplete)
     async def help(self, interaction: discord.Interaction, cmd: Optional[str]):
@@ -214,10 +216,10 @@ class Help(Plugin):
                     await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
                 else:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(f'Command {cmd} not found.', ephemeral=True)
+                    await interaction.response.send_message(_('Command {} not found.').format(cmd), ephemeral=True)
             except PermissionError:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message("You don't have the permission to use this command.",
+                await interaction.response.send_message(_("You don't have the permission to use this command."),
                                                         ephemeral=True)
         else:
             try:
@@ -298,23 +300,23 @@ class Help(Plugin):
                                     role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
                                     channel: Optional[discord.TextChannel] = None):
         class DocModal(Modal):
-            header = TextInput(label="Header", default="## DCSServerBot Commands", style=discord.TextStyle.short,
+            header = TextInput(label="Header", default=_("## DCSServerBot Commands"), style=discord.TextStyle.short,
                                required=True)
             intro = TextInput(label="Intro", style=discord.TextStyle.long, required=True)
 
             def __init__(derived, role: Optional[str]):
-                super().__init__(title="Generate Documentation")
+                super().__init__(title=_("Generate Documentation"))
                 derived.role = role
                 if role:
-                    derived.intro.default = f"""
-        The following bot commands can be used in this discord by members that have the {derived.role} role:
-        _ _ 
-                            """
+                    derived.intro.default = _("""
+The following bot commands can be used in this discord by members that have the {} role:
+_ _ 
+                    """).format(derived.role)
                 else:
-                    derived.intro.default = f"""
-        The following bot commands can be used in this discord:
-        _ _ 
-                            """
+                    derived.intro.default = _("""
+The following bot commands can be used in this discord:
+_ _ 
+                    """)
 
             async def on_submit(derived, interaction: discord.Interaction):
                 # noinspection PyUnresolvedReferences
@@ -367,7 +369,7 @@ class Help(Plugin):
                 await channel.send(message)
         else:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("Please provide a role for channel output.", ephemeral=True)
+            await interaction.response.send_message(_("Please provide a role for channel output."), ephemeral=True)
 
     async def server_info_to_df(self) -> pd.DataFrame:
         df = pd.DataFrame(columns=['Node', 'Instance', 'Name', 'Password', 'Max Players', 'DCS Port', 'Bot Port'])
@@ -430,7 +432,7 @@ class Help(Plugin):
         output.seek(0)
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'))
 
-    @command(description='Generate Documentation')
+    @command(description=_('Generate Documentation'))
     @app_commands.guild_only()
     @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
@@ -443,7 +445,7 @@ class Help(Plugin):
             await self.generate_server_docs(interaction)
         else:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Unknown option {what}", ephemeral=True)
+            await interaction.response.send_message(_("Unknown option {}!").format(what), ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

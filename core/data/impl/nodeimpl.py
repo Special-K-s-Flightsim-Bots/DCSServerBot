@@ -19,6 +19,7 @@ from collections import defaultdict
 from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
+from core.translations import get_translation
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
 from packaging import version
@@ -64,6 +65,9 @@ LOGLEVEL = {
 }
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
+
+# Internationalisation
+_ = get_translation('core')
 
 
 class NodeImpl(Node):
@@ -363,8 +367,9 @@ class NodeImpl(Node):
                 while shutdown_in > 0:
                     for warn_time in warn_times:
                         if warn_time == shutdown_in:
-                            server.sendPopupMessage(Coalition.ALL, f'Server is going down for a DCS update in '
-                                                                   f'{utils.format_time(warn_time)}!')
+                            server.sendPopupMessage(
+                                Coalition.ALL,
+                                _('Server is going down for a DCS update in {}!').format(utils.format_time(warn_time)))
                     await asyncio.sleep(1)
                     shutdown_in -= 1
             await server.shutdown()

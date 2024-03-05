@@ -1,5 +1,6 @@
 import os
 
+from core.translations import get_translation
 from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, Tuple
@@ -20,6 +21,9 @@ __all__ = [
     "SortOrder",
     "FatalException"
 ]
+
+
+_ = get_translation('core')
 
 
 class UploadStatus(Enum):
@@ -83,15 +87,15 @@ class Node:
             config['messages'] = config.get('messages', {})
             config['messages']['player_username'] = config['messages'].get(
                 'player_username',
-                'Your player name contains invalid characters. Please change your name to join our server.'
+                _('Your player name contains invalid characters. Please change your name to join our server.')
             )
             config['messages']['player_default_username'] = config['messages'].get(
                 'player_default_username',
-                'Please change your default player name at the top right of the multiplayer selection list to an '
-                'individual one!'
+                _('Please change your default player name at the top right of the multiplayer selection list to an '
+                  'individual one!')
             )
             config['messages']['player_banned'] = config['messages'].get(
-                'player_banned', 'You are banned from this server. Reason: {}'
+                'player_banned', _('You are banned from this server. Reason: {}')
             )
             config['chat_command_prefix'] = config.get('chat_command_prefix', '-')
             return config
@@ -101,6 +105,12 @@ class Node:
             raise YAMLError(file, ex)
 
     def read_locals(self) -> dict:
+        raise NotImplemented()
+
+    async def shutdown(self):
+        raise NotImplemented()
+
+    async def restart(self):
         raise NotImplemented()
 
     async def upgrade_pending(self) -> bool:

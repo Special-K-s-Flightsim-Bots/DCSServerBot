@@ -1,0 +1,22 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+msgid "Server is going down for a DCS update in {)}!"
+msgstr "Server-Restart in {}, um ein DCS-Update einzuspielen!"
+
+msgid "You are banned from this server. Reason: {}"
+msgstr "Du bist auf diesem Server gebannt. Grund: {}"
+
+msgid "The server is full, please try again later."
+msgstr "Der Server ist leider voll, bitte versuche es später noch einmal."
+
+msgid "Your player name contains invalid characters. Please change your name to join our server."
+msgstr "Um auf diesem Server spielen zu können, entferne bitte unerlaubte Zeichen aus Deinem Nutzernamen!"
+
+msgid "Please change your default player name at the top right of the multiplayer selection list to an individual one!"
+msgstr "Bitte ändere Deinen Standard-Usernamen rechts oben im Multiplayer-Menü in einen individuellen Namen!"

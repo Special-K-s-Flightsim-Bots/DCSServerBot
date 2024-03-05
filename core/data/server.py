@@ -7,6 +7,7 @@ from contextlib import suppress
 from core import utils
 from core.const import DEFAULT_TAG
 from core.services.registry import ServiceRegistry
+from core.translations import get_translation
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
-from .const import Status, Coalition, Channel, Side
+from .const import Status, Coalition, Channel
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
@@ -32,6 +33,9 @@ if TYPE_CHECKING:
     from services import ServiceBus
 
 __all__ = ["Server"]
+
+# Internationalisation
+_ = get_translation('core')
 
 
 @dataclass
@@ -80,9 +84,9 @@ class Server(DataObject):
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:
-                _locals['message_ban'] = 'You are banned from this server. Reason: {}'
+                _locals['message_ban'] = _('You are banned from this server. Reason: {}')
             if 'message_server_full' not in _locals:
-                _locals['message_server_full'] = 'The server is full, please try again later.'
+                _locals['message_server_full'] = _('The server is full, please try again later.')
             return _locals
         return {}
 

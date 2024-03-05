@@ -67,6 +67,20 @@ class NodeProxy(Node):
                     _locals[name] = element
         return _locals
 
+    async def shutdown(self):
+        self.bus.send_to_node({
+            "command": "rpc",
+            "object": "Node",
+            "method": "shutdown"
+        }, node=self.name)
+
+    async def restart(self):
+        self.bus.send_to_node({
+            "command": "rpc",
+            "object": "Node",
+            "method": "restart"
+        }, node=self.name)
+
     async def upgrade_pending(self) -> bool:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",

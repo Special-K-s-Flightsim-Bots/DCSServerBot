@@ -1,0 +1,396 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /dcs
+msgid "Commands to manage your DCS installations"
+msgstr "Kommandos zur Verwaltung der DCS World Installation"
+
+# /dcs ban
+msgid "Bans a user by name or ucid"
+msgstr "Sperre Spieler (Name / UCID)"
+
+msgid "Reason"
+msgstr "Grund"
+
+msgid "Days (empty = forever)"
+msgstr "Anzahl Tage (leer = unendlich)"
+
+msgid "Ban Details"
+msgstr "Sperr-Details"
+
+msgid "Member {} is not linked!"
+msgstr "Spieler {} hat seine Accounts nicht verknüpft!"
+
+msgid "Player {} banned on all servers"
+msgstr "Spieler {} ist auf allen Servern gesperrt"
+
+msgid " for {} days."
+msgstr " (für {} Tage)."
+
+# /dcs unban
+msgid "Unbans a user by name or ucid"
+msgstr "Entsperre Spieler (Name / UCID)"
+
+msgid "Player {} unbanned on all servers."
+msgstr "Spieler {} wurde auf allen Servern entsperrt."
+
+msgid "Shows active bans"
+msgstr "Zeigt aktive Sperren"
+
+msgid "User with UCID {} is not banned."
+msgstr "Spieler mit UCID {} is nicht gesperrt."
+
+# /dcs bans
+msgid "Ban Information"
+msgstr "Sperr-Informationen"
+
+msgid "<unknown>"
+msgstr "<unbekannt>"
+
+msgid "Banned by: {}"
+msgstr "Gesperrt von: {}"
+
+msgid "Exp.: {}"
+msgstr "Bis: {}"
+
+# /dcs watch
+msgid "Puts a player onto the watchlist"
+msgstr "Fügt Spieler zur Watchliste hinzu"
+
+msgid "Player {} was already on the watchlist."
+msgstr "Spieler {} war bereits auf der Watchliste."
+
+msgid "Player {} is now on the watchlist."
+msgstr "Spieler {} ist jetzt auf der Watchliste."
+
+# /dcs unwatch
+msgid "Removes a player from the watchlist"
+msgstr "Löscht Spieler von der Watchliste"
+
+msgid "Player {} removed from the watchlist."
+msgstr "Spieler {} von der Watchliste gelöscht."
+
+# /dcs watchlist
+msgid "Shows the watchlist"
+msgstr "Zeigt die Watchliste an"
+
+msgid "The watchlist is currently empty."
+msgstr "Die Watchliste ist leer."
+
+msgid "These players are currently on the watchlist:"
+msgstr "Diese Spieler sind zurzeit auf der Watchliste:"
+
+msgid "UCIDs"
+msgstr "UCIDs"
+
+msgid "Names"
+msgstr "Namen"
+
+# /dcs update
+msgid "Update your DCS installations"
+msgstr "Aktualisiere die DCS-Installation"
+
+msgid "Time in seconds to warn users before shutdown"
+msgstr "Anzahl Sekunden, die User gewarnt werden sollen"
+
+msgid "Can't get version information from ED, possible auth-server outage!"
+msgstr "Potentieller Ausfall des ED-Update-Servers, keine Informationen erhältlich!"
+
+msgid "Your installed version {version} is the latest on branch {branch}."
+msgstr "Deine installierte Version {version} ist bereits die neueste auf dem Branch {branch}."
+
+msgid "Would you like to update from version {old_version} to {new_version}?\n"
+"All running DCS servers will be shut down!"
+msgstr "Möchtest Du von Version {old_version} nach Version {mew_version} updaten?\n"
+"Alle laufenden DCS-Server werden dafür heruntergefahren!"
+
+msgid "Updating DCS to version {}, please wait ..."
+msgstr "Aktualisiere DCS auf Version {}, bitte warten ..."
+
+msgid "DCS updated to version {version} on node {name}."
+msgstr "DCS wurde auf Node {node} auf Version {version} aktualisiert."
+
+msgid "Error while updating DCS on node {name}, code={rc}"
+msgstr "Fehler beim Aktualisieren von DCS auf Node {name}: Code={rc}"
+
+msgid "The update takes longer than 10 minutes, please check back regularly, if it has finished."
+msgstr "Dieses Update scheint länger zu brauchen. Bitte prüfe regelmäßig, ob es abgeschlossen ist."
+
+msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
+msgstr "Ich kann den Branch {} nicht aktualisieren. Du musst ggf. Deine DCS-Zugangsdaten in nodes.yaml hinterlegen."
+
+# /dec install
+msgid "Install modules in your DCS server"
+msgstr "Installiere DCS-Module"
+
+msgid "Shutdown all servers on node {} for the installation?"
+msgstr "Stoppe alle Server auf Node {} zur Installation des Moduls?"
+
+msgid "Module {module} installed on node {node}."
+msgstr "Das Modul {module} wurde auf dem Node {node} installiert."
+
+# /dcs uninstall
+msgid "Uninstall modules from your DCS server"
+msgstr "Deinstalliere DCS-Module"
+
+msgid "Shutdown all servers on node {} for the uninstallation?"
+msgstr "Stoppe alle Server auf dem Node {} zur Deinstallation?"
+
+msgid "Aborted."
+msgstr "Abgebrochen."
+
+msgid "Module {module} uninstalled on node {node}."
+msgstr "Das Modul {module} wurde auf dem Node {node} deinstalliert."
+
+# /download
+msgid "Download files from your server"
+msgstr "Lade Dateien vom Server herunter"
+
+msgid "File sent as a DM."
+msgstr "Datei als Privatnachricht gesendet."
+
+msgid "Here is your file:"
+msgstr "Hier ist Deine Datei:"
+
+msgid "File too large. You need a higher boost level for your server."
+msgstr "Die Datei ist zu groß. Du brauchst ggf. ein höheres Boost-Level für Deinen Server."
+
+msgid "File sent to the configured channel."
+msgstr "Die Datei wurde an den konfigurierten Discord-Kanal gesendet."
+
+msgid "File copied to the specified location."
+msgstr "Die Datei wurde an den konfigurierten Dateipfad kopiert."
+
+# /prune
+msgid "Prune unused data in the database"
+msgstr "Lösche Daten aus der Datenbank"
+
+msgid ":warning: Database Prune :warning:"
+msgstr ":warning: Datenbank Löschaktion! :warning:"
+
+msgid "You are going to delete data from your database. Be advised.\n\n"
+"Please select the data to be pruned:"
+msgstr "Achtung! Du bist im Begriff, Daten aus Deiner Datenbank unwiederbringlich zu löschen!"
+"Bitte selektiere die zu löschenden Daten:"
+
+msgid "We are going to delete all data of user {}. Are you sure?"
+msgstr "Alle Daten des Users {user} werden nun gelöscht. Bist Du sicher?"
+
+msgid "No players to prune."
+msgstr "Es wurden keine Spielerdaten zum Löschen gefunden."
+
+msgid "This will delete {} players incl. their stats from the database.\n"
+"Are you sure?"
+msgstr "Ich lösche nun die Daten und Statistiken von {} Spielern aus der Datenbank.\n"
+"Bist Du sicher?"
+
+msgid "This will delete all data older than {} days from the database.\n"
+"Are you sure?"
+msgstr "Ich lösche nun alle daten, die älter als {} Tage sind aus der Datenbank.\n"
+"Bist Du sicher?"
+
+msgid "All data older than {} days pruned."
+msgstr "Alle Daten älter als {} Tage wurden gelöscht."
+
+# /node
+msgid "Commands to manage your nodes"
+msgstr "Kommandos, um Deine Nodes zu administrieren"
+
+# /node statistics
+msgid "Statistics of your nodes"
+msgstr "Node-Statistiken"
+
+# /node list
+msgid "Status of all nodes"
+msgstr "Status Deiner Nodes"
+
+msgid "DCSServerBot Cluster Overview"
+msgstr "DCSServerBot Cluster-Übersicht"
+
+msgid "🆕 Update available"
+msgstr "🆕 Aktualisierung verfügbar"
+
+msgid "Instance"
+msgstr "Instanz"
+
+msgid "Server"
+msgstr "Server"
+
+msgid "Status"
+msgstr "Status"
+
+# /node upgrade / restart
+msgid "Do you want to {} all nodes?"
+msgstr "Möchtest Du alle Nodes {}"
+
+msgid "Do you want to {method} node {node}?"
+msgstr "Möchtest Du Node {node} {method}?"
+
+msgid "upgrade"
+msgstr "aktualisieren"
+
+msgid "shutdown"
+msgstr "herunterfahren"
+
+msgid "restart"
+msgstr "restarten"
+
+msgid "Node {node} - {method} sent."
+msgstr "Node {node} - {method} gesendet."
+
+msgid "All nodes are"
+msgstr "Alle Nodes werden"
+
+msgid "Master is"
+msgstr "Der Master wird"
+
+msgid " going to {} **NOW**."
+msgstr " **JETZT** {}"
+
+# /node shutdown
+msgid "Shuts a specific node down"
+msgstr "Fährt einen Node herunter"
+
+# /node restart
+msgid "Restarts a specific node"
+msgstr "Startet einen Node neu"
+
+# /node offline
+msgid "Shuts down all servers, enables maintenance"
+msgstr "Wartungsmodus für alle Server an"
+
+msgid "Node {} is now offline."
+msgstr "Node {} ist jetzt im Wartungsmodus."
+
+# /node online
+msgid "Clears the maintenance mode for all servers"
+msgstr "Wartungsmodus für alle Server aus"
+
+msgid "Node {} is now online."
+msgstr "Node {} ist wieder online."
+
+# /node upgrade
+msgid "Upgrade DCSServerBot"
+msgstr "Aktualisiere DCSServerBot"
+
+msgid "There is no upgrade available for "
+msgstr "Es gibt keine Aktualisierung für "
+
+msgid "your cluster"
+msgstr "Dein Cluster"
+
+msgid "node {}"
+msgstr "Node {}"
+
+msgid "You are trying to upgrade an agent node in a cluster. Are you really sure?"
+msgstr "Bist Du Dir sicher, dass Du einen Agenten-Node in einem Cluster updaten möchtest?"
+
+# /node shell
+msgid "Run a shell command on a node"
+msgstr "Führe einen Konsolenbefehl aus"
+
+msgid "```Command executed.```"
+msgstr "```Kommando ausgeführt.```"
+
+# /reload
+msgid "Reloads a plugin"
+msgstr "Lade ein Plugin neu"
+
+msgid "Plugin {} reloaded."
+msgstr "Plugin {} neu geladen."
+
+msgid "Plugin {} could not be reloaded, check the log for details."
+msgstr "Plugin {} konnte nicht geladen werden, bitte überprüfe das Logfile."
+
+msgid "All plugins reloaded."
+msgstr "Alle Plugins wurden neu geladen."
+
+msgid "One or more plugins could not be reloaded, check the log for details."
+msgstr "Ein oder mehrere Plugins konnten nicht geladen werden, bitte überprüfe das Logfile."
+
+# /node add_instance
+msgid "Add/create an instance\n"
+msgstr "Füge eine neue Instanz hinzu\n"
+
+msgid "Either select an existing instance or enter the name of a new one"
+msgstr "Wähle eine vorhanden Instanz aus oder gib den Namen für eine neue an."
+
+msgid "Take this instance configuration as a reference"
+msgstr "Nutze diese Instanz als Referenz"
+
+msgid "Instance created.\nDo you want to configure the server for this instance?"
+msgstr "Instanz angelegt.\nMöchtest Du einen Server für diese Instanz konfigurieren?"
+
+msgid "Server {server} assigned to instance {instance}."
+msgstr "Server {server} wurde der Instanz {instance} zugeordnet."
+
+msgid "Instance {} created blank with no server assigned."
+msgstr "Instanz {} wurde ohne Server-Zuordnung erstellt."
+
+msgid "Instance {instance} added to node {node}."
+"Please make sure you forward the following ports:"
+"```"
+"- DCS Port:    {dcs_port} (TCP/UDP)"
+"- WebGUI Port: {webgui_port} (TCP)"
+"```"
+msgstr "Instanz {instance} zum Node {node} hinzugefügt."
+"Bitte stelle sicher, dass Du folgende Port-Weiterleitungen einrichtest:"
+"```"
+"- DCS Port:    {dcs_port} (TCP/UDP)"
+"- WebGUI Port: {webgui_port} (TCP)"
+"```"
+
+msgid "Instance {instance} could not be added to node {node}, see log."
+msgstr "Instanz {instance} konnte nicht zum Node {node} hinzugefügt werden.\nBitte überprüfe das Logfile."
+
+# /node delete_instance
+msgid "Delete an instance\n"
+msgstr "Lösche eine Instanz\n"
+
+msgid "The instance is in use by server \"{}\".\n"
+"Please migrate this server to another node first."
+msgstr "Die Instanz wird zurzeit vom Server \"{}\" genutzt.\n"
+"Bitte migriere den Server zuerst auf einen anderen Node."
+
+msgid "Do you really want to delete instance {}?"
+msgstr "Möchtest Du Instanz {} wiklich löschen?"
+
+msgid "Do you want to remove the directory {}?"
+msgstr "Möchtest Du das Verzeichnis {} auch löschen?"
+
+msgid "Instance {instance} removed from node {node}."
+msgstr "Instanz {instance} wurde vom Node {node} gelöscht."
+
+# /node rename_instance
+msgid "Rename an instance\n"
+msgstr "Nenne eine Instanz um\n"
+
+msgid "Server {} has to be shut down before renaming the instance!"
+msgstr "Server {} muss zum Umbenennen heruntergefahren werden!"
+
+msgid "Do you really want to rename instance {}?"
+msgstr "Möchtest Du Instanz {} wirklich umbenennen?"
+
+msgid "Instance {old_name} renamed to {new_name}."
+msgstr "Instanz {old_name} umbenannt zu {new_name}."
+
+# Config upload
+msgid "To which server do you want to upload this configuration to?"
+msgstr "Auf welchen Server soll diese Konfigurationsdatei geladen werden?"
+
+msgid "Error while uploading file to node {}!"
+msgstr "Fehler beim Upload auf Node {}!"
+
+msgid "Error while reading file from discord."
+msgstr "Fehler beim Laden von Discord."
+
+msgid "Plugin {} re-loaded."
+msgstr "Plugin {} wurde neu geladen."
+
+msgid "To apply the new config by restarting a node or the whole cluster, use `/node restart`"
+msgstr "Um die neue Konfiguration zu laden, nutze `/node restart`"
