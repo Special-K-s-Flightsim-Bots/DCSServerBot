@@ -206,7 +206,7 @@ class Help(Plugin):
             if x != 'help'
         ]
         view = self.HelpView(self.bot, interaction, options)
-        if command:
+        if cmd:
             try:
                 embed = await view.print_command(interaction, name=cmd)
                 if embed:
