@@ -199,7 +199,7 @@ class InfoView(View):
         button = Button(label="Cancel", style=discord.ButtonStyle.red)
         button.callback = self.on_cancel
         self.add_item(button)
-        report = Report(self.bot, 'userstats', 'info.json')
+        report = Report(self.bot, 'mission', 'info.json')
         env = await report.render(member=self.member, player=self.player, banned=banned, watchlist=watchlist)
         return env.embed
 
