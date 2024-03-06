@@ -72,7 +72,7 @@ _ = get_translation('core')
 
 class NodeImpl(Node):
 
-    def __init__(self, name: str, config_dir: Optional[str] = './config'):
+    def __init__(self, name: str, config_dir: Optional[str] = 'config'):
         super().__init__(name, config_dir)
         self.node = self  # to be able to address self.node
         self._public_ip: Optional[str] = None

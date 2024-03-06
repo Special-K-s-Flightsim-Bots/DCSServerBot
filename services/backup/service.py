@@ -64,7 +64,7 @@ class BackupService(Service):
         filename = "bot_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
         zf = ZipFile(os.path.join(target, filename), mode="w")
         try:
-            for directory in config.get('directories', ['config', 'reports']):
+            for directory in config.get('directories', [self.node.config_dir, 'reports']):
                 self.zip_path(zf, "", directory)
             self.log.info("Backup of DCSServerBot complete.")
             return True

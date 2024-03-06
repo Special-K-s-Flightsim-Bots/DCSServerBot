@@ -2,21 +2,23 @@ import asyncio
 import discord
 import os
 import psycopg
+import random
 import re
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus
+    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory
 from datetime import datetime, timezone
-from discord import Interaction, app_commands
+from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
 from pathlib import Path
+from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Optional
+from typing import Optional, Union, Literal
 
 from .listener import MissionEventListener
-from .views import ServerView, PresetView
+from .views import ServerView, PresetView, InfoView
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -68,7 +70,7 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
     try:
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x.name[:-5], value=str(x))
-            for x in Path('config').glob('presets*.yaml')
+            for x in Path(interaction.client.node.config_dir).glob('presets*.yaml')
             if not current or current.casefold() in x.name[:-5].casefold()
         ]
         return choices[:25]
@@ -84,12 +86,56 @@ class Mission(Plugin):
         self.update_channel_name.start()
         self.afk_check.start()
         self.check_for_unban.start()
+        self.expire_token.add_exception_type(psycopg.DatabaseError)
+        self.expire_token.start()
 
     async def cog_unload(self):
+        self.expire_token.cancel()
         self.check_for_unban.cancel()
         self.afk_check.cancel()
         self.update_channel_name.cancel()
         await super().cog_unload()
+
+    def migrate(self, version: str) -> None:
+        if version == '3.6':
+            filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
+            if not os.path.exists(filename):
+                return
+            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+
+            def migrate_instance(cfg: dict) -> dict:
+                ret = {}
+                for name, instance in cfg.items():
+                    if 'greeting_message_members' in instance:
+                        if name not in ret:
+                            ret[name] = {}
+                        ret[name]['greeting_message_members'] = instance['greeting_message_members']
+                    if 'greeting_message_unmatched' in instance:
+                        if name not in ret:
+                            ret[name] = {}
+                        ret[name]['greeting_message_unmatched'] = instance['greeting_message_unmatched']
+                return ret
+
+            dirty = False
+            if self.node.name in data:
+                for node_name, node in data.items():
+                    result = migrate_instance(node)
+                    if result:
+                        dirty = True
+                        if node_name not in self.locals:
+                            self.locals[node_name] = result
+                        else:
+                            self.locals[node_name] |= result
+            else:
+                result = migrate_instance(data)
+                if result:
+                    dirty = True
+                    self.locals |= result
+            if dirty:
+                path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+                with open(path, mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(self.locals, outfile)
+                self.log.warning(f"New file {path} written, please check for possible errors.")
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -174,7 +220,7 @@ class Mission(Plugin):
     async def briefing(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[Status.RUNNING, Status.PAUSED])]):
-        async def read_passwords(server: Server) -> dict:
+        async def read_passwords() -> dict:
             async with self.apool.connection() as conn:
                 cursor = await conn.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
                                             (server.name,))
@@ -519,7 +565,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(filename, [utils.get_preset(x) for x in view.result])
+            new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
@@ -655,18 +701,13 @@ class Mission(Plugin):
                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
 
-        class BanModal(Modal):
+        class BanModal(Modal, title="Ban Details"):
             reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
             period = TextInput(label="Days (empty = forever)", required=False)
 
-            def __init__(self, server: Server, player: Player):
-                super().__init__(title="Ban Details")
-                self.server = server
-                self.player = player
-
             async def on_submit(derived, interaction: discord.Interaction):
                 days = int(derived.period.value) if derived.period.value else None
-                await self.bus.ban(derived.player.ucid, interaction.user.display_name, derived.reason.value, days)
+                await self.bus.ban(player.ucid, interaction.user.display_name, derived.reason.value, days)
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Player {player.display_name} banned on all servers " +
                                                         (f"for {days} days." if days else ""),
@@ -678,7 +719,7 @@ class Mission(Plugin):
             await interaction.response.send_message("Player not found.", ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(BanModal(server, player))
+        await interaction.response.send_modal(BanModal())
 
     @player.command(description='Moves a player to spectators')
     @app_commands.guild_only()
@@ -815,6 +856,364 @@ class Mission(Plugin):
         server.sendPopupMessage(group, message, time, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
+
+    @command(description="Links a member to a DCS user")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(ucid="user")
+    async def link(self, interaction: discord.Interaction, member: discord.Member,
+                   ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER, linked=False)]
+                   ):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if isinstance(ucid, discord.Member):
+            if ucid == member:
+                await interaction.followup.send("This member is linked to this UCID already.", ephemeral=ephemeral)
+                return
+            else:
+                _member = ucid
+                ucid = await self.bot.get_ucid_by_member(ucid)
+        else:
+            _member = self.bot.get_member_by_ucid(ucid)
+        if _member and not await utils.yn_question(interaction,
+                                                   f"Member {_member.display_name} is linked to UCID {ucid} already. "
+                                                   f"Do you want to relink?",
+                                                   ephemeral=ephemeral):
+            return
+        _ucid = await self.bot.get_ucid_by_member(member)
+        if _ucid and not await utils.yn_question(interaction,
+                                                 f"Member {member.display_name} is linked to UCID {_ucid} already. "
+                                                 f"Do you want to relink?",
+                                                 ephemeral=ephemeral):
+            return
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                # delete an old mapping, if one existed
+                await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s',
+                                   (member.id, ))
+                await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                   (member.id, ucid))
+                # delete a token, if one existed
+                await conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
+        await interaction.followup.send(f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}',
+                                        ephemeral=utils.get_ephemeral(interaction))
+        await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
+                             user=interaction.user)
+        # check if they are an active player on any of our servers
+        for server_name, server in self.bot.servers.items():
+            player = server.get_player(ucid=ucid)
+            if player:
+                player.member = member
+                player.verified = True
+                break
+            else:
+                server.send_to_dcs({
+                    'command': 'uploadUserRoles',
+                    'ucid': ucid,
+                    'roles': [x.id for x in member.roles]
+                })
+
+    @command(description='Unlinks a member or ucid')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(user='Name of player, member or UCID')
+    async def unlink(self, interaction: discord.Interaction,
+                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
+
+        async def unlink_member(member: discord.Member, ucid: str):
+            await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
+            await interaction.followup.send(
+                f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
+                ephemeral=ephemeral)
+            await self.bot.audit(
+                f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
+                user=interaction.user)
+
+        async def clear_user_roles(ucid: str):
+            # change the link status of that member if they are an active player
+            for server_name, server in self.bot.servers.items():
+                player = server.get_player(ucid=ucid)
+                if player:
+                    player.member = None
+                    player.verified = False
+                else:
+                    server.send_to_dcs({
+                        'command': 'uploadUserRoles',
+                        'ucid': ucid,
+                        'roles': []
+                    })
+
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                if isinstance(user, discord.Member):
+                    cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
+                    rows = await cursor.fetchall()
+                    for row in rows:
+                        ucid = row[0]
+                        await clear_user_roles(ucid)
+                        await unlink_member(user, ucid, ephemeral)
+                elif utils.is_ucid(user):
+                    ucid = user
+                    member = self.bot.get_member_by_ucid(ucid)
+                    if not member:
+                        await interaction.followup.send('Player is not linked!', ephemeral=True)
+                        return
+                    await unlink_member(member, ucid, ephemeral)
+                    await clear_user_roles(ucid)
+                else:
+                    await interaction.followup.send('Unknown player / member provided', ephemeral=True)
+                    return
+
+    @player.command(description='Find a player by name')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def find(self, interaction: discord.Interaction, name: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT distinct ucid, name, max(last_seen) FROM (
+                    SELECT ucid, name, last_seen FROM players
+                    UNION
+                    SELECT distinct ucid, name, time AS last_seen FROM players_hist
+                ) x
+                WHERE x.name ILIKE %s
+                GROUP BY ucid, name
+                ORDER BY 3 DESC
+                LIMIT 25
+            """, ('%' + name + '%', ))
+            rows = await cursor.fetchall()
+            options = [
+                SelectOption(label=f"{row[1]} (last seen: {row[2]:%Y-%m-%d %H:%M})"[:100], value=str(idx))
+                for idx, row in enumerate(rows)
+            ]
+            if not options:
+                await interaction.followup.send("No user found.")
+                return
+            idx = await utils.selection(interaction, placeholder="Select a User", options=options, ephemeral=ephemeral)
+            if idx:
+                await self._info(interaction, rows[int(idx)][0])
+
+    @player.command(description='Shows player information')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def info(self, interaction: discord.Interaction,
+                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+        await self._info(interaction, member)
+
+    async def _info(self, interaction: discord.Interaction, member: Union[discord.Member, str]):
+        if not member:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("This user does not exist. Try `/find` to find them in the "
+                                                    "historic data.", ephemeral=True)
+            return
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        if not interaction.response.is_done():
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer(ephemeral=ephemeral)
+        if isinstance(member, str):
+            ucid = member
+            member = self.bot.get_member_by_ucid(ucid)
+        player: Optional[Player] = None
+        for server in self.bot.servers.values():
+            if isinstance(member, discord.Member):
+                player = server.get_player(discord_id=member.id, active=True)
+            else:
+                player = server.get_player(ucid=ucid, active=True)
+            if player:
+                break
+        else:
+            server = None
+
+        view = InfoView(member=member or ucid, bot=self.bot, ephemeral=ephemeral, player=player, server=server)
+        embed = await view.render()
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+        try:
+            await view.wait()
+        finally:
+            await msg.delete()
+
+    @staticmethod
+    def format_unmatched(data, _, __):
+        embed = discord.Embed(title='Unlinked Players', color=discord.Color.blue())
+        embed.description = 'These players could be possibly linked:'
+        ids = players = members = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            players += "{}\n".format(utils.escape_string(data[i]['name']))
+            members += f"{data[i]['match'].display_name}\n"
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='DCS Player', value=players)
+        embed.add_field(name='Member', value=members)
+        embed.set_footer(text='Press a number to link this specific user.')
+        return embed
+
+    @command(description='Show players that could be linked')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def linkcheck(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(thinking=True)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # check all unmatched players
+                unmatched = []
+                await cursor.execute("""
+                    SELECT ucid, name FROM players 
+                    WHERE discord_id = -1 AND name IS NOT NULL 
+                    ORDER BY last_seen DESC
+                                """)
+                async for row in cursor:
+                    matched_member = self.bot.match_user(dict(row), True)
+                    if matched_member:
+                        unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
+            if len(unmatched) == 0:
+                await interaction.followup.send('No unmatched member could be matched.', ephemeral=True)
+                return
+        n = await utils.selection_list(self.bot, interaction, unmatched, self.format_unmatched)
+        if n != -1:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                       (unmatched[n]['match'].id, unmatched[n]['ucid']))
+                    await self.bot.audit(
+                        f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
+                        user=interaction.user)
+                    await interaction.followup.send(
+                        "DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
+                                                                    unmatched[n]['match'].display_name),
+                        ephemeral=True)
+
+    @staticmethod
+    def format_suspicious(data, _, __):
+        embed = discord.Embed(title='Possibly Mislinked Players', color=discord.Color.blue())
+        embed.description = 'These players could be possibly mislinked:'
+        ids = players = members = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            players += f"{data[i]['name']}\n"
+            members += f"{data[i]['mismatch'].display_name}\n"
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='DCS Player', value=players)
+        embed.add_field(name='Member', value=members)
+        embed.set_footer(text='Press a number to unlink this specific user.')
+        return embed
+
+    @command(description='Show possibly mislinked players')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def mislinks(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(thinking=True)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # check all matched members
+                suspicious = []
+                for member in self.bot.get_all_members():
+                    # ignore bots
+                    if member.bot:
+                        continue
+                    await cursor.execute("""
+                        SELECT ucid, name FROM players 
+                        WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE 
+                        ORDER BY last_seen DESC
+                    """, (member.id, ))
+                    async for row in cursor:
+                        matched_member = self.bot.match_user(dict(row), True)
+                        if not matched_member:
+                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
+                        elif matched_member.id != member.id:
+                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member,
+                                               "match": matched_member})
+                if len(suspicious) == 0:
+                    await interaction.followup.send('No mislinked players found.', ephemeral=True)
+                    return
+        n = await utils.selection_list(self.bot, interaction, suspicious, self.format_suspicious)
+        if n != -1:
+            ephemeral = utils.get_ephemeral(interaction)
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                                       (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
+                                        'match' in suspicious[n], suspicious[n]['ucid']))
+                    await self.bot.audit(
+                        f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
+                        user=interaction.user)
+                    if 'match' in suspicious[n]:
+                        await self.bot.audit(
+                            f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
+                            user=interaction.user)
+                        await interaction.followup.send(
+                            f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member "
+                            f"{suspicious[n]['match'].display_name}.", ephemeral=ephemeral)
+                    else:
+                        await interaction.followup.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.",
+                                                        ephemeral=ephemeral)
+
+    @command(description='Link your DCS and Discord user')
+    @app_commands.guild_only()
+    async def linkme(self, interaction: discord.Interaction):
+        async def send_token(token: str):
+            await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
+                                            f"following into the DCS chat of one of our servers:"
+                                            f"```{self.eventlistener.prefix}linkme {token}```\n"
+                                            f"**The TOKEN will expire in 2 days.**", ephemeral=True)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=True)
+        member = DataObjectFactory().new('Member', node=self.node, member=interaction.user)
+        if (utils.is_ucid(member.ucid) and member.verified and
+                not await utils.yn_question(interaction,
+                                            "You already have a verified DCS account!\n"
+                                            "Are you sure you want to re-link your account? "
+                                            "(Ex: Switched from Steam to Standalone)", ephemeral=True)):
+            await interaction.followup.send('Aborted.')
+            return
+        elif member.ucid and not utils.is_ucid(member.ucid):
+            await send_token(member.ucid)
+            return
+
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor() as cursor:
+                    # in the very unlikely event that we have generated the very same random number twice
+                    while True:
+                        try:
+                            token = str(random.randrange(1000, 9999))
+                            await cursor.execute("""
+                                INSERT INTO players (ucid, discord_id, last_seen) 
+                                VALUES (%s, %s, NOW())
+                            """, (token, interaction.user.id))
+                            break
+                        except psycopg.DatabaseError:
+                            pass
+            await send_token(token)
+
+    @player.command(description='Shows inactive users')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def inactive(self, interaction: discord.Interaction, period: Literal['days', 'weeks', 'months', 'years'],
+                       number: Range[int, 1]):
+        report = Report(self.bot, self.plugin_name, 'inactive.json')
+        env = await report.render(period=f"{number} {period}")
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+
+    @tasks.loop(hours=1)
+    async def expire_token(self):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    DELETE FROM players 
+                    WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(now() AT TIME ZONE 'utc') - interval '2 days')
+                """)
 
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):

@@ -46,7 +46,7 @@ class FatalException(Exception):
 
 class Node:
 
-    def __init__(self, name: str, config_dir: Optional[str] = './config'):
+    def __init__(self, name: str, config_dir: Optional[str] = 'config'):
         self.name = name
         self.config_dir = config_dir
         self.instances: list[Instance] = list()

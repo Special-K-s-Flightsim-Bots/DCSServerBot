@@ -14,7 +14,7 @@ class Preset(VotableItem):
         return f"You can now vote to change the preset of this server."
 
     def get_choices(self) -> list[str]:
-        return ['No Change'] + list(self.config.get('choices', utils.get_presets()))
+        return ['No Change'] + list(self.config.get('choices', utils.get_presets(self.server.node)))
 
     async def execute(self, winner: str):
         if winner == 'No Change':
@@ -26,7 +26,7 @@ class Preset(VotableItem):
         filename = await self.server.get_current_mission_file()
         if not self.server.node.config.get('mission_rewrite', True):
             await self.server.stop()
-        new_filename = await self.server.modifyMission(filename, utils.get_preset(winner))
+        new_filename = await self.server.modifyMission(filename, utils.get_preset(self.server.node, winner))
         if new_filename != filename:
             await self.server.replaceMission(int(self.server.settings['listStartIndex']), new_filename)
         await self.server.restart(modify_mission=False)

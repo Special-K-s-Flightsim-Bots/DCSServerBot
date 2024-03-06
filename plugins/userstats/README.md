@@ -1,5 +1,5 @@
 # Plugin "UserStats"
-DCSServerBot comes with a built-in, database driven statistics system. It allows either users to show their own 
+DCSServerBot comes with a built-in, database driven statistics system. It allows users to show their own 
 achievements like k/d-ratio, flighttimes per module, server or map, etc. For server owners, it allows you to see which 
 of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. 
 public players).
@@ -10,8 +10,6 @@ The plugin can be configured via yaml in config/plugins/userstats.yaml. If such 
 ```yaml
 DEFAULT:
   wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
-  greeting_message_members: "{player.name}, welcome back to {server.name}!"
-  greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:
@@ -34,25 +32,12 @@ instance2:
   enabled: false  # we disable statistics gathering on instance2
 ```
 
-## User Linking
-It is recommended that your users link their Discord ID to their UCID (DCS World ID). The bot can try to do that by 
-itself (bot.yaml: `automatch: true`), but might fail, especially, when the in-game names and Discord names of users differ a lot.
-> Users can generate a unique TOKEN that is being sent as a DM with the ```/linkme``` command.<br>
-> The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
-
 ## Discord Commands
 
 | Command             | Parameter         | Channel       | Role           | Description                                                                                         |
 |---------------------|-------------------|---------------|----------------|-----------------------------------------------------------------------------------------------------|
 | /statistics         | [user] [period]   | all           | DCS            | Display your own statistics or that of a specific user. A period can be supplied.                   |
 | /highscore          | [server] [period] | all           | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)   |
-| /link               | @member player    | all           | DCS Admin      | Sometimes users can't be linked automatically. This is the manual workaround.                       |
-| /unlink             | user              | all           | DCS Admin      | Unlink a member from a ucid / ucid from a user, if the automatic linking made a mistake.            |
-| /info               | user              | all           | DCS Admin      | Displays information about that user and let you (un)ban, kick or unlink them.                      |  
-| /linkcheck          |                   | all           | DCS Admin      | Checks if a DCS user could be matched to a member.                                                  |
-| /mislinks           |                   | all           | DCS Admin      | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!). |
-| /linkme             |                   | all           | DCS            | Link a discord user to a DCS user (user self-service).                                              |
-| /inactive           | period number     | admin-channel | DCS Admin      | Show users that are inactive for a specific amount of time.                                         |
 | /reset_statistics   | [server]          | admin-channel | Admin          | Deletes the statistics. If a server is provided, only this server is affected.                      |
 | /delete_statistics  | [user]            | all           | DCS, DCS Admin | Lets a user delete their own statistics, or an DCS Admin do it for any user.                        |
 

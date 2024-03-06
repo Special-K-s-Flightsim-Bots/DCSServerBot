@@ -391,6 +391,24 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             await player.update(data)
+        # greet the player
+        if not player.member:
+            # only warn for unknown users if it is a non-public server and automatch is on
+            if self.bot.locals.get('automatch', True) and server.settings['password']:
+                await self.bot.get_admin_channel(server).send(
+                    f"Player {player.name} (ucid={player.ucid}) can't be matched to a discord user.")
+            player.sendChatMessage(self.get_config(server).get(
+                'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
+                                              'if you want to see your user stats!').format(server=server,
+                                                                                            player=player))
+            # only warn for unknown users if it is a non-public server and automatch is on
+            if self.bot.locals.get('automatch', True) and server.settings['password']:
+                await self.bot.get_admin_channel(server).send(
+                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
+        else:
+            player.sendChatMessage(self.get_config(server).get(
+                'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,
+                                                                                                    server=server))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
@@ -602,6 +620,55 @@ class MissionEventListener(EventListener):
                              (f' with reason "{reason}".' if reason != 'n/a' else '.'),
                              user=player.member)
 
+    @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
+    async def linkme(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(f"Syntax: {self.prefix}linkme token\nYou get the token with /linkme in our Discord.")
+            return
+
+        token = params[0]
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
+                row = await cursor.fetchone()
+                if not row:
+                    player.sendChatMessage('Invalid token.')
+                    await self.bot.get_admin_channel(server).send(
+                        f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
+                else:
+                    discord_id = row[0]
+                    member = DataObjectFactory().new('Member', node=self.node,
+                                                     member=self.bot.guilds[0].get_member(discord_id))
+
+                    old_ucid = member.ucid if member.verified else None
+                    if old_ucid:
+                        member.ucid = player.ucid
+                    else:
+                        player.member = member.member
+                    member.verified = True
+                    await conn.execute('DELETE FROM players WHERE ucid = %s', (token,))
+                    # If autorole is enabled, give the user the DCS role:
+                    if self.bot.locals.get('autorole', '') == 'linkme':
+                        role = self.bot.roles['DCS'][0]
+                        if role != '@everyone':
+                            try:
+                                await player.member.add_roles(self.bot.get_role(role))
+                            except discord.Forbidden:
+                                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+                    # make sure we update all tables with the new UCID
+                    if old_ucid and old_ucid != player.ucid:
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.update_ucid(conn, old_ucid, player.ucid)
+                        await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)
+                        player.sendChatMessage('Your account has been updated.')
+                    elif not old_ucid:
+                        await self.bot.audit(
+                            f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                            user=player.member)
+                        player.sendChatMessage('Your user has been linked.')
+                    else:
+                        player.sendChatMessage('Your user was linked already!')
+
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
@@ -621,7 +688,7 @@ class MissionEventListener(EventListener):
             filename = await server.get_current_mission_file()
             if not server.node.config.get('mission_rewrite', True):
                 await server.stop()
-            new_filename = await server.modifyMission(filename, utils.get_preset(preset))
+            new_filename = await server.modifyMission(filename, utils.get_preset(self.node, preset))
             if new_filename != filename:
                 await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
             await server.restart(modify_mission=False)
@@ -629,7 +696,7 @@ class MissionEventListener(EventListener):
                 await server.start()
             await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
 
-        presets = list(utils.get_presets())
+        presets = list(utils.get_presets(self.node))
         if presets:
             if not params:
                 message = 'The following presets are available:\n'

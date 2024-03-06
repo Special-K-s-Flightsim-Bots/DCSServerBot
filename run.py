@@ -108,7 +108,7 @@ if __name__ == "__main__":
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
-    parser.add_argument('-c', '--config', help='Path to configuration', default='./config')
+    parser.add_argument('-c', '--config', help='Path to configuration', default='config')
     args = parser.parse_args()
     config_dir = args.config
     # Call the DCSServerBot 2.x migration utility

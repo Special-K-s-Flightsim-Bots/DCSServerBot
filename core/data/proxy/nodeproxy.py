@@ -15,7 +15,7 @@ __all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: Any, name: str, public_ip: str, config_dir: Optional[str] = './config'):
+    def __init__(self, local_node: Any, name: str, public_ip: str, config_dir: Optional[str] = 'config'):
         super().__init__(name, config_dir)
         self.local_node = local_node
         self.pool = self.local_node.pool

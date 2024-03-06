@@ -201,6 +201,7 @@ function mission.onPlayerConnect(id)
         id = id,
         name = net.get_player_info(id, 'name'),
         ucid = net.get_player_info(id, 'ucid'),
+        ipaddr = utils.getIP(net.get_player_info(plist[i], 'ipaddr')),
         side = 0
     }
     -- server user is never active
