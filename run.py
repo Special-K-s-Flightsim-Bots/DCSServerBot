@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import asyncio
 import os
 import platform
@@ -8,7 +7,7 @@ import psycopg
 import sys
 import traceback
 
-from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException
+from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException, COMMAND_LINE_ARGS
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError
@@ -29,6 +28,11 @@ class Main:
         # check for updates
         if self.no_autoupdate:
             autoupdate = False
+            # remove the exec parameter, to allow restart/update of the node
+            if '--x' in sys.argv:
+                sys.argv.remove('--x')
+            elif '--noupdate' in sys.argv:
+                sys.argv.remove('--noupdate')
         else:
             autoupdate = self.node.locals.get('autoupdate', self.node.config.get('autoupdate', False))
 
@@ -104,20 +108,16 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
 
-    parser = argparse.ArgumentParser(prog='run.py', description="Welcome to DCSServerBot!",
-                                     epilog='If unsure about the parameters, please check the documentation.')
-    parser.add_argument('-n', '--node', help='Node name', default=platform.node())
-    parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
-    parser.add_argument('-c', '--config', help='Path to configuration', default='config')
-    args = parser.parse_args()
-    config_dir = args.config
+    # get the command line args from core
+    args = COMMAND_LINE_ARGS
+
     # Call the DCSServerBot 2.x migration utility
-    if os.path.exists(os.path.join(config_dir, 'dcsserverbot.ini')):
+    if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):
         migrate(node=args.node)
     try:
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                node = NodeImpl(name=args.node, config_dir=config_dir)
+                node = NodeImpl(name=args.node, config_dir=args.config)
             except FatalException:
                 Install(node=args.node).install()
                 node = NodeImpl(name=args.node)

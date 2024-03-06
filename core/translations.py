@@ -1,6 +1,7 @@
 import gettext
 import os
 
+from core.commandline import COMMAND_LINE_ARGS
 from pathlib import Path
 
 # ruamel YAML support
@@ -9,23 +10,21 @@ yaml = YAML()
 
 
 __all__ = [
-    "language",
     "get_translation"
 ]
 
 
-language = None
+_language = None
 
 
 def get_translation(domain):
-    translation = gettext.translation(domain, localedir='locale', languages=[language], fallback=True)
+    translation = gettext.translation(domain, localedir='locale', languages=[_language], fallback=True)
     return translation.gettext
 
 
-if not language:
+if not _language:
     try:
-        config = yaml.load(Path(os.path.join('config', 'main.yaml')))
-        language = config.get('language', 'en_US')
+        config = yaml.load(Path(os.path.join(COMMAND_LINE_ARGS.config, 'main.yaml')))
+        _language = config.get('language', 'en_US')
     except FileNotFoundError:
-        language = 'en_US'
-#    set_language()
+        _language = 'en_US'

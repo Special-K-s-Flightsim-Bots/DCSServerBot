@@ -22,7 +22,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-_ = get_translation('admin')
+_ = get_translation(__name__.split('.')[1])
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:

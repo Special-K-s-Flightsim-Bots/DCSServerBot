@@ -2,7 +2,7 @@ import discord
 import os
 import re
 
-from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError
+from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError, get_translation
 from discord import app_commands
 from pathlib import Path
 from services import DCSServerBot
@@ -12,6 +12,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 async def backup_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -63,7 +65,7 @@ class Backup(Plugin):
         except (ParserError, ScannerError) as ex:
             raise YAMLError('config/services/backup.yaml', ex)
 
-    @command(description='Backup your data')
+    @command(description=_('Backup your data'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(what=backup_autocomplete)
@@ -81,12 +83,12 @@ class Backup(Plugin):
                 "method": f"backup_{what}"
             }, node=node.name, timeout=300)
             assert rc['return'] is True
-            await interaction.followup.send(f"Backup of {what} completed.", ephemeral=ephemeral)
+            await interaction.followup.send(_("Backup of {} completed.").format(what.title()), ephemeral=ephemeral)
         except Exception:
-            await interaction.followup.send(f"Backup of {what} failed. Please check log for details",
-                                            ephemeral=ephemeral)
+            await interaction.followup.send(
+                _("Backup of {} failed. Please check log for details.").format(what.title()), ephemeral=ephemeral)
 
-    @command(description='Recover your data from an existing backup')
+    @command(description=_('Recover your data from an existing backup'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(what=backup_autocomplete)
@@ -96,11 +98,13 @@ class Backup(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if what == 'database' and not node.master:
             node = self.node
-        if not await utils.yn_question(interaction, f"I am going to recover your {what} from {date}.\n"
-                                                    f"This will delete **ALL** data that was there before.\n"
-                                                    f"Are you 100% sure that you want to do that?",
+        if not await utils.yn_question(interaction,
+                                       _("I am going to recover your {what} from {date}.\n"
+                                         "This will delete **ALL** data that was there before.\n"
+                                         "Are you 100% sure that you want to do that?").format(what=what.title(),
+                                                                                               date=date),
                                        ephemeral=ephemeral):
-            await interaction.followup.send("Aborted.", ephemeral=ephemeral)
+            await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
         try:
             rc = await self.bus.send_to_node_sync({
@@ -112,10 +116,10 @@ class Backup(Plugin):
                 }
             }, node=node.name, timeout=300)
             assert rc['return'] is True
-            await interaction.followup.send(f"Recovery of {what} completed.", ephemeral=ephemeral)
+            await interaction.followup.send(_("Recovery of {} completed.").format(what.title()), ephemeral=ephemeral)
         except Exception:
-            await interaction.followup.send(f"Recovery of {what} failed. Please check log for details",
-                                            ephemeral=ephemeral)
+            await interaction.followup.send(
+                _("Recovery of {} failed. Please check log for details.").format(what.title()), ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

@@ -13,7 +13,7 @@ from typing import cast, Optional, Literal
 
 from .listener import HelpListener
 
-_ = get_translation('help')
+_ = get_translation(__name__.split('.')[1])
 
 
 @cache
