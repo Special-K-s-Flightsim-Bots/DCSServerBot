@@ -231,7 +231,10 @@ class MissionEventListener(EventListener):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()')
+                await cursor.execute("""
+                    SELECT ucid, reason, banned_until 
+                    FROM bans WHERE banned_until > (NOW() AT TIME ZONE 'utc')
+                """)
                 server.send_to_dcs({
                    "command": "ban",
                    "batch": [
