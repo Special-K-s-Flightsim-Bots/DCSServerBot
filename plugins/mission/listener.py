@@ -261,10 +261,8 @@ class MissionEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # the server is starting up
-        # if not data['channel'].startswith('sync-'):
-        #    return
-        await self._update_bans(server)
+        if data['channel'].startswith('sync-'):
+            await self._update_bans(server)
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
@@ -312,6 +310,7 @@ class MissionEventListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        await self._update_bans(server)
         await self._update_mission(server, data)
         self.display_mission_embed(server)
 
