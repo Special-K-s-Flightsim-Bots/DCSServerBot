@@ -34,11 +34,11 @@ class SlotBlockingListener(EventListener):
             if not roles:
                 return
             # get all linked members
-            batch = []
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("""
-                     SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
+                         SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
                 """)
+                batch = []
                 async for row in cursor:
                     member = guild.get_member(row[1])
                     if not member:
@@ -48,7 +48,13 @@ class SlotBlockingListener(EventListener):
                             'ucid': row[0],
                             'roles': [x.id for x in member.roles]
                         })
-            server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
+                    if len(batch) >= 25:
+                        server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
+                        batch = []
+
+                # Send remaining users, if any
+                if batch:
+                    server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
