@@ -235,17 +235,26 @@ class MissionEventListener(EventListener):
                     SELECT ucid, reason, banned_until 
                     FROM bans WHERE banned_until > (NOW() AT TIME ZONE 'utc')
                 """)
-                server.send_to_dcs({
-                   "command": "ban",
-                   "batch": [
-                       {
-                           "ucid": ban['ucid'],
-                           "reason": ban['reason'],
-                           "banned_until": _get_until(ban['banned_until'])
-                       }
-                       async for ban in cursor
-                    ]
-                })
+                batch = []
+                async for ban in cursor:
+                    batch.append({
+                        "ucid": ban['ucid'],
+                        "reason": ban['reason'],
+                        "banned_until": _get_until(ban['banned_until'])
+                    })
+                    if len(batch) >= 25:
+                        server.send_to_dcs({
+                            "command": "ban",
+                            "batch": batch
+                        })
+                        batch = []
+
+                # send the remaining bans (if any) in the last batch
+                if batch:
+                    server.send_to_dcs({
+                        "command": "ban",
+                        "batch": batch
+                    })
 
     async def _watchlist_alert(self, server: Server, player: Player):
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
