@@ -236,7 +236,7 @@ class MissionEventListener(EventListener):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()')
+                await cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until > NOW()')
                 server.send_to_dcs({
                    "command": "ban",
                    "batch": [
@@ -266,10 +266,8 @@ class MissionEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # the server is starting up
-        # if not data['channel'].startswith('sync-'):
-        #    return
-        await self._update_bans(server)
+        if data['channel'].startswith('sync-'):
+            await self._update_bans(server)
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
@@ -317,6 +315,7 @@ class MissionEventListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        await self._update_bans(server)
         await self._update_mission(server, data)
         self.display_mission_embed(server)
 
@@ -362,6 +361,9 @@ class MissionEventListener(EventListener):
             return
         self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         player: Player = server.get_player(ucid=data['ucid'])
+        if player.is_banned():
+            server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
+            return
         if not player or player.id == 1:
             player: Player = DataObjectFactory().new(
                 Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],

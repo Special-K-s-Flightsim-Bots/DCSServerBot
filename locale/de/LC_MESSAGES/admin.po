@@ -26,6 +26,9 @@ msgstr "Sperr-Details"
 msgid "Member {} is not linked!"
 msgstr "Spieler {} hat seine Accounts nicht verknüpft!"
 
+msgid "{} is not a valid UCID!"
+msgstr "{} ist keine gültige UCID!"
+
 msgid "Player {} banned on all servers"
 msgstr "Spieler {} ist auf allen Servern gesperrt"
 

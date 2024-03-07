@@ -167,6 +167,7 @@ class Admin(Plugin):
                 self.user = user
 
             async def on_submit(derived, interaction: discord.Interaction):
+                ephemeral = utils.get_ephemeral(interaction)
                 days = int(derived.period.value) if derived.period.value else None
                 if isinstance(derived.user, discord.Member):
                     ucid = await self.bot.get_ucid_by_member(derived.user)
@@ -176,7 +177,7 @@ class Admin(Plugin):
                             _("Member {} is not linked!").format(derived.user.display_name), ephemeral=True)
                         return
                     name = derived.user.display_name
-                else:
+                elif utils.is_ucid(derived.user):
                     ucid = derived.user
                     # check if we should ban a member
                     name = await self.bot.get_member_or_name_by_ucid(ucid)
@@ -184,11 +185,15 @@ class Admin(Plugin):
                         name = name.display_name
                     elif not name:
                         name = ucid
+                else:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_("{} is not a valid UCID!", ephemeral=ephemeral))
+                    return
                 await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(_("Player {} banned on all servers").format(name) +
                                                         (_(" for {} days.").format(days) if days else "."),
-                                                        ephemeral=utils.get_ephemeral(interaction))
+                                                        ephemeral=ephemeral)
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
                                      (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
 

@@ -596,6 +596,7 @@ class ServiceBus(Service):
                     self.log.debug(
                         f"Command {data['command']} for unregistered server {server_name} received, ignoring.")
                     return
+                server.last_seen = datetime.now(timezone.utc)
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in server.listeners:
                         f = server.listeners.get(data['channel'])
@@ -629,7 +630,6 @@ class ServiceBus(Service):
                         if not server:
                             return
                         try:
-                            server.last_seen = datetime.now(timezone.utc)
                             command = data['command']
                             if command == 'registerDCSServer':
                                 if not server.is_remote:
