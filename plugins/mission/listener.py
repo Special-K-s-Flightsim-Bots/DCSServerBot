@@ -236,18 +236,30 @@ class MissionEventListener(EventListener):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until > NOW()')
-                server.send_to_dcs({
-                   "command": "ban",
-                   "batch": [
-                       {
-                           "ucid": ban['ucid'],
-                           "reason": ban['reason'],
-                           "banned_until": _get_until(ban['banned_until'])
-                       }
-                       async for ban in cursor
-                    ]
-                })
+                await cursor.execute("""
+                    SELECT ucid, reason, banned_until 
+                    FROM bans WHERE banned_until > (NOW() AT TIME ZONE 'utc')
+                """)
+                batch = []
+                async for ban in cursor:
+                    batch.append({
+                        "ucid": ban['ucid'],
+                        "reason": ban['reason'],
+                        "banned_until": _get_until(ban['banned_until'])
+                    })
+                    if len(batch) >= 25:
+                        server.send_to_dcs({
+                            "command": "ban",
+                            "batch": batch
+                        })
+                        batch = []
+
+                # send the remaining bans (if any) in the last batch
+                if batch:
+                    server.send_to_dcs({
+                        "command": "ban",
+                        "batch": batch
+                    })
 
     async def _watchlist_alert(self, server: Server, player: Player):
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
@@ -361,9 +373,6 @@ class MissionEventListener(EventListener):
             return
         self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         player: Player = server.get_player(ucid=data['ucid'])
-        if player.is_banned():
-            server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
-            return
         if not player or player.id == 1:
             player: Player = DataObjectFactory().new(
                 Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
@@ -371,6 +380,9 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             await player.update(data)
+        if player.is_banned():
+            server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
+            return
         if player.member:
             server.send_to_dcs({
                 'command': 'uploadUserRoles',
