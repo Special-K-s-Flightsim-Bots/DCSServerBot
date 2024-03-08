@@ -53,6 +53,7 @@ __all__ = [
     "matches_cron",
     "SettingsDict",
     "RemoteSettingsDict",
+    "tree_delete",
     "evaluate",
     "for_each",
     "YAMLError"
@@ -555,6 +556,37 @@ class RemoteSettingsDict(dict):
             }
         }
         self.server.send_to_dcs(msg)
+
+
+def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
+    """
+    Clears an element from nested structure (a mix of dictionaries and lists)
+    given a key in the form "root/element1/element2".
+    """
+    keys = key.split('/')
+    curr_element = d
+
+    try:
+        for key in keys[:-1]:
+            if isinstance(curr_element, dict):
+                curr_element = curr_element[key]
+            else:  # if it is a list
+                curr_element = curr_element[int(key)]
+    except KeyError:
+        return
+
+    if debug:
+        print("  " * len(keys) + f"|_ Deleting {keys[-1]}")
+
+    if isinstance(curr_element, dict):
+        if isinstance(curr_element[keys[-1]], dict):
+            curr_element[keys[-1]] = {}
+        elif isinstance(curr_element[keys[-1]], list):
+            curr_element[keys[-1]] = []
+        else:
+            del curr_element[keys[-1]]
+    else:  # if it's a list
+        curr_element.pop(int(keys[-1]))
 
 
 def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, float, bool]:

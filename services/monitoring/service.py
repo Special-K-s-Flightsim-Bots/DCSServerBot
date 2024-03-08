@@ -192,6 +192,35 @@ class MonitoringService(Service):
                       sum(x.qsize() for x in bus.udp_server.message_queue.values())))
         last_wait_time = pstats.get('requests_wait_ms', 0)
 
+    def _pull_load_params(self, server: Server):
+        cpu = server.process.cpu_percent()
+        memory = server.process.memory_full_info()
+        io_counters = server.process.io_counters()
+        if server.process.pid not in self.io_counters:
+            write_bytes = read_bytes = 0
+        else:
+            write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
+            read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
+        self.io_counters[server.process.pid] = io_counters
+        net_io_counters = psutil.net_io_counters(pernic=False)
+        if not self.net_io_counters:
+            bytes_sent = bytes_recv = 0
+        else:
+            bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
+            bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
+        self.net_io_counters = net_io_counters
+        self.bus.send_to_node({
+            "command": "serverLoad",
+            "cpu": cpu,
+            "mem_total": memory.vms,
+            "mem_ram": memory.rss,
+            "read_bytes": read_bytes,
+            "write_bytes": write_bytes,
+            "bytes_recv": bytes_recv,
+            "bytes_sent": bytes_sent,
+            "server_name": server.name
+        })
+
     async def serverload(self):
         for server in self.bus.servers.values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
@@ -201,33 +230,7 @@ class MonitoringService(Service):
                                  f"server {server.name}, skipping server load gathering.")
                 continue
             try:
-                cpu = server.process.cpu_percent()
-                memory = server.process.memory_full_info()
-                io_counters = server.process.io_counters()
-                if server.process.pid not in self.io_counters:
-                    write_bytes = read_bytes = 0
-                else:
-                    write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
-                    read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
-                self.io_counters[server.process.pid] = io_counters
-                net_io_counters = psutil.net_io_counters(pernic=False)
-                if not self.net_io_counters:
-                    bytes_sent = bytes_recv = 0
-                else:
-                    bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
-                    bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
-                self.net_io_counters = net_io_counters
-                self.bus.send_to_node({
-                    "command": "serverLoad",
-                    "cpu": cpu,
-                    "mem_total": memory.vms,
-                    "mem_ram": memory.rss,
-                    "read_bytes": read_bytes,
-                    "write_bytes": write_bytes,
-                    "bytes_recv": bytes_recv,
-                    "bytes_sent": bytes_sent,
-                    "server_name": server.name
-                })
+                await asyncio.to_thread(self._pull_load_params, server)
             except (psutil.AccessDenied, PermissionError):
                 self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
 

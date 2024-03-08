@@ -9,7 +9,8 @@ import subprocess
 import sys
 
 if sys.platform == 'win32':
-    import win32con, win32gui
+    import win32con
+    import win32gui
 
 from collections import OrderedDict
 from contextlib import suppress
