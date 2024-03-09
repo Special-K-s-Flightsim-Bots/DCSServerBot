@@ -152,11 +152,14 @@ class Olympus(Extension):
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
 
         def run_subprocess():
-            args = [self.nodejs, os.path.join(self.home, self.frontend_tag, 'bin', 'www')]
+            path = os.path.expandvars(
+                self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
+            args = [self.nodejs, os.path.join(path, 'bin', 'www')]
             if self.version != '1.0.3.0':
                 args.append('--config')
                 args.append(self.config_path)
-            return subprocess.Popen(args, cwd=os.path.join(self.home, self.frontend_tag), stdout=out, stderr=out)
+            self.log.debug("Launching {}".format(' '.join(args)))
+            return subprocess.Popen(args, cwd=path, stdout=out, stderr=out)
 
         try:
             p = await asyncio.to_thread(run_subprocess)
