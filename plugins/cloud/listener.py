@@ -30,7 +30,7 @@ class CloudListener(EventListener):
                            SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships, 
                            SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
                            SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
-                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
+                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))))::INTEGER AS playtime 
                     FROM statistics s, missions m 
                     WHERE s.player_ucid = %s AND m.mission_theatre = %s AND s.slot = %s AND s.hop_off IS NOT null 
                     AND s.mission_id = m.id 
