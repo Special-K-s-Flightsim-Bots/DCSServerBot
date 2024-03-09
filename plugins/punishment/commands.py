@@ -182,14 +182,16 @@ class Punishment(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You must provide a valid UCID to be punished.", ephemeral=True)
             return
+
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
                     INSERT INTO pu_events (init_id, server_name, event, points)
                     VALUES (%s, %s, %s, %s) 
                 """, (ucid, server.name, reason, points))
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'User punished with {points} points.', ephemeral=ephemeral)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(f'User punished with {points} points.', ephemeral=ephemeral)
 
     @command(description='Delete all punishment points for a given user')
     @app_commands.guild_only()
@@ -219,8 +221,9 @@ class Punishment(Plugin):
                                 "command": "unban",
                                 "ucid": ucid
                             })
-                await interaction.followup.send('All punishment points deleted and player unbanned '
-                                                '(if they were banned by the bot before).', ephemeral=ephemeral)
+
+            await interaction.followup.send('All punishment points deleted and player unbanned '
+                                            '(if they were banned by the bot before).', ephemeral=ephemeral)
 
     @command(description='Displays your current penalty points')
     @app_commands.guild_only()
@@ -272,27 +275,28 @@ class Punishment(Plugin):
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
                     total += float(row['points'])
-                embed.description = f"Total penalty points: {total:.2f}"
-                embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
-                embed.add_field(name='Time (UTC)', value=times)
-                embed.add_field(name='Event', value=events)
-                embed.add_field(name='Points', value=points)
-                embed.set_footer(text='Points decay over time, you might see different results on different days.')
-                embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
-                # check bans
-                ban = await self.bus.is_banned(ucid)
-                if ban:
-                    if ban['banned_until'].year == 9999:
-                        until = 'never'
-                    else:
-                        until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
-                    embed.add_field(name="Ban expires", value=until)
-                    embed.add_field(name="Reason", value=ban['reason'])
-                    embed.add_field(name='_ _', value='_ _')
-                    embed.set_footer(text=f"You are currently banned.\n"
-                                          f"Please contact an admin if you want to get unbanned.")
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+        embed.description = f"Total penalty points: {total:.2f}"
+        embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
+        embed.add_field(name='Time (UTC)', value=times)
+        embed.add_field(name='Event', value=events)
+        embed.add_field(name='Points', value=points)
+        embed.set_footer(text='Points decay over time, you might see different results on different days.')
+        embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
+        # check bans
+        ban = await self.bus.is_banned(ucid)
+        if ban:
+            if ban['banned_until'].year == 9999:
+                until = 'never'
+            else:
+                until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
+            embed.add_field(name="Ban expires", value=until)
+            embed.add_field(name="Reason", value=ban['reason'])
+            embed.add_field(name='_ _', value='_ _')
+            embed.set_footer(text=f"You are currently banned.\n"
+                                  f"Please contact an admin if you want to get unbanned.")
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @command(description='Show last infractions of a user')
     @app_commands.guild_only()

@@ -313,20 +313,20 @@ class Admin(Plugin):
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE")
             watches = await cursor.fetchall()
-            if not watches:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
-                return
-            embed = discord.Embed(colour=discord.Colour.blue())
-            embed.description = _("These players are currently on the watchlist:")
-            names = ucids = ""
-            for row in watches:
-                ucids = row[0] + "\n"
-                names += utils.escape_string(row[1]) + "\n"
-            embed.add_field(name=_("UCIDs"), value=ucids)
-            embed.add_field(name=_("Names"), value=names)
+        if not watches:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
+            return
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.description = _("These players are currently on the watchlist:")
+        names = ucids = ""
+        for row in watches:
+            ucids = row[0] + "\n"
+            names += utils.escape_string(row[1]) + "\n"
+        embed.add_field(name=_("UCIDs"), value=ucids)
+        embed.add_field(name=_("Names"), value=names)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()

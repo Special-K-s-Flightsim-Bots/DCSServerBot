@@ -300,14 +300,19 @@ class UserStatisticsEventListener(EventListener):
             async with conn.transaction():
                 if event_name == 'disconnect':
                     await self._handle_disconnect_event(conn, server, data)
+                    return
                 elif event_name == 'kill':
                     await self._handle_kill_event(conn, server, data)
+                    return
                 elif event_name in ['takeoff', 'landing', 'crash', 'pilot_death']:
                     await self._handle_common_event(conn, server, data)
+                    return
                 elif event_name == 'eject':
                     await self._handle_eject_event(conn, server, data)
-                elif event_name == 'mission_end':
-                    config = self.get_config(server)
-                    if 'highscore' in config:
-                        # noinspection PyUnresolvedReferences
-                        await self.plugin.render_highscore(config['highscore'], server, True)
+                    return
+        # do not block the database connection for too long
+        if event_name == 'mission_end':
+            config = self.get_config(server)
+            if 'highscore' in config:
+                # noinspection PyUnresolvedReferences
+                await self.plugin.render_highscore(config['highscore'], server, True)

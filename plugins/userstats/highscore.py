@@ -31,7 +31,7 @@ class HighscorePlaytime(report.GraphElement):
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
         if server_name:
-            sql += "AND m.server_name = %s"
+            sql += "AND m.server_name = %(server_name)s"
             self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([
@@ -45,26 +45,24 @@ class HighscorePlaytime(report.GraphElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                if server_name:
-                    await cursor.execute(sql, (server_name, ))
-                else:
-                    await cursor.execute(sql)
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
                     values.insert(0, row['playtime'] / 3600)
-                self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
-                self.axes.set_xlabel('hours')
-                if bar_labels:
-                    for c in self.axes.containers:
-                        self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2)
-                    self.axes.margins(x=0.1)
-                self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
-                if len(values) == 0:
-                    self.axes.set_xticks([])
-                    self.axes.set_yticks([])
-                    self.axes.text(0, 0, 'No data available.', ha='center', va='center', size=15)
+
+        self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
+        self.axes.set_xlabel('hours')
+        if bar_labels:
+            for c in self.axes.containers:
+                self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2)
+            self.axes.margins(x=0.1)
+        self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
+        if len(values) == 0:
+            self.axes.set_xticks([])
+            self.axes.set_yticks([])
+            self.axes.text(0, 0, 'No data available.', ha='center', va='center', size=15)
 
 
 class HighscoreElement(report.GraphElement):
@@ -98,7 +96,7 @@ class HighscoreElement(report.GraphElement):
         sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
-            sql += "AND m.server_name = %s"
+            sql += "AND m.server_name = %(server_name)s"
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([
                     str(x) for x in get_sides(interaction, self.bot.servers[server_name])
@@ -113,27 +111,25 @@ class HighscoreElement(report.GraphElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 labels = []
                 values = []
-                if server_name:
-                    await cursor.execute(sql, (server_name, ))
-                else:
-                    await cursor.execute(sql)
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
                     values.insert(0, row['value'])
-                self.axes.barh(labels, values, color=colors, label=kill_type, height=0.75)
-                if values and bar_labels:
-                    for c in self.axes.containers:
-                        self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], float) else '%d', label_type='edge',
-                                            padding=2)
-                    self.axes.margins(x=0.125)
-                self.axes.set_title(kill_type, color='white', fontsize=25)
-                self.axes.set_xlabel(xlabels[kill_type])
-                if len(values) == 0:
-                    self.axes.set_xticks([])
-                    self.axes.set_yticks([])
-                    self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-                else:
-                    scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
-                    self.axes.set_xticks(scale)
+
+        self.axes.barh(labels, values, color=colors, label=kill_type, height=0.75)
+        if values and bar_labels:
+            for c in self.axes.containers:
+                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], float) else '%d', label_type='edge',
+                                    padding=2)
+            self.axes.margins(x=0.125)
+        self.axes.set_title(kill_type, color='white', fontsize=25)
+        self.axes.set_xlabel(xlabels[kill_type])
+        if len(values) == 0:
+            self.axes.set_xticks([])
+            self.axes.set_yticks([])
+            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+        else:
+            scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
+            self.axes.set_xticks(scale)

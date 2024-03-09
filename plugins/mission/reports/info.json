@@ -10,19 +10,19 @@
   "elements":
   [
     {
-      "class": "plugins.userstats.info.Header"
+      "class": "plugins.mission.info.Header"
     },
     {
-      "class": "plugins.userstats.info.UCIDs"
+      "class": "plugins.mission.info.UCIDs"
     },
     {
-      "class": "plugins.userstats.info.History"
+      "class": "plugins.mission.info.History"
     },
     {
-      "class": "plugins.userstats.info.ServerInfo"
+      "class": "plugins.mission.info.ServerInfo"
     },
     {
-      "class": "plugins.userstats.info.Footer"
+      "class": "plugins.mission.info.Footer"
     }
   ]
 }

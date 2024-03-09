@@ -159,8 +159,8 @@ class CloudHandler(Plugin):
                     await conn.execute(sql, (member, ))
                 else:
                     await conn.execute(sql)
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
 
     @cloud.command(description='Generate Cloud Statistics')
     @app_commands.guild_only()
@@ -230,16 +230,18 @@ class CloudHandler(Plugin):
     @tasks.loop(seconds=10)
     async def cloud_sync(self):
         async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor(row_factory=dict_row) as cursor:
-                    await cursor.execute("""
-                        SELECT ucid FROM players 
-                        WHERE synced IS FALSE 
-                        ORDER BY last_seen DESC 
-                        LIMIT 10
-                    """)
-                    rows = await cursor.fetchall()
-                    for row in rows:
+            await conn.execute("""
+                SELECT ucid FROM players 
+                WHERE synced IS FALSE 
+                ORDER BY last_seen DESC 
+                LIMIT 10
+            """)
+            rows = await cursor.fetchall()
+        # We do not want to block the connection pool for an unnecessary amount of time
+        for row in rows:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async with conn.cursor(row_factory=dict_row) as cursor:
                         await cursor.execute("""
                             SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                    SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
@@ -255,14 +257,14 @@ class CloudHandler(Plugin):
                             FROM statistics s, missions m 
                             WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
                             GROUP BY 1, 2, 3
-                        """, (row['ucid'], ))
+                        """, (row[0], ))
                         async for line in cursor:
                             try:
                                 line['client'] = self.client
                                 await self.post('upload', line)
                             except TypeError as ex:
-                                self.log.warning(f"Could not replicate user {row['ucid']}: {ex}")
-                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+                                self.log.warning(f"Could not replicate user {row[0]}: {ex}")
+                        await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row[0], ))
 
     @tasks.loop(hours=1)
     async def register(self):

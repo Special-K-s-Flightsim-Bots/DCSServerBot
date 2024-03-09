@@ -649,39 +649,41 @@ class MissionEventListener(EventListener):
                     player.sendChatMessage('Invalid token.')
                     await self.bot.get_admin_channel(server).send(
                         f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
-                else:
-                    discord_id = row[0]
-                    member = DataObjectFactory().new('Member', node=self.node,
-                                                     member=self.bot.guilds[0].get_member(discord_id))
+                    return
 
-                    old_ucid = member.ucid if member.verified else None
-                    if old_ucid:
-                        member.ucid = player.ucid
-                    else:
-                        player.member = member.member
-                    member.verified = True
-                    await conn.execute('DELETE FROM players WHERE ucid = %s', (token,))
-                    # If autorole is enabled, give the user the DCS role:
-                    if self.bot.locals.get('autorole', '') == 'linkme':
-                        role = self.bot.roles['DCS'][0]
-                        if role != '@everyone':
-                            try:
-                                await player.member.add_roles(self.bot.get_role(role))
-                            except discord.Forbidden:
-                                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-                    # make sure we update all tables with the new UCID
-                    if old_ucid and old_ucid != player.ucid:
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.update_ucid(conn, old_ucid, player.ucid)
-                        await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)
-                        player.sendChatMessage('Your account has been updated.')
-                    elif not old_ucid:
-                        await self.bot.audit(
-                            f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                            user=player.member)
-                        player.sendChatMessage('Your user has been linked.')
-                    else:
-                        player.sendChatMessage('Your user was linked already!')
+                discord_id = row[0]
+                member = DataObjectFactory().new('Member', node=self.node,
+                                                 member=self.bot.guilds[0].get_member(discord_id))
+
+                old_ucid = member.ucid if member.verified else None
+                if old_ucid:
+                    member.ucid = player.ucid
+                else:
+                    player.member = member.member
+                member.verified = True
+                await conn.execute('DELETE FROM players WHERE ucid = %s', (token,))
+                # make sure we update all tables with the new UCID
+                if old_ucid and old_ucid != player.ucid:
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.update_ucid(conn, old_ucid, player.ucid)
+                    await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)
+                    player.sendChatMessage('Your account has been updated.')
+                elif not old_ucid:
+                    await self.bot.audit(
+                        f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                        user=player.member)
+                    player.sendChatMessage('Your user has been linked.')
+                else:
+                    player.sendChatMessage('Your user was linked already!')
+
+        # If autorole is enabled, give the user the DCS role:
+        if self.bot.locals.get('autorole', '') == 'linkme':
+            role = self.bot.roles['DCS'][0]
+            if role != '@everyone':
+                try:
+                    await player.member.add_roles(self.bot.get_role(role))
+                except discord.Forbidden:
+                    await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):

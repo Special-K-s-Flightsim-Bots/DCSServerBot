@@ -181,18 +181,18 @@ class PunishmentEventListener(EventListener):
                         DELETE FROM pu_events_sdw 
                         WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '{forgive} seconds')
                     """, (target.ucid, ))
-                    names = []
-                    for initiator in initiators:
-                        player = server.get_player(ucid=initiator)
-                        if player:
-                            names.append(player.name)
-                            player.sendUserMessage(
-                                f'You have been forgiven by {target.name} and you will not be punished '
-                                f'for your recent actions.')
-                    if not names:
-                        names = ['another player']
-                    target.sendChatMessage(
-                        'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
+            names = []
+            for initiator in initiators:
+                player = server.get_player(ucid=initiator)
+                if player:
+                    names.append(player.name)
+                    player.sendUserMessage(
+                        f'You have been forgiven by {target.name} and you will not be punished '
+                        f'for your recent actions.')
+            if not names:
+                names = ['another player']
+            target.sendChatMessage(
+                'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
 
     @chat_command(name="penalty", help="displays your penalty points")
     async def penalty(self, _: Server, player: Player, __: list[str]):

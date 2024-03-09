@@ -256,7 +256,7 @@ class GameMasterEventListener(EventListener):
                                 raise
                     await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
                                          (server.name, row[0]))
-                server.send_to_dcs({"command": "resetUserCoalitions"})
+        server.send_to_dcs({"command": "resetUserCoalitions"})
 
     @event(name="resetUserCoalitions")
     async def resetUserCoalitions(self, server: Server, data: dict) -> None:

@@ -36,12 +36,12 @@ class CloudListener(EventListener):
                     AND s.mission_id = m.id 
                     GROUP BY 1, 2, 3
                 """, (player.ucid, server.current_mission.map, player.unit_type))
-            row = await cursor.fetchone()
-            if row:
+                row = await cursor.fetchone()
+        if row:
+            # noinspection PyUnresolvedReferences
+            row['client'] = self.plugin.client
+            try:
                 # noinspection PyUnresolvedReferences
-                row['client'] = self.plugin.client
-                try:
-                    # noinspection PyUnresolvedReferences
-                    await self.plugin.post('upload', row)
-                except aiohttp.ClientError:
-                    self.log.warn('Cloud service not available atm, skipping statistics upload.')
+                await self.plugin.post('upload', row)
+            except aiohttp.ClientError:
+                self.log.warn('Cloud service not available atm, skipping statistics upload.')

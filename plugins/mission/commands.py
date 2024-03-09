@@ -956,14 +956,14 @@ class Mission(Plugin):
                     for row in rows:
                         ucid = row[0]
                         await clear_user_roles(ucid)
-                        await unlink_member(user, ucid, ephemeral)
+                        await unlink_member(user, ucid)
                 elif utils.is_ucid(user):
                     ucid = user
                     member = self.bot.get_member_by_ucid(ucid)
                     if not member:
                         await interaction.followup.send('Player is not linked!', ephemeral=True)
                         return
-                    await unlink_member(member, ucid, ephemeral)
+                    await unlink_member(member, ucid)
                     await clear_user_roles(ucid)
                 else:
                     await interaction.followup.send('Unknown player / member provided', ephemeral=True)
@@ -989,16 +989,17 @@ class Mission(Plugin):
                 LIMIT 25
             """, ('%' + name + '%', ))
             rows = await cursor.fetchall()
-            options = [
-                SelectOption(label=f"{row[1]} (last seen: {row[2]:%Y-%m-%d %H:%M})"[:100], value=str(idx))
-                for idx, row in enumerate(rows)
-            ]
-            if not options:
-                await interaction.followup.send("No user found.")
-                return
-            idx = await utils.selection(interaction, placeholder="Select a User", options=options, ephemeral=ephemeral)
-            if idx:
-                await self._info(interaction, rows[int(idx)][0])
+        # give back the database session
+        options = [
+            SelectOption(label=f"{row[1]} (last seen: {row[2]:%Y-%m-%d %H:%M})"[:100], value=str(idx))
+            for idx, row in enumerate(rows)
+        ]
+        if not options:
+            await interaction.followup.send("No user found.")
+            return
+        idx = await utils.selection(interaction, placeholder="Select a User", options=options, ephemeral=ephemeral)
+        if idx:
+            await self._info(interaction, rows[int(idx)][0])
 
     @player.command(description='Shows player information')
     @utils.app_has_role('DCS Admin')

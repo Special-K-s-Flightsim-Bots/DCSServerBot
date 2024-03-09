@@ -90,13 +90,13 @@ class Competitive(Plugin):
                     WHERE p.ucid = %s
                 """, (ucid, ))
                 row = await cursor.fetchone()
-                r = rating.create_rating()
-                skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
-                skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(
-                    f"TrueSkill:tm: rating of player {row['name']}: {skill_mu - 3.0 * skill_sigma:.2f}.",
-                    ephemeral=True)
+        r = rating.create_rating()
+        skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
+        skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(
+            f"TrueSkill:tm: rating of player {row['name']}: {skill_mu - 3.0 * skill_sigma:.2f}.",
+            ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
