@@ -10,7 +10,8 @@ import shutil
 import ssl
 
 from contextlib import suppress
-from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
+from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
+    get_translation
 from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
@@ -19,6 +20,8 @@ from typing import Type, Any, Optional, Union
 from services import DCSServerBot
 from .listener import CloudListener
 from .logger import CloudLoggingHandler
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class CloudHandler(Plugin):
@@ -120,23 +123,23 @@ class CloudHandler(Plugin):
     # New command group "/cloud"
     cloud = Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")
 
-    @cloud.command(description='Test the cloud-connection')
+    @cloud.command(description=_('Test the cloud-connection'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def status(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(f'Checking cloud connection ...', ephemeral=ephemeral)
+        await interaction.response.send_message(_('Checking cloud connection ...'), ephemeral=ephemeral)
         try:
             await self.get('verify')
-            await interaction.followup.send(f'Cloud connection established.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Cloud connection established.'), ephemeral=ephemeral)
             return
         except aiohttp.ClientError:
-            await interaction.followup.send(f'Cloud not connected.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Cloud not connected!'), ephemeral=ephemeral)
         finally:
             await interaction.delete_original_response()
 
-    @cloud.command(description='Resync statistics with the cloud')
+    @cloud.command(description=_('Resync statistics with the cloud'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(member="user")
@@ -146,7 +149,7 @@ class CloudHandler(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('No cloud sync configured.', ephemeral=ephemeral)
+            await interaction.response.send_message(_('No cloud sync configured!'), ephemeral=ephemeral)
             return
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -161,9 +164,9 @@ class CloudHandler(Plugin):
                 else:
                     await conn.execute(sql)
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
+        await interaction.response.send_message(_('Resync with cloud triggered.'), ephemeral=ephemeral)
 
-    @cloud.command(description='Generate Cloud Statistics')
+    @cloud.command(description=_('Generate Cloud Statistics'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def statistics(self, interaction: discord.Interaction,
@@ -171,7 +174,7 @@ class CloudHandler(Plugin):
                          period: Optional[str]):
         if 'token' not in self.config:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('Cloud statistics are not activated in this Discord.',
+            await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
                                                     ephemeral=True)
             return
         if not user:
@@ -180,7 +183,7 @@ class CloudHandler(Plugin):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
+                await interaction.response.send_message(_("Use `/linkme` to link your account."), ephemeral=True)
                 return
             name = user.display_name
         else:
@@ -193,14 +196,14 @@ class CloudHandler(Plugin):
         try:
             response = await self.get(f'stats/{ucid}')
             if not len(response):
-                await interaction.followup.send('No cloud-based statistics found for this user.', ephemeral=True)
+                await interaction.followup.send(_('No cloud-based statistics found for this user.'), ephemeral=True)
                 return
             # TODO: support period
             df = pd.DataFrame(response)
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'cloudstats.json')
             await report.render(user=name, data=df, guild=None)
         except aiohttp.ClientError:
-            await interaction.followup.send('Cloud not connected.', ephemeral=True)
+            await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)
 
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
