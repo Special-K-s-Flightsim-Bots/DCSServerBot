@@ -152,7 +152,8 @@ class Olympus(Extension):
         out = subprocess.DEVNULL if not self.config.get('debug', False) else None
 
         def run_subprocess():
-            path = self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag))
+            path = os.path.expandvars(
+                self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
             args = [self.nodejs, os.path.join(path, 'bin', 'www')]
             if self.version != '1.0.3.0':
                 args.append('--config')
