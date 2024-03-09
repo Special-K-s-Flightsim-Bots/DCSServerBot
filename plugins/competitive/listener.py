@@ -1,13 +1,15 @@
 import asyncio
 import trueskill
 
-from core import EventListener, event, Server, Status, Player, chat_command, Plugin, Side
+from core import EventListener, event, Server, Status, Player, chat_command, Plugin, Side, get_translation
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from discord.ext import tasks
 from plugins.competitive import rating
 from trueskill import Rating
 from typing import Optional, Tuple
+
+_ = get_translation(__name__.split('.')[1])
 
 
 @dataclass
@@ -94,7 +96,7 @@ class CompetitiveListener(EventListener):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         player.sendChatMessage(
-            f"Your current TrueSkill rating is: {self.calculate_rating(self.get_rating(player))}.")
+            _("Your TrueSkill rating is: {}").format(self.calculate_rating(self.get_rating(player))))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
@@ -112,21 +114,21 @@ class CompetitiveListener(EventListener):
                 match = self.matches[server.name][match_id]
                 # check that we were not in the same match but died
                 if player in match.dead[Side.BLUE] or player in match.dead[Side.RED]:
-                    server.move_to_spectators(player, reason="You're not allowed to re-join the same match!")
+                    server.move_to_spectators(player, reason=_("You're not allowed to re-join the same match!"))
                     return
             is_on = match.is_on()
             match.player_join(player)
             self.in_match[server.name][player.ucid] = match
             # noinspection PyAsyncCall
             asyncio.create_task(self.inform_players(
-                match, f"Player {player.name} ({self.calculate_rating(self.get_rating(player))}) "
-                       f"joined the {player.side.name} team!"))
+                match, _("Player {name} ({rating}) joined the {side} team!").format(
+                    name=player.name, rating=self.calculate_rating(self.get_rating(player)), side=player.side.name)))
             # inform the players if the match is on now
             if not is_on and match.is_on():
                 match.started = datetime.now(timezone.utc)
                 # noinspection PyAsyncCall
-                asyncio.create_task(self.inform_players(match,
-                                                        "The match is on! If you die, crash or leave now, you lose!"))
+                asyncio.create_task(self.inform_players(
+                    match, _("The match is on! If you die, crash or leave now, you lose!")))
 
     def get_rating(self, player: Player) -> Rating:
         with self.pool.connection() as conn:
@@ -177,22 +179,22 @@ class CompetitiveListener(EventListener):
             match: Match = self.in_match[server.name].get(killers[0].ucid)
             if match:
                 for player in victims:
-                    match.log.append((now, "{} in {} {} {} in {} with {}".format(
-                        print_crew(killers), data['arg2'],
-                        'killed' if data['arg3'] != data['arg4'] else 'team-killed',
-                        print_crew(victims), data['arg5'],
-                        data['arg7'] or 'Guns')))
+                    match.log.append(
+                        (now, _("{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}").format(
+                            killer=print_crew(killers), killer_module=data['arg2'],
+                            what=_('killed') if data['arg3'] != data['arg4'] else _('team-killed'),
+                            victim=print_crew(victims), victim_module=data['arg5'], weapon=data['arg7'] or 'Guns')))
                     match.player_dead(player)
                     del self.in_match[server.name][player.ucid]
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
                 self.rank_teams(killers, victims)
                 for player in killers:
-                    player.sendChatMessage("You won against {}! Your new rating is {}".format(
-                        print_crew(victims), self.calculate_rating(self.get_rating(player))))
+                    player.sendChatMessage(_("You won against {loser}! Your new rating is {rating}").format(
+                        loser=print_crew(victims), rating=self.calculate_rating(self.get_rating(player))))
                 for player in victims:
-                    player.sendChatMessage("You lost against {}! Your new rating is {}".format(
-                        print_crew(killers), self.calculate_rating(self.get_rating(player))))
+                    player.sendChatMessage(_("You lost against {winner}! Your new rating is {rating}").format(
+                        winner=print_crew(killers), rating=self.calculate_rating(self.get_rating(player))))
         elif data['eventName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
             if not players:
@@ -200,8 +202,8 @@ class CompetitiveListener(EventListener):
                 return
             match: Match = self.in_match[server.name].get(players[0].ucid)
             if match:
-                match.log.append((now, "{} in {} died ({})".format(
-                    print_crew(players), data['arg2'], data['eventName'])))
+                match.log.append((now, _("{player} in {module} died ({event})").format(
+                    player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 for player in players:
                     match.player_dead(player)
                     del self.in_match[server.name][player.ucid]
@@ -217,8 +219,8 @@ class CompetitiveListener(EventListener):
                 players = [player]
             match: Match = self.in_match[server.name].get(player.ucid)
             if match:
-                match.log.append((now, "{} in {} died ({})".format(
-                    print_crew(players), data['arg2'], data['eventName'])))
+                match.log.append((now, _("{player} in {module} died ({event})").format(
+                    player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 for player in players:
                     match.player_dead(player)
                     del self.in_match[server.name][player.ucid]
@@ -227,9 +229,9 @@ class CompetitiveListener(EventListener):
     async def onGameEvent(self, server: Server, data: dict) -> None:
         self._onGameEvent(server, data)
 
-    @chat_command(name="skill", help="Show your TrueSkill")
-    async def skill(self, _: Server, player: Player, __: list[str]):
-        player.sendChatMessage(f"Your TrueSkill rating is {self.calculate_rating(self.get_rating(player))}")
+    @chat_command(name="skill", help=_("Display your rating"))
+    async def skill(self, server: Server, player: Player, params: list[str]):
+        player.sendChatMessage(_("Your TrueSkill rating is: {}").format(self.calculate_rating(self.get_rating(player))))
 
     @tasks.loop(seconds=5)
     async def check_matches(self):
@@ -242,13 +244,14 @@ class CompetitiveListener(EventListener):
                 if winner:
                     self.rank_teams(match.teams[winner],
                                     match.teams[Side.BLUE if winner == Side.RED else Side.RED])
-                    message = f"The match is over, {winner.name} won!\n\nThe following players are still alive:\n"
+                    message = _("The match is over, {} won!\n\n"
+                                "The following players are still alive:\n").format(winner.name)
                     for player in match.alive[winner]:
                         message += f"- {player.name}\n"
-                    message += "\nThis is the log of your last match:\n"
+                    message += _("\nThis is the log of your last match:\n")
                     for time, log in match.log:
                         message += f"{time:%H:%M:%S}: {log}\n"
-                    message += "\nYour new rating is as follows:\n"
+                    message += _("\nYour new rating is as follows:\n")
                     for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                         message += f"- {player.name}: {self.calculate_rating(self.get_rating(player))}\n"
                     # noinspection PyAsyncCall

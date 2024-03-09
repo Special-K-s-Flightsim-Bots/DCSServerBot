@@ -1,0 +1,79 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /trueskill
+msgid "Display your TrueSkill:tm: rating"
+msgstr "Zeit Dein TrueSkill:tm:-Rating"
+
+msgid "Use `/linkme` to link your account."
+msgstr "Nutze `/linkme`, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
+
+msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
+msgstr "Das TrueSkill:tm:-Rating von Spieler {name} ist: {rating:.2f}"
+
+## LISTENER
+msgid "Your TrueSkill rating is: {}"
+msgstr "Dein TrueSkill-Rating ist: {}"
+
+msgid "You're not allowed to re-join the same match!"
+msgstr "Du darfst demselben Match nicht noch einmal beitreten!"
+
+msgid "Player {name} ({rating}) joined the {side} team!"
+msgstr "Spieler {name} ({rating}) ist dem Team \"{side}\" beigetreten!"
+
+msgid "The match is on! If you die, crash or leave now, you lose!"
+msgstr "Das Spiel beginnt! Wer jetzt stirbt, abstürzt oder das Spiel verlässt, verliert!"
+
+msgid "You won against {loser}! Your new rating is {rating}"
+msgstr "Du hast gegen {loser} gewonnen! Dein neues Rating ist {rating}"
+
+msgid "You lost against {winner}! Your new rating is {rating}"
+msgstr "Du hast gegen {winner} verloren! Dein neues Rating ist {rating}"
+
+# -skill
+msgid "Display your rating"
+msgstr "Rating anzeigen"
+
+msgid "The match is over, {} won!\n\n"
+"The following players are still alive:\n"
+msgstr "Das Spiel ist vorbei, {} hat gewonnen!\n\n"
+"Die folgenden Spiele haben überlebt:\n"
+
+msgid "\nThis is the log of your last match:\n"
+msgstr "\nDies ist das Log Deines letzten Matches:\n"
+
+msgid "\nYour new rating is as follows:\n"
+msgstr "\nEure neuen Ratings sind wie folgt:\n"
+
+# Log
+msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
+msgstr "{killer} in {killer_module} hat {victim} in {victim_module} mit {weapon} {what}"
+
+msgid "killed"
+msgstr "getötet"
+
+msgid "team-killed"
+msgstr "geteam-killed"
+
+msgid "{player} in {module} died ({event})"
+msgstr "{player} in {module} ist gestorben ({event})"
+
+msgid "self-kill"
+msgstr "Selbstmord"
+
+msgid "crash"
+msgstr "Absturz"
+
+msgid "eject"
+msgstr "Schleudersitz"
+
+msgid "disconnect"
+msgstr "Spiel verlassen"
+
+msgid "change_slot"
+msgstr "Spiel verlassen"
