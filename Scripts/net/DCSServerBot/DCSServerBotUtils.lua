@@ -171,8 +171,10 @@ function loadScript(scriptPath)
 end
 
 function getIP(s)
-    for ip in string.gmatch(s, "(%d+.%d+.%d+.%d+)") do
-        return ip
-    end
+	if s ~= nil then
+		for ip in string.gmatch(s, "(%d+.%d+.%d+.%d+)") do
+			return ip
+		end
+	end
     return nil
 end
