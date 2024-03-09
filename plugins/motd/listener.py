@@ -50,7 +50,7 @@ class MOTDListener(EventListener):
             return
         config = self.plugin.get_config(server)
         if config and 'on_join' in config:
-            player: Player = server.get_player(id=data['id'])
+            player: Player = server.get_player(ucid=data['ucid'])
             player.sendChatMessage(await self.on_join(config['on_join'], server, player))
 
     @event(name="onMissionEvent")

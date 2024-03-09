@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import sys
 import uuid
@@ -131,21 +132,23 @@ class FunkManEventListener(EventListener):
         channel = self.bot.get_channel(int(config.get('CHANNELID_MAIN', -1)))
         if not channel:
             return
-        await channel.send(data['text'], delete_after=self.config.get('delete_after'))
+        # noinspection PyAsyncCall
+        asyncio.create_task(channel.send(data['text'], delete_after=self.config.get('delete_after')))
 
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['player'])
         if player:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
                         INSERT INTO bomb_runs (mission_id, player_ucid, unit_type, range_name, distance, quality)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
                           data['distance'], BombQuality[data['quality']].value))
-            await self.update_rangeboard(server, 'bomb')
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.update_rangeboard(server, 'bomb'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
@@ -153,21 +156,23 @@ class FunkManEventListener(EventListener):
         if not fig:
             self.log.error("Bomb result could not be plotted (due to missing data?)")
             return
-        await self.send_fig(fig, channel)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.send_fig(fig, channel))
 
     @event(name="moose_strafe_result")
     async def moose_strafe_result(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['player'])
         if player:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
                         INSERT INTO strafe_runs (mission_id, player_ucid, unit_type, range_name, accuracy, quality)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
                           data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
-            await self.update_rangeboard(server, 'strafe')
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.update_rangeboard(server, 'strafe'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
@@ -175,7 +180,8 @@ class FunkManEventListener(EventListener):
         if not fig:
             self.log.error("Strafe result could not be plotted (due to missing data?)")
             return
-        await self.send_fig(fig, channel)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.send_fig(fig, channel))
 
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
@@ -192,7 +198,8 @@ class FunkManEventListener(EventListener):
             with buffer:
                 embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
-                await channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
-                                   delete_after=self.config.get('delete_after'))
+                # noinspection PyAsyncCall
+                asyncio.create_task(channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
+                                                 delete_after=self.config.get('delete_after')))
         except (ValueError, TypeError):
             self.log.error("No trapsheet data received from DCS!")

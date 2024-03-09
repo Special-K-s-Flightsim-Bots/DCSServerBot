@@ -1,3 +1,4 @@
+import asyncio
 import discord
 
 from core import EventListener, Server, Status, utils, event, chat_command
@@ -46,10 +47,10 @@ class CreditSystemListener(EventListener):
         if data['id'] == 1:
             return
         config = self.plugin.get_config(server)
-        player = cast(CreditPlayer, server.get_player(id=data['id']))
+        player = cast(CreditPlayer, server.get_player(ucid=data['ucid']))
         if player.points == -1:
             player.points = self.get_initial_points(player, config)
-            await player.audit('init', 0, 'Initial points received')
+            player.audit('init', 0, 'Initial points received')
         else:
             server.send_to_dcs({
                 'command': 'updateUserPoints',
@@ -72,18 +73,18 @@ class CreditSystemListener(EventListener):
                 player.deposit += points_to_add * multiplier
             player.points += points_to_add
             if old_points != player.points:
-                await player.audit('mission', old_points, data.get('reason', 'Unknown mission achievement'))
+                player.audit('mission', old_points, data.get('reason', 'Unknown mission achievement'))
 
-    async def get_flighttime(self, ucid: str, campaign_id: int) -> int:
-        async with self.apool.connection() as conn:
-            cursor = await conn.execute("""
+    def get_flighttime(self, ucid: str, campaign_id: int) -> int:
+        with self.pool.connection() as conn:
+            cursor = conn.execute("""
                 SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
                 FROM statistics s, missions m, campaigns c, campaigns_servers cs 
                 WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id 
                 AND m.server_name = cs.server_name 
                 AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
             """, (ucid, campaign_id))
-            return int((await cursor.fetchone())[0])
+            return int((cursor.fetchone())[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
 
@@ -112,7 +113,7 @@ class CreditSystemListener(EventListener):
             return
 
         campaign_id, _ = utils.get_running_campaign(self.bot, server)
-        playtime = await self.get_flighttime(player.ucid, campaign_id) / 3600.0
+        playtime = self.get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         given = False
         for achievement in sorted_achievements:
@@ -153,13 +154,14 @@ class CreditSystemListener(EventListener):
                         if multiplier:
                             player.deposit += ppk * multiplier
                         player.points += ppk
-                        await player.audit('kill', old_points, f"for killing {data['arg5']}")
+                        player.audit('kill', old_points, f"for killing {data['arg5']}")
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player:
-                await self.process_achievements(server, player)
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.process_achievements(server, player))
 
     @chat_command(name="credits", help="displays your credits")
     async def credits(self, _: Server, player: CreditPlayer, __: list[str]):
@@ -198,9 +200,9 @@ class CreditSystemListener(EventListener):
         old_points_player = player.points
         old_points_receiver = receiver.points
         player.points -= donation
-        await player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
+        player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
         receiver.points += donation
-        await receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
+        receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
         player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
         receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
 
@@ -239,8 +241,8 @@ class CreditSystemListener(EventListener):
         old_points_player = player.points
         old_points_receiver = receiver.points
         player.points -= donation
-        await player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
+        player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
         receiver.points += donation
-        await receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
+        receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
         player.sendChatMessage(f"You've donated {donation} credit points to GCI {receiver.name}.")
         receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")

@@ -209,7 +209,7 @@ class VotingListener(EventListener):
         config = self.get_config(server)
         if 'welcome_message' not in config:
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(ucid=data['ucid'])
         if player:
             player.sendChatMessage(utils.format_string(config['welcome_message'], server=server, player=player,
                                                        prefix=self.prefix))

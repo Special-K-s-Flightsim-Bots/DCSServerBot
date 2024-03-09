@@ -67,6 +67,7 @@ class CloudHandler(Plugin):
         return self._session
 
     async def cog_load(self):
+        await super().cog_load()
         if self.config.get('upload_errors', True):
             cloud_logger = CloudLoggingHandler(node=self.node, url=self.base_url + '/errors/')
             self.log.addHandler(cloud_logger)

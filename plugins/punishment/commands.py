@@ -87,7 +87,7 @@ class Punishment(Plugin):
             player: CreditPlayer = cast(CreditPlayer, player)
             old_points = player.points
             player.points -= punishment['penalty']
-            await player.audit('punishment', old_points, f"Punished for {reason}")
+            player.audit('punishment', old_points, f"Punished for {reason}")
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
                                    f"Your current credit points are: {player.points}")
             await admin_channel.send(f"Player {player.display_name} (ucid={player.ucid}) punished "

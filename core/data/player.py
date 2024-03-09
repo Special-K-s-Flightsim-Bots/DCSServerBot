@@ -166,9 +166,9 @@ class Player(DataObject):
     def display_name(self) -> str:
         return utils.escape_string(self.name)
 
-    async def update(self, data: dict):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
+    def update(self, data: dict):
+        with self.pool.connection() as conn:
+            with conn.transaction():
                 if 'id' in data:
                     # if the ID has changed (due to reconnect), we need to update the server list
                     if self.id != data['id']:
@@ -179,7 +179,7 @@ class Player(DataObject):
                     self.active = data['active']
                 if 'name' in data and self.name != data['name']:
                     self.name = data['name']
-                    await conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
+                    conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
                 if 'side' in data:
                     self.side = Side(data['side'])
                 if 'slot' in data:
@@ -198,7 +198,7 @@ class Player(DataObject):
                     self.group_id = data['group_id']
                 if 'unit_display_name' in data:
                     self.unit_display_name = data['unit_display_name']
-                await conn.execute("""
+                conn.execute("""
                     UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE ucid = %s
                 """, (self.ucid, ))

@@ -168,8 +168,8 @@ class CreditSystem(Plugin):
                     return
                 if p_receiver:
                     p_receiver.points += donation
-                    await p_receiver.audit('donation', old_points_receiver, f'Donation from member '
-                                                                            f'{interaction.user.display_name}')
+                    p_receiver.audit('donation', old_points_receiver, f'Donation from member '
+                                                                      f'{interaction.user.display_name}')
                 else:
                     await conn.execute("""
                         INSERT INTO credits (campaign_id, player_ucid, points) 
@@ -276,7 +276,7 @@ class CreditSystem(Plugin):
                     return
                 if p_donor:
                     p_donor.points -= donation
-                    await p_donor.audit('donation', data[n]['credits'], f'Donation to member {to.display_name}')
+                    p_donor.audit('donation', data[n]['credits'], f'Donation to member {to.display_name}')
                 else:
                     await conn.execute("""
                         UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s
@@ -292,8 +292,8 @@ class CreditSystem(Plugin):
                           f'Donation to member {to.display_name}'))
                 if p_receiver:
                     p_receiver.points += donation
-                    await p_receiver.audit('donation', old_points_receiver, f'Donation from member '
-                                                                            f'{interaction.user.display_name}')
+                    p_receiver.audit('donation', old_points_receiver, f'Donation from member '
+                                                                      f'{interaction.user.display_name}')
                 else:
                     await conn.execute("""
                         INSERT INTO credits (campaign_id, player_ucid, points) 

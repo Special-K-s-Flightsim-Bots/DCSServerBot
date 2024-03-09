@@ -13,7 +13,7 @@ class CloudListener(EventListener):
         config = self.plugin.get_config(server)
         if 'token' not in config:
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             return
         if player.side == Side.SPECTATOR:

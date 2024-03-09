@@ -220,7 +220,7 @@ class MissionEventListener(EventListener):
             server.send_to_dcs(data)
 
     @staticmethod
-    async def _update_mission(server: Server, data: dict) -> None:
+    def _update_mission(server: Server, data: dict) -> None:
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(
                 Mission.__name__, node=server.node, server=server, map=data['current_map'],
@@ -279,11 +279,12 @@ class MissionEventListener(EventListener):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync-'):
-            await self._update_bans(server)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._update_bans(server))
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
-        await self._update_mission(server, data)
+        self._update_mission(server, data)
         if 'players' not in data:
             server.players.clear()
             data['players'] = []
@@ -307,7 +308,7 @@ class MissionEventListener(EventListener):
                     group_name=p['group_name'])
                 server.add_player(player)
             else:
-                await player.update(p)
+                player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
@@ -320,15 +321,16 @@ class MissionEventListener(EventListener):
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
-        await self._update_mission(server, data)
+        self._update_mission(server, data)
         if server.settings:
             self.display_mission_embed(server)
         self.display_player_embed(server)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        await self._update_bans(server)
-        await self._update_mission(server, data)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self._update_bans(server))
+        self._update_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
@@ -379,7 +381,7 @@ class MissionEventListener(EventListener):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
-            await player.update(data)
+            player.update(data)
         if player.is_banned():
             server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
             return
@@ -391,34 +393,37 @@ class MissionEventListener(EventListener):
                 'roles': [x.id for x in player.member.roles]
             })
         if player.watchlist:
-            await self._watchlist_alert(server, player)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._watchlist_alert(server, player))
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             player = DataObjectFactory().new(
                 Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
-            await player.update(data)
+            player.update(data)
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.locals.get('automatch', True) and server.settings['password']:
-                await self.bot.get_admin_channel(server).send(
-                    f"Player {player.name} (ucid={player.ucid}) can't be matched to a discord user.")
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.bot.get_admin_channel(server).send(
+                    f"Player {player.name} (ucid={player.ucid}) can't be matched to a discord user."))
             player.sendChatMessage(self.get_config(server).get(
                 'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
                                               'if you want to see your user stats!').format(server=server,
                                                                                             player=player))
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.locals.get('automatch', True) and server.settings['password']:
-                await self.bot.get_admin_channel(server).send(
-                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.bot.get_admin_channel(server).send(
+                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.'))
         else:
             player.sendChatMessage(self.get_config(server).get(
                 'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,
@@ -432,7 +437,7 @@ class MissionEventListener(EventListener):
     async def onPlayerStop(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(ucid=data['ucid'])
         if player:
             player.active = False
             if player.ucid in server.afk:
@@ -455,12 +460,12 @@ class MissionEventListener(EventListener):
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        player: Player = server.get_player(id=data['id'], active=True)
-        if not player:
-            return
         # Workaround for missing disconnect events
         if 'side' not in data:
-            self._disconnect(server, player)
+            self._disconnect(server, server.get_player(id=data['id'], active=True))
+            return
+        player: Player = server.get_player(ucid=data['ucid'], active=True)
+        if not player:
             return
         try:
             if Side(data['side']) != Side.SPECTATOR:
@@ -476,7 +481,7 @@ class MissionEventListener(EventListener):
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                           data['name']))
         finally:
-            await player.update(data)
+            player.update(data)
             self.display_player_embed(server)
 
     @event(name="onGameEvent")
@@ -532,7 +537,8 @@ class MissionEventListener(EventListener):
                 # show the server name on central admin channels
                 if self.bot.locals.get('admin_channel'):
                     message = f"{server.display_name}: " + message
-                await self.bot.get_admin_channel(server).send(message)
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.bot.get_admin_channel(server).send(message))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             player = server.get_player(id=data['arg1'])
             side = player.side if player else Side.UNKNOWN
@@ -630,9 +636,10 @@ class MissionEventListener(EventListener):
         action_description = ' '.join(audit_msg.split()[2:])
 
         player.sendChatMessage(audit_msg)
-        await self.bot.audit(f'Player {delinquent.display_name} {action_description}' +
-                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                             user=player.member)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.bot.audit(f'Player {delinquent.display_name} {action_description}' +
+                                           (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                           user=player.member))
 
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):
@@ -647,8 +654,9 @@ class MissionEventListener(EventListener):
                 row = await cursor.fetchone()
                 if not row:
                     player.sendChatMessage('Invalid token.')
-                    await self.bot.get_admin_channel(server).send(
-                        f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.bot.get_admin_channel(server).send(
+                        f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.'))
                     return
 
                 discord_id = row[0]
@@ -666,12 +674,14 @@ class MissionEventListener(EventListener):
                 if old_ucid and old_ucid != player.ucid:
                     for plugin in self.bot.cogs.values():  # type: Plugin
                         await plugin.update_ucid(conn, old_ucid, player.ucid)
-                    await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.',
+                                                       user=player.member))
                     player.sendChatMessage('Your account has been updated.')
                 elif not old_ucid:
-                    await self.bot.audit(
+                    asyncio.create_task(self.bot.audit(
                         f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                        user=player.member)
+                        user=player.member))
                     player.sendChatMessage('Your user has been linked.')
                 else:
                     player.sendChatMessage('Your user was linked already!')
@@ -683,7 +693,8 @@ class MissionEventListener(EventListener):
                 try:
                     await player.member.add_roles(self.bot.get_role(role))
                 except discord.Forbidden:
-                    await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member))
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
@@ -695,7 +706,8 @@ class MissionEventListener(EventListener):
         embed.add_field(name="Server", value=server.name, inline=False)
         embed.add_field(name="Player", value=player.name)
         embed.add_field(name="UCID", value=player.ucid)
-        await self.bot.get_admin_channel(server).send(mentions, embed=embed)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.bot.get_admin_channel(server).send(mentions, embed=embed))
 
     @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
                   help="load a specific weather preset")
