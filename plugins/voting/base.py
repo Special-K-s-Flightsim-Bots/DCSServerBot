@@ -11,6 +11,9 @@ class VotableItem(ABC):
         self.config = config
         self.param = params
 
+    def can_vote(self) -> bool:
+        return True
+
     def print(self) -> str:
         ...
 

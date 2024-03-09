@@ -11,7 +11,7 @@ class Preset(VotableItem):
         super().__init__('preset', server, config, params)
 
     def print(self) -> str:
-        return f"You can now vote to change the preset of this server."
+        return "You can now vote to change the preset of this server."
 
     def get_choices(self) -> list[str]:
         return ['No Change'] + list(self.config.get('choices', utils.get_presets(self.server.node)))
