@@ -668,7 +668,7 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def afk(self, interaction: discord.Interaction,
-                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]],
+                  server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                   minutes: Optional[int] = 10):
         if server.status != Status.RUNNING:
             await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
@@ -683,7 +683,7 @@ class Mission(Plugin):
                 player = s.get_player(ucid=ucid, active=True)
                 if not player:
                     continue
-                if (datetime.now() - dt).total_seconds() > minutes * 60:
+                if (datetime.now(tz=timezone.utc) - dt).total_seconds() > minutes * 60:
                     afk.append(player)
 
         if afk:
