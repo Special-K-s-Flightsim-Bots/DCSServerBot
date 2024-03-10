@@ -11,14 +11,14 @@ if sys.platform == 'win32':
 
 from datetime import datetime, timezone
 from discord.ext import tasks
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 from core import Status, utils, Server, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
-if TYPE_CHECKING:
-    from services import ServiceBus, DCSServerBot
+from ..servicebus import ServiceBus
+from ..bot import BotService
 
 __all__ = [
     "MonitoringService"
@@ -27,11 +27,11 @@ __all__ = [
 last_wait_time = 0
 
 
-@ServiceRegistry.register("Monitoring")
+@ServiceRegistry.register()
 class MonitoringService(Service):
-    def __init__(self, node, name: str):
-        super().__init__(node, name)
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+    def __init__(self, node):
+        super().__init__(node)
+        self.bus = ServiceRegistry.get(ServiceBus)
         self.io_counters = {}
         self.net_io_counters = None
 
@@ -88,7 +88,7 @@ class MonitoringService(Service):
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
         self.bus.send_to_node({
             "command": "rpc",
-            "service": "Bot",
+            "service": BotService.__class__.__name__,
             "method": "alert",
             "params": {
                 "server": server.name,
@@ -178,7 +178,7 @@ class MonitoringService(Service):
     async def nodestats(self):
         global last_wait_time
 
-        bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        bus = ServiceRegistry.get(ServiceBus)
         pstats: dict = self.apool.get_stats()
         wait_time = pstats.get('requests_wait_ms', 0) - last_wait_time
         async with self.apool.connection() as conn:
@@ -252,5 +252,5 @@ class MonitoringService(Service):
     @monitoring.before_loop
     async def before_loop(self):
         if self.node.master:
-            bot: DCSServerBot = ServiceRegistry.get("Bot").bot
+            bot = ServiceRegistry.get(BotService).bot
             await bot.wait_until_ready()

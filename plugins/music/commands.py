@@ -20,7 +20,7 @@ class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        self.service: MusicService = ServiceRegistry.get("Music")
+        self.service = ServiceRegistry.get(MusicService)
         if not self.service.locals:
             raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 

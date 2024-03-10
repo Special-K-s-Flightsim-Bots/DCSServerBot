@@ -14,6 +14,7 @@ from pid import PidFile, PidFileError
 
 # Register all services
 import services
+from services import Dashboard
 
 
 class Main:
@@ -48,24 +49,24 @@ class Main:
         async with ServiceRegistry(node=self.node) as registry:
             if registry.services():
                 self.log.info("- Loading Services ...")
-            for name in registry.services().keys():
-                if not registry.can_run(name):
+            for cls in registry.services().keys():
+                if not registry.can_run(cls):
                     continue
-                if name == 'Dashboard':
+                if cls == Dashboard:
                     if self.node.config.get('use_dashboard', True):
                         self.log.info("  => Dashboard started.")
-                        dashboard = registry.new(name)
+                        dashboard = registry.new(Dashboard)
                         # noinspection PyAsyncCall
                         asyncio.create_task(dashboard.start())
                     continue
                 else:
                     try:
                         # noinspection PyAsyncCall
-                        asyncio.create_task(registry.new(name).start())
-                        self.log.debug(f"  => {name} loaded.")
+                        asyncio.create_task(registry.new(cls).start())
+                        self.log.debug(f"  => {cls.__name__} loaded.")
                     except ServiceInstallationError as ex:
                         self.log.error(f"  - {ex.__str__()}")
-                        self.log.info(f"  => {name} NOT loaded.")
+                        self.log.info(f"  => {cls.__name__} NOT loaded.")
             if not self.node.master:
                 self.log.info("DCSServerBot AGENT started.")
             try:
@@ -79,21 +80,21 @@ class Main:
                         self.log.info("Taking over the Master node ...")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
-                        for name in registry.services().keys():
-                            if registry.master_only(name):
+                        for cls in registry.services().keys():
+                            if registry.master_only(cls):
                                 try:
                                     # noinspection PyAsyncCall
-                                    asyncio.create_task(registry.new(name).start())
+                                    asyncio.create_task(registry.new(cls).start())
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")
-                                    self.log.info(f"  => {name} NOT loaded.")
+                                    self.log.info(f"  => {cls.__name__} NOT loaded.")
                     else:
                         self.log.info("Second Master found, stepping back to Agent configuration.")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
-                        for name in registry.services().keys():
-                            if registry.master_only(name):
-                                await registry.get(name).stop()
+                        for cls in registry.services().keys():
+                            if registry.master_only(cls):
+                                await registry.get(cls).stop()
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")

@@ -9,24 +9,22 @@ import sys
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
-from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 from zipfile import ZipFile
-
-if TYPE_CHECKING:
-    from .. import ServiceBus
 
 __all__ = ["BackupService"]
 
 
-@ServiceRegistry.register("Backup", plugin="backup")
+@ServiceRegistry.register(plugin="backup")
 class BackupService(Service):
-    def __init__(self, node, name: str):
-        super().__init__(node, name)
+    def __init__(self, node):
+        from services import ServiceBus
+
+        super().__init__(node=node, name="Backup")
         if not self.locals:
             self.log.debug("  - No backup.yaml configured, skipping backup service.")
             return
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
 
     async def start(self):
         if not self.locals:
@@ -142,16 +140,16 @@ class BackupService(Service):
 
     @tasks.loop(minutes=1)
     async def schedule(self):
-        tasks = []
+        jobs = []
         if self.node.master:
             if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
-                tasks.append(asyncio.create_task(asyncio.to_thread(self.backup_bot)))
+                jobs.append(asyncio.create_task(asyncio.to_thread(self.backup_bot)))
             if 'database' in self.locals['backups'] and self.can_run(self.locals['backups']['database']):
-                tasks.append(asyncio.create_task(asyncio.to_thread(self.backup_database)))
+                jobs.append(asyncio.create_task(asyncio.to_thread(self.backup_database)))
         if 'servers' in self.locals['backups'] and self.can_run(self.locals['backups']['servers']):
-            tasks.append(asyncio.create_task(asyncio.to_thread(self.backup_servers)))
-        if tasks:
-            await asyncio.gather(*tasks)
+            jobs.append(asyncio.create_task(asyncio.to_thread(self.backup_servers)))
+        if jobs:
+            await asyncio.gather(*jobs)
             self.log.info("Backup finished.")
 
     @tasks.loop(hours=24)

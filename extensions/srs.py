@@ -9,7 +9,6 @@ import ssl
 import sys
 
 from configparser import RawConfigParser
-from contextlib import suppress
 from core import Extension, utils, Server
 from discord.ext import tasks
 from typing import Optional

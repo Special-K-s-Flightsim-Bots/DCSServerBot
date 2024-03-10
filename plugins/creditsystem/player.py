@@ -6,7 +6,7 @@ from typing import cast
 
 
 @dataclass
-@DataObjectFactory.register("Player")
+@DataObjectFactory.register(Player)
 class CreditPlayer(Player):
     _points: int = field(compare=False, default=-1)
     deposit: int = field(compare=False, default=0)

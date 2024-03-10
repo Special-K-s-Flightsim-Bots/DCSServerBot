@@ -43,7 +43,7 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[Tupl
 async def installed_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = ServiceRegistry.get("OvGME")
+    service = ServiceRegistry.get(OvGMEService)
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -61,7 +61,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = ServiceRegistry.get("OvGME")
+    service = ServiceRegistry.get(OvGMEService)
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -79,7 +79,7 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_versions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = ServiceRegistry.get("OvGME")
+    service = ServiceRegistry.get(OvGMEService)
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -101,7 +101,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction, curr
 async def repo_version_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service: OvGMEService = ServiceRegistry.get("OvGME")
+    service = ServiceRegistry.get(OvGMEService)
     try:
         repo = utils.get_interaction_param(interaction, 'url')
 
@@ -123,7 +123,7 @@ class OvGME(Plugin):
         if os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')):
             self.log.warning(f"  => OvGME: your ovgme.yaml belongs into {self.node.config_dir}/services/ovgme.yaml, "
                              f"not in {self.node.config_dir}/plugins!")
-        self.service: OvGMEService = ServiceRegistry.get("OvGME")
+        self.service = ServiceRegistry.get(OvGMEService)
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 
@@ -313,7 +313,7 @@ class OvGME(Plugin):
                         await derived.render()
                     await interaction.edit_original_response(embed=derived.embed, view=derived)
 
-            async def cancel(derived, interaction: discord.Interaction):
+            async def cancel(derived, _: discord.Interaction):
                 derived.stop()
 
         embed = discord.Embed(title="Mod Manager", color=discord.Color.blue())

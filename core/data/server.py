@@ -25,11 +25,7 @@ from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core.extension import Extension
-    from .instance import Instance
-    from .mission import Mission
-    from .node import UploadStatus
-    from .player import Player
+    from core import Extension, Instance, Mission, UploadStatus, Player
     from services import ServiceBus
 
 __all__ = ["Server"]
@@ -40,7 +36,6 @@ _ = get_translation('core')
 
 @dataclass
 class Server(DataObject):
-    name: str
     port: int
     _instance: Instance = field(default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
@@ -65,8 +60,10 @@ class Server(DataObject):
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
 
     def __post_init__(self):
+        from services import ServiceBus
+
         super().__post_init__()
-        self.bus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 

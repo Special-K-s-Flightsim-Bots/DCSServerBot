@@ -8,7 +8,7 @@ class MusicEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.service: MusicService = ServiceRegistry.get("Music")
+        self.service = ServiceRegistry.get(MusicService)
 
     async def _init_radios(self, server: Server, data: dict) -> None:
         try:

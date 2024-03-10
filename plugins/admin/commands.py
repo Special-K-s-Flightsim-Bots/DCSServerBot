@@ -805,7 +805,7 @@ Please make sure you forward the following ports:
         await node.delete_instance(instance, remove_files)
         await interaction.followup.send(
             _("Instance {instance} removed from node {node}.").format(instance=instance.name,
-                                                                                node=node.name), ephemeral=ephemeral)
+                                                                      node=node.name), ephemeral=ephemeral)
         await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
 
     @node_group.command(description=_("Rename an instance\n"))

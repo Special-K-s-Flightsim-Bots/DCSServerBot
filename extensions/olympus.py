@@ -8,9 +8,7 @@ import stat
 import subprocess
 import sys
 
-from contextlib import suppress
 from core import Extension, utils, Server
-from json import JSONDecodeError
 from typing import Optional
 
 server_ports: dict[int, str] = dict()
@@ -50,7 +48,7 @@ class Olympus(Extension):
         try:
             with open(self.config_path, mode='r', encoding='utf-8') as file:
                 return json.load(file)
-        except Exception as ex:
+        except Exception:
             self.log.warning(f"{self.name}: Config file not found or corrupt, using defaults")
             elevation_provider = {
                 "provider": "https://srtm.fasma.org/{lat}{lng}.SRTMGL3S.hgt.zip",

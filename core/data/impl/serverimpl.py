@@ -27,7 +27,7 @@ from pathlib import Path, PurePath
 from psutil import Process
 from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
+from watchdog.events import FileSystemEventHandler
 
 
 # ruamel YAML support
@@ -37,6 +37,7 @@ yaml = YAML()
 if TYPE_CHECKING:
     from core import Extension, Instance
     from services import DCSServerBot
+    from watchdog.events import FileSystemEvent, FileSystemMovedEvent
 
 __all__ = ["ServerImpl"]
 
@@ -80,7 +81,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
 
 @dataclass
-@DataObjectFactory.register("Server")
+@DataObjectFactory.register()
 class ServerImpl(Server):
     bot: Optional[DCSServerBot] = field(compare=False, init=False)
     event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
@@ -346,11 +347,11 @@ class ServerImpl(Server):
                 # update servers.yaml
                 update_config(old_name, new_name, update_settings)
                 self.name = new_name
-            except Exception as ex:
+            except Exception:
                 # rollback config
                 update_config(new_name, old_name, update_settings)
                 raise
-        except Exception as ex:
+        except Exception:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
 
     def do_startup(self):
@@ -385,7 +386,7 @@ class ServerImpl(Server):
             )
             self.process = Process(p.pid)
             self.log.debug(f"  => DCS server starting up with PID {p.pid}")
-        except Exception as ex:
+        except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
@@ -411,20 +412,21 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.exception(ex)
 
-    def _window_enumeration_handler(self, hwnd, top_windows):
+    @staticmethod
+    def _window_enumeration_handler(hwnd, top_windows):
         top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
 
     def _minimize(self):
-            top_windows = []
-            win32gui.EnumWindows(self._window_enumeration_handler, top_windows)
+        top_windows = []
+        win32gui.EnumWindows(self._window_enumeration_handler, top_windows)
 
-            # Fetch the window name of the process
-            window_name = self.instance.name
+        # Fetch the window name of the process
+        window_name = self.instance.name
 
-            for i in top_windows:
-                if window_name.lower() in i[1].lower():
-                    win32gui.ShowWindow(i[0], win32con.SW_MINIMIZE)
-                    break
+        for i in top_windows:
+            if window_name.lower() in i[1].lower():
+                win32gui.ShowWindow(i[0], win32con.SW_MINIMIZE)
+                break
 
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()

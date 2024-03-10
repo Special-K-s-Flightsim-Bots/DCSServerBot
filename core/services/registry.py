@@ -1,20 +1,22 @@
 import asyncio
 
 from core.services.base import Service
-from typing import Callable, Any, Type
+from typing import Type, Optional, TypeVar, Callable, Union
 
 __all__ = ["ServiceRegistry"]
 
+T = TypeVar("T", bound=Service)
+
 
 class ServiceRegistry:
-    _instance = None
-    _node = None
-    _registry: dict[str, Type[Service]] = {}
-    _master_only: set[str] = set[str]()
-    _plugins: dict[str, str] = dict[str, str]()
-    _singletons: dict[str, Service] = dict[str, Service]()
+    _instance: Optional["ServiceRegistry"] = None
+    _node: Optional["NodeImpl"] = None
+    _registry: dict[Type[T], Type[T]] = {}
+    _master_only: set[Type[T]] = set()
+    _plugins: dict[Type[T], str] = {}
+    _singletons: dict[Type[T], T] = {}
 
-    def __new__(cls, node):
+    def __new__(cls, node: "NodeImpl") -> "ServiceRegistry":
         if cls._instance is None:
             cls._instance = super(ServiceRegistry, cls).__new__(cls)
             cls._node = node
@@ -27,47 +29,54 @@ class ServiceRegistry:
         await self.shutdown()
 
     @classmethod
-    def register(cls, name: str, master_only: bool = False, plugin: str = None) -> Callable:
-        def inner_wrapper(wrapped_class: Any) -> Callable:
-            cls._registry[name] = wrapped_class
+    def register(cls, *, t: Optional[Type[T]] = None, master_only: Optional[bool] = False,
+                 plugin: Optional[str] = None) -> Callable[[Type[T]], Type[T]]:
+        def inner_wrapper(wrapped_class: Type[T]) -> Type[T]:
+            cls._registry[t or wrapped_class] = wrapped_class
             if master_only:
-                cls._master_only.add(name)
+                cls._master_only.add(t or wrapped_class)
             if plugin:
-                cls._plugins[name] = plugin
+                cls._plugins[t or wrapped_class] = plugin
             return wrapped_class
 
         return inner_wrapper
 
     @classmethod
-    def new(cls, name: str, *args, **kwargs) -> Any:
-        instance = cls.get(name)
+    def new(cls, t: Type[T], *args, **kwargs) -> T:
+        instance = cls.get(t)
         if not instance:
             # noinspection PyArgumentList
-            instance = cls._registry[name](node=cls._node, name=name, *args, **kwargs)
-            cls._singletons[name] = instance
+            instance = cls._registry[t](node=cls._node, *args, **kwargs)
+            cls._singletons[t] = instance
         return instance
 
     @classmethod
-    def get(cls, name: str) -> Any:
-        return cls._singletons.get(name)
+    def get(cls, t: Union[str, Type[T]]) -> Optional[T]:
+        if isinstance(t, str):
+            for key, value in cls._singletons.items():
+                if key.__name__ == t:
+                    return value
+            return None
+        else:
+            return cls._singletons.get(t)
 
     @classmethod
-    def can_run(cls, name: str) -> bool:
+    def can_run(cls, t: Type[T]) -> bool:
         # check master only
-        if cls.master_only(name) and not cls._node.master:
+        if cls.master_only(t) and not cls._node.master:
             return False
         # check plugin dependencies
-        plugin = cls._plugins.get(name)
+        plugin = cls._plugins.get(t)
         if plugin and plugin not in cls._node.plugins:
             return False
         return True
 
     @classmethod
-    def master_only(cls, name: str) -> bool:
-        return name in cls._master_only
+    def master_only(cls, t: Type[T]) -> bool:
+        return t in cls._master_only
 
     @classmethod
-    def services(cls) -> dict[str, Type[Service]]:
+    def services(cls) -> dict[Type[T], Type[T]]:
         return cls._registry
 
     @classmethod

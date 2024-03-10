@@ -6,7 +6,7 @@ import shutil
 
 from core import Extension, utils, ServiceRegistry, Server
 from discord.ext import tasks
-from services import ServiceBus
+from services import ServiceBus, BotService
 from typing import Optional
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
@@ -18,7 +18,7 @@ class Tacview(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.bus: ServiceBus = ServiceRegistry.get('ServiceBus')
+        self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
         self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
 
@@ -194,7 +194,7 @@ class Tacview(Extension):
                     try:
                         await self.bus.send_to_node_sync({
                             "command": "rpc",
-                            "service": "Bot",
+                            "service": BotService.__class__.__name__,
                             "method": "send_message",
                             "params": {
                                 "channel": int(target[4:-1]),
@@ -212,7 +212,7 @@ class Tacview(Extension):
                 else:
                     try:
                         shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
-                    except Exception as ex:
+                    except Exception:
                         self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
                     return
             await asyncio.sleep(1)

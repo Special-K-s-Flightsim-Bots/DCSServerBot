@@ -28,7 +28,7 @@ from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolat
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple
+from typing import Optional, Union, Awaitable, Callable, Any, Tuple
 from version import __version__
 
 from core.autoexec import Autoexec
@@ -48,8 +48,6 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
-if TYPE_CHECKING:
-    from services import ServiceBus
 
 __all__ = [
     "NodeImpl"
@@ -149,12 +147,14 @@ class NodeImpl(Node):
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):
+        from services import BotService, ServiceBus
+
         if self.master:
-            await ServiceRegistry.get("Bot").bot.audit(message, user=user, server=server)
+            await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server)
         else:
-            ServiceRegistry.get("ServiceBus").send_to_node({
+            ServiceRegistry.get(ServiceBus).send_to_node({
                 "command": "rpc",
-                "service": "Bot",
+                "service": BotService.__class__.__name__,
                 "method": "audit",
                 "params": {
                     "message": message,
@@ -241,8 +241,7 @@ class NodeImpl(Node):
         for server_name, instances in duplicates.items():
             self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(server_name, ', '.join(instances)))
         for _name, _element in self.locals['instances'].items():
-            instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
-                                                             locals=_element)
+            instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
         del self.locals['instances']
 
@@ -361,6 +360,8 @@ class NodeImpl(Node):
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
+        from services import ServiceBus
+
         async def shutdown_with_warning(server: Server):
             if server.is_populated():
                 shutdown_in = max(warn_times) if len(warn_times) else 0
@@ -404,7 +405,7 @@ class NodeImpl(Node):
         to_start = []
         in_maintenance = []
         tasks = []
-        bus: ServiceBus = ServiceRegistry.get('ServiceBus')
+        bus = ServiceRegistry.get(ServiceBus)
         for server in [x for x in bus.servers.values() if not x.is_remote]:
             if server.maintenance:
                 in_maintenance.append(server)
@@ -692,20 +693,24 @@ class NodeImpl(Node):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
 
     async def rename_server(self, server: Server, new_name: str):
+        from services import BotService, ServiceBus
+
         if not self.master:
             self.log.error(
                 f"Rename request received for server {server.name} that should have gone to the master node!")
             return
         # we are doing the plugin changes, as we are the master
-        await ServiceRegistry.get('Bot').rename_server(server, new_name)
+        await ServiceRegistry.get(BotService).rename_server(server, new_name)
         # update the ServiceBus
-        ServiceRegistry.get('ServiceBus').rename_server(server, new_name)
+        ServiceRegistry.get(ServiceBus).rename_server(server, new_name)
         # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
         if server.is_remote:
             server.name = new_name
 
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
+        from services import BotService, ServiceBus
+
         # don't run, if an update is currently running
         if self.update_pending:
             return
@@ -720,9 +725,9 @@ class NodeImpl(Node):
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
-                ServiceRegistry.get('ServiceBus').send_to_node({
+                ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
-                    "service": "Bot",
+                    "service": BotService.__class__.__name__,
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
                         "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
@@ -735,10 +740,12 @@ class NodeImpl(Node):
 
     @autoupdate.before_loop
     async def before_autoupdate(self):
+        from services import ServiceBus
+
         # wait for all servers to be in a proper state
         while True:
             await asyncio.sleep(1)
-            bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+            bus = ServiceRegistry.get(ServiceBus)
             if not bus:
                 continue
             server_initialized = True
@@ -760,7 +767,7 @@ class NodeImpl(Node):
             if instance.webgui_port > max_webgui_port:
                 max_webgui_port = instance.webgui_port
         os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
-        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=name, locals={
+        instance = DataObjectFactory().new(InstanceImpl, node=self, name=name, locals={
             "bot_port": max_bot_port + 1,
             "dcs_port": max_dcs_port + 10,
             "webgui_port": max_webgui_port + 2
@@ -796,8 +803,7 @@ class NodeImpl(Node):
             settings = SettingsDict(self, settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
-        server: ServerImpl = DataObjectFactory().new(
-            Server.__name__, node=self.node, port=instance.bot_port, name='n/a')
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a')
         instance.server = server
         self.instances.append(instance)
         return instance
@@ -840,11 +846,12 @@ class NodeImpl(Node):
         return utils.findDCSInstances()
 
     async def migrate_server(self, server: Server, instance: Instance) -> None:
+        from services import ServiceBus
+
         await server.node.unregister_server(server)
-        server: ServerImpl = DataObjectFactory().new(
-            Server.__name__, node=self.node, port=instance.bot_port, name=server.name)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name)
         server.status = Status.SHUTDOWN
-        ServiceRegistry.get("ServiceBus").servers[server.name] = server
+        ServiceRegistry.get(ServiceBus).servers[server.name] = server
         instance.server = server
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:

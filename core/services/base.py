@@ -2,8 +2,10 @@ from __future__ import annotations
 import os
 
 from abc import ABC
+from enum import Enum
+from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Callable, Any
 
 from ..const import DEFAULT_TAG
 from ..utils.helper import YAMLError
@@ -15,18 +17,58 @@ from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from .. import Server
-    from ..data.impl.nodeimpl import NodeImpl
+    from core import Server, NodeImpl, DataObject
 
 __all__ = [
+    "proxy",
     "Service",
     "ServiceInstallationError"
 ]
 
 
+def proxy(original_function: Callable[..., Any]):
+    """
+    Can be used as a decorator to any service method, that should act as a remote call, if the server provided
+    is not on the same node.
+
+    @proxy
+    async def my_fancy_method(self, server: Server, *args, **kwargs) -> Any:
+        ...
+
+    This will call my_fancy_method on the remote node, if the server is remote, and on the local node, if it is not.
+    """
+    @wraps(original_function)
+    async def wrapper(self, server: Server, *args, **kwargs):
+        # Get argument names from the original function
+        arg_names = list(original_function.__annotations__.keys()) if hasattr(original_function,
+                                                                              "__annotations__") else []
+
+        # Prepare params by dereferencing DataObject instances to their names,
+        # while matching argument names with values.
+        params = {
+            k: v.name if isinstance(v, DataObject)
+            else v.value if isinstance(v, Enum)
+            else v
+            for k, v in zip(arg_names[1:], args)
+            if v is not None
+        }
+
+        if server.is_remote:
+            data = await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "service": self.__class__.__name__,
+                "method": original_function.__name__,
+                "params": {"server": server.name} | params
+            }, node=server.node.name)
+            return data.get('return')
+        return await original_function(self, server, *args, **kwargs)
+
+    return wrapper
+
+
 class Service(ABC):
-    def __init__(self, node, name: str):
-        self.name = name
+    def __init__(self, node: NodeImpl, name: Optional[str] = None):
+        self.name = name or self.__class__.__name__
         self.running: bool = False
         self.node: NodeImpl = node
         self.log = node.log

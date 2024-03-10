@@ -234,7 +234,7 @@ class CloudHandler(Plugin):
     @tasks.loop(seconds=10)
     async def cloud_sync(self):
         async with self.apool.connection() as conn:
-            await conn.execute("""
+            cursor = await conn.execute("""
                 SELECT ucid FROM players 
                 WHERE synced IS FALSE 
                 ORDER BY last_seen DESC 

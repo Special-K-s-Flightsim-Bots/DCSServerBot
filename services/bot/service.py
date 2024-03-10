@@ -8,7 +8,9 @@ import os
 import shutil
 import zipfile
 
-from core import ServiceRegistry, Service, utils
+from core import utils
+from core.services.base import Service
+from core.services.registry import ServiceRegistry
 from discord.ext import commands
 from discord.utils import MISSING
 from io import BytesIO
@@ -23,12 +25,12 @@ if TYPE_CHECKING:
 __all__ = ["BotService"]
 
 
-@ServiceRegistry.register("Bot", master_only=True)
+@ServiceRegistry.register(master_only=True)
 class BotService(Service):
 
-    def __init__(self, node, name: str):
-        super().__init__(node=node, name=name)
-        self.bot = None
+    def __init__(self, node):
+        super().__init__(node=node, name="Bot")
+        self.bot: Optional[DCSServerBot] = None
 
     def init_bot(self):
         def get_prefix(client, message):
@@ -51,9 +53,11 @@ class BotService(Service):
                             assume_unsync_clock=True)
 
     async def start(self, *, reconnect: bool = True) -> None:
+        from services import ServiceBus
+
         await super().start()
         try:
-            while not ServiceRegistry.get("ServiceBus"):
+            while not ServiceRegistry.get(ServiceBus):
                 await asyncio.sleep(1)
             self.bot = self.init_bot()
             await self.install_fonts()

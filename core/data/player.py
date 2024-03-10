@@ -17,11 +17,10 @@ __all__ = ["Player"]
 
 
 @dataclass
-@DataObjectFactory.register("Player")
+@DataObjectFactory.register()
 class Player(DataObject):
     server: Server = field(compare=False)
     id: int = field(compare=False)
-    name: str = field(compare=False)
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
@@ -42,8 +41,10 @@ class Player(DataObject):
     bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):
+        from services import BotService
+
         super().__post_init__()
-        self.bot = ServiceRegistry.get("Bot").bot
+        self.bot = ServiceRegistry.get(BotService).bot
         if self.id == 1:
             self.active = False
             return

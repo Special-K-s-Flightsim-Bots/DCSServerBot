@@ -366,6 +366,7 @@ def get_presets(node: Node) -> Iterable[str]:
 
 def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optional[dict]:
     """
+    :param node: The node where the configuration is stored.
     :param name: The name of the preset to retrieve.
     :param filename: The optional filename of the preset file to search in. If not provided, it will search for preset files in the 'config' directory.
     :return: The dictionary containing the preset data if found, or None if the preset was not found.

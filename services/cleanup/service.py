@@ -7,8 +7,11 @@ from discord.ext import tasks
 from pathlib import Path
 
 
-@ServiceRegistry.register("Cleanup")
+@ServiceRegistry.register()
 class CleanupService(Service):
+    def __init__(self, node):
+        super().__init__(node=node, name="Cleanup")
+
     async def start(self, *args, **kwargs):
         await super().start()
         self.schedule.start()

@@ -4,7 +4,7 @@ import psycopg
 
 from copy import deepcopy
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, \
-    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG
+    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, Member
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.utils import MISSING
@@ -214,7 +214,7 @@ class UserStatistics(Plugin):
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return
-        member = DataObjectFactory().new('Member', node=self.node, member=user)
+        member = DataObjectFactory().new(Member, node=self.node, member=user)
         if not member.verified:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(

@@ -5,12 +5,14 @@ import os
 import shlex
 
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command, ServiceRegistry
+    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, Member
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
 from queue import Queue
+from services import ServiceBus
 from typing import TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from core import Server
@@ -222,9 +224,8 @@ class MissionEventListener(EventListener):
     @staticmethod
     def _update_mission(server: Server, data: dict) -> None:
         if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(
-                Mission.__name__, node=server.node, server=server, map=data['current_map'],
-                name=data['current_mission'])
+            server.current_mission = DataObjectFactory().new(Mission, node=server.node, server=server,
+                                                             map=data['current_map'], name=data['current_mission'])
         server.current_mission.update(data)
 
     async def _update_bans(self, server: Server):
@@ -300,8 +301,8 @@ class MissionEventListener(EventListener):
                 continue
             player: Player = server.get_player(ucid=p['ucid'])
             if not player:
-                player: Player = DataObjectFactory().new(
-                    Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
+                player = DataObjectFactory().new(
+                    Player, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
                     side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                     unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
                     unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
@@ -376,8 +377,8 @@ class MissionEventListener(EventListener):
         self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
-            player: Player = DataObjectFactory().new(
-                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
+            player = DataObjectFactory().new(
+                Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
@@ -403,7 +404,7 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             player = DataObjectFactory().new(
-                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
+                Player, node=server.node, server=server, id=data['id'], name=data['name'],
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
@@ -602,7 +603,7 @@ class MissionEventListener(EventListener):
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
         await self._handle_command(server, player, params, lambda delinquent, reason: (
-            ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 3),
+            ServiceRegistry.get(ServiceBus).ban(delinquent.ucid, player.member.display_name, reason, 3),
             f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
@@ -660,7 +661,7 @@ class MissionEventListener(EventListener):
                     return
 
                 discord_id = row[0]
-                member = DataObjectFactory().new('Member', node=self.node,
+                member = DataObjectFactory().new(Member, node=self.node,
                                                  member=self.bot.guilds[0].get_member(discord_id))
 
                 old_ucid = member.ucid if member.verified else None
@@ -679,6 +680,7 @@ class MissionEventListener(EventListener):
                                                        user=player.member))
                     player.sendChatMessage('Your account has been updated.')
                 elif not old_ucid:
+                    # noinspection PyAsyncCall
                     asyncio.create_task(self.bot.audit(
                         f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
                         user=player.member))

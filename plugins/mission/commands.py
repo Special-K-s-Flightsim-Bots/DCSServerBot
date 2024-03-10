@@ -6,7 +6,7 @@ import random
 import re
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory
+    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range
@@ -236,7 +236,7 @@ class Mission(Plugin):
         mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
         })
-        mission_info['passwords'] = await read_passwords(server)
+        mission_info['passwords'] = await read_passwords()
         report = Report(self.bot, self.plugin_name, 'briefing.json')
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
         await interaction.followup.send(embed=env.embed)
@@ -1169,7 +1169,7 @@ class Mission(Plugin):
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
-        member = DataObjectFactory().new('Member', node=self.node, member=interaction.user)
+        member = DataObjectFactory().new(Member, node=self.node, member=interaction.user)
         if (utils.is_ucid(member.ucid) and member.verified and
                 not await utils.yn_question(interaction,
                                             "You already have a verified DCS account!\n"

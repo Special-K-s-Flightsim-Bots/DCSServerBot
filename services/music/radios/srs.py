@@ -41,7 +41,7 @@ class SRSRadio(Radio):
                     "-p", srs_port,
                     "-n", self.config.get('display_name', 'DCSSB MusicBox'),
                     "-i", file
-                ],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             self.process = await asyncio.to_thread(run_subprocess)
             if 'popup' in self.config:

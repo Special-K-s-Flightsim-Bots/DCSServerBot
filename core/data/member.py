@@ -1,5 +1,6 @@
 from __future__ import annotations
 import discord
+
 from core import DataObjectFactory, DataObject, utils
 from dataclasses import dataclass, field
 from typing import Optional
@@ -9,7 +10,7 @@ __all__ = ["Member"]
 
 
 @dataclass
-@DataObjectFactory.register("Member")
+@DataObjectFactory.register()
 class Member(DataObject):
     member: discord.Member
     _ucid: Optional[str] = field(default=None, init=False)

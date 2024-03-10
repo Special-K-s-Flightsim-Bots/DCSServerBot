@@ -1,7 +1,7 @@
-from core import const, report, Status, Server, utils, ServiceRegistry
+from core import const, report, Status, Server, utils, ServiceRegistry, Plugin
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-
+from services import BotService
+from typing import Optional, cast
 
 STATUS_IMG = {
     Status.LOADING:
@@ -135,8 +135,8 @@ class ExtensionsInfo(report.EmbedElement):
 class ScheduleInfo(report.EmbedElement):
 
     async def render(self, server: Server):
-        bot = ServiceRegistry.get("Bot").bot
-        scheduler = bot.cogs.get('Scheduler')
+        bot = ServiceRegistry.get(BotService).bot
+        scheduler: Plugin = cast(Plugin, bot.cogs.get('Scheduler'))
         if scheduler:
             config = scheduler.get_config(server)
             if 'schedule' in config:

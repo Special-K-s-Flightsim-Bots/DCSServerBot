@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import os
 
@@ -17,10 +16,9 @@ __all__ = ["Mission"]
 
 
 @dataclass
-@DataObjectFactory.register("Mission")
+@DataObjectFactory.register()
 class Mission(DataObject):
     server: Server = field(compare=False)
-    name: str
     map: str
     start_time: int = field(compare=False, default=0)
     mission_time: int = field(compare=False, default=0)

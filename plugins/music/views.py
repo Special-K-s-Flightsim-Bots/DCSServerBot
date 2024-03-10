@@ -5,8 +5,8 @@ from core import utils, Server, ServiceRegistry
 from discord import SelectOption, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from services import MusicService
-
 from services.music.radios import Mode
+
 from .utils import get_tag
 
 
@@ -15,7 +15,7 @@ class MusicPlayer(View):
     def __init__(self, server: Server, radio_name: str, playlists: list[str]):
         super().__init__()
         self.radio_name = radio_name
-        self.service: MusicService = ServiceRegistry.get("Music")
+        self.service = ServiceRegistry.get(MusicService)
         self.log = self.service.log
         self.server = server
         self.playlists = playlists

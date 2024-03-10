@@ -109,9 +109,11 @@ async def input_value(bot: DCSServerBot, interaction: discord.Interaction, messa
     msg = response = None
     try:
         if message:
+            # noinspection PyUnresolvedReferences
             if interaction.response.is_done():
                 msg = await interaction.followup.send(message, ephemeral=True)
             else:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(message, ephemeral=True)
                 msg = await interaction.original_response()
         response = await bot.wait_for('message', check=check, timeout=timeout)
@@ -196,7 +198,9 @@ class SelectView(View):
 
     @discord.ui.select()
     async def callback(self, interaction: Interaction, select: Select):
+        # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
         if select.max_values > 1:
             self.result = select.values
@@ -205,12 +209,14 @@ class SelectView(View):
         self.stop()
 
     @discord.ui.button(label='OK', style=discord.ButtonStyle.green, custom_id='sl_ok')
-    async def on_ok(self, interaction: Interaction, button: Button):
+    async def on_ok(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='sl_cancel')
-    async def on_cancel(self, interaction: Interaction, button: Button):
+    async def on_cancel(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = None
         self.stop()
@@ -237,9 +243,11 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
     msg = None
     try:
         if isinstance(interaction, discord.Interaction):
+            # noinspection PyUnresolvedReferences
             if interaction.response.is_done():
                 msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             else:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
                 msg = await interaction.original_response()
         else:
@@ -258,13 +266,15 @@ class YNQuestionView(View):
         self.result = False
 
     @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes')
-    async def on_yes(self, interaction: Interaction, button: Button):
+    async def on_yes(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = True
         self.stop()
 
     @discord.ui.button(label='No', style=discord.ButtonStyle.red, custom_id='yn_no')
-    async def on_no(self, interaction: Interaction, button: Button):
+    async def on_no(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = False
         self.stop()
@@ -305,19 +315,22 @@ class PopulatedQuestionView(View):
         self.result = None
 
     @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='pl_yes')
-    async def on_yes(self, interaction: Interaction, button: Button):
+    async def on_yes(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'yes'
         self.stop()
 
     @discord.ui.button(label='Later', style=discord.ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
-    async def on_later(self, interaction: Interaction, button: Button):
+    async def on_later(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'later'
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='pl_cancel')
-    async def on_cancel(self, interaction: Interaction, button: Button):
+    async def on_cancel(self, interaction: Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
@@ -326,7 +339,7 @@ async def populated_question(interaction: discord.Interaction, question: str, me
                              ephemeral: Optional[bool] = True) -> Optional[str]:
     """
     Same as yn_question, but adds an additional option "Later". The usual usecase of this function would be
-    if people are flying atm and you want to ask to trigger an action that would affect their experience (aka stop
+    if people are flying atm, and you want to ask to trigger an action that would affect their experience (aka stop
     the server).
 
     :param interaction: The discord interaction object.
@@ -339,9 +352,11 @@ async def populated_question(interaction: discord.Interaction, question: str, me
     if message is not None:
         embed.add_field(name=message, value='_ _')
     view = PopulatedQuestionView()
+    # noinspection PyUnresolvedReferences
     if interaction.response.is_done():
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
     else:
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
         msg = await interaction.original_response()
     try:

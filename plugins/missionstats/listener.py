@@ -61,7 +61,7 @@ class MissionStatisticsEventListener(EventListener):
             self._toggle_mission_stats(server)
 
     @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _: dict) -> None:
         self._toggle_mission_stats(server)
 
     async def _update_database(self, server: Server, config: dict, data: dict):

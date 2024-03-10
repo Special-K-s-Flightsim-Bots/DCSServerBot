@@ -8,6 +8,7 @@ import psutil
 import subprocess
 
 from core import Extension, Status, ServiceRegistry, Server, utils
+from services import ServiceBus
 from typing import Optional
 
 process: Optional[psutil.Process] = None
@@ -19,7 +20,7 @@ class Sneaker(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.bus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
 
     def create_config(self):
         cfg = {"servers": []}
