@@ -171,7 +171,7 @@ class UserStatisticsEventListener(EventListener):
                                    'gathered for this session.')
 
     def close_mission_stats(self, server: Server):
-        with self.apool.connection() as conn:
+        with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
                 conn.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
