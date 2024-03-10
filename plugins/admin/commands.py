@@ -239,7 +239,7 @@ class Admin(Plugin):
         embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else _('<unknown>')),
                         value=ban['ucid'])
         if ban['banned_until'].year == 9999:
-            until = 'never'
+            until = _('never')
         else:
             until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
         embed.add_field(name=_("Banned by: {}").format(ban['banned_by']), value=_("Exp.: {}").format(until))

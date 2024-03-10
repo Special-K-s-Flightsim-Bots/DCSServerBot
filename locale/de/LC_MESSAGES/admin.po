@@ -55,6 +55,9 @@ msgstr "Sperr-Informationen"
 msgid "<unknown>"
 msgstr "<unbekannt>"
 
+msgid "never"
+msgstr "niemals"
+
 msgid "Banned by: {}"
 msgstr "Gesperrt von: {}"
 
