@@ -125,6 +125,7 @@ if __name__ == "__main__":
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
     except PermissionError:
+        traceback.print_exc()
         exit(-2)
     except PidFileError:
         print(f"Process already running for node {args.node}! Exiting...")
@@ -133,6 +134,7 @@ if __name__ == "__main__":
         # restart again (old handling)
         exit(-1)
     except asyncio.CancelledError:
+        traceback.print_exc()
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException, psycopg.OperationalError) as ex:
