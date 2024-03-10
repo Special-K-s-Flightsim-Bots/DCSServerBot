@@ -11,7 +11,8 @@ class Restart(VotableItem):
         super().__init__('restart', server, config, params)
 
     def can_vote(self) -> bool:
-        return not self.server.restart_pending
+        return True
+        # return not self.server.restart_pending
 
     def print(self) -> str:
         self.server.restart_pending = True
