@@ -1,3 +1,4 @@
+import asyncio
 import psycopg
 
 from core import EventListener, Plugin, Status, Server, Side, Player, event
@@ -309,5 +310,6 @@ class UserStatisticsEventListener(EventListener):
         if event_name == 'mission_end':
             config = self.get_config(server)
             if 'highscore' in config:
+                # noinspection PyAsyncCall
                 # noinspection PyUnresolvedReferences
-                self.plugin.render_highscore(config['highscore'], server, True)
+                asyncio.create_task(self.plugin.render_highscore(config['highscore'], server, True))
