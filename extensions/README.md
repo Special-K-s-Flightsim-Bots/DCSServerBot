@@ -25,6 +25,22 @@ you like. The common usecase for people is to use it to change the weather on a 
 
 As MizEdit is a very powerful solution, I decided to donate it a separate doc page, which you can reach [here](./MizEdit.md).
 
+### OvGME
+This little extension checks if you have any requiredModules in your miz file and shows them in the server status
+embed in Discord. Nice addition for your users, if you show them what to install to fly on your server.
+
+The configuration is as simple as it sounds:
+```yaml
+MyNode:
+  # [...]
+  instances:
+    DCS.openbeta_server:
+      # [...]
+      extensions:
+        OvGME:
+          enabled: true
+```
+
 ### DCS Voice Chat
 If you want to use the built-in Voice Chat system of DCS, you can use the VoiceChat extension.
 ```yaml
