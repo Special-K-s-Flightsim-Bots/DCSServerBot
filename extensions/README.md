@@ -238,7 +238,11 @@ MyNode:
             dust-allowed: true
 ```
 You can find a list of supported parameters in the config.json provided by DCS-real-weather.<br>
-**DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.**
+> ⚠️ **Attention!**<br>
+> DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.
+> 
+> If you want to set a custom ICAO code (URMM in this case) per mission, you can name your mission like so:<br>
+> `MyFancyMission_ICAO_URMM_whatsoever.miz`
 
 ### Lardoon
 [Lardoon](https://github.com/b1naryth1ef/lardoon) is another web-server-based application that provides a nice search 

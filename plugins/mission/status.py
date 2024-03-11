@@ -71,8 +71,7 @@ class ServerInfo(report.EmbedElement):
         else:
             footer = ''
         if server.dcs_version:
-            footer += (f'\nServer is running:\n- DCSServerBot {self.node.bot_version}.{self.node.sub_version}, '
-                       f'DCS {server.dcs_version}')
+            footer += f'DCS {server.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
         self.embed.set_footer(text=footer)
 
 
@@ -128,9 +127,7 @@ class ExtensionsInfo(report.EmbedElement):
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
-            footer += ', ' + ext['name']
-            if ext.get('version'):
-                footer += ' v' + ext['version']
+        footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if 'version' in ext])
         self.embed.set_footer(text=footer)
 
 
@@ -163,12 +160,13 @@ class ScheduleInfo(report.EmbedElement):
 
 class Footer(report.EmbedElement):
     async def render(self, server: Server):
+        await report.Ruler(self.env).render()
         text = self.embed.footer.text or ''
         for listener in self.bot.eventListeners:
             # noinspection PyUnresolvedReferences
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server.name in listener.statistics):
-                text += '\n- User statistics are enabled for this server.'
+                text += '\n\nUser statistics are enabled for this server.'
                 break
         text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
         self.embed.set_footer(text=text)
