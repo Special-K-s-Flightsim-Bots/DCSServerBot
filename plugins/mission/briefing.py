@@ -7,9 +7,9 @@ class Header(report.EmbedElement):
         server: Server = self.bot.servers[server_name]
         sides = utils.get_sides(interaction.client, interaction, server)
         if Coalition.BLUE in sides:
-            self.add_field(name='Blue Passwd', value=mission_info['passwords']['Blue'] or 'n/a')
+            self.add_field(name='Blue Passwd', value=mission_info['passwords']['blue'] or 'n/a')
         if Coalition.RED in sides:
-            self.add_field(name='Red Passwd', value=mission_info['passwords']['Red'] or 'n/a')
+            self.add_field(name='Red Passwd', value=mission_info['passwords']['red'] or 'n/a')
 
 
 class Body(report.EmbedElement):

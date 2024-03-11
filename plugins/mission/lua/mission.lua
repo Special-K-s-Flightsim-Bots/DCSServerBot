@@ -11,6 +11,8 @@ function dcsbot.sendPopupMessage(to, message, time)
 		trigger.action.outTextForCoalition(coalition.side.RED, message, time)
 	elseif to == 'blue' then
 		trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
+	elseif to == 'neutrals' then
+		trigger.action.outTextForCoalition(coalition.side.NEUTRAL, message, time)
 	else
         local unit = Unit.getByName(to)
         if unit and unit:isExist() then
@@ -28,6 +30,8 @@ function dcsbot.playSound(to, sound)
 		trigger.action.outSoundForCoalition(coalition.side.RED, sound)
 	elseif to == 'blue' then
 		trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)
+	elseif to == 'neutrals' then
+		trigger.action.outSoundForCoalition(coalition.side.NEUTRAL, sound)
 	else
         local unit = Unit.getByName(to)
         if unit and unit:isExist() then
@@ -47,6 +51,8 @@ function dcsbot.sendPopupMessage2(to, id, message, time)
 			trigger.action.outTextForCoalition(coalition.side.RED, message, time)
 		elseif id == 'blue' then
 			trigger.action.outTextForCoalition(coalition.side.BLUE, message, time)
+		elseif id == 'neutrals' then
+			trigger.action.outTextForCoalition(coalition.side.NEUTRAL, message, time)
 		end
 	elseif to == 'unit' then
         local unit = Unit.getByName(id)
@@ -72,6 +78,8 @@ function dcsbot.playSound2(to, id, sound)
 			trigger.action.outSoundForCoalition(coalition.side.RED, sound)
 		elseif id == 'blue' then
 			trigger.action.outSoundForCoalition(coalition.side.BLUE, sound)
+		elseif id == 'neutrals' then
+			trigger.action.outSoundForCoalition(coalition.side.NEUTRAL, sound)
 		end
 	elseif to == 'unit' then
         local unit = Unit.getByName(id)

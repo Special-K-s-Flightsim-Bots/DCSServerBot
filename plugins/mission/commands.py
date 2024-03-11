@@ -225,7 +225,7 @@ class Mission(Plugin):
                 cursor = await conn.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
                                             (server.name,))
                 row = await cursor.fetchone()
-                return {"Blue": row[0], "Red": row[1]}
+                return {"blue": row[0], "red": row[1]}
 
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
