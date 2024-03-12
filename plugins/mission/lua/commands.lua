@@ -182,8 +182,17 @@ function dcsbot.getMissionDetails(json)
         real_time = DCS.getRealTime(),
         briefing = mod_dictionary.getBriefingData(DCS.getMissionFilename(), 'EN'),
         results = {
-            Blue = DCS.getMissionResult("blue"),
-            Red = DCS.getMissionResult("red")
+            blue = DCS.getMissionResult("blue"),
+            red = DCS.getMissionResult("red"),
+            neutrals = DCS.getMissionResult("neutrals"),
+        },
+        tankers = {
+            blue = net.dostring_in('mission', 'return a_do_script("return coalition.getServiceProviders(coalition.side.BLUE, coalition.service.TANKER)")'),
+            red = net.dostring_in('mission', 'return a_do_script("return coalition.getServiceProviders(coalition.side.RED, coalition.service.TANKER)")'),
+        },
+        awacs = {
+            blue = net.dostring_in('mission', 'return a_do_script("return coalition.getServiceProviders(coalition.side.BLUE, coalition.service.AWACS)")'),
+            red = net.dostring_in('mission', 'return a_do_script("return coalition.getServiceProviders(coalition.side.RED, coalition.service.AWACS)")'),
         }
     }
 	utils.sendBotTable(msg, json.channel)

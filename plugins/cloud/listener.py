@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 
 from core import EventListener, Server, Player, Side, event
 from psycopg.rows import dict_row
@@ -6,18 +7,7 @@ from psycopg.rows import dict_row
 
 class CloudListener(EventListener):
 
-    @event(name="onPlayerChangeSlot")
-    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        if 'side' not in data or data['id'] == 1:
-            return
-        config = self.plugin.get_config(server)
-        if 'token' not in config:
-            return
-        player: Player = server.get_player(ucid=data['ucid'])
-        if not player:
-            return
-        if player.side == Side.SPECTATOR:
-            return
+    async def update_cloud_data(self, server: Server, player: Player):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -45,3 +35,18 @@ class CloudListener(EventListener):
                 await self.plugin.post('upload', row)
             except aiohttp.ClientError:
                 self.log.warn('Cloud service not available atm, skipping statistics upload.')
+
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        if 'side' not in data or data['id'] == 1:
+            return
+        config = self.plugin.get_config(server)
+        if 'token' not in config:
+            return
+        player: Player = server.get_player(ucid=data['ucid'])
+        if not player:
+            return
+        if player.side == Side.SPECTATOR:
+            return
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.update_cloud_data(server, player))

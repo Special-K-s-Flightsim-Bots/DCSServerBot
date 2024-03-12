@@ -98,6 +98,9 @@ class Main:
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
+            except Exception:
+                self.log.warning("Aborting the main loop.")
+                raise
             finally:
                 await self.node.unregister()
 
@@ -136,9 +139,12 @@ if __name__ == "__main__":
     except asyncio.CancelledError:
         # do not restart again
         exit(-2)
-    except (YAMLError, FatalException, psycopg.OperationalError) as ex:
+    except (YAMLError, FatalException) as ex:
         print(ex)
         # do not restart again
+        exit(-2)
+    except psycopg.OperationalError as ex:
+        print(f"Database Error: {ex}")
         exit(-2)
     except SystemExit as ex:
         exit(ex.code)

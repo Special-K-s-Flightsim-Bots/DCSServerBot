@@ -24,7 +24,7 @@ from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
 from packaging import version
 from pathlib import Path
-from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation
+from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation, OperationalError
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
@@ -131,7 +131,8 @@ class NodeImpl(Node):
 
     @master.setter
     def master(self, value: bool):
-        self._master = value
+        if self._master != value:
+            self._master = value
 
     @property
     def public_ip(self) -> str:
@@ -219,6 +220,10 @@ class NodeImpl(Node):
         ch.setLevel(logging.INFO)
         ch.setFormatter(formatter)
         log.addHandler(ch)
+        # Database logging
+        log2 = logging.getLogger(name='psycopg.pool')
+        log2.setLevel(logging.ERROR)
+        log2.addHandler(ch)
         return log
 
     def init_db(self) -> Tuple[ConnectionPool, AsyncConnectionPool]:
@@ -522,108 +527,116 @@ class NodeImpl(Node):
                 self.autoupdate.cancel()
 
     async def heartbeat(self) -> bool:
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor(row_factory=dict_row) as cursor:
-                    try:
-                        await cursor.execute("""
-                            SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
-                            WHERE guild_id = %s FOR UPDATE
-                        """, (self.guild_id, ))
-                        all_nodes = await cursor.fetchall()
-                        await cursor.execute("""
-                            SELECT c.master, c.version, c.update_pending 
-                            FROM cluster c, nodes n 
-                            WHERE c.guild_id = %s AND c.guild_id = n.guild_id AND c.master = n.node
-                        """, (self.guild_id, ))
-                        cluster = await cursor.fetchone()
-                        # No master there? we take it!
-                        if not cluster:
+        try:
+            pool_size = self.pool.get_stats()['pool_size']
+            apool_size = self.apool.get_stats()['pool_size']
+            self.log.info(f"Pool: {pool_size} + {apool_size} = {pool_size+apool_size}")
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async with conn.cursor(row_factory=dict_row) as cursor:
+                        try:
                             await cursor.execute("""
-                                INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)
-                                ON CONFLICT (guild_id) DO UPDATE 
-                                SET master = excluded.master, version = excluded.version
-                            """, (self.guild_id, self.name, __version__))
-                            return True
-                        # I am the master
-                        if cluster['master'] == self.name:
+                                SELECT NOW() AT TIME ZONE 'UTC' AS now, * FROM nodes 
+                                WHERE guild_id = %s FOR UPDATE
+                            """, (self.guild_id, ))
+                            all_nodes = await cursor.fetchall()
+                            await cursor.execute("""
+                                SELECT c.master, c.version, c.update_pending 
+                                FROM cluster c, nodes n 
+                                WHERE c.guild_id = %s AND c.guild_id = n.guild_id AND c.master = n.node
+                            """, (self.guild_id, ))
+                            cluster = await cursor.fetchone()
+                            # No master there? we take it!
+                            if not cluster:
+                                await cursor.execute("""
+                                    INSERT INTO cluster (guild_id, master, version) VALUES (%s, %s, %s)
+                                    ON CONFLICT (guild_id) DO UPDATE 
+                                    SET master = excluded.master, version = excluded.version
+                                """, (self.guild_id, self.name, __version__))
+                                return True
+                            # I am the master
+                            if cluster['master'] == self.name:
+                                if cluster['update_pending']:
+                                    if not await self.upgrade_pending():
+                                        # we have just finished updating, so restart all other nodes (if there are any)
+                                        for node in await self.get_active_nodes():
+                                            # TODO: we might not have bus access here yet, so be our own bus (dirty)
+                                            data = {
+                                                "command": "rpc",
+                                                "object": "Node",
+                                                "method": "upgrade"
+                                            }
+                                            await conn.execute("""
+                                                INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
+                                            """, (self.guild_id, node, Json(data)))
+                                        # clear the update flag
+                                        await cursor.execute("""
+                                            UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s
+                                        """, (__version__, self.guild_id))
+                                    else:
+                                        # something went wrong, we need to upgrade again
+                                        await self.upgrade()
+                                elif version.parse(cluster['version']) != version.parse(__version__):
+                                    if version.parse(cluster['version']) > version.parse(__version__):
+                                        self.log.warning(
+                                            f"Bot version downgraded from {cluster['version']} to {__version__}. "
+                                            f"This could lead to unexpected behavior if there have been database schema "
+                                            f"changes.")
+                                    await cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
+                                                         (__version__, self.guild_id))
+                                return True
+                            # we are not the master, the update is pending, we will not take over
                             if cluster['update_pending']:
-                                if not await self.upgrade_pending():
-                                    # we have just finished updating, so restart all other nodes (if there are any)
-                                    for node in await self.get_active_nodes():
-                                        # TODO: we might not have bus access here yet, so be our own bus (dirty)
-                                        data = {
-                                            "command": "rpc",
-                                            "object": "Node",
-                                            "method": "upgrade"
-                                        }
-                                        await conn.execute("""
-                                            INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
-                                        """, (self.guild_id, node, Json(data)))
-                                    # clear the update flag
-                                    await cursor.execute("""
-                                        UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s
-                                    """, (__version__, self.guild_id))
-                                else:
-                                    # something went wrong, we need to upgrade again
-                                    await self.upgrade()
-                            elif version.parse(cluster['version']) != version.parse(__version__):
-                                if version.parse(cluster['version']) > version.parse(__version__):
-                                    self.log.warning(
-                                        f"Bot version downgraded from {cluster['version']} to {__version__}. "
-                                        f"This could lead to unexpected behavior if there have been database schema "
-                                        f"changes.")
-                                await cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
-                                                     (__version__, self.guild_id))
-                            return True
-                        # we are not the master, the update is pending, we will not take over
-                        if cluster['update_pending']:
-                            return False
-                        # we have a version mismatch on the agent, a cloud sync might still be pending
-                        if version.parse(__version__) < version.parse(cluster['version']):
-                            self.log.error(f"We are running version {__version__} where the master is on version "
-                                           f"{cluster['version']} already. Trying to upgrade ...")
-                            # TODO: we might not have bus access here yet, so be our own bus (dirty)
-                            data = {
-                                "command": "rpc",
-                                "object": "Node",
-                                "method": "upgrade"
-                            }
-                            await cursor.execute("""
-                                INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
-                            """, (self.guild_id, self.name, Json(data)))
-                            return False
-                        elif version.parse(__version__) > version.parse(cluster['version']):
-                            self.log.warning(f"This node is running on version {__version__} where the master still "
-                                             f"runs on {cluster['version']}. You need to upgrade your master node!")
-                        # we are not the master, but we are the preferred one, taking over
-                        if self.locals.get('preferred_master', False):
+                                return False
+                            # we have a version mismatch on the agent, a cloud sync might still be pending
+                            if version.parse(__version__) < version.parse(cluster['version']):
+                                self.log.error(f"We are running version {__version__} where the master is on version "
+                                               f"{cluster['version']} already. Trying to upgrade ...")
+                                # TODO: we might not have bus access here yet, so be our own bus (dirty)
+                                data = {
+                                    "command": "rpc",
+                                    "object": "Node",
+                                    "method": "upgrade"
+                                }
+                                await cursor.execute("""
+                                    INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
+                                """, (self.guild_id, self.name, Json(data)))
+                                return False
+                            elif version.parse(__version__) > version.parse(cluster['version']):
+                                self.log.warning(f"This node is running on version {__version__} where the master still "
+                                                 f"runs on {cluster['version']}. You need to upgrade your master node!")
+                            # we are not the master, but we are the preferred one, taking over
+                            if self.locals.get('preferred_master', False):
+                                await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                     (self.name, self.guild_id))
+                                return True
+                            # else, check if the running master is probably dead...
+                            for row in all_nodes:
+                                if row['node'] == self.name:
+                                    continue
+                                if row['node'] == cluster['master']:
+                                    if (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
+                                        # the master is dead, long live the master
+                                        await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                             (self.name, self.guild_id))
+                                        return True
+                                    return False
+                            # we can not find a master - take over
                             await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
                                                  (self.name, self.guild_id))
                             return True
-                        # else, check if the running master is probably dead...
-                        for row in all_nodes:
-                            if row['node'] == self.name:
-                                continue
-                            if row['node'] == cluster['master']:
-                                if (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
-                                    # the master is dead, long live the master
-                                    await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
-                                                         (self.name, self.guild_id))
-                                    return True
-                                return False
-                        # we can not find a master - take over
-                        await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
-                                             (self.name, self.guild_id))
-                        return True
-                    except UndefinedTable:
-                        return True
-                    except Exception as e:
-                        self.log.exception(e)
-                    finally:
-                        await cursor.execute("""
-                            UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
-                        """, (self.guild_id, self.name))
+                        except UndefinedTable:
+                            return True
+                        except Exception as e:
+                            self.log.exception(e)
+                            return self.master
+                        finally:
+                            await cursor.execute("""
+                                UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
+                            """, (self.guild_id, self.name))
+        except OperationalError as ex:
+            self.log.error(ex)
+            return self.master
 
     async def get_active_nodes(self) -> list[str]:
         async with self.apool.connection() as conn:

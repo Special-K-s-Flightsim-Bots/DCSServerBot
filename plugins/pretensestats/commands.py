@@ -26,7 +26,7 @@ class PretenseStats(Plugin):
 
     @tasks.loop(seconds=60)
     async def update_leaderboard(self):
-        for server in self.bot.servers.values():
+        for server in self.bot.servers.copy().values():
             try:
                 if server.status != Status.RUNNING:
                     continue

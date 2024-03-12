@@ -34,11 +34,11 @@ class UserStatisticsEventListener(EventListener):
     SQL_MISSION_HANDLING = {
         'start_mission': 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)',
         'current_mission_id': 'SELECT id, mission_name FROM missions WHERE server_name = %s AND mission_end IS NULL',
-        'close_statistics': "UPDATE statistics SET hop_off = GREATEST(hop_on, (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND hop_off IS NULL",
+        'close_statistics': "UPDATE statistics SET hop_off = GREATEST((hop_on + INTERVAL '1 second'), (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND hop_off IS NULL",
         'close_mission': "UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE id = %s",
         'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, side) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
-        'stop_player': "UPDATE statistics SET hop_off = GREATEST(hop_on, (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL",
+        'stop_player': "UPDATE statistics SET hop_off = GREATEST((hop_on + INTERVAL '1 second'), (now() AT TIME ZONE 'utc')) WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL",
         'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
     }
 

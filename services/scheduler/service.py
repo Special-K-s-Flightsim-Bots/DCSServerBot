@@ -66,7 +66,7 @@ class SchedulerService(Service):
             # run all default tasks
             await check_run(None)
             # do the servers
-            for server in self.bot.servers.values():
+            for server in self.bot.servers.copy().values():
                 config = self.get_config(server)
                 if config:
                     await check_run(server)

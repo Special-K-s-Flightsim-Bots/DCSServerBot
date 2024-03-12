@@ -1284,7 +1284,7 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def afk_check(self):
         try:
-            for server in self.bot.servers.values():
+            for server in self.bot.servers.copy().values():
                 max_time = server.locals.get('afk_time', -1)
                 if max_time == -1:
                     continue

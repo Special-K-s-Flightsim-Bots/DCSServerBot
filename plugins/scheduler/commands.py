@@ -264,7 +264,7 @@ class Scheduler(Plugin):
     async def check_state(self):
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
-        for server_name, server in self.bot.servers.items():
+        for server_name, server in self.bot.servers.copy().items():
             # only care about servers that are not in the startup phase
             if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
                 continue
@@ -299,7 +299,7 @@ class Scheduler(Plugin):
         initialized = 0
         while initialized < len(self.bot.servers):
             initialized = 0
-            for server_name, server in self.bot.servers.items():
+            for server_name, server in self.bot.servers.copy().items():
                 if server.status != Status.UNREGISTERED:
                     initialized += 1
             await asyncio.sleep(1)

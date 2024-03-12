@@ -108,7 +108,7 @@ class Punishment(Plugin):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
-                        for server_name, server in self.bot.servers.items():
+                        for server_name, server in self.bot.servers.copy().items():
                             config = self.get_config(server)
                             # we are not initialized correctly yet
                             if not config:

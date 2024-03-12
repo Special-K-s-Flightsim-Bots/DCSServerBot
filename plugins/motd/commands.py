@@ -97,7 +97,7 @@ class MOTD(Plugin):
                 self.send_message(message, server, config)
 
         try:
-            for server_name, server in self.bot.servers.items():
+            for server_name, server in self.bot.servers.copy().items():
                 config = self.get_config(server)
                 if server.status != Status.RUNNING or not config or 'nudge' not in config:
                     continue
