@@ -70,7 +70,7 @@ ERRORS = {
     "DL": "Drifted left",
     "DR": "Drifted right",
     "DU": "DU Deck up",
-    "EG": "Eased gun (no MIL/AB after touchdown)",
+    "EG": "Eased gun (cut throttle on touchdown)",
     "FD": "Fouled deck",
     "HO": "Hold off",
     "LL": "Landed left",
