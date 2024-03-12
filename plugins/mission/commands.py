@@ -1351,15 +1351,22 @@ class Mission(Plugin):
                     await message.channel.send(f'Error while uploading: {rc.name}')
                     return
 
-            # get the real filename after the upload
-            filename = next((file for file in await server.getMissionList()
-                             if os.path.basename(file) == os.path.basename(att.filename)), None)
-            if not filename:
-                await message.channel.send('Error while uploading: File not found in severSettings.lua')
-                return
             name = utils.escape_string(os.path.basename(att.filename)[:-4])
-            await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
-            await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
+            try:
+                if server.locals.get('autoscan', False):
+                    await message.channel.send(
+                        f'Mission "{name}" uploaded to server {server.name}.\n'
+                        f'As you have autoscan enabled, it might take some seconds to appear in your mission list.')
+                    return
+                # get the real filename after the upload
+                filename = next((file for file in await server.getMissionList()
+                                 if os.path.basename(file) == os.path.basename(att.filename)), None)
+                if not filename:
+                    await message.channel.send('Error while uploading: File not found in severSettings.lua')
+                    return
+                await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
+            finally:
+                await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
             if (server.status != Status.SHUTDOWN and server.current_mission and
                     server.current_mission.filename != filename and
