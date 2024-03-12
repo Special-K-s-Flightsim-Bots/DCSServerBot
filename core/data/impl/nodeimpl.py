@@ -528,9 +528,6 @@ class NodeImpl(Node):
 
     async def heartbeat(self) -> bool:
         try:
-            pool_size = self.pool.get_stats()['pool_size']
-            apool_size = self.apool.get_stats()['pool_size']
-            self.log.info(f"Pool: {pool_size} + {apool_size} = {pool_size+apool_size}")
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
