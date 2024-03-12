@@ -248,7 +248,7 @@ If you need any further assistance, please visit the support discord, listed in 
             except FileNotFoundError:
                 servers = {}
             try:
-                schedulers = yaml.load(Path('config/plugins/schedulers.yaml').read_text(encoding='utf-8'))
+                schedulers = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
             except FileNotFoundError:
                 schedulers = {}
             if self.node in nodes:
