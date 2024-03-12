@@ -661,8 +661,9 @@ class MissionEventListener(EventListener):
                     return
 
                 discord_id = row[0]
-                member = DataObjectFactory().new(Member, node=self.node,
-                                                 member=self.bot.guilds[0].get_member(discord_id))
+                discord_member = self.bot.guilds[0].get_member(discord_id)
+                member = DataObjectFactory().new(Member, name=discord_member.name, node=self.node,
+                                                 member=discord_member)
 
                 old_ucid = member.ucid if member.verified else None
                 if old_ucid:

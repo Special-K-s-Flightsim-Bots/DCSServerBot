@@ -159,7 +159,8 @@ class InfoView(View):
         self.player = player
         self.server = server
         if isinstance(self.member, discord.Member):
-            self._member = DataObjectFactory().new(Member, node=self.bot.node, member=self.member)
+            self._member = DataObjectFactory().new(Member, name=self.member.name, node=self.bot.node,
+                                                   member=self.member)
             self.ucid = self._member.ucid
         else:
             self.ucid = self.member

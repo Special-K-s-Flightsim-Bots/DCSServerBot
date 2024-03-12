@@ -214,7 +214,7 @@ class UserStatistics(Plugin):
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return
-        member = DataObjectFactory().new(Member, node=self.node, member=user)
+        member = DataObjectFactory().new(Member, name=user.name, node=self.node, member=user)
         if not member.verified:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(

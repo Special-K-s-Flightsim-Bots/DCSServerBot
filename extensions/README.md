@@ -329,7 +329,7 @@ MyNode:
             blueCommanderPassword: blue   # Blue Tactical Commander password
             redCommanderPassword: red     # Red Tactical Commander password
           frontend:
-            path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend
+            path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend. This is only needed if you are using the official installer. OVGME users don't need this.
             port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
     instance2:
       # [...]

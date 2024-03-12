@@ -1169,7 +1169,7 @@ class Mission(Plugin):
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
-        member = DataObjectFactory().new(Member, node=self.node, member=interaction.user)
+        member = DataObjectFactory().new(Member, name=interaction.user.name, node=self.node, member=interaction.user)
         if (utils.is_ucid(member.ucid) and member.verified and
                 not await utils.yn_question(interaction,
                                             "You already have a verified DCS account!\n"
