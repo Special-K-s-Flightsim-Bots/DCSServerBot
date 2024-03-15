@@ -969,10 +969,7 @@ class Mission(Plugin):
                     await interaction.followup.send('Unknown player / member provided', ephemeral=True)
                     return
 
-    @player.command(description='Find a player by name')
-    @utils.app_has_role('DCS Admin')
-    @app_commands.guild_only()
-    async def find(self, interaction: discord.Interaction, name: str):
+    async def _find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -1000,6 +997,18 @@ class Mission(Plugin):
         idx = await utils.selection(interaction, placeholder="Select a User", options=options, ephemeral=ephemeral)
         if idx:
             await self._info(interaction, rows[int(idx)][0])
+
+    @player.command(description='Find a player by name')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def find(self, interaction: discord.Interaction, name: str):
+        await self._find(interaction, name)
+
+    @command(description='Find a player by name')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def find(self, interaction: discord.Interaction, name: str):
+        await self._find(interaction, name)
 
     @player.command(description='Shows player information')
     @utils.app_has_role('DCS Admin')
@@ -1040,6 +1049,13 @@ class Mission(Plugin):
             await view.wait()
         finally:
             await msg.delete()
+
+    @command(description='Shows player information')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def info(self, interaction: discord.Interaction,
+                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+        await self._info(interaction, member)
 
     @staticmethod
     def format_unmatched(data, _, __):
