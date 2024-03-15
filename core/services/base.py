@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional, Callable, Any
 
 from ..const import DEFAULT_TAG
 from ..utils.helper import YAMLError
+from ..data.dataobject import DataObject
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -17,7 +18,7 @@ from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Server, NodeImpl, DataObject
+    from core import Server, NodeImpl
 
 __all__ = [
     "proxy",
