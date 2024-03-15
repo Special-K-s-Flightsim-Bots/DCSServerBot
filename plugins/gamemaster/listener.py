@@ -141,7 +141,7 @@ class GameMasterEventListener(EventListener):
                     """, (name,))
                 elif command == 'delete':
                     cursor = await conn.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
-                    campaign_id = (cursor.fetchone())[0]
+                    campaign_id = (await cursor.fetchone())[0]
                     await conn.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
                     await conn.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
 

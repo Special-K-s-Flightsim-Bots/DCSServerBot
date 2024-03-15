@@ -132,7 +132,7 @@ An image used as a thumbnail.
 ```
 
 ### Field
-A field with a single key/value pair.
+A field with a single key/value pair. "default" is optional.
 ```json
 "elements": [
     {
@@ -140,7 +140,8 @@ A field with a single key/value pair.
       "params": {
         "name": "Name",
         "value": "Special K",
-        "inline": false
+        "inline": false,
+        "default": "n/a"
       }
     }
 ]

@@ -8,15 +8,14 @@ from typing import Type
 
 class CampaignModal(Modal):
     name = TextInput(label="Name", required=True, style=discord.TextStyle.short, min_length=3, max_length=80)
-    start = TextInput(label="Start (UTC)", placeholder="yyyy-mm-dd hh24:mi",
-                      default=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
-                      required=True)
+    start = TextInput(label="Start (UTC)", placeholder="yyyy-mm-dd hh24:mi", required=True)
     end = TextInput(label="End (UTC)", placeholder="yyyy-mm-dd hh24:mi", required=False)
     description = TextInput(label="Description", required=False, style=discord.TextStyle.long)
 
     def __init__(self, eventlistener: Type[TEventListener]):
         super().__init__(title="Campaign Info")
         self.eventlistener = eventlistener
+        self.start.default = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         try:

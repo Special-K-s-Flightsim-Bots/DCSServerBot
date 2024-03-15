@@ -1113,7 +1113,7 @@ async def server_selection(bus: ServiceBus,
                             )) for idx, x in enumerate(all_servers)
                         ],
                         max_values=max_values, ephemeral=ephemeral)
-    if multi_select:
+    if isinstance(s, list):
         return [bus.servers[x] for x in s]
     elif s:
         return bus.servers[s]

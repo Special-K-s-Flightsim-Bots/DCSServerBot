@@ -269,8 +269,8 @@ class GameMaster(Plugin):
                 await interaction.followup.send('Aborted.', ephemeral=True)
                 return
             try:
-                self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
-                                            description=modal.description.value, start=modal.start, end=modal.end)
+                await self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
+                                                  description=modal.description.value, start=modal.start, end=modal.end)
                 await interaction.followup.send(f"Campaign {modal.name.value} added.", ephemeral=ephemeral)
             except psycopg.errors.ExclusionViolation:
                 await interaction.followup.send(f"A campaign is already configured for this timeframe!",
@@ -307,13 +307,12 @@ class GameMaster(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
-    async def delete(self, interaction: discord.Interaction,
-                     campaign: Optional[str]):
+    async def delete(self, interaction: discord.Interaction, campaign: str):
         ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(interaction, f"Do you want to delete campaign \"{campaign}\"?",
                                    ephemeral=ephemeral):
-            self.eventlistener.campaign('delete', name=campaign)
-            await interaction.followup.send(f"Campaign deleted.")
+            await self.eventlistener.campaign('delete', name=campaign)
+            await interaction.followup.send(f"Campaign deleted.", ephemeral=ephemeral)
         else:
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
 
@@ -328,7 +327,7 @@ class GameMaster(Plugin):
             servers: list[Server] = await utils.server_selection(self.bus, interaction,
                                                                  title="Select all servers for this campaign",
                                                                  multi_select=True, ephemeral=ephemeral)
-            self.eventlistener.campaign('start', servers=servers, name=campaign)
+            await self.eventlistener.campaign('start', servers=servers, name=campaign)
             await interaction.followup.send(f"Campaign {campaign} started.", ephemeral=ephemeral)
         except psycopg.errors.ExclusionViolation:
             await interaction.followup.send(f"A campaign is already configured for this timeframe!",
@@ -344,7 +343,7 @@ class GameMaster(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(interaction, f"Do you want to stop campaign \"{campaign}\"?",
                                    ephemeral=ephemeral):
-            self.eventlistener.campaign('stop', name=campaign)
+            await self.eventlistener.campaign('stop', name=campaign)
             await interaction.followup.send("Campaign stopped.", ephemeral=ephemeral)
         else:
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
