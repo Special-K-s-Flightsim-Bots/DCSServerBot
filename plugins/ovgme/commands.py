@@ -168,7 +168,7 @@ class OvGME(Plugin):
                         versions += derived.installed[i][2] + '\n'
                         latest = await self.service.get_latest_version({"source": derived.installed[i][0],
                                                                         "name": derived.installed[i][1]})
-                        if latest != derived.installed[i][2]:
+                        if latest and latest != derived.installed[i][2]:
                             update += latest + '\n'
                         else:
                             update += '_ _\n'
