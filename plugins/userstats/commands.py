@@ -179,6 +179,7 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     @app_commands.rename(_server="server")
+    @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
     async def highscore(self, interaction: discord.Interaction,
                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
                         period: Optional[app_commands.Transform[

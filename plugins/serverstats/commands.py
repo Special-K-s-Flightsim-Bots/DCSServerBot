@@ -63,6 +63,7 @@ class ServerStats(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.rename(_server="server")
+    @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
     async def serverstats(self, interaction: discord.Interaction,
                           _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                           period: Optional[app_commands.Transform[
