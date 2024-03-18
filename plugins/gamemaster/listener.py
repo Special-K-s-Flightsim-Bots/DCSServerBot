@@ -5,9 +5,8 @@ import logging
 import os
 import psycopg
 
-from core import EventListener, Side, Coalition, Channel, utils, event, chat_command
+from core import EventListener, Side, Coalition, Channel, utils, event, chat_command, CloudRotatingFileHandler
 from datetime import datetime
-from logging.handlers import RotatingFileHandler
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -30,9 +29,9 @@ class GameMasterEventListener(EventListener):
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         filename = os.path.join('logs', f'{utils.slugify(server.name)}-chat.log')
-        fh = RotatingFileHandler(filename, encoding='utf-8',
-                                 maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
-                                 backupCount=int(server.locals['chat_log'].get('count', 10)))
+        fh = CloudRotatingFileHandler(filename, encoding='utf-8',
+                                      maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
+                                      backupCount=int(server.locals['chat_log'].get('count', 10)))
         fh.setLevel(logging.INFO)
         fh.setFormatter(formatter)
         self.chat_log[server.name].addHandler(fh)

@@ -20,8 +20,8 @@ from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from core.translations import get_translation
+from core.utils.os import CloudRotatingFileHandler
 from discord.ext import tasks
-from logging.handlers import RotatingFileHandler
 from packaging import version
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation, OperationalError
@@ -209,9 +209,9 @@ class NodeImpl(Node):
                                       datefmt='%Y-%m-%d %H:%M:%S')
         formatter.converter = time.gmtime
         os.makedirs('logs', exist_ok=True)
-        fh = RotatingFileHandler(os.path.join('logs', f'dcssb-{self.name}.log'), encoding='utf-8',
-                                 maxBytes=self.config['logging']['logrotate_size'],
-                                 backupCount=self.config['logging']['logrotate_count'])
+        fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{self.name}.log'), encoding='utf-8',
+                                      maxBytes=self.config['logging']['logrotate_size'],
+                                      backupCount=self.config['logging']['logrotate_count'])
         fh.setLevel(LOGLEVEL[self.config['logging']['loglevel']])
         fh.setFormatter(formatter)
         fh.doRollover()
