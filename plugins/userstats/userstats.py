@@ -11,7 +11,7 @@ from .filter import StatisticsFilter
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM ' \
               'statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               's.hop_off IS NOT NULL AND s.mission_id = m.id '
@@ -22,8 +22,8 @@ class PlaytimesPerPlane(report.GraphElement):
         if server_name:
             self.env.embed.description = utils.escape_string(server_name)
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY s.slot ORDER BY 2'
 
         async with self.apool.connection() as conn:
@@ -51,7 +51,7 @@ class PlaytimesPerPlane(report.GraphElement):
 
 class PlaytimesPerServer(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = f"SELECT regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g') AS " \
               f"server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, " \
               f"players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND " \
@@ -62,7 +62,7 @@ class PlaytimesPerServer(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY 1'
 
         labels = []
@@ -90,7 +90,7 @@ class PlaytimesPerServer(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
               'playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               'm.id = s.mission_id AND s.hop_off IS NOT NULL '
@@ -100,7 +100,7 @@ class PlaytimesPerMap(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY m.mission_theatre'
 
         labels = []
@@ -128,7 +128,7 @@ class PlaytimesPerMap(report.GraphElement):
 
 class RecentActivities(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = """
             SELECT TO_CHAR(s.hop_on, 'MM/DD') as day, 
                    ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))) AS playtime 
@@ -142,7 +142,7 @@ class RecentActivities(report.GraphElement):
             sql += ' AND p.ucid = %s'
         if server_name:
             sql += " AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY day'
 
         labels = []
@@ -168,7 +168,7 @@ class RecentActivities(report.GraphElement):
 
 class FlightPerformance(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = 'SELECT SUM(ejections) as "Ejections", SUM(crashes-ejections) as "Crashes\n(Pilot dead)", ' \
               'SUM(landings) as "Landings" FROM statistics s, ' \
               'players p, missions m WHERE s.player_ucid = p.ucid ' \
@@ -179,7 +179,7 @@ class FlightPerformance(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -209,7 +209,7 @@ class FlightPerformance(report.GraphElement):
 
 class KDRatio(report.MultiGraphElement):
 
-    async def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+    async def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str,
                                     flt: StatisticsFilter):
         sql = """
             SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", 
@@ -228,7 +228,7 @@ class KDRatio(report.MultiGraphElement):
             sql += ' AND p.ucid = %s '
         if server_name:
             sql += " AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         retval = []
         async with self.apool.connection() as conn:
@@ -272,7 +272,7 @@ class KDRatio(report.MultiGraphElement):
             ax.set_visible(False)
         return retval
 
-    async def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+    async def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str,
                               flt: StatisticsFilter) -> bool:
         sql = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, ' \
               'COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(' \
@@ -284,7 +284,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         retval = False
         async with self.apool.connection() as conn:
@@ -322,7 +322,7 @@ class KDRatio(report.MultiGraphElement):
         return retval
 
     async def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str,
-                               period: str, flt: StatisticsFilter) -> bool:
+                               flt: StatisticsFilter) -> bool:
         sql = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
               'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, players p, ' \
               'missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
@@ -332,7 +332,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         retval = False
         async with self.apool.connection() as conn:
@@ -371,11 +371,11 @@ class KDRatio(report.MultiGraphElement):
             retval = True
         return retval
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
-        retval = await self.draw_kill_performance(self.axes[1], member, server_name, period, flt)
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
+        retval = await self.draw_kill_performance(self.axes[1], member, server_name, flt)
         i = 0
         if (('AI Kills' in retval or 'Player Kills' in retval) and
-                ((await self.draw_kill_types(self.axes[2], member, server_name, period, flt)) is True)):
+                ((await self.draw_kill_types(self.axes[2], member, server_name, flt)) is True)):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1
@@ -408,7 +408,7 @@ class KDRatio(report.MultiGraphElement):
         else:
             self.axes[2].set_visible(False)
         if (('Deaths by AI' in retval or 'Deaths by Player' in retval) and
-                ((await self.draw_death_types(self.axes[0], (i == 0), member, server_name, period, flt)) is True)):
+                ((await self.draw_death_types(self.axes[0], (i == 0), member, server_name, flt)) is True)):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1

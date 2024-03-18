@@ -11,7 +11,7 @@ from discord.utils import MISSING
 from services import DCSServerBot
 from typing import Union, Optional, Tuple
 
-from .filter import StatisticsFilter
+from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer
 from .listener import UserStatisticsEventListener
 
 # ruamel YAML support
@@ -154,14 +154,15 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.describe(user='Name of player, member or UCID')
-    @app_commands.describe(period='day, month, year, month:may, campaign:name, mission:name')
-    async def statistics(self, interaction: discord.Interaction, period: Optional[str],
-                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
-        flt = StatisticsFilter.detect(self.bot, period)
-        if period and not flt:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
-            return
+    @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
+    async def statistics(self, interaction: discord.Interaction,
+                         period: Optional[app_commands.Transform[
+                             StatisticsFilter, PeriodTransformer(
+                                 flt=[PeriodFilter, CampaignFilter, MissionFilter]
+                             )]] = PeriodFilter(),
+                         user: Optional[app_commands.Transform[
+                             Union[discord.Member, str], utils.UserTransformer]
+                         ] = None):
         if not user:
             user = interaction.user
         if isinstance(user, discord.Member):
@@ -170,9 +171,9 @@ class UserStatistics(Plugin):
             name = await self.bot.get_member_or_name_by_ucid(user)
             if isinstance(name, discord.Member):
                 name = name.display_name
-        file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
+        file = 'userstats-campaign.json' if isinstance(period, CampaignFilter) else 'userstats.json'
         report = PaginationReport(self.bot, interaction, self.plugin_name, file)
-        await report.render(member=user, member_name=name, period=period, server_name=None, flt=flt)
+        await report.render(member=user, member_name=name, server_name=None, period=period.period, flt=period)
 
     @command(description='Displays the top players of your server(s)')
     @utils.app_has_role('DCS')
@@ -180,21 +181,20 @@ class UserStatistics(Plugin):
     @app_commands.rename(_server="server")
     async def highscore(self, interaction: discord.Interaction,
                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
-                        period: Optional[str] = None, limit: Optional[int] = None):
-        flt = StatisticsFilter.detect(self.bot, period)
-        if period and not flt:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
-            return
-        file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
+                        period: Optional[app_commands.Transform[
+                            StatisticsFilter, PeriodTransformer(
+                                flt=[PeriodFilter, CampaignFilter, MissionFilter]
+                            )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3, 20]] = None):
+        file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
         if not _server:
             report = PaginationReport(self.bot, interaction, self.plugin_name, file)
-            await report.render(interaction=interaction, period=period, server_name=None, flt=flt, limit=limit)
+            await report.render(interaction=interaction, server_name=None, flt=period, period=period.period,
+                                limit=limit)
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             report = Report(self.bot, self.plugin_name, file)
-            env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt,
+            env = await report.render(interaction=interaction, server_name=_server.name, flt=period,
                                       limit=limit)
             try:
                 file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
@@ -250,7 +250,7 @@ class UserStatistics(Plugin):
             return
         flt = StatisticsFilter.detect(self.bot, period) if period else None
         file = highscore.get('report',
-                             'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
+                             'highscore-campaign.json' if isinstance(flt, CampaignFilter) else 'highscore.json')
         embed_name = 'highscore-' + period
         channel_id = highscore.get('channel')
         if not mission_end:

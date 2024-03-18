@@ -25,7 +25,7 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
 
 class HighscorePlaytime(report.GraphElement):
 
-    async def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int,
+    async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
                      flt: StatisticsFilter, bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
@@ -37,8 +37,8 @@ class HighscorePlaytime(report.GraphElement):
                 sql += ' AND s.side in (' + ','.join([
                     str(x) for x in get_sides(interaction, self.bot.servers[server_name])
                 ]) + ')'
-        self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
         async with self.apool.connection() as conn:
@@ -67,7 +67,7 @@ class HighscorePlaytime(report.GraphElement):
 
 class HighscoreElement(report.GraphElement):
 
-    async def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, kill_type: str,
+    async def render(self, interaction: discord.Interaction, server_name: str, limit: int, kill_type: str,
                      flt: StatisticsFilter, bar_labels: Optional[bool] = True):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
@@ -101,7 +101,7 @@ class HighscoreElement(report.GraphElement):
                 sql += ' AND s.side in (' + ','.join([
                     str(x) for x in get_sides(interaction, self.bot.servers[server_name])
                 ]) + ')'
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
         if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
             sql += f' AND SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) > 1800'

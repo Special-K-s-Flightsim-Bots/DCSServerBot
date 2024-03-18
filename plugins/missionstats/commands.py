@@ -3,7 +3,7 @@ import psycopg
 
 from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command
 from discord import app_commands
-from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter
+from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer
 from services import DCSServerBot
 from typing import Optional, Union
 
@@ -80,14 +80,11 @@ class MissionStatistics(Plugin):
     @utils.app_has_role('DCS')
     async def sorties(self, interaction: discord.Interaction,
                       user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
-                      period: Optional[str]):
+                      period: Optional[app_commands.Transform[
+                          StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
+                      ] = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
-        flt = MissionStatisticsFilter()
-        if period and not flt.supports(self.bot, period):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('Please provide a valid period.', ephemeral=True)
-            return
         if isinstance(user, str):
             ucid = user
             user = await self.bot.get_member_or_name_by_ucid(ucid)
@@ -101,7 +98,7 @@ class MissionStatistics(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'sorties.json')
-        env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
+        env = await report.render(ucid=ucid, member_name=name, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @staticmethod
@@ -123,17 +120,15 @@ class MissionStatistics(Plugin):
     @app_commands.autocomplete(module=player_modules_autocomplete)
     async def modulestats(self, interaction: discord.Interaction,
                           user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
-                          module: Optional[str], period: Optional[str]):
+                          module: Optional[str],
+                          period: Optional[app_commands.Transform[
+                              StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
+                          ] = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
         if not module:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message('You need to chose a module!', ephemeral=True)
-            return
-        flt = StatisticsFilter.detect(self.bot, period)
-        if period and not flt:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('Please provide a valid period or campaign name!', ephemeral=True)
             return
         if isinstance(user, str):
             ucid = user
@@ -148,7 +143,7 @@ class MissionStatistics(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
-        env = await report.render(member_name=name, ucid=ucid, period=period, module=module, flt=flt)
+        env = await report.render(member_name=name, ucid=ucid, module=module, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @command(description='Refueling statistics')
@@ -156,14 +151,11 @@ class MissionStatistics(Plugin):
     @utils.app_has_role('DCS')
     async def refuelings(self, interaction: discord.Interaction,
                          user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
-                         period: Optional[str]):
+                         period: Optional[app_commands.Transform[
+                             StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
+                         ] = MissionStatisticsFilter()):
         if not user:
             user = interaction.user
-        flt = MissionStatisticsFilter()
-        if period and not flt.supports(self.bot, period):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message('Please provide a valid period.', ephemeral=True)
-            return
         if isinstance(user, str):
             ucid = user
             user = await self.bot.get_member_or_name_by_ucid(ucid)
@@ -177,7 +169,7 @@ class MissionStatistics(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
-        env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
+        env = await report.render(ucid=ucid, member_name=name, flt=period)
         await interaction.followup.send(embed=env.embed, ephemeral=True)
 
     @command(description='Find who killed you most')

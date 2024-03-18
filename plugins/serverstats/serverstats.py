@@ -7,13 +7,15 @@ from matplotlib.ticker import FuncFormatter
 from psycopg.rows import dict_row
 from typing import Optional
 
+from plugins.userstats.filter import StatisticsFilter
+
 # ignore pandas warnings (log scale et al)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class ServerUsage(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str]):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter):
         sql = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
                    ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, 
@@ -24,14 +26,13 @@ class ServerUsage(report.EmbedElement):
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        if period:
-            sql += " AND DATE(s.hop_on) > (DATE(now() AT TIME ZONE 'utc') - ('1 ' || %(period)s)::interval)"
+        sql += ' AND ' + period.filter(self.env.bot)
         sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = playtimes = players = members = ''
-                await cursor.execute(sql, {"server_name": server_name, "period": period})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     servers += row['server_name'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
@@ -49,7 +50,7 @@ class ServerUsage(report.EmbedElement):
 
 class TopMissionPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ('
@@ -63,15 +64,14 @@ class TopMissionPerServer(report.EmbedElement):
         sql_right = ") AS x) AS y WHERE rn {} ORDER BY 3 DESC"
         if server_name:
             sql_inner += " AND m.server_name = %(server_name)s"
-        if period:
-            sql_inner += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql_inner += ' AND ' + period.filter(self.env.bot)
         sql_inner += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = missions = playtimes = ''
                 await cursor.execute(sql_left + sql_inner + sql_right.format(
-                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name, "period": period})
+                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name})
                 async for row in cursor:
                     servers += row['server_name'] + '\n'
                     missions += row['mission_name'][:20] + '\n'
@@ -88,7 +88,7 @@ class TopMissionPerServer(report.EmbedElement):
 
 class TopModulesPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
         sql = """
             SELECT s.slot, COUNT(s.slot) AS num_usage, 
                    COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime, 
@@ -98,14 +98,13 @@ class TopModulesPerServer(report.EmbedElement):
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        if period:
-            sql += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql += ' AND ' + period.filter(self.env.bot)
         sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 modules = playtimes = players = ''
-                await cursor.execute(sql, {"server_name": server_name, "period": period})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     modules += row['slot'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
@@ -156,7 +155,7 @@ class UniquePast14(report.GraphElement):
 
 class UsersPerDayTime(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str]):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter):
         sql = """
             SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
                    COUNT(DISTINCT s.player_ucid) AS players 
@@ -166,14 +165,13 @@ class UsersPerDayTime(report.GraphElement):
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        if period:
-            sql += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql += ' AND ' + period.filter(self.env.bot)
         sql += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 values = np.zeros((24, 7))
-                await cursor.execute(sql, {"server_name": server_name, "period": period})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
 
@@ -183,7 +181,7 @@ class UsersPerDayTime(report.GraphElement):
 
 
 class ServerLoadHeader(EmbedElement):
-    async def render(self, node: str, period: str, server_name: Optional[str] = None):
+    async def render(self, node: str, server_name: Optional[str] = None):
         self.env.embed.description = \
             f"Node: {node}" if not server_name else f"Server: {utils.escape_string(server_name)}"
 

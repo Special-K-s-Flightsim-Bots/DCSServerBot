@@ -128,7 +128,7 @@ class TrapSheet(report.MultiGraphElement):
 
 class HighscoreTraps(report.GraphElement):
 
-    async def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int,
+    async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
                      flt: StatisticsFilter, include_bolters: bool = False, include_waveoffs: bool = False,
                      bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
@@ -146,8 +146,8 @@ class HighscoreTraps(report.GraphElement):
             sql += " AND g.grade <> 'B'"
         if not include_waveoffs:
             sql += " AND g.grade NOT LIKE 'WO%%'"
-        self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        self.env.embed.title = flt.format(self.env.bot, server_name) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, server_name)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
         async with self.apool.connection() as conn:

@@ -170,8 +170,7 @@ class CloudHandler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def statistics(self, interaction: discord.Interaction,
-                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
-                         period: Optional[str]):
+                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
         if 'token' not in self.config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_('Cloud statistics are not activated in this Discord!'),
