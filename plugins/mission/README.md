@@ -24,6 +24,8 @@ DEFAULT:
     enabled: true   # Here you can disable the feature at all (default: true = enabled)
     discord:
       - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
+  afk_exemptions:   # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
+    - aabbccddeeff1122334455
 ```
 
 ## Auto-Scanning
@@ -59,6 +61,7 @@ Missions folder of your DCS-server (for instance via a Google Drive) will be aut
 | /player kick          | player [reason]     | admin-channel         | DCS Admin             | Kicks the respective player from the DCS server.                                                                                           |
 | /player ban           | player              | admin-channel         | DCS Admin             | (Optional: temporarily) bans the respective player from all DCS servers.                                                                   |
 | /player afk           | [minutes]           | all                   | DCS Admin             | Lists players that sit on Spectators since more than [minutes] (default 10 mins).                                                          |
+| /player exempt        | player              | all                   | DCS Admin             | Puts a player onto the AFK-exemptions list. They will not be kicked for being afk anymore.                                                 |
 | /player inactive      | period number       | admin-channel         | DCS Admin             | Show users that are inactive for a specific amount of time.                                                                                |
 | /player chat          | player message      | admin-channel         | DCS Admin, GameMaster | Sends a in-game chat message to the respective player.                                                                                     |
 | /player popup         | player message      | admin-channel         | DCS Admin, GameMaster | Sends a popup message to the respective player.                                                                                            |

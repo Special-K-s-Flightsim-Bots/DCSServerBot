@@ -6,7 +6,7 @@ import random
 import re
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member
+    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range
@@ -784,6 +784,39 @@ class Mission(Plugin):
         else:
             await interaction.followup.send(f"No player is AFK for more than {minutes} minutes.", ephemeral=ephemeral)
 
+    @player.command(description='Exempt player from AFK kicks')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def exempt(self, interaction: discord.Interaction,
+                     user: app_commands.Transform[
+                         Union[discord.Member, str], utils.UserTransformer(sel_type=PlayerType.PLAYER)
+                     ]):
+        ephemeral = utils.get_ephemeral(interaction)
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+        else:
+            ucid = user
+        config_file = os.path.join('config', 'plugins', self.plugin_name + '.yaml')
+        if DEFAULT_TAG not in self.locals:
+            self.locals[DEFAULT_TAG] = {}
+        if 'afk_exemptions' not in self.locals[DEFAULT_TAG]:
+            self.locals[DEFAULT_TAG]['afk_exemptions'] = []
+        if ucid not in self.locals[DEFAULT_TAG]['afk_exemptions']:
+            if not await utils.yn_question(interaction, "Do you want to permanently add this user to the AFK exemption "
+                                                        "list?", ephemeral=ephemeral):
+                await interaction.followup.send("Aborted.", ephemeral=ephemeral)
+                return
+            self.locals[DEFAULT_TAG]['afk_exemptions'].append(ucid)
+            await interaction.followup.send("User added to the exemption list.", ephemeral=ephemeral)
+        else:
+            if not await utils.yn_question(interaction, "Player is on the list already. Do you want to remove them?"):
+                await interaction.followup.send("Aborted.", ephemeral=ephemeral)
+                return
+            self.locals[DEFAULT_TAG]['afk_exemptions'].remove(ucid)
+            await interaction.followup.send("User removed from the exemption list.", ephemeral=ephemeral)
+        with open(config_file, 'w', encoding='utf-8') as outfile:
+            yaml.dump(self.locals, outfile)
+
     @player.command(description='Sends a popup to a player\n')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
@@ -1306,7 +1339,8 @@ class Mission(Plugin):
                     continue
                 for ucid, dt in server.afk.items():
                     player = server.get_player(ucid=ucid, active=True)
-                    if not player or player.has_discord_roles(['DCS Admin', 'GameMaster']):
+                    if (not player or player.has_discord_roles(['DCS Admin', 'GameMaster']) or
+                            player.ucid in self.get_config(server).get('afk_exemptions', [])):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
                         msg = self.get_config(server).get(

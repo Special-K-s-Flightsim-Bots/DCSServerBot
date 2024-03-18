@@ -8,7 +8,6 @@ import re
 from core import Status, utils
 from datetime import datetime
 from discord import app_commands, Interaction, SelectOption
-from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from enum import Enum, auto
@@ -338,7 +337,7 @@ class PopulatedQuestionView(View):
 async def populated_question(interaction: discord.Interaction, question: str, message: Optional[str] = None,
                              ephemeral: Optional[bool] = True) -> Optional[str]:
     """
-    Same as yn_question, but adds an additional option "Later". The usual usecase of this function would be
+    Same as yn_question, but adds an option "Later". The usual use-case of this function would be
     if people are flying atm, and you want to ask to trigger an action that would affect their experience (aka stop
     the server).
 
@@ -851,21 +850,21 @@ class ServerTransformer(app_commands.Transformer):
         if value:
             server = interaction.client.servers.get(value)
             if not server:
-                raise TransformerError(value, self.type, self)
+                raise app_commands.TransformerError(value, self.type, self)
         else:
             server = interaction.client.get_server(interaction)
         return server
 
-    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
             server: Optional[Server] = interaction.client.get_server(interaction)
             if (not current and server and server.status != Status.UNREGISTERED and
                     (not self.status or server.status in self.status)):
-                return [Choice(name=server.name, value=server.name)]
-            choices: list[Choice[str]] = [
-                Choice(name=name, value=name)
+                return [app_commands.Choice(name=server.name, value=server.name)]
+            choices: list[app_commands.Choice[str]] = [
+                app_commands.Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
                 if (value.status != Status.UNREGISTERED and (not self.status or value.status in self.status) and
                     (not current or current.casefold() in name.casefold()))
@@ -886,7 +885,7 @@ class NodeTransformer(app_commands.Transformer):
         else:
             return interaction.client.node
 
-    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
@@ -921,7 +920,7 @@ class InstanceTransformer(app_commands.Transformer):
         else:
             return None
 
-    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
@@ -1022,7 +1021,7 @@ class UserTransformer(app_commands.Transformer):
         else:
             return interaction.user
 
-    async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
+    async def autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
         # is a user is not allowed to run the interaction, they are not allowed to see the autocompletions also
         if not await interaction.command._check_can_run(interaction):
             return []
@@ -1059,7 +1058,7 @@ class PlayerTransformer(app_commands.Transformer):
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         return server.get_player(ucid=value, active=self.active)
 
-    async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
+    async def autocomplete(self, interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
         if not await interaction.command._check_can_run(interaction):
             return []
         try:
