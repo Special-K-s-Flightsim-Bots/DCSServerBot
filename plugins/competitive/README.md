@@ -17,7 +17,7 @@ You already get some kind of team rating, when you fly in a multi-crew aircraft.
 aircraft participate in a kill (or die with the pilot in the opposite case), they will be treated as a team already. 
 This means, you get ranked up as a RIO as if you were the pilot of the killing aircraft.
 
-## How do Team Matches work?
+## How do Team-Matches work?
 So this is the more complex stuff. To play N vs N or N vs M, you need to register as teams. As I don't know how your 
 specific missions look like, I can only assume, how you do this. One way would be to create some zone, where players
 either spawn in or fly into. Whenever they do this, you can call a DCSServerBot function to add a member to the match:
@@ -42,7 +42,7 @@ are lost for that team.
 Team-kills are **not** punished against the killer, as this would double-punish the remaining team members. This plugin
 will automatically disable the bots [Punishment](../punishment/README.md) system during a match! 
 
-### The Match is over
+### The Match is over!
 ... when all players of one side are dead, simple as that. The winning team will get points, the losing team will lose
 them. Each individual player of each team will gain or lose points on their own accounts. There is no team rating, 
 as teams are usually built randomly. You will even be rated up, if you were dead. Only importance is that
@@ -51,17 +51,27 @@ To avoid any discussions - the one that dies last, is still a winner. So if the 
 dive to the ground and hit it, the one that generates the last crash event in DCS is the winner of that round.
 
 ## Configuration
-There is no configuration for now.
+There is no yaml-configuration for now. You can integrate the TrueSkill™️-rating into your highscores though.<br>
+To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/userstats. Then replace one of the
+"Graph" elements with this: 
+```json
+{
+  "class": "plugins.competitive.reports.HighscoreTrueSkill",
+  "params": { "col": 1, "row": 1 }
+}
+```
+Select the col and row of the element you replaced (I took the "Ships" in the above example).
+
 
 ## Discord Commands
-| Command         | Parameter           | Channel       | Role                  | Description                                     |
-|-----------------|---------------------|---------------|-----------------------|-------------------------------------------------|
-| /trueskill      |                     | all           | DCS                   | Shows your individual TrueSkill™️ rating.       |
+| Command         | Parameter           | Channel       | Role                  | Description                     |
+|-----------------|---------------------|---------------|-----------------------|---------------------------------|
+| /trueskill      |                     | all           | DCS                   | Shows your TrueSkill™️ rating.  |
 
 ## In-Game Chat Commands
-| Command    | Parameter | Role      | Description                                |
-|------------|-----------|-----------|--------------------------------------------|
-| .trueskill |           | all       | Shows your individual TrueSkill™️ rating.  |
+| Command    | Parameter | Role      | Description                     |
+|------------|-----------|-----------|---------------------------------|
+| .trueskill |           | all       | Shows your TrueSkill™️ rating.  |
 
 ## Tables
 ### trueskill

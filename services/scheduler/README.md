@@ -21,7 +21,7 @@ DEFAULT:
         file: mysample.json           # using this template in reports/scheduler
         channel: 1122334455667788     # channel to post the report in
         persistent: true              # is it a persistent report? (default = true)
-DCS.openbeta_server:
+DCS.server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs
       action:

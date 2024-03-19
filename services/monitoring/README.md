@@ -13,7 +13,7 @@ and servers.yaml files:
 ### nodes.yaml
 ```yaml
 MyNode:
-  DCS.openbeta_server:
+  DCS.server:
     max_hung_minutes: 5   # maximum heartbeats a server can miss (default: 3)
 ```
 

@@ -41,7 +41,7 @@ the layout of the config files is as follows:
       "name": "I am the default section"
     },
     {
-      "installation": "DCS.openbeta_server",
+      "installation": "DCS.server",
       "name": "I am a server specific section"
     }
   ]

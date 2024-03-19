@@ -30,7 +30,7 @@ last_wait_time = 0
 @ServiceRegistry.register()
 class MonitoringService(Service):
     def __init__(self, node):
-        super().__init__(node)
+        super().__init__(node, name="Monitoring")
         self.bus = ServiceRegistry.get(ServiceBus)
         self.io_counters = {}
         self.net_io_counters = None

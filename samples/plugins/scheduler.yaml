@@ -7,8 +7,8 @@ DEFAULT:
     - 300
     - 60
     - 10
-DCS.openbeta_server:
-  schedule:                                       # Server "DCS.openbeta_server" will run 24x7
+DCS.server:
+  schedule:                                       # Server "DCS.server" will run 24x7
     00-24: YYYYYYY
 instance2:
   schedule:                                       # Server "instance2" will run every day from 0h-12h local time (LT)

@@ -21,7 +21,7 @@ DCSServerBot. You can then add another extension into your scheduler.json:
       [...]
     },
     {
-      "installation": "DCS.openbeta_server",
+      "installation": "DCS.server",
       [...]
       "extensions": {
         "RealWeather": {

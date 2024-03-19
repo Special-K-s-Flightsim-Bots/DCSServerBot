@@ -1,4 +1,4 @@
-DCS.openbeta_server:
+DCS.server:
   enabled: true
   display: true
   persistence: true

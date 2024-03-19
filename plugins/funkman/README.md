@@ -33,13 +33,13 @@ DEFAULT:
 
 If you want to use different channels for your different servers, you can add a section for each server:
 ```yaml
-DCS.openbeta_server:
+DCS.server:
   install: ../FunkMan
   CHANNELID_MAIN: '1122334455667788'
   CHANNELID_RANGE: '8877665544332211'
   CHANNELID_AIRBOSS: '1188227733664455'
   IMAGEPATH: ../FunkMan/funkpics/
-DCS.openbeta_server:
+DCS.server02:
   CHANNELID_MAIN: '1234567812345678'
   CHANNELID_RANGE: '8765432187654321'
   CHANNELID_AIRBOSS: '1112223334445555'

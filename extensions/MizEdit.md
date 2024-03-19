@@ -20,7 +20,7 @@ Each mission change is represented in a small data-structure in yaml. I've calle
 work as a fixed setting for any mission you have, like any weather preset you know already from the recent DCS versions.
 
 > If you want to lookup the presets used in DCS, you can take a look at 
-> `C:\Program Files\Eagle Dynamics\DCS World OpenBeta\Config\Effects\clouds.lua`.
+> `C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua`.
 
 ### config/presets.yaml
 As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
