@@ -67,27 +67,27 @@ download to the current channel. Discord limits may apply.</br>
 
 ## Discord Commands
 
-| Command            | Parameter         | Channel       | Role      | Description                                                                                                                                      |
-|--------------------|-------------------|---------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| /dcs ban           | user              | all           | DCS Admin | Bans a specific player from your DCS servers. You get a selection of all users and need to provide a reason and the time for the ban afterwards. |
-| /dcs unban         | user              | all           | DCS Admin | Unbans a specific player that is banned atm.                                                                                                     |
-| /dcs bans          | user              | all           | DCS Admin | Gets detailed information about a specific ban.                                                                                                  |
-| /dcs watch         | user              | all           | DCS Admin | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                                           |
-| /dcs unwatch       | user              | all           | DCS Admin | Removes a user from the watchlist.                                                                                                               |
-| /dcs watchlist     |                   | all           | DCS Admin | Shows the watchlist.                                                                                                                             |
-| /dcs update        | node [warn time]  | all           | DCS Admin | Updates DCS World to the latest available version.                                                                                               |
-| /dcs install       | node module       | all           | Admin     | Installs a missing module into your DCS server (usually maps).                                                                                   |
-| /dcs uninstall     | node module       | all           | Admin     | Uninstalls a module from your DCS server (usually maps).                                                                                         |
-| /node list         |                   | all           | DCS Admin | Shows an information about all configured nodes (multi-node installations only).                                                                 |
-| /node shutdown     | [node]            | all           | Admin     | Terminates the specified node (or all nodes).                                                                                                    |
-| /node restart      | [node]            | all           | Admin     | Restarts the specified node (or all nodes).                                                                                                      |
-| /node upgrade      | [node]            | all           | Admin     | Upgrades and restarts the specified node (or all nodes).                                                                                         |
-| /node offline      | node              | all           | Admin     | Shuts down all servers on a specific node and puts them in maintenance mode.                                                                     |
-| /node online       | node              | all           | Admin     | Clears the maintenance mode on a specific node and starts all servers.                                                                           |
-| /node add_instance | <node> [template] | admin-channel | Admin     | Adds another instance to your node. You can either add an existing one or you create a new one by specifying a an existing one as a template.    |
-| /download          |                   | admin-channel | DCS Admin | Download a dcs.log, dcssb-*.log, bot config file, missions and more (see above) into a DM, path or configured channel.                           |
-| /prune             |                   | all           | Admin     | Runs a cleanup on the DCSServerBot database. You can specify which data should be deleted.                                                       |
-| /reload            | plugin            | all           | Admin     | Reloads a DCSServerBot plugin.                                                                                                                   |
+| Command            | Parameter                 | Channel       | Role      | Description                                                                                                                                      |
+|--------------------|---------------------------|---------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| /dcs ban           | user                      | all           | DCS Admin | Bans a specific player from your DCS servers. You get a selection of all users and need to provide a reason and the time for the ban afterwards. |
+| /dcs unban         | user                      | all           | DCS Admin | Unbans a specific player that is banned atm.                                                                                                     |
+| /dcs bans          | user                      | all           | DCS Admin | Gets detailed information about a specific ban.                                                                                                  |
+| /dcs watch         | user                      | all           | DCS Admin | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                                           |
+| /dcs unwatch       | user                      | all           | DCS Admin | Removes a user from the watchlist.                                                                                                               |
+| /dcs watchlist     |                           | all           | DCS Admin | Shows the watchlist.                                                                                                                             |
+| /dcs update        | node [warn time] [branch] | all           | DCS Admin | Updates DCS World to the latest available version (or switch to another branch).                                                                 |
+| /dcs install       | node module               | all           | Admin     | Installs a missing module into your DCS server (usually maps).                                                                                   |
+| /dcs uninstall     | node module               | all           | Admin     | Uninstalls a module from your DCS server (usually maps).                                                                                         |
+| /node list         |                           | all           | DCS Admin | Shows an information about all configured nodes (multi-node installations only).                                                                 |
+| /node shutdown     | [node]                    | all           | Admin     | Terminates the specified node (or all nodes).                                                                                                    |
+| /node restart      | [node]                    | all           | Admin     | Restarts the specified node (or all nodes).                                                                                                      |
+| /node upgrade      | [node]                    | all           | Admin     | Upgrades and restarts the specified node (or all nodes).                                                                                         |
+| /node offline      | node                      | all           | Admin     | Shuts down all servers on a specific node and puts them in maintenance mode.                                                                     |
+| /node online       | node                      | all           | Admin     | Clears the maintenance mode on a specific node and starts all servers.                                                                           |
+| /node add_instance | <node> [template]         | admin-channel | Admin     | Adds another instance to your node. You can either add an existing one or you create a new one by specifying a an existing one as a template.    |
+| /download          |                           | admin-channel | DCS Admin | Download a dcs.log, dcssb-*.log, bot config file, missions and more (see above) into a DM, path or configured channel.                           |
+| /prune             |                           | all           | Admin     | Runs a cleanup on the DCSServerBot database. You can specify which data should be deleted.                                                       |
+| /reload            | plugin                    | all           | Admin     | Reloads a DCSServerBot plugin.                                                                                                                   |
 
 ## Config File Uploads
 All configuration files utilized by the bot itself (such as `main.yaml`) or by various plugins (like `<plugin>.yaml`) 
