@@ -110,16 +110,16 @@ msgstr "Potentieller Ausfall des ED-Update-Servers, keine Informationen erhältl
 msgid "Your installed version {version} is the latest on branch {branch}."
 msgstr "Deine installierte Version {version} ist bereits die neueste auf dem Branch {branch}."
 
-msgid "Would you like to update from version {old_version} to {new_version}?\n"
+msgid "Would you like to update from version {old_version}@{old_branch} to {new_version}@{new_branch}?\n"
 "All running DCS servers will be shut down!"
-msgstr "Möchtest Du von Version {old_version} nach Version {mew_version} updaten?\n"
+msgstr "Möchtest Du von Version {old_version}@{old_branch} nach Version {new_version}@{new_branch} updaten?\n"
 "Alle laufenden DCS-Server werden dafür heruntergefahren!"
 
-msgid "Updating DCS to version {}, please wait ..."
-msgstr "Aktualisiere DCS auf Version {}, bitte warten ..."
+msgid "Updating DCS to version {version}@{branch}, please wait ..."
+msgstr "Aktualisiere DCS auf Version {version}@{branch}, bitte warten ..."
 
-msgid "DCS updated to version {version} on node {name}."
-msgstr "DCS wurde auf Node {node} auf Version {version} aktualisiert."
+msgid "DCS updated to version {version}@{branch} on node {name}."
+msgstr "DCS wurde auf Node {name} auf Version {version}@{branch} aktualisiert."
 
 msgid "Error while updating DCS on node {name}, code={rc}"
 msgstr "Fehler beim Aktualisieren von DCS auf Node {name}: Code={rc}"

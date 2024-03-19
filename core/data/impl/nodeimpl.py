@@ -362,6 +362,9 @@ class NodeImpl(Node):
                 data = json.load(cfg)
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
+            if self.dcs_branch == "openbeta":
+                self.log.warning("You're running DCS OpenBeta, which is discontinued. "
+                                 "Please use /dcs update to switch to the release branch!")
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
@@ -393,12 +396,21 @@ class NodeImpl(Node):
             def run_subprocess() -> int:
                 try:
                     cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
-                    if branch is not None:
+                    if branch:
                         cmd.append(f"@{branch}")
 
                     process = subprocess.run(
                         cmd, startupinfo=startupinfo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                     )
+                    if branch and process.returncode == 0:
+                        # check if the branch has been changed
+                        config = os.path.join(self.installation, 'autoupdate.cfg')
+                        with open(config, mode='r') as infile:
+                            data = json.load(infile)
+                        if data['branch'] != branch:
+                            data['branch'] = branch
+                            with open(config, mode='w') as outfile:
+                                json.dump(data, outfile, indent=2)
                     return process.returncode
                 except Exception as ex:
                     self.log.exception(ex)
@@ -426,7 +438,7 @@ class NodeImpl(Node):
         # call before update hooks
         for callback in self.before_update.values():
             await callback()
-        rc = await do_update()
+        rc = await do_update(branch)
         if rc == 0:
             self.dcs_branch = self.dcs_version = None
             if self.locals['DCS'].get('desanitize', True):

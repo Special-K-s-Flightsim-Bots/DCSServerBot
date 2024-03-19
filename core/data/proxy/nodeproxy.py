@@ -102,13 +102,14 @@ class NodeProxy(Node):
             "method": "upgrade"
         }, node=self.name)
 
-    async def update(self, warn_times: list[int]) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "update",
             "params": {
-                "warn_times": warn_times
+                "warn_times": warn_times,
+                "branch": branch or ""
             }
         }, node=self.name, timeout=600)
         return data['return']

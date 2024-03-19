@@ -120,7 +120,7 @@ class Node:
     async def upgrade(self):
         raise NotImplemented()
 
-    async def update(self, warn_times: list[int]) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
         raise NotImplemented()
 
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:

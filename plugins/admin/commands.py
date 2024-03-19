@@ -139,6 +139,12 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     ]
 
 
+async def get_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    return [
+        app_commands.Choice(name="release", value="release")
+    ]
+
+
 class Admin(Plugin):
 
     def read_locals(self) -> dict:
@@ -332,13 +338,17 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
+    @app_commands.autocomplete(branch=get_branches)
     async def update(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
+                     node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60,
+                     branch: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         try:
-            branch, old_version = await node.get_dcs_branch_and_version()
+            _branch, old_version = await node.get_dcs_branch_and_version()
+            if not branch:
+                branch = _branch
             new_version = await utils.getLatestVersion(branch,
                                                        userid=node.locals['DCS'].get('dcs_user'),
                                                        password=node.locals['DCS'].get('dcs_password'))
@@ -346,36 +356,41 @@ class Admin(Plugin):
             await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
                                             ephemeral=True)
             return
-        if old_version == new_version:
+        if old_version == new_version and branch == _branch:
             await interaction.followup.send(
                 _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
                                                                                                branch=branch),
                 ephemeral=ephemeral)
         elif new_version:
-            if await utils.yn_question(interaction,
-                                       _('Would you like to update from version {old_version} to {new_version}?\n'
-                                         'All running DCS servers will be shut down!').format(old_version=old_version,
-                                                                                              new_version=new_version),
-                                       ephemeral=ephemeral) is True:
-                await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",
-                                     user=interaction.user)
-                msg = await interaction.followup.send(
-                    _("Updating DCS to version {}, please wait ...").format(new_version), ephemeral=ephemeral)
-                try:
-                    rc = await node.update(warn_times=[warn_time] or [120, 60])
-                    if rc == 0:
-                        await msg.edit(
-                            content=_("DCS updated to version {version} on node {name}.").format(version=new_version,
-                                                                                                 name=node.name))
-                        await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
-                                             user=interaction.user)
-                    else:
-                        await msg.edit(
-                            content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name,
-                                                                                                   rc=rc))
-                except (TimeoutError, asyncio.TimeoutError):
-                    await msg.edit(content=_("The update takes longer than 10 minutes, please check back regularly, "
-                                             "if it has finished."))
+            if not await utils.yn_question(interaction,
+                                       _('Would you like to update from version {old_version}@{old_branch} to '
+                                         '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
+                                         ).format(old_version=old_version, old_branch=_branch, new_version=new_version,
+                                                  new_branch=branch),
+                                       ephemeral=ephemeral):
+                await interaction.followup.send(_("Aborted."))
+                return
+            await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",
+                                 user=interaction.user)
+            msg = await interaction.followup.send(
+                _("Updating DCS to version {version}@{branch}, please wait ...").format(version=new_version,
+                                                                                        branch=branch),
+                ephemeral=ephemeral)
+            try:
+                rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch)
+                if rc == 0:
+                    await msg.edit(
+                        content=_("DCS updated to version {version}@{branch} on node {name}."
+                                  ).format(version=new_version, branch=branch, name=node.name))
+                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
+                                         user=interaction.user)
+                else:
+                    await msg.edit(
+                        content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name,
+                                                                                               rc=rc))
+            except (TimeoutError, asyncio.TimeoutError):
+                await msg.edit(content=_("The update takes longer than 10 minutes, please check back regularly, "
+                                         "if it has finished."))
         else:
             await interaction.followup.send(
                 _("Can't update branch {}. You might need to provide proper DCS credentials to do so.").format(branch),
