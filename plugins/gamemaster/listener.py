@@ -5,12 +5,15 @@ import logging
 import os
 import psycopg
 
-from core import EventListener, Side, Coalition, Channel, utils, event, chat_command, CloudRotatingFileHandler
+from core import EventListener, Side, Coalition, Channel, utils, event, chat_command, CloudRotatingFileHandler, \
+    get_translation
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Player, Server, Plugin
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class GameMasterEventListener(EventListener):
@@ -169,22 +172,15 @@ class GameMasterEventListener(EventListener):
 
     async def _join(self, server: Server, player: Player, params: list[str]):
         if not server.locals.get('coalitions'):
-            player.sendChatMessage("Coalitions are not enabled on this server.")
+            player.sendChatMessage(_("Coalitions are not enabled on this server."))
             return
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
-            player.sendChatMessage(f"Usage: {self.prefix}join <blue|red>")
+            player.sendChatMessage(_("Usage: {}join <blue|red>").format(self.prefix))
             return
         if player.coalition:
-            if player.coalition == Coalition(coalition):
-                player.sendChatMessage(f"You are a member of coalition {coalition} already.")
-            else:
-                if player.coalition == Coalition.RED:
-                    player.sendChatMessage(f"You are a member of coalition red already.")
-                else:
-                    player.sendChatMessage(f"You are a member of coalition blue already.")
+            player.sendChatMessage(_("You are a member of coalition {} already.").format(coalition))
             return
-
         # update the database
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -197,9 +193,9 @@ class GameMasterEventListener(EventListener):
                 """, (server.name, player.ucid))
                 if cursor.rowcount == 1:
                     if (await cursor.fetchone())[0] != coalition.casefold():
-                        player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
-                                               f"{server.locals['coalitions'].get('lock_time', '1 day')} of "
-                                               f"leaving a coalition.")
+                        player.sendChatMessage(_("You can't join the {coalition} coalition in-between {lock_time} of "
+                                                 "leaving a coalition.").format(
+                            coalition=coalition, lock_time=server.locals['coalitions'].get('lock_time', '1 day')))
                         await self.bot.audit(
                             f"{player.display_name} tried to join a new coalition in-between the time limit.",
                             user=player.ucid)
@@ -216,9 +212,9 @@ class GameMasterEventListener(EventListener):
 
         # welcome them in DCS
         password = self.get_coalition_password(server, player.coalition)
-        player.sendChatMessage(f'Welcome to the {coalition} side!')
+        player.sendChatMessage(_('Welcome to the {} side!').format(coalition))
         if password:
-            player.sendChatMessage(f"Your coalition password is {password}.")
+            player.sendChatMessage(_("Your coalition password is {}").format(password))
 
         # set the discord role
         try:
@@ -273,15 +269,15 @@ class GameMasterEventListener(EventListener):
         except discord.Forbidden:
             self.log.error('The bot is missing the "Manage Roles" permission.')
 
-    @chat_command(name="join", usage="<coalition>", help="join a coalition")
+    @chat_command(name="join", usage="<red|blue>", help=_("join a coalition"))
     async def join(self, server: Server, player: Player, params: list[str]):
         await self._join(server, player, params)
 
-    @chat_command(name="leave", help="leave your coalition")
-    async def leave(self, server: Server, player: Player, _: list[str]):
+    @chat_command(name="leave", help=_("leave your coalition"))
+    async def leave(self, server: Server, player: Player, params: list[str]):
         if not self.get_coalition(server, player):
-            player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"{self.prefix}join blue|red.")
+            player.sendChatMessage(
+                _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
             return
         # update the database
         async with self.apool.connection() as conn:
@@ -290,7 +286,7 @@ class GameMasterEventListener(EventListener):
                     UPDATE coalitions SET coalition_leave = (now() AT TIME ZONE 'utc') 
                     WHERE server_name = %s AND player_ucid = %s
                 """, (server.name, player.ucid))
-                player.sendChatMessage(f"You've left the {player.coalition.name} coalition!")
+                player.sendChatMessage(_("You left the {} coalition!").format(player.coalition.name))
         # remove discord roles
         try:
             if player.member:
@@ -304,52 +300,53 @@ class GameMasterEventListener(EventListener):
         finally:
             player.coalition = None
 
-    @chat_command(name="red", help="join the red side")
+    @chat_command(name="red", help=_("join the red side"))
     async def red(self, server: Server, player: Player, _: list[str]):
         await self._join(server, player, ["red"])
 
-    @chat_command(name="blue", help="join the blue side")
-    async def blue(self, server: Server, player: Player, _: list[str]):
+    @chat_command(name="blue", help=_("join the blue side"))
+    async def blue(self, server: Server, player: Player, params: list[str]):
         await self._join(server, player, ["blue"])
 
     async def _coalition(self, server: Server, player: Player):
         coalition = self.get_coalition(server, player)
         if coalition:
-            player.sendChatMessage(f"You are a member of the {coalition.name} coalition.")
+            player.sendChatMessage(_("You are a member of the {} coalition."))
         else:
-            player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"{self.prefix}join blue|red.")
+            player.sendChatMessage(
+                _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
 
-    @chat_command(name="coalition", help="displays your current coalition")
-    async def coalition(self, server: Server, player: Player, _: list[str]):
+    @chat_command(name="coalition", help=_("displays your current coalition"))
+    async def coalition(self, server: Server, player: Player, params: list[str]):
         if not server.locals.get('coalitions'):
-            player.sendChatMessage("Coalitions are not enabled on this server.")
+            player.sendChatMessage(_("Coalitions are not enabled on this server."))
         # noinspection PyAsyncCall
         asyncio.create_task(self._coalition(server, player))
 
     async def _password(self, server: Server, player: Player):
         coalition = self.get_coalition(server, player)
         if not coalition:
-            player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"{self.prefix}join blue|red.")
+            player.sendChatMessage(
+                _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
             return
         password = self.get_coalition_password(server, player.coalition)
         if password:
-            player.sendChatMessage(f"Your coalition password is {password}.")
+            player.sendChatMessage(_("Your coalition password is {}").format(password))
         else:
-            player.sendChatMessage("There is no password set for your coalition.")
+            player.sendChatMessage(_("There is no password set for your coalition."))
 
-    @chat_command(name="password", aliases=["passwd"], help="displays the coalition password")
-    async def password(self, server: Server, player: Player, _: list[str]):
+    @chat_command(name="password", aliases=["passwd"], help=_("displays the coalition password"))
+    async def password(self, server: Server, player: Player, params: list[str]):
         if not server.locals.get('coalitions'):
-            player.sendChatMessage("Coalitions are not enabled on this server.")
+            player.sendChatMessage(_("Coalitions are not enabled on this server."))
         # noinspection PyAsyncCall
         asyncio.create_task(self._password(server, player))
 
-    @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage="<flag> [value]", help="reads or sets a flag")
+    @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage=_("<flag> [value]"),
+                  help=_("reads or sets a flag"))
     async def flag(self, server: Server, player: Player, params: list[str]):
         if not params:
-            player.sendChatMessage(f"Usage: {self.prefix}flag <flag> [value]")
+            player.sendChatMessage(_("Usage: {}flag <flag> [value]").format(self.prefix))
             return
         flag = params[0]
         if len(params) > 1:
@@ -362,4 +359,4 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage(f"Flag {flag} set to {value}.")
         else:
             response = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
-            player.sendChatMessage(f"Flag {flag} has value {response['value']}.")
+            player.sendChatMessage(_("Flag {flag} has value {value}.").format(flag=flag, value=response['value']))

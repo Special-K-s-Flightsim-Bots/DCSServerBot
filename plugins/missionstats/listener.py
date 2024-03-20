@@ -1,7 +1,10 @@
 import asyncio
 
-from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report
+from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report, \
+    get_translation
 from discord.ext import tasks
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -15,22 +18,22 @@ class MissionStatisticsEventListener(EventListener):
 
     UNIT_CATEGORY = {
         None: None,
-        0: 'Airplanes',
-        1: 'Helicopters',
-        2: 'Ground Units',
-        3: 'Ships',
-        4: 'Structures',
-        5: 'Unknown'
+        0: _('Airplanes'),
+        1: _('Helicopters'),
+        2: _('Ground Units'),
+        3: _('Ships'),
+        4: _('Structures'),
+        5: _('Unknown')
     }
 
     EVENT_TEXTS = {
         Coalition.BLUE: {
-            'capture': '```ansi\n\u001b[0;34mBLUE coalition has captured {}.```',
-            'capture_from': '```ansi\n\u001b[0;34mBLUE coalition has captured {} from RED coalition.```'
+            'capture': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {}.')),
+            'capture_from': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {} from RED coalition.'))
         },
         Coalition.RED: {
-            'capture': '```ansi\n\u001b[0;31mRED coalition has captured {}.```',
-            'capture_from': '```ansi\n\u001b[0;31mRED coalition has captured {} from BLUE coalition.```'
+            'capture': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {}.')),
+            'capture_from': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {} from BLUE coalition.'))
         }
     }
 

@@ -1,0 +1,38 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+msgid "LSO Grade"
+msgstr "LSO Note"
+
+msgid "Result for {player} at carrier {carriername} [{carriertype}]"
+msgstr "Ergebnis für {player} auf dem Träger {carriername} [{carriertype}]"
+
+msgid "Grade"
+msgstr "Note"
+
+msgid "Points"
+msgstr "Punkte"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Groove"
+msgstr "Groove"
+
+msgid "Wire"
+msgstr "Kabel"
+
+msgid "Case"
+msgstr "Case"
+
+msgid "Wind"
+msgstr "Wind"
+
+msgid "Aircraft"
+msgstr "Flugzeug"
+

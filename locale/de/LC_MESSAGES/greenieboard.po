@@ -1,0 +1,120 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /traps
+msgid "Commands to display and manage carrier traps"
+msgstr "Befehle für Flugzeugträgerlandungen"
+
+# /traps info
+msgid "Show carrier landing qualifications"
+msgstr "Zeige Flugzeugträgerlandungen an"
+
+msgid "No carrier landings recorded for this user."
+msgstr "Für diesen Spieler wurden keine Trägerlandungen aufgezeichnet."
+
+msgid "Select a trap for details"
+msgstr "Für Details bitte eine Landung auswählen"
+
+msgid "Select the plane for the trap"
+msgstr "Wähle das Flugzeug aus"
+
+# /traps board
+msgid "Display the current Greenieboard"
+msgstr "Zeigt das aktuelle Greenieboard"
+
+# /traps add
+msgid "Adds a trap to the Greenieboard"
+msgstr "Füge eine Landung zum Greenieboard zu"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use `/traps add`!"
+msgstr "Du musst Ratings in Deinem greenieboard.yaml definieren, um `/traps add` nutzen zu können!"
+
+msgid "Trap added."
+msgstr "Landung zugefügt."
+
+msgid "Aborted,"
+msgstr "Abgebrochen."
+
+msgid "Time (HH24:MI)"
+msgstr "Zeit (HH24:MI)"
+
+msgid "Case"
+msgstr "Case"
+
+msgid "Grade"
+msgstr "Wertung"
+
+msgid "LSO Comment"
+msgstr "LSO-Kommentar"
+
+msgid "Wire"
+msgstr "Seil"
+
+msgid "Enter the trap details"
+msgstr "Gib Informationen zur Landung ein"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case muss zwischen 1 und 3 liegen."
+
+msgid "Grade has to be one of {}."
+msgstr "Wertung muss eine von {} sein."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "Seil muss zwischen 1 und 4 sein."
+
+# Listener
+msgid "Carrier Landing"
+msgstr "Trägerlandung"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "Landing auf {place} mit Wertung {grade}."
+
+# Reports
+msgid "Date/Time"
+msgstr "Datum/Zeit"
+
+msgid "Plane"
+msgstr "Flugzeug"
+
+msgid "Carrier"
+msgstr "Träger"
+
+msgid "Points"
+msgstr "Punkte"
+
+msgid "LSO Grade: {}"
+msgstr "LSO-Wertung: {}"
+
+msgid " (a little)\n"
+msgstr " (ein bisschen)\n"
+
+msgid " (a lot!)\n"
+msgstr " (viel!)\n"
+
+msgid " (ignored)\n"
+msgstr " (ignoriert)\n"
+
+# Highscore
+msgid "Traps"
+msgstr "Trägerlandungen"
+
+msgid "No data available."
+msgstr "Keine Daten verfügbar."
+
+# Greenieboard
+msgid "Pilot"
+msgstr "Pilot"
+
+msgid "Avg"
+msgstr "Durchschn."
+
+msgid "\nThe most recent landing is added at the front.\nNight landings have round markers."
+msgstr "\nDie aktuellste Landung wird vorne angefügt.\nNachtlandungen haben runde Markierungen."
+
+msgid "\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr "\nLetzte Landung: {time:%y-%m-%d %H:%M:%S}"

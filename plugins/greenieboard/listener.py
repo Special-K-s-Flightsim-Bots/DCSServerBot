@@ -5,12 +5,14 @@ import string
 import sys
 import uuid
 
-from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event
+from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
 from typing import Optional, cast
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class GreenieBoardEventListener(EventListener):
@@ -95,7 +97,8 @@ class GreenieBoardEventListener(EventListener):
         points = data.get('points', config['ratings'][data['grade']])
         if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
-            cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
+            cp.audit(_('Carrier Landing'), cp.points,
+                     _("Landing on {place} with grade {grade}.").format(place=data['place'], grade=data['grade']))
             cp.points += points
         case = data.get('case', 1 if not night else 3)
         wire = data.get('wire')
@@ -152,7 +155,8 @@ class GreenieBoardEventListener(EventListener):
 
     async def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
         if 'FunkMan' not in config:
-            self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
+            self.log.warning(
+                f"Can't process FunkMan event as FunkMan is not configured in your {self.plugin_name}.yaml!")
             return
         if not data['grade'].startswith('WO'):
             filepath = os.path.join(server.instance.home,

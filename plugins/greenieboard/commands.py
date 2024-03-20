@@ -3,7 +3,8 @@ import os
 import psycopg
 import shutil
 
-from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG, \
+    get_translation
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from psycopg.rows import dict_row
@@ -12,6 +13,8 @@ from typing import Optional, Union
 
 from .listener import GreenieBoardEventListener
 from .views import TrapView
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class GreenieBoard(Plugin):
@@ -56,9 +59,9 @@ class GreenieBoard(Plugin):
         await conn.execute('UPDATE greenieboard SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     # New command group "/traps"
-    traps = Group(name="traps", description="Commands to display and manage carrier traps")
+    traps = Group(name="traps", description=_("Commands to display and manage carrier traps"))
 
-    @traps.command(description='Show carrier landing qualifications')
+    @traps.command(description=_('Show carrier landing qualifications'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: discord.Interaction,
@@ -91,13 +94,13 @@ class GreenieBoard(Plugin):
                 """, (ucid, num_landings))
                 if cursor.rowcount == 0:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message('No carrier landings recorded for this user.',
+                    await interaction.response.send_message(_('No carrier landings recorded for this user.'),
                                                             ephemeral=True)
                     return
                 landings = [dict(row) async for row in cursor]
         report = Report(self.bot, self.plugin_name, 'traps.json')
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
-        n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",
+        n = await utils.selection(interaction, embed=env.embed, placeholder=_("Select a trap for details"),
                                   options=[
                                       SelectOption(label=format_landing(x), value=str(idx), default=(idx == 0))
                                       for idx, x in enumerate(landings)
@@ -106,7 +109,7 @@ class GreenieBoard(Plugin):
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'lsoRating.json', keep_image=True)
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
 
-    @traps.command(description='Display the current greenieboard')
+    @traps.command(description=_('Display the current Greenieboard'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     @app_commands.rename(num_rows='rows')
@@ -114,7 +117,7 @@ class GreenieBoard(Plugin):
         report = PaginationReport(self.bot, interaction, self.plugin_name, 'greenieboard.json')
         await report.render(server_name=None, num_rows=num_rows)
 
-    @traps.command(description='Adds a trap to the Greenieboard')
+    @traps.command(description=_('Adds a trap to the Greenieboard'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction,
@@ -124,7 +127,7 @@ class GreenieBoard(Plugin):
         if 'ratings' not in config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                'You need to specify ratings in your greenieboard.json to use add_trap!', ephemeral=True)
+                _('You need to specify ratings in your greenieboard.yaml to use `/traps add`!'), ephemeral=True)
             return
 
         view = TrapView(self.bot, config, user)
@@ -133,9 +136,9 @@ class GreenieBoard(Plugin):
         try:
             await view.wait()
             if view.success:
-                await interaction.followup.send('Trap added.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Trap added.'), ephemeral=ephemeral)
             else:
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
         finally:
             await interaction.delete_original_response()
 

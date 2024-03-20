@@ -144,9 +144,11 @@ class SRS(Extension):
                         self.process = None
                         return True
                     else:
-                        self.log.warning(f"  => Could not find the SRS process.")
-                        self.log.warning(f"  => Please move your SRS configuration to "
-                                         f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
+                        self.log.warning(f"  => Could not find a running SRS server process.")
+                        cfg_path = os.path.expandvars(self.config.get('config'))
+                        if self.server.instance.name not in cfg_path:
+                            self.log.warning(f"  => Please move your SRS configuration to "
+                                             f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
                 except Exception as ex:
                     self.log.error(f'Error during shutdown of SRS: {str(ex)}')
                     return False

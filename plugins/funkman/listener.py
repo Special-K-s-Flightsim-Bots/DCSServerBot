@@ -5,12 +5,14 @@ import uuid
 import matplotlib.figure
 import os
 
-from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel
+from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel, get_translation
 from io import BytesIO
 from matplotlib import pyplot as plt
 from typing import Tuple, Literal
 
 from .const import StrafeQuality, BombQuality
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class FunkManEventListener(EventListener):
@@ -80,23 +82,24 @@ class FunkManEventListener(EventListener):
                 urlIm = "https://i.imgur.com/6ecFSqo.png"
 
         # Create Embed
-        embed = discord.Embed(title="LSO Grade",
-                              description=f"Result for {player} at carrier {carriername} [{carriertype}]",
+        embed = discord.Embed(title=_("LSO Grade"),
+                              description=_("Result for {player} at carrier {carriername} [{carriertype}]").format(
+                                  player=player, carriername=carriername, carriertype=carriertype),
                               color=color)
 
         # Images.
         embed.set_thumbnail(url=urlIm)
 
         # Data.
-        embed.add_field(name="Grade", value=grade)
-        embed.add_field(name="Points", value=points)
-        embed.add_field(name="Details", value=details)
-        embed.add_field(name="Groove", value=Tgroove)
+        embed.add_field(name=_("Grade"), value=grade)
+        embed.add_field(name=_("Points"), value=points)
+        embed.add_field(name=_("Details"), value=details)
+        embed.add_field(name=_("Groove"), value=Tgroove)
         if wire != "?":
-            embed.add_field(name="Wire", value=wire)
-        embed.add_field(name="Case", value=case)
-        embed.add_field(name="Wind", value=windondeck)
-        embed.add_field(name="Aircraft", value=actype)
+            embed.add_field(name=_("Wire"), value=wire)
+        embed.add_field(name=_("Case"), value=case)
+        embed.add_field(name=_("Wind"), value=windondeck)
+        embed.add_field(name=_("Aircraft"), value=actype)
 
         # Footer.
         embed.set_footer(text=f"{theatre}: {missiondate} ({missiontime})")
