@@ -89,11 +89,11 @@ msgstr "Keine Luftbetankungen für diesen User gefunden."
 
 # /nemesis
 msgid "Find who killed you most"
-msgstr "Wer hat mich am häufigsten abgeschossen?"
+msgstr "Wer tötete mich am häufigsten?"
 
 # /antagonist
 msgid "Find who you've killed the most"
-msgstr "Wen habe ich am häufigsten abgeschossen?"
+msgstr "Wen habe ich am häufigsten getötet?"
 
 # Listener
 msgid "Airplanes"
