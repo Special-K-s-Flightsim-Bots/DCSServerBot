@@ -1,0 +1,27 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+msgid "Server is going down for a DCS update in {)}!"
+msgstr "Перезагрузка сервера для обновления DCS через {)}!"
+
+msgid "You are banned from this server. Reason: {}"
+msgstr "Вы забанены на этом сервере. Причина: {}"
+
+msgid "The server is full, please try again later."
+msgstr "Сервер переполнен. Попробуйте зайти позднее."
+
+msgid "Your player name contains invalid characters. Please change your name to join our server."
+msgstr "Ваше имя пользователя содержит недопустимые символы! Пожалуйста исправьте имя пользователя."
+
+msgid "Please change your default player name at the top right of the multiplayer selection list to an individual one!"
+msgstr "Пожалуйста смените имя пользователя по умолчанию в верхнем правом углу на ваше игровое имя!"

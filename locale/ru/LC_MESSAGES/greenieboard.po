@@ -1,0 +1,135 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+# /traps
+msgid "Commands to display and manage carrier traps"
+msgstr "Команды для отображения и управления посадками на авианосец"
+
+# /traps info
+msgid "Show carrier landing qualifications"
+msgstr "Показать информацию о посадках на авианосец"
+
+msgid "No carrier landings recorded for this user."
+msgstr "Данных по посадкам на авианосец не обнаружено для данного пользователя."
+
+msgid "Select a trap for details"
+msgstr "Выберите посадку для отображения подробностей"
+
+msgid "Select the plane for the trap"
+msgstr "Выберите самолет для посадки"
+
+# /traps board
+msgid "Display the current Greenieboard"
+msgstr "Отобразить текущий Greenieboard"
+
+# /traps add
+msgid "Adds a trap to the Greenieboard"
+msgstr "Добавить посадку в Greenieboard"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use `/traps add`!"
+msgstr "Вам необходимо указать рейтинги в вашем greenieboard.yaml для использования команды `/traps add`!"
+
+msgid "Trap added."
+msgstr "Посадка добавлена."
+
+msgid "Aborted,"
+msgstr "Отмена,"
+
+msgid "Time (HH24:MI)"
+msgstr "Время (HH24:MI)"
+
+msgid "Case"
+msgstr "Case"
+
+msgid "Grade"
+msgstr "Оценка"
+
+msgid "LSO Comment"
+msgstr "Комментарий LSO"
+
+msgid "Wire"
+msgstr "Трос"
+
+msgid "Enter the trap details"
+msgstr "Введите подробности посадки"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case должен быть 1, 2 или 3."
+
+msgid "Grade has to be one of {}."
+msgstr "Оценка должна быть из {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "Трос должен быть от 1 до 4."
+
+# Listener
+msgid "Carrier Landing"
+msgstr "Посадка на авианосец"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "Посадка на {place} с оценкой {grade}."
+
+# Reports
+msgid "Date/Time"
+msgstr "Дата/Время"
+
+msgid "Plane"
+msgstr "Самолёт"
+
+msgid "Carrier"
+msgstr "Авианосец"
+
+msgid "Points"
+msgstr "Очков"
+
+msgid "LSO Grade: {}"
+msgstr "LSO Оценка: {}"
+
+msgid " (a little)\n"
+msgstr " (немного)\n"
+
+msgid " (a lot!)\n"
+msgstr " (много!)\n"
+
+msgid " (ignored)\n"
+msgstr " (проигнорировано)\n"
+
+# Highscore
+msgid "Traps"
+msgstr "Посадок"
+
+msgid "No data available."
+msgstr "Нет данных."
+
+# Greenieboard
+msgid "Pilot"
+msgstr "Пилот"
+
+msgid "Avg"
+msgstr "Средн"
+
+msgid ""
+"\n"
+"The most recent landing is added at the front.\n"
+"Night landings have round markers."
+msgstr ""
+"\n"
+"Последняя посадка добавлена в начало.\n"
+"Ночные посадки отмечены круглыми маркерами."
+
+msgid ""
+"\n"
+"Last recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr ""
+"\n"
+"Последняя посадка: {time:%y-%m-%d %H:%M:%S}"

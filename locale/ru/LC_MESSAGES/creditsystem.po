@@ -1,0 +1,170 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+msgid "Commands to manage player credits"
+msgstr "Команды для управления очками игрока"
+
+# /credits info
+msgid "Shows your current credits"
+msgstr "Показать текущие очки"
+
+msgid "You need the DCS Admin role to use this command!"
+msgstr "Вам должна быть присвоена роль DCS Admin для использования этой команды!"
+
+msgid "Member {} is not linked to any DCS user!"
+msgstr "Пользователь {} не слинкован с DCS игроком!"
+
+msgid "Use `/linkme` to link your account."
+msgstr "Используйте команду `/linkme`, для линковки пользователя Discord с вашим DCS аккаунтом."
+
+msgid "{} has no campaign credits."
+msgstr "{} не имеет очков кампании."
+
+msgid "Campaign Credits for {}"
+msgstr "Очки кампании для игрока {}"
+
+msgid "Campaign"
+msgstr "Кампания"
+
+msgid "Credits"
+msgstr "Очки"
+
+msgid "Time"
+msgstr "Время"
+
+msgid "Event"
+msgstr "Событие"
+
+msgid "Log shows the last 10 events only."
+msgstr "В логе отображается 10 последних событий."
+
+# /credits donate (admin)
+msgid "{} needs to properly link their DCS account to receive donations."
+msgstr "{} необходимо слинковать DCS аккаунт для получения донатов."
+
+msgid "It seems like there is no campaign running on your server(s)."
+msgstr "На сервере(ах) кампаний не запущено."
+
+msgid "Campaign Credits"
+msgstr "Очки по кампании"
+
+msgid "Member {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "Пользователь {} превысит максимально допустимое количество баллов данным донатом. Отмена."
+
+msgid "Donation from member {}"
+msgstr "Донат от пользователя {}"
+
+msgid "Credit points change by Admin {}"
+msgstr "Очки были изменены администратором сервера {}"
+
+msgid "You just received {} credit points from an Admin."
+msgstr "Администратор сервера начислил вам {} очков."
+
+msgid ", you just received {} credit points from an Admin."
+msgstr ", вам начислено {} очков администратором сервера."
+
+msgid "Your credits were decreased by {} credit points by an Admin."
+msgstr "Ваши очки были уменьшены на {} администратором сервера."
+
+msgid ", your credits were decreased by {} credit points by an Admin."
+msgstr ", ваши очки были уменьшены на {} администратором сервера."
+
+msgid "Donated {credits} points to {name}."
+msgstr "Донат на {credits} пользователю {name}."
+
+# /credits donate (normal)
+msgid "Donate credits to another member"
+msgstr "Задонатить очков другому пользователю"
+
+msgid "You can't donate to yourself."
+msgstr "Вы не можете донатить самому себе."
+
+msgid "Your donation has to be > 0."
+msgstr "Ваш донат должен быть больше нуля."
+
+msgid "You need to properly link your DCS account to give donations!"
+msgstr "Вам необходимо слинковать ваш DCS аккаунт для отправки донатов!"
+
+msgid "You don't have any credit points to donate."
+msgstr "У вас нет очков для доната."
+
+msgid "You can't donate {donation} credit points, you only have {total}!"
+msgstr "Вы не можете задонатить {donation} очков, ваш общий баланс {total}!"
+
+msgid "Donation to member {}"
+msgstr "Донат пользователю {}"
+
+msgid "You just received {donation} credit points from {member}!"
+msgstr "Вы получили {donation} очков от {member}!"
+
+msgid ", you just received {donation} credit points from {member}!"
+msgstr ", вы получили {donation} очков от {member}!"
+
+# # LISTENER
+msgid "Initial points received"
+msgstr "Получены стартовые очки"
+
+msgid "{name}, you currently have {credits} credit points."
+msgstr "{name}, у вас сейчас {credits} очков."
+
+msgid "Unknown mission achievement"
+msgstr "Неизвестное достижение миссии"
+
+# onGameEvent()
+msgid "for killing {}"
+msgstr "за убийство {}"
+
+# -credits
+msgid "You currently have {} credit points"
+msgstr "У вас сейчас {} очков"
+
+# -donate
+msgid "Donate credits to another player"
+msgstr "Задонатить очки другому игроку"
+
+msgid "Usage: {}donate player points"
+msgstr "Использование: {}donate name credits"
+
+msgid "Player {} not found."
+msgstr "Игрок с именем {} не найден."
+
+msgid "Player {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "Игрок {} превысит максимально допустимое количество очков данным донатом. Отмена."
+
+msgid "Donation to player {}"
+msgstr "Донат игроку {}"
+
+msgid "Donation from player {}"
+msgstr "Донат от игрока {}"
+
+msgid "You've donated {donation} credit points to player {name}."
+msgstr "Вы задонатили {donation} очков игроку {name}."
+
+msgid "Player {name} donated {donation} credit points to you!"
+msgstr "Игрок {name} задонатил вам {donation} очков!"
+
+# -tip
+msgid "Tip a GCI with points"
+msgstr "Оставить на чай ПАНу"
+
+msgid "Usage: {}tip points [gci_number]"
+msgstr "Использование: {}tip количество_баллов [номер_пана]"
+
+msgid "There is currently no {} GCI active."
+msgstr "Активных ПАН не обнаружено: {}"
+
+msgid "Multiple GCIs found, use \"{}tip points gci_number\"."
+msgstr "Обнаружено несколько ПАНов, используйте \"{}tip количество_баллов номер_пана\"."
+
+msgid "You've donated {donation} credit points to GCI {name}."
+msgstr "Вы задонатили {donation} очков ПАНу {name}."
