@@ -1,6 +1,8 @@
+import asyncio
 import math
 
 from core import EventListener, Plugin, event, Server, utils, ServiceRegistry
+from services import BotService
 
 
 class ServerStatsListener(EventListener):
@@ -25,9 +27,11 @@ class ServerStatsListener(EventListener):
                                               "{period} minutes!"),
                         server=server, fps=round(fps, 2), min_fps=min_fps, period=period)
                     if config.get("mentioning", True):
-                        await ServiceRegistry.get("Bot").alert(message, server)
+                        # noinspection PyAsyncCall
+                        asyncio.create_task(ServiceRegistry.get(BotService).alert(message, server))
                     else:
-                        await self.bot.get_admin_channel(server).send(message)
+                        # noinspection PyAsyncCall
+                        asyncio.create_task(self.bot.get_admin_channel(server).send(message))
                     self.minutes[server.name] = 0
             else:
                 self.minutes[server.name] = 0
@@ -44,9 +48,9 @@ class ServerStatsListener(EventListener):
         if math.isinf(fps):
             fps = -1
 
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
                     INSERT INTO serverstats (server_name, node, mission_id, users, status, cpu, mem_total, 
                                              mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)

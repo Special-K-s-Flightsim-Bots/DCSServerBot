@@ -44,6 +44,7 @@ class Header(report.EmbedElement):
                     self.embed.description = 'User "{}" is not linked or unknown.'.format(
                         utils.escape_string(member if isinstance(member, str) else member.display_name)
                     )
+                    # do we maybe have an permanent ban without a user?
                     if isinstance(member, str) and utils.is_ucid(member):
                         await cursor.execute("""
                                                     SELECT 1 as banned, reason, banned_by, banned_until 
@@ -95,14 +96,13 @@ class UCIDs(report.EmbedElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql)
                 rows = await cursor.fetchall()
-                if not rows:
-                    return
-                self.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
-                self.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
-                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) for row in rows]))
-                if isinstance(member, discord.Member):
-                    self.add_field(name='Validated', value='\n'.join(
-                        ['Approved' if row['manual'] is True else 'Not Approved' for row in rows]))
+        if rows:
+            self.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
+            self.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
+            self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) for row in rows]))
+            if isinstance(member, discord.Member):
+                self.add_field(name='Validated', value='\n'.join(
+                    ['Approved' if row['manual'] is True else 'Not Approved' for row in rows]))
 
 
 class History(report.EmbedElement):
@@ -117,17 +117,16 @@ class History(report.EmbedElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql)
                 rows = await cursor.fetchall()
-                if not rows:
-                    return
-                self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
-                self.add_field(name='DCS Name', value='\n'.join([
-                    utils.escape_string(row['name'] or 'n/a') for row in rows
-                ]))
-                self.add_field(name='Time (UTC)', value='\n'.join([
-                    f'{row["time"].replace(tzinfo=timezone.utc).strftime("%y-%m-%d %H:%Mz")} / '
-                    f'<t:{int(row["time"].replace(tzinfo=timezone.utc).timestamp())}:R>' for row in rows
-                ]))
-                self.add_field(name='_ _', value='_ _')
+        if rows:
+            self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
+            self.add_field(name='DCS Name', value='\n'.join([
+                utils.escape_string(row['name'] or 'n/a') for row in rows
+            ]))
+            self.add_field(name='Time (UTC)', value='\n'.join([
+                f'{row["time"].replace(tzinfo=timezone.utc).strftime("%y-%m-%d %H:%Mz")} / '
+                f'<t:{int(row["time"].replace(tzinfo=timezone.utc).timestamp())}:R>' for row in rows
+            ]))
+            self.add_field(name='_ _', value='_ _')
 
 
 class ServerInfo(report.EmbedElement):
@@ -143,7 +142,7 @@ class Footer(report.EmbedElement):
     async def render(self, member: Union[discord.Member, str], banned: bool, watchlist: bool, player: Optional[Player]):
         footer = ''
         if isinstance(member, discord.Member):
-            _member: Member = DataObjectFactory().new('Member', node=self.node, member=member)
+            _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)
             if _member.ucid:
                 footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:

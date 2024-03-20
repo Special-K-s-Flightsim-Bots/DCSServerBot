@@ -34,12 +34,15 @@ class CloudLoggingHandler(logging.Handler):
 
     async def send_post(self, record: logging.LogRecord):
         if isinstance(record.exc_info[1], discord.app_commands.CommandInvokeError):
+            # noinspection PyUnresolvedReferences
             exc = record.exc_info[1].original
         else:
             exc = record.exc_info[1]
-        file, line, trace = self.format_traceback(exc.__traceback__) if exc else (record.filename, record.lineno, [record.funcName])
+        file, line, trace = self.format_traceback(exc.__traceback__) \
+            if exc else (record.filename, record.lineno, [record.funcName])
         with suppress(Exception):
             async with aiohttp.ClientSession() as session:
+                # noinspection PyUnresolvedReferences
                 await session.post(self.url, json={
                     "guild_id": self.node.guild_id,
                     "version": f"{self.node.bot_version}.{self.node.sub_version}",

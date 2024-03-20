@@ -1,18 +1,21 @@
 import os
 
-from core import Instance, InstanceBusyError, Status, utils, Server, DataObjectFactory
+from core import Instance, InstanceBusyError, Status, utils, DataObjectFactory
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from core.autoexec import Autoexec
 from core.const import SAVED_GAMES
 from core.utils.helper import SettingsDict
 
+if TYPE_CHECKING:
+    from core import Server
+
 __all__ = ["InstanceImpl"]
 
 
 @dataclass
-@DataObjectFactory.register("Instance")
+@DataObjectFactory.register()
 class InstanceImpl(Instance):
 
     def __post_init__(self):
@@ -43,7 +46,7 @@ class InstanceImpl(Instance):
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
-    def set_server(self, server: Optional[Server]):
+    def set_server(self, server: Optional["Server"]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server

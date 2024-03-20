@@ -5,8 +5,8 @@ from core import utils, Server, ServiceRegistry
 from discord import SelectOption, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from services import MusicService
-
 from services.music.radios import Mode
+
 from .utils import get_tag
 
 
@@ -15,7 +15,7 @@ class MusicPlayer(View):
     def __init__(self, server: Server, radio_name: str, playlists: list[str]):
         super().__init__()
         self.radio_name = radio_name
-        self.service: MusicService = ServiceRegistry.get("Music")
+        self.service = ServiceRegistry.get(MusicService)
         self.log = self.service.log
         self.server = server
         self.playlists = playlists
@@ -127,6 +127,7 @@ class MusicPlayer(View):
                                      default=self.config['display_name'], min_length=3, max_length=30)
 
             async def on_submit(derived, interaction: discord.Interaction):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 self.config['frequency'] = derived.frequency.value
                 if derived.modulation.value.upper() in ['AM', 'FM']:
@@ -150,6 +151,7 @@ class MusicPlayer(View):
         return EditModal()
 
     async def play(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.service.stop_radios(self.server, self.radio_name)
         await self.service.play_song(self.server, self.radio_name,
@@ -159,6 +161,7 @@ class MusicPlayer(View):
         await interaction.edit_original_response(view=self, embed=await self.render())
 
     async def playlist(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         running = await self.service.get_current_song(self.server, self.radio_name)
         if running:
@@ -170,6 +173,7 @@ class MusicPlayer(View):
         await interaction.edit_original_response(view=self, embed=await self.render())
 
     async def on_play_stop(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if await self.service.get_current_song(self.server, self.radio_name):
             await self.service.stop_radios(self.server, self.radio_name)
@@ -179,12 +183,14 @@ class MusicPlayer(View):
         await interaction.edit_original_response(embed=embed, view=self)
 
     async def on_skip(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.service.skip_song(self.server, self.radio_name)
         embed = await self.render()
         await interaction.edit_original_response(embed=embed, view=self)
 
     async def on_repeat(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         await self.service.stop_radios(self.server, self.radio_name)
         if await self.service.get_mode(self.server, self.radio_name) == Mode.SHUFFLE:
@@ -198,6 +204,7 @@ class MusicPlayer(View):
     async def on_edit(self, interaction: discord.Interaction):
         try:
             modal = self.edit()
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_modal(modal)
             if not await modal.wait():
                 embed = await self.render()
@@ -206,5 +213,6 @@ class MusicPlayer(View):
             self.log.exception(ex)
 
     async def on_cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()

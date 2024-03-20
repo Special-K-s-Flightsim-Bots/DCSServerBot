@@ -87,7 +87,7 @@ class Punishment(Plugin):
             player: CreditPlayer = cast(CreditPlayer, player)
             old_points = player.points
             player.points -= punishment['penalty']
-            await player.audit('punishment', old_points, f"Punished for {reason}")
+            player.audit('punishment', old_points, f"Punished for {reason}")
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
                                    f"Your current credit points are: {player.points}")
             await admin_channel.send(f"Player {player.display_name} (ucid={player.ucid}) punished "
@@ -108,7 +108,7 @@ class Punishment(Plugin):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
-                        for server_name, server in self.bot.servers.items():
+                        for server_name, server in self.bot.servers.copy().items():
                             config = self.get_config(server)
                             # we are not initialized correctly yet
                             if not config:
@@ -173,20 +173,25 @@ class Punishment(Plugin):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"User {user.display_name} is not linked.", ephemeral=ephemeral)
                 return
         elif user is not None:
             ucid = user
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You must provide a valid UCID to be punished.", ephemeral=True)
             return
+
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
                     INSERT INTO pu_events (init_id, server_name, event, points)
                     VALUES (%s, %s, %s, %s) 
                 """, (ucid, server.name, reason, points))
-            await interaction.response.send_message(f'User punished with {points} points.', ephemeral=ephemeral)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(f'User punished with {points} points.', ephemeral=ephemeral)
 
     @command(description='Delete all punishment points for a given user')
     @app_commands.guild_only()
@@ -216,8 +221,9 @@ class Punishment(Plugin):
                                 "command": "unban",
                                 "ucid": ucid
                             })
-                await interaction.followup.send('All punishment points deleted and player unbanned '
-                                                '(if they were banned by the bot before).', ephemeral=ephemeral)
+
+            await interaction.followup.send('All punishment points deleted and player unbanned '
+                                            '(if they were banned by the bot before).', ephemeral=ephemeral)
 
     @command(description='Displays your current penalty points')
     @app_commands.guild_only()
@@ -227,6 +233,7 @@ class Punishment(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if user:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
                                                         ephemeral=True)
                 return
@@ -236,6 +243,7 @@ class Punishment(Plugin):
             else:
                 ucid = await self.bot.get_ucid_by_member(user)
                 if not ucid:
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(
                         f"Member {utils.escape_string(user.display_name)} is not linked to any DCS user.",
                         ephemeral=True)
@@ -244,6 +252,7 @@ class Punishment(Plugin):
             user = interaction.user
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Use `/linkme` to link your account first.", ephemeral=True)
                 return
         async with self.apool.connection() as conn:
@@ -251,6 +260,7 @@ class Punishment(Plugin):
                 await cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
                                      (ucid, ))
                 if cursor.rowcount == 0:
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message('User has no penalty points.', ephemeral=ephemeral)
                     return
                 embed = discord.Embed(
@@ -265,26 +275,28 @@ class Punishment(Plugin):
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
                     total += float(row['points'])
-                embed.description = f"Total penalty points: {total:.2f}"
-                embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
-                embed.add_field(name='Time (UTC)', value=times)
-                embed.add_field(name='Event', value=events)
-                embed.add_field(name='Points', value=points)
-                embed.set_footer(text='Points decay over time, you might see different results on different days.')
-                embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
-                # check bans
-                ban = await self.bus.is_banned(ucid)
-                if ban:
-                    if ban['banned_until'].year == 9999:
-                        until = 'never'
-                    else:
-                        until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
-                    embed.add_field(name="Ban expires", value=until)
-                    embed.add_field(name="Reason", value=ban['reason'])
-                    embed.add_field(name='_ _', value='_ _')
-                    embed.set_footer(text=f"You are currently banned.\n"
-                                          f"Please contact an admin if you want to get unbanned.")
-                await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+        embed.description = f"Total penalty points: {total:.2f}"
+        embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
+        embed.add_field(name='Time (UTC)', value=times)
+        embed.add_field(name='Event', value=events)
+        embed.add_field(name='Points', value=points)
+        embed.set_footer(text='Points decay over time, you might see different results on different days.')
+        embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
+        # check bans
+        ban = await self.bus.is_banned(ucid)
+        if ban:
+            if ban['banned_until'].year == 9999:
+                until = 'never'
+            else:
+                until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
+            embed.add_field(name="Ban expires", value=until)
+            embed.add_field(name="Reason", value=ban['reason'])
+            embed.add_field(name='_ _', value='_ _')
+            embed.set_footer(text=f"You are currently banned.\n"
+                                  f"Please contact an admin if you want to get unbanned.")
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     @command(description='Show last infractions of a user')
     @app_commands.guild_only()
@@ -293,6 +305,7 @@ class Punishment(Plugin):
                           user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
                           limit: Optional[Range[int, 3, 20]] = 10):
         if not user:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("This user does not exist. Try `/find` to find them in the "
                                                     "historic data.", ephemeral=True)
             return
@@ -301,9 +314,11 @@ class Punishment(Plugin):
         else:
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message("This member is not linked.", ephemeral=True)
                 return
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, 'events.json')
         env = await report.render(ucid=ucid, limit=limit)

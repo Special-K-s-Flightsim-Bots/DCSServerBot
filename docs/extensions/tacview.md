@@ -26,7 +26,7 @@ To enable Tacview support, again, a change in scheduler.json is needed:
       [...]
     },
     {
-      "installation": "DCS.openbeta_server",
+      "installation": "DCS.server",
       [...]
       "extensions": {
         "Tacview": {

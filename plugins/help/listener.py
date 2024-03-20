@@ -12,12 +12,12 @@ class HelpListener(EventListener):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(ucid=data['ucid'])
         if player:
             player.sendChatMessage(f"Use \"{self.prefix}help\" for commands.")
 
     @chat_command(name="help", help="The help command")
-    async def help(self, server: Server, player: Player, params: list[str]):
+    async def help(self, _: Server, player: Player, __: list[str]):
         messages = [
             f'You can use the following commands:\n'
         ]

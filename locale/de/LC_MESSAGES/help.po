@@ -1,0 +1,69 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+msgid "Command: {}"
+msgstr "Befehl: {}"
+
+msgid "Usage"
+msgstr "Aufruf"
+
+msgid "<> mandatory, [] non-mandatory"
+msgstr "<> muss-Feld, [] optional"
+
+msgid "{} Help"
+msgstr "{} Hilfe"
+
+msgid "Command"
+msgstr "Befehl"
+
+msgid "Description"
+msgstr "Beschreibung"
+
+msgid "There are no commands for your role in this plugin."
+msgstr "Es gibt keine Befehle, die Du mit Deiner Rolle in diesem Plugin nutzen kannst."
+
+msgid "Use /help [command] if you want help for a specific command."
+msgstr "Nutze /help [Befehl], um die spezifische Hilfe aufzurufen."
+
+msgid "Select the plugin you want help for"
+msgstr "Wähle das Plugin aus, zu dem Du Hilfe benötigst"
+
+msgid "The help command"
+msgstr "Hilfe für Befehle"
+
+msgid "Command {} not found."
+msgstr "Den Befehl {} gibt es nicht."
+
+msgid "You don't have the permission to use this command."
+msgstr "Dir Fehlt die Berechtigung, dieses Kommando anzusehen."
+
+msgid "## DCSServerBot Commands"
+msgstr "## DCSServerBot Befehle"
+
+msgid "Generate Documentation"
+msgstr "Erzeuge Auto-Dokumentation"
+
+msgid "\n"
+"The following bot commands can be used in this discord by members that have the {} role:\n"
+"_ _\n"
+msgstr "\n"
+"Die folgenden Bot-Befehle können mit der Discord-Rolle {} ausgeführt werden:\n"
+"_ _\n"
+
+msgid "\n"
+"The following bot commands can be used in this discord:\n"
+"_ _\n"
+msgstr "\n"
+"Folgende Bot-Befehle stehen zur Verfügung:\n"
+"_ _\n"
+
+msgid "Please provide a role for channel output."
+msgstr "Bitte gebe eine Rolle für die Kanal-Ausgabe an."
+
+msgid "Unknown option {}!"
+msgstr "Die Option {} ist nicht vorhanden!"

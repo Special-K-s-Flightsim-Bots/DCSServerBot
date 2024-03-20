@@ -4,7 +4,7 @@ import os
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport
+    PaginationReport, get_translation
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -20,6 +20,9 @@ from ..scheduler.views import ConfigView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+
+_ = get_translation(__name__.split('.')[1])
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -48,14 +51,16 @@ async def watchlist_autocomplete(interaction: discord.Interaction, current: str)
         return choices[:25]
 
 
-async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def available_modules_autocomplete(interaction: discord.Interaction,
+                                         current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
         userid = node.locals['DCS'].get('dcs_user')
         password = node.locals['DCS'].get('dcs_password')
-        available_modules = set(await node.get_available_modules(userid, password)) - set(await node.get_installed_modules())
+        available_modules = (set(await node.get_available_modules(userid, password)) -
+                             set(await node.get_installed_modules()))
         return [
             app_commands.Choice(name=x, value=x)
             for x in available_modules
@@ -65,7 +70,8 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
         interaction.client.log.exception(ex)
 
 
-async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def installed_modules_autocomplete(interaction: discord.Interaction,
+                                         current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
@@ -133,6 +139,12 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     ]
 
 
+async def get_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    return [
+        app_commands.Choice(name="release", value="release")
+    ]
+
+
 class Admin(Plugin):
 
     def read_locals(self) -> dict:
@@ -143,9 +155,9 @@ class Admin(Plugin):
             config = super().read_locals()
         return config
 
-    dcs = Group(name="dcs", description="Commands to manage your DCS installations")
+    dcs = Group(name="dcs", description=_("Commands to manage your DCS installations"))
 
-    @dcs.command(description='Bans a user by name or ucid')
+    @dcs.command(description=_('Bans a user by name or ucid'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
@@ -153,23 +165,25 @@ class Admin(Plugin):
                       sel_type=PlayerType.PLAYER)]]):
 
         class BanModal(Modal):
-            reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
-            period = TextInput(label="Days (empty = forever)", required=False)
+            reason = TextInput(label=_("Reason"), default="n/a", max_length=80, required=False)
+            period = TextInput(label=_("Days (empty = forever)"), required=False)
 
             def __init__(self, user: Union[discord.Member, str]):
-                super().__init__(title="Ban Details")
+                super().__init__(title=_("Ban Details"))
                 self.user = user
 
             async def on_submit(derived, interaction: discord.Interaction):
+                ephemeral = utils.get_ephemeral(interaction)
                 days = int(derived.period.value) if derived.period.value else None
                 if isinstance(derived.user, discord.Member):
                     ucid = await self.bot.get_ucid_by_member(derived.user)
                     if not ucid:
-                        await interaction.response.send_message(f"Member {derived.user.display_name} is not linked!",
-                                                                ephemeral=True)
+                        # noinspection PyUnresolvedReferences
+                        await interaction.response.send_message(
+                            _("Member {} is not linked!").format(derived.user.display_name), ephemeral=True)
                         return
                     name = derived.user.display_name
-                else:
+                elif utils.is_ucid(derived.user):
                     ucid = derived.user
                     # check if we should ban a member
                     name = await self.bot.get_member_or_name_by_ucid(ucid)
@@ -177,19 +191,25 @@ class Admin(Plugin):
                         name = name.display_name
                     elif not name:
                         name = ucid
+                else:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_("{} is not a valid UCID!", ephemeral=ephemeral))
+                    return
                 await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
-                await interaction.response.send_message(f"Player {name} banned on all servers" +
-                                                        (f" for {days} days." if days else ""),
-                                                        ephemeral=utils.get_ephemeral(interaction))
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("Player {} banned on all servers").format(name) +
+                                                        (_(" for {} days.").format(days) if days else "."),
+                                                        ephemeral=ephemeral)
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
                                      (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
 
-            async def on_error(derived, interaction: discord.Interaction, error: Exception) -> None:
+            async def on_error(derived, _: discord.Interaction, error: Exception) -> None:
                 self.log.exception(error)
 
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(BanModal(user))
 
-    @dcs.command(description='Unbans a user by name or ucid')
+    @dcs.command(description=_('Unbans a user by name or ucid'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(ucid="user")
@@ -201,11 +221,12 @@ class Admin(Plugin):
             name = name.display_name
         elif not name:
             name = ucid
-        await interaction.response.send_message(f"Player {name} unbanned on all servers.",
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player {} unbanned on all servers.").format(name),
                                                 ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
 
-    @dcs.command(description='Shows active bans')
+    @dcs.command(description=_('Shows active bans'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(user=bans_autocomplete)
@@ -213,24 +234,26 @@ class Admin(Plugin):
         try:
             ban = next(x for x in await self.bus.bans() if x['ucid'] == user)
         except StopIteration:
-            await interaction.response.send_message(f"User with UCID {user} is not banned.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("User with UCID {} is not banned.").format(user), ephemeral=True)
             return
-        embed = discord.Embed(title='Bans Information', color=discord.Color.blue())
+        embed = discord.Embed(title=_('Ban Information'), color=discord.Color.blue())
         if ban['discord_id'] != -1:
             user = self.bot.get_user(ban['discord_id'])
         else:
             user = None
-        embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'),
+        embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else _('<unknown>')),
                         value=ban['ucid'])
         if ban['banned_until'].year == 9999:
-            until = 'never'
+            until = _('never')
         else:
             until = ban['banned_until'].strftime('%y-%m-%d %H:%M')
-        embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}")
-        embed.add_field(name='Reason', value=ban['reason'])
+        embed.add_field(name=_("Banned by: {}").format(ban['banned_by']), value=_("Exp.: {}").format(until))
+        embed.add_field(name=_('Reason'), value=ban['reason'])
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description='Moves a player onto the watchlist')
+    @dcs.command(description=_('Puts a player onto the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def watch(self, interaction: discord.Interaction,
@@ -239,7 +262,8 @@ class Admin(Plugin):
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
-                await interaction.response.send_message(f"Member {user.display_name} is not linked.")
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
                 return
         else:
             ucid = user
@@ -247,21 +271,26 @@ class Admin(Plugin):
             player = server.get_player(ucid=ucid)
             if player:
                 if player.watchlist:
-                    await interaction.response.send_message(f"Player {player.display_name} was already on the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _("Player {} was already on the watchlist.").format(player.display_name),
+                        ephemeral=utils.get_ephemeral(interaction))
                 else:
                     player.watchlist = True
-                    await interaction.response.send_message(f"Player {player.display_name} is now on the watchlist.",
-                                                            ephemeral=utils.get_ephemeral(interaction))
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _("Player {} is now on the watchlist.").format(player.display_name),
+                        ephemeral=utils.get_ephemeral(interaction))
                 return
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
-        await interaction.response.send_message(
-            "Player {} is now on the watchlist.".format(user.display_name if isinstance(user, discord.Member) else ucid),
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
+            user.display_name if isinstance(user, discord.Member) else ucid),
             ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description='Removes a player from the watchlist')
+    @dcs.command(description=_('Removes a player from the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(user=watchlist_autocomplete)
@@ -270,16 +299,19 @@ class Admin(Plugin):
             player = server.get_player(ucid=user)
             if player:
                 player.watchlist = False
-                await interaction.response.send_message(f"Player {player.display_name} removed from the watchlist.",
-                                                        ephemeral=utils.get_ephemeral(interaction))
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    _("Player {} removed from the watchlist.").format(player.display_name),
+                    ephemeral=utils.get_ephemeral(interaction))
                 return
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
-        await interaction.response.send_message(f"Player {user} removed from the watchlist.",
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player {} removed from the watchlist.").format(user),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description='Shows the watchlist')
+    @dcs.command(description=_('Shows the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def watchlist(self, interaction: discord.Interaction):
@@ -287,64 +319,84 @@ class Admin(Plugin):
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE")
             watches = await cursor.fetchall()
-            if not watches:
-                await interaction.response.send_message("The watchlist is currently empty.", ephemeral=ephemeral)
-                return
-            embed = discord.Embed(colour=discord.Colour.blue())
-            embed.description = "These players are currently on the watchlist:"
-            names = ucids = ""
-            for row in watches:
-                ucids = row[0] + "\n"
-                names += utils.escape_string(row[1]) + "\n"
-            embed.add_field(name="UCIDs", value=ucids)
-            embed.add_field(name="Names", value=names)
-            await interaction.response.send_message(embed=embed)
+        if not watches:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
+            return
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.description = _("These players are currently on the watchlist:")
+        names = ucids = ""
+        for row in watches:
+            ucids = row[0] + "\n"
+            names += utils.escape_string(row[1]) + "\n"
+        embed.add_field(name=_("UCIDs"), value=ucids)
+        embed.add_field(name=_("Names"), value=names)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
-    @dcs.command(description='Update your DCS installations')
+    @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
+    @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
+    @app_commands.autocomplete(branch=get_branches)
     async def update(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
+                     node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60,
+                     branch: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         try:
-            branch, old_version = await node.get_dcs_branch_and_version()
+            _branch, old_version = await node.get_dcs_branch_and_version()
+            if not branch:
+                branch = _branch
             new_version = await utils.getLatestVersion(branch,
                                                        userid=node.locals['DCS'].get('dcs_user'),
                                                        password=node.locals['DCS'].get('dcs_password'))
         except Exception:
-            await interaction.followup.send("Can't get version information from ED, possible auth-server outage.",
+            await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
                                             ephemeral=True)
             return
-        if old_version == new_version:
+        if old_version == new_version and branch == _branch:
             await interaction.followup.send(
-                f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=ephemeral)
+                _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
+                                                                                               branch=branch),
+                ephemeral=ephemeral)
         elif new_version:
-            if await utils.yn_question(interaction,
-                                       f'Would you like to update from version {old_version} to {new_version}?\n'
-                                       f'All running DCS servers will be shut down!', ephemeral=ephemeral) is True:
-                await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",
-                                     user=interaction.user)
-                msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
-                                                      ephemeral=ephemeral)
-                try:
-                    rc = await node.update(warn_times=[warn_time] or [120, 60])
-                    if rc == 0:
-                        await msg.edit(content=f"DCS updated to version {new_version} on node {node.name}.")
-                        await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
-                                             user=interaction.user)
-                    else:
-                        await msg.edit(content=f"Error while updating DCS on node {node.name}, code={rc}")
-                except (TimeoutError, asyncio.TimeoutError):
-                    await msg.edit(content="The update takes longer than 10 minutes, please check back regularly, "
-                                           "if it has finished.")
+            if not await utils.yn_question(interaction,
+                                       _('Would you like to update from version {old_version}@{old_branch} to '
+                                         '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
+                                         ).format(old_version=old_version, old_branch=_branch, new_version=new_version,
+                                                  new_branch=branch),
+                                       ephemeral=ephemeral):
+                await interaction.followup.send(_("Aborted."))
+                return
+            await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",
+                                 user=interaction.user)
+            msg = await interaction.followup.send(
+                _("Updating DCS to version {version}@{branch}, please wait ...").format(version=new_version,
+                                                                                        branch=branch),
+                ephemeral=ephemeral)
+            try:
+                rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch)
+                if rc == 0:
+                    await msg.edit(
+                        content=_("DCS updated to version {version}@{branch} on node {name}."
+                                  ).format(version=new_version, branch=branch, name=node.name))
+                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
+                                         user=interaction.user)
+                else:
+                    await msg.edit(
+                        content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name,
+                                                                                               rc=rc))
+            except (TimeoutError, asyncio.TimeoutError):
+                await msg.edit(content=_("The update takes longer than 10 minutes, please check back regularly, "
+                                         "if it has finished."))
         else:
             await interaction.followup.send(
-                f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
+                _("Can't update branch {}. You might need to provide proper DCS credentials to do so.").format(branch),
                 ephemeral=ephemeral)
 
-    @dcs.command(name='install', description='Install modules in your dcs server')
+    @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=available_modules_autocomplete)
@@ -352,13 +404,14 @@ class Admin(Plugin):
                        node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
-                                       f"Shutdown all servers on node {node.name} for the installation?",
+                                       _("Shutdown all servers on node {} for the installation?").format(node.name),
                                        ephemeral=ephemeral):
             return
         await node.handle_module('install', module)
-        await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=ephemeral)
+        await interaction.followup.send(
+            _("Module {module} installed on node {node}.").format(module=module, node=node.name), ephemeral=ephemeral)
 
-    @dcs.command(name='uninstall', description='Uninstall modules from your server')
+    @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=installed_modules_autocomplete)
@@ -366,13 +419,14 @@ class Admin(Plugin):
                          node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
-                                       f"Shutdown all servers on node {node.name} for the uninstallation?"):
-            await interaction.followup.send("Aborted.", ephemeral=ephemeral)
+                                       _("Shutdown all servers on node {} for the uninstallation?").format(node.name)):
+            await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
         await node.handle_module('uninstall', module)
-        await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=ephemeral)
+        await interaction.followup.send(
+            _("Module {module} uninstalled on node {node}.").format(module=module, node=node.name), ephemeral=ephemeral)
 
-    @command(description='Download files from your server')
+    @command(description=_('Download files from your server'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(what=label_autocomplete)
@@ -381,6 +435,7 @@ class Admin(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        what: str, filename: str) -> None:
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         path = os.path.join(config['directory'].format(server=server), filename)
@@ -400,14 +455,14 @@ class Admin(Plugin):
                 try:
                     await channel.send(file=discord.File(fp=BytesIO(file), filename=filename))
                     if channel == dm_channel:
-                        await interaction.followup.send('File sent as a DM.', ephemeral=ephemeral)
+                        await interaction.followup.send(_('File sent as a DM.'), ephemeral=ephemeral)
                     else:
-                        await interaction.followup.send('Here is your file:', ephemeral=ephemeral)
+                        await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
                     break
                 except discord.HTTPException:
                     continue
             else:
-                await interaction.followup.send('File too large. You need a higher boost level for your server.',
+                await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
                                                 ephemeral=ephemeral)
                 return
         elif target.startswith('<'):
@@ -415,19 +470,19 @@ class Admin(Plugin):
             try:
                 await channel.send(file=discord.File(fp=BytesIO(file), filename=filename))
             except discord.HTTPException:
-                await interaction.followup.send('File too large. You need a higher boost level for your server.',
+                await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
                                                 ephemeral=ephemeral)
             if channel != interaction.channel:
-                await interaction.followup.send('File sent to the configured channel.', ephemeral=ephemeral)
+                await interaction.followup.send(_('File sent to the configured channel.'), ephemeral=ephemeral)
             else:
-                await interaction.followup.send('Here is your file:', ephemeral=ephemeral)
+                await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
         else:
             with open(os.path.expandvars(target), mode='wb') as outfile:
                 outfile.write(file)
-            await interaction.followup.send('File copied to the specified location.', ephemeral=ephemeral)
+            await interaction.followup.send(_('File copied to the specified location.'), ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
 
-    @command(name='prune', description='Prune unused data in the database')
+    @command(name='prune', description=_('Prune unused data in the database'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def _prune(self, interaction: discord.Interaction,
@@ -435,21 +490,22 @@ class Admin(Plugin):
                          sel_type=PlayerType.PLAYER)]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not user:
-            embed = discord.Embed(title=":warning: Database Prune :warning:")
-            embed.description = "You are going to delete data from your database. Be advised.\n\n" \
-                                "Please select the data to be pruned:"
+            embed = discord.Embed(title=_(":warning: Database Prune :warning:"))
+            embed.description = _("You are going to delete data from your database. Be advised.\n\n"
+                                  "Please select the data to be pruned:")
             view = CleanupView()
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
             try:
                 await view.wait()
             finally:
                 await interaction.delete_original_response()
             if view.cmd == "cancel":
-                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
                 return
         elif not await utils.yn_question(interaction,
-                                         f"We are going to delete all data of user {user}. Are you sure?"):
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                                         _("We are going to delete all data of user {}. Are you sure?").format(user)):
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
 
         async with self.apool.connection() as conn:
@@ -470,11 +526,11 @@ class Admin(Plugin):
                         await cursor.execute(sql)
                         ucids = [row[0] async for row in cursor]
                         if not ucids:
-                            await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
+                            await interaction.followup.send(_('No players to prune.'), ephemeral=ephemeral)
                             return
-                        if not await utils.yn_question(interaction, f"This will delete {len(ucids)} players incl. "
-                                                                    f"their stats from the database.\n"
-                                                                    f"Are you sure?", ephemeral=ephemeral):
+                        if not await utils.yn_question(
+                                interaction, _("This will delete {} players incl. their stats from the database.\n"
+                                               "Are you sure?").format(len(ucids)), ephemeral=ephemeral):
                             return
                         for plugin in self.bot.cogs.values():  # type: Plugin
                             await plugin.prune(conn, ucids=ucids)
@@ -484,19 +540,19 @@ class Admin(Plugin):
                         await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
                     elif view.what == 'data':
                         days = int(view.age)
-                        if not await utils.yn_question(interaction, f"This will delete all data older than {days} "
-                                                                    f"days from the database.\nAre you sure?",
-                                                       ephemeral=ephemeral):
+                        if not await utils.yn_question(
+                                interaction, _("This will delete all data older than {} days from the database.\n"
+                                               "Are you sure?").format(days), ephemeral=ephemeral):
                             return
                         for plugin in self.bot.cogs.values():  # type: Plugin
                             await plugin.prune(conn, days=days)
-                        await interaction.followup.send(f"All data older than {days} days pruned.",
+                        await interaction.followup.send(_("All data older than {} days pruned.").format(days),
                                                         ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
-    node_group = Group(name="node", description="Commands to manage your nodes")
+    node_group = Group(name="node", description=_("Commands to manage your nodes"))
 
-    @node_group.command(description='Statistics of your nodes')
+    @node_group.command(description=_('Statistics of your nodes'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def statistics(self, interaction: discord.Interaction,
@@ -507,13 +563,14 @@ class Admin(Plugin):
             node = self.node
         await report.render(node=node.name, period=period)
 
-    @node_group.command(name='list', description='Status of all nodes')
+    @node_group.command(name='list', description=_('Status of all nodes'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def _list(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        embed = discord.Embed(title=f"DCSServerBot Cluster Overview", color=discord.Color.blue())
+        embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
         # TODO: there should be a list of nodes, with impls / proxies
         for name in self.node.all_nodes.keys():
             names = []
@@ -526,13 +583,13 @@ class Admin(Plugin):
             if names:
                 title = f"**[{name}]**" if name == self.node.name else f"[{name}]"
                 if await server.node.upgrade_pending():
-                    embed.set_footer(text="🆕 Update available")
+                    embed.set_footer(text=_("🆕 Update available"))
                     title += " 🆕"
 
                 embed.add_field(name="▬" * 32, value=title, inline=False)
-                embed.add_field(name="Instance", value='\n'.join(instances))
-                embed.add_field(name="Server", value='\n'.join(names))
-                embed.add_field(name="Status", value='\n'.join(status))
+                embed.add_field(name=_("Instance"), value='\n'.join(instances))
+                embed.add_field(name=_("Server"), value='\n'.join(names))
+                embed.add_field(name=_("Status"), value='\n'.join(status))
             else:
                 embed.add_field(name="▬" * 32, value=f"_[{name}]_", inline=False)
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
@@ -540,11 +597,11 @@ class Admin(Plugin):
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         ephemeral = utils.get_ephemeral(interaction)
         if not node:
-            msg = f"Do you want to {method} all nodes?\n"
+            msg = _("Do you want to {} all nodes?").format(_(method))
         else:
-            msg = f"Do you want to {method} node {node.name}?\n"
+            msg = _("Do you want to {method} node {node}?").format(method=_(method), node=node.name)
         if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         if method != 'upgrade' or node:
             for n in await self.node.get_active_nodes():
@@ -554,10 +611,12 @@ class Admin(Plugin):
                         "object": "Node",
                         "method": method
                     }, node=n)
-                    await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
+                    await interaction.followup.send(_('Node {node} - {method} sent.').format(node=n, method=method),
+                                                    ephemeral=ephemeral)
         if not node or node.name == self.node.name:
-            await interaction.followup.send(("All nodes are" if not node else "Master is") + f' going to {method} **NOW**.',
-                                            ephemeral=ephemeral)
+            await interaction.followup.send(
+                (_("All nodes are") if not node else _("Master is")) + _(' going to {} **NOW**.').format(method),
+                ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
             elif method == 'upgrade':
@@ -565,62 +624,57 @@ class Admin(Plugin):
             elif method == 'restart':
                 await self.node.restart()
 
-    @node_group.command(description='Deprecated!')
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    async def exit(self, interaction: discord.Interaction,
-                   node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
-        await interaction.response.send_message("`/node exit` is deprecated. Please use either `/node shutdown` or "
-                                                "`/node restart` instead.", ephemeral=True)
-
-    @node_group.command(description='Shuts a specific node down')
+    @node_group.command(description=_('Shuts a specific node down'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
                        node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "shutdown", node)
 
-    @node_group.command(description='Restart a specific node')
+    @node_group.command(description=_('Restarts a specific node'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "restart", node)
 
-    @node_group.command(description='Shuts down all servers on the respective node and sets them to maintenance mode')
+    @node_group.command(description=_('Shuts down all servers, enables maintenance'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def offline(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         for server in self.bus.servers.values():
             if server.node.name == node.name:
                 server.maintenance = True
                 # noinspection PyAsyncCall
                 asyncio.create_task(server.shutdown())
-        await interaction.followup.send(f"Node {node.name} is now offline.")
+        await interaction.followup.send(_("Node {} is now offline.").format(node.name))
 
-    @node_group.command(description='Clears the maintenance mode for all servers on the respective node')
+    @node_group.command(description=_('Clears the maintenance mode for all servers'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def online(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         for server in self.bus.servers.values():
             if server.node.name == node.name:
                 server.maintenance = False
                 # noinspection PyAsyncCall
                 asyncio.create_task(server.startup())
-        await interaction.followup.send(f"Node {node.name} is now online.")
+        await interaction.followup.send(_("Node {} is now online.").format(node.name))
 
-    @node_group.command(description='Upgrade DCSServerBot')
+    @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def upgrade(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if not node:
             node = self.node
@@ -628,24 +682,25 @@ class Admin(Plugin):
         else:
             cluster = False
         if not await node.upgrade_pending():
-            await interaction.followup.send("There is no upgrade available for " +
-                                            ("your cluster" if cluster else ("node " + node.name)),
+            await interaction.followup.send(_("There is no upgrade available for ") +
+                                            (_("your cluster") if cluster else _("node {}").format(node.name)),
                                             ephemeral=ephemeral)
             return
         if node and not node.master and not await utils.yn_question(
-                interaction, "You are trying to upgrade an agent node in a cluster. Are you really sure?",
+                interaction, _("You are trying to upgrade an agent node in a cluster. Are you really sure?"),
                 ephemeral=ephemeral):
-            await interaction.followup.send('Aborted', ephemeral=ephemeral)
+            await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
             return
         await self.run_on_nodes(interaction, "upgrade", node if not cluster else None)
 
-    @node_group.command(description='Run a shell command on a node')
+    @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
                     cmd: str):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         stdout, stderr = await node.shell_command(cmd)
         embed = discord.Embed(colour=discord.Color.blue())
@@ -654,38 +709,40 @@ class Admin(Plugin):
         if stderr:
             embed.set_footer(text=stderr[:2048])
         if not stdout and not stderr:
-            embed.description = "```Command executed.```"
+            embed.description = _("```Command executed.```")
         await interaction.followup.send(embed=embed)
 
-    @command(description='Reloads a plugin')
+    @command(description=_('Reloads a plugin'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(plugin=plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
             if await self.bot.reload(plugin.lower()):
-                await interaction.followup.send(f'Plugin {plugin} reloaded.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Plugin {} reloaded.').format(plugin), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    f'Plugin {plugin} could not be reloaded, check the log for details.', ephemeral=ephemeral)
+                    _('Plugin {} could not be reloaded, check the log for details.').format(plugin),
+                    ephemeral=ephemeral)
         else:
             if await self.bot.reload():
-                await interaction.followup.send(f'All plugins reloaded.', ephemeral=ephemeral)
+                await interaction.followup.send(_('All plugins reloaded.'), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    f'One or more plugins could not be reloaded, check the log for details.', ephemeral=ephemeral)
+                    _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
         # for server in self.bus.servers.values():
         #    if server.status == Status.STOPPED:
         #        server.send_to_dcs({"command": "reloadScripts"})
 
-    @node_group.command(description="Add/create an instance")
+    @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
-    @app_commands.describe(name="Either select an existing instance or enter the name of a new one")
-    @app_commands.describe(template="Take this instance configuration as a reference")
+    @app_commands.describe(name=_("Either select an existing instance or enter the name of a new one"))
+    @app_commands.describe(template=_("Take this instance configuration as a reference"))
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
@@ -694,9 +751,10 @@ class Admin(Plugin):
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server
             view = ConfigView(self.bot, server)
-            embed = discord.Embed(title="Instance created.\nDo you want to configure the server for this instance?",
+            embed = discord.Embed(title=_("Instance created.\nDo you want to configure the server for this instance?"),
                                   color=discord.Color.blue())
             try:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(embed=embed, view=view)
             except Exception as ex:
                 self.log.exception(ex)
@@ -716,22 +774,28 @@ class Admin(Plugin):
                     yaml.dump(config, outfile)
                 await server.reload()
                 server.status = Status.SHUTDOWN
-                await interaction.followup.send(f"Server {server.name} added to instance {instance.name}.")
+                await interaction.followup.send(
+                    _("Server {server} assigned to instance {instance}.").format(server=server.name,
+                                                                                 instance=instance.name))
             else:
-                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.")
-            await interaction.followup.send(f"""
-Instance {name} added to node {node.name}.
+                await interaction.followup.send(
+                    _("Instance {} created blank with no server assigned.").format(instance.name))
+            await interaction.followup.send(_("""
+Instance {instance} added to node {node}.
 Please make sure you forward the following ports:
 ```
-- DCS Port:    {instance.dcs_port}
-- WebGUI Port: {instance.webgui_port}
+- DCS Port:    {dcs_port} (TCP/UDP)
+- WebGUI Port: {webgui_port} (TCP)
 ```
-            """)
+            """).format(instance=name, node=node.name, dcs_port=instance.dcs_port, webgui_port=instance.webgui_port))
         else:
-            await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}, see log.",
-                                                    ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Instance {instance} could not be added to node {node}, see log.").format(instance=name,
+                                                                                            node=node.name),
+                ephemeral=True)
 
-    @node_group.command(description="Delete an instance")
+    @node_group.command(description=_("Delete an instance\n"))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def delete_instance(self, interaction: discord.Interaction,
@@ -739,22 +803,27 @@ Please make sure you forward the following ports:
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         if instance.server:
-            await interaction.response.send_message(f"The instance is in use by server \"{instance.server.name}\". "
-                                                    f"Please migrate this server to another node first.",
-                                                    ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("The instance is in use by server \"{}\".\n"
+                  "Please migrate this server to another node first.").format(instance.server.name),
+                ephemeral=ephemeral)
             return
-        elif not await utils.yn_question(interaction, f"Do you really want to delete instance {instance.name}?",
+        elif not await utils.yn_question(interaction,
+                                         _("Do you really want to delete instance {}?").format(instance.name),
                                          ephemeral=ephemeral):
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         remove_files = await utils.yn_question(interaction,
-                                               f"Do you want to remove the directory {instance.home}?",
+                                               _("Do you want to remove the directory {}?").format(instance.home),
                                                ephemeral=ephemeral)
         await node.delete_instance(instance, remove_files)
-        await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=ephemeral)
+        await interaction.followup.send(
+            _("Instance {instance} removed from node {node}.").format(instance=instance.name,
+                                                                      node=node.name), ephemeral=ephemeral)
         await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
 
-    @node_group.command(description="Rename an instance\n")
+    @node_group.command(description=_("Rename an instance\n"))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def rename_instance(self, interaction: discord.Interaction,
@@ -762,16 +831,21 @@ Please make sure you forward the following ports:
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
         ephemeral = utils.get_ephemeral(interaction)
         if instance.server and instance.server.status != Status.SHUTDOWN:
-            await interaction.response.send_message(f"Server {instance.server.name} has to be shut down before "
-                                                    f"renaming the instance!", ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Server {} has to be shut down before renaming the instance!").format(instance.server.name),
+                ephemeral=ephemeral)
             return
-        if not await utils.yn_question(interaction, f"Do you really want to rename instance {instance.name}?",
+        if not await utils.yn_question(interaction,
+                                       _("Do you really want to rename instance {}?").format(instance.name),
                                        ephemeral=ephemeral):
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         old_name = instance.name
         await node.rename_instance(instance, new_name)
-        await interaction.followup.send(f"Instance {old_name} renamed to {instance.name}.", ephemeral=ephemeral)
+        await interaction.followup.send(
+            _("Instance {old_name} renamed to {new_name}.").format(old_name=old_name, new_name=instance.name),
+            ephemeral=ephemeral)
         await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
 
     @commands.Cog.listener()
@@ -795,9 +869,9 @@ Please make sure you forward the following ports:
             if self.bot.locals.get('admin_channel', 0) == message.channel.id:
                 try:
                     server = await utils.server_selection(
-                        self.bus, ctx, title="To which server do you want to upload this configuration to?")
+                        self.bus, ctx, title=_("To which server do you want to upload this configuration to?"))
                     if not server:
-                        await ctx.send('Aborted.')
+                        await ctx.send(_('Aborted.'))
                         return
                 except Exception as ex:
                     self.log.exception(ex)
@@ -821,16 +895,16 @@ Please make sure you forward the following ports:
         rc = await server.node.write_file(target_file, att.url, True)
         if rc != UploadStatus.OK:
             if rc == UploadStatus.WRITE_ERROR:
-                await ctx.send(f'Error while uploading file to node {server.node.name}.')
+                await ctx.send(_('Error while uploading file to node {}!').format(server.node.name))
                 return
             elif rc == UploadStatus.READ_ERROR:
-                await ctx.send('Error while reading file from discord.')
+                await ctx.send(_('Error while reading file from discord.'))
         if plugin:
             await self.bot.reload(name)
-            await message.channel.send(f"Plugin {name.title()} re-loaded.")
-        elif await utils.yn_question(ctx, 'Do you want to exit (restart) the bot?'):
-            await message.channel.send('Bot restart initiated.')
-            exit(-1)
+            await message.channel.send(_("Plugin {} re-loaded.").format(name.title()))
+        else:
+            await message.channel.send(
+                _('To apply the new config by restarting a node or the whole cluster, use `/node restart`'))
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

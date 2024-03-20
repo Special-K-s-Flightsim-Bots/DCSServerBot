@@ -13,15 +13,15 @@ Examples:
 ```yaml
 DEFAULT:
   startup_delay: 10                               # delay in seconds between the startup of each DCS instance (default: 10)
-  warn:                                           # warn times before a restart / shutdown
+  warn:                                           # warn times before a restart / shutdown (see alternative format below)
     text: '!!! {item} will {what} in {when} !!!'  # Message to be displayed as a popup in DCS. These variables can be used in your own message. 
     times:                                        # List of times when a message will be displayed
     - 600
     - 300
     - 60
     - 10
-DCS.openbeta_server:                              
-  schedule:                                       # Server "DCS.openbeta_server" will run 24x7
+DCS.server:                              
+  schedule:                                       # Server "DCS.server" will run 24x7
     00-24: YYYYYYY
 instance2:
   schedule:                                       # Server "instance2" will run every day from 0h-12h local time (LT)
@@ -53,8 +53,18 @@ mission:
 
 | Parameter       | Description                                                                                                                                                                                                                                                                                                      |
 |-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| times           | List of seconds, when a warning should be issued.                                                                                                                                                                                                                                                                |
+| times           | List of seconds, when a warning should be issued or alternatively a dictionary with seconds and specific warn texts.                                                                                                                                                                                             |
 | text            | A customizable message that will be sent to the users when a restart is pending.<br/>{item} will be replaced with either "server" or "mission", depending on what's happening.<br/>{what} will be replaced with what is happening (restart, shutdown, rotate)<br/>{when} will be replaced with the time to wait. |
+
+```yaml
+  # Alternative format for warn, e. g. to display messages in your own language
+  warn:
+    times:
+      600: Внимание сервер будет перезапущен через 10 минут! 
+      300: До перезапуска 5 минут!
+      60: Минутная готовность!
+      10: Сервер перезапускается!
+```
 
 ### Section "schedule"
 

@@ -6,19 +6,20 @@ from discord.ext import tasks
 from typing import Optional
 
 from . import actions
+from ..bot import BotService
 
 
-@ServiceRegistry.register("Scheduler", master_only=True, plugin="scheduler")
+@ServiceRegistry.register(master_only=True, plugin="scheduler")
 class SchedulerService(Service):
 
-    def __init__(self, node, name: str):
-        super().__init__(node, name)
+    def __init__(self, node):
+        super().__init__(node=node, name="Scheduler")
         self.bot = None
 
     async def start(self, *args, **kwargs):
         if self.locals:
             await super().start()
-            self.bot = ServiceRegistry.get("Bot").bot
+            self.bot = ServiceRegistry.get(BotService).bot
             self.schedule.start()
 
     async def stop(self, *args, **kwargs):
@@ -49,12 +50,13 @@ class SchedulerService(Service):
 
     @tasks.loop(minutes=1)
     async def schedule(self):
-        async def check_run(config: dict, server: Optional[Server] = None):
+        async def check_run(server: Optional[Server] = None):
             now = datetime.now().replace(second=0, microsecond=0)
             for cfg in config['actions']:
                 if 'cron' in cfg and not utils.matches_cron(now, cfg['cron']):
                     continue
-                elif server and 'mission_time' in cfg and server.current_mission.mission_time < cfg['mission_time'] * 60:
+                elif (server and 'mission_time' in cfg and
+                      server.current_mission.mission_time < cfg['mission_time'] * 60):
                     continue
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.do_actions(cfg, server))
@@ -62,12 +64,12 @@ class SchedulerService(Service):
         try:
             config = self.get_config()
             # run all default tasks
-            await check_run(config)
+            await check_run(None)
             # do the servers
-            for server in self.bot.servers.values():
+            for server in self.bot.servers.copy().values():
                 config = self.get_config(server)
                 if config:
-                    await check_run(config, server)
+                    await check_run(server)
         except Exception as ex:
             self.log.exception(ex)
 

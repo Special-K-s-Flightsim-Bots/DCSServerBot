@@ -10,7 +10,7 @@ commands to operate the service.
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'  # folder to store plugins that should be installed into Saved Games
   RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'  # folder to store plugins that should go into the base game directories
-DCS.openbeta_server:
+DCS.server:
   packages:
   - name: Community_A-4E-C    # The community A-4E-C model can be used out of the box with this service
     version: latest           # we will always use the latest available version on disk

@@ -7,6 +7,7 @@ from contextlib import suppress
 from core import utils
 from core.const import DEFAULT_TAG
 from core.services.registry import ServiceRegistry
+from core.translations import get_translation
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
-from .const import Status, Coalition, Channel, Side
+from .const import Status, Coalition, Channel
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
@@ -24,19 +25,17 @@ from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core.extension import Extension
-    from .instance import Instance
-    from .mission import Mission
-    from .node import UploadStatus
-    from .player import Player
+    from core import Extension, Instance, Mission, UploadStatus, Player
     from services import ServiceBus
 
 __all__ = ["Server"]
 
+# Internationalisation
+_ = get_translation('core')
+
 
 @dataclass
 class Server(DataObject):
-    name: str
     port: int
     _instance: Instance = field(default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
@@ -61,8 +60,10 @@ class Server(DataObject):
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
 
     def __post_init__(self):
+        from services import ServiceBus
+
         super().__post_init__()
-        self.bus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 
@@ -80,9 +81,9 @@ class Server(DataObject):
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:
-                _locals['message_ban'] = 'You are banned from this server. Reason: {}'
+                _locals['message_ban'] = _('You are banned from this server. Reason: {}')
             if 'message_server_full' not in _locals:
-                _locals['message_server_full'] = 'The server is full, please try again later.'
+                _locals['message_server_full'] = _('The server is full, please try again later.')
             return _locals
         return {}
 

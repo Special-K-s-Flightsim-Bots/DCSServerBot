@@ -270,7 +270,8 @@ class MizFile:
                 if debug:
                     print("Processing SELECT ...")
                 if config['select'].startswith('/'):
-                    elements = list(utils.for_each(self.mission, config['select'][1:].split('/'), debug=debug, **kwargs))
+                    elements = list(utils.for_each(self.mission, config['select'][1:].split('/'),
+                                                   debug=debug, **kwargs))
                 else:
                     elements = list(utils.for_each(reference, config['select'].split('/'), debug=debug, **kwargs))
             else:
@@ -283,6 +284,8 @@ class MizFile:
                         reference |= config['insert']
                 elif 'replace' in config:
                     for _what, _with in config['replace'].items():
+                        if debug:
+                            print(f"Replacing {_what} with {_with}")
                         if isinstance(_what, int) and isinstance(element, list):
                             element[_what - 1] = utils.evaluate(_with, reference=reference)
                         elif isinstance(_with, dict):
@@ -292,6 +295,29 @@ class MizFile:
                                     break
                         else:
                             element[_what] = utils.evaluate(_with, **element, reference=reference)
+                elif 'merge' in config:
+                    for _what, _with in config['merge'].items():
+                        if debug:
+                            print(f"Merging {_what} with {_with}")
+                        if isinstance(_with, dict):
+                            element[_what] |= _with
+                        else:
+                            for value in utils.for_each(self.mission, _with[1:].split('/'), debug=debug, **kwargs):
+                                if isinstance(element[_what], dict):
+                                    element[_what] |= value
+                                else:
+                                    element[_what] += value
+                            if _with.startswith('/'):
+                                utils.tree_delete(self.mission, _with[1:])
+                            else:
+                                utils.tree_delete(reference, _with)
+                elif 'delete' in config:
+                    if debug:
+                        print("Processing DELETE ...")
+                    if isinstance(element, list):
+                        for _what in element.copy():
+                            if utils.evaluate(config['delete'], **_what):
+                                element.remove(_what)
 
         def check_where(reference: dict, config: Union[list, str], debug: bool, **kwargs: dict) -> bool:
             if isinstance(config, str):
@@ -318,7 +344,12 @@ class MizFile:
                     kwargs[name] = utils.evaluate(value, **kwargs)
                 else:
                     kwargs[name] = next(utils.for_each(self.mission, value.split('/'), debug=debug, **kwargs))
-        for reference in utils.for_each(self.mission, config['for-each'].split('/'), debug=debug, **kwargs):
+        try:
+            for_each = config['for-each'].lstrip('/')
+        except KeyError:
+            self.log.error("MizEdit: for-each missing in modify preset, skipping!")
+            return
+        for reference in utils.for_each(self.mission, for_each.split('/'), debug=debug, **kwargs):
             if 'where' in config:
                 if debug:
                     print("Processing WHERE ...")

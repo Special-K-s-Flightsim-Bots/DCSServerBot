@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import asyncio
 import os
 import platform
@@ -8,13 +7,14 @@ import psycopg
 import sys
 import traceback
 
-from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException
+from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException, COMMAND_LINE_ARGS
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError
 
 # Register all services
 import services
+from services import Dashboard
 
 
 class Main:
@@ -29,6 +29,11 @@ class Main:
         # check for updates
         if self.no_autoupdate:
             autoupdate = False
+            # remove the exec parameter, to allow restart/update of the node
+            if '--x' in sys.argv:
+                sys.argv.remove('--x')
+            elif '--noupdate' in sys.argv:
+                sys.argv.remove('--noupdate')
         else:
             autoupdate = self.node.locals.get('autoupdate', self.node.config.get('autoupdate', False))
 
@@ -44,24 +49,24 @@ class Main:
         async with ServiceRegistry(node=self.node) as registry:
             if registry.services():
                 self.log.info("- Loading Services ...")
-            for name in registry.services().keys():
-                if not registry.can_run(name):
+            for cls in registry.services().keys():
+                if not registry.can_run(cls):
                     continue
-                if name == 'Dashboard':
+                if cls == Dashboard:
                     if self.node.config.get('use_dashboard', True):
                         self.log.info("  => Dashboard started.")
-                        dashboard = registry.new(name)
+                        dashboard = registry.new(Dashboard)
                         # noinspection PyAsyncCall
                         asyncio.create_task(dashboard.start())
                     continue
                 else:
                     try:
                         # noinspection PyAsyncCall
-                        asyncio.create_task(registry.new(name).start())
-                        self.log.debug(f"  => {name} loaded.")
+                        asyncio.create_task(registry.new(cls).start())
+                        self.log.debug(f"  => {cls.__name__} loaded.")
                     except ServiceInstallationError as ex:
                         self.log.error(f"  - {ex.__str__()}")
-                        self.log.info(f"  => {name} NOT loaded.")
+                        self.log.info(f"  => {cls.__name__} NOT loaded.")
             if not self.node.master:
                 self.log.info("DCSServerBot AGENT started.")
             try:
@@ -75,24 +80,27 @@ class Main:
                         self.log.info("Taking over the Master node ...")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
-                        for name in registry.services().keys():
-                            if registry.master_only(name):
+                        for cls in registry.services().keys():
+                            if registry.master_only(cls):
                                 try:
                                     # noinspection PyAsyncCall
-                                    asyncio.create_task(registry.new(name).start())
+                                    asyncio.create_task(registry.new(cls).start())
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")
-                                    self.log.info(f"  => {name} NOT loaded.")
+                                    self.log.info(f"  => {cls.__name__} NOT loaded.")
                     else:
                         self.log.info("Second Master found, stepping back to Agent configuration.")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
-                        for name in registry.services().keys():
-                            if registry.master_only(name):
-                                await registry.get(name).stop()
+                        for cls in registry.services().keys():
+                            if registry.master_only(cls):
+                                await registry.get(cls).stop()
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
+            except Exception:
+                self.log.warning("Aborting the main loop.")
+                raise
             finally:
                 await self.node.unregister()
 
@@ -104,20 +112,16 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
 
-    parser = argparse.ArgumentParser(prog='run.py', description="Welcome to DCSServerBot!",
-                                     epilog='If unsure about the parameters, please check the documentation.')
-    parser.add_argument('-n', '--node', help='Node name', default=platform.node())
-    parser.add_argument('-x', '--noupdate', action='store_true', help='Do not autoupdate')
-    parser.add_argument('-c', '--config', help='Path to configuration', default='./config')
-    args = parser.parse_args()
-    config_dir = args.config
+    # get the command line args from core
+    args = COMMAND_LINE_ARGS
+
     # Call the DCSServerBot 2.x migration utility
-    if os.path.exists(os.path.join(config_dir, 'dcsserverbot.ini')):
+    if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):
         migrate(node=args.node)
     try:
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                node = NodeImpl(name=args.node, config_dir=config_dir)
+                node = NodeImpl(name=args.node, config_dir=args.config)
             except FatalException:
                 Install(node=args.node).install()
                 node = NodeImpl(name=args.node)
@@ -135,9 +139,12 @@ if __name__ == "__main__":
     except asyncio.CancelledError:
         # do not restart again
         exit(-2)
-    except (YAMLError, FatalException, psycopg.OperationalError) as ex:
+    except (YAMLError, FatalException) as ex:
         print(ex)
         # do not restart again
+        exit(-2)
+    except psycopg.OperationalError as ex:
+        print(f"Database Error: {ex}")
         exit(-2)
     except SystemExit as ex:
         exit(ex.code)

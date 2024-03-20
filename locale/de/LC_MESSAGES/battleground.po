@@ -1,0 +1,31 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /battlegound
+msgid "DCSBattleground commands"
+msgstr "DCSBattleground-Befehle"
+
+# /battlegound recon
+msgid "Push MGRS coordinates with screenshots to DCS Battleground"
+msgstr "Veröffentliche MRGS-Koordinaten und Screenshots in DCS Battleground"
+
+msgid "The second parameter needs to be a MGRS coordinate (ex: 38TLN0274366889)."
+msgstr "Der zweite Parameter muss eine MRGS-Koordinate sein (z. B. 38TLN0274366889)."
+
+msgid "Recon data added - {side} side - {server}"
+msgstr "Recon-Daten zugefügt - Server: {server}, Seite: {side}"
+
+msgid "Coalitions have to be enabled and you need to use this command in one of your coalition channels!"
+msgstr "Du musst Koalitionen aktivieren und den Befehl in einem Koalitionskanal ausführen!"
+
+# /battlegound reset
+msgid "Delete recon data on a specified server"
+msgstr "Lösche Recon-Daten"
+
+msgid "Recon data deleted for server {}."
+msgstr "Recon-Daten im Server {} gelöscht."

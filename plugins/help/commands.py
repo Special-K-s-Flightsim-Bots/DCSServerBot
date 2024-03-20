@@ -2,7 +2,7 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, Command, utils
+from core import Plugin, Report, ReportEnv, command, Command, utils, get_translation
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
@@ -12,6 +12,8 @@ from services import DCSServerBot
 from typing import cast, Optional, Literal
 
 from .listener import HelpListener
+
+_ = get_translation(__name__.split('.')[1])
 
 
 @cache
@@ -28,10 +30,10 @@ async def get_commands(interaction: discord.Interaction) -> dict[str, app_comman
     return cmds
 
 
-def get_usage(command: discord.app_commands.Command) -> str:
+def get_usage(cmd: discord.app_commands.Command) -> str:
     return ' '.join([
         f"<{param.name.lstrip('_')}>" if param.required else f"[{param.name.lstrip('_')}]"
-        for param in command.parameters
+        for param in cmd.parameters
     ])
 
 
@@ -39,7 +41,7 @@ async def commands_autocomplete(interaction: discord.Interaction, current: str) 
     try:
         return [
             app_commands.Choice(name=name, value=name)
-            for name, command in sorted((await get_commands(interaction)).items())
+            for name in sorted((await get_commands(interaction)).keys())
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
@@ -84,10 +86,14 @@ class Help(Plugin):
             self.index = 0
             self.result = None
             if self.index == 0:
+                # noinspection PyUnresolvedReferences
                 self.children[1].disabled = True
+                # noinspection PyUnresolvedReferences
                 self.children[2].disabled = True
             elif self.index == len(self.options) - 1:
+                # noinspection PyUnresolvedReferences
                 self.children[3].disabled = True
+                # noinspection PyUnresolvedReferences
                 self.children[4].disabled = True
 
         async def print_command(self, interaction: discord.Interaction, *, name: str) -> Optional[discord.Embed]:
@@ -115,16 +121,16 @@ class Help(Plugin):
             if not await cmd._check_can_run(interaction):
                 raise PermissionError()
             help_embed = discord.Embed(color=discord.Color.blue())
-            help_embed.title = f"Command: {name}"
+            help_embed.title = _("Command: {}").format(name)
             help_embed.description = cmd.description
             usage = get_usage(cmd)
-            help_embed.add_field(name='Usage', value=f"{name} {usage}", inline=False)
+            help_embed.add_field(name=_('Usage'), value=f"{name} {usage}", inline=False)
             if usage:
-                help_embed.set_footer(text='<> mandatory, [] non-mandatory')
+                help_embed.set_footer(text=_('<> mandatory, [] non-mandatory'))
             return help_embed
 
         async def print_commands(self, interaction: discord.Interaction, *, plugin: str) -> discord.Embed:
-            title = f'{self.bot.user.display_name} Help'
+            title = _('{} Help').format(self.bot.user.display_name)
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
             help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
             cmds = []
@@ -134,67 +140,67 @@ class Help(Plugin):
                     cmds.append(name + ' ' + get_usage(cmd))
                     descriptions.append(cmd.description)
             if cmds:
-                help_embed.add_field(name='Command', value='\n'.join(cmds))
-                help_embed.add_field(name='Description', value='\n'.join(descriptions))
+                help_embed.add_field(name=_('Command'), value='\n'.join(cmds))
+                help_embed.add_field(name=_('Description'), value='\n'.join(descriptions))
                 help_embed.add_field(name='_ _', value='_ _')
             else:
-                help_embed.add_field(name='There are no commands for your role in this plugin.', value='_ _')
-            help_embed.set_footer(text='Use /help [command] if you want help for a specific command.')
+                help_embed.add_field(name=_('There are no commands for your role in this plugin.'), value='_ _')
+            help_embed.set_footer(text=_('Use /help [command] if you want help for a specific command.'))
             return help_embed
 
         async def paginate(self, plugin: str, interaction: discord.Interaction):
             embed = await self.print_commands(interaction, plugin=plugin)
+            target_children = self.children[1:5]
             if self.index == 0:
-                self.children[1].disabled = True
-                self.children[2].disabled = True
-                self.children[3].disabled = False
-                self.children[4].disabled = False
+                new_states = [True, True, False, False]
             elif self.index == len(self.options) - 1:
-                self.children[1].disabled = False
-                self.children[2].disabled = False
-                self.children[3].disabled = True
-                self.children[4].disabled = True
+                new_states = [False, False, True, True]
             else:
-                self.children[1].disabled = False
-                self.children[2].disabled = False
-                self.children[3].disabled = False
-                self.children[4].disabled = False
+                new_states = [False, False, False, False]
+
+            # Set new 'disabled' state
+            for child, state in zip(target_children, new_states):
+                if hasattr(child, 'disabled'):  # Check if attribute exists
+                    # noinspection PyUnresolvedReferences
+                    child.disabled = state
+            # noinspection PyUnresolvedReferences
             await interaction.response.edit_message(view=self, embed=embed)
 
-        @discord.ui.select(placeholder="Select the plugin you want help for")
+        @discord.ui.select(placeholder=_("Select the plugin you want help for"))
         async def callback(self, interaction: discord.Interaction, select: Select):
             self.index = [x.value for x in self.options].index(select.values[0])
             await self.paginate(select.values[0], interaction)
 
         @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
-        async def on_start(self, interaction: discord.Interaction, button: Button):
+        async def on_start(self, interaction: discord.Interaction, _: Button):
             self.index = 0
             await self.paginate(self.options[self.index].value, interaction)
 
         @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
-        async def on_left(self, interaction: discord.Interaction, button: Button):
+        async def on_left(self, interaction: discord.Interaction, _: Button):
             self.index -= 1
             await self.paginate(self.options[self.index].value, interaction)
 
         @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
-        async def on_right(self, interaction: discord.Interaction, button: Button):
+        async def on_right(self, interaction: discord.Interaction, _: Button):
             self.index += 1
             await self.paginate(self.options[self.index].value, interaction)
 
         @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
-        async def on_end(self, interaction: discord.Interaction, button: Button):
+        async def on_end(self, interaction: discord.Interaction, _: Button):
             self.index = len(self.options) - 1
             await self.paginate(self.options[self.index].value, interaction)
 
         @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
-        async def on_cancel(self, interaction: discord.Interaction, button: Button):
+        async def on_cancel(self, interaction: discord.Interaction, _: Button):
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             self.stop()
 
-    @command(description='The help command')
+    @command(description=_('The help command'))
     @app_commands.guild_only()
-    @app_commands.autocomplete(command=commands_autocomplete)
-    async def help(self, interaction: discord.Interaction, command: Optional[str]):
+    @app_commands.autocomplete(cmd=commands_autocomplete)
+    async def help(self, interaction: discord.Interaction, cmd: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
         options = [
             discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
@@ -202,15 +208,18 @@ class Help(Plugin):
             if x != 'help'
         ]
         view = self.HelpView(self.bot, interaction, options)
-        if command:
+        if cmd:
             try:
-                embed = await view.print_command(interaction, name=command)
+                embed = await view.print_command(interaction, name=cmd)
                 if embed:
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
                 else:
-                    await interaction.response.send_message(f'Command {command} not found.', ephemeral=True)
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('Command {} not found.').format(cmd), ephemeral=True)
             except PermissionError:
-                await interaction.response.send_message("You don't have the permission to use this command.",
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("You don't have the permission to use this command."),
                                                         ephemeral=True)
         else:
             try:
@@ -228,15 +237,18 @@ class Help(Plugin):
                                                          ])
                     embed = env.embed
                     if env.filename:
+                        # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(
                             embed=embed, view=view,
                             file=discord.File(env.filename,
                                               filename=os.path.basename(env.filename)) if env.filename else None,
                             ephemeral=ephemeral)
                     else:
+                        # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 else:
                     embed = await view.print_commands(interaction, plugin='plugins.help.commands')
+                    # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
                 if await view.wait() or not view.result:
                     return
@@ -251,8 +263,10 @@ class Help(Plugin):
             for check in cmd.checks:
                 try:
                     if 'has_role.' in check.__qualname__:
+                        # noinspection PyUnresolvedReferences
                         roles = [check.role]
                     elif 'has_roles.' in check.__qualname__:
+                        # noinspection PyUnresolvedReferences
                         roles = check.roles
                     else:
                         continue
@@ -276,38 +290,39 @@ class Help(Plugin):
         df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
         for listener in self.bot.eventListeners:
             for cmd in listener.chat_commands:
-                data_df = pd.DataFrame(
-                    [(listener.plugin_name.title(), listener.prefix + cmd.name, cmd.usage, ','.join(cmd.roles), cmd.help)],
-                    columns=df.columns)
+                data_df = pd.DataFrame([
+                    (listener.plugin_name.title(), listener.prefix + cmd.name, cmd.usage, ','.join(cmd.roles), cmd.help)
+                ], columns=df.columns)
                 df = pd.concat([df, data_df], ignore_index=True)
         return df
 
-    async def generate_commands_doc(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
+    async def generate_commands_doc(self, interaction: discord.Interaction, fmt: Literal['channel', 'xls'],
                                     role: Optional[Literal['Admin', 'DCS Admin', 'DCS']] = None,
                                     channel: Optional[discord.TextChannel] = None):
         class DocModal(Modal):
-            header = TextInput(label="Header", default="## DCSServerBot Commands", style=discord.TextStyle.short,
+            header = TextInput(label="Header", default=_("## DCSServerBot Commands"), style=discord.TextStyle.short,
                                required=True)
             intro = TextInput(label="Intro", style=discord.TextStyle.long, required=True)
 
             def __init__(derived, role: Optional[str]):
-                super().__init__(title="Generate Documentation")
+                super().__init__(title=_("Generate Documentation"))
                 derived.role = role
                 if role:
-                    derived.intro.default = f"""
-        The following bot commands can be used in this discord by members that have the {derived.role} role:
-        _ _ 
-                            """
+                    derived.intro.default = _("""
+The following bot commands can be used in this discord by members that have the {} role:
+_ _ 
+                    """).format(derived.role)
                 else:
-                    derived.intro.default = f"""
-        The following bot commands can be used in this discord:
-        _ _ 
-                            """
+                    derived.intro.default = _("""
+The following bot commands can be used in this discord:
+_ _ 
+                    """)
 
             async def on_submit(derived, interaction: discord.Interaction):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
 
-        if format == 'xls':
+        if fmt == 'xls':
             discord_commands = (await self.discord_commands_to_df(interaction)).sort_values(['Plugin', 'Command'])
             ingame_commands = (await self.ingame_commands_to_df()).sort_values(['Plugin', 'Command'])
             output = BytesIO()
@@ -332,9 +347,11 @@ class Help(Plugin):
                         worksheet.column_dimensions[column.column_letter].width = adjusted_width
 
             output.seek(0)
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(file=discord.File(fp=output, filename='DCSSB-Commands.xlsx'))
         elif role:
             modal = DocModal(role=role)
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_modal(modal)
             await modal.wait()
             if not channel:
@@ -351,7 +368,8 @@ class Help(Plugin):
             if message:
                 await channel.send(message)
         else:
-            await interaction.response.send_message("Please provide a role for channel output.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Please provide a role for channel output."), ephemeral=True)
 
     async def server_info_to_df(self) -> pd.DataFrame:
         df = pd.DataFrame(columns=['Node', 'Instance', 'Name', 'Password', 'Max Players', 'DCS Port', 'Bot Port'])
@@ -369,8 +387,8 @@ class Help(Plugin):
                     data_df.insert(index, 'Tacview Port', ext.locals.get('tacviewRealTimeTelemetryPort', 42674), True)
                     index += 1
                     if ext.locals.get('tacviewRemoteControlEnabled', False):
-                        data_df.insert(index, 'Tacview Remote Control', ext.locals.get('tacviewRemoteControlPort', 42675),
-                                       True)
+                        data_df.insert(index, 'Tacview Remote Control',
+                                       ext.locals.get('tacviewRemoteControlPort', 42675), True)
                         index += 1
                 elif ext.name == 'LotAtc':
                     data_df.insert(index, 'LotAtc Port', ext.locals.get('port', 10310), True)
@@ -387,8 +405,8 @@ class Help(Plugin):
             df = pd.concat([df, data_df], ignore_index=True)
         return df
 
-    async def generate_server_docs(self, interaction: discord.Interaction, format: Literal['channel', 'xls'],
-                                   channel: Optional[discord.TextChannel] = None):
+    async def generate_server_docs(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         server_info = (await self.server_info_to_df()).sort_values(['Node', 'Instance'])
         output = BytesIO()
@@ -414,7 +432,7 @@ class Help(Plugin):
         output.seek(0)
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'))
 
-    @command(description='Generate Documentation')
+    @command(description=_('Generate Documentation'))
     @app_commands.guild_only()
     @app_commands.rename(fmt='format')
     @utils.app_has_role('Admin')
@@ -424,9 +442,10 @@ class Help(Plugin):
         if what == 'Commands':
             await self.generate_commands_doc(interaction, fmt, role, channel)
         elif what == 'Server':
-            await self.generate_server_docs(interaction, fmt, channel)
+            await self.generate_server_docs(interaction)
         else:
-            await interaction.response.send_message(f"Unknown option {what}", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Unknown option {}!").format(what), ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

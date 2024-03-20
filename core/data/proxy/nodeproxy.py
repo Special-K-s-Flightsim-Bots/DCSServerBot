@@ -1,21 +1,27 @@
 import os
 
-from core import Instance, Server
 from core.services.registry import ServiceRegistry
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
-from typing import Any, Union, Optional, Tuple
+from typing import Union, Optional, Tuple, TYPE_CHECKING
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+
+if TYPE_CHECKING:
+    from core import Instance, Server
+    from core import NodeImpl
+
 yaml = YAML()
 
 __all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: Any, name: str, public_ip: str, config_dir: Optional[str] = './config'):
+    def __init__(self, local_node: "NodeImpl", name: str, public_ip: str, config_dir: Optional[str] = 'config'):
+        from services import ServiceBus
+
         super().__init__(name, config_dir)
         self.local_node = local_node
         self.pool = self.local_node.pool
@@ -23,7 +29,7 @@ class NodeProxy(Node):
         self.log = self.local_node.log
         self._public_ip = public_ip
         self.locals = self.read_locals()
-        self.bus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
 
     @property
     def master(self) -> bool:
@@ -60,12 +66,26 @@ class NodeProxy(Node):
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():
-                        instance = InstanceProxy(self.local_node, _name)
+                        instance = InstanceProxy(name=_name, node=self.local_node)
                         instance.locals = _element
                         self.instances.append(instance)
                 else:
                     _locals[name] = element
         return _locals
+
+    async def shutdown(self):
+        self.bus.send_to_node({
+            "command": "rpc",
+            "object": "Node",
+            "method": "shutdown"
+        }, node=self.name)
+
+    async def restart(self):
+        self.bus.send_to_node({
+            "command": "rpc",
+            "object": "Node",
+            "method": "restart"
+        }, node=self.name)
 
     async def upgrade_pending(self) -> bool:
         data = await self.bus.send_to_node_sync({
@@ -82,13 +102,14 @@ class NodeProxy(Node):
             "method": "upgrade"
         }, node=self.name)
 
-    async def update(self, warn_times: list[int]) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "update",
             "params": {
-                "warn_times": warn_times
+                "warn_times": warn_times,
+                "branch": branch or ""
             }
         }, node=self.name, timeout=600)
         return data['return']
@@ -199,7 +220,7 @@ class NodeProxy(Node):
             }
         }, node=self.name)
 
-    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: "Server", new_name: str, update_settings: Optional[bool] = False):
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -211,7 +232,7 @@ class NodeProxy(Node):
             }
         }, node=self.name)
 
-    async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
+    async def add_instance(self, name: str, *, template: Optional["Instance"] = None) -> "Instance":
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -223,7 +244,7 @@ class NodeProxy(Node):
         }, node=self.name)
         return InstanceProxy(name=data['return'], node=self)
 
-    async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
+    async def delete_instance(self, instance: "Instance", remove_files: bool) -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -234,7 +255,7 @@ class NodeProxy(Node):
             }
         }, node=self.name)
 
-    async def rename_instance(self, instance: Instance, new_name: str) -> None:
+    async def rename_instance(self, instance: "Instance", new_name: str) -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -253,7 +274,7 @@ class NodeProxy(Node):
         }, node=self.name)
         return data['return']
 
-    async def migrate_server(self, server: Server, instance: Instance):
+    async def migrate_server(self, server: "Server", instance: "Instance"):
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -264,7 +285,7 @@ class NodeProxy(Node):
             }
         }, node=self.name)
 
-    async def unregister_server(self, server: Server) -> None:
+    async def unregister_server(self, server: "Server") -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",

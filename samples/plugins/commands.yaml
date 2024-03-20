@@ -6,7 +6,7 @@ commands:
   execute:          # and map it to a call of DCS_server.exe
     cmd: DCS_server.exe
     args: -w {instance}
-    cwd: C:\Program Files\Eagle Dynamics\DCS World OpenBeta Server\bin
+    cwd: C:\Program Files\Eagle Dynamics\DCS World Server\bin
   params:           # which receives a parameter "instance" (will be auto replaced by the instance name)
   - instance
 - name: dir         # Create a command .dir

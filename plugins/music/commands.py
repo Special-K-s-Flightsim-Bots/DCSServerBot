@@ -20,7 +20,7 @@ class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        self.service: MusicService = ServiceRegistry.get("Music")
+        self.service = ServiceRegistry.get(MusicService)
         if not self.service.locals:
             raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 
@@ -44,10 +44,12 @@ class Music(Plugin):
                      radio_name: str):
         playlists = await get_all_playlists(interaction)
         if not playlists:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"You don't have any playlists to play. Please create one with /playlist add", ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=await view.render(), view=view,
                                                 ephemeral=utils.get_ephemeral(interaction))
         msg = await interaction.original_response()
@@ -68,20 +70,24 @@ class Music(Plugin):
                                                                                           Status.PAUSED])],
                    radio_name: str, playlist: Optional[str] = None, song: Optional[str] = None):
         if server.status != Status.RUNNING:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'Server {server.name} is not running.', ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
         if song:
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Now playing {title} ...", ephemeral=ephemeral)
             await self.service.play_song(server, radio_name, song)
         else:
             if playlist:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Now playing {playlist} ...", ephemeral=ephemeral)
                 await self.service.stop_radios(server, radio_name)
                 await self.service.set_playlist(server, radio_name, playlist)
             else:
+                # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(f"Radio {radio_name} started.", ephemeral=ephemeral)
             await self.service.start_radios(server, radio_name)
 
@@ -93,9 +99,11 @@ class Music(Plugin):
                                                                                           Status.PAUSED])],
                    radio_name: str):
         if server.status != Status.RUNNING:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'Server {server.name} is not running.', ephemeral=True)
             return
         await self.service.stop_radios(server, radio_name)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Radio {radio_name} stopped.",
                                                 ephemeral=utils.get_ephemeral(interaction))
 
@@ -111,6 +119,7 @@ class Music(Plugin):
         await p.add(song)
         song = os.path.join(await self.service.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist),
             ephemeral=utils.get_ephemeral(interaction))
@@ -142,10 +151,12 @@ class Music(Plugin):
             await p.remove(song)
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist),
                 ephemeral=ephemeral)
         except OSError as ex:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(ex, ephemeral=ephemeral)
 
     @commands.Cog.listener()

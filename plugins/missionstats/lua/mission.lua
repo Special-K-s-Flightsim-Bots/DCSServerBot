@@ -194,7 +194,7 @@ function onEvent(event)
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'
 				msg.target.unit = event.target
-				if msg.target.unit:isExist() then
+				if msg.target.unit.isExist ~= nil and msg.target.unit:isExist() then
 					msg.target.unit_name = msg.target.unit:getName()
 					if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
 						msg.target.coalition = msg.target.unit:getCoalition()
@@ -247,63 +247,50 @@ function onEvent(event)
 	end
 end
 
+function fillCoalitionsData(color)
+    local coalitionColor = {}
+
+    coalitionColor.airbases = {}
+    for _, airbase in pairs(coalition.getAirbases(coalition.side[color])) do
+        table.insert(coalitionColor.airbases, airbase:getName())
+    end
+
+    coalitionColor.units = {}
+    for _, group in pairs(coalition.getGroups(coalition.side[color])) do
+        local category = GROUP_CATEGORY[group:getCategory()]
+        if category ~= nil then
+            if (coalitionColor.units[category] == nil) then
+                coalitionColor.units[category] = {}
+            end
+            for _, unit in pairs(Group.getUnits(group)) do
+                if unit:isActive() then
+                    table.insert(coalitionColor.units[category], unit:getName())
+                end
+            end
+        else
+            env.warning('Category not in table: ' .. group:getCategory(), false)
+        end
+    end
+
+    coalitionColor.statics = {}
+    for _, static in pairs(coalition.getStaticObjects(coalition.side[color])) do
+        table.insert(coalitionColor.statics, static:getName())
+    end
+
+	return coalitionColor
+end
+
 function dcsbot.getMissionSituation(channel)
     env.info('DCSServerBot - getMissionSituation()')
-	local msg = {}
-	msg.command = 'getMissionSituation'
-	msg.coalitions = {}
-	msg.coalitions['BLUE'] = {}
-	msg.coalitions['RED'] = {}
-
-	msg.coalitions['BLUE'].airbases = {}
-	for id, airbase in pairs(coalition.getAirbases(coalition.side.BLUE)) do
-		table.insert(msg.coalitions['BLUE'].airbases, airbase:getName())
-	end
-	msg.coalitions['RED'].airbases = {}
-	for id, airbase in pairs(coalition.getAirbases(coalition.side.RED)) do
-		table.insert(msg.coalitions['RED'].airbases, airbase:getName())
-	end
-	msg.coalitions['BLUE'].units = {}
-	for i, group in pairs(coalition.getGroups(coalition.side.BLUE)) do
-		category = GROUP_CATEGORY[group:getCategory()]
-		if category ~= nil then
-			if (msg.coalitions['BLUE'].units[category] == nil) then
-				msg.coalitions['BLUE'].units[category] = {}
-			end
-			for j, unit in pairs(Group.getUnits(group)) do
-				if unit:isActive() then
-					table.insert(msg.coalitions['BLUE'].units[category], unit:getName())
-				end
-			end
-		else
-			env.warning('Category not in table: ' .. group:getCategory(), false)
-		end
-	end
-	msg.coalitions['RED'].units = {}
-	for i, group in pairs(coalition.getGroups(coalition.side.RED)) do
-		category = GROUP_CATEGORY[group:getCategory()]
-		if category ~= nil then
-			if (msg.coalitions['RED'].units[category] == nil) then
-				msg.coalitions['RED'].units[category] = {}
-			end
-			for j, unit in pairs(Group.getUnits(group)) do
-				if unit:isActive() then
-					table.insert(msg.coalitions['RED'].units[category], unit:getName())
-				end
-			end
-		else
-			env.warning('Category not in table: ' .. group:getCategory(), false)
-		end
-	end
-	msg.coalitions['BLUE'].statics = {}
-	for id, static in pairs(coalition.getStaticObjects(coalition.side.BLUE)) do
-		table.insert(msg.coalitions['BLUE'].statics, static:getName())
-	end
-	msg.coalitions['RED'].statics = {}
-	for id, static in pairs(coalition.getStaticObjects(coalition.side.RED)) do
-		table.insert(msg.coalitions['RED'].statics, static:getName())
-	end
-	dcsbot.sendBotTable(msg, channel)
+    local msg = {
+        command = 'getMissionSituation',
+        coalitions = {
+			BLUE = fillCoalitionsData('BLUE'),
+			RED = fillCoalitionsData('RED'),
+			-- NEUTRAL = fillCoalitionsData('NEUTRAL')
+		}
+    }
+    dcsbot.sendBotTable(msg, channel)
 end
 
 function dcsbot.enableMissionStats()

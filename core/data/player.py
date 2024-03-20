@@ -17,15 +17,14 @@ __all__ = ["Player"]
 
 
 @dataclass
-@DataObjectFactory.register("Player")
+@DataObjectFactory.register()
 class Player(DataObject):
     server: Server = field(compare=False)
     id: int = field(compare=False)
-    name: str = field(compare=False)
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
-    banned: bool = field(compare=False, init=False)
+    banned: bool = field(compare=False, default=False, init=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
     unit_callsign: str = field(compare=False, default='')
@@ -42,8 +41,10 @@ class Player(DataObject):
     bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):
+        from services import BotService
+
         super().__post_init__()
-        self.bot = ServiceRegistry.get("Bot").bot
+        self.bot = ServiceRegistry.get(BotService).bot
         if self.id == 1:
             self.active = False
             return
@@ -166,9 +167,9 @@ class Player(DataObject):
     def display_name(self) -> str:
         return utils.escape_string(self.name)
 
-    async def update(self, data: dict):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
+    def update(self, data: dict):
+        with self.pool.connection() as conn:
+            with conn.transaction():
                 if 'id' in data:
                     # if the ID has changed (due to reconnect), we need to update the server list
                     if self.id != data['id']:
@@ -179,7 +180,7 @@ class Player(DataObject):
                     self.active = data['active']
                 if 'name' in data and self.name != data['name']:
                     self.name = data['name']
-                    await conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
+                    conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
                 if 'side' in data:
                     self.side = Side(data['side'])
                 if 'slot' in data:
@@ -198,7 +199,7 @@ class Player(DataObject):
                     self.group_id = data['group_id']
                 if 'unit_display_name' in data:
                     self.unit_display_name = data['unit_display_name']
-                await conn.execute("""
+                conn.execute("""
                     UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE ucid = %s
                 """, (self.ucid, ))

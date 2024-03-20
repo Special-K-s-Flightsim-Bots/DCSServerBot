@@ -8,6 +8,7 @@ import psutil
 import subprocess
 
 from core import Extension, Status, ServiceRegistry, Server, utils
+from services import ServiceBus
 from typing import Optional
 
 process: Optional[psutil.Process] = None
@@ -19,11 +20,11 @@ class Sneaker(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.bus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
 
     def create_config(self):
         cfg = {"servers": []}
-        filename = os.path.join('config', 'sneaker.json')
+        filename = os.path.join(self.node.config_dir, 'sneaker.json')
         if os.path.exists(filename):
             with open(filename, mode='r', encoding='utf-8') as file:
                 cfg = json.load(file)
@@ -72,7 +73,8 @@ class Sneaker(Extension):
                 async with lock:
                     await asyncio.to_thread(utils.terminate_process, process)
                     self.create_config()
-                    p = await asyncio.to_thread(self._run_subprocess, os.path.join('config', 'sneaker.json'))
+                    p = await asyncio.to_thread(self._run_subprocess,
+                                                os.path.join(self.node.config_dir, 'sneaker.json'))
                     process = psutil.Process(p.pid)
             elif not process or not process.is_running():
                 p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
@@ -105,7 +107,7 @@ class Sneaker(Extension):
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                                f"--config config/sneaker.json")
-                p = self._run_subprocess(os.path.join('config', 'sneaker.json'))
+                p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
                 try:
                     process = psutil.Process(p.pid)
                 except Exception as ex:

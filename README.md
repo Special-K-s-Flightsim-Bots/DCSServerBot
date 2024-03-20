@@ -13,7 +13,7 @@ Now let's see, what DCSServerBot can do for you (installation instructions [belo
 ## Architecture
 DCSServerBot has a modular architecture with services, plugins and extensions that provide specific functionalities 
 like monitoring the availability of your servers, a lot of Discord slash-commands and supports common add-ons like SRS, 
-LotAtc and others.
+LotAtc, DCS Olympus and others.
 
 The solution itself is made for anything from single-server environments up to large scale, worldwide installations with
 high availability requirements. There are nearly no limits. If you are interested into some deeper insights to the
@@ -21,36 +21,34 @@ bots architecture, read [here](./ARCHITECTURE.md)
 
 ### Node
 A node is an installation of DCSServerBot on one PC. The usual user will have one installation, meaning one node.
-You can run multiple instances of DCS with each node (see below). If you run multiple PCs or (virtual) servers, you 
-need to install multiple DCSServerBot nodes. This results in a DCSServerBot cluster.<br>
-One node is always a master node, which handles all the Discord commands and controls the rest of the cluster. Each
-node can be a master. You can define nodes as preferred master nodes, which you usually want to do with nodes that
-are close to your database server (see below).
+You can run multiple instances of DCS ("DCS servers") with each node (see below). If you run multiple PCs or (virtual) 
+servers, you need to install multiple DCSServerBot nodes. This results in a DCSServerBot cluster.<br>
+One node is always a master node, which handles all the Discord commands and controls the rest of the cluster.
 
 ### Instance
-Each node can control multiple instances of DCS, meaning `DCS.exe` or `DCS_Server.exe` processes.
+Each node can control multiple instances of DCS, meaning `DCS.exe` or `DCS_Server.exe` processes. You can use the
+normal client installation of DCS World to run a server, but the [Dedicated Server](https://www.digitalcombatsimulator.com/en/downloads/world/server/) installation would be preferable.
 
 ### Services
 A service is a component that runs on each node. Services can be combined with plugins, if they provide additional
-Discord commands, like the Music service. You can define that a service only runs on the master node.
+Discord commands, like the Music service. Some services only run on the master node, like the Bot service for instance.
 
-| Service    | Scope                                                                   | Plugin      | Documentation                             |
-|------------|-------------------------------------------------------------------------|-------------|-------------------------------------------|
-| ServiceBus | Communication hub between every node of the bot cluster and DCS.        |             | [README](./services/servicebus/README.md) |
-| Bot        | The Discord bot handling all discord commands.                          |             | [README](./services/bot/README.md)        |
-| Monitoring | Availability monitoring of your DCS servers.                            | ServerStats | [README](./services/monitoring/README.md) |
-| Scheduler  | Schedule tasks based on a cron-like configuration.                      | Scheduler   | [README](./services/scheduler/README.md)  |
-| Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                      |             | [README](./services/cleanup/README.md)    |
-| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup      | [README](./services/backup/README.md)     |
-| Dashboard  | Nice console graphics display to show the status of your bot / servers. |             | [README](./services/dashboard/README.md)  |
-| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME       | [README](./services/ovgme/README.md)      |
-| Music      | Play music over different SRS-radios on your servers.                   | Music       | [README](./services/music/README.md)      |
+| Service    | Scope                                                                        | Plugin      | Documentation                             |
+|------------|------------------------------------------------------------------------------|-------------|-------------------------------------------|
+| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.        | Backup      | [README](./services/backup/README.md)     |
+| Bot        | The Discord bot handling all discord commands.                               |             | [README](./services/bot/README.md)        |
+| Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                           |             | [README](./services/cleanup/README.md)    |
+| Dashboard  | Nice console graphics display to show the status of your bot / servers.      |             | [README](./services/dashboard/README.md)  |
+| Monitoring | Availability- and performance-monitoring of your DCS servers.                | ServerStats | [README](./services/monitoring/README.md) |
+| Music      | Play music over different SRS-radios on your servers.                        | Music       | [README](./services/music/README.md)      |
+| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.        | OvGME       | [README](./services/ovgme/README.md)      |
+| Scheduler  | Schedule tasks based on a cron-like configuration.                           | Scheduler   | [README](./services/scheduler/README.md)  |
+| ServiceBus | Communication hub between every node of the bot cluster and all DCS-servers. |             | [README](./services/servicebus/README.md) |
 
 ### Plugins
 A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
-These commands can be received in DCS or be controlled by events in the game. DCSServerBot comes with a rich set of 
-default plugins, but it can be enhanced with optional plugins. I can write those myself, but you as a community member 
-can also create your own plugins (and maybe share them with others). 
+DCSServerBot comes with a rich set of default plugins, but it can be enhanced with optional plugins. I enhance the bot
+from time to time, but you as a community member can also create your own plugins (and maybe share them with others). 
 
 | Plugin        | Scope                                                                         | Optional | Depending on            | Documentation                               |
 |---------------|-------------------------------------------------------------------------------|----------|-------------------------|---------------------------------------------|
@@ -83,13 +81,14 @@ can also create your own plugins (and maybe share them with others).
 
 
 *) These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
-&nbsp;&nbsp;&nbsp;&nbsp;If you want to change that, define a list of `plugins` in your main.yaml.
+&nbsp;&nbsp;&nbsp;&nbsp;If you do not want to load any of them, define a list of `plugins` in your main.yaml and only<br>
+&nbsp;&nbsp;&nbsp;&nbsp;list the plugins you want to load.
 
 #### How to install 3rd-Party Plugins
 If a community member provides a plugin for DCSServerBot, chances are that it is packed into a zip file. You can 
 download this zipfile and place it directly into the /plugins directory. DCSServerBot will automatically unpack the 
-plugin for you, when DCSServerBot restarts. Keep in mind that some of them might need configurations. Please refer to 
-the plugins documentation for more.
+plugin for you, when DCSServerBot restarts. Keep in mind that some of these plugins might need configurations. Please 
+refer to the respective plugin-documentation for more.
 
 #### In case you want to write your own Plugin ...
 You can find a sample in the plugins/sample subdirectory and a guide [here](./plugins/README.md). These will guide you 
@@ -106,13 +105,13 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                                 |
 | DCS-SRS          | Market leader in DCS VOIP integration.                                                                            |
 | Tacview          | Well known flight data capture and analysis tool.                                                                 |
-| LotAtc           | Simple display only extension.                                                                                    |
+| LotAtc           | GCI- and ATC-extension for DCS World. Simple display only extension.                                              |
 | DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                       |
 | DCS Olympus      | Real-time control of your DCS missions through a map interface.                                                   |
-| Lardoon          | Start, stop and manage Lardoon servers.                                                                           |
+| Lardoon          | Webgui for Tacview with search options.                                                                           |
 | Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option!        |
 | DCS Real Weather | Real weather for your missions.                                                                                   |
-
+| OvGME            | Use mods within your DCS World servers.                                                                           |
 
 Check out [Extensions](./extensions/README.md) for more info on how to use them.
 
@@ -180,7 +179,7 @@ When finished, the bot should launch successfully and maybe even start your serv
 
 > ⚠️ **Attention!**<br> 
 > You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
-> the servers Scripts directories.
+> the servers Scripts directory.
 
 ### Desanitization
 DCSServerBot desanitizes your MissionScripting environment. That means, it changes entries in Scripts\MissionScripting.lua
@@ -281,21 +280,21 @@ NODENAME:                       # this will be your hostname
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
   nodestats: true               # Enable node statistics (database pool and event queue sizes), default: true
   DCS:
-    installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
+    installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
   instances:
-    DCS.openbeta_server:        # The name of your instance. You can have multiple instances that have to have unique names.
-      home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.
+    DCS.server:        # The name of your instance. You can have multiple instances that have to have unique names.
+      home: '%USERPROFILE%\\Saved Games\\DCS.server' # The path to your saved games directory.
       missions_dir: '%USERPROFILE%\Documents\Missions'        # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
       affinity: 2,3             # Optional: set the CPU-affinity for this instance.
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
-          config: '%USERPROFILE%\Saved Games\DCS.openbeta_server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
+          config: '%USERPROFILE%\Saved Games\DCS.server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
           host: 127.0.0.1       # SRS servers local IP (default is 127.0.0.1)
           port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration, if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
@@ -337,7 +336,7 @@ My 2nd Fancy Server:            # You can have an unlimited amount of server con
 
 ### config/presets.yaml
 This file holds your different presets that you can apply to missions as modifications.<br>
-See TODO for further details.
+See [MizEdit](./extensions/MizEdit.md) for further details.
 
 ### services/bot.yaml
 This is your Discord-bot configuration.

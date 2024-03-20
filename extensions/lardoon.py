@@ -4,11 +4,11 @@ import os
 import psutil
 import subprocess
 
-from contextlib import suppress
 from core import Extension, Server, utils
 from discord.ext import tasks
-from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
+
+from .tacview import TACVIEW_DEFAULT_DIR
 
 # Globals
 process: Optional[psutil.Process] = None

@@ -30,7 +30,7 @@ from ruamel.yaml.scanner import ScannerError
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import ServerProxy, DataObject
+    from core import ServerProxy, DataObject, Node
 
 __all__ = [
     "is_in_timeframe",
@@ -53,6 +53,7 @@ __all__ = [
     "matches_cron",
     "SettingsDict",
     "RemoteSettingsDict",
+    "tree_delete",
     "evaluate",
     "for_each",
     "YAMLError"
@@ -126,7 +127,7 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     """
     class NoneFormatter(string.Formatter):
         def format_field(self, value, spec):
-            if value is None:
+            if not isinstance(value, bool) and not value:
                 spec = ''
                 value = default_ or ''
             elif isinstance(value, list):
@@ -347,14 +348,14 @@ def is_ucid(ucid: Optional[str]) -> bool:
     return ucid is not None and len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
 
 
-def get_presets() -> Iterable[str]:
+def get_presets(node: Node) -> Iterable[str]:
     """
     Return the set of non-hidden presets from the YAML files in the 'config' directory.
 
     :return: A set of non-hidden presets.
     """
     presets = set()
-    for file in Path('config').glob('presets*.yaml'):
+    for file in Path(node.config_dir).glob('presets*.yaml'):
         with open(file, mode='r', encoding='utf-8') as infile:
             presets |= set([
                 name for name, value in yaml.load(infile).items()
@@ -363,8 +364,9 @@ def get_presets() -> Iterable[str]:
     return presets
 
 
-def get_preset(name: str, filename: Optional[str] = None) -> Optional[dict]:
+def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optional[dict]:
     """
+    :param node: The node where the configuration is stored.
     :param name: The name of the preset to retrieve.
     :param filename: The optional filename of the preset file to search in. If not provided, it will search for preset files in the 'config' directory.
     :return: The dictionary containing the preset data if found, or None if the preset was not found.
@@ -379,7 +381,7 @@ def get_preset(name: str, filename: Optional[str] = None) -> Optional[dict]:
     if filename:
         return _read_presets_from_file(Path(filename), name)
     else:
-        for file in Path('config').glob('presets*.yaml'):
+        for file in Path(node.config_dir).glob('presets*.yaml'):
             preset = _read_presets_from_file(file, name)
             if preset:
                 return preset
@@ -555,6 +557,37 @@ class RemoteSettingsDict(dict):
             }
         }
         self.server.send_to_dcs(msg)
+
+
+def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
+    """
+    Clears an element from nested structure (a mix of dictionaries and lists)
+    given a key in the form "root/element1/element2".
+    """
+    keys = key.split('/')
+    curr_element = d
+
+    try:
+        for key in keys[:-1]:
+            if isinstance(curr_element, dict):
+                curr_element = curr_element[key]
+            else:  # if it is a list
+                curr_element = curr_element[int(key)]
+    except KeyError:
+        return
+
+    if debug:
+        print("  " * len(keys) + f"|_ Deleting {keys[-1]}")
+
+    if isinstance(curr_element, dict):
+        if isinstance(curr_element[keys[-1]], dict):
+            curr_element[keys[-1]] = {}
+        elif isinstance(curr_element[keys[-1]], list):
+            curr_element[keys[-1]] = []
+        else:
+            del curr_element[keys[-1]]
+    else:  # if it's a list
+        curr_element.pop(int(keys[-1]))
 
 
 def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, float, bool]:

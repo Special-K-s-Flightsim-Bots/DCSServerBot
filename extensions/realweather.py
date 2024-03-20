@@ -26,6 +26,13 @@ class RealWeather(Extension):
         else:
             return self.config
 
+    def get_icao_code(self, filename: str) -> Optional[str]:
+        index = filename.find('ICAO_')
+        if index != -1:
+            return filename[index + 5:index + 9]
+        else:
+            return None
+
     async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
         rw_home = os.path.expandvars(self.config['installation'])
         tmpfd, tmpname = tempfile.mkstemp()
@@ -43,6 +50,14 @@ class RealWeather(Extension):
                     element |= config[name]
                 else:
                     cfg[name] = config[name]
+        icao = self.get_icao_code(filename)
+        if icao and icso != self.config.get('metar', {}).get('icao'):
+            cfg |= {
+                "metar": {
+                    "icao": icao
+                }
+            }
+            self.config['metar'] = { "icao": icao }
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), mode='w', encoding='utf-8') as outfile:
             json.dump(cfg, outfile, indent=2)
@@ -66,10 +81,15 @@ class RealWeather(Extension):
         return new_filename, True
 
     async def render(self, param: Optional[dict] = None) -> dict:
+        icao = self.config.get('metar', {}).get('icao')
+        if icao:
+            value = f'Metar: {icao}'
+        else:
+            value = 'enabled'
         return {
             "name": "RealWeather",
             "version": self.version,
-            "value": "enabled"
+            "value": value
         }
 
     def is_installed(self) -> bool:

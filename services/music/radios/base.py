@@ -7,10 +7,7 @@ from core import Server, ServiceRegistry
 from discord.ext import tasks
 from enum import Enum
 from random import randrange
-from typing import Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from ..service import MusicService
+from typing import Optional
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -31,8 +28,10 @@ class Mode(Enum):
 class Radio(ABC):
 
     def __init__(self, name: str, server: Server):
+        from services import MusicService
+
         self.name = name
-        self.service: MusicService = ServiceRegistry.get("Music")
+        self.service = ServiceRegistry.get(MusicService)
         self.log = self.service.log
         self.pool = self.service.pool
         self.apool = self.service.apool
@@ -96,7 +95,8 @@ class Radio(ABC):
             configs[self.server.instance.name]['radios'][self.name] = config
         else:
             configs[self.server.instance.name]['radios'][self.name] |= config
-        with open(os.path.join('config', 'services', 'music.yaml'), mode='w', encoding='utf-8') as outfile:
+        with open(os.path.join(self.server.node.config_dir, 'services', 'music.yaml'), mode='w',
+                  encoding='utf-8') as outfile:
             yaml.dump(configs, outfile)
 
     def is_running(self) -> bool:

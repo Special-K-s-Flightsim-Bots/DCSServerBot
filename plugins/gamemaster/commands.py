@@ -4,7 +4,8 @@ import discord
 import os
 import psycopg
 
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, UploadStatus
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, UploadStatus, \
+    get_translation
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -13,6 +14,8 @@ from typing import Optional, Literal
 
 from .listener import GameMasterEventListener
 from .views import CampaignModal, ScriptModal
+
+_ = get_translation(__name__.split('.')[1])
 
 
 async def scriptfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -60,14 +63,15 @@ class GameMaster(Plugin):
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE coalitions SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
-    @command(description='Send a chat message to a running DCS instance')
+    @command(description=_('Send a chat message to a running DCS instance'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def chat(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    message: str):
         if server.status != Status.RUNNING:
-            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         server.send_to_dcs({
             "command": "sendChatMessage",
@@ -75,44 +79,50 @@ class GameMaster(Plugin):
             "message": message,
             "from": interaction.user.display_name
         })
-        await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
-    @command(description='Sends a popup to a coalition')
+    @command(description=_('Sends a popup to a coalition\n'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     to: Literal['all', 'red', 'blue'], message: str, time: Optional[Range[int, 1, 30]] = -1):
         if server.status != Status.RUNNING:
-            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
-        await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
-    @command(description='Sends a popup to all servers')
+    @command(description=_('Sends a popup to all servers'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def broadcast(self, interaction: discord.Interaction, to: Literal['all', 'red', 'blue'], message: str,
                         time: Optional[Range[int, 1, 30]] = -1):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
-                await interaction.followup.send(
-                    f'Message NOT sent to server {server.display_name} because it is {server.status.name}.',
-                    ephemeral=ephemeral)
+                await interaction.followup.send(_('Message NOT sent to server {server} because it is {status}.'
+                                                  ).format(server=server.display_name, status=server.status.name),
+                                                ephemeral=ephemeral)
                 continue
             server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
-            await interaction.followup.send(f'Message sent to server {server.display_name}.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Message sent to server {}.').format(server.display_name),
+                                            ephemeral=ephemeral)
 
-    @command(description='Set or clear a flag inside the mission')
+    @command(description=_('Set or get a flag inside the mission'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def flag(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    flag: str, value: Optional[int] = None):
         if server.status != Status.RUNNING:
-            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
         if value is not None:
@@ -121,21 +131,27 @@ class GameMaster(Plugin):
                 "flag": flag,
                 "value": value
             })
-            await interaction.response.send_message(f"Flag {flag} set to {value}.", ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Flag {flag} set to {value}.").format(flag=flag, value=value),
+                                                    ephemeral=ephemeral)
         else:
             data = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
-            await interaction.response.send_message(f"Flag {flag} has value {data['value']}.", ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Flag {flag} has value {value}.").format(
+                flag=flag, value=data['value']), ephemeral=ephemeral)
 
-    @command(description='Set or get a mission variable')
+    @command(description=_('Set or get a mission variable'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def variable(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                        name: str, value: Optional[str] = None):
         if server.status != Status.RUNNING:
-            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if value is not None:
             server.send_to_dcs({
@@ -143,20 +159,23 @@ class GameMaster(Plugin):
                 "name": name,
                 "value": value
             })
-            await interaction.followup.send(f"Variable {name} set to {value}.", ephemeral=ephemeral)
+            await interaction.followup.send(_("Variable {name} set to {value}.").format(name=name, value=value),
+                                            ephemeral=ephemeral)
         else:
             try:
                 data = await server.send_to_dcs_sync({"command": "getVariable", "name": name})
             except (TimeoutError, asyncio.TimeoutError):
-                await interaction.followup.send('Timeout while retrieving variable. Most likely a lua error occurred. '
-                                                'Check your dcs.log.', ephemeral=True)
+                await interaction.followup.send(
+                    _('Timeout while retrieving variable. Most likely a lua error occurred. Check your dcs.log.'),
+                    ephemeral=True)
                 return
             if 'value' in data:
-                await interaction.followup.send(f"Variable {name} has value {data['value']}.", ephemeral=ephemeral)
+                await interaction.followup.send(
+                    _("Variable {name} has value {value}.").format(name=name, value=data['value']), ephemeral=ephemeral)
             else:
-                await interaction.followup.send(f"Variable {name} is not set.", ephemeral=ephemeral)
+                await interaction.followup.send(_("Variable {} is not set.").format(name), ephemeral=ephemeral)
 
-    @command(description='Calls any function inside the mission')
+    @command(description=_('Calls any function inside the mission'))
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     @app_commands.guild_only()
     async def do_script(self, interaction: discord.Interaction,
@@ -164,16 +183,14 @@ class GameMaster(Plugin):
                             Status.RUNNING, Status.PAUSED
                         ])]):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
-            return
-        if server.status not in [Status.RUNNING, Status.PAUSED]:
-            await interaction.response.send_message(f'Server "{server.name}" is {server.status.name}. Aborted.',
-                                                    ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         modal = ScriptModal(server, utils.get_ephemeral(interaction))
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
 
-    @command(description='Loads a lua file into the mission')
+    @command(description=_('Loads a lua file into the mission'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     @app_commands.autocomplete(filename=scriptfile_autocomplete)
@@ -183,22 +200,24 @@ class GameMaster(Plugin):
                              ])],
                              filename: str):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            await interaction.response.send_message(f"Server {server.name} is not running.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         filename = os.path.join('Missions', 'Scripts', filename)
         server.send_to_dcs({
             "command": "do_script_file",
             "file": filename.replace('\\', '/')
         })
-        await interaction.response.send_message('Script loaded.', ephemeral=utils.get_ephemeral(interaction))
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_('Script loaded.'), ephemeral=utils.get_ephemeral(interaction))
 
-    @command(description='Mass coalition leave for users')
+    @command(description=_('Mass coalition leave for users'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def reset_coalitions(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
-                                       f'Do you want to mass-reset all coalition-bindings from your players?',
+                                       _('Do you want to mass-reset all coalition-bindings from your players?'),
                                        ephemeral=ephemeral):
             await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
@@ -207,61 +226,66 @@ class GameMaster(Plugin):
                 if not server.locals.get('coalitions'):
                     continue
                 await self.eventlistener.reset_coalitions(server, True)
-                await interaction.followup.send(f'Coalition bindings reset for all players.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Coalition bindings reset for all players.'), ephemeral=ephemeral)
         except discord.Forbidden:
-            await interaction.followup.send('The bot is missing the "Manage Roles" permission.', ephemeral=ephemeral)
+            await interaction.followup.send(_('The bot is missing the "Manage Roles" permission!'), ephemeral=ephemeral)
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
     # New command group "/mission"
-    campaign = Group(name="campaign", description="Commands to manage DCS campaigns")
+    campaign = Group(name="campaign", description=_("Commands to manage DCS campaigns"))
 
-    @campaign.command(name='list', description="Lists all (active) campaigns")
+    @campaign.command(name='list', description=_("Lists all (active) campaigns"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.describe(active="Display only active campaigns")
+    @app_commands.describe(active=_("Display only active campaigns"))
     async def _list(self, interaction: discord.Interaction, active: Optional[bool] = True):
         report = Report(self.bot, self.plugin_name, 'active-campaigns.json' if active else 'all-campaigns.json')
         env = await report.render()
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @campaign.command(description="Campaign info")
+    @campaign.command(description=_("Campaign info"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
     async def info(self, interaction: discord.Interaction, campaign: str):
         report = Report(self.bot, self.plugin_name, 'campaign.json')
-        env = await report.render(campaign=await utils.get_campaign(self, campaign), title='Campaign Overview')
+        env = await report.render(campaign=await utils.get_campaign(self, campaign), title=_('Campaign Overview'))
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @campaign.command(description="Add new campaign")
+    @campaign.command(description=_("Add a campaign"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         modal = CampaignModal(self.eventlistener)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
-            await interaction.response.send_message('Aborted.', ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_('Aborted.'), ephemeral=ephemeral)
             return
         try:
-            servers = await utils.server_selection(self.bus, interaction, title="Select all servers for this campaign",
+            servers = await utils.server_selection(self.bus, interaction,
+                                                   title=_("Select all servers for this campaign"),
                                                    multi_select=True, ephemeral=ephemeral)
             if not servers:
-                await interaction.followup.send('Aborted.', ephemeral=True)
+                await interaction.followup.send(_('Aborted.'), ephemeral=True)
                 return
             try:
-                self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
-                                            description=modal.description.value, start=modal.start, end=modal.end)
-                await interaction.followup.send(f"Campaign {modal.name.value} added.", ephemeral=ephemeral)
+                await self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
+                                                  description=modal.description.value, start=modal.start, end=modal.end)
+                await interaction.followup.send(_("Campaign {} added.").format(modal.name.value), ephemeral=ephemeral)
             except psycopg.errors.ExclusionViolation:
-                await interaction.followup.send(f"A campaign is already configured for this timeframe!",
+                await interaction.followup.send(_("A campaign is already configured for this timeframe!"),
                                                 ephemeral=ephemeral)
             except psycopg.errors.UniqueViolation:
-                await interaction.followup.send(f"A campaign with this name already exists!", ephemeral=ephemeral)
+                await interaction.followup.send(_("A campaign with this name already exists!"), ephemeral=ephemeral)
         except Exception as ex:
             self.log.exception(ex)
 
-    @campaign.command(description="Add a server to an existing campaign")
+    @campaign.command(description=_("Add a server to an existing campaign"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
@@ -276,56 +300,60 @@ class GameMaster(Plugin):
                         SELECT id, %s FROM campaigns WHERE name = %s 
                         ON CONFLICT DO NOTHING
                         """, (server.name, campaign))
-            await interaction.response.send_message(f"Server {server.name} added to campaign {campaign}.",
-                                                    ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Server {server} added to campaign {campaign}.").format(server=server.name, campaign=campaign),
+                ephemeral=ephemeral)
         except psycopg.errors.UniqueViolation:
-            await interaction.response.send_message(f"Server {server.name} is already part of the campaign {campaign}!",
-                                                    ephemeral=ephemeral)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Server {server} is already part of the campaign {campaign}!").format(
+                    server=server.name, campaign=campaign), ephemeral=ephemeral)
 
-    @campaign.command(description="Delete a campaign")
+    @campaign.command(description=_("Delete a campaign"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
-    async def delete(self, interaction: discord.Interaction,
-                     campaign: Optional[str]):
+    async def delete(self, interaction: discord.Interaction, campaign: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if await utils.yn_question(interaction, f"Do you want to delete campaign \"{campaign}\"?",
+        if await utils.yn_question(interaction, _('Do you want to delete campaign "{}"?').format(campaign),
                                    ephemeral=ephemeral):
-            self.eventlistener.campaign('delete', name=campaign)
-            await interaction.followup.send(f"Campaign deleted.")
+            await self.eventlistener.campaign('delete', name=campaign)
+            await interaction.followup.send(_("Campaign deleted."), ephemeral=ephemeral)
         else:
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
 
-    @campaign.command(description="Start a campaign")
+    @campaign.command(description=_("Start a campaign"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def start(self, interaction: discord.Interaction, campaign: str):
         ephemeral = utils.get_ephemeral(interaction)
         try:
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
             servers: list[Server] = await utils.server_selection(self.bus, interaction,
-                                                                 title="Select all servers for this campaign",
+                                                                 title=_("Select all servers for this campaign"),
                                                                  multi_select=True, ephemeral=ephemeral)
-            self.eventlistener.campaign('start', servers=servers, name=campaign)
-            await interaction.followup.send(f"Campaign {campaign} started.", ephemeral=ephemeral)
+            await self.eventlistener.campaign('start', servers=servers, name=campaign)
+            await interaction.followup.send(_("Campaign {} started.").format(campaign), ephemeral=ephemeral)
         except psycopg.errors.ExclusionViolation:
-            await interaction.followup.send(f"A campaign is already configured for this timeframe!",
+            await interaction.followup.send(_("A campaign is already configured for this timeframe!"),
                                             ephemeral=ephemeral)
         except psycopg.errors.UniqueViolation:
-            await interaction.followup.send(f"A campaign with this name already exists!", ephemeral=ephemeral)
+            await interaction.followup.send(_("A campaign with this name already exists!"), ephemeral=ephemeral)
 
-    @campaign.command(description="Stop a campaign")
+    @campaign.command(description=_("Stop a campaign"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
     async def stop(self, interaction: discord.Interaction, campaign: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if await utils.yn_question(interaction, f"Do you want to stop campaign \"{campaign}\"?",
+        if await utils.yn_question(interaction, _('Do you want to stop campaign "{}"?').format(campaign),
                                    ephemeral=ephemeral):
-            self.eventlistener.campaign('stop', name=campaign)
-            await interaction.followup.send("Campaign stopped.", ephemeral=ephemeral)
+            await self.eventlistener.campaign('stop', name=campaign)
+            await interaction.followup.send(_("Campaign stopped."), ephemeral=ephemeral)
         else:
-            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
@@ -357,13 +385,13 @@ class GameMaster(Plugin):
                             msg = None
                         except discord.errors.DiscordException as ex:
                             self.log.exception(ex)
-                            await message.channel.send(f'Error while updating embed!')
+                            await message.channel.send(_('Error while updating embed!'))
                             return
                     if not msg:
                         await message.channel.send(embed=embed)
                     await message.delete()
                 else:
-                    await message.channel.send(f'Error {response.status} while reading JSON file!')
+                    await message.channel.send(_('Error {} while reading JSON file!').format(response.status))
 
     async def _upload_lua(self, message: discord.Message) -> int:
         # check if the upload happens in the servers admin channel (if provided)
@@ -374,9 +402,9 @@ class GameMaster(Plugin):
             if self.bot.locals.get('admin_channel', 0) == message.channel.id:
                 try:
                     server = await utils.server_selection(
-                        self.bus, ctx, title="To which server do you want to upload this LUA to?")
+                        self.bus, ctx, title=_("To which server do you want to upload this LUA to?"))
                     if not server:
-                        await ctx.send('Upload aborted.')
+                        await ctx.send(_('Aborted.'))
                         return -1
                 except Exception as ex:
                     self.log.exception(ex)
@@ -392,12 +420,12 @@ class GameMaster(Plugin):
             if rc == UploadStatus.OK:
                 num += 1
                 continue
-            if not await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?'):
-                await message.channel.send('Upload aborted.')
+            if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
+                await message.channel.send(_('Aborted.'))
                 continue
             rc = await server.node.write_file(filename, attachment.url, overwrite=True)
             if rc != UploadStatus.OK:
-                await message.channel.send(f"File {attachment.filename} could not be uploaded.")
+                await message.channel.send(_("File {} could not be uploaded.").format(attachment.filename))
             else:
                 num += 1
         return num
@@ -416,7 +444,7 @@ class GameMaster(Plugin):
                 num = await self._upload_lua(message)
                 if num > 0:
                     await message.channel.send(
-                        f"{num} LUA files uploaded. You can load any of them with `/do_script_file` now.")
+                        _("{} LUA files uploaded. You can load any of them with `/do_script_file` now.").format(num))
                     await message.delete()
         else:
             for server in self.bot.servers.values():

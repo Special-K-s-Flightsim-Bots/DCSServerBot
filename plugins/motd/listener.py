@@ -4,15 +4,16 @@ from typing import Optional, Tuple
 
 class MOTDListener(EventListener):
 
-    def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
+    async def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
         if 'messages' in config:
             for cfg in config['messages']:
-                message = self.on_join(cfg, server, player)
+                message = await self.on_join(cfg, server, player)
                 if message:
                     return message
         else:
             if 'recipients' in config:
-                players = self.plugin.get_recipients(server, config)
+                # noinspection PyUnresolvedReferences
+                players = [p async for p in self.plugin.get_recipients(server, config)]
                 if player not in players:
                     return None
             return utils.format_string(config['message'])
@@ -26,7 +27,8 @@ class MOTDListener(EventListener):
         else:
             message = None
             if 'recipients' in config:
-                players = self.plugin.get_recipients(server, config)
+                # noinspection PyUnresolvedReferences
+                players = [p async for p in self.plugin.get_recipients(server, config)]
                 if player not in players:
                     return None, None
             if 'message' in config:
@@ -38,7 +40,7 @@ class MOTDListener(EventListener):
             return message, config
 
     @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
         # make sure the config cache is re-read on mission changes
         self.plugin.get_config(server, use_cache=False)
 
@@ -48,8 +50,8 @@ class MOTDListener(EventListener):
             return
         config = self.plugin.get_config(server)
         if config and 'on_join' in config:
-            player: Player = server.get_player(id=data['id'])
-            player.sendChatMessage(self.on_join(config['on_join'], server, player))
+            player: Player = server.get_player(ucid=data['ucid'])
+            player.sendChatMessage(await self.on_join(config['on_join'], server, player))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
@@ -63,4 +65,5 @@ class MOTDListener(EventListener):
                 return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
+                # noinspection PyUnresolvedReferences
                 self.plugin.send_message(message, server, cfg, player)

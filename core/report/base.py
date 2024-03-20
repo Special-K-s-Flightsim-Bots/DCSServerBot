@@ -112,7 +112,7 @@ class Report:
                             except psycopg.OperationalError:
                                 self.log.error(f"Database error while processing report {self.filename}! "
                                                f"Some elements might be empty.")
-                            except Exception as ex:
+                            except Exception:
                                 self.log.error(f"Error while processing report {self.filename}! "
                                                f"Some elements might be empty.", exc_info=True)
                         else:
@@ -188,35 +188,35 @@ class PaginationReport(Report):
                                                default=(x is None)
                                                ) for idx, x in enumerate(self.values) if idx < 25]
             if self.index == 0:
-                self.children[1].disabled = True
-                self.children[2].disabled = True
-            if self.index == len(values) - 1:
-                self.children[3].disabled = True
-                self.children[4].disabled = True
+                target_children = self.children[1:3]
+                new_states = [True, True]
+            elif self.index == len(values) - 1:
+                target_children = self.children[3:5]
+                new_states = [True, True]
+            else:
+                target_children = []
+                new_states = []
+            for child, new_state in zip(target_children, new_states):
+                child.disabled = new_state
 
         async def render(self, value) -> ReportEnv:
             self.kwargs[self.name] = value if value != 'All' else None
             return await self.func(*self.args, **self.kwargs)
 
         async def paginate(self, value, interaction: discord.Interaction):
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             env = await self.render(value)
             try:
+                target_children = self.children[1:5]
                 if self.index == 0:
-                    self.children[1].disabled = True
-                    self.children[2].disabled = True
-                    self.children[3].disabled = False
-                    self.children[4].disabled = False
+                    new_states = [True, True, False, False]
                 elif self.index == len(self.values) - 1:
-                    self.children[1].disabled = False
-                    self.children[2].disabled = False
-                    self.children[3].disabled = True
-                    self.children[4].disabled = True
+                    new_states = [False, False, True, True]
                 else:
-                    self.children[1].disabled = False
-                    self.children[2].disabled = False
-                    self.children[3].disabled = False
-                    self.children[4].disabled = False
+                    new_states = [False, False, False, False]
+                for child, state in zip(target_children, new_states):
+                    child.disabled = state
                 if env.filename:
                     await interaction.edit_original_response(embed=env.embed, view=self, attachments=[
                             discord.File(fp=env.buffer or env.filename, filename=os.path.basename(env.filename))
@@ -236,27 +236,28 @@ class PaginationReport(Report):
             await self.paginate(self.values[self.index], interaction)
 
         @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
-        async def on_start(self, interaction: Interaction, button: Button):
+        async def on_start(self, interaction: Interaction, _: Button):
             self.index = 0
             await self.paginate(self.values[self.index], interaction)
 
         @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
-        async def on_left(self, interaction: Interaction, button: Button):
+        async def on_left(self, interaction: Interaction, _: Button):
             self.index -= 1
             await self.paginate(self.values[self.index], interaction)
 
         @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
-        async def on_right(self, interaction: Interaction, button: Button):
+        async def on_right(self, interaction: Interaction, _: Button):
             self.index += 1
             await self.paginate(self.values[self.index], interaction)
 
         @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
-        async def on_end(self, interaction: Interaction, button: Button):
+        async def on_end(self, interaction: Interaction, _: Button):
             self.index = len(self.values) - 1
             await self.paginate(self.values[self.index], interaction)
 
         @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
-        async def on_cancel(self, interaction: Interaction, button: Button):
+        async def on_cancel(self, interaction: Interaction, _: Button):
+            # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             self.stop()
 
@@ -265,7 +266,9 @@ class PaginationReport(Report):
             self.stop()
 
     async def render(self, *args, **kwargs) -> ReportEnv:
+        # noinspection PyUnresolvedReferences
         if not self.interaction.response.is_done():
+            # noinspection PyUnresolvedReferences
             await self.interaction.response.defer()
         name, values = await self.read_param(self.report_def['pagination']['param'], **kwargs)
         start_index = 0
@@ -305,7 +308,7 @@ class PaginationReport(Report):
                 await view.wait()
             else:
                 message = None
-        except Exception as ex:
+        except Exception:
             self.log.error(f"Exception while processing report {self.filename}!")
             raise
         finally:
@@ -332,7 +335,7 @@ class PersistentReport(Report):
             await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
                                     file=file, server=self.server)
             return env
-        except Exception as ex:
+        except Exception:
             self.log.error(f"Exception while processing report {self.filename}!")
             raise
         finally:

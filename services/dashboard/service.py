@@ -15,6 +15,8 @@ from rich.panel import Panel
 from rich.table import Table
 from typing import TYPE_CHECKING, Optional
 
+from ..servicebus import ServiceBus
+
 if TYPE_CHECKING:
     from core import Node
 
@@ -25,7 +27,7 @@ __all__ = [
 
 class HeaderWidget:
     """Display header with clock."""
-    def __init__(self, service: Service):
+    def __init__(self, service: "Dashboard"):
         self.service = service
         self.node = service.node
         self.log = service.log
@@ -49,7 +51,7 @@ class HeaderWidget:
 
 class ServersWidget:
     """Displaying List of Servers"""
-    def __init__(self, service: Service):
+    def __init__(self, service: "Dashboard"):
         self.service = service
         self.bus = service.bus
 
@@ -78,7 +80,7 @@ class ServersWidget:
 
 class NodeWidget:
     """Displaying Bot Info"""
-    def __init__(self, service: Service):
+    def __init__(self, service: "Dashboard"):
         self.service = service
         self.node = service.node
         self.bus = service.bus
@@ -111,12 +113,12 @@ class NodeWidget:
 
 class LogWidget:
     """Display log messages"""
-    def __init__(self, service: Service):
+    def __init__(self, service: "Dashboard"):
         self.service = service
         self.queue = service.queue
         self.buffer: list[str] = []
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(self, _: Console, options: ConsoleOptions) -> RenderResult:
         while not self.queue.empty():
             rec: logging.LogRecord = self.queue.get()
             for msg in rec.getMessage().splitlines():
@@ -141,11 +143,11 @@ class LogWidget:
                     border_style=self.service.get_config().get("log", {}).get("border", "white"))
 
 
-@ServiceRegistry.register("Dashboard")
+@ServiceRegistry.register()
 class Dashboard(Service):
 
-    def __init__(self, node, name: str):
-        super().__init__(node, name)
+    def __init__(self, node):
+        super().__init__(node)
         self.console = Console()
         self.layout = None
         self.bus = None
@@ -191,7 +193,7 @@ class Dashboard(Service):
     async def start(self):
         await super().start()
         self.layout = self.create_layout()
-        self.bus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
         self.dcs_branch, self.dcs_version = await self.node.get_dcs_branch_and_version()
         self.hook_logging()
         self.stop_event.clear()

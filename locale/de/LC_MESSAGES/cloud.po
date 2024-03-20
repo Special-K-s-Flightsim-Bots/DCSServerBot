@@ -1,0 +1,45 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /cloud status
+msgid "Test the cloud-connection"
+msgstr "Prüfe die Cloud-Verbindung"
+
+msgid "Checking cloud connection ..."
+msgstr "Prüfe Cloud-Verbindung ..."
+
+msgid "Cloud connection established."
+msgstr "Cloud-Verbindung hergestellt."
+
+msgid "Cloud not connected!"
+msgstr "Keine Verbindung zur Cloud möglich!"
+
+# /cloud resync
+msgid "Resync statistics with the cloud"
+msgstr "Synchronisiere mit der Cloud"
+
+msgid "No cloud sync configured!"
+msgstr "Kein Cloud-Sync konfiguriert!"
+
+msgid "Resync with cloud triggered."
+msgstr "Synchronisation angestoßen."
+
+# /cloud statistics
+msgid "Generate Cloud Statistics"
+msgstr "Zeige Cloud-Statistiken"
+
+msgid "Cloud statistics are not activated in this Discord!"
+msgstr "Cloud-Statistiken sind in diesem Discord leider nicht verfügbar."
+
+msgid "Use `/linkme` to link your account."
+msgstr "Nutze `/linkme`, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
+
+msgid "No cloud-based statistics found for this user."
+msgstr "Für diesen Nutzer konnten keine Cloud-Statistiken gefunden werden."
+
+

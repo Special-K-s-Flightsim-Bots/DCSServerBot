@@ -1,15 +1,18 @@
+import asyncio
 import os
 import re
 import string
 import sys
 import uuid
 
-from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event
+from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
 from typing import Optional, cast
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class GreenieBoardEventListener(EventListener):
@@ -31,26 +34,36 @@ class GreenieBoardEventListener(EventListener):
         super().__init__(plugin)
         config = self.get_config()
         if 'FunkMan' in config:
-            sys.path.append(config['FunkMan']['install'])
+            path = config['FunkMan']['install']
+            if not os.path.exists(path):
+                self.log.error(f"FunkMan install path is not correct in your {self.plugin_name}.yaml! "
+                               f"FunkMan will not work.")
+                return
+            sys.path.append(path)
             from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
+        else:
+            self.funkplot = None
 
     async def update_greenieboard(self, server: Server):
-        # update the server specific board
-        config = self.plugin.get_config(server)
-        if 'persistent_channel' in config and config.get('persistent_board', True):
-            channel_id = int(config['persistent_channel'])
-            num_rows = config.get('num_rows', 10)
-            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                      embed_name='greenieboard', server=server, channel_id=channel_id)
-            await report.render(server_name=server.name, num_rows=num_rows)
-        # update the global board
-        config = self.get_config()
-        if 'persistent_channel' in config and config.get('persistent_board', True):
-            num_rows = config.get('num_rows', 10)
-            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json', embed_name='greenieboard',
-                                      channel_id=int(config['persistent_channel']))
-            await report.render(server_name=None, num_rows=num_rows)
+        try:
+            # update the server specific board
+            config = self.plugin.get_config(server)
+            if 'persistent_channel' in config and config.get('persistent_board', True):
+                channel_id = int(config['persistent_channel'])
+                num_rows = config.get('num_rows', 10)
+                report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                          embed_name='greenieboard', server=server, channel_id=channel_id)
+                await report.render(server_name=server.name, num_rows=num_rows)
+            # update the global board
+            config = self.get_config()
+            if 'persistent_channel' in config and config.get('persistent_board', True):
+                num_rows = config.get('num_rows', 10)
+                report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json', embed_name='greenieboard',
+                                          channel_id=int(config['persistent_channel']))
+                await report.render(server_name=None, num_rows=num_rows)
+        except FileNotFoundError as ex:
+            self.log.error(f'  => File not found: {ex}')
 
     async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -69,14 +82,12 @@ class GreenieBoardEventListener(EventListener):
                     player.name, carrier, data['grade'].replace('_', '\\_'), details))
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        try:
-            await self.update_greenieboard(server)
-        except FileNotFoundError as ex:
-            self.log.error(f'  => File not found: {ex}')
+    async def registerDCSServer(self, server: Server, _: dict) -> None:
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.update_greenieboard(server))
 
     @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
         # make sure the config cache is re-read on mission changes
         self.plugin.get_config(server, use_cache=False)
 
@@ -86,7 +97,8 @@ class GreenieBoardEventListener(EventListener):
         points = data.get('points', config['ratings'][data['grade']])
         if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
-            await cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
+            cp.audit(_('Carrier Landing'), cp.points,
+                     _("Landing on {place} with grade {grade}.").format(place=data['place'], grade=data['grade']))
             cp.points += points
         case = data.get('case', 1 if not night else 3)
         wire = data.get('wire')
@@ -143,7 +155,8 @@ class GreenieBoardEventListener(EventListener):
 
     async def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
         if 'FunkMan' not in config:
-            self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
+            self.log.warning(
+                f"Can't process FunkMan event as FunkMan is not configured in your {self.plugin_name}.yaml!")
             return
         if not data['grade'].startswith('WO'):
             filepath = os.path.join(server.instance.home,
@@ -190,14 +203,21 @@ class GreenieBoardEventListener(EventListener):
                 await self.process_sc_event(config, server, player, data)
                 update = True
             if update:
-                await self.send_chat_message(player, data)
-                await self.update_greenieboard(server)
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.send_chat_message(player, data))
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.update_greenieboard(server))
 
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['name']) if 'name' in data else None
         if player:
+            if not self.funkplot:
+                self.log.error(f"Your FunkMan path is not set in your {self.plugin_name}.yaml! FunkMan event ignored.")
+                return
             await self.process_funkman_event(config, server, player, data)
-            await self.send_chat_message(player, data)
-            await self.update_greenieboard(server)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.send_chat_message(player, data))
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.update_greenieboard(server))

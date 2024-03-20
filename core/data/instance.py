@@ -20,7 +20,6 @@ class InstanceBusyError(Exception):
 
 @dataclass
 class Instance(DataObject):
-    name: str
     locals: dict = field(repr=False, default_factory=dict)
     _server: Optional[Server] = field(compare=False, repr=False, default=None, init=False)
     missions_dir: str = field(repr=False, init=False, default=None)

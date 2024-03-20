@@ -70,7 +70,7 @@ documentation for now) and you need to link the place where you downloaded FunkM
 
 > ⚠️ **Attention!**<br>
 > FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
-> (Saved Games\DCS.openbeta_server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
+> (Saved Games\DCS.server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
 > there is no auto-cleanup.
 
 ## Configuration
@@ -99,9 +99,9 @@ DEFAULT:
 #  FunkMan:                 # if you want to use the FunkMan integration, uncomment this
 #    IMAGEPATH: ../FunkMan/funkpics/
 #    install: ../FunkMan
-DCS.openbeta_server:        # our server uses Moose.AIRBOSS
+DCS.server:        # our server uses Moose.AIRBOSS
   Moose.AIRBOSS:
-    basedir: airboss        # Trapsheets will be stored in Saved Games\DCS.openbeta_server\airboss
+    basedir: airboss        # Trapsheets will be stored in Saved Games\DCS.server\airboss
     delete_after: 180       # they will be deleted after 180 days
     grades: AIRBOSS-{carrier}_LSOGrades.csv
     trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'

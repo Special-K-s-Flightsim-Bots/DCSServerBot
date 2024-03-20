@@ -1,4 +1,4 @@
-# For weather presets in DCS, please refer to C:\Program Files\Eagle Dynamics\DCS World OpenBeta\Config\Effects\clouds.lua
+# For weather presets in DCS, please refer to C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua
 Spring:
   date: '2016-04-21'
   temperature: 8

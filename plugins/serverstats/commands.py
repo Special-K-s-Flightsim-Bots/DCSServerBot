@@ -7,8 +7,10 @@ from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
 from services import DCSServerBot
-from typing import Type, Optional
+from typing import Type, Optional, Literal, Union
+
 from .listener import ServerStatsListener
+from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer
 
 
 class ServerStats(Plugin):
@@ -27,8 +29,9 @@ class ServerStats(Plugin):
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server: Server,
-                             ephemeral: bool):
+    async def display_report(self, interaction: discord.Interaction, schema: str, period: Union[str, StatisticsFilter],
+                             server: Server, ephemeral: bool):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server.name, node=server.node.name)
@@ -45,14 +48,14 @@ class ServerStats(Plugin):
     @app_commands.rename(_server="server")
     async def serverload(self, interaction: discord.Interaction,
                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
-                         period: Optional[str]):
+                         period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
         try:
             if _server:
                 await self.display_report(interaction, 'serverload.json', period, _server,
                                           ephemeral=utils.get_ephemeral(interaction))
             else:
                 report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
-                await report.render(period=period, server_name=None)
+                await report.render(flt=period, server_name=None)
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
 
@@ -60,16 +63,20 @@ class ServerStats(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.rename(_server="server")
+    @app_commands.describe(period='Select one of the default periods or enter the name of a campaign or a mission')
     async def serverstats(self, interaction: discord.Interaction,
                           _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
-                          period: Optional[str]):
+                          period: Optional[app_commands.Transform[
+                              StatisticsFilter, PeriodTransformer(
+                                  flt=[PeriodFilter, CampaignFilter, MissionFilter]
+                              )]] = PeriodFilter()):
         try:
             if _server:
                 await self.display_report(interaction, 'serverstats.json', period, _server,
                                           ephemeral=utils.get_ephemeral(interaction))
             else:
                 report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')
-                await report.render(period=period, server_name=None)
+                await report.render(flt=period, server_name=None)
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
 

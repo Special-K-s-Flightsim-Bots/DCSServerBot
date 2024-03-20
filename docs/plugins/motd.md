@@ -34,7 +34,7 @@ To be able to create a message on "birth", `MISSION_STATISTICS = true` has to be
       }
     },
     {
-      "installation": "DCS.openbeta_server",
+      "installation": "DCS.server",
       "on_join": {                                                              -- whenever a user joins the server
         "message": "Welcome to our public server! Teamkills will be punished."
       }

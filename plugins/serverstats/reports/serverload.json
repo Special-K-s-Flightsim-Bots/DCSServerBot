@@ -4,8 +4,8 @@
   "input": [
     {
       "name": "period",
-      "range": ["", "hour", "day", "week", "month"],
-      "default": "hour"
+      "range": ["", "Hour", "Day", "Week", "Month"],
+      "default": "Hour"
     },
     {
       "name": "ruler_length",

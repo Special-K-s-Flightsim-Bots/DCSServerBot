@@ -1,3 +1,5 @@
+from logging.handlers import RotatingFileHandler
+
 import aiohttp
 import ipaddress
 import os
@@ -26,7 +28,8 @@ __all__ = [
     "is_process_running",
     "get_windows_version",
     "safe_rmtree",
-    "terminate_process"
+    "terminate_process",
+    "CloudRotatingFileHandler"
 ]
 
 
@@ -112,3 +115,16 @@ def terminate_process(process: Optional[psutil.Process]):
         except psutil.TimeoutExpired:
             process.kill()
             process.wait(timeout=3)
+
+
+class CloudRotatingFileHandler(RotatingFileHandler):
+    def shouldRollover(self, record):
+        """
+        Determine if rollover should occur by comparing the log file size to
+        the size specified when the handler was created.
+        """
+        if self.maxBytes > 0:  # are we rolling over?
+            log_file_size = os.path.getsize(self.baseFilename)
+            if log_file_size >= self.maxBytes:
+                return 1
+        return 0

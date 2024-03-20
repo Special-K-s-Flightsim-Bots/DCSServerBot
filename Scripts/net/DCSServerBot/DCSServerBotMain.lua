@@ -23,6 +23,7 @@ local function createSimulationFrameHandler()
     UDPRecvSocket:setsockname(ip, port)
     UDPRecvSocket:settimeout(0.0001)
     UDPRecvSocket:setoption('reuseaddr', true)
+    log.write('DCSServerBot', log.DEBUG, 'Listening on port ' .. tostring(port) .. '/udp')
 
     return function()
         local msg, err

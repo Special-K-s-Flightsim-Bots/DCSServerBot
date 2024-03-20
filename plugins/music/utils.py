@@ -9,10 +9,6 @@ from discord import app_commands
 from eyed3.id3 import Tag
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from services import MusicService
 
 
 @lru_cache(maxsize=None)
@@ -26,7 +22,9 @@ def get_tag(file) -> Tag:
 class Playlist:
 
     def __init__(self):
-        self.service = ServiceRegistry.get("Music")
+        from services import MusicService
+
+        self.service = ServiceRegistry.get(MusicService)
         self.log = self.service.log
         self.apool = self.service.apool
         self.playlist = None
@@ -113,7 +111,7 @@ async def all_songs_autocomplete(
         return []
     try:
         ret = []
-        service: MusicService = ServiceRegistry.get("Music")
+        service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
         for song in [
             file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)
@@ -134,7 +132,7 @@ async def songs_autocomplete(
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
-        service: MusicService = ServiceRegistry.get("Music")
+        service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
         playlist = await Playlist.create(utils.get_interaction_param(interaction, 'playlist'))
         ret = []
@@ -156,7 +154,7 @@ async def radios_autocomplete(interaction: discord.Interaction, current: str) ->
             interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        service: MusicService = ServiceRegistry.get("Music")
+        service = ServiceRegistry.get(MusicService)
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x, value=x) for x in service.get_config(server)['radios'].keys()
             if not current or current.casefold() in x.casefold()

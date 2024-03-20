@@ -63,7 +63,7 @@ class ServerProxy(Server):
             "object": "Server",
             "method": "get_current_mission_theatre",
             "server_name": self.name
-        }, node=self.node.name)
+        }, node=self.node.name, timeout=120)
         return data["return"]
 
     def send_to_dcs(self, message: dict):
@@ -128,7 +128,7 @@ class ServerProxy(Server):
                 "force": force
             },
             "server_name": self.name
-        }, timeout=60, node=self.node.name)
+        }, timeout=120, node=self.node.name)
         return UploadStatus(data["return"])
 
     async def listAvailableMissions(self) -> list[str]:

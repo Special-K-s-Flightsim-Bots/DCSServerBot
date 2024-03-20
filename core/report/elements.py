@@ -96,9 +96,10 @@ class Ruler(EmbedElement):
 
 
 class Field(EmbedElement):
-    async def render(self, name: str, value: Any, inline: Optional[bool] = True):
+    async def render(self, name: str, value: Any, inline: Optional[bool] = True, default: Optional[str] = '_ _'):
+
         self.add_field(name=utils.format_string(name, '_ _', **self.env.params),
-                       value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
+                       value=utils.format_string(value, default, **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):

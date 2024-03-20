@@ -1,0 +1,127 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /missionstats
+msgid "Display Mission Statistics"
+msgstr "Zeige Missions-Statistiken an"
+
+msgid "Mission statistics not initialized yet or not active for this server."
+msgstr "Missions-Statistiken sind noch nicht initialisiert oder auf diesem Server nicht aktiviert."
+
+msgid "Data can only be displayed in a private coalition channel!"
+msgstr "Die Daten können nur in einem geschützten Koalitions-Kanal angezeigt werden."
+
+msgid "Current Situation"
+msgstr "Aktuelle Situation"
+
+msgid "Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures"
+msgstr "Flughäfen / FARPs\nFlugzeuge\nHubschrauber\nBodeneinheiten\nSchiffe\nStrukturen"
+
+msgid "Achievements"
+msgstr "Errungenschaften"
+
+
+# /sorties
+msgid "Display statistics about sorties"
+msgstr "Zeige Statistiken zu Flugbewegungen"
+
+msgid "No sorties found for this player."
+msgstr "Für diesen Spieler wurden keine Flugbewegungen gefunden."
+
+msgid "Module"
+msgstr "Modul"
+
+msgid "Sorties"
+msgstr "Flüge"
+
+msgid "Total Flighttime"
+msgstr "Absolute Flugzeit"
+
+msgid "Flighttime is the time you were airborne from takeoff to landing / leave or\n"
+"airspawn to landing / leave."
+msgstr "Flugzeit ist die absolute Zeit zwischen Start und Landung."
+
+# /modulestats
+msgid "Module statistics"
+msgstr "Modul-Statistiken"
+
+msgid "You need to chose a module!"
+msgstr "Du musst ein Modul auswählen!"
+
+msgid "Usages"
+msgstr "Einsätze"
+
+msgid "Total Playtime"
+msgstr "Absolute Spielzeit"
+
+msgid "Average Playtime"
+msgstr "Durchschn. Spielzeit"
+
+msgid "Gun"
+msgstr "Bordkanone"
+
+msgid "Category {}"
+msgstr "Kategorie {}"
+
+msgid "Weapon"
+msgstr "Waffe"
+
+msgid "Hits/Shot"
+msgstr "Treffer/Schuss"
+
+msgid "Kills/Shot"
+msgstr "Abschüsse/Schuss"
+
+# /refuellings
+msgid "Refueling statistics"
+msgstr "Luftbetankungs-Statistiken"
+
+msgid "Refuelings"
+msgstr "Luftbetankungen"
+
+msgid "No refuelings found for this user."
+msgstr "Keine Luftbetankungen für diesen User gefunden."
+
+# /nemesis
+msgid "Find who killed you most"
+msgstr "Wer tötete mich am häufigsten?"
+
+# /antagonist
+msgid "Find who you've killed the most"
+msgstr "Wen habe ich am häufigsten getötet?"
+
+# Listener
+msgid "Airplanes"
+msgstr "Flugzeuge"
+
+msgid "Helicopters"
+msgstr "Hubschrauber"
+
+msgid "Ground Units"
+msgstr "Bodeneinheiten"
+
+msgid "Ships"
+msgstr "Schiffe"
+
+msgid "Structures"
+msgstr "Strukturen"
+
+msgid "Unknown"
+msgstr "Unbekannt"
+
+msgid "BLUE coalition has captured {}."
+msgstr "Die BLAUE Koalition hat {} erobert."
+
+msgid "BLUE coalition has captured {} from RED coalition."
+msgstr "Die BLAUE Koalition hat {} von ROT erobert."
+
+msgid "RED coalition has captured {}."
+msgstr "Die ROTE Koalition hat {} erobert."
+
+msgid "RED coalition has captured {} from BLUE coalition."
+msgstr "Die ROTE Koalition hat {} von BLAU erobert."

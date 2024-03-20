@@ -12,9 +12,9 @@ class Mission(VotableItem):
         super().__init__('mission', server, config, params)
 
     def print(self) -> str:
-        return (f"You can now vote to change the mission of this server.\n"
-                f"If you vote for the current mission, the mission will be restarted!\n"
-                f"If you do not want any change, vote for \"No Change\".")
+        return ("You can now vote to change the mission of this server.\n"
+                "If you vote for the current mission, the mission will be restarted!\n"
+                "If you do not want any change, vote for \"No Change\".")
 
     def get_choices(self) -> list[str]:
         return ['No Change'] + self.config.get('choices', [

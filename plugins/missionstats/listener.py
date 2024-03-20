@@ -1,5 +1,10 @@
-from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report
+import asyncio
+
+from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report, \
+    get_translation
 from discord.ext import tasks
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -13,22 +18,22 @@ class MissionStatisticsEventListener(EventListener):
 
     UNIT_CATEGORY = {
         None: None,
-        0: 'Airplanes',
-        1: 'Helicopters',
-        2: 'Ground Units',
-        3: 'Ships',
-        4: 'Structures',
-        5: 'Unknown'
+        0: _('Airplanes'),
+        1: _('Helicopters'),
+        2: _('Ground Units'),
+        3: _('Ships'),
+        4: _('Structures'),
+        5: _('Unknown')
     }
 
     EVENT_TEXTS = {
         Coalition.BLUE: {
-            'capture': '```ansi\n\u001b[0;34mBLUE coalition has captured {}.```',
-            'capture_from': '```ansi\n\u001b[0;34mBLUE coalition has captured {} from RED coalition.```'
+            'capture': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {}.')),
+            'capture_from': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {} from RED coalition.'))
         },
         Coalition.RED: {
-            'capture': '```ansi\n\u001b[0;31mRED coalition has captured {}.```',
-            'capture_from': '```ansi\n\u001b[0;31mRED coalition has captured {} from BLUE coalition.```'
+            'capture': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {}.')),
+            'capture_from': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {} from BLUE coalition.'))
         }
     }
 
@@ -59,7 +64,7 @@ class MissionStatisticsEventListener(EventListener):
             self._toggle_mission_stats(server)
 
     @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, data: dict) -> None:
+    async def onSimulationStart(self, server: Server, _: dict) -> None:
         self._toggle_mission_stats(server)
 
     async def _update_database(self, server: Server, config: dict, data: dict):
@@ -110,7 +115,8 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config.get('persistence', True):
-            await self._update_database(server, config, data)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._update_database(server, config, data))
         if not data['server_name'] in self.bot.mission_stats or not data.get('initiator'):
             return
         stats = self.bot.mission_stats[data['server_name']]
@@ -198,7 +204,8 @@ class MissionStatisticsEventListener(EventListener):
             update = True
             events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
             if events_channel:
-                await events_channel.send(message)
+                # noinspection PyAsyncCall
+                asyncio.create_task(events_channel.send(message))
         if update:
             self.update[server.name] = True
 
@@ -215,14 +222,16 @@ class MissionStatisticsEventListener(EventListener):
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed_me', server=server,
                                               channel_id=int(config['mission_end'].get('channel')))
-                    await report.render(stats=stats, mission_id=server.mission_id,
-                                        sides=[Coalition.BLUE, Coalition.RED], title=title)
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(report.render(stats=stats, mission_id=server.mission_id,
+                                                      sides=[Coalition.BLUE, Coalition.RED], title=title))
                 else:
                     channel = self.bot.get_channel(config['mission_end'].get('channel'))
                     report = Report(self.bot, self.plugin_name, 'missionstats.json')
                     env = await report.render(stats=stats, mission_id=server.mission_id,
                                               sides=[Coalition.BLUE, Coalition.RED], title=title)
-                    await channel.send(embed=env.embed)
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(channel.send(embed=env.embed))
 
     @tasks.loop(seconds=5)
     async def do_update(self):
@@ -236,6 +245,8 @@ class MissionStatisticsEventListener(EventListener):
                     if 'coalitions' in stats:
                         report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                                   embed_name='stats_embed', server=server)
-                        await report.render(stats=stats, mission_id=server.mission_id,
-                                            sides=[Coalition.BLUE, Coalition.RED], title='Mission Statistics')
+                        # noinspection PyAsyncCall
+                        asyncio.create_task(report.render(
+                            stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED],
+                            title='Mission Statistics'))
             self.update[server_name] = False

@@ -20,6 +20,7 @@
       "params": {
         "name": "Description",
         "value": "{campaign[description]}",
+        "default": "n/a",
         "inline": false
       }
     },
@@ -27,7 +28,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT server_name AS \"Server Name\" FROM campaigns_servers WHERE campaign_id = {campaign[id]}",
+        "sql": "SELECT '- ' || server_name AS \"Campaign Servers\" FROM campaigns_servers WHERE campaign_id = {campaign[id]}",
         "inline": false
       }
     }

@@ -1,15 +1,21 @@
-from core import const, report, Status, Server, utils, ServiceRegistry
+from core import const, report, Status, Server, utils, ServiceRegistry, Plugin
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-
+from services import BotService
+from typing import Optional, cast
 
 STATUS_IMG = {
-    Status.LOADING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/loading_256.png?raw=true',
-    Status.PAUSED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/pause_256.png?raw=true',
-    Status.RUNNING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/play_256.png?raw=true',
-    Status.STOPPED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
-    Status.SHUTDOWN: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
-    Status.UNREGISTERED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
+    Status.LOADING:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/loading_256.png?raw=true',
+    Status.PAUSED:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/pause_256.png?raw=true',
+    Status.RUNNING:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/play_256.png?raw=true',
+    Status.STOPPED:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+    Status.SHUTDOWN:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+    Status.UNREGISTERED:
+        'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
 }
 
 
@@ -29,20 +35,27 @@ class Init(report.EmbedElement):
 class ServerInfo(report.EmbedElement):
 
     async def render(self, server: Server, show_password: Optional[bool] = True):
-        self.add_field(name='Map', value=server.current_mission.map if server.current_mission else 'n/a')
+        name = value = ""
         if server.node.public_ip:
-            self.add_field(name='Server-IP / Port',
-                           value=server.node.public_ip + ':' + str(server.settings['port']))
-        if server.settings['password']:
-            if show_password:
-                self.add_field(name='Password', value=server.settings['password'])
+            name = "Server-IP / Port"
+            value = f"{server.node.public_ip}:{server.settings['port']}"
+        if server.settings['password'] and show_password:
+            if value:
+                value += '\n\n**Password**\n'
             else:
-                self.add_field(name='Password', value='********')
-        else:
-            self.add_field(name='Password', value='_ _')
+                name = "Password"
+            value += f"{server.settings['password']}"
+        self.add_field(name=name, value=value)
         if server.current_mission:
+            value = server.current_mission.map if server.current_mission else 'n/a'
+            if not server.locals.get('coalitions'):
+                value += (f"\n\n**Avail. Slots**\n"
+                          f"🔹 {server.current_mission.num_slots_blue}  |  {server.current_mission.num_slots_red} 🔸")
+            else:
+                value += "\n\n**Coalitions**\nYes"
+            self.add_field(name='Map', value=value)
+
             uptime = int(server.current_mission.mission_time)
-            self.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
             if isinstance(server.current_mission.date, datetime):
                 date = server.current_mission.date.timestamp()
                 real_time = date + server.current_mission.start_time + uptime
@@ -50,20 +63,15 @@ class ServerInfo(report.EmbedElement):
             else:
                 value = '{} {}'.format(server.current_mission.date,
                                        timedelta(seconds=server.current_mission.start_time + uptime))
+
+            value += f"\n\n**Runtime**\n{timedelta(seconds=uptime)}"
             self.add_field(name='Date/Time in Mission', value=value)
-            if not server.locals.get('coalitions'):
-                self.add_field(name='Avail. Slots',
-                               value=f'🔹 {server.current_mission.num_slots_blue}  |  '
-                                     f'{server.current_mission.num_slots_red} 🔸')
-            else:
-                self.add_field(name='Coalitions', value='Yes')
         if server.maintenance:
             footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
         else:
             footer = ''
         if server.dcs_version:
-            footer += (f'\nServer is running:\n- DCSServerBot {self.node.bot_version}.{self.node.sub_version}, '
-                       f'DCS {server.dcs_version}')
+            footer += f'DCS {server.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
         self.embed.set_footer(text=footer)
 
 
@@ -73,39 +81,39 @@ class WeatherInfo(report.EmbedElement):
         if server.current_mission and server.current_mission.weather:
             await report.Ruler(self.env).render()
             weather = server.current_mission.weather
-            self.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
-            self.add_field(name='QNH (QFF)', value='{:.2f} inHg\n'.format(weather['qnh'] * const.MMHG_IN_INHG) +
-                                                   '{} hPa\n'.format(int(weather['qnh'] * const.MMHG_IN_HPA)))
-            if server.current_mission.clouds and 'preset' in server.current_mission.clouds:
-                self.add_field(name='Clouds', value=server.current_mission.clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n'))
-            else:
-                self.add_field(name='Weather', value='Dynamic')
-            self.add_field(name='Wind',
-                           value='\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts'.format(
-                                int(weather['wind']['atGround']['dir'] + 180) % 360,
-                                int(weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5),
-                                int(weather['wind']['at2000']['dir'] + 180) % 360,
-                                int(weather['wind']['at2000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5),
-                                int(weather['wind']['at8000']['dir'] + 180) % 360,
-                                int(weather['wind']['at8000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5)))
-            if server.current_mission.clouds:
-                clouds = server.current_mission.clouds
+            value = f"{weather['season']['temperature']:.1f} °C"
+            value += "\n\n**QNH (QFF)**\n{:.2f} inHg\n{} hPa".format(
+                weather['qnh'] * const.MMHG_IN_INHG, int(weather['qnh'] * const.MMHG_IN_HPA))
+            self.add_field(name='Temperature', value=value)
+            clouds = server.current_mission.clouds
+            if clouds:
                 if 'preset' in clouds:
-                    self.add_field(name='Cloudbase',
-                                   value=f'{int(clouds["base"] * const.METER_IN_FEET + 0.5):,} ft')
+                    value = clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n')
+                    value += f"\n\n**Cloudbase**\n{int(clouds['base'] * const.METER_IN_FEET + 0.5):,} ft"
                 else:
-                    self.add_field(name='Clouds',
-                                   value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
-                                        int(clouds['base'] * const.METER_IN_FEET + 0.5),
-                                        clouds['density'],
-                                        int(clouds['thickness'] * const.METER_IN_FEET + 0.5)))
+                    value = "Dynamic"
+                    value += ("\n\n**Cloudbase**\n"
+                              "Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft"
+                              ).format(int(clouds['base'] * const.METER_IN_FEET + 0.5),
+                                       clouds['density'],
+                                       int(clouds['thickness'] * const.METER_IN_FEET + 0.5))
+                self.add_field(name='Clouds', value=value)
             else:
-                self.add_field(name='Clouds', value='n/a')
+                self.add_field(name='Weather', value='Dynamic\n**Clouds**\nn/a')
+
             visibility = weather['visibility']['distance']
             if weather['enable_fog'] is True:
                 visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
-            self.add_field(name='Visibility',
-                           value='{:,} ft'.format(int(visibility)) if visibility < 30000 else '10 km (+)')
+            value = "{:,} ft".format(int(visibility)) if visibility < 30000 else "10 km (+)"
+            value += ("\n\n**Wind**\n"
+                      "\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts").format(
+                int(weather['wind']['atGround']['dir'] + 180) % 360,
+                int(weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                int(weather['wind']['at2000']['dir'] + 180) % 360,
+                int(weather['wind']['at2000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                int(weather['wind']['at8000']['dir'] + 180) % 360,
+                int(weather['wind']['at8000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5))
+            self.add_field(name='Visibility', value=value)
 
 
 class ExtensionsInfo(report.EmbedElement):
@@ -119,17 +127,15 @@ class ExtensionsInfo(report.EmbedElement):
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
-            footer += ', ' + ext['name']
-            if ext.get('version'):
-                footer += ' v' + ext['version']
+        footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if 'version' in ext])
         self.embed.set_footer(text=footer)
 
 
 class ScheduleInfo(report.EmbedElement):
 
     async def render(self, server: Server):
-        bot = ServiceRegistry.get("Bot").bot
-        scheduler = bot.cogs.get('Scheduler')
+        bot = ServiceRegistry.get(BotService).bot
+        scheduler: Plugin = cast(Plugin, bot.cogs.get('Scheduler'))
         if scheduler:
             config = scheduler.get_config(server)
             if 'schedule' in config:
@@ -154,11 +160,13 @@ class ScheduleInfo(report.EmbedElement):
 
 class Footer(report.EmbedElement):
     async def render(self, server: Server):
+        await report.Ruler(self.env).render()
         text = self.embed.footer.text or ''
         for listener in self.bot.eventListeners:
+            # noinspection PyUnresolvedReferences
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server.name in listener.statistics):
-                text += '\n- User statistics are enabled for this server.'
+                text += '\n\nUser statistics are enabled for this server.'
                 break
         text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
         self.embed.set_footer(text=text)

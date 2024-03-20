@@ -25,13 +25,29 @@ you like. The common usecase for people is to use it to change the weather on a 
 
 As MizEdit is a very powerful solution, I decided to donate it a separate doc page, which you can reach [here](./MizEdit.md).
 
+### OvGME
+This little extension checks, if you have any requiredModules in your miz file and shows them in the server status
+embed in Discord. Nice addition for your users, if you show them what to install to fly on your server.
+
+The configuration is as simple as it sounds:
+```yaml
+MyNode:
+  # [...]
+  instances:
+    DCS.server:
+      # [...]
+      extensions:
+        OvGME:
+          enabled: true
+```
+
 ### DCS Voice Chat
 If you want to use the built-in Voice Chat system of DCS, you can use the VoiceChat extension.
 ```yaml
 MyNode:
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         VoiceChat:
@@ -56,11 +72,11 @@ MyNode:
       autoupdate: true
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         SRS:
-          config: '%USERPROFILE%\Saved Games\DCS.openbeta_server\Config\SRS.cfg'
+          config: '%USERPROFILE%\Saved Games\DCS.server\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
           minimized: true     # start SRS minimized (default: true)
@@ -100,13 +116,13 @@ MyNode:
       tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         Tacview:
           show_passwords: false  # hide passwords in your server status embed (default: true)
           host: 127.0.0.1        # Tacview host (default)
-          log: "%USERPROFILE%\\Saved Games\\DCS.openbeta_server\\Logs\tacview.log"
+          log: "%USERPROFILE%\\Saved Games\\DCS.server\\Logs\tacview.log"
           tacviewRealTimeTelemetryPort: 42674  # default
           tacviewRealTimeTelemetryPassword: '' # default
           tacviewRemoteControlPort: 42675      # default
@@ -136,7 +152,7 @@ status embed about ports and - if you like - passwords and the version of LotAtc
 MyNode:
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         LotAtc:
@@ -157,7 +173,7 @@ extension like with all others:
 MyNode:
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         DSMC:
@@ -190,7 +206,7 @@ MyNode:
       url: https://myfancyhost.com  # optional: show a different host instead of the servers external IP
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         Sneaker:
@@ -213,7 +229,7 @@ MyNode:
       installation: '%USERPROFILE%\Documents\realweather_v1.9.0-rc2'
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         RealWeather:
@@ -238,7 +254,11 @@ MyNode:
             dust-allowed: true
 ```
 You can find a list of supported parameters in the config.json provided by DCS-real-weather.<br>
-**DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.**
+> ⚠️ **Attention!**<br>
+> DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.
+> 
+> If you want to set a custom ICAO code (URMM in this case) per mission, you can name your mission like so:<br>
+> `MyFancyMission_ICAO_URMM_whatsoever.miz`
 
 ### Lardoon
 [Lardoon](https://github.com/b1naryth1ef/lardoon) is another web-server-based application that provides a nice search 
@@ -257,7 +277,7 @@ MyNode:
       url: https://myfancyhost.com  # Alternate hostname to be displayed in your status embed 
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         Lardoon:
@@ -296,7 +316,7 @@ MyNode:
       nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         Olympus:
@@ -309,7 +329,7 @@ MyNode:
             blueCommanderPassword: blue   # Blue Tactical Commander password
             redCommanderPassword: red     # Red Tactical Commander password
           frontend:
-            path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend
+            path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend. This is only needed if you are using the official installer. OVGME users don't need this.
             port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
     instance2:
       # [...]
@@ -347,7 +367,7 @@ MyNode:
       nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         Olympus:
@@ -382,7 +402,7 @@ extension:
 MyNode:
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         gRPC:
@@ -444,7 +464,7 @@ MyNode:
       param2: bb
   # [...]
   instances:
-    DCS.openbeta_server:
+    DCS.server:
       # [...]
       extensions:
         mymodule.MyExtension:

@@ -47,7 +47,7 @@ persistent embed. In addition, you can see how to configure the Moose.AIRBOSS in
 
 ## motd.json
 This sample contains a default section, that is being used for every server, if nothing else is provided and a specific
-section for server "DCS.openbeta_server", that is overwriting the default.
+section for server "DCS.server", that is overwriting the default.
 
 ## music.json
 Sample configuration which defines a Music upload directory "Music" in your Saved Games\<instance>\ folders. Besides 
@@ -59,7 +59,7 @@ possible ways, by either providing a strict version (2.0.1) or by using the term
 version that is provided in one of the installation directories.
 
 ## punishment.json
-Again, this sample shows a default setting and two servers. "DCS.openbeta_server" and "instance2", that don't punish
+Again, this sample shows a default setting and two servers. "DCS.server" and "instance2", that don't punish
 people that are Discord members (@everyone). This might be useful, if you are running public servers but don't want
 your Discord members to be banned, kicked or whatnot.
 
@@ -72,7 +72,7 @@ Contains the "warn schedule", meaning at which amount of seconds before a restar
 get warned. And a list of weather presets, that can be applied to your missions. Both are optional and need only to be
 in your configuration, if you want to warn users or if you want to change the weather on demand.
 
-### DCS.openbeta_server
+### DCS.server
 This sample shows the configuration for the first server. It will run 24/7 but only on threads 2 and 3 (aka core 1).
 
 ### mission
@@ -96,7 +96,7 @@ Another powerful plugin is the Slotblocking. The sample shows a default configur
 In our case, we restrict the Combined Arms slots to people that are members of your Discord and that carry the Donators
 role.
 
-The example for "DCS.openbeta_server" shows the point-based slotblocking system. People can earn points when killing 
+The example for "DCS.server" shows the point-based slotblocking system. People can earn points when killing 
 specific targets (see list). On the other hand, slots can be blocked until a specific amount of points has been reached
 by that user ("points"). The "costs" determine, what happens to the users points when he uses this plane.
 There is deposit-like system included, that reserves points when you use a plane and returns them to the user, whenever 

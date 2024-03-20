@@ -29,11 +29,11 @@ To enable SRS, support, you need to add the following parts to your [scheduler.j
       [...]
     },
     {
-      "installation": "DCS.openbeta_server",
+      "installation": "DCS.server",
       [...]
       "extensions": {
         "SRS": {
-          "config": "%USERPROFILE%\\Saved Games\\DCS.openbeta_server\\Config\\SRS.cfg",
+          "config": "%USERPROFILE%\\Saved Games\\DCS.server\\Config\\SRS.cfg",
           "host": "myfancyhost.com",    -- Optional, default is your external IP
           "port": 5004,                 -- Optional, default is what's written in server.cfg already,
           "awacs": true,                -- enable AWACS mode

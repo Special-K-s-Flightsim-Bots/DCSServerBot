@@ -11,7 +11,7 @@ from .filter import StatisticsFilter
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM ' \
               'statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               's.hop_off IS NOT NULL AND s.mission_id = m.id '
@@ -22,8 +22,8 @@ class PlaytimesPerPlane(report.GraphElement):
         if server_name:
             self.env.embed.description = utils.escape_string(server_name)
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY s.slot ORDER BY 2'
 
         async with self.apool.connection() as conn:
@@ -34,23 +34,24 @@ class PlaytimesPerPlane(report.GraphElement):
                 async for row in cursor:
                     labels.insert(0, row['slot'])
                     values.insert(0, float(row['playtime']) / 3600.0)
-                self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
-                for label in self.axes.get_xticklabels():
-                    label.set_rotation(30)
-                    label.set_ha('right')
-                self.axes.set_title('Airframe Hours per Aircraft', color='white', fontsize=25)
-                self.axes.set_yticks([])
-                for i in range(0, len(values)):
-                    self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
-                        labels[i], values[i]), ha='center', va='bottom', weight='bold')
-                if cursor.rowcount == 0:
-                    self.axes.set_xticks([])
-                    self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+
+        self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
+        for label in self.axes.get_xticklabels():
+            label.set_rotation(30)
+            label.set_ha('right')
+        self.axes.set_title('Airframe Hours per Aircraft', color='white', fontsize=25)
+        self.axes.set_yticks([])
+        for i in range(0, len(values)):
+            self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
+                labels[i], values[i]), ha='center', va='bottom', weight='bold')
+        if cursor.rowcount == 0:
+            self.axes.set_xticks([])
+            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
 
 class PlaytimesPerServer(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = f"SELECT regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g') AS " \
               f"server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, " \
               f"players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND " \
@@ -61,7 +62,7 @@ class PlaytimesPerServer(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY 1'
 
         labels = []
@@ -89,7 +90,7 @@ class PlaytimesPerServer(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
               'playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               'm.id = s.mission_id AND s.hop_off IS NOT NULL '
@@ -99,7 +100,7 @@ class PlaytimesPerMap(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY m.mission_theatre'
 
         labels = []
@@ -110,6 +111,7 @@ class PlaytimesPerMap(report.GraphElement):
                 async for row in cursor:
                     labels.insert(0, row['mission_theatre'])
                     values.insert(0, float(row['playtime']))
+
         if values:
             def func(pct, allvals):
                 absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -126,7 +128,7 @@ class PlaytimesPerMap(report.GraphElement):
 
 class RecentActivities(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = """
             SELECT TO_CHAR(s.hop_on, 'MM/DD') as day, 
                    ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))) AS playtime 
@@ -140,7 +142,7 @@ class RecentActivities(report.GraphElement):
             sql += ' AND p.ucid = %s'
         if server_name:
             sql += " AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY day'
 
         labels = []
@@ -152,21 +154,21 @@ class RecentActivities(report.GraphElement):
                     labels.append(row['day'])
                     values.append(float(row['playtime']) / 3600.0)
 
-                self.axes.set_title('Recent Activities', color='white', fontsize=25)
-                self.axes.set_yticks([])
-                self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
-                if values:
-                    for i in range(0, len(values)):
-                        self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
-                            labels[i], values[i]), ha='center', va='bottom', weight='bold')
-                else:
-                    self.axes.set_xticks([])
-                    self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+        self.axes.set_title('Recent Activities', color='white', fontsize=25)
+        self.axes.set_yticks([])
+        self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
+        if values:
+            for i in range(0, len(values)):
+                self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
+                    labels[i], values[i]), ha='center', va='bottom', weight='bold')
+        else:
+            self.axes.set_xticks([])
+            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
 
 class FlightPerformance(report.GraphElement):
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = 'SELECT SUM(ejections) as "Ejections", SUM(crashes-ejections) as "Crashes\n(Pilot dead)", ' \
               'SUM(landings) as "Landings" FROM statistics s, ' \
               'players p, missions m WHERE s.player_ucid = p.ucid ' \
@@ -177,38 +179,37 @@ class FlightPerformance(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
-                    def func(pct, allvals):
-                        absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return f'{absolute}'
-
                     labels = []
                     values = []
                     for name, value in dict(await cursor.fetchone()).items():
                         if value and int(value) > 0:
                             labels.append(name)
                             values.append(value)
-                    if len(values) > 0:
-                        patches, texts, pcts = \
-                            self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
-                                          wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
-                        plt.setp(pcts, color='black', fontweight='bold')
-                        self.axes.set_title('Flying', color='white', fontsize=25)
-                        self.axes.axis('equal')
-                    else:
-                        self.axes.set_visible(False)
-                else:
-                    self.axes.set_visible(False)
+
+        def func(pct, allvals):
+            absolute = int(round(pct / 100. * np.sum(allvals)))
+            return f'{absolute}'
+
+        if len(values) > 0:
+            patches, texts, pcts = \
+                self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                              wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+            plt.setp(pcts, color='black', fontweight='bold')
+            self.axes.set_title('Flying', color='white', fontsize=25)
+            self.axes.axis('equal')
+        else:
+            self.axes.set_visible(False)
 
 
 class KDRatio(report.MultiGraphElement):
 
-    async def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+    async def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str,
                                     flt: StatisticsFilter):
         sql = """
             SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", 
@@ -227,7 +228,7 @@ class KDRatio(report.MultiGraphElement):
             sql += ' AND p.ucid = %s '
         if server_name:
             sql += " AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         retval = []
         async with self.apool.connection() as conn:
@@ -248,31 +249,30 @@ class KDRatio(report.MultiGraphElement):
                             values.append(value)
                             retval.append(name)
                             explode.append(0.02)
-                    if len(values) > 0:
-                        angle1 = -180 * (result['AI Kills'] + result['Player Kills']) / np.sum(values)
-                        angle2 = 180 - 180 * (result['Deaths by AI'] + result['Deaths by Player']) / np.sum(values)
-                        if angle1 == 0:
-                            angle = angle2
-                        elif angle2 == 180:
-                            angle = angle1
-                        else:
-                            angle = angle1 + (angle2 + angle1) / 2
 
-                        patches, texts, pcts = ax.pie(values, labels=labels, startangle=angle, explode=explode,
-                                                      autopct=lambda pct: func(pct, values),
-                                                      colors=['lightgreen', 'darkorange', 'lightblue'],
-                                                      wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'},
-                                                      normalize=True)
-                        plt.setp(pcts, color='black', fontweight='bold')
-                        ax.set_title('Kill/Death-Ratio', color='white', fontsize=25)
-                        ax.axis('equal')
-                    else:
-                        ax.set_visible(False)
-                else:
-                    ax.set_visible(False)
+        if len(values) > 0:
+            angle1 = -180 * (result['AI Kills'] + result['Player Kills']) / np.sum(values)
+            angle2 = 180 - 180 * (result['Deaths by AI'] + result['Deaths by Player']) / np.sum(values)
+            if angle1 == 0:
+                angle = angle2
+            elif angle2 == 180:
+                angle = angle1
+            else:
+                angle = angle1 + (angle2 + angle1) / 2
+
+            patches, texts, pcts = ax.pie(values, labels=labels, startangle=angle, explode=explode,
+                                          autopct=lambda pct: func(pct, values),
+                                          colors=['lightgreen', 'darkorange', 'lightblue'],
+                                          wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'},
+                                          normalize=True)
+            plt.setp(pcts, color='black', fontweight='bold')
+            ax.set_title('Kill/Death-Ratio', color='white', fontsize=25)
+            ax.axis('equal')
+        else:
+            ax.set_visible(False)
         return retval
 
-    async def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+    async def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str,
                               flt: StatisticsFilter) -> bool:
         sql = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, ' \
               'COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(' \
@@ -284,7 +284,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         retval = False
         async with self.apool.connection() as conn:
@@ -297,31 +297,32 @@ class KDRatio(report.MultiGraphElement):
                     for name, value in dict(await cursor.fetchone()).items():
                         labels.append(name.replace('_', ' ').title())
                         values.append(value)
-                    xpos = 0
-                    bottom = 0
-                    width = 0.2
-                    # there is something to be drawn
-                    _sum = np.sum(values)
-                    if _sum > 0:
-                        for i in range(len(values)):
-                            height = values[i] / _sum
-                            ax.bar(xpos, height, width, bottom=bottom)
-                            ypos = bottom + ax.patches[i].get_height() / 2
-                            bottom += height
-                            if int(values[i]) > 0:
-                                ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
-                        ax.set_title('Killed by\nPlayer', color='white', fontsize=15)
-                        ax.axis('off')
-                        ax.set_xlim(- 2.5 * width, 2.5 * width)
-                        ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
-                                  bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
-                        # Chart was drawn, return True
-                        retval = True
+        xpos = 0
+        bottom = 0
+        width = 0.2
+        # there is something to be drawn
+        _sum = np.sum(values)
+        if _sum > 0:
+            for i in range(len(values)):
+                height = values[i] / _sum
+                ax.bar(xpos, height, width, bottom=bottom)
+                ypos = bottom + ax.patches[i].get_height() / 2
+                bottom += height
+                if int(values[i]) > 0:
+                    ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
+
+            ax.set_title('Killed by\nPlayer', color='white', fontsize=15)
+            ax.axis('off')
+            ax.set_xlim(- 2.5 * width, 2.5 * width)
+            ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
+                      bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
+            # Chart was drawn, return True
+            retval = True
         return retval
 
     async def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str,
-                               period: str, flt: StatisticsFilter) -> bool:
+                               flt: StatisticsFilter) -> bool:
         sql = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
               'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, players p, ' \
               'missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
@@ -331,7 +332,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += ' AND ' + flt.filter(self.env.bot)
 
         retval = False
         async with self.apool.connection() as conn:
@@ -345,35 +346,36 @@ class KDRatio(report.MultiGraphElement):
                     for name, value in dict(result).items():
                         labels.append(name.replace('_', ' ').title())
                         values.append(value)
-                    xpos = 0
-                    bottom = 0
-                    width = 0.2
-                    # there is something to be drawn
-                    _sum = np.sum(values)
-                    if _sum > 0:
-                        for i in range(len(values)):
-                            height = values[i] / _sum
-                            ax.bar(xpos, height, width, bottom=bottom)
-                            ypos = bottom + ax.patches[i].get_height() / 2
-                            bottom += height
-                            if int(values[i]) > 0:
-                                ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
-                        ax.set_title('Player\nkilled by', color='white', fontsize=15)
-                        ax.axis('off')
-                        ax.set_xlim(- 2.5 * width, 2.5 * width)
-                        if legend is True:
-                            ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
-                                      bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
-                        # Chart was drawn, return True
-                        retval = True
+        xpos = 0
+        bottom = 0
+        width = 0.2
+        # there is something to be drawn
+        _sum = np.sum(values)
+        if _sum > 0:
+            for i in range(len(values)):
+                height = values[i] / _sum
+                ax.bar(xpos, height, width, bottom=bottom)
+                ypos = bottom + ax.patches[i].get_height() / 2
+                bottom += height
+                if int(values[i]) > 0:
+                    ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
+
+            ax.set_title('Player\nkilled by', color='white', fontsize=15)
+            ax.axis('off')
+            ax.set_xlim(- 2.5 * width, 2.5 * width)
+            if legend is True:
+                ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
+                          bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
+            # Chart was drawn, return True
+            retval = True
         return retval
 
-    async def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
-        retval = await self.draw_kill_performance(self.axes[1], member, server_name, period, flt)
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
+        retval = await self.draw_kill_performance(self.axes[1], member, server_name, flt)
         i = 0
         if (('AI Kills' in retval or 'Player Kills' in retval) and
-                ((await self.draw_kill_types(self.axes[2], member, server_name, period, flt)) is True)):
+                ((await self.draw_kill_types(self.axes[2], member, server_name, flt)) is True)):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1
@@ -406,7 +408,7 @@ class KDRatio(report.MultiGraphElement):
         else:
             self.axes[2].set_visible(False)
         if (('Deaths by AI' in retval or 'Deaths by Player' in retval) and
-                ((await self.draw_death_types(self.axes[0], (i == 0), member, server_name, period, flt)) is True)):
+                ((await self.draw_death_types(self.axes[0], (i == 0), member, server_name, flt)) is True)):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1

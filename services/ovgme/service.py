@@ -5,18 +5,17 @@ import re
 import shutil
 import zipfile
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
-from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils
+from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy
 from filecmp import cmp
 from packaging import version
 from pathlib import Path
 from psycopg.rows import dict_row
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 from urllib.parse import urlparse
 
-if TYPE_CHECKING:
-    from services import ServiceBus
+from ..servicebus import ServiceBus
 
 __all__ = [
     "OvGMEService"
@@ -29,14 +28,14 @@ else:
     ENCODING = 'utf-8'
 
 
-@ServiceRegistry.register("OvGME", plugin='ovgme')
+@ServiceRegistry.register(plugin='ovgme')
 class OvGMEService(Service):
 
-    def __init__(self, node, name: str):
-        super().__init__(node, name)
+    def __init__(self, node):
+        super().__init__(node=node, name="OvGME")
         if not os.path.exists('config/services/ovgme.yaml'):
             raise ServiceInstallationError(service='OvGME', reason="config/services/ovgme.yaml missing!")
-        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus = ServiceRegistry.get(ServiceBus)
         self._config: dict[str, dict] = {}
 
     async def start(self):
@@ -191,7 +190,7 @@ class OvGMEService(Service):
         url = f'{repo}/releases/download/v{version}/{package_name}_v{version}.zip'
         try:
             await self.download(url, folder, force)
-        except Exception as ex:
+        except ClientResponseError:
             url = f'{repo}/releases/download/v{version}/{package_name}_{version}.zip'
             await self.download(url, folder, force)
 
@@ -260,7 +259,8 @@ class OvGMEService(Service):
             await log.writelines(log_entries)
         return True
 
-    def is_ovgme(self, zfile: zipfile.ZipFile, package_name: str) -> bool:
+    @staticmethod
+    def is_ovgme(zfile: zipfile.ZipFile, package_name: str) -> bool:
         for zip_path in zfile.namelist():
             parts = zip_path.split('/')
             if (len(parts) >= 2 and package_name in parts[0] and
@@ -343,22 +343,9 @@ class OvGMEService(Service):
         self.log.info(f"- Package {package_name}_v{version} successfully installed in server {server.name}.")
         return True
 
+    @proxy
     async def install_package(self, server: Server, folder: str, package_name: str, version: str,
                               repo: Optional[str] = None) -> bool:
-        if server.is_remote:
-            return await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": "OvGME",
-                "method": "install_package",
-                "params": {
-                    "server": server.name,
-                    "folder": folder,
-                    "package_name": package_name,
-                    "version": version,
-                    "repo": repo
-                }
-            }, node=server.node.name)
-
         self.log.info(f"Installing package {package_name}_v{version} ...")
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
@@ -402,20 +389,8 @@ class OvGMEService(Service):
         self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True
 
+    @proxy
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
-        if server.is_remote:
-            return await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": "OvGME",
-                "method": "uninstall_package",
-                "params": {
-                    "server": server.name,
-                    "folder": folder,
-                    "package_name": package_name,
-                    "version": version
-                }
-            }, node=server.node.name)
-
         self.log.info(f"Uninstalling package {package_name}_v{version} ...")
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])

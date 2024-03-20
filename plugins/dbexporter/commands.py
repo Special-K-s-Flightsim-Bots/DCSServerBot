@@ -3,12 +3,14 @@ import json
 import os
 import psycopg
 
-from core import Plugin, TEventListener, utils, command
+from core import Plugin, TEventListener, utils, command, get_translation
 from discord import app_commands
 from discord.ext import tasks
 from os import path
 from services import DCSServerBot
 from typing import Type
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class DBExporter(Plugin):
@@ -39,15 +41,16 @@ class DBExporter(Plugin):
                     with open(f'export/{table}.json', mode='w', encoding='utf-8') as file:
                         file.writelines([json.dumps(x[0]) + '\n' async for x in cursor])
 
-    @command(description='Exports database tables as json.')
+    @command(description=_('Exports database tables as json.'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def export(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         await self.do_export([])
         await interaction.delete_original_response()
-        await interaction.followup.send('Database dumped to ./export', ephemeral=ephemeral)
+        await interaction.followup.send(_('Database dumped to ./export'), ephemeral=ephemeral)
 
     @tasks.loop(hours=1.0)
     async def schedule(self):

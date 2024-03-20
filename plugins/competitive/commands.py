@@ -1,7 +1,7 @@
 import discord
 import psycopg
 
-from core import Plugin, command, utils
+from core import Plugin, command, utils, get_translation
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
@@ -10,6 +10,8 @@ from trueskill import Rating
 from typing import Optional, Union
 
 from .listener import CompetitiveListener
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class Competitive(Plugin):
@@ -65,7 +67,7 @@ class Competitive(Plugin):
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
-    @command(description='Display your TrueSkill:tm: rating')
+    @command(description=_('Display your TrueSkill:tm: rating'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def trueskill(self, interaction: discord.Interaction,
@@ -79,7 +81,8 @@ class Competitive(Plugin):
         else:
             ucid = user
         if not ucid:
-            await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Use `/linkme` to link your account."), ephemeral=True)
             return
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -89,12 +92,14 @@ class Competitive(Plugin):
                     WHERE p.ucid = %s
                 """, (ucid, ))
                 row = await cursor.fetchone()
-                r = rating.create_rating()
-                skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
-                skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
-                await interaction.response.send_message(
-                    f"TrueSkill:tm: rating of player {row['name']}: {skill_mu - 3.0 * skill_sigma:.2f}.",
-                    ephemeral=True)
+        r = rating.create_rating()
+        skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
+        skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(
+            _("TrueSkill:tm: rating of player {name}: {rating:.2f}.").format(name=row['name'],
+                                                                             rating=skill_mu - 3.0 * skill_sigma),
+            ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

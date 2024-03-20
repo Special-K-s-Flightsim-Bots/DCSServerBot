@@ -143,5 +143,4 @@ if __name__ == '__main__':
     except ImportError:
         rc = do_update_github(args.delete)
     if not args.no_restart:
-        subprocess.Popen([sys.executable, 'run.py', '-n', args.node, '--noupdate'])
-        sys.exit(rc)
+        os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py', '--noupdate'] + sys.argv[1:])

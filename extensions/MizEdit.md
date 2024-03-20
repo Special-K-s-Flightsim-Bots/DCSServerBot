@@ -20,7 +20,7 @@ Each mission change is represented in a small data-structure in yaml. I've calle
 work as a fixed setting for any mission you have, like any weather preset you know already from the recent DCS versions.
 
 > If you want to lookup the presets used in DCS, you can take a look at 
-> `C:\Program Files\Eagle Dynamics\DCS World OpenBeta\Config\Effects\clouds.lua`.
+> `C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua`.
 
 ### config/presets.yaml
 As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
@@ -95,11 +95,13 @@ miz-file. The path of these files is relative to your DCSServerBot installation 
 
 #### c) Complex Modifications
 Sometimes, only changing the weather is not enough and you want to change some parts in the mission that are deeply 
-nested or even dependent on another part of your mission file. This is for instance true, if you want to change
+nested or even dependent on another parts of your mission file. This is for instance true, if you want to change
 frequencies, TACAN codes or similar items.
 Therefore, I developed some SQL-like query language, where you can search and change values in your mission.
 
-You can use these special characters:
+To use the "modify"-Preset, you need to understand some of the concepts first. 
+As we need to "navigate" all around the mission file inside your miz file, we need some kind of path description first,
+that helps us to find the respective elements that we want to change:
 
 | Character | Description                                                                             |
 |-----------|-----------------------------------------------------------------------------------------|
@@ -110,8 +112,90 @@ You can use these special characters:
 | \[x,y\]   | Selects these elements from a list (starts with 1) or from a table.                     |
 | '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string.                 |
 
-You can use the variable "reference" inside of your replace or insert statements to select the object that was returned
-by the for-each / where clauses (see example 3).
+
+Let me show you an example:
+```yaml
+MyFancyPreset:
+  modify:
+    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+```
+This selects some carriers from your blue coalition. Now lets write the same thing a bit different:
+```yaml
+MyFancyPreset:
+  modify:
+    for-each: coalition/blue/country/*/ship/group/*
+    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+```
+In theory, this does the very same. It processes over some carriers on the blue coalition. The difference is that
+the "reference" element, meaning the element on which we will work in a bit, is a carrier unit in the first example
+and all groups **containing** any of the carriers in the second example.
+
+Now lets see, why we might need that difference:
+```yaml
+MyFancyPreset:
+  modify:
+    for-each: coalition/blue/country/*/ship/group/*
+    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
+```
+So this does the following:
+- Find any blue group ... 
+- ... that contains a carrier of the listed type.
+- Then select all task parameters of that group (!) where the task id == "WrappedAction", and the action id is "ActivateBeacon".
+
+And now, we can work on these task parameters like so:
+```yaml
+MyFancyPreset:
+  modify:
+    for-each: coalition/blue/country/*/ship/group/*
+    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
+    replace:
+      modeChannel: X
+      channel: $'{reference[units][0][type]}'[-2:]
+      frequency:
+        $'{reference[units][0][type]}'[-2:] == '72': 1158000000
+        $'{reference[units][0][type]}'[-2:] == '73': 1160000000
+```
+So this replaces the "modeChannel" parameter with "X". Then, we replace the channel using a built-in variable 
+"reference", which in our case points to one of each "group" returned by the for-each statement.
+Inside of this group, we select the units, the first one of them with [0], its type, which is one of CVN_71 .. 75.
+Then we cut out the last 2 characters from that type name, which is the carrier number (71 .. 75). Then we set this as
+our TACAN channel.
+Next we set the frequency. We are using one of the possible ways of doing it - a list of options, where only one is true
+at a time. In our case, we calculate the carrier number again (like above) and then match it with one of the possible 
+numbers (I was lazy and only added 2 carrier types 72 and 73 in here). Then we select the respective frequency for that
+specific carrier.
+
+If we now look at CVN_73 for instance, this will be the result:
+```lua
+["params"] = 
+{
+    ["modeChannel"] = "X"
+    ["channel"] = "73"
+    ["frequency"] = 1160000000
+}
+```
+
+Besides "replace", you can also use: 
+- delete: delete something from your mission, a unit type for instance, random failures, a whole coalition, etc.
+- merge: merge two parts of your mission file, like blue and neutral countries to create a new blue. 
+
+Sometimes it might be necessary to use some variables ({xxx}) inside your code. Some are preset already, like 
+{reference} or one of the results of the selected element, some can be set on your own like so:
+```yaml
+MyFancyPreset:
+  modify:
+    variables:
+      theatre: theatre                          # fills the missions theatre into the {theatre} variable
+      temperature: weather/season/temperature   # fills the mission temperature in the {temperature} variable
+      rand: '$random.randint(1, 10)'            # fills some random number between 1 and 10 into ${rand}
+      mylist: '$list(range(1, {rand}))'         # creates a list ${mylist} of numbers starting from 1 to the result of the random pick above
+```
+You can work with these variables then later on, to for instance create some randomness in your mission.
+
+
+
 
 #### Example 1: Search all CVN carriers in your mission:
 > coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
@@ -141,11 +225,6 @@ will walk the mission tree like so:
 ```yaml
 MyFancyPreset:
   modify:
-  - variables:
-      theatre: theatre
-      temperature: weather/season/temperature 
-      rand: '$random.randint(1, 10)'
-      mylist: '$list(range(1, {rand}))'
     for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     replace:
       frequency: 
@@ -194,6 +273,14 @@ ChangeRadios:
       Radio:
         - channels:
             - 243
+```
+
+#### Example 5: Delete all Hornets from your mission
+```yaml
+DeleteAllHornets:
+  modify:
+    for-each: coalition/[blue,red]/country/*/plane/group/*/units
+    delete: $'{type}' == 'FA-18C_hornet'
 ```
 
 ## Usage

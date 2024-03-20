@@ -65,7 +65,7 @@ If you want to use different channels for your different servers, you can add a 
       "IMAGEPATH": "../FunkMan/funkpics/"
     },
     {
-      "installation": "DCS.openbeta",
+      "installation": "DCS.server",
       "CHANNELID_MAIN": "12345678901234567890",
       "CHANNELID_RANGE": "12345678901234567890",
       "CHANNELID_AIRBOSS": "12345678901234567890"

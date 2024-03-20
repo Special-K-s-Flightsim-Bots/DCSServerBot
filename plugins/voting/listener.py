@@ -183,12 +183,15 @@ class VotingListener(EventListener):
         config['prefix'] = self.prefix
         try:
             class_name = f"plugins.voting.options.{what}.{what.title()}"
-            item = utils.str_to_class(class_name)(
+            item: VotableItem = utils.str_to_class(class_name)(
                 server, config['options'].get(what), params[1:] if len(params) > 1 else None
             )
             if not item:
                 self.log.error(f"Can't find class {class_name}! Voting aborted.")
                 player.sendChatMessage("Voting aborted due to a server misconfiguration.")
+                return
+            elif not item.can_vote():
+                player.sendChatMessage("This voting option is not available at the moment.")
                 return
             if points and isinstance(player, CreditPlayer):
                 player.points -= points
@@ -206,7 +209,7 @@ class VotingListener(EventListener):
         config = self.get_config(server)
         if 'welcome_message' not in config:
             return
-        player: Player = server.get_player(id=data['id'])
+        player: Player = server.get_player(ucid=data['ucid'])
         if player:
             player.sendChatMessage(utils.format_string(config['welcome_message'], server=server, player=player,
                                                        prefix=self.prefix))

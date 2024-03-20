@@ -182,8 +182,9 @@ function dcsbot.getMissionDetails(json)
         real_time = DCS.getRealTime(),
         briefing = mod_dictionary.getBriefingData(DCS.getMissionFilename(), 'EN'),
         results = {
-            Blue = DCS.getMissionResult("blue"),
-            Red = DCS.getMissionResult("red")
+            blue = DCS.getMissionResult("blue"),
+            red = DCS.getMissionResult("red"),
+            neutrals = DCS.getMissionResult("neutrals"),
         }
     }
 	utils.sendBotTable(msg, json.channel)

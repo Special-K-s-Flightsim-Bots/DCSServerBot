@@ -7,13 +7,15 @@ from matplotlib.ticker import FuncFormatter
 from psycopg.rows import dict_row
 from typing import Optional
 
+from plugins.userstats.filter import StatisticsFilter
+
 # ignore pandas warnings (log scale et al)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class ServerUsage(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str]):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter):
         sql = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
                    ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, 
@@ -24,31 +26,31 @@ class ServerUsage(report.EmbedElement):
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        if period:
-            sql += " AND DATE(s.hop_on) > (DATE(now() AT TIME ZONE 'utc') - ('1 ' || %(period)s)::interval)"
+        sql += ' AND ' + period.filter(self.env.bot)
         sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = playtimes = players = members = ''
-                await cursor.execute(sql, {"server_name": server_name, "period": period})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     servers += row['server_name'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f}\n'.format(row['players'])
                     members += '{:.0f}\n'.format(row['members'])
-                if len(servers) > 0:
-                    if not server_name:
-                        self.add_field(name='Server', value=servers)
-                    self.add_field(name='Playtime (h)', value=playtimes)
-                    self.add_field(name='Unique Players', value=players)
-                    if server_name:
-                        self.add_field(name='Discord Members', value=members)
+
+        if len(servers) > 0:
+            if not server_name:
+                self.add_field(name='Server', value=servers)
+            self.add_field(name='Playtime (h)', value=playtimes)
+            self.add_field(name='Unique Players', value=players)
+            if server_name:
+                self.add_field(name='Discord Members', value=members)
 
 
 class TopMissionPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ('
@@ -62,31 +64,31 @@ class TopMissionPerServer(report.EmbedElement):
         sql_right = ") AS x) AS y WHERE rn {} ORDER BY 3 DESC"
         if server_name:
             sql_inner += " AND m.server_name = %(server_name)s"
-        if period:
-            sql_inner += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql_inner += ' AND ' + period.filter(self.env.bot)
         sql_inner += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = missions = playtimes = ''
                 await cursor.execute(sql_left + sql_inner + sql_right.format(
-                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name, "period": period})
+                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name})
                 async for row in cursor:
                     servers += row['server_name'] + '\n'
                     missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
-                if len(servers) > 0:
-                    if not server_name:
-                        self.add_field(name='Server', value=servers)
-                    self.add_field(name='TOP Mission' if not server_name else f"TOP {limit} Missions", value=missions)
-                    self.add_field(name='Playtime (h)', value=playtimes)
-                    if server_name:
-                        self.add_field(name='_ _', value='_ _')
+
+        if len(servers) > 0:
+            if not server_name:
+                self.add_field(name='Server', value=servers)
+            self.add_field(name='TOP Mission' if not server_name else f"TOP {limit} Missions", value=missions)
+            self.add_field(name='Playtime (h)', value=playtimes)
+            if server_name:
+                self.add_field(name='_ _', value='_ _')
 
 
 class TopModulesPerServer(report.EmbedElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
         sql = """
             SELECT s.slot, COUNT(s.slot) AS num_usage, 
                    COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime, 
@@ -96,22 +98,22 @@ class TopModulesPerServer(report.EmbedElement):
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        if period:
-            sql += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql += ' AND ' + period.filter(self.env.bot)
         sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 modules = playtimes = players = ''
-                await cursor.execute(sql, {"server_name": server_name, "period": period})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     modules += row['slot'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f} ({:.0f})\n'.format(row['players'], row['num_usage'])
-                if len(modules) > 0:
-                    self.add_field(name=f"TOP {limit} Modules", value=modules)
-                    self.add_field(name='Playtime (h)', value=playtimes)
-                    self.add_field(name='Players (# uses)', value=players)
+
+        if len(modules) > 0:
+            self.add_field(name=f"TOP {limit} Modules", value=modules)
+            self.add_field(name='Playtime (h)', value=playtimes)
+            self.add_field(name='Players (# uses)', value=players)
 
 
 class UniquePast14(report.GraphElement):
@@ -136,23 +138,24 @@ class UniquePast14(report.GraphElement):
                 async for row in cursor:
                     labels.append(row['date'].strftime('%a %m-%d'))
                     values.append(row['players'])
-                self.axes.bar(labels, values, width=0.5, color='dodgerblue')
-                self.axes.set_title('Unique Players past 14 Days', color='white', fontsize=25)
-                self.axes.set_yticks([])
-                for label in self.axes.get_xticklabels():
-                    label.set_rotation(30)
-                    label.set_ha('right')
-                for i in range(0, len(values)):
-                    self.axes.annotate(values[i], xy=(
-                        labels[i], values[i]), ha='center', va='bottom', weight='bold')
-                if len(values) == 0:
-                    self.axes.set_xticks([])
-                    self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+
+        self.axes.bar(labels, values, width=0.5, color='dodgerblue')
+        self.axes.set_title('Unique Players past 14 Days', color='white', fontsize=25)
+        self.axes.set_yticks([])
+        for label in self.axes.get_xticklabels():
+            label.set_rotation(30)
+            label.set_ha('right')
+        for i in range(0, len(values)):
+            self.axes.annotate(values[i], xy=(
+                labels[i], values[i]), ha='center', va='bottom', weight='bold')
+        if len(values) == 0:
+            self.axes.set_xticks([])
+            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
 
 class UsersPerDayTime(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], period: Optional[str]):
+    async def render(self, server_name: Optional[str], period: StatisticsFilter):
         sql = """
             SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
                    COUNT(DISTINCT s.player_ucid) AS players 
@@ -162,23 +165,23 @@ class UsersPerDayTime(report.GraphElement):
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        if period:
-            sql += " AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - ('1 ' || %(period)s)::interval)"
+        sql += ' AND ' + period.filter(self.env.bot)
         sql += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 values = np.zeros((24, 7))
-                await cursor.execute(sql, {"server_name": server_name, "period": period})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
-                self.axes.imshow(values, cmap='cividis', aspect='auto')
-                self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
-                self.axes.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: const.WEEKDAYS[int(np.clip(x, 0, 6))]))
+
+        self.axes.imshow(values, cmap='cividis', aspect='auto')
+        self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
+        self.axes.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: const.WEEKDAYS[int(np.clip(x, 0, 6))]))
 
 
 class ServerLoadHeader(EmbedElement):
-    async def render(self, node: str, period: str, server_name: Optional[str] = None):
+    async def render(self, node: str, server_name: Optional[str] = None):
         self.env.embed.description = \
             f"Node: {node}" if not server_name else f"Server: {utils.escape_string(server_name)}"
 
@@ -214,39 +217,41 @@ class ServerLoad(report.MultiGraphElement):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"node": node, "server_name": server_name, "period": period})
-                if cursor.rowcount > 0:
-                    series = pd.DataFrame.from_dict(await cursor.fetchall())
-                    series.columns = ['time', 'Users', 'CPU', 'Memory (paged)', 'Memory (RAM)', 'Read', 'Write', 'Sent',
-                                      'Recv', 'FPS', 'Ping']
-                    for column in [
-                        'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
-                    ]:
-                        series[column] = series[column].astype(float)
-                    series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
-                    self.axes[0].legend(loc='upper left')
-                    ax2 = self.axes[0].twinx()
-                    series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-                    ax2.legend(['Users'], loc='upper right')
-                    series.plot(ax=self.axes[1], x='time', y=['FPS'], title='FPS / User', xticks=[], xlabel='')
-                    self.axes[1].legend(loc='upper left')
-                    ax3 = self.axes[1].twinx()
-                    series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-                    ax3.legend(['Users'], loc='upper right')
-                    series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory',
-                                xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
-                    self.axes[2].legend(loc='upper left')
-                    series.plot(ax=self.axes[3], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[],
-                                xlabel='', ylabel='KB', grid=True)
-                    self.axes[3].legend(loc='upper left')
-                    series.plot(ax=self.axes[4], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='',
-                                ylabel='KB/s', grid=True)
-                    self.axes[4].legend(['Sent', 'Recv'], loc='upper left')
-                    ax4 = self.axes[4].twinx()
-                    series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
-                    ax4.legend(['Ping'], loc='upper right')
-                else:
+                if cursor.rowcount == 0:
                     for i in range(0, 4):
                         self.axes[i].bar([], [])
                         self.axes[i].set_xticks([])
                         self.axes[i].set_yticks([])
                         self.axes[i].text(0, 0, 'No data available.', ha='center', va='center', size=20)
+                    return
+                else:
+                    series = pd.DataFrame.from_dict(await cursor.fetchall())
+
+        series.columns = ['time', 'Users', 'CPU', 'Memory (paged)', 'Memory (RAM)', 'Read', 'Write', 'Sent',
+                          'Recv', 'FPS', 'Ping']
+        for column in [
+            'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
+        ]:
+            series[column] = series[column].astype(float)
+        series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
+        self.axes[0].legend(loc='upper left')
+        ax2 = self.axes[0].twinx()
+        series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
+        ax2.legend(['Users'], loc='upper right')
+        series.plot(ax=self.axes[1], x='time', y=['FPS'], title='FPS / User', xticks=[], xlabel='')
+        self.axes[1].legend(loc='upper left')
+        ax3 = self.axes[1].twinx()
+        series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
+        ax3.legend(['Users'], loc='upper right')
+        series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory',
+                    xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
+        self.axes[2].legend(loc='upper left')
+        series.plot(ax=self.axes[3], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[],
+                    xlabel='', ylabel='KB', grid=True)
+        self.axes[3].legend(loc='upper left')
+        series.plot(ax=self.axes[4], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='',
+                    ylabel='KB/s', grid=True)
+        self.axes[4].legend(['Sent', 'Recv'], loc='upper left')
+        ax4 = self.axes[4].twinx()
+        series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
+        ax4.legend(['Ping'], loc='upper right')

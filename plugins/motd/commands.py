@@ -4,7 +4,7 @@ from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListe
 from discord import app_commands
 from discord.ext import tasks
 from services import DCSServerBot
-from typing import Optional, Type, Literal
+from typing import Optional, Type, Literal, AsyncGenerator
 from .listener import MOTDListener
 
 
@@ -21,7 +21,8 @@ class MOTD(Plugin):
         self.nudge.cancel()
         await super().cog_unload()
 
-    def send_message(self, message: str, server: Server, config: dict, player: Optional[Player] = None):
+    @staticmethod
+    def send_message(message: str, server: Server, config: dict, player: Optional[Player] = None):
         if config['display_type'].lower() == 'chat':
             if player:
                 player.sendChatMessage(message)
@@ -39,8 +40,7 @@ class MOTD(Plugin):
                     server.playSound(Coalition.ALL, config['sound'])
 
     @staticmethod
-    def get_recipients(server: Server, config: dict) -> list[Player]:
-        recp = list[Player]()
+    async def get_recipients(server: Server, config: dict) -> AsyncGenerator[Player, None]:
         players: list[Player] = server.get_active_players()
         in_roles = []
         out_roles = []
@@ -56,8 +56,7 @@ class MOTD(Plugin):
             if len(out_roles):
                 if player.member and utils.check_roles(out_roles, player.member):
                     continue
-            recp.append(player)
-        return recp
+            yield player
 
     @command(description='Test MOTD')
     @app_commands.guild_only()
@@ -68,9 +67,11 @@ class MOTD(Plugin):
                    option: Literal['join', 'birth', 'nudge']):
         config = self.get_config(server)
         if not config:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message('No configuration for MOTD found.', ephemeral=True)
             return
         if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"Mission is {server.status.name.lower()}, can't test MOTD.",
                                                     ephemeral=True)
             return
@@ -83,19 +84,20 @@ class MOTD(Plugin):
             # TODO
             pass
         if message:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"```{message}```")
 
     @tasks.loop(minutes=1.0)
     async def nudge(self):
-        def process_message(message: str, server: Server, config: dict):
+        async def process_message():
             if 'recipients' in config:
-                for recp in self.get_recipients(server, config):
+                async for recp in self.get_recipients(server, config):
                     self.send_message(message, server, config, recp)
             else:
                 self.send_message(message, server, config)
 
         try:
-            for server_name, server in self.bot.servers.items():
+            for server_name, server in self.bot.servers.copy().items():
                 config = self.get_config(server)
                 if server.status != Status.RUNNING or not config or 'nudge' not in config:
                     continue
@@ -105,11 +107,11 @@ class MOTD(Plugin):
                 elif server.current_mission.mission_time - self.last_nudge[server.name] > config['delay']:
                     if 'message' in config:
                         message = utils.format_string(config['message'], server=server)
-                        process_message(message, server, config)
+                        await process_message()
                     elif 'messages' in config:
                         for cfg in config['messages']:
                             message = utils.format_string(cfg['message'], server=server)
-                            process_message(message, server, cfg)
+                            await process_message()
                     self.last_nudge[server.name] = server.current_mission.mission_time
         except Exception as ex:
             self.log.exception(ex)

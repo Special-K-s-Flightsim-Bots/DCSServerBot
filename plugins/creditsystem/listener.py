@@ -1,8 +1,11 @@
+import asyncio
 import discord
 
-from core import EventListener, Server, Status, utils, event, chat_command
+from core import EventListener, Server, Status, utils, event, chat_command, get_translation
 from typing import cast, Union
 from .player import CreditPlayer
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class CreditSystemListener(EventListener):
@@ -46,10 +49,10 @@ class CreditSystemListener(EventListener):
         if data['id'] == 1:
             return
         config = self.plugin.get_config(server)
-        player = cast(CreditPlayer, server.get_player(id=data['id']))
+        player = cast(CreditPlayer, server.get_player(ucid=data['ucid']))
         if player.points == -1:
             player.points = self.get_initial_points(player, config)
-            await player.audit('init', 0, 'Initial points received')
+            player.audit('init', 0, _('Initial points received'))
         else:
             server.send_to_dcs({
                 'command': 'updateUserPoints',
@@ -57,7 +60,8 @@ class CreditSystemListener(EventListener):
                 'points': player.points
             })
         if config:
-            player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
+            player.sendChatMessage(_("{name}, you currently have {credits} credit points.").format(
+                name=player.name, credits=player.points))
 
     @event(name="addUserPoints")
     async def addUserPoints(self, server: Server, data: dict) -> None:
@@ -72,18 +76,18 @@ class CreditSystemListener(EventListener):
                 player.deposit += points_to_add * multiplier
             player.points += points_to_add
             if old_points != player.points:
-                await player.audit('mission', old_points, data.get('reason', 'Unknown mission achievement'))
+                player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
 
-    async def get_flighttime(self, ucid: str, campaign_id: int) -> int:
-        async with self.apool.connection() as conn:
-            cursor = await conn.execute("""
+    def get_flighttime(self, ucid: str, campaign_id: int) -> int:
+        with self.pool.connection() as conn:
+            cursor = conn.execute("""
                 SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
                 FROM statistics s, missions m, campaigns c, campaigns_servers cs 
                 WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id 
                 AND m.server_name = cs.server_name 
                 AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
             """, (ucid, campaign_id))
-            return int((await cursor.fetchone())[0])
+            return int((cursor.fetchone())[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
 
@@ -112,7 +116,7 @@ class CreditSystemListener(EventListener):
             return
 
         campaign_id, _ = utils.get_running_campaign(self.bot, server)
-        playtime = await self.get_flighttime(player.ucid, campaign_id) / 3600.0
+        playtime = self.get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         given = False
         for achievement in sorted_achievements:
@@ -153,63 +157,68 @@ class CreditSystemListener(EventListener):
                         if multiplier:
                             player.deposit += ppk * multiplier
                         player.points += ppk
-                        await player.audit('kill', old_points, f"for killing {data['arg5']}")
+                        player.audit('kill', old_points, _("for killing {}").format(data['arg5']))
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player:
-                await self.process_achievements(server, player)
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.process_achievements(server, player))
 
-    @chat_command(name="credits", help="displays your credits")
+    @chat_command(name="credits", help=_("Shows your current credits"))
     async def credits(self, server: Server, player: CreditPlayer, params: list[str]):
-        message = f"You currently have {player.points} credit points"
+        message = _("You currently have {} credit points").format(player.points)
         if player.deposit > 0:
             message += f", {player.deposit} on deposit"
         message += '.'
         player.sendChatMessage(message)
 
-    @chat_command(name="donate", help="donate points to another player")
+    @chat_command(name="donate", help=_("Donate credits to another player"))
     async def donate(self, server: Server, player: CreditPlayer, params: list[str]):
         if len(params) < 2:
-            player.sendChatMessage(f"Usage: {self.prefix}donate player points")
+            player.sendChatMessage(_("Usage: {}donate player points")).format(self.prefix)
             return
         name = ' '.join(params[:-1])
         try:
             donation = int(params[-1])
         except ValueError:
-            player.sendChatMessage(f"Usage: {self.prefix}donate player points")
+            player.sendChatMessage(_("Usage: {}donate player points").format(self.prefix))
             return
         if donation > player.points:
-            player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
+            player.sendChatMessage(_("You can't donate {donation} credit points, you only have {total}!").format(
+                donation=donation, total=player.points))
             return
         elif donation <= 0:
-            player.sendChatMessage(f"Donation has to be a positive value.")
+            player.sendChatMessage(_("Your donation has to be > 0."))
             return
         receiver: CreditPlayer = cast(CreditPlayer, server.get_player(name=name))
         if not receiver:
-            player.sendChatMessage(f"Player {name} not found.")
+            player.sendChatMessage(_("Player {} not found.").format(name))
             return
         config = self.plugin.get_config(server)
         if 'max_points' in config and (receiver.points + donation) > int(config['max_points']):
-            player.sendChatMessage(f"Player {receiver} would overrun the configured maximum points with this "
-                                   f"donation. Aborted.")
+            player.sendChatMessage(
+                _("Player {} would overrun the configured maximum points with this donation. "
+                  "Aborted.").format(receiver))
             return
         old_points_player = player.points
         old_points_receiver = receiver.points
         player.points -= donation
-        await player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
+        player.audit('donation', old_points_player, _("Donation to player {}").format(receiver.name))
         receiver.points += donation
-        await receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
-        player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
-        receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
+        receiver.audit('donation', old_points_receiver, _("Donation from player {}").format(player.name))
+        player.sendChatMessage(_("You've donated {donation} credit points to player {name}.").format(
+            donation=donation, name=name))
+        receiver.sendChatMessage(_("Player {name} donated {donation} credit points to you!").format(
+            name=player.name, donation=donation))
 
-    @chat_command(name="tip", help="tip a GCI with points")
+    @chat_command(name="tip", help=_("Tip a GCI with points"))
     async def tip(self, server: Server, player: CreditPlayer, params: list[str]):
         player: CreditPlayer = cast(CreditPlayer, player)
 
         if not params:
-            player.sendChatMessage(f"Usage: {self.prefix}tip points [gci_number]")
+            player.sendChatMessage(_("Usage: {}tip points [gci_number]").format(self.prefix))
             return
 
         donation = int(params[0])
@@ -223,13 +232,13 @@ class CreditSystemListener(EventListener):
             if player.side == p.side and p.unit_type == "forward_observer":
                 active_gci.append(cast(CreditPlayer, p))
         if not len(active_gci):
-            player.sendChatMessage(f"There is currently no {player.side.name} GCI active on this server.")
+            player.sendChatMessage(_("There is currently no {} GCI active.").format(player.side.name))
             return
         elif len(active_gci) == 1:
             gci_index = 0
 
         if gci_index not in range(0, len(active_gci)):
-            player.sendChatMessage(f'Multiple GCIs found, use "{self.prefix}tip points gci_number".')
+            player.sendChatMessage(_('Multiple GCIs found, use "{}tip points gci_number".').format(self.prefix))
             for i, gci in enumerate(active_gci):
                 player.sendChatMessage(f"{i + 1}) {gci.name}")
             return
@@ -239,8 +248,10 @@ class CreditSystemListener(EventListener):
         old_points_player = player.points
         old_points_receiver = receiver.points
         player.points -= donation
-        await player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
+        player.audit('donation', old_points_player, _("Donation to player {}").format(receiver.name))
         receiver.points += donation
-        await receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
-        player.sendChatMessage(f"You've donated {donation} credit points to GCI {receiver.name}.")
-        receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
+        receiver.audit('donation', old_points_receiver, _("Donation from player {}").format(player.name))
+        player.sendChatMessage(
+            _("You've donated {donation} credit points to GCI {name}.").format(donation=donation, name=receiver.name))
+        receiver.sendChatMessage(
+            _("Player {name} donated {donation} credit points to you!").format(name=player.name, donation=donation))

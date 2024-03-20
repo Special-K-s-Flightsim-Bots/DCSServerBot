@@ -275,13 +275,13 @@ If you need any further assistance, please visit the support discord, listed in 
                 hostname, port = self.get_database_host(url.hostname, url.port)
                 database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
             except StopIteration:
-                database_url = self.get_database_url()
+                database_url = Install.get_database_url()
 
         print(f"\n{i+2}. Node Setup")
         if sys.platform == 'win32':
-            dcs_installation = self.get_dcs_installation_win32() or '<see documentation>'
+            dcs_installation = Install.get_dcs_installation_win32() or '<see documentation>'
         else:
-            dcs_installation = self.get_dcs_installation_linux()
+            dcs_installation = Install.get_dcs_installation_linux()
         if not dcs_installation:
             self.log.error("Aborted: No DCS installation found.")
             exit(-1)

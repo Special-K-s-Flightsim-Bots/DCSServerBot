@@ -32,20 +32,21 @@ class RangeBoard(EmbedElement):
                     runs += '**\n'
                     if row['time'] > max_time:
                         max_time = row['time']
-                # if there is nothing to plot, don't do it
-                if not runs:
-                    return
-                self.add_field(name='Pilot', value=pilots)
-                self.add_field(name='Avg', value=points)
-                self.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
-                               value=runs)
-                footer = ''
-                for value in StrafeQuality if what == 'strafe' else BombQuality:
-                    footer += EMOJIS[what][value.value] + '\t' + string.capwords(value.name.replace('_', ' ')) + '\n'
 
-                if max_time:
-                    footer += f'\nLast recorded run: {max_time:%y-%m-%d %H:%M:%S}'
-                self.embed.set_footer(text=footer)
+        # if there is nothing to plot, don't do it
+        if not runs:
+            return
+        self.add_field(name='Pilot', value=pilots)
+        self.add_field(name='Avg', value=points)
+        self.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
+                       value=runs)
+        footer = ''
+        for value in StrafeQuality if what == 'strafe' else BombQuality:
+            footer += EMOJIS[what][value.value] + '\t' + string.capwords(value.name.replace('_', ' ')) + '\n'
+
+        if max_time:
+            footer += f'\nLast recorded run: {max_time:%y-%m-%d %H:%M:%S}'
+        self.embed.set_footer(text=footer)
 
 
 class StrafeBoard(RangeBoard):

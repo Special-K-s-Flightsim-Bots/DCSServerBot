@@ -14,15 +14,19 @@ class ConfigView(View):
         self.cancelled = False
         self.channel_update = False
         if self.bot.locals.get('admin_channel'):
+            # noinspection PyUnresolvedReferences
             self.children[0].disabled = True
+        # noinspection PyUnresolvedReferences
         self.children[3].disabled = True
         self.toggle_config()
 
     def toggle_ok(self) -> bool:
         if self.server.name != 'n/a':
+            # noinspection PyUnresolvedReferences
             self.children[3].disabled = False
             return True
         else:
+            # noinspection PyUnresolvedReferences
             self.children[3].disabled = True
             return False
 
@@ -30,10 +34,12 @@ class ConfigView(View):
         try:
             if (self.server.locals.get('channels', {}).get('admin', self.bot.locals.get('admin_channel', -1)) != -1
                     and self.server.locals.get('channels', {}).get('status', -1) != -1):
+                # noinspection PyUnresolvedReferences
                 self.children[4].disabled = False
                 self.toggle_ok()
                 return True
             else:
+                # noinspection PyUnresolvedReferences
                 self.children[4].disabled = True
                 return False
         except Exception as ex:
@@ -42,6 +48,7 @@ class ConfigView(View):
     @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
                        placeholder="Select an admin channel")
     async def admin_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if 'channels' not in self.server.locals:
             self.server.locals['channels'] = {}
@@ -53,6 +60,7 @@ class ConfigView(View):
     @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
                        placeholder="Select a status channel")
     async def status_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if 'channels' not in self.server.locals:
             self.server.locals['channels'] = {}
@@ -64,6 +72,7 @@ class ConfigView(View):
     @discord.ui.select(cls=discord.ui.ChannelSelect, channel_types=[discord.ChannelType.text],
                        placeholder="Select a chat channel")
     async def chat_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect) -> None:
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         if 'channels' not in self.server.locals:
             self.server.locals['channels'] = {}
@@ -71,12 +80,13 @@ class ConfigView(View):
         self.channel_update = True
 
     @discord.ui.button(label='OK', style=discord.ButtonStyle.primary)
-    async def on_ok(self, interaction: discord.Interaction, button: Button):
+    async def on_ok(self, interaction: discord.Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
     @discord.ui.button(label='Config', style=discord.ButtonStyle.secondary)
-    async def on_config(self, interaction: discord.Interaction, button: Button):
+    async def on_config(self, interaction: discord.Interaction, _: Button):
         class ConfigModal(Modal, title="Server Configuration"):
             name = TextInput(label="Name", default=self.server.name, max_length=80, required=True)
             description = TextInput(label="Description", style=discord.TextStyle.long,
@@ -89,6 +99,7 @@ class ConfigView(View):
                                    max_length=3, required=True)
 
             async def on_submit(derived, interaction: discord.Interaction):
+                # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 if derived.name.value != self.server.name:
                     old_name = self.server.name
@@ -102,13 +113,14 @@ class ConfigView(View):
                 self.server.settings['maxPlayers'] = int(derived.max_player.value)
 
         modal = ConfigModal()
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         self.cancelled = await modal.wait()
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-    async def on_cancel(self, interaction: discord.Interaction, button: Button):
+    async def on_cancel(self, interaction: discord.Interaction, _: Button):
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.cancelled = True
         self.stop()
-

@@ -10,8 +10,13 @@ class Restart(VotableItem):
     def __init__(self, server: Server, config: dict, params: Optional[list[str]] = None):
         super().__init__('restart', server, config, params)
 
+    def can_vote(self) -> bool:
+        return True
+        # return not self.server.restart_pending
+
     def print(self) -> str:
-        message = f"You can now vote for a mission restart.\n"
+        self.server.restart_pending = True
+        message = "You can now vote for a mission restart.\n"
         if self.config.get('run_extensions', False):
             message += "Time and/or weather of this mission might change!\n"
         else:
@@ -22,10 +27,13 @@ class Restart(VotableItem):
         return ["Restart", "Don't restart"]
 
     async def execute(self, winner: str):
-        if winner == "Don't restart":
-            return
-        message = f"The mission will restart in 60s."
-        self.server.sendChatMessage(Coalition.ALL, message)
-        self.server.sendPopupMessage(Coalition.ALL, message)
-        await asyncio.sleep(60)
-        await self.server.restart(modify_mission=self.config.get('run_extensions', False))
+        try:
+            if winner == "Don't restart":
+                return
+            message = f"The mission will restart in 60s."
+            self.server.sendChatMessage(Coalition.ALL, message)
+            self.server.sendPopupMessage(Coalition.ALL, message)
+            await asyncio.sleep(60)
+            await self.server.restart(modify_mission=self.config.get('run_extensions', False))
+        finally:
+            self.server.restart_pending = False

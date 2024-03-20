@@ -34,7 +34,7 @@ get the idea) and dir as a shell command.
       "roles": ["DCS Admin"],         -- who can use this command
       "params": [ "instance" ],       -- supported parameters (string only)
       "execute": {
-        "cwd": "C:\\Program Files\\Eagle Dynamics\\DCS World OpenBeta Server\\bin",
+        "cwd": "C:\\Program Files\\Eagle Dynamics\\DCS World Server\\bin",
         "cmd": "DCS.exe",
         "args": "-w {instance}"       -- here you see the parameter being used!
       }

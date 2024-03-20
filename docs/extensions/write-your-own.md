@@ -45,7 +45,7 @@ You can then use this extension in your scheduler.json like so:
 {
   "configs": [
     {
-      "installation": "DCS.openbeta_server",
+      "installation": "DCS.server",
       [...]
       "extensions": {
         "mymodule.MyExtension": {}

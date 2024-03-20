@@ -9,31 +9,34 @@ from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Mission, Node, utils, PubSub
+from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, InstanceProxy, utils, PubSub
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
+from core.data.impl.serverimpl import ServerImpl
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union, Any
+from typing import Tuple, Callable, Optional, cast, Union, Any, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from services import DCSServerBot
+from ..bot.service import BotService
+from ..bot.dcsserverbot import DCSServerBot
 
 __all__ = [
     "ServiceBus"
 ]
 
+if TYPE_CHECKING:
+    from core import EventListener
 
-@ServiceRegistry.register("ServiceBus")
+
+@ServiceRegistry.register()
 class ServiceBus(Service):
 
-    def __init__(self, node, name: str):
-        super().__init__(node, name)
+    def __init__(self, node):
+        super().__init__(node)
         self.bot: Optional[DCSServerBot] = None
         self.version = self.node.bot_version
         self.listeners: dict[str, asyncio.Future] = dict()
@@ -78,10 +81,10 @@ class ServiceBus(Service):
 
             await self.init_servers()
             if self.master:
-                self.bot = ServiceRegistry.get("Bot").bot
+                self.bot = ServiceRegistry.get(BotService).bot
                 while not self.bot:
                     await asyncio.sleep(1)
-                    self.bot = ServiceRegistry.get("Bot").bot
+                    self.bot = ServiceRegistry.get(BotService).bot
                 await self.bot.wait_until_ready()
                 await self.register_local_servers()
             else:
@@ -151,7 +154,7 @@ class ServiceBus(Service):
                     # was there a server bound to this instance?
                     if row:
                         server: ServerImpl = DataObjectFactory().new(
-                            Server.__name__, node=self.node, port=instance.bot_port, name=row[0])
+                            ServerImpl, node=self.node, port=instance.bot_port, name=row[0])
                         instance.server = server
                         self.servers[server.name] = server
                     else:
@@ -251,7 +254,7 @@ class ServiceBus(Service):
             if 'current_mission' in data:
                 if not server.current_mission:
                     server.current_mission = DataObjectFactory().new(
-                        Mission.__name__, node=server.node, server=server, map=data['current_map'],
+                        Mission, node=server.node, server=server, map=data['current_map'],
                         name=data['current_mission'])
                 server.current_mission.update(data)
 
@@ -372,9 +375,12 @@ class ServiceBus(Service):
                 """, (ucid, ))
                 return await cursor.fetchone()
 
-    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, home: str, settings: dict,
-                           options: dict, node: str, channels: dict, dcs_version: str, maintenance: bool) -> None:
-        server = self.servers.get(server_name)
+    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, home: str,
+                           settings: dict, options: dict, node: str, channels: dict, dcs_version: str,
+                           maintenance: bool) -> None:
+        from core import NodeProxy
+
+        server: ServerProxy = cast(ServerProxy, self.servers.get(server_name))
         if not server or not server.is_remote:
             node = NodeProxy(self.node, node, public_ip, self.node.config_dir)
             server = ServerProxy(
@@ -400,7 +406,7 @@ class ServiceBus(Service):
             self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
         else:
             # IP might have changed, so update it
-            server.node.public_ip = public_ip
+            cast(NodeProxy, server.node).public_ip = public_ip
         server.status = Status(status)
 
     def send_to_node(self, data: dict, *, node: Optional[Union[Node, str]] = None):
