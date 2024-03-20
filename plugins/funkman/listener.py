@@ -3,6 +3,7 @@ import discord
 import sys
 import uuid
 import matplotlib.figure
+import os
 
 from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel
 from io import BytesIO
@@ -17,16 +18,23 @@ class FunkManEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.config = self.get_config()
-        sys.path.append(self.config['install'])
+        path = self.config['install']
+        if not os.path.exists(path):
+            self.log.error(f"FunkMan install path is not correct in your {self.plugin_name}.yaml! "
+                           f"FunkMan will not work.")
+            return
+        sys.path.append(path)
         from funkman.utils.utils import _GetVal
         self.funkplot = None
         self._GetVal = _GetVal
+        self.lock = asyncio.Lock()
 
-    def get_funkplot(self):
-        if not self.funkplot:
-            from funkman.funkplot.funkplot import FunkPlot
-            self.funkplot = FunkPlot(ImagePath=self.config['IMAGEPATH'])
-        return self.funkplot
+    async def get_funkplot(self):
+        async with self.lock:
+            if not self.funkplot:
+                from funkman.funkplot.funkplot import FunkPlot
+                self.funkplot = FunkPlot(ImagePath=self.config['IMAGEPATH'])
+            return self.funkplot
 
     # from FunkBot, to be replaced with a proper function call!
     def create_lso_embed(self, result: dict) -> discord.Embed:
@@ -152,7 +160,7 @@ class FunkManEventListener(EventListener):
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
-        fig, _ = self.get_funkplot().PlotBombRun(data)
+        fig, _ = (await self.get_funkplot()).PlotBombRun(data)
         if not fig:
             self.log.error("Bomb result could not be plotted (due to missing data?)")
             return
@@ -176,7 +184,7 @@ class FunkManEventListener(EventListener):
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
             return
-        fig, _ = self.get_funkplot().PlotStrafeRun(data)
+        fig, _ = (await self.get_funkplot()).PlotStrafeRun(data)
         if not fig:
             self.log.error("Strafe result could not be plotted (due to missing data?)")
             return
@@ -190,7 +198,7 @@ class FunkManEventListener(EventListener):
         if not channel:
             return
         try:
-            fig, _ = self.get_funkplot().PlotTrapSheet(data)
+            fig, _ = (await self.get_funkplot()).PlotTrapSheet(data)
             if not fig:
                 self.log.error("Trapsheet could not be plotted (due to missing data?)")
                 return

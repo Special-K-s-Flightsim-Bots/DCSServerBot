@@ -32,9 +32,16 @@ class GreenieBoardEventListener(EventListener):
         super().__init__(plugin)
         config = self.get_config()
         if 'FunkMan' in config:
-            sys.path.append(config['FunkMan']['install'])
+            path = config['FunkMan']['install']
+            if not os.path.exists(path):
+                self.log.error(f"FunkMan install path is not correct in your {self.plugin_name}.yaml! "
+                               f"FunkMan will not work.")
+                return
+            sys.path.append(path)
             from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
+        else:
+            self.funkplot = None
 
     async def update_greenieboard(self, server: Server):
         try:
@@ -202,6 +209,9 @@ class GreenieBoardEventListener(EventListener):
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['name']) if 'name' in data else None
         if player:
+            if not self.funkplot:
+                self.log.error(f"Your FunkMan path is not set in your {self.plugin_name}.yaml! FunkMan event ignored.")
+                return
             await self.process_funkman_event(config, server, player, data)
             # noinspection PyAsyncCall
             asyncio.create_task(self.send_chat_message(player, data))
