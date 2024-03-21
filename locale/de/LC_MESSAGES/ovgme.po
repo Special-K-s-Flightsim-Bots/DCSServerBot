@@ -1,0 +1,173 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /mods
+msgid "Commands to manage custom mods in your DCS server"
+msgstr "Befehle, um Mods in Deinen DCS-Servern zu verwalten"
+
+# /mods manage
+msgid "manage mods"
+msgstr "Verwalte Mods"
+
+msgid "Shutting down {}, please wait ..."
+msgstr "Fahre Server {} herunter, bitte warten ..."
+
+msgid "**The following mods are currently installed:**"
+msgstr "**Die folgenden Mods sind zurzeit installiert:**"
+
+msgid "Mod"
+msgstr "Mod"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Update"
+msgstr "Aktualisierung"
+
+msgid "There are no mods installed."
+msgstr "Es sind keine Mods installiert."
+
+msgid "Select a mod to install / update"
+msgstr "Wähle eine Mod zum installieren / updaten"
+
+msgid "Select a mod to uninstall"
+msgstr "Wähle eine zu deinstallierende Mod"
+
+msgid "Download"
+msgstr "Herunterladen"
+
+msgid "Shutdown"
+msgstr "Herunterfahren"
+
+msgid "⚠️ Server {} needs to be shut down to change mods."
+msgstr "⚠️ Server {} muss zur Änderung von Mods heruntergefahren werden."
+
+msgid "Quit"
+msgstr "Beenden"
+
+msgid "Updating mod {}, please wait ..."
+msgstr "Aktualisiere Mod {}, bitte warten ..."
+
+msgid "Mod {mod}_v{version} could not be uninstalled!"
+msgstr "Mod {mod}_v{version} konnte nicht deinstalliert werden!"
+
+msgid "Mod {mod}_v{version} could not be installed!"
+msgstr "Mod {mod}_v{version} konnte nicht installiert werden!"
+
+msgid "Mod {} updated."
+msgstr "Mod {} aktualisiert."
+
+msgid "Installing mod {}, please wait ..."
+msgstr "Installiere Mod {}, bitte warten ..."
+
+msgid "Installation of mod {} failed."
+msgstr "Installation der Mod {} fehlgeschlagen."
+
+msgid "Mod {} installed."
+msgstr "Mod {} installiert."
+
+msgid "Uninstalling mod {}, please wait ..."
+msgstr "Deinstalliere Mod {}, bitte warten ..."
+
+msgid "Mod {} uninstalled."
+msgstr "Mod {} deinstalliert."
+
+msgid "Download a new Mod"
+msgstr "Lade eine neue Mod herunter"
+
+msgid "URL / GitHub Repo"
+msgstr "URL / GitHub Repo"
+
+msgid "Destination (S=Saved Games / R=Root Folder)"
+msgstr "Ziel (S=Gespeicherte Spiele / R=Installationsverzeichnis)"
+
+msgid "Not a valid URL!"
+msgstr "Keine gültige URL!"
+
+msgid "{} is not a valid URL!"
+msgstr "{} ist keine gültige URL!"
+
+msgid "Downloading {} , please wait ..."
+msgstr "Lade {} herunter, bitte warten ..."
+
+msgid "Error: {}"
+msgstr "Fehler: {}"
+
+msgid "Mod Manager"
+msgstr "Mod-Verwaltung"
+
+msgid "Install or uninstall mods to {}"
+msgstr "(De-)installiere Mods in Server {}"
+
+# /mods install
+msgid "Install mods"
+msgstr "Installiere Mods"
+
+msgid "Server {} needs to be shut down to install mods."
+msgstr "Server {} muss zur installation von Mods heruntergefahren werden."
+
+msgid "Mod {} not found!"
+msgstr "Mod {} nicht gefunden!"
+
+msgid "Mod {mod}_v{version} is already installed!"
+msgstr "Mod {mod}_v{version} ist bereits installiert!"
+
+msgid "Updating mod {mod} from {current_version} to {new_version}, please wait ..."
+msgstr "Aktualisiere Mod {mod} von Version {current_version} nach Version {new_version}, bitte warten ..."
+
+msgid "Mod {mod} updated to version {version}."
+msgstr "Mod {mod} wurde auf Version {version} aktualisiert."
+
+msgid "Mod {mod} installed with version {version}."
+msgstr "Mod {mod}_v{version} wurde installiert."
+
+# /mods uninstall
+msgid "Uninstall mods"
+msgstr "Deinstalliere Mods"
+
+msgid "Server {} needs to be shut down to uninstall mods."
+msgstr "Server {} muss zur Deinstallation von Mods heruntergefahren werden."
+
+# /mods list
+msgid "List all installed mods"
+msgstr "Zeigt alle installierten Mods"
+
+msgid "No mod installed on server {}."
+msgstr "Auf Server {} sind leine Mods installiert."
+
+msgid "The following mods are installed on server {}:"
+msgstr "Die folgenden Mods sind auf dem Server {} installiert:"
+
+msgid "Folder"
+msgstr "Verzeichnis"
+
+# /mods download
+msgid "Download a mod"
+msgstr "Lade eine Mod herunter"
+
+msgid "GitHub repo link or download URL"
+msgstr "GitHub Repository oder URL zum Download"
+
+msgid "Downloading {mod}_v{version} from GitHub ..."
+msgstr "Lade {mod}_v{version} von GitHub ..."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Die Datei existiert bereits. Möchtest Du sie überschreiben?"
+
+msgid "Aborted."
+msgstr "Abgebrochen."
+
+msgid "Error {code}: {mod}_v{version} {message}"
+msgstr "Fehler {code}: {mod}_v{version} {message}"
+
+msgid "{} downloaded. Use `/mods install` to install it."
+msgstr "{} heruntergeladen. Nutze `/mods install` um sie zu installieren."
+
+msgid "Downloading {} ..."
+msgstr "Lade {} herunter ..."
+
