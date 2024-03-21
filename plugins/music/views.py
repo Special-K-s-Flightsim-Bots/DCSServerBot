@@ -1,13 +1,15 @@
 import discord
 import os
 
-from core import utils, Server, ServiceRegistry
+from core import utils, Server, ServiceRegistry, get_translation
 from discord import SelectOption, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from services import MusicService
 from services.music.radios import Mode
 
 from .utils import get_tag
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class MusicPlayer(View):
@@ -37,33 +39,34 @@ class MusicPlayer(View):
             self.titles = await self.get_titles(self.songs)
         self.config = self.service.get_config(self.server, self.radio_name)
         embed = discord.Embed(colour=discord.Colour.blue())
-        embed.add_field(name="Frequency", value=self.config['frequency'] + " " + self.config['modulation'])
-        embed.add_field(name="Coalition", value="Red" if self.config['coalition'] == 1 else
-                                                "Blue" if self.config['coalition'] == 2 else
-                                                "Neutral")
-        embed.title = "Music Player"
+        embed.add_field(name=_("Frequency"), value=self.config['frequency'] + " " + self.config['modulation'])
+        embed.add_field(name=_("Coalition"),
+                        value=(_("Red") if self.config['coalition'] == 1 else
+                               _("Blue") if self.config['coalition'] == 2 else
+                               _("Neutral")))
+        embed.title = _("Music Player")
         current = await self.service.get_current_song(self.server, self.radio_name)
         if current:
             tag = get_tag(current)
             title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(current)[:-4])
-            artist = utils.escape_string(tag.artist[:255] if tag.artist else 'n/a')
-            album = utils.escape_string(tag.album[:255] if tag.album else 'n/a')
-            embed.add_field(name='▬' * 13 + " Now Playing " + '▬' * 13, value='_ _', inline=False)
-            embed.add_field(name="Title", value=title)
-            embed.add_field(name='Artist', value=artist)
-            embed.add_field(name='Album', value=album)
-        embed.add_field(name='▬' * 14 + " Playlist " + '▬' * 14, value='_ _', inline=False)
+            artist = utils.escape_string(tag.artist[:255] if tag.artist else _('n/a'))
+            album = utils.escape_string(tag.album[:255] if tag.album else _('n/a'))
+            embed.add_field(name='▬' * 13 + _(" Now Playing ") + '▬' * 13, value='_ _', inline=False)
+            embed.add_field(name=_("Title"), value=title)
+            embed.add_field(name=_('Artist'), value=artist)
+            embed.add_field(name=_('Album'), value=album)
+        embed.add_field(name='▬' * 14 + _(" Playlist ") + '▬' * 14, value='_ _', inline=False)
         playlist = []
         for idx, title in enumerate(self.titles):
             playlist.append(
                 f"{idx + 1}. - {utils.escape_string(title)}")
-        all_songs = '\n'.join(playlist) or '- empty -'
+        all_songs = '\n'.join(playlist) or _('- empty -')
         embed.add_field(name='_ _', value=all_songs[:1024])
         footer = "▬" * 37 + "\n"
         self.clear_items()
         # Select Song
         if self.titles:
-            select = Select(placeholder="Pick a song from the list")
+            select = Select(placeholder=_("Pick a song from the list"))
             select.options = [
                 SelectOption(label=x[:25], value=str(idx))
                 for idx, x in enumerate(self.titles)
@@ -72,10 +75,10 @@ class MusicPlayer(View):
             select.callback = self.play
             self.add_item(select)
             if len(self.titles) > 25:
-                footer += "Use /music play to access all songs in the list.\n"
+                footer += _("Use /music play to access all songs in the list.\n")
         # Select Playlists
         if self.playlists:
-            select = Select(placeholder="Pick a playlist to play")
+            select = Select(placeholder=_("Pick a playlist to play"))
             select.options = [SelectOption(label=x) for x in self.playlists]
             select.callback = self.playlist
             self.add_item(select)
@@ -102,28 +105,28 @@ class MusicPlayer(View):
         button.callback = self.on_cancel
         self.add_item(button)
         if await self.service.get_current_song(self.server, self.radio_name):
-            footer += "⏹️ Stop"
+            footer += "⏹️ {}".format(_("Stop"))
         else:
-            footer += "▶️ Play"
-        footer += " | ⏩ Skip | "
+            footer += "▶️ {}".format(_("Play"))
+        footer += " | ⏩ {} | ".format(_("Skip"))
         if await self.service.get_mode(self.server, self.radio_name) == Mode.SHUFFLE:
-            footer += "🔁 Repeat"
+            footer += "🔁 {}".format(_("Repeat"))
         else:
-            footer += "🔂 Shuffle"
+            footer += "🔂 {}".format(_("Shuffle"))
         embed.set_footer(text=footer)
         return embed
 
     def edit(self) -> Modal:
-        class EditModal(Modal, title=f"Change Settings for {self.radio_name}"):
-            frequency = TextInput(label='Frequency (xxx.xx)', style=TextStyle.short, required=True,
+        class EditModal(Modal, title=_("Change Settings for {}").format(self.radio_name)):
+            frequency = TextInput(label=_('Frequency (xxx.xx)'), style=TextStyle.short, required=True,
                                   default=self.config['frequency'], min_length=4, max_length=6)
-            modulation = TextInput(label='Modulation (AM | FM)', style=TextStyle.short, required=True,
+            modulation = TextInput(label=_('Modulation (AM | FM)'), style=TextStyle.short, required=True,
                                    default=self.config['modulation'], min_length=2, max_length=2)
-            volume = TextInput(label='Volume', style=TextStyle.short, required=True,
+            volume = TextInput(label=_('Volume'), style=TextStyle.short, required=True,
                                default=self.config['volume'], min_length=1, max_length=3)
-            coalition = TextInput(label='Coalition (1=red | 2=blue)', style=TextStyle.short, required=True,
+            coalition = TextInput(label=_('Coalition (1=red | 2=blue)'), style=TextStyle.short, required=True,
                                   default=self.config['coalition'], min_length=1, max_length=2)
-            display_name = TextInput(label='Display Name', style=TextStyle.short, required=True,
+            display_name = TextInput(label=_('Display Name'), style=TextStyle.short, required=True,
                                      default=self.config['display_name'], min_length=3, max_length=30)
 
             async def on_submit(derived, interaction: discord.Interaction):
@@ -133,12 +136,12 @@ class MusicPlayer(View):
                 if derived.modulation.value.upper() in ['AM', 'FM']:
                     self.config['modulation'] = derived.modulation.value.upper()
                 else:
-                    raise ValueError("Modulation must be one of AM | FM!")
+                    raise ValueError(_("Modulation must be one of AM | FM!"))
                 self.config['volume'] = derived.volume.value
                 if derived.coalition.value.isnumeric() and int(derived.coalition.value) in range(1, 3):
                     self.config['coalition'] = derived.coalition.value
                 else:
-                    raise ValueError("Coalition must be 1 or 2!")
+                    raise ValueError(_("Coalition must be 1 or 2!"))
                 self.config['display_name'] = derived.display_name.value
                 # write the config
                 await self.service.set_config(self.server, self.radio_name, self.config)

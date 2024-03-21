@@ -4,10 +4,6 @@
   "description": "{server_name}",
   "input": [
     {
-      "name": "period",
-      "range": ["", "day", "month", "week", "year"]
-    },
-    {
       "name": "limit",
       "default": 3
     },

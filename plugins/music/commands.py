@@ -3,7 +3,8 @@ import asyncio
 import discord
 import os
 
-from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry
+from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, \
+    get_translation
 from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
@@ -14,6 +15,8 @@ from .listener import MusicEventListener
 from .utils import (radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag,
                     Playlist, all_songs_autocomplete)
 from .views import MusicPlayer
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class Music(Plugin):
@@ -31,9 +34,9 @@ class Music(Plugin):
         return self.service.get_config(server)
 
     # New command group "/music"
-    music = Group(name="music", description="Commands to manage music in your (DCS) server")
+    music = Group(name="music", description=_("Commands to manage music in your (DCS) server"))
 
-    @music.command(description='Music Player\n')
+    @music.command(description=_('Music Player'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(_server="server")
@@ -46,7 +49,7 @@ class Music(Plugin):
         if not playlists:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f"You don't have any playlists to play. Please create one with /playlist add", ephemeral=True)
+                _("You don't have any playlists to play. Please create one with `/playlist add`."), ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)
         # noinspection PyUnresolvedReferences
@@ -60,7 +63,7 @@ class Music(Plugin):
         finally:
             await msg.delete()
 
-    @music.command(description="Play a song or a playlist on a specific radio")
+    @music.command(description=_("Play a song or a playlist\n"))
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(radio_name=radios_autocomplete)
@@ -71,27 +74,27 @@ class Music(Plugin):
                    radio_name: str, playlist: Optional[str] = None, song: Optional[str] = None):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server {server.name} is not running.', ephemeral=True)
+            await interaction.response.send_message(_('Server {} is not running.').format(server.name), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
         if song:
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Now playing {title} ...", ephemeral=ephemeral)
+            await interaction.response.send_message(_("Now playing {} ...").format(title), ephemeral=ephemeral)
             await self.service.play_song(server, radio_name, song)
         else:
             if playlist:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(f"Now playing {playlist} ...", ephemeral=ephemeral)
+                await interaction.response.send_message(_("Now playing {} ...").format(playlist), ephemeral=ephemeral)
                 await self.service.stop_radios(server, radio_name)
                 await self.service.set_playlist(server, radio_name, playlist)
             else:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(f"Radio {radio_name} started.", ephemeral=ephemeral)
+                await interaction.response.send_message(_("Radio {} started.").format(radio_name), ephemeral=ephemeral)
             await self.service.start_radios(server, radio_name)
 
-    @music.command(description="Stop playing on a specific radio")
+    @music.command(description=_("Stop playing"))
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(radio_name=radios_autocomplete)
     async def stop(self, interaction: discord.Interaction,
@@ -100,17 +103,17 @@ class Music(Plugin):
                    radio_name: str):
         if server.status != Status.RUNNING:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server {server.name} is not running.', ephemeral=True)
+            await interaction.response.send_message(_('Server {} is not running.').format(server.name), ephemeral=True)
             return
         await self.service.stop_radios(server, radio_name)
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(f"Radio {radio_name} stopped.",
+        await interaction.response.send_message(_("Radio {} stopped.").format(radio_name),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
     # New command group "/playlist"
-    plgroup = Group(name="playlist", description="Commands to manage music playlists")
+    plgroup = Group(name="playlist", description=_("Commands to manage music playlists"))
 
-    @plgroup.command(description="Add a song to a playlist")
+    @plgroup.command(description=_("Add a song to a playlist"))
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=all_songs_autocomplete)
@@ -121,15 +124,16 @@ class Music(Plugin):
         title = get_tag(song).title or os.path.basename(song)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
-            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist),
+            _('{title} has been added to playlist {playlist}.').format(title=utils.escape_string(title),
+                                                                       playlist=playlist),
             ephemeral=utils.get_ephemeral(interaction))
 
-    @plgroup.command(description="Add all available songs to a playlist")
+    @plgroup.command(description=_("Add all available songs to a playlist"))
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     async def add_all(self, interaction: discord.Interaction, playlist: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction, 'Do you really want to add ALL songs to the playlist?',
+        if not await utils.yn_question(interaction, _('Do you really want to add ALL songs to the playlist?'),
                                        ephemeral=ephemeral):
             return
         p = await Playlist.create(playlist)
@@ -137,10 +141,11 @@ class Music(Plugin):
             await p.add(song.name)
             title = get_tag(song).title or song.name
             await interaction.followup.send(
-                '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist),
+                _('{title} has been added to playlist {playlist}.').format(title=utils.escape_string(title),
+                                                                           playlist=playlist),
                 ephemeral=ephemeral)
 
-    @plgroup.command(description="Remove a song from a playlist")
+    @plgroup.command(description=_("Remove a song from a playlist"))
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=songs_autocomplete)
@@ -153,7 +158,8 @@ class Music(Plugin):
             title = get_tag(song).title or os.path.basename(song)
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist),
+                _('{title} has been removed from playlist {playlist}.').format(title=utils.escape_string(title),
+                                                                               playlist=playlist),
                 ephemeral=ephemeral)
         except OSError as ex:
             # noinspection PyUnresolvedReferences
@@ -180,18 +186,17 @@ class Music(Plugin):
                 else:
                     filename = os.path.join(await self.service.get_music_dir(), att.filename)
                 if os.path.exists(filename):
-                    if not await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?'):
+                    if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
                         continue
                 async with aiohttp.ClientSession() as session:
                     async with session.get(att.url) as response:
                         if response.status == 200:
                             with open(filename, mode='wb') as outfile:
                                 outfile.write(await response.read())
-                            await message.channel.send('File {} uploaded.'.format(utils.escape_string(att.filename)))
+                            await message.channel.send(_('Song {} uploaded.').format(utils.escape_string(att.filename)))
                         else:
-                            await message.channel.send(
-                                'Error {} while reading file {}!'.format(response.status,
-                                                                         utils.escape_string(att.filename)))
+                            await message.channel.send(_('Error {status} while reading file {file}!').format(
+                                    status=response.status, file=utils.escape_string(att.filename)))
         except Exception as ex:
             self.log.exception(ex)
         finally:

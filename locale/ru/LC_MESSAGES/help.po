@@ -1,0 +1,78 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+msgid "Command: {}"
+msgstr "Команда: {}"
+
+msgid "Usage"
+msgstr "Использование"
+
+msgid "<> mandatory, [] non-mandatory"
+msgstr "<> необходимое, [] опциональное"
+
+msgid "{} Help"
+msgstr "{} Помощь"
+
+msgid "Command"
+msgstr "Команда"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "There are no commands for your role in this plugin."
+msgstr "Для вашей роли у этого плагина нет команд."
+
+msgid "Use /help [command] if you want help for a specific command."
+msgstr "Используйте команду /help для получение справки о конкретной команде."
+
+msgid "Select the plugin you want help for"
+msgstr "Выберите плагин для получения справки"
+
+msgid "The help command"
+msgstr "Команда помощи"
+
+msgid "Command {} not found."
+msgstr "Команда {} не найдена."
+
+msgid "You don't have the permission to use this command."
+msgstr "У вас нет прав для использования этой команды."
+
+msgid "## DCSServerBot Commands"
+msgstr "## Команды DCSServerBot"
+
+msgid "Generate Documentation"
+msgstr "Автоматическая генерация документации"
+
+msgid ""
+"\n"
+"The following bot commands can be used in this discord by members that have the {} role:\n"
+"_ _\n"
+msgstr ""
+"\n"
+"Следующие команды бота могут быть использованы в данном Discord игроками с ролью {}:\n"
+"_ _\n"
+
+msgid ""
+"\n"
+"The following bot commands can be used in this discord:\n"
+"_ _\n"
+msgstr ""
+"\n"
+"Следующие команды бота могут быть использованы в данном Discord:\n"
+"_ _\n"
+
+msgid "Please provide a role for channel output."
+msgstr "Пожалуйста укажите роль для вывода в канал."
+
+msgid "Unknown option {}!"
+msgstr "Неизвестная опция {}!"

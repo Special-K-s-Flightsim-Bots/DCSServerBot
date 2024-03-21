@@ -1,0 +1,96 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+# /trueskill
+msgid "Display your TrueSkill:tm: rating"
+msgstr "Показать TrueSkill:tm: рейтинг"
+
+msgid "Use `/linkme` to link your account."
+msgstr "Используйте команду `/linkme`, для сопряжения своего игрового и Discord идентификаторов."
+
+msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
+msgstr "TrueSkill:tm: рейтинг игрока {name}: {rating:.2f}"
+
+# # LISTENER
+msgid "Your TrueSkill rating is: {}"
+msgstr "Ваш TrueSkill рейтинг: {}"
+
+msgid "You're not allowed to re-join the same match!"
+msgstr "Вы не можете заново войти в тот же матч!"
+
+msgid "Player {name} ({rating}) joined the {side} team!"
+msgstr "Игрок {name} ({rating}) присоединился к команде \"{side}\"!"
+
+msgid "The match is on! If you die, crash or leave now, you lose!"
+msgstr "Матч начался! При гибели, крушении или покидании сервера вы автоматически проигрываете!"
+
+msgid "You won against {loser}! Your new rating is {rating}"
+msgstr "Вы выиграли у {loser}! Ваш новый рейтинг: {rating}"
+
+msgid "You lost against {winner}! Your new rating is {rating}"
+msgstr "Вы проиграли {winner}! Ваш новый рейтинг: {rating}"
+
+# -skill
+msgid "Display your rating"
+msgstr "Показать ваш рейтинг"
+
+msgid ""
+"The match is over, {} won!\n"
+"\n"
+"The following players are still alive:\n"
+msgstr ""
+"Матч окончен, {} победили!\n"
+"\n"
+"Следующие игроки остались в живых:\n"
+
+msgid ""
+"\n"
+"This is the log of your last match:\n"
+msgstr ""
+"\n"
+"Вот журнал вашего последнего матча:\n"
+
+msgid ""
+"\n"
+"Your new rating is as follows:\n"
+msgstr ""
+"\n"
+"Ваш новый рейтинг:\n"
+
+# Log
+msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
+msgstr "{killer} на {killer_module} {what} {victim} на {victim_module} при помощи {weapon}"
+
+msgid "killed"
+msgstr "убил"
+
+msgid "team-killed"
+msgstr "убил своего"
+
+msgid "{player} in {module} died ({event})"
+msgstr "{player} на {module} умер ({event})"
+
+msgid "self-kill"
+msgstr "самоубился"
+
+msgid "crash"
+msgstr "разбился"
+
+msgid "eject"
+msgstr "катапультировался"
+
+msgid "disconnect"
+msgstr "отсоединился"
+
+msgid "change_slot"
+msgstr "сменил слот"

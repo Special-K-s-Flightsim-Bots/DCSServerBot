@@ -1,0 +1,73 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+msgid "Rankings as of <t:{}:f>:"
+msgstr "Рейтинги на <t:{}:f>:"
+
+msgid "Name"
+msgstr "Имя"
+
+msgid "XP"
+msgstr "XP"
+
+msgid "Rank"
+msgstr "Звание"
+
+msgid "E-1 Airman basic"
+msgstr "E-1 Авиатор начинающий"
+
+msgid "E-2 Airman"
+msgstr "E-2 Авиатор"
+
+msgid "E-3 Airman first class"
+msgstr "E-3 Авиатор первого класса"
+
+msgid "E-4 Senior airman"
+msgstr "E-4 Старший авиатор"
+
+msgid "E-5 Staff sergeant"
+msgstr "E-5 Штаб-сержант"
+
+msgid "E-6 Technical sergeant"
+msgstr "E-6 Техник-сержант"
+
+msgid "E-7 Master sergeant"
+msgstr "E-7 Мастер-сержант"
+
+msgid "E-8 Senior master sergeant"
+msgstr "E-8 Старший мастер-сержант"
+
+msgid "E-9 Chief master sergeant"
+msgstr "E-9 Главный мастер-сержант"
+
+msgid "O-1 First lieutenant"
+msgstr "O-1 Старший лейтенант"
+
+msgid "O-2 Captain"
+msgstr "O-2 Капитан"
+
+msgid "O-3 Major"
+msgstr "O-3 Майор"
+
+msgid "O-4 Lieutenant colonel"
+msgstr "O-4 Подполковник"
+
+msgid "O-5 Colonel"
+msgstr "O-5 Полковник"
+
+msgid "O-6 Brigadier general"
+msgstr "O-6 Бригадный генерал"
+
+msgid "O-7 Major general"
+msgstr "O-7 Генерал-майор"
+
+msgid "O-8 Lieutenant general"
+msgstr "O-8 Генерал-лейтенант"
+
+msgid "O-9 General"
+msgstr "O-9 Генерал"

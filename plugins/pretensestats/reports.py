@@ -1,13 +1,15 @@
-from core import report, Server, Side
+from core import report, Server, Side, get_translation
 from datetime import datetime
 
 from .const import PRETENSE_RANKS
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class Header(report.EmbedElement):
     async def render(self, data: dict, server: Server):
         desc = f"__{server.current_mission.name}__\n\n" if server.current_mission else ""
-        desc += f"Rankings as of <t:{int(datetime.now().timestamp())}:f>:"
+        desc += _("Rankings as of <t:{}:f>:").format(int(datetime.now().timestamp()))
         self.embed.description = desc
 
 
@@ -91,6 +93,6 @@ class Top10Pilots(report.EmbedElement):
             xp += f'{score:>5}\n'
             ranks += f'{self.get_rank(score)}\n'
         if names:
-            self.embed.add_field(name='Name', value=names)
-            self.embed.add_field(name='XP', value=xp)
-            self.embed.add_field(name='Rank', value=ranks)
+            self.embed.add_field(name=_('Name'), value=names)
+            self.embed.add_field(name=_('XP'), value=xp)
+            self.embed.add_field(name=_('Rank'), value=ranks)

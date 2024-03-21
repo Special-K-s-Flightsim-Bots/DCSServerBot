@@ -107,6 +107,8 @@ async def all_songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
+    from services import MusicService
+
     if not await interaction.command._check_can_run(interaction):
         return []
     try:

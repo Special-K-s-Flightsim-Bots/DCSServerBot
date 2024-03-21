@@ -588,6 +588,9 @@ class Scheduler(Plugin):
             await interaction.response.send_message(f"Server {server.name} has to be shut down for renaming.",
                                                     ephemeral=True)
             return
+        if server.name == new_name:
+            await interaction.response.send_message("The server has this name already. Aborted.", ephemeral=True)
+            return
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
