@@ -325,8 +325,10 @@ class ServerImpl(Server):
                     await conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
                     await conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                        (new_name, self.name))
+                    await conn.execute('DELETE FROM instances WHERE server_name = %s', (new_name, ))
                     await conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
                                        (new_name, self.name))
+                    await conn.execute('DELETE FROM message_persistence WHERE server_name = %s', (new_name, ))
                     await conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
                                        (new_name, self.name))
                     # only the master can take care of a cluster-wide rename

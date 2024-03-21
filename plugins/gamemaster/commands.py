@@ -273,6 +273,8 @@ class GameMaster(Plugin):
             if not servers:
                 await interaction.followup.send(_('Aborted.'), ephemeral=True)
                 return
+            if not isinstance(servers, list):
+                servers = [servers]
             try:
                 await self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
                                                   description=modal.description.value, start=modal.start, end=modal.end)
@@ -331,9 +333,11 @@ class GameMaster(Plugin):
         try:
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=True)
-            servers: list[Server] = await utils.server_selection(self.bus, interaction,
-                                                                 title=_("Select all servers for this campaign"),
-                                                                 multi_select=True, ephemeral=ephemeral)
+            servers = await utils.server_selection(self.bus, interaction,
+                                                   title=_("Select all servers for this campaign"),
+                                                   multi_select=True, ephemeral=ephemeral)
+            if not isinstance(servers, list):
+                servers = [servers]
             await self.eventlistener.campaign('start', servers=servers, name=campaign)
             await interaction.followup.send(_("Campaign {} started.").format(campaign), ephemeral=ephemeral)
         except psycopg.errors.ExclusionViolation:
