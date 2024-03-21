@@ -1,0 +1,157 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+# /music
+msgid "Commands to manage music in your (DCS) server"
+msgstr "Команды для управления музыкой на вашем DCS сервере"
+
+# /music player
+msgid "Music Player"
+msgstr "Музыкальный плеер"
+
+msgid "You don't have any playlists to play. Please create one with `/playlist add`."
+msgstr "Плейлистов не найдено. Создайте плейлист командой `/playlist add`."
+
+msgid "Frequency"
+msgstr "Частота"
+
+msgid "Coalition"
+msgstr "Коалиция"
+
+msgid "Red"
+msgstr "КРАСНАЯ"
+
+msgid "Blue"
+msgstr "СИНЯЯ"
+
+msgid "Neutral"
+msgstr "Нейтральная"
+
+msgid "n/a"
+msgstr "н/д"
+
+msgid " Now Playing "
+msgstr " Сейчас играет "
+
+msgid "Title"
+msgstr "Название"
+
+msgid "Artist"
+msgstr "Артист"
+
+msgid "Album"
+msgstr "Альбом"
+
+msgid " Playlist "
+msgstr " Плейлист "
+
+msgid "- empty -"
+msgstr "- пусто -"
+
+msgid "Pick a song from the list"
+msgstr "Выберите трек из списка"
+
+msgid "Use /music play to access all songs in the list.\n"
+msgstr "Используйте команду /music play для доступа ко всем трекам в списке.\n"
+
+msgid "Pick a playlist to play"
+msgstr "Выберите плейлист для проигрывания"
+
+msgid "Stop"
+msgstr "Стоп"
+
+msgid "Play"
+msgstr "Воспроизведение"
+
+msgid "Skip"
+msgstr "Пропуск"
+
+msgid "Repeat"
+msgstr "Повтор"
+
+msgid "Shuffle"
+msgstr "Случайный порядок"
+
+msgid "Change Settings for {}"
+msgstr "Сменить настройки для радио {}"
+
+msgid "Frequency (xxx.xx)"
+msgstr "Частота (xxx.xx)"
+
+msgid "Modulation (AM | FM)"
+msgstr "Модуляция (AM | FM)"
+
+msgid "Volume"
+msgstr "Громкость"
+
+msgid "Coalition (1=red | 2=blue)"
+msgstr "Коалиция (1=красные | 2=синие)"
+
+msgid "Display Name"
+msgstr "Отображаемое имя"
+
+msgid "Modulation must be one of AM | FM!"
+msgstr "Модуляция должна быть AM или FM!"
+
+msgid "Coalition must be 1 or 2!"
+msgstr "Коалиция должна быть 1 или 2!"
+
+# /music play
+msgid "Play a song or a playlist\n"
+msgstr "Проиграть трек или плейлист\n"
+
+msgid "Server {} is not running."
+msgstr "Сервер {} не запущен."
+
+msgid "Now playing {} ..."
+msgstr "Сейчас играет {} ..."
+
+msgid "Radio {} started."
+msgstr "Радио {} запущено."
+
+# /music stop
+msgid "Stop playing"
+msgstr "Остановка проигрывания"
+
+msgid "Radio {} stopped."
+msgstr "Радио {} остановлено."
+
+# /playlist
+msgid "Commands to manage music playlists"
+msgstr "Команды для управления плейлистами"
+
+# /playlist add
+msgid "Add a song to a playlist"
+msgstr "Добавить трек в плейлист"
+
+msgid "{title} has been added to playlist {playlist}."
+msgstr "{title} был добавлен к плейлисту {playlist}."
+
+# /playlist add_all
+msgid "Add all available songs to a playlist"
+msgstr "Добавить все доступные треки в плейлист"
+
+msgid "Do you really want to add ALL songs to the playlist?"
+msgstr "Вы действительно хотите добавить ВСЕ треки в плейлист?"
+
+# /playlist delete
+msgid "Remove a song from a playlist"
+msgstr "Удалить трек из плейлиста"
+
+msgid "{title} has been removed from playlist {playlist}."
+msgstr "{title} был удалён из плейлиста {playlist}."
+
+# upload
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Файл существует. Хотите заменить его?"
+
+msgid "Song {} uploaded."
+msgstr "Трек {} загружен."
+
+msgid "Error {status} while reading file {file}!"
+msgstr "Ошибка {status} при загрузке файла {file}!"
