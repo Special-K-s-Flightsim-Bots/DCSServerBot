@@ -1,0 +1,173 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+# /mods
+msgid "Commands to manage custom mods in your DCS server"
+msgstr "Команды для управления модами на вашем DCS сервере"
+
+# /mods manage
+msgid "manage mods"
+msgstr "управление модами"
+
+msgid "Shutting down {}, please wait ..."
+msgstr "Выключение {}, пожалуйста подождите ..."
+
+msgid "**The following mods are currently installed:**"
+msgstr "**Установленные в настоящий момент моды:**"
+
+msgid "Mod"
+msgstr "Мод"
+
+msgid "Version"
+msgstr "Версия"
+
+msgid "Update"
+msgstr "Обновить"
+
+msgid "There are no mods installed."
+msgstr "Нет установленных модов."
+
+msgid "Select a mod to install / update"
+msgstr "Выберите мод для установки / обновления"
+
+msgid "Select a mod to uninstall"
+msgstr "Выберите мод для удаления"
+
+msgid "Download"
+msgstr "Скачать"
+
+msgid "Shutdown"
+msgstr "Выключение"
+
+msgid "⚠️ Server {} needs to be shut down to change mods."
+msgstr "⚠️ Сервер {} должен быть выключен для смены модов."
+
+msgid "Quit"
+msgstr "Выход"
+
+msgid "Updating mod {}, please wait ..."
+msgstr "Обновление мода {}, пожалуйста подождите ..."
+
+msgid "Mod {mod}_v{version} could not be uninstalled!"
+msgstr "Мод {mod}_v{version} не может быть удалён!"
+
+msgid "Mod {mod}_v{version} could not be installed!"
+msgstr "Мод {mod}_v{version} не может быть установлен!"
+
+msgid "Mod {} updated."
+msgstr "Мод {} обновлен."
+
+msgid "Installing mod {}, please wait ..."
+msgstr "Установка мода {}, пожалуйста подождите ..."
+
+msgid "Installation of mod {} failed."
+msgstr "Установка мода {} не удалась."
+
+msgid "Mod {} installed."
+msgstr "Мод {} установлен."
+
+msgid "Uninstalling mod {}, please wait ..."
+msgstr "Удаление мода {}, пожалуйста подождите ..."
+
+msgid "Mod {} uninstalled."
+msgstr "Мод {} удален."
+
+msgid "Download a new Mod"
+msgstr "Скачать новый мод"
+
+msgid "URL / GitHub Repo"
+msgstr "URL / GitHub репозиторий"
+
+msgid "Destination (S=Saved Games / R=Root Folder)"
+msgstr "Путь (S=Сохранённые игры / R=Корневая папка)"
+
+msgid "Not a valid URL!"
+msgstr "Не является допустимым URL!"
+
+msgid "{} is not a valid URL!"
+msgstr "{} не является допустимым URL!"
+
+msgid "Downloading {} , please wait ..."
+msgstr "Скачивание {}, пожалуйста подождите ..."
+
+msgid "Error: {}"
+msgstr "Ошибка: {}"
+
+msgid "Mod Manager"
+msgstr "Мод-менеджер"
+
+msgid "Install or uninstall mods to {}"
+msgstr "Установка или удаление модов на сервере {}"
+
+# /mods install
+msgid "Install mods"
+msgstr "Установка модов"
+
+msgid "Server {} needs to be shut down to install mods."
+msgstr "Сервер {} должен быть выключен для установки модов."
+
+msgid "Mod {} not found!"
+msgstr "Мод {} не найден!"
+
+msgid "Mod {mod}_v{version} is already installed!"
+msgstr "Мод {mod}_v{version} уже установлен!"
+
+msgid "Updating mod {mod} from {current_version} to {new_version}, please wait ..."
+msgstr "Обновление мода {mod} с версии {current_version} до версии {new_version}, пожалуйста подождите ..."
+
+msgid "Mod {mod} updated to version {version}."
+msgstr "Мод {mod} обновлен до версии {version}."
+
+msgid "Mod {mod} installed with version {version}."
+msgstr "Мод {mod} версии {version} установлен."
+
+# /mods uninstall
+msgid "Uninstall mods"
+msgstr "Удаление модов"
+
+msgid "Server {} needs to be shut down to uninstall mods."
+msgstr "Сервер {} должен быть выключен для удаления модов."
+
+# /mods list
+msgid "List all installed mods"
+msgstr "Список всех установленных модов"
+
+msgid "No mod installed on server {}."
+msgstr "На сервере {} нет установленных модов."
+
+msgid "The following mods are installed on server {}:"
+msgstr "Следующие моды установлены на сервере {}:"
+
+msgid "Folder"
+msgstr "Папка"
+
+# /mods download
+msgid "Download a mod"
+msgstr "Скачать мод"
+
+msgid "GitHub repo link or download URL"
+msgstr "GitHub репозиторий или URL для скачивания"
+
+msgid "Downloading {mod}_v{version} from GitHub ..."
+msgstr "Скачивание {mod}_v{version} с GitHub ..."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Файл существует. Вы хотите перезаписать его?"
+
+msgid "Aborted."
+msgstr "Отмена."
+
+msgid "Error {code}: {mod}_v{version} {message}"
+msgstr "Ошибка {code}: {mod}_v{version} {message}"
+
+msgid "{} downloaded. Use `/mods install` to install it."
+msgstr "{} скачан. Используйте команду `/mods install` для установки."
+
+msgid "Downloading {} ..."
+msgstr "Скачивание {} ..."
+
