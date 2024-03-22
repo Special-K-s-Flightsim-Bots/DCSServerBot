@@ -3,12 +3,14 @@ import discord
 import os
 import psycopg
 
-from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group
+from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
 from services import DCSServerBot, OvGMEService
 from typing import Tuple, Optional, Literal
+
+_ = get_translation(__name__.split('.')[1])
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 
@@ -69,14 +71,16 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
             return []
         return [
             app_commands.Choice(name=name, value=f"{folder}/{name}")
-            for folder, name in sorted(set((folder, name) for folder, name, _ in await get_available_mods(service, server)))
+            for folder, name in sorted(set((folder, name) for folder, name, _ in await get_available_mods(service,
+                                                                                                          server)))
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
 
 
-async def available_versions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def available_versions_autocomplete(interaction: discord.Interaction,
+                                          current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     service = ServiceRegistry.get(OvGMEService)
@@ -131,9 +135,9 @@ class OvGME(Plugin):
         await conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     # New command group "/mods"
-    mods = Group(name="mods", description="Commands to manage custom mods in your DCS server")
+    mods = Group(name="mods", description=_("Commands to manage custom mods in your DCS server"))
 
-    @mods.command(description='Install / uninstall / update mods')
+    @mods.command(description=_('manage mods'))
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
     async def manage(self, interaction: discord.Interaction,
@@ -151,7 +155,7 @@ class OvGME(Plugin):
             async def shutdown(derived, interaction: discord.Interaction):
                 # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
-                derived.embed.set_footer(text=f"Shutting down {server.name}, please wait ...")
+                derived.embed.set_footer(text=_("Shutting down {}, please wait ...").format(server.name))
                 await interaction.edit_original_response(embed=derived.embed)
                 await server.shutdown()
                 await derived.render()
@@ -160,7 +164,7 @@ class OvGME(Plugin):
             async def render(derived):
                 derived.embed.clear_fields()
                 if derived.installed:
-                    derived.embed.add_field(name='_ _', value='**The following mods are currently installed:**',
+                    derived.embed.add_field(name='_ _', value=_('**The following mods are currently installed:**'),
                                             inline=False)
                     packages = versions = update = ''
                     for i in range(0, len(derived.installed)):
@@ -172,15 +176,15 @@ class OvGME(Plugin):
                             update += latest + '\n'
                         else:
                             update += '_ _\n'
-                    derived.embed.add_field(name='Mod', value=packages)
-                    derived.embed.add_field(name='Version', value=versions)
-                    derived.embed.add_field(name='Update', value=update)
+                    derived.embed.add_field(name=_('Mod'), value=packages)
+                    derived.embed.add_field(name=_('Version'), value=versions)
+                    derived.embed.add_field(name=_('Update'), value=update)
                 else:
-                    derived.embed.add_field(name='_ _', value='There are no mods installed.', inline=False)
+                    derived.embed.add_field(name='_ _', value=_('There are no mods installed.'), inline=False)
 
                 derived.clear_items()
                 if derived.available and server.status == Status.SHUTDOWN:
-                    select = Select(placeholder="Select a mod to install / update",
+                    select = Select(placeholder=_("Select a mod to install / update"),
                                     options=[
                                         SelectOption(label=x[1] + '_' + x[2], value=str(idx))
                                         for idx, x in enumerate(derived.available)
@@ -190,7 +194,7 @@ class OvGME(Plugin):
                     select.callback = derived.install
                     derived.add_item(select)
                 if derived.installed and server.status == Status.SHUTDOWN:
-                    select = Select(placeholder="Select a mod to uninstall",
+                    select = Select(placeholder=_("Select a mod to uninstall"),
                                     options=[
                                         SelectOption(label=x[1] + '_' + x[2], value=str(idx))
                                         for idx, x in enumerate(derived.installed)
@@ -200,20 +204,21 @@ class OvGME(Plugin):
                                     row=1)
                     select.callback = derived.uninstall
                     derived.add_item(select)
-                button = Button(label="Download", style=discord.ButtonStyle.primary, row=2)
+                button = Button(label=_("Download"), style=discord.ButtonStyle.primary, row=2)
                 button.callback = derived.download
                 derived.add_item(button)
                 if server.status != Status.SHUTDOWN:
-                    button = Button(label="Shutdown", style=discord.ButtonStyle.secondary, row=2)
+                    button = Button(label=_("Shutdown"), style=discord.ButtonStyle.secondary, row=2)
                     button.callback = derived.shutdown
                     derived.add_item(button)
-                    derived.embed.set_footer(text=f"⚠️ Server {server.name} needs to be shut down to change mods.")
+                    derived.embed.set_footer(
+                        text=_("⚠️ Server {} needs to be shut down to change mods.").format(server.name))
                 else:
                     for i in range(1, len(derived.children)):
                         # noinspection PyUnresolvedReferences
                         if isinstance(derived.children[i], Button) and derived.children[i].label == "Shutdown":
                             derived.remove_item(derived.children[i])
-                button = Button(label="Quit", style=discord.ButtonStyle.red, row=2)
+                button = Button(label=_("Quit"), style=discord.ButtonStyle.red, row=2)
                 button.callback = derived.cancel
                 derived.add_item(button)
 
@@ -224,26 +229,30 @@ class OvGME(Plugin):
                     folder, package, version = derived.available[int(interaction.data['values'][0])]
                     current = await self.service.get_installed_package(server, folder, package)
                     if current:
-                        derived.embed.set_footer(text=f"Updating mod {package}, please wait ...")
+                        derived.embed.set_footer(text=_("Updating mod {}, please wait ...").format(package))
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.uninstall_package(server, folder, package, current):
-                            derived.embed.set_footer(text=f"Mod {package}_v{version} could not be uninstalled!")
+                            derived.embed.set_footer(
+                                text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=package,
+                                                                                                version=version))
                             await interaction.edit_original_response(embed=derived.embed)
                         elif not await self.service.install_package(server, folder, package, version):
-                            derived.embed.set_footer(text=f"Mod {package}_v{version} could not be installed!")
+                            derived.embed.set_footer(
+                                text=_("Mod {mod}_v{version} could not be installed!").format(mod=package,
+                                                                                              version=version))
                             await interaction.edit_original_response(embed=derived.embed)
                         else:
-                            derived.embed.set_footer(text=f"Mod {package} updated.")
+                            derived.embed.set_footer(text=_("Mod {} updated.").format(package))
                             derived.installed = await get_installed_mods(self.service, server)
                             derived.available = await get_available_mods(self.service, server)
                             await derived.render()
                     else:
-                        derived.embed.set_footer(text=f"Installing mod {package}, please wait ...")
+                        derived.embed.set_footer(text=_("Installing mod {}, please wait ...").format(package))
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.install_package(server, folder, package, version):
-                            derived.embed.set_footer(text=f"Installation of mod {package} failed.")
+                            derived.embed.set_footer(text=_("Installation of mod {} failed.").format(package))
                         else:
-                            derived.embed.set_footer(text=f"Mod {package} installed.")
+                            derived.embed.set_footer(text=_("Mod {} installed.").format(package))
                             derived.installed = await get_installed_mods(self.service, server)
                             derived.available = await get_available_mods(self.service, server)
                             await derived.render()
@@ -255,24 +264,25 @@ class OvGME(Plugin):
                 # noinspection PyUnresolvedReferences
                 await interaction.response.defer()
                 folder, mod, version = derived.installed[int(interaction.data['values'][0])]
-                derived.embed.set_footer(text=f"Uninstalling mod {mod}, please wait ...")
+                derived.embed.set_footer(text=_("Uninstalling mod {}, please wait ...").format(mod))
                 await interaction.edit_original_response(embed=derived.embed)
                 if not await self.service.uninstall_package(server, folder, mod, version):
-                    derived.embed.set_footer(text=f"Mod {mod}_v{version} could not be uninstalled!")
+                    derived.embed.set_footer(
+                        text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=mod, version=version))
                 else:
-                    derived.embed.set_footer(text=f"Mod {mod} uninstalled.")
+                    derived.embed.set_footer(text=_("Mod {} uninstalled.").format(mod))
                     derived.installed = await get_installed_mods(self.service, server)
                     derived.available = await get_available_mods(self.service, server)
                     await derived.render()
                 await interaction.edit_original_response(embed=derived.embed, view=derived)
 
             async def download(derived, interaction: discord.Interaction):
-                class UploadModal(Modal, title="Download a new Mod"):
-                    url = TextInput(label="URL / GitHub Repo", placeholder='https://github.com/...',
+                class UploadModal(Modal, title=_("Download a new Mod")):
+                    url = TextInput(label=_("URL / GitHub Repo"), placeholder='https://github.com/...',
                                     style=TextStyle.short, required=True)
-                    dest = TextInput(label="Destination (S=Saved Games / R=Root Folder)", style=TextStyle.short,
+                    dest = TextInput(label=_("Destination (S=Saved Games / R=Root Folder)"), style=TextStyle.short,
                                      required=True, min_length=1, max_length=1)
-                    version = TextInput(label="Version", style=TextStyle.short, required=False, default='latest')
+                    version = TextInput(label=_("Version"), style=TextStyle.short, required=False, default='latest')
 
                     async def on_submit(_, interaction: discord.Interaction) -> None:
                         # noinspection PyUnresolvedReferences
@@ -286,16 +296,16 @@ class OvGME(Plugin):
                         else:
                             await self.service.download(modal.url.value, folder)
                     else:
-                        raise ValueError("Not a valid URL!")
+                        raise ValueError(_("Not a valid URL!"))
 
                 modal = UploadModal()
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_modal(modal)
                 if not await modal.wait():
                     if not utils.is_valid_url(modal.url.value):
-                        derived.embed.set_footer(text=f"{modal.url.value} is not a valid URL")
+                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(modal.url.value))
                     else:
-                        derived.embed.set_footer(text=f"Downloading {modal.url.value} , please wait ...")
+                        derived.embed.set_footer(text=_("Downloading {} , please wait ...").format(modal.url.value))
                         for child in derived.children:
                             child.disabled = True
                         await interaction.edit_original_response(embed=derived.embed, view=derived)
@@ -307,7 +317,7 @@ class OvGME(Plugin):
                             self.log.error(f"{ex.code}: {modal.url.value} {ex.message}")
                             embed.set_footer(text=f"{ex.code}: {ex.message}")
                         except Exception as ex:
-                            embed.set_footer(text=f"Error: {ex.__class__.__name__}")
+                            embed.set_footer(text=_("Error: {}").format(ex.__class__.__name__))
                         for child in derived.children:
                             child.disabled = False
                         await derived.render()
@@ -316,8 +326,8 @@ class OvGME(Plugin):
             async def cancel(derived, _: discord.Interaction):
                 derived.stop()
 
-        embed = discord.Embed(title="Mod Manager", color=discord.Color.blue())
-        embed.description = f"Install or uninstall mods to {server.name}"
+        embed = discord.Embed(title=_("Mod Manager"), color=discord.Color.blue())
+        embed.description = _("Install or uninstall mods to {}").format(server.name)
         view = PackageView(embed,
                            installed=await get_installed_mods(self.service, server),
                            available=await get_available_mods(self.service, server))
@@ -329,7 +339,7 @@ class OvGME(Plugin):
         finally:
             await interaction.delete_original_response()
 
-    @mods.command(name="install", description='Install mods to your DCS server')
+    @mods.command(name="install", description=_('Install mods'))
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
     @app_commands.autocomplete(mod=available_mods_autocomplete)
@@ -340,36 +350,44 @@ class OvGME(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status != Status.SHUTDOWN:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Server {server.name} needs to be shut down to install mods.")
+            await interaction.response.send_message(
+                _("Server {} needs to be shut down to install mods.").format(server.name))
             return
         if '/' not in mod:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Mod {mod} not found.")
+            await interaction.response.send_message(_("Mod {} not found!").format(mod))
             return
         folder, package = mod.split('/')
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         current = await self.service.get_installed_package(server, folder, package)
         if current == version:
-            await interaction.followup.send(f"Package {package}_v{version} is already installed.")
+            await interaction.followup.send(
+                _("Mod {mod}_v{version} is already installed!").format(mod=package, version=version))
             return
         if current:
             msg = await interaction.followup.send(
-                f"Updating mod {package} from {current} to {version}, please wait ...", ephemeral=ephemeral)
+                _("Updating mod {mod} from {current_version} to {new_version}, please wait ...").format(
+                    mod=package, current_version=current, new_version=version), ephemeral=ephemeral)
             if not await self.service.uninstall_package(server, folder, package, current):
-                await msg.edit(content=f"Mod {package}_v{version} could not be uninstalled!")
+                await msg.edit(content=_("Mod {mod}_v{version} could not be uninstalled!").format(
+                    mod=package, version=version))
             elif not await self.service.install_package(server, folder, package, version):
-                await msg.edit(content=f"Mod {package}_v{version} could not be installed!")
+                await msg.edit(content=_("Mod {mod}_v{version} could not be installed!").format(
+                    mod=package, version=version))
             else:
-                await msg.edit(content=f"Mod {package} updated to version {version}.")
+                await msg.edit(content=_("Mod {mod} updated to version {version}.").format(
+                    mod=package, version=version))
         else:
-            msg = await interaction.followup.send(f"Installing mod {package}, please wait ...", ephemeral=ephemeral)
+            msg = await interaction.followup.send(_("Installing mod {}, please wait ...").format(package),
+                                                  ephemeral=ephemeral)
             if not await self.service.install_package(server, folder, package, version):
-                await msg.edit(content=f"Installation of mod {package} failed.")
+                await msg.edit(content=_("Installation of mod {} failed.").format(package))
             else:
-                await msg.edit(content=f"Mod {package} installed with version {version}.")
+                await msg.edit(content=_("Mod {mod} installed with version {version}.").format(
+                    mod=package, version=version))
 
-    @mods.command(description='Uninstall mods from your DCS server')
+    @mods.command(description=_('Uninstall mods'))
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
     @app_commands.autocomplete(mod=installed_mods_autocomplete)
@@ -379,18 +397,21 @@ class OvGME(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status != Status.SHUTDOWN:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Server {server.name} needs to be shut down to uninstall mods.")
+            await interaction.response.send_message(
+                _("Server {} needs to be shut down to uninstall mods.").format(server.name))
             return
         folder, package, version = mod.split('/')
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        msg = await interaction.followup.send(f"Uninstalling mod {package}, please wait ...", ephemeral=ephemeral)
+        msg = await interaction.followup.send(_("Uninstalling mod {}, please wait ...").format(package),
+                                              ephemeral=ephemeral)
         if not await self.service.uninstall_package(server, folder, package, version):
-            await msg.edit(content=f"Mod {package}_v{version} could not be uninstalled!")
+            await msg.edit(content=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=package,
+                                                                                              version=version))
             return
-        await msg.edit(content=f"Mod {package} uninstalled.")
+        await msg.edit(content=_("Mod {} uninstalled.").format(package))
 
-    @mods.command(name="list", description='List all mods that are installed on your DCS server')
+    @mods.command(name="list", description=_('List all installed mods'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
     async def _list(self, interaction: discord.Interaction,
@@ -401,29 +422,30 @@ class OvGME(Plugin):
             installed[folder] = await self.service.get_installed_packages(server, folder)
         if not len(installed[OVGME_FOLDERS[0]]) and not len(installed[OVGME_FOLDERS[1]]):
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"No mod installed on server {server.name}.", ephemeral=ephemeral)
+            await interaction.response.send_message(_("No mod installed on server {}.").format(server.name),
+                                                    ephemeral=ephemeral)
             return
         embed = discord.Embed(color=discord.Color.blue())
-        embed.description = f"The following mods are installed on server {server.name}:"
+        embed.description = _("The following mods are installed on server {}:").format(server.name)
         for folder in OVGME_FOLDERS:
             if installed[folder]:
-                embed.add_field(name="Folder", value=folder)
-                embed.add_field(name="Mod", value='\n'.join([x[0] for x in installed[folder]]))
-                embed.add_field(name="Version", value='\n'.join([x[1] for x in installed[folder]]))
+                embed.add_field(name=_("Folder"), value=folder)
+                embed.add_field(name=_("Mod"), value='\n'.join([x[0] for x in installed[folder]]))
+                embed.add_field(name=_("Version"), value='\n'.join([x[1] for x in installed[folder]]))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed)
 
-    @mods.command(description='Download a mod to your installation directory')
+    @mods.command(description=_('Download a mod'))
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
-    @app_commands.describe(url="GitHub repo link or download URL")
+    @app_commands.describe(url=_("GitHub repo link or download URL"))
     @app_commands.autocomplete(version=repo_version_autocomplete)
     async def download(self, interaction: discord.Interaction, folder: Literal['SavedGames', 'RootDir'], url: str,
                        version: Optional[str]):
         ephemeral = utils.get_ephemeral(interaction)
         if not utils.is_valid_url(url):
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("{url} is not a valid URL.", ephemeral=True)
+            await interaction.response.send_message(_("{} is not a valid URL!").format(url), ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -431,31 +453,34 @@ class OvGME(Plugin):
             version = await self.service.get_latest_repo_version(url)
         if version:
             package_name = self.service.extract_repo_name(url).split('/')[-1]
-            msg = await interaction.followup.send(f"Downloading {package_name}_v{version} from GitHub ...",
-                                                  ephemeral=ephemeral)
+            msg = await interaction.followup.send(
+                _("Downloading {mod}_v{version} from GitHub ...").format(mod=package_name, version=version),
+                ephemeral=ephemeral)
             try:
                 await self.service.download_from_repo(url, folder, version=version)
             except FileExistsError:
-                if not await utils.yn_question(interaction, f"File exists. Do you want to overwrite it?",
+                if not await utils.yn_question(interaction, _("File exists. Do you want to overwrite it?"),
                                                ephemeral=ephemeral):
-                    await msg.edit(content="Aborted.")
+                    await msg.edit(content=_("Aborted."))
                     return
                 await self.service.download_from_repo(url, folder, version=version, force=True)
             except aiohttp.ClientResponseError as ex:
-                await msg.edit(content=f"Error {ex.status}: {package_name}_v{version} {ex.message}")
+                await msg.edit(content=_("Error {code}: {mod}_v{version} {message}").format(
+                    code=ex.status, mod=package_name, version=version, message=ex.message))
                 return
-            await msg.edit(content=f"{package_name}_v{version} downloaded. Use `/mods install` to install it.")
+            await msg.edit(content=_("{} downloaded. Use `/mods install` to install it.").format(
+                f"{package_name}_v{version}"))
         else:
             filename = url.split('/')[-1]
-            msg = await interaction.followup.send(f"Downloading {filename} ...", ephemeral=ephemeral)
+            msg = await interaction.followup.send(_("Downloading {} ...").format(filename), ephemeral=ephemeral)
             try:
                 await self.service.download(url, folder)
             except FileExistsError:
-                if not await utils.yn_question(interaction, f"File exists. Do you want to overwrite it?",
+                if not await utils.yn_question(interaction, _("File exists. Do you want to overwrite it?"),
                                                ephemeral=ephemeral):
                     return
                 await self.service.download_from_repo(url, folder, version=version, force=True)
-            await msg.edit(content=f"{filename} downloaded. Use `/mods install` to install it.")
+            await msg.edit(content=_("{} downloaded. Use `/mods install` to install it.").format(filename))
 
 
 async def setup(bot: DCSServerBot):
