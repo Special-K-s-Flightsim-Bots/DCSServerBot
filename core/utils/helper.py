@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import builtins
+import importlib
 import json
-import time
 import luadata
 import os
+import pkgutil
 import re
 import shutil
 import string
 import tempfile
+import time
 import unicodedata
 
 # for eval
@@ -51,6 +53,7 @@ __all__ = [
     "is_valid_url",
     "is_github_repo",
     "matches_cron",
+    "dynamic_import",
     "SettingsDict",
     "RemoteSettingsDict",
     "tree_delete",
@@ -441,6 +444,13 @@ def matches_cron(datetime_obj: datetime, cron_string: str):
     next_date = cron_job.get_next(datetime)
     prev_date = cron_job.get_prev(datetime)
     return datetime_obj == prev_date or datetime_obj == next_date
+
+
+def dynamic_import(package_name: str):
+    package = importlib.import_module(package_name)
+    for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__):
+        if is_pkg:
+            globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
 
 
 class SettingsDict(dict):

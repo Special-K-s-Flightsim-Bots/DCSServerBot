@@ -7,13 +7,13 @@ import psycopg
 import sys
 import traceback
 
-from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError, FatalException, COMMAND_LINE_ARGS
+from core import (
+    NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS
+)
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError
 
-# Register all services
-import services
 from services import Dashboard
 
 
@@ -23,6 +23,7 @@ class Main:
         self.node = node
         self.log = node.log
         self.no_autoupdate = no_autoupdate
+        utils.dynamic_import('services')
 
     async def run(self):
         await self.node.post_init()
