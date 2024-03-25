@@ -109,7 +109,11 @@ class Scheduler(Plugin):
             else:
                 self.log.warning("Scheduler: warn structure mangled in scheduler.yaml")
                 return
-            restart_in = max_warn_time or max(warn_times)
+            if max_warn_time is None:
+                restart_in = max(warn_times)
+            else:
+                restart_in = max_warn_time
+            self.log.debug(f"Scheduler: Restart in {restart_in} seconds...")
 
             if what == 'restart_with_shutdown':
                 what = 'restart'
@@ -249,6 +253,8 @@ class Scheduler(Plugin):
                 elif 'mission_time' in rconf:
                     if (server.current_mission.mission_time + warn_time) >= (rconf['mission_time'] * 60):
                         restart_in = int((rconf['mission_time'] * 60) - server.current_mission.mission_time)
+                        if restart_in < 0:
+                            restart_in = 0
                         asyncio.create_task(self.restart_mission(server, config, rconf, restart_in))
                         return
 
