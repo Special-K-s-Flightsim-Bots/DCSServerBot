@@ -99,44 +99,57 @@ class Scheduler(Plugin):
             return sorted(times.keys(), reverse=True)
 
     async def warn_users(self, server: Server, config: dict, what: str, max_warn_time: Optional[int] = None):
-        if 'warn' in config:
-            times: Union[list, dict] = config.get('warn', {}).get('times', [0])
-            if isinstance(times, list):
-                warn_times = sorted(times, reverse=True)
-                warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
-            elif isinstance(times, dict):
-                warn_times = sorted(times.keys(), reverse=True)
-            else:
-                self.log.warning("Scheduler: warn structure mangled in scheduler.yaml")
-                return
-            restart_in = max_warn_time or max(warn_times)
+        if 'warn' not in config:
+            return
+        times: Union[list, dict] = config.get('warn', {}).get('times', [0])
+        if isinstance(times, list):
+            warn_times = sorted(times, reverse=True)
+            warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
+        elif isinstance(times, dict):
+            warn_times = sorted(times.keys(), reverse=True)
+        else:
+            self.log.warning("Scheduler: warn structure mangled in scheduler.yaml, no user warning!")
+            return
+        if max_warn_time is None:
+            restart_in = max(warn_times)
+        else:
+            restart_in = max_warn_time
+        self.log.debug(f"Scheduler: Restart in {restart_in} seconds...")
 
-            if what == 'restart_with_shutdown':
-                what = 'restart'
-                item = 'Server'
-            elif what == 'shutdown':
-                item = 'Server'
-            else:
-                item = 'Mission'
-            while restart_in > 0 and not server.maintenance and server.restart_pending:
-                for warn_time in warn_times:
-                    if warn_time == restart_in:
-                        if server.status == Status.RUNNING:
-                            if isinstance(times, dict):
-                                warn_text = times[warn_time]
-                            server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
-                                                                                    when=utils.format_time(warn_time)),
-                                                    server.locals.get('message_timeout', 10))
-                            if 'sound' in config['warn']:
-                                server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
-                                                                                    time=warn_time))
-                            with suppress(Exception):
-                                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
-                                if events_channel:
-                                    await events_channel.send(warn_text.format(item=item, what=what,
-                                                                               when=utils.format_time(warn_time)))
-                await asyncio.sleep(1)
-                restart_in -= 1
+        if what == 'restart_with_shutdown':
+            what = 'restart'
+            item = 'Server'
+        elif what == 'shutdown':
+            item = 'Server'
+        else:
+            item = 'Mission'
+
+        async def do_warn(warn_time: int):
+            nonlocal warn_text
+
+            sleep_time = restart_in - warn_time
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+            if server.status == Status.RUNNING:
+                if isinstance(times, dict):
+                    warn_text = times[warn_time]
+                server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
+                                                                        when=utils.format_time(warn_time)),
+                                        server.locals.get('message_timeout', 10))
+                if 'sound' in config['warn']:
+                    server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
+                                                                        time=warn_time))
+            with suppress(Exception):
+                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                if events_channel:
+                    await events_channel.send(warn_text.format(item=item, what=what,
+                                                               when=utils.format_time(warn_time)))
+            self.log.debug(f"Scheduler: Warning for {warn_time} fired.")
+
+        tasks = [asyncio.create_task(do_warn(i)) for i in warn_times if i <= restart_in]
+        await asyncio.gather(*tasks)
+        # sleep until the restart should happen
+        await asyncio.sleep(min(restart_in, min(warn_times)))
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
         self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
@@ -250,6 +263,8 @@ class Scheduler(Plugin):
                 elif 'mission_time' in rconf:
                     if (server.current_mission.mission_time + warn_time) >= (rconf['mission_time'] * 60):
                         restart_in = int((rconf['mission_time'] * 60) - server.current_mission.mission_time)
+                        if restart_in < 0:
+                            restart_in = 0
                         asyncio.create_task(self.restart_mission(server, config, rconf, restart_in))
                         return
 
