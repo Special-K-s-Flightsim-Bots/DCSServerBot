@@ -35,7 +35,9 @@ class DSMC(Extension):
             else:
                 return eval(_value)
 
-        cfg = dict()
+        if not self.config.get('enabled', True):
+            return {}
+        cfg = {}
         dcs_home = self.server.instance.home
         with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), mode='r', encoding='utf-8') as infile:
             for line in infile.readlines():
