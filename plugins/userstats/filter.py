@@ -94,7 +94,7 @@ class CampaignFilter(StatisticsFilter):
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period and (period.startswith('campaign:') or period.casefold() in [
+        return period and (period.lower().startswith('campaign:') or period.casefold() in [
             x.casefold() for x in utils.get_all_campaigns(bot)
         ])
 
@@ -107,7 +107,7 @@ class CampaignFilter(StatisticsFilter):
                f"WHERE name ILIKE '{period}') AND m.server_name in (SELECT server_name FROM campaigns_servers)"
 
     def format(self, bot: DCSServerBot) -> str:
-        if self.period and self.period.startswith('campaign:'):
+        if self.period and self.period.lower().startswith('campaign:'):
             period = self.period[9:]
         else:
             period = self.period
@@ -123,7 +123,7 @@ class MissionFilter(StatisticsFilter):
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period and period.startswith('mission:')
+        return period and period.lower().startswith('mission:')
 
     def filter(self, bot: DCSServerBot) -> str:
         return f"m.mission_name ILIKE '%%{self.period[8:].strip()}%%'"
