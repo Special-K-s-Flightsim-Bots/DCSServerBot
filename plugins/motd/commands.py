@@ -89,7 +89,7 @@ class MOTD(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def nudge(self):
-        async def process_message():
+        async def process_message(config: dict, message: str):
             if 'recipients' in config:
                 async for recp in self.get_recipients(server, config):
                     self.send_message(message, server, config, recp)
@@ -107,11 +107,11 @@ class MOTD(Plugin):
                 elif server.current_mission.mission_time - self.last_nudge[server.name] > config['delay']:
                     if 'message' in config:
                         message = utils.format_string(config['message'], server=server)
-                        await process_message()
+                        await process_message(config, message)
                     elif 'messages' in config:
                         for cfg in config['messages']:
                             message = utils.format_string(cfg['message'], server=server)
-                            await process_message()
+                            await process_message(cfg, message)
                     self.last_nudge[server.name] = server.current_mission.mission_time
         except Exception as ex:
             self.log.exception(ex)
