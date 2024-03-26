@@ -22,7 +22,7 @@ class PlaytimesPerPlane(report.GraphElement):
         if server_name:
             self.env.embed.description = utils.escape_string(server_name)
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY s.slot ORDER BY 2'
 
