@@ -64,8 +64,12 @@ class ServerInfo(report.EmbedElement):
                 value = '{} {}'.format(server.current_mission.date,
                                        timedelta(seconds=server.current_mission.start_time + uptime))
 
-            value += f"\n\n**Runtime**\n{timedelta(seconds=uptime)}"
-            self.add_field(name='Date/Time in Mission', value=value)
+            if server.restart_time:
+                value += (f"\n\n**Runtime\t|\tRestart**\n"
+                          f"{timedelta(seconds=uptime)}\t|\t<t:{int(server.restart_time.timestamp())}:R>")
+            else:
+                value += f"\n\n**Runtime**\n{timedelta(seconds=uptime)}"
+            self.add_field(name='Date / Time in Mission', value=value)
         if server.maintenance:
             footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
         else:

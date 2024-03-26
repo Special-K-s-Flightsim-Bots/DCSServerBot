@@ -605,6 +605,7 @@ class Scheduler(Plugin):
                                                     ephemeral=True)
             return
         if server.name == new_name:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("The server has this name already. Aborted.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
@@ -667,6 +668,50 @@ class Scheduler(Plugin):
                                         'to reset maintenance mode.' if maintenance else ''))
         finally:
             server.maintenance = maintenance
+
+    @group.command(name="timeleft", description="Time until server / mission restart")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def timeleft(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[
+                               Status.RUNNING, Status.PAUSED
+                           ])
+                       ]):
+        config = self.get_config(server).get('restart')
+        if not config:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("No restart configured for this server.")
+            return
+        if server.maintenance:
+            await interaction.response.send_message("Server is in maintenance mode, it will not restart.")
+            return
+        # noinspection PyUnresolvedReferences
+        restart_in, rconf = self.eventlistener.get_next_restart(server, config)
+        what = rconf['method']
+        if what == 'restart_with_shutdown':
+            what = 'restart'
+            item = 'Server'
+        elif what == 'shutdown':
+            item = 'Server'
+        else:
+            item = 'Mission'
+        message = f"{item} will {what}"
+        if 'local_times' in rconf or server.status == Status.RUNNING:
+            if server.restart_time >= datetime.now():
+                message += f" <t:{int(server.restart_time.timestamp())}:R>"
+            else:
+                message += " now"
+            if not rconf.get('populated', True) and server.is_populated():
+                message += ", if all players have left."
+        else:
+            if restart_in:
+                message += f" after {utils.format_time(restart_in)}"
+            else:
+                message += " immediately"
+            message += f", if the mission is unpaused again."
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(message, ephemeral=True)
 
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")

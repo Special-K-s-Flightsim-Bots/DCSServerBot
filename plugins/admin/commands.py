@@ -443,7 +443,7 @@ class Admin(Plugin):
         target = config.get('target')
         if target:
             target = target.format(server=server)
-        if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
+        if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('.acmi') and \
                 len(file) >= 25 * 1024 * 1024:
             zip_buffer = BytesIO()
             with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:

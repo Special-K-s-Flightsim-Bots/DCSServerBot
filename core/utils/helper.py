@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from core import ServerProxy, DataObject, Node
 
 __all__ = [
+    "parse_time",
     "is_in_timeframe",
     "is_match_daystate",
     "str_to_class",
@@ -63,6 +64,12 @@ __all__ = [
 ]
 
 
+def parse_time(time_str: str) -> datetime:
+    fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
+        if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
+    return datetime.strptime(time_str, fmt)
+
+
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     """
     Check if a given time falls within a specified timeframe.
@@ -74,11 +81,6 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     :return: True if the time falls within the timeframe, False otherwise.
     :rtype: bool
     """
-    def parse_time(time_str: str) -> datetime:
-        fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
-            if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
-        return datetime.strptime(time_str, fmt)
-
     pos = timeframe.find('-')
     if pos != -1:
         start_time = parse_time(timeframe[:pos])
@@ -194,7 +196,8 @@ def convert_time(seconds: int):
     :param seconds: The number of seconds to be converted into time representation.
     :return: The formatted string representation of time.
     """
-    return convert_time_and_format(int(seconds), True)
+    retval = convert_time_and_format(int(seconds), True)
+    return retval if retval else "now"
 
 
 def format_time(seconds: int):
