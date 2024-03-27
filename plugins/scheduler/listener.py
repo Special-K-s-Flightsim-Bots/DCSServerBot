@@ -2,7 +2,7 @@ import asyncio
 import os
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Union, Optional
 
 
@@ -206,7 +206,7 @@ class SchedulerListener(EventListener):
         if not restart:
             return
         restart_in, _ = self.get_next_restart(server, restart)
-        server.restart_time = datetime.now() + timedelta(seconds=restart_in)
+        server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=restart_in)
 
     @event(name="getMissionUpdate")
     async def getMissionUpdate(self, server: Server, _: dict) -> None:
@@ -247,7 +247,7 @@ class SchedulerListener(EventListener):
         elif not server.restart_time:
             player.sendChatMessage("Please try again in a minute.")
             return
-        restart_in = int((server.restart_time - datetime.now()).total_seconds())
+        restart_in = int((server.restart_time - datetime.now(timezone.utc)).total_seconds())
         message = f"The mission will restart in {utils.format_time(restart_in)}"
         if not restart.get('populated', True):
             message += ", if all players have left"

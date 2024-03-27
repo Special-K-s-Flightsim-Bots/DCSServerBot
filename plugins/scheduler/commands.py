@@ -6,7 +6,7 @@ import os
 from contextlib import suppress
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
@@ -704,7 +704,7 @@ class Scheduler(Plugin):
             item = 'Mission'
         message = f"{item} will {what}"
         if 'local_times' in rconf or server.status == Status.RUNNING:
-            if server.restart_time >= datetime.now():
+            if server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(server.restart_time.timestamp())}:R>"
             else:
                 message += " now"
