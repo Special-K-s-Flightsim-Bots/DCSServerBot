@@ -8,6 +8,9 @@ from typing import Optional
 
 async def report(file: str, channel: int, node: Node, persistent: Optional[bool] = True,
                  server: Optional[Server] = None):
+    # we can only render on the master node
+    if not node.master:
+        return
     bot = ServiceRegistry.get(BotService).bot
     if persistent:
         r = PersistentReport(bot, 'scheduler', file, channel_id=channel, server=server,
