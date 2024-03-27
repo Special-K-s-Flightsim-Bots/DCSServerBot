@@ -200,7 +200,7 @@ def convert_time(seconds: int):
     :return: The formatted string representation of time.
     """
     retval = convert_time_and_format(int(seconds), True)
-    return retval if retval else "now"
+    return retval
 
 
 def format_time(seconds: int):
