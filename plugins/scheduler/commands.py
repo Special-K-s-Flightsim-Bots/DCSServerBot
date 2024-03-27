@@ -683,8 +683,11 @@ class Scheduler(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("No restart configured for this server.")
             return
-        if server.maintenance:
+        elif server.maintenance:
             await interaction.response.send_message("Server is in maintenance mode, it will not restart.")
+            return
+        elif not server.restart_time:
+            await interaction.response.send_message("Please try again in a minute.")
             return
         # noinspection PyUnresolvedReferences
         restart_in, rconf = self.eventlistener.get_next_restart(server, config)

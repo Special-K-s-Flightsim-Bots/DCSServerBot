@@ -488,7 +488,7 @@ class ServiceBus(Service):
         else:
             obj = ServiceRegistry.get(data['service'])
         if not obj:
-            self.log.warning('RPC command received for unknown object/service.')
+            self.log.debug('RPC command received for unknown object/service.')
             return
         try:
             rc = await self.rpc(obj, data)
@@ -503,7 +503,7 @@ class ServiceBus(Service):
                 }, node=data.get('node'))
         except Exception as ex:
             if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
-                self.log.warning(f"Timeout error during an RPC call: {data['method']}!")
+                self.log.warning(f"Timeout error during an RPC call: {data['method']}!", exc_info=True)
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",

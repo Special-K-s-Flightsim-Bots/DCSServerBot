@@ -24,6 +24,7 @@ class SchedulerListener(EventListener):
                 else:
                     return 0, restart
             elif 'local_times' in restart:
+                min_time_difference = 99999
                 for t in restart['local_times']:
                     restart_time = utils.parse_time(t)
                     check_time = datetime.now().replace(year=restart_time.year, month=restart_time.month,
@@ -31,8 +32,12 @@ class SchedulerListener(EventListener):
                     if restart_time < check_time:
                         restart_time += timedelta(days=1)
                     time_difference_in_seconds = int((restart_time - check_time).total_seconds())
-                    if time_difference_in_seconds >= 0:
-                        return time_difference_in_seconds, restart
+                    if 0 <= time_difference_in_seconds < min_time_difference:
+                        min_time_difference = time_difference_in_seconds
+                if min_time_difference != 99999:
+                    return min_time_difference, restart
+                else:
+                    return None
 
     async def run(self, server: Server, method: str) -> None:
         if method.startswith('load:'):
@@ -195,7 +200,7 @@ class SchedulerListener(EventListener):
 
     def set_restart_time(self, server: Server):
         config = self.get_config(server)
-        if not config or server.restart_time:
+        if not config or not server.current_mission or server.restart_time:
             return
         restart = config.get('restart')
         if not restart:
@@ -235,6 +240,12 @@ class SchedulerListener(EventListener):
         restart = self.get_config(server).get('restart')
         if not restart:
             player.sendChatMessage("No restart configured for this server.")
+            return
+        elif server.maintenance:
+            player.sendChatMessage("Maintenance mode active, mission will not restart.")
+            return
+        elif not server.restart_time:
+            player.sendChatMessage("Please try again in a minute.")
             return
         restart_in = int((server.restart_time - datetime.now()).total_seconds())
         message = f"The mission will restart in {utils.format_time(restart_in)}"
