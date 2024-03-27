@@ -1,0 +1,79 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# /trueskill
+msgid "Display your TrueSkill:tm: rating"
+msgstr "Mostrar tu clasificación TrueSkill:tm:"
+
+msgid "Use `/linkme` to link your account."
+msgstr "Utiliza `/linkme` para conectar tu cuenta."
+
+msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
+msgstr "Clasificación TrueSkill:tm: del jugador {name}: {rating:.2f}."
+
+## LISTENER
+msgid "Your TrueSkill rating is: {}"
+msgstr "Tu clasificación TrueSkill es: {}"
+
+msgid "You're not allowed to re-join the same match!"
+msgstr "¡No tienes permitido entrar de nuevo al mismo encuentro!"
+
+msgid "Player {name} ({rating}) joined the {side} team!"
+msgstr "¡Jugador {name} ({rating}) se ha unido al bando {side}!"
+
+msgid "The match is on! If you die, crash or leave now, you lose!"
+msgstr "¡El encuentro ha comenzado! Si mueres, te estrellas o abandonas, pierdes!"
+
+msgid "You won against {loser}! Your new rating is {rating}"
+msgstr "¡Has ganado frente a {loser}! Tu nueva clasificación es {rating}"
+
+msgid "You lost against {winner}! Your new rating is {rating}"
+msgstr "¡Has perdido frente a {winner}! Tu nueva clasificación es {rating}"
+
+# -skill
+msgid "Display your rating"
+msgstr "Muestra tu clasificación"
+
+msgid "The match is over, {} won!\n\n"
+"The following players are still alive:\n"
+msgstr "¡El encuentro ha acabado, {} ha ganado!\n\n"
+"Los siguientes jugadores están aún vivos:\n"
+
+msgid "\nThis is the log of your last match:\n"
+msgstr "\nEste es el log de tu último encuentro:\n"
+
+msgid "\nYour new rating is as follows:\n"
+msgstr "\nTu nueva clasificación es la siguiente:\n"
+
+# Log
+msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
+msgstr "{killer} en {killer_module} {what} {victim} en {victim_module} con {weapon}"
+
+msgid "killed"
+msgstr "muerto"
+
+msgid "team-killed"
+msgstr "fuego amigo"
+
+msgid "{player} in {module} died ({event})"
+msgstr "{player} en {module} ha muerto ({event})"
+
+msgid "self-kill"
+msgstr "muerte propia"
+
+msgid "crash"
+msgstr "estrellado"
+
+msgid "eject"
+msgstr "eyectado"
+
+msgid "disconnect"
+msgstr "desconectado"
+
+msgid "change_slot"
+msgstr "cambio de slot"

@@ -1,0 +1,37 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# /backup
+msgid "Backup your data"
+msgstr "Realiza una copia de seguridad de los datos"
+
+msgid "Backup of {} completed."
+msgstr "Copia de seguridad de {} completada."
+
+msgid "Backup of {} failed. Please check log for details."
+msgstr "Copia de seguridad {} fallida. Por favor compruebe el log para más detalles."
+
+# /recover
+msgid "Recover your data from an existing backup"
+msgstr "Recupere sus datos desde una copia de seguridad existente"
+
+msgid "I am going to recover your {what} from {date}.\n"
+"This will delete **ALL** data that was there before.\n"
+"Are you 100% sure that you want to do that?"
+msgstr "Voy a restaurar su {what} de {date}.\n"
+"Esto eliminará **TODOS** los datos que hubiera previamente.\n"
+"¿Está seguro que desea continuar?"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Recovery of {} completed."
+msgstr "Restauración de {} completado."
+
+msgid "Recovery of {} failed. Please check log for details."
+msgstr "Recuperación de {} fallido. Por favor compruebe el log para más detalles."
