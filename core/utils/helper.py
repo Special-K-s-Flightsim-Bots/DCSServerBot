@@ -164,8 +164,11 @@ def format_time_units(units, label_single, label_plural=None):
 def process_time(seconds, time_unit_seconds, retval, label_symbol, label_single, colon_format=False):
     units, seconds = calculate_time(time_unit_seconds, seconds)
     if units != 0:
-        if len(retval) and colon_format:
-            retval += ":"
+        if len(retval):
+            if colon_format:
+                retval += ":"
+            else:
+                retval += " "
         formatted_time = format_time_units(units, label_single) if not colon_format else f"{units:02d}{label_symbol}"
         retval += formatted_time
     return seconds, retval

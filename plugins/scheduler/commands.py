@@ -684,10 +684,12 @@ class Scheduler(Plugin):
             await interaction.response.send_message("No restart configured for this server.", ephemeral=True)
             return
         elif server.maintenance:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Server is in maintenance mode, it will not restart.",
                                                     ephemeral=True)
             return
         elif not server.restart_time:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
@@ -715,7 +717,7 @@ class Scheduler(Plugin):
                 message += " immediately"
             message += f", if the mission is unpaused again."
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(message, ephemeral=True)
+        await interaction.response.send_message(message, delete_after=60)
 
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")

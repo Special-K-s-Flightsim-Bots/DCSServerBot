@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 
-from core import Extension, MizFile, utils, DEFAULT_TAG
+from core import Extension, MizFile, utils, DEFAULT_TAG, Server
 from typing import Optional, Tuple
 
 
@@ -14,6 +14,11 @@ class RealWeatherException(Exception):
 
 
 class RealWeather(Extension):
+
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        self.lock = asyncio.Lock()
+
     @property
     def version(self) -> Optional[str]:
         return utils.get_windows_version(os.path.join(os.path.expandvars(self.config['installation']),
@@ -67,7 +72,8 @@ class RealWeather(Extension):
             subprocess.check_call([os.path.join(rw_home, 'realweather.exe')], stdout=out, stderr=out, cwd=cwd)
 
         try:
-            await asyncio.to_thread(run_subprocess)
+            async with self.lock:
+                await asyncio.to_thread(run_subprocess)
         except subprocess.CalledProcessError:
             raise RealWeatherException(f"Error in RealWeather. Enable debug in your extension to see more.")
 
