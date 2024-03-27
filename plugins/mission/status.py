@@ -64,7 +64,7 @@ class ServerInfo(report.EmbedElement):
                 value = '{} {}'.format(server.current_mission.date,
                                        timedelta(seconds=server.current_mission.start_time + uptime))
 
-            if server.restart_time:
+            if server.restart_time and not server.maintenance:
                 value += (f"\n\n**Runtime\t|\tRestart**\n"
                           f"{timedelta(seconds=uptime)}\t|\t<t:{int(server.restart_time.timestamp())}:R>")
             else:
