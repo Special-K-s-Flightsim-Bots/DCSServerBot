@@ -37,7 +37,7 @@ msgid "Cloud statistics are not activated in this Discord!"
 msgstr "¡Las estadísticas de la nube no están habilitadas en éste Discord!"
 
 msgid "Use `/linkme` to link your account."
-msgstr "Utiliza `/linkme`para conectar tu cuenta."
+msgstr "Utiliza `/linkme`para vincular tu cuenta."
 
 msgid "No cloud-based statistics found for this user."
 msgstr "No hay estadísticas en la nube para éste usuario."

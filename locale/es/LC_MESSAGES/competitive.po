@@ -11,7 +11,7 @@ msgid "Display your TrueSkill:tm: rating"
 msgstr "Mostrar tu clasificación TrueSkill:tm:"
 
 msgid "Use `/linkme` to link your account."
-msgstr "Utiliza `/linkme` para conectar tu cuenta."
+msgstr "Utiliza `/linkme` para vincular tu cuenta."
 
 msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
 msgstr "Clasificación TrueSkill:tm: del jugador {name}: {rating:.2f}."

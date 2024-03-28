@@ -1,0 +1,120 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# /traps
+msgid "Commands to display and manage carrier traps"
+msgstr "Comandos para mostrar y manejar las recogidas en portaaviones"
+
+# /traps info
+msgid "Show carrier landing qualifications"
+msgstr "Mostrar las cualificaciones de aterrizaje en portaaviones"
+
+msgid "No carrier landings recorded for this user."
+msgstr "No hay aterrizajes en portaaviones registrados para éste usuario"
+
+msgid "Select a trap for details"
+msgstr "Selecciona una recogida"
+
+msgid "Select the plane for the trap"
+msgstr "Selecciona un avión para la recogida"
+
+# /traps board
+msgid "Display the current Greenieboard"
+msgstr "Muestra el Greenieboard actual"
+
+# /traps add
+msgid "Adds a trap to the Greenieboard"
+msgstr "Añade una recogida al Greenieboard"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use `/traps add`!"
+msgstr "¡Debe especificar una clasificación en greenieboard.yaml para usar `/traps add`!"
+
+msgid "Trap added."
+msgstr "Añadida recogida."
+
+msgid "Aborted,"
+msgstr "Abortado."
+
+msgid "Time (HH24:MI)"
+msgstr "Hora (HH24:MI)"
+
+msgid "Case"
+msgstr "Caso"
+
+msgid "Grade"
+msgstr "Grado"
+
+msgid "LSO Comment"
+msgstr "Comentarios LSO"
+
+msgid "Wire"
+msgstr "Cable"
+
+msgid "Enter the trap details"
+msgstr "Introduzca los detalles de la recogida"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Caso necesita ser 1 a 3."
+
+msgid "Grade has to be one of {}."
+msgstr "Grado debe ser uno de {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "Cable debe ser uno de 1 a 4."
+
+# Listener
+msgid "Carrier Landing"
+msgstr "Aterrizaje en portaaviones"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "Aterrizado en {place} con grado {grade}."
+
+# Reports
+msgid "Date/Time"
+msgstr "Fecha/Hora"
+
+msgid "Plane"
+msgstr "Avión"
+
+msgid "Carrier"
+msgstr "Portaaviones"
+
+msgid "Points"
+msgstr "Puntos"
+
+msgid "LSO Grade: {}"
+msgstr "Grado LSO: {}"
+
+msgid " (a little)\n"
+msgstr " (un poco)\n"
+
+msgid " (a lot!)\n"
+msgstr " (mucho!)\n"
+
+msgid " (ignored)\n"
+msgstr " (ignorado)\n"
+
+# Highscore
+msgid "Traps"
+msgstr "Recogidas"
+
+msgid "No data available."
+msgstr "No hay datos disponibles."
+
+# Greenieboard
+msgid "Pilot"
+msgstr "Piloto"
+
+msgid "Avg"
+msgstr "Media."
+
+msgid "\nThe most recent landing is added at the front.\nNight landings have round markers."
+msgstr "\nEl aterrizaje más reciente se añade al comienzo.\nLos aterrizajes nocturnos tienen marcas redondas."
+
+msgid "\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr "\nÚltima recogida registrada: {time:%y-%m-%d %H:%M:%S}"

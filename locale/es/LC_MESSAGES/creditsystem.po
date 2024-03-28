@@ -1,0 +1,166 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+msgid "Commands to manage player credits"
+msgstr "Comandos para manejar los créditos del los jugadores"
+
+# /credits info
+msgid "Shows your current credits"
+msgstr "Muestra tus créditos actuales"
+
+msgid "You need the DCS Admin role to use this command!"
+msgstr "¡Necesitas el rol de DCS Admin para usar éste comando!"
+
+msgid "Member {} is not linked to any DCS user!"
+msgstr "El miembro {} no está vinculado a ningún usuario de DCS!"
+
+msgid "Use `/linkme` to link your account."
+msgstr "Utiliza `/linkme` para vincular tu cuenta."
+
+msgid "{} has no campaign credits."
+msgstr "{} no tiene créditos de campaña."
+
+msgid "Campaign Credits for {}"
+msgstr "Créditos de campaña para {}"
+
+msgid "Campaign"
+msgstr "Campaña"
+
+msgid "Credits"
+msgstr "Créditos"
+
+msgid "Time"
+msgstr "Tiempo"
+
+msgid "Event"
+msgstr "Evento"
+
+msgid "Log shows the last 10 events only."
+msgstr "El log muestra únicamente los 10 últimos eventos."
+
+# /credits donate (admin)
+msgid "{} needs to properly link their DCS account to receive donations."
+msgstr "{} necesita vincular su cuenta de DCS para recibir donativos."
+
+msgid "It seems like there is no campaign running on your server(s)."
+msgstr "Parece que no hay ninguna campaña en marcha en tu(s) servidor(es)."
+
+msgid "Campaign Credits"
+msgstr "Créditos de campaña"
+
+msgid "Member {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "El miembro {} sobrepasaría el máximo números de campaña con ésta donación. Abortado."
+
+msgid "Donation from member {}"
+msgstr "Donación del miembro {}"
+
+msgid "Credit points change by Admin {}"
+msgstr "Créditos cambiados por el admin {}"
+
+msgid "You just received {} credit points from an Admin."
+msgstr "Ha recibido {} créditos de parte de un administrador."
+
+msgid ", you just received {} credit points from an Admin."
+msgstr ", acaba de recibir {} creditos de un administrador."
+
+msgid "Your credits were decreased by {} credit points by an Admin."
+msgstr "Sus créditos se han reducido {} por un administrador."
+
+msgid ", your credits were decreased by {} credit points by an Admin."
+msgstr ", sus créditos se han reducido {} por un administrador."
+
+msgid "Donated {credits} points to {name}."
+msgstr "Donados {credits} créditos a {name}."
+
+# /credits donate (normal)
+msgid "Donate credits to another member"
+msgstr "Donar créditos a otro miembro"
+
+msgid "You can't donate to yourself."
+msgstr "No puede donarse a sí mismo."
+
+msgid "Your donation has to be > 0."
+msgstr "Su donación ha de ser mayor que 0"
+
+msgid "You need to properly link your DCS account to give donations!"
+msgstr "¡Necesita vincular adecuadamente su cuenta de DCS para realizar donaciones!"
+
+msgid "You don't have any credit points to donate."
+msgstr "No tiene suficientes créditos para donar."
+
+msgid "You can't donate {donation} credit points, you only have {total}!"
+msgstr "No puede donar {donation} créditos, sólo posee {total}!"
+
+msgid "Donation to member {}"
+msgstr "Donación al miembro {}"
+
+msgid "You just received {donation} credit points from {member}!"
+msgstr "¡Ha recibido un donativo de {donation} créditos del miembro {member}!"
+
+msgid ", you just received {donation} credit points from {member}!"
+msgstr ", acaba de recibir {donation} créditos del miembro {member}!"
+
+## LISTENER
+msgid "Initial points received"
+msgstr "Puntos iniciales recibidos"
+
+msgid "{name}, you currently have {credits} credit points."
+msgstr "{name}, posee actualmente {credits} créditos."
+
+msgid "Unknown mission achievement"
+msgstr "Logro de misión desconocido"
+
+# onGameEvent()
+msgid "for killing {}"
+msgstr "por matar {}"
+
+# -credits
+msgid "You currently have {} credit points"
+msgstr "Posee {} créditos actualmente"
+
+# -donate
+msgid "Donate credits to another player"
+msgstr "Donar créditos a otro jugador"
+
+msgid "Usage: {}donate player points"
+msgstr "Uso: {}donate jugador créditos"
+
+msgid "Player {} not found."
+msgstr "Jugador {} no encontrado."
+
+msgid "Player {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "Jugador {} sobrepasaría el máximo números de campaña con ésta donación. Abortado."
+
+msgid "Donation to player {}"
+msgstr "Donación a jugador {}"
+
+msgid "Donation from player {}"
+msgstr "Donación de jugador {}"
+
+msgid "You've donated {donation} credit points to player {name}."
+msgstr "Ha donado {donation} créditos al jugador {name}."
+
+msgid "Player {name} donated {donation} credit points to you!"
+msgstr "¡Jugador {name} te ha donado {donation} créditos!"
+
+# -tip
+msgid "Tip a GCI with points"
+msgstr "Dar una propina de créditos al GCI"
+
+msgid "Usage: {}tip points [gci_number]"
+msgstr "Uso: {}tip créditos [Número-GCI]"
+
+msgid "There is currently no {} GCI active."
+msgstr "Actualmente no hay {} GCI activo."
+
+msgid "Multiple GCIs found, use \"{}tip points gci_number\"."
+msgstr "Múltiples GCIs encontrados. Utilice \"{}tip créditos Número-GCI\"."
+
+msgid "You've donated {donation} credit points to GCI {name}."
+msgstr "Ha donado {donation} créditos al GCI {name}."
+

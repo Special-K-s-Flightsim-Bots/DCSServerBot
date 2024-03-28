@@ -24,7 +24,7 @@ msgid "Ban Details"
 msgstr "Detalles del baneo"
 
 msgid "Member {} is not linked!"
-msgstr "El miembro {} no está linkeado!"
+msgstr "El miembro {} no está vinculado!"
 
 msgid "{} is not a valid UCID!"
 msgstr "¡{} no es una UCID válida!"

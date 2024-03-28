@@ -1,0 +1,13 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+msgid "Exports database tables as json."
+msgstr "Exporta las tablas de la base de datos a json."
+
+msgid "Database dumped to ./export"
+msgstr "Base de datos exportada a ./export ."
