@@ -185,7 +185,16 @@ msgstr "Achtung! Du bist im Begriff, Daten aus Deiner Datenbank unwiederbringlic
 "Bitte selektiere die zu löschenden Daten:"
 
 msgid "We are going to delete all data of user {}. Are you sure?"
-msgstr "Alle Daten des Users {user} werden nun gelöscht. Bist Du sicher?"
+msgstr "Alle Daten des Users {} werden nun gelöscht. Bist Du sicher?"
+
+msgid "We are going to delete all data of server {}. Are you sure?"
+msgstr "Alle Daten des Servers {} werden nun gelöscht. Bist Du sicher?"
+
+msgid "Data of user {} deleted."
+msgstr "Alle Daten des Users {} wurden gelöscht."
+
+msgid "Data of server {} deleted."
+msgstr "Alle Daten des Servers {} wurden gelöscht."
 
 msgid "No players to prune."
 msgstr "Es wurden keine Spielerdaten zum Löschen gefunden."

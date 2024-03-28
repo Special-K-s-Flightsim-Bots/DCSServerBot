@@ -69,7 +69,8 @@ class FunkMan(Plugin):
             self._config[server.node.name][server.instance.name] = default | specific
         return self._config[server.node.name][server.instance.name]
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning FunkMan ...')
         if ucids:
             for ucid in ucids:

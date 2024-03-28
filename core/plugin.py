@@ -313,7 +313,8 @@ class Plugin(commands.Cog):
     async def after_dcs_update(self) -> None:
         ...
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None) -> None:
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         ...
 
     async def _init_db(self) -> bool:

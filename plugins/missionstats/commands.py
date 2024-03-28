@@ -45,13 +45,25 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
 
 class MissionStatistics(Plugin):
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning Missionstats ...')
         if ucids:
             for ucid in ucids:
                 await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
         elif days > -1:
             await conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
+        if server:
+            await conn.execute("""
+                DELETE FROM missionstats WHERE mission_id in (
+                    SELECT id FROM missions WHERE server_name = %s
+                )
+            """, (server, ))
+            await conn.execute("""
+                DELETE FROM missionstats WHERE mission_id NOT IN (
+                    SELECT id FROM missions
+                )
+            """)
         self.log.debug('Missionstats pruned.')
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:

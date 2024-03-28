@@ -50,11 +50,18 @@ class GameMaster(Plugin):
                     server.settings['advanced'] = advanced
         return init
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning Gamemaster ...')
+        if ucids:
+            for ucid in ucids:
+                await conn.execute('DELETE FROM coalitions WHERE player_ucid = %s', (ucid, ))
         if days > -1:
             await conn.execute(
                 f"DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')")
+        if server:
+            await conn.execute("DELETE FROM campaigns_servers WHERE server_name = %s", (server, ))
+            await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server, ))
         self.log.debug('Gamemaster pruned.')
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):

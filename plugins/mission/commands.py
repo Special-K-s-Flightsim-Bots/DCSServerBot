@@ -6,7 +6,7 @@ import random
 import re
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG
+    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range
@@ -23,6 +23,8 @@ from .views import ServerView, PresetView, InfoView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -140,7 +142,8 @@ class Mission(Plugin):
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning Mission ...')
         if days > -1:
             # noinspection PyTypeChecker
@@ -148,6 +151,8 @@ class Mission(Plugin):
                 DELETE FROM missions 
                 WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')
             """)
+        if server:
+            await conn.execute("DELETE FROM missions WHERE server_name = %s", (server, ))
         self.log.debug('Mission pruned.')
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
@@ -156,9 +161,9 @@ class Mission(Plugin):
         """, (new_ucid, old_ucid, new_ucid))
 
     # New command group "/mission"
-    mission = Group(name="mission", description="Commands to manage a DCS mission")
+    mission = Group(name="mission", description=_("Commands to manage a DCS mission"))
 
-    @mission.command(description='Info about the running mission')
+    @mission.command(description=_('Info about the running mission'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):

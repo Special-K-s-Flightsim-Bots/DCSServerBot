@@ -145,6 +145,20 @@ async def get_branches(interaction: discord.Interaction, current: str) -> list[a
     ]
 
 
+async def all_servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    async with interaction.client.apool.connection() as conn:
+        cursor = await conn.execute("""
+            SELECT server_name FROM servers WHERE server_name ILIKE %s
+        """, ('%' + current + '%', ))
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=row[0], value=row[0])
+            async for row in cursor
+        ]
+        return choices[:25]
+
+
 class Admin(Plugin):
 
     def read_locals(self) -> dict:
@@ -485,11 +499,14 @@ class Admin(Plugin):
     @command(name='prune', description=_('Prune unused data in the database'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.autocomplete(_server=all_servers_autocomplete)
+    @app_commands.rename(_server="server")
     async def _prune(self, interaction: discord.Interaction,
                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                         sel_type=PlayerType.PLAYER)]] = None):
+                         sel_type=PlayerType.PLAYER)]] = None,
+                     _server: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
-        if not user:
+        if not _server and not user:
             embed = discord.Embed(title=_(":warning: Database Prune :warning:"))
             embed.description = _("You are going to delete data from your database. Be advised.\n\n"
                                   "Please select the data to be pruned:")
@@ -503,8 +520,12 @@ class Admin(Plugin):
             if view.cmd == "cancel":
                 await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
                 return
-        elif not await utils.yn_question(interaction,
-                                         _("We are going to delete all data of user {}. Are you sure?").format(user)):
+        elif user and not await utils.yn_question(
+                interaction, _("We are going to delete all data of user {}. Are you sure?").format(user)):
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+            return
+        elif _server and not await utils.yn_question(
+                interaction, _("We are going to delete all data of server {}. Are you sure?").format(_server)):
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
 
@@ -516,9 +537,17 @@ class Admin(Plugin):
                             await plugin.prune(conn, ucids=[user])
                             await cursor.execute('DELETE FROM players WHERE ucid = %s', (user, ))
                             await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (user, ))
-                            await interaction.followup.send(f"Data of user {user} deleted.")
+                            await interaction.followup.send(_("Data of user {} deleted.").format(user))
                             return
-                    if view.what in ['users', 'non-members']:
+                    elif _server:
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.prune(conn, server=_server)
+                            await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
+                            await cursor.execute('DELETE FROM instances WHERE server_name = %s', (_server, ))
+                            await cursor.execute('DELETE FROM message_persistence WHERE server_name = %s', (_server, ))
+                            await interaction.followup.send(_("Data of server {} deleted.").format(_server))
+                            return
+                    elif view.what in ['users', 'non-members']:
                         sql = (f"SELECT ucid FROM players "
                                f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")
                         if view.what == 'non-members':

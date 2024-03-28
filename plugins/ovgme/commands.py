@@ -131,6 +131,13 @@ class OvGME(Plugin):
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
+        self.log.debug('Pruning OvGME ...')
+        if server:
+            await conn.execute("DELETE FROM ovgme_packages WHERE server_name = %s", (server, ))
+        self.log.debug('OvGME pruned.')
+
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 

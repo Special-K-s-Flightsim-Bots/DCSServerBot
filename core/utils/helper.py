@@ -46,7 +46,6 @@ __all__ = [
     "format_period",
     "slugify",
     "alternate_parse_settings",
-    "get_all_servers",
     "get_all_players",
     "is_ucid",
     "get_presets",
@@ -301,22 +300,6 @@ def alternate_parse_settings(path: str):
                     else:
                         settings[match.group('key')] = parse(match.group('value'))
     return settings
-
-
-def get_all_servers(self) -> list[str]:
-    """
-    Get a list of all servers that have been seen in the past week.
-
-    :param self: The instance of the class.
-    :return: A list of server names.
-    """
-    with self.pool.connection() as conn:
-        return [
-            row[0] for row in conn.execute("""
-                SELECT server_name FROM instances 
-                WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
-            """)
-        ]
 
 
 def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
