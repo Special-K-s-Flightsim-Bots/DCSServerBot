@@ -29,7 +29,7 @@ class SchedulerListener(EventListener):
                     restart_time = utils.parse_time(t)
                     check_time = datetime.now().replace(year=restart_time.year, month=restart_time.month,
                                                         day=restart_time.day, second=0, microsecond=0)
-                    if restart_time < check_time:
+                    if restart_time <= check_time:
                         restart_time += timedelta(days=1)
                     time_difference_in_seconds = int((restart_time - check_time).total_seconds())
                     if 0 <= time_difference_in_seconds < min_time_difference:
@@ -206,7 +206,8 @@ class SchedulerListener(EventListener):
         if not restart:
             return
         restart_in, _ = self.get_next_restart(server, restart)
-        server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=restart_in)
+        if restart_in:
+            server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=restart_in)
 
     @event(name="getMissionUpdate")
     async def getMissionUpdate(self, server: Server, _: dict) -> None:
