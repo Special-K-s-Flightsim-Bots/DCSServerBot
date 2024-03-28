@@ -45,29 +45,32 @@ msgstr "OR-8 Brigada"
 msgid "E-9 Chief master sergeant"
 msgstr "OR-9 Subteniente"
 
-msgid "O-1 First lieutenant"
+msgid "O-1 Second lieutenant"
+msgstr "OF-1 Alférez"
+
+msgid "O-2 First lieutenant"
 msgstr "OF-1 Teniente"
 
-msgid "O-2 Captain"
+msgid "O-3 Captain"
 msgstr "OF-2 Capitán"
 
-msgid "O-3 Major"
+msgid "O-4 Major"
 msgstr "OF-3 Comandante"
 
-msgid "O-4 Lieutenant colonel"
+msgid "O-5 Lieutenant colonel"
 msgstr "OF-4 Teniente coronel"
 
-msgid "O-5 Colonel"
+msgid "O-6 Colonel"
 msgstr "OF-5 Coronel"
 
-msgid "O-6 Brigadier general"
+msgid "O-7 Brigadier general"
 msgstr "OF-6 General de brigada"
 
-msgid "O-7 Major general"
+msgid "O-8 Major general"
 msgstr "OF-7 General de división"
 
-msgid "O-8 Lieutenant general"
+msgid "O-9 Lieutenant general"
 msgstr "OF-8 Teniente general"
 
-msgid "O-9 General"
+msgid "O-10 General"
 msgstr "OF-9 General del Aire"

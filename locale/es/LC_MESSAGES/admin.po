@@ -187,6 +187,15 @@ msgstr "Atención. Va a proceder a eliminar datos de la base de datos.\n\n"
 msgid "We are going to delete all data of user {}. Are you sure?"
 msgstr "Procederemos a eliminar todos los datos del usuario {user}. ¿Está seguro?"
 
+msgid "We are going to delete all data of server {}. Are you sure?"
+msgstr "Procederemos a eliminar todos los datos del servidor {} ¿Está seguro?"
+
+msgid "Data of user {} deleted."
+msgstr "Datos del usuario {} eliminados."
+
+msgid "Data of server {} deleted."
+msgstr "Datos del servidor {} eliminados."
+
 msgid "No players to prune."
 msgstr "No hay jugadores para limpiar."
 
