@@ -13,13 +13,14 @@ PRETENSE_RANKS = {
     7: {"name": _("E-7 Master sergeant"), "requiredXP": 23500},
     8: {"name": _("E-8 Senior master sergeant"), "requiredXP": 31500},
     9: {"name": _("E-9 Chief master sergeant"), "requiredXP": 42000},
-    10: {"name": _("O-1 First lieutenant"), "requiredXP": 52800},
-    11: {"name": _("O-2 Captain"), "requiredXP": 66500},
-    12: {"name": _("O-3 Major"), "requiredXP": 82500},
-    13: {"name": _("O-4 Lieutenant colonel"), "requiredXP": 101000},
-    14: {"name": _("O-5 Colonel"), "requiredXP": 122200},
-    15: {"name": _("O-6 Brigadier general"), "requiredXP": 146300},
-    16: {"name": _("O-7 Major general"), "requiredXP": 173500},
-    17: {"name": _("O-8 Lieutenant general"), "requiredXP": 204000},
-    18: {"name": _("O-9 General"), "requiredXP": 238000}
+    10: {"name": _("O-1 Second lieutenant"), "requiredXP": 52800},
+    11: {"name": _("O-2 First lieutenant"), "requiredXP": 52800},
+    12: {"name": _("O-3 Captain"), "requiredXP": 66500},
+    13: {"name": _("O-4 Major"), "requiredXP": 82500},
+    14: {"name": _("O-5 Lieutenant colonel"), "requiredXP": 101000},
+    15: {"name": _("O-6 Colonel"), "requiredXP": 122200},
+    16: {"name": _("O-7 Brigadier general"), "requiredXP": 146300},
+    17: {"name": _("O-8 Major general"), "requiredXP": 173500},
+    18: {"name": _("O-9 Lieutenant general"), "requiredXP": 204000},
+    19: {"name": _("O-10 General"), "requiredXP": 238000}
 }

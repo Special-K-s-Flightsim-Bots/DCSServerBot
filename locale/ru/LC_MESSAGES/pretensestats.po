@@ -45,29 +45,32 @@ msgstr "E-8 Старший мастер-сержант"
 msgid "E-9 Chief master sergeant"
 msgstr "E-9 Главный мастер-сержант"
 
-msgid "O-1 First lieutenant"
-msgstr "O-1 Старший лейтенант"
+msgid "O-1 Second lieutenant"
+msgstr "O-1 Лейтенант"
 
-msgid "O-2 Captain"
-msgstr "O-2 Капитан"
+msgid "O-2 First lieutenant"
+msgstr "O-2 Старший лейтенант"
 
-msgid "O-3 Major"
-msgstr "O-3 Майор"
+msgid "O-3 Captain"
+msgstr "O-3 Капитан"
 
-msgid "O-4 Lieutenant colonel"
-msgstr "O-4 Подполковник"
+msgid "O-4 Major"
+msgstr "O-4 Майор"
 
-msgid "O-5 Colonel"
-msgstr "O-5 Полковник"
+msgid "O-5 Lieutenant colonel"
+msgstr "O-5 Подполковник"
 
-msgid "O-6 Brigadier general"
-msgstr "O-6 Бригадный генерал"
+msgid "O-6 Colonel"
+msgstr "O-6 Полковник"
 
-msgid "O-7 Major general"
-msgstr "O-7 Генерал-майор"
+msgid "O-7 Brigadier general"
+msgstr "O-7 Бригадный генерал"
 
-msgid "O-8 Lieutenant general"
-msgstr "O-8 Генерал-лейтенант"
+msgid "O-8 Major general"
+msgstr "O-8 Генерал-майор"
 
-msgid "O-9 General"
-msgstr "O-9 Генерал"
+msgid "O-9 Lieutenant general"
+msgstr "O-9 Генерал-лейтенант"
+
+msgid "O-10 General"
+msgstr "O-10 Генерал"
