@@ -194,7 +194,16 @@ msgstr ""
 "Внимание! Вы хотите удалить данные из базы данных! Будьте внимательны! Пожалуйста выберите данные для удаления:"
 
 msgid "We are going to delete all data of user {}. Are you sure?"
-msgstr "Вы собираетесь удалить все данные об игроке {user}. Вы уверены?"
+msgstr "Мы собираемся удалить все данные по пользователю {}. Вы уверены?"
+
+msgid "We are going to delete all data of server {}. Are you sure?"
+msgstr "Мы собираемся удалить все данные по серверу {}. Вы уверены?"
+
+msgid "Data of user {} deleted."
+msgstr "Данные пользователя {} удалены."
+
+msgid "Data of server {} deleted."
+msgstr "Данные сервера {} удалены."
 
 msgid "No players to prune."
 msgstr "Не найдено игроков для удаления."
