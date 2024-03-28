@@ -688,11 +688,6 @@ class Scheduler(Plugin):
             await interaction.response.send_message("Server is in maintenance mode, it will not restart.",
                                                     ephemeral=True)
             return
-        elif server.restart_pending:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("Server is configured to restart as soon as all players have left.",
-                                                    delete_after=60)
-            return
         elif not server.restart_time:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
