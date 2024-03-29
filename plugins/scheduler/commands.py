@@ -697,11 +697,11 @@ class Scheduler(Plugin):
         what = rconf['method']
         if what == 'restart_with_shutdown':
             what = 'restart'
-            item = 'Server'
+            item = f'Server {_server.name}'
         elif what == 'shutdown':
-            item = 'Server'
+            item = f'Server {_server.name}'
         else:
-            item = 'Mission'
+            item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
         if 'local_times' in rconf or _server.status == Status.RUNNING:
             if _server.restart_time >= datetime.now(tz=timezone.utc):
