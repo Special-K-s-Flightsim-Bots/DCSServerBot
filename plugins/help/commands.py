@@ -3,13 +3,13 @@ import os
 import pandas as pd
 
 from core import Plugin, Report, ReportEnv, command, Command, utils, get_translation
-from discord import app_commands
+from discord import app_commands, Interaction
 from discord.ext import commands
-from discord.ui import View, Select, Button, Modal, TextInput
+from discord.ui import View, Select, Button, Modal, TextInput, Item
 from functools import cache
 from io import BytesIO
 from services import DCSServerBot
-from typing import cast, Optional, Literal
+from typing import cast, Optional, Literal, Any
 
 from .listener import HelpListener
 
@@ -133,18 +133,30 @@ class Help(Plugin):
             title = _('{} Help').format(self.bot.user.display_name)
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
             help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
-            cmds = []
-            descriptions = []
+            cmds = ""
+            descriptions = ""
             for name, cmd in (await get_commands(interaction)).items():
                 if cmd.module == plugin:
-                    cmds.append(name + ' ' + get_usage(cmd))
-                    descriptions.append(cmd.description)
-            if cmds:
-                help_embed.add_field(name=_('Command'), value='\n'.join(cmds))
-                help_embed.add_field(name=_('Description'), value='\n'.join(descriptions))
-                help_embed.add_field(name='_ _', value='_ _')
-            else:
+                    new_cmd = f"{name} {get_usage(cmd)}\n"
+                    new_desc = f"{cmd.description}\n"
+                    if len(cmds + new_cmd) > 1024 or len(descriptions + new_desc) > 1024:
+                        if cmds.strip():  # Only add if there's something besides whitespace
+                            help_embed.add_field(name=_('Command'), value=cmds, inline=True)
+                            help_embed.add_field(name=_('Description'), value=descriptions, inline=True)
+                            help_embed.add_field(name='_ _', value='_ _', inline=True)
+                        cmds = new_cmd
+                        descriptions = new_desc
+                    else:
+                        cmds += new_cmd
+                        descriptions += new_desc
+
+            if cmds.strip():  # Add any remaining commands/descriptions
+                help_embed.add_field(name=_('Command'), value=cmds, inline=True)
+                help_embed.add_field(name=_('Description'), value=descriptions, inline=True)
+                help_embed.add_field(name='_ _', value='_ _', inline=True)
+            elif not help_embed.fields:  # If the embed has no fields, there were no commands for the plugin
                 help_embed.add_field(name=_('There are no commands for your role in this plugin.'), value='_ _')
+
             help_embed.set_footer(text=_('Use /help [command] if you want help for a specific command.'))
             return help_embed
 
@@ -196,6 +208,9 @@ class Help(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             self.stop()
+
+        async def on_error(self, interaction: Interaction, error: Exception, item: Item[Any], /) -> None:
+            self.bot.log.exception(error)
 
     @command(description=_('The help command'))
     @app_commands.guild_only()

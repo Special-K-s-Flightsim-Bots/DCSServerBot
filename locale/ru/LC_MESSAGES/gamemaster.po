@@ -12,7 +12,7 @@ msgstr ""
 "X-Generator: Poedit 3.4.1\n"
 
 # /chat
-msgid "Send a chat message to a running DCS instance"
+msgid "Send a chat message to DCS"
 msgstr "Посылает чат-сообщение в инстанс DCS"
 
 msgid "Server {} is not running."
@@ -147,8 +147,8 @@ msgid "A campaign with this name already exists!"
 msgstr "Кампания с таким именем уже существует!"
 
 # /campaign add_server
-msgid "Add a server to an existing campaign"
-msgstr "Добавить сервер к текущей кампании"
+msgid "Add a server to an existing campaign\n"
+msgstr "Добавить сервер к текущей кампании\n"
 
 msgid "Server {server} added to campaign {campaign}."
 msgstr "Сервер {server} добавлен к кампании {campaign}."

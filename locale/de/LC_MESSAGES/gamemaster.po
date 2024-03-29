@@ -7,7 +7,7 @@ msgstr ""
 "Language: de\n"
 
 # /chat
-msgid "Send a chat message to a running DCS instance"
+msgid "Send a chat message to DCS"
 msgstr "Sende eine Chat-Nachricht nach DCS"
 
 msgid "Server {} is not running."
@@ -142,8 +142,8 @@ msgid "A campaign with this name already exists!"
 msgstr "Eine Kampagne mit diesem Namen existiert bereits!"
 
 # /campaign add_server
-msgid "Add a server to an existing campaign"
-msgstr "Füge einen Server zu einer Kampagne hinzu"
+msgid "Add a server to an existing campaign\n"
+msgstr "Füge Server zu einer Kampagne hinzu\n"
 
 msgid "Server {server} added to campaign {campaign}."
 msgstr "Server {server} wurde zur Kampagne {campaign} zugefügt."
