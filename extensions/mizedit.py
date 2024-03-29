@@ -3,7 +3,6 @@ import random
 from core import Extension, utils, Server, YAMLError, DEFAULT_TAG
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -76,7 +75,7 @@ class MizEdit(Extension):
                 modifications.append(value)
         return modifications
 
-    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         return await self.server.modifyMission(filename, await self.get_presets(self.config)), True
 
     def is_installed(self) -> bool:

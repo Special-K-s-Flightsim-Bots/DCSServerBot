@@ -14,6 +14,8 @@ from .tacview import TACVIEW_DEFAULT_DIR
 process: Optional[psutil.Process] = None
 servers: set[str] = set()
 imports: set[str] = set()
+tacview_dirs: dict[str, set[str]] = {}
+lock = asyncio.Lock()
 
 
 class Lardoon(Extension):
@@ -21,8 +23,13 @@ class Lardoon(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
 
+    def _get_tacview_dir(self) -> str:
+        return self.config.get('tacviewExportPath',
+                               self.server.options['plugins']['Tacview'].get('tacviewExportPath',
+                                                                             TACVIEW_DEFAULT_DIR))
+
     async def startup(self) -> bool:
-        global process, servers
+        global process, servers, tacview_dirs, lock
 
         await super().startup()
         if 'Tacview' not in self.server.options['plugins']:
@@ -45,14 +52,24 @@ class Lardoon(Extension):
                 self.log.error(f"Error during launch of {self.config['cmd']}!")
                 return False
         servers.add(self.server.name)
+        tacview_dir = self._get_tacview_dir()
+        if tacview_dir not in tacview_dirs:
+            tacview_dirs[tacview_dir] = set()
+        tacview_dirs[tacview_dir].add(self.server.name)
         return await asyncio.to_thread(self.is_running)
 
     def shutdown(self) -> bool:
         global process, servers
 
-        servers.remove(self.server.name)
+        super().shutdown()
+        if self.server.name in servers:
+            servers.remove(self.server.name)
+        tacview_dir = self._get_tacview_dir()
+        try:
+            tacview_dirs[tacview_dir].remove(self.server.name)
+        except KeyError:
+            pass
         if not servers:
-            super().shutdown()
             try:
                 utils.terminate_process(process)
                 process = None
@@ -97,23 +114,27 @@ class Lardoon(Extension):
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
+        global lock, tacview_dirs
+
         def run_subprocess(args):
             subprocess.run([cmd] + args, stdout=out, stderr=out)
 
+        for tacview_dir, server_list in tacview_dirs.items():
+            if server_list and self.server.name == list(server_list)[0]:
+                break
+        else:
+            return
         minutes = self.config.get('minutes', 5)
         if self.schedule.minutes != minutes:
             self.schedule.change_interval(minutes=minutes)
         try:
-            path = self.config.get('tacviewExportPath',
-                                   self.server.options['plugins']['Tacview'].get('tacviewExportPath',
-                                                                                 TACVIEW_DEFAULT_DIR))
-            if not path:
-                path = TACVIEW_DEFAULT_DIR
             cmd = os.path.expandvars(self.config['cmd'])
             out = subprocess.DEVNULL if not self.config.get('debug', False) else None
-            self.log.debug("Lardoon: Scheduled import run ...")
-            await asyncio.to_thread(run_subprocess, ["import", "-p", path])
-            self.log.debug("Lardoon: Scheduled prune run ...")
-            await asyncio.to_thread(run_subprocess, ["prune", "--no-dry-run"])
+            async with lock:
+                self.log.debug("Lardoon: Scheduled import run ...")
+                await asyncio.to_thread(run_subprocess, ["import", "-p", tacview_dir])
+            async with lock:
+                self.log.debug("Lardoon: Scheduled prune run ...")
+                await asyncio.to_thread(run_subprocess, ["prune", "--no-dry-run"])
         except Exception as ex:
             self.log.exception(ex)

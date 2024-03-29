@@ -148,7 +148,7 @@ class HighscoreTraps(report.GraphElement):
             sql += " AND g.grade <> 'B'"
         if not include_waveoffs:
             sql += " AND g.grade NOT LIKE 'WO%%'"
-        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 

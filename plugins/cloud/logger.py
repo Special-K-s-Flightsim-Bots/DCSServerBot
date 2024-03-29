@@ -7,7 +7,6 @@ import os
 
 from contextlib import suppress
 from core import Node
-from typing import Tuple
 
 
 class CloudLoggingHandler(logging.Handler):
@@ -17,7 +16,7 @@ class CloudLoggingHandler(logging.Handler):
         self.url = url
         self.cwd = os.getcwd()
 
-    def format_traceback(self, trace: traceback) -> Tuple[str, int, list[str]]:
+    def format_traceback(self, trace: traceback) -> tuple[str, int, list[str]]:
         ret = []
         file = None
         line = -1

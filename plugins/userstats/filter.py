@@ -78,13 +78,13 @@ class PeriodFilter(StatisticsFilter):
         else:
             period = self.period
         if period in [None, 'all']:
-            return 'Overall'
+            return 'Overall '
         elif period == 'day':
-            return 'Daily'
+            return 'Daily '
         elif period == 'yesterday':
-            return 'Yesterdays'
+            return 'Yesterdays '
         else:
-            return period.capitalize() + 'ly'
+            return period.capitalize() + 'ly '
 
 
 class CampaignFilter(StatisticsFilter):
@@ -111,7 +111,7 @@ class CampaignFilter(StatisticsFilter):
             period = self.period[9:]
         else:
             period = self.period
-        return f'Campaign "{period.capitalize()}"'
+        return f'Campaign "{period.capitalize()}"\n'
 
 
 class MissionFilter(StatisticsFilter):
@@ -129,7 +129,7 @@ class MissionFilter(StatisticsFilter):
         return f"m.mission_name ILIKE '%%{self.period[8:].strip()}%%'"
 
     def format(self, bot: DCSServerBot) -> str:
-        return f'Missions containing "{self.period[8:].strip().title()}"'
+        return f'Missions containing "{self.period[8:].strip().title()}"\n'
 
 
 class MissionIDFilter(StatisticsFilter):
@@ -147,7 +147,7 @@ class MissionIDFilter(StatisticsFilter):
         return f"m.id = {self.period[11:].strip()}"
 
     def format(self, bot: DCSServerBot) -> str:
-        return f'Mission'
+        return f'Mission '
 
 
 class MonthFilter(StatisticsFilter):
@@ -175,7 +175,7 @@ class MonthFilter(StatisticsFilter):
 
     def format(self, bot: DCSServerBot) -> str:
         month = MonthFilter.get_month(self.period[6:].strip())
-        return f'Month "{const.MONTH[month]}"'
+        return f'Month "{const.MONTH[month]}" '
 
 
 class MissionStatisticsFilter(PeriodFilter):

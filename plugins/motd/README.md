@@ -19,7 +19,7 @@ DEFAULT:
       Come and join us!"
     recipients: '!@everyone'  # the message only goes to specific recipients (see below)
     display_type: chat        # the message will be displayed in the in-game chat
-DCS.server:
+DCS.release_server:
   on_join:                    # The message will be displayed in the in-game chat on join of the server.
     message: Welcome to our public server! Teamkills will be punished.
 ```

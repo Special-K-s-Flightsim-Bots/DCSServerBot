@@ -14,7 +14,7 @@ extension like with all others:
 
 ```json
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       [...]
       "extensions": {
         "DSMC": {

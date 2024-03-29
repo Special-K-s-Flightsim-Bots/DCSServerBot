@@ -8,7 +8,7 @@ import os
 from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel, get_translation
 from io import BytesIO
 from matplotlib import pyplot as plt
-from typing import Tuple, Literal
+from typing import Literal
 
 from .const import StrafeQuality, BombQuality
 
@@ -106,7 +106,7 @@ class FunkManEventListener(EventListener):
         return embed
 
     @staticmethod
-    def save_fig(fig: matplotlib.figure.Figure) -> Tuple[str, BytesIO]:
+    def save_fig(fig: matplotlib.figure.Figure) -> tuple[str, BytesIO]:
         filename = f'{uuid.uuid4()}.png'
         buffer = BytesIO()
         fig.savefig(buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')

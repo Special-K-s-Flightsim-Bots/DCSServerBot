@@ -50,11 +50,18 @@ class GameMaster(Plugin):
                     server.settings['advanced'] = advanced
         return init
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning Gamemaster ...')
+        if ucids:
+            for ucid in ucids:
+                await conn.execute('DELETE FROM coalitions WHERE player_ucid = %s', (ucid, ))
         if days > -1:
             await conn.execute(
                 f"DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')")
+        if server:
+            await conn.execute("DELETE FROM campaigns_servers WHERE server_name = %s", (server, ))
+            await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server, ))
         self.log.debug('Gamemaster pruned.')
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
@@ -63,7 +70,7 @@ class GameMaster(Plugin):
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute('UPDATE coalitions SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
-    @command(description=_('Send a chat message to a running DCS instance'))
+    @command(description=_('Send a chat message to DCS'))
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def chat(self, interaction: discord.Interaction,
@@ -287,7 +294,7 @@ class GameMaster(Plugin):
         except Exception as ex:
             self.log.exception(ex)
 
-    @campaign.command(description=_("Add a server to an existing campaign"))
+    @campaign.command(description=_("Add a server to an existing campaign\n"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)

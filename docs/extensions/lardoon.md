@@ -26,7 +26,7 @@ it'll import all Tacview files from all your servers. You can access the gui wit
       [...]
     },
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       [...]
       "extensions": {
         "Lardoon": {

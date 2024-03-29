@@ -50,7 +50,7 @@ installation. If not specified otherwise, the node-name will be the hostname of 
 
 > ⚠️ **Attention!**<br>
 > If you use multiple nodes on multiple PCs, you might get to the moment where instances are named identical. 
-> This will start with the first instance already, if you keep the default name "DCS.server".<br>
+> This will start with the first instance already, if you keep the default name "DCS.release_server".<br>
 > As many configuration files only use the instance name per default, you might need to add the node name as well.
 > This can be done the same as it is already in your nodes.yaml: The node can be the outer structure in each config file.
 > 
@@ -58,7 +58,7 @@ installation. If not specified otherwise, the node-name will be the hostname of 
 > ```yaml
 > DEFAULT:
 >   some-param: A
-> DCS.server:
+> DCS.release_server:
 >   some-param: B
 > ```
 > 
@@ -67,15 +67,15 @@ installation. If not specified otherwise, the node-name will be the hostname of 
 > DEFAULT:
 >   some-param: A
 > MyNode1:
->   DCS.server:
+>   DCS.release_server:
 >     some-param: B
 > MyNode2:
->   DCS.server:
+>   DCS.release_server:
 >     some-param: C
 > ```
 DCSServerBot will understand both versions. The DEFAULT will be used for ALL instances, independent on which node they 
 are on. If you don't provide a node in a multi-node-system, the bot will read the same parameters for all instances 
-that are named DCS.server on any of your nodes. This can be what you want, but it can lead to errors.<br>
+that are named DCS.release_server on any of your nodes. This can be what you want, but it can lead to errors.<br>
 I would always recommend to create the node-specific version (ex: "Multi-Node-Config" above) to avoid confusion. That's 
 what the bot will create during a default installation also.
 

@@ -19,7 +19,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, Union, Any, TYPE_CHECKING
+from typing import Callable, Optional, cast, Union, Any, TYPE_CHECKING
 
 from ..bot.service import BotService
 from ..bot.dcsserverbot import DCSServerBot
@@ -488,7 +488,7 @@ class ServiceBus(Service):
         else:
             obj = ServiceRegistry.get(data['service'])
         if not obj:
-            self.log.warning('RPC command received for unknown object/service.')
+            self.log.debug('RPC command received for unknown object/service.')
             return
         try:
             rc = await self.rpc(obj, data)
@@ -503,7 +503,7 @@ class ServiceBus(Service):
                 }, node=data.get('node'))
         except Exception as ex:
             if isinstance(ex, TimeoutError) or isinstance(ex, asyncio.TimeoutError):
-                self.log.warning(f"Timeout error during an RPC call: {data['method']}!")
+                self.log.warning(f"Timeout error during an RPC call: {data['method']}!", exc_info=True)
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",
@@ -615,7 +615,7 @@ class ServiceBus(Service):
                 udp_server.message_queue[server.name].put(data)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(derived, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
+            def __init__(derived, server_address: tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 try:
                     # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                     MyThreadingUDPServer.allow_reuse_address = True

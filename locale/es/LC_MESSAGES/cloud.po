@@ -1,0 +1,45 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# /cloud status
+msgid "Test the cloud-connection"
+msgstr "Prueba de conexión con la nube"
+
+msgid "Checking cloud connection ..."
+msgstr "Comprobando conexión con la nube ..."
+
+msgid "Cloud connection established."
+msgstr "Conexión con la nube establecida."
+
+msgid "Cloud not connected!"
+msgstr "¡Nube no conectada!"
+
+# /cloud resync
+msgid "Resync statistics with the cloud"
+msgstr "Resincroniza las estadísticas con la nube"
+
+msgid "No cloud sync configured!"
+msgstr "¡No hay nube configurada!"
+
+msgid "Resync with cloud triggered."
+msgstr "Sincronización con la nube ejecutada"
+
+# /cloud statistics
+msgid "Generate Cloud Statistics"
+msgstr "Genera estadísticas de la nube"
+
+msgid "Cloud statistics are not activated in this Discord!"
+msgstr "¡Las estadísticas de la nube no están habilitadas en éste Discord!"
+
+msgid "Use `/linkme` to link your account."
+msgstr "Utiliza `/linkme`para vincular tu cuenta."
+
+msgid "No cloud-based statistics found for this user."
+msgstr "No hay estadísticas en la nube para éste usuario."
+
+

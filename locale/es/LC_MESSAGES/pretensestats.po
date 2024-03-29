@@ -1,0 +1,76 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+msgid "Rankings as of <t:{}:f>:"
+msgstr "Rangliste von <t:{}:f>:"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "XP"
+msgstr "XP"
+
+msgid "Rank"
+msgstr "Rango"
+
+msgid "E-1 Airman basic"
+msgstr "OR-1 Soldado"
+
+msgid "E-2 Airman"
+msgstr "OR-2 Soldado de primera"
+
+msgid "E-3 Airman first class"
+msgstr "OR-3 Cabo"
+
+msgid "E-4 Senior airman"
+msgstr "OR-4 Cabo primero"
+
+msgid "E-5 Staff sergeant"
+msgstr "OR-5 Cabo mayor"
+
+msgid "E-6 Technical sergeant"
+msgstr "OR-6 Sargento"
+
+msgid "E-7 Master sergeant"
+msgstr "OR-7 Sargento primero"
+
+msgid "E-8 Senior master sergeant"
+msgstr "OR-8 Brigada"
+
+msgid "E-9 Chief master sergeant"
+msgstr "OR-9 Subteniente"
+
+msgid "O-1 Second lieutenant"
+msgstr "OF-1 Alférez"
+
+msgid "O-2 First lieutenant"
+msgstr "OF-1 Teniente"
+
+msgid "O-3 Captain"
+msgstr "OF-2 Capitán"
+
+msgid "O-4 Major"
+msgstr "OF-3 Comandante"
+
+msgid "O-5 Lieutenant colonel"
+msgstr "OF-4 Teniente coronel"
+
+msgid "O-6 Colonel"
+msgstr "OF-5 Coronel"
+
+msgid "O-7 Brigadier general"
+msgstr "OF-6 General de brigada"
+
+msgid "O-8 Major general"
+msgstr "OF-7 General de división"
+
+msgid "O-9 Lieutenant general"
+msgstr "OF-8 Teniente general"
+
+msgid "O-10 General"
+msgstr "OF-9 General del Aire"

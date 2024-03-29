@@ -81,7 +81,7 @@ documentation for now) and you need to link the place where you downloaded FunkM
 
 {: .warning }
 > FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
-> (`Saved Games\DCS.server\trapsheets` as default). I will add a cleanup to prune in the future, but currently,
+> (`Saved Games\DCS.release_server\trapsheets` as default). I will add a cleanup to prune in the future, but currently,
 > there is no auto-cleanup.
 
 ## Configuration
@@ -120,7 +120,7 @@ different greenieboards for different servers. If that is a user demand in the f
     },
     -- OPTIONAL MOOSE AIRBOSS INTEGRATION --
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
       "persistent_channel": "4321", -- the ID of the channel where the greenieboard should be displayed
       "Moose.AIRBOSS": {
@@ -132,7 +132,7 @@ different greenieboards for different servers. If that is a user demand in the f
     },
     -- OPTIONAL FUNKMAN INTEGRATION --
     {
-      "installation": "DCS.server02",
+      "installation": "DCS.release_server02",
       "FunkMan": {
         "basedir": "trapsheets",
         "delete_after": 180         -- Optional: only keep trapsheets for 180 days

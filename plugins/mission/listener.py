@@ -576,14 +576,17 @@ class MissionEventListener(EventListener):
         player.sendChatMessage(f"No ATIS information found for {name}.")
 
     @chat_command(name="restart", roles=['DCS Admin'], usage="[time]", help="restart the running mission")
-    async def restart(self, server: Server, _: Player, params: list[str]):
-        delay = int(params[0]) if len(params) > 0 else 0
-        if delay > 0:
-            message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
-        else:
-            message = '!!! Server will be restarted NOW !!!'
-        server.sendPopupMessage(Coalition.ALL, message)
-        self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
+    async def restart(self, server: Server, player: Player, params: list[str]):
+        try:
+            delay = int(params[0]) if len(params) > 0 else 0
+            if delay > 0:
+                message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
+            else:
+                message = '!!! Server will be restarted NOW !!!'
+            server.sendPopupMessage(Coalition.ALL, message)
+            self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
+        except ValueError:
+            player.sendChatMessage(f"Wrong time: {params[0]}")
 
     @chat_command(name="list", roles=['DCS Admin'], help="lists available missions")
     async def _list(self, server: Server, player: Player, _: list[str]):

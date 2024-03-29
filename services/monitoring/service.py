@@ -88,7 +88,7 @@ class MonitoringService(Service):
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
         self.bus.send_to_node({
             "command": "rpc",
-            "service": BotService.__class__.__name__,
+            "service": BotService.__name__,
             "method": "alert",
             "params": {
                 "server": server.name,

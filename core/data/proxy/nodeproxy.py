@@ -4,7 +4,7 @@ from core.services.registry import ServiceRegistry
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
-from typing import Union, Optional, Tuple, TYPE_CHECKING
+from typing import Union, Optional, TYPE_CHECKING
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -114,7 +114,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
-    async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
+    async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -145,7 +145,7 @@ class NodeProxy(Node):
         }, timeout=60, node=self.name)
         return data['return']
 
-    async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
+    async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -266,7 +266,7 @@ class NodeProxy(Node):
             }
         }, node=self.name)
 
-    async def find_all_instances(self) -> list[Tuple[str, str]]:
+    async def find_all_instances(self) -> list[tuple[str, str]]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",

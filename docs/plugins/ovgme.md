@@ -22,7 +22,7 @@ The plugin is configured via JSON, as many others. If there is no JSON file, the
       "RootFolder": "%USERPROFILE%\\Documents\\OvGME\\RootFolder"     -- folder to store plugins that should go into the base game directories
     },
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       "packages": [                                                   -- list of packages to install
           {"name": "Community_A-4E-C", "version": "2.0.1", "source": "SavedGames"}
       ]

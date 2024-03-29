@@ -69,19 +69,25 @@ class Header(report.EmbedElement):
                 last_seen = row['last_seen']
             if row['banned'] == 1:
                 banned = True
-        self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
-        self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
-        if rows[0]['watchlist']:
-            self.add_field(name='Watchlist', value="🔍")
-        if rows[0]['vip']:
-            self.add_field(name="VIP", value="⭐")
-        if banned:
-            banned_until = rows[0]['banned_until']
-            if banned_until.year != 9999:
-                banned_until = banned_until
-            self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
-            self.add_field(name='Banned by', value=rows[0]['banned_by'])
-            self.add_field(name='Reason', value=rows[0]['reason'])
+        else:
+            first_seen = last_seen = None
+        if first_seen and last_seen:
+            self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
+            self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
+        if rows:
+            if rows[0]['watchlist']:
+                self.add_field(name='Watchlist', value="🔍")
+            if rows[0]['vip']:
+                self.add_field(name="VIP", value="⭐")
+            if banned:
+                banned_until = rows[0]['banned_until']
+                if banned_until.year != 9999:
+                    banned_until = banned_until
+                self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
+                self.add_field(name='Banned by', value=rows[0]['banned_by'])
+                self.add_field(name='Reason', value=rows[0]['reason'])
+        else:
+            self.add_field(name="Link status", value="Unlinked")
 
 
 class UCIDs(report.EmbedElement):
@@ -147,8 +153,11 @@ class Footer(report.EmbedElement):
                 footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:
                     footer += '💯 Verify their DCS-link\n'
-        footer += '✅ Unban them\n' if banned else '⛔ Ban them (DCS only)\n'
-        footer += '🆓 Unwatch them\n' if watchlist else '🔍 Put them on the watchlist\n'
-        if player:
-            footer += f'⏏️ Kick them from {player.server.name}'
+        else:
+            _member = None
+        if not _member or _member.ucid:
+            footer += '✅ Unban them\n' if banned else '⛔ Ban them (DCS only)\n'
+            footer += '🆓 Unwatch them\n' if watchlist else '🔍 Put them on the watchlist\n'
+            if player:
+                footer += f'⏏️ Kick them from {player.server.name}'
         self.embed.set_footer(text=footer)

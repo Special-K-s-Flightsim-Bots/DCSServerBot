@@ -108,7 +108,7 @@ The following parameters can be used to configure the bot:
 
 # Server Specific Sections
 
-This section has to be named **exactly** like your `Saved Games\<instance>` directory. Usual names are `DCS` or `DCS.server`.
+This section has to be named **exactly** like your `Saved Games\<instance>` directory. Usual names are `DCS` or `DCS.release_server`.
 If your directory is named `DCS` instead (stable version), just add these fields to the DCS category above.
 
 | Parameter                  | Description                                                                                                                                                                                |

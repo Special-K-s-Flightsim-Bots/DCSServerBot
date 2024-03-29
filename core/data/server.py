@@ -43,7 +43,7 @@ class Server(DataObject):
     status_change: asyncio.Event = field(compare=False, init=False)
     _options: Optional[Union[utils.SettingsDict, utils.RemoteSettingsDict]] = field(default=None, compare=False)
     _settings: Optional[Union[utils.SettingsDict, utils.RemoteSettingsDict]] = field(default=None, compare=False)
-    current_mission: Mission = field(default=None, compare=False)
+    current_mission: Optional[Mission] = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Optional[Process] = field(default=None, compare=False)
@@ -58,6 +58,7 @@ class Server(DataObject):
     locals: dict = field(default_factory=dict, compare=False)
     bus: ServiceBus = field(compare=False, init=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
+    restart_time: datetime = field(compare=False, default=None)
 
     def __post_init__(self):
         from services import ServiceBus
@@ -385,6 +386,7 @@ class Server(DataObject):
         self.send_to_dcs({"command": "shutdown"})
         with suppress(TimeoutError, asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
+        self.current_mission = None
 
     async def init_extensions(self):
         raise NotImplemented()

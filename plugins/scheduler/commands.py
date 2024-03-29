@@ -6,7 +6,7 @@ import os
 from contextlib import suppress
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
     Instance
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
@@ -99,48 +99,57 @@ class Scheduler(Plugin):
             return sorted(times.keys(), reverse=True)
 
     async def warn_users(self, server: Server, config: dict, what: str, max_warn_time: Optional[int] = None):
-        if 'warn' in config:
-            times: Union[list, dict] = config.get('warn', {}).get('times', [0])
-            if isinstance(times, list):
-                warn_times = sorted(times, reverse=True)
-                warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
-            elif isinstance(times, dict):
-                warn_times = sorted(times.keys(), reverse=True)
-            else:
-                self.log.warning("Scheduler: warn structure mangled in scheduler.yaml")
-                return
-            if max_warn_time is None:
-                restart_in = max(warn_times)
-            else:
-                restart_in = max_warn_time
-            self.log.debug(f"Scheduler: Restart in {restart_in} seconds...")
+        if 'warn' not in config:
+            return
+        times: Union[list, dict] = config.get('warn', {}).get('times', [0])
+        if isinstance(times, list):
+            warn_times = sorted(times, reverse=True)
+            warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
+        elif isinstance(times, dict):
+            warn_times = sorted(times.keys(), reverse=True)
+        else:
+            self.log.warning("Scheduler: warn structure mangled in scheduler.yaml, no user warning!")
+            return
+        if max_warn_time is None:
+            restart_in = max(warn_times)
+        else:
+            restart_in = max_warn_time
+        self.log.debug(f"Scheduler: Restart in {restart_in} seconds...")
 
-            if what == 'restart_with_shutdown':
-                what = 'restart'
-                item = 'Server'
-            elif what == 'shutdown':
-                item = 'Server'
-            else:
-                item = 'Mission'
-            while restart_in > 0 and not server.maintenance and server.restart_pending:
-                for warn_time in warn_times:
-                    if warn_time == restart_in:
-                        if server.status == Status.RUNNING:
-                            if isinstance(times, dict):
-                                warn_text = times[warn_time]
-                            server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
-                                                                                    when=utils.format_time(warn_time)),
-                                                    server.locals.get('message_timeout', 10))
-                            if 'sound' in config['warn']:
-                                server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
-                                                                                    time=warn_time))
-                            with suppress(Exception):
-                                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
-                                if events_channel:
-                                    await events_channel.send(warn_text.format(item=item, what=what,
-                                                                               when=utils.format_time(warn_time)))
-                await asyncio.sleep(1)
-                restart_in -= 1
+        if what == 'restart_with_shutdown':
+            what = 'restart'
+            item = 'Server'
+        elif what == 'shutdown':
+            item = 'Server'
+        else:
+            item = 'Mission'
+
+        async def do_warn(warn_time: int):
+            nonlocal warn_text
+
+            sleep_time = restart_in - warn_time
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+            if server.status == Status.RUNNING:
+                if isinstance(times, dict):
+                    warn_text = times[warn_time]
+                server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
+                                                                        when=utils.format_time(warn_time)),
+                                        server.locals.get('message_timeout', 10))
+                if 'sound' in config['warn']:
+                    server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
+                                                                        time=warn_time))
+            with suppress(Exception):
+                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                if events_channel:
+                    await events_channel.send(warn_text.format(item=item, what=what,
+                                                               when=utils.format_time(warn_time)))
+            self.log.debug(f"Scheduler: Warning for {warn_time} fired.")
+
+        tasks = [asyncio.create_task(do_warn(i)) for i in warn_times if i <= restart_in]
+        await asyncio.gather(*tasks)
+        # sleep until the restart should happen
+        await asyncio.sleep(min(restart_in, min(warn_times)))
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
         self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
@@ -595,6 +604,7 @@ class Scheduler(Plugin):
                                                     ephemeral=True)
             return
         if server.name == new_name:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message("The server has this name already. Aborted.", ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
@@ -657,6 +667,56 @@ class Scheduler(Plugin):
                                         'to reset maintenance mode.' if maintenance else ''))
         finally:
             server.maintenance = maintenance
+
+    @group.command(name="timeleft", description="Time until server / mission restart")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def timeleft(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[
+                               Status.RUNNING, Status.PAUSED
+                           ])
+                       ]):
+        config = self.get_config(server).get('restart')
+        if not config:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("No restart configured for this server.", ephemeral=True)
+            return
+        elif server.maintenance:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("Server is in maintenance mode, it will not restart.",
+                                                    ephemeral=True)
+            return
+        elif not server.restart_time:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
+            return
+        # noinspection PyUnresolvedReferences
+        restart_in, rconf = self.eventlistener.get_next_restart(server, config)
+        what = rconf['method']
+        if what == 'restart_with_shutdown':
+            what = 'restart'
+            item = 'Server'
+        elif what == 'shutdown':
+            item = 'Server'
+        else:
+            item = 'Mission'
+        message = f"{item} will {what}"
+        if 'local_times' in rconf or server.status == Status.RUNNING:
+            if server.restart_time >= datetime.now(tz=timezone.utc):
+                message += f" <t:{int(server.restart_time.timestamp())}:R>"
+            else:
+                message += " now"
+            if not rconf.get('populated', True) and server.is_populated():
+                message += ", if all players have left."
+        else:
+            if restart_in:
+                message += f" after {utils.format_time(restart_in)}"
+            else:
+                message += " immediately"
+            message += f", if the mission is unpaused again."
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(message, delete_after=60)
 
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")

@@ -34,7 +34,7 @@ The configuration is as simple as it sounds:
 MyNode:
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         OvGME:
@@ -47,7 +47,7 @@ If you want to use the built-in Voice Chat system of DCS, you can use the VoiceC
 MyNode:
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         VoiceChat:
@@ -72,11 +72,11 @@ MyNode:
       autoupdate: true
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         SRS:
-          config: '%USERPROFILE%\Saved Games\DCS.server\Config\SRS.cfg'
+          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
           minimized: true     # start SRS minimized (default: true)
@@ -116,13 +116,13 @@ MyNode:
       tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         Tacview:
           show_passwords: false  # hide passwords in your server status embed (default: true)
           host: 127.0.0.1        # Tacview host (default)
-          log: "%USERPROFILE%\\Saved Games\\DCS.server\\Logs\tacview.log"
+          log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log"
           tacviewRealTimeTelemetryPort: 42674  # default
           tacviewRealTimeTelemetryPassword: '' # default
           tacviewRemoteControlPort: 42675      # default
@@ -152,7 +152,7 @@ status embed about ports and - if you like - passwords and the version of LotAtc
 MyNode:
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         LotAtc:
@@ -173,7 +173,7 @@ extension like with all others:
 MyNode:
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         DSMC:
@@ -206,7 +206,7 @@ MyNode:
       url: https://myfancyhost.com  # optional: show a different host instead of the servers external IP
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         Sneaker:
@@ -229,7 +229,7 @@ MyNode:
       installation: '%USERPROFILE%\Documents\realweather_v1.9.0-rc2'
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         RealWeather:
@@ -277,7 +277,7 @@ MyNode:
       url: https://myfancyhost.com  # Alternate hostname to be displayed in your status embed 
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         Lardoon:
@@ -316,7 +316,7 @@ MyNode:
       nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         Olympus:
@@ -367,7 +367,7 @@ MyNode:
       nodejs: '%ProgramFiles%\nodejs'
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         Olympus:
@@ -402,7 +402,7 @@ extension:
 MyNode:
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         gRPC:
@@ -464,7 +464,7 @@ MyNode:
       param2: bb
   # [...]
   instances:
-    DCS.server:
+    DCS.release_server:
       # [...]
       extensions:
         mymodule.MyExtension:

@@ -14,7 +14,7 @@ status embed about ports and - if you like - passwords and the version of LotAtc
 {
   "configs": [
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       [...]
       "extensions": {
         "LotAtc": {

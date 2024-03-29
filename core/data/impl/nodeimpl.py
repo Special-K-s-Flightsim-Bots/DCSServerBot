@@ -28,7 +28,7 @@ from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolat
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, Awaitable, Callable, Any, Tuple
+from typing import Optional, Union, Awaitable, Callable, Any
 from version import __version__
 
 from core.autoexec import Autoexec
@@ -155,7 +155,7 @@ class NodeImpl(Node):
         else:
             ServiceRegistry.get(ServiceBus).send_to_node({
                 "command": "rpc",
-                "service": BotService.__class__.__name__,
+                "service": BotService.__name__,
                 "method": "audit",
                 "params": {
                     "message": message,
@@ -226,8 +226,11 @@ class NodeImpl(Node):
         log2.addHandler(ch)
         return log
 
-    def init_db(self) -> Tuple[ConnectionPool, AsyncConnectionPool]:
+    def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
+        # quick connection check
+        with psycopg.connect(url):
+            self.log.info("- Connection to database established.")
         pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 4)
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
@@ -356,15 +359,15 @@ class NodeImpl(Node):
             await ServiceRegistry.shutdown()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
-    async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
+    async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
             with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
                 data = json.load(cfg)
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
-            if self.dcs_branch == "openbeta":
-                self.log.warning("You're running DCS OpenBeta, which is discontinued. "
-                                 "Please use /dcs update to switch to the release branch!")
+            if "openbeta" in self.dcs_branch:
+                self.log.debug("You're running DCS OpenBeta, which is discontinued. "
+                               "Use /dcs update, if you want to switch to the release branch.")
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
@@ -657,7 +660,7 @@ class NodeImpl(Node):
             """, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 
-    async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
+    async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
         def run_subprocess():
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return proc.communicate()
@@ -749,7 +752,7 @@ class NodeImpl(Node):
                 rc = await self.update([300, 120, 60])
                 ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
-                    "service": BotService.__class__.__name__,
+                    "service": BotService.__name__,
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
                         "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
@@ -864,7 +867,7 @@ class NodeImpl(Node):
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
 
-    async def find_all_instances(self) -> list[Tuple[str, str]]:
+    async def find_all_instances(self) -> list[tuple[str, str]]:
         return utils.findDCSInstances()
 
     async def migrate_server(self, server: Server, instance: Instance) -> None:

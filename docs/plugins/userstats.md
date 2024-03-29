@@ -24,7 +24,7 @@ To use the persistent highscore, you need to add a file named userstats.json to 
       }
     },
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       "highscore": {
         "channel": 826772687216181456,
         "params": {
@@ -41,7 +41,7 @@ More highscores per server are supported, if you provide a list instead:
 {
   "configs": [
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       "highscore": [
         {
           "channel": 826772687216181456,

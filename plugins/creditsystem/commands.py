@@ -16,7 +16,8 @@ _ = get_translation(__name__.split('.')[1])
 
 class CreditSystem(Plugin):
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning Creditsystem ...')
         if ucids:
             for ucid in ucids:

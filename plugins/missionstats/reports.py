@@ -34,7 +34,7 @@ class Sorties(report.EmbedElement):
             WHERE event IN ('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 
                             'S_EVENT_PLAYER_LEAVE_UNIT')
         """
-        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' AND init_id = %s ORDER BY 6'
 
@@ -137,7 +137,7 @@ class ModuleStats1(report.EmbedElement):
             FROM statistics s, missions m 
             WHERE s.mission_id = m.id AND s.player_ucid = %(ucid)s AND s.slot = %(module)s
         """
-        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
 
         async with self.apool.connection() as conn:
@@ -210,7 +210,7 @@ class ModuleStats2(report.EmbedElement):
 class Refuelings(report.EmbedElement):
     async def render(self, ucid: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
-        self.env.embed.title = flt.format(self.env.bot) + ' ' + self.env.embed.title
+        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' AND init_id = %s GROUP BY 1 ORDER BY 2 DESC'
 

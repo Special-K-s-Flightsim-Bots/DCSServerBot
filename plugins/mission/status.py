@@ -1,3 +1,5 @@
+import asyncio
+
 from core import const, report, Status, Server, utils, ServiceRegistry, Plugin
 from datetime import datetime, timedelta, timezone
 from services import BotService
@@ -64,8 +66,12 @@ class ServerInfo(report.EmbedElement):
                 value = '{} {}'.format(server.current_mission.date,
                                        timedelta(seconds=server.current_mission.start_time + uptime))
 
-            value += f"\n\n**Runtime**\n{timedelta(seconds=uptime)}"
-            self.add_field(name='Date/Time in Mission', value=value)
+            if server.restart_time and not server.maintenance:
+                value += (f"\n\n**Runtime\t|\tRestart**\n"
+                          f"{timedelta(seconds=uptime)}\t|\t<t:{int(server.restart_time.timestamp())}:R>")
+            else:
+                value += f"\n\n**Runtime**\n{timedelta(seconds=uptime)}"
+            self.add_field(name='Date / Time in Mission', value=value)
         if server.maintenance:
             footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
         else:
@@ -176,13 +182,18 @@ class All(report.EmbedElement):
     async def render(self):
         num = 0
         for server in self.bot.servers.values():
-            if server.status not in [Status.PAUSED, Status.RUNNING]:
+            while server.status == Status.UNREGISTERED:
+                await asyncio.sleep(1)
+            if server.status == Status.SHUTDOWN:
                 continue
             name = f"{server.name} [{len(server.players) + 1}/{server.settings['maxPlayers']}]"
             value = f"IP/Port:  {server.node.public_ip}:{server.settings['port']}\n"
             if server.current_mission:
                 value += f"Mission:  {server.current_mission.name}\n"
-                value += "Uptime:   {}\n".format(utils.format_time(int(server.current_mission.mission_time)))
+                value += f"Uptime:   {utils.convert_time(int(server.current_mission.mission_time))}\n"
+            if server.restart_time and not server.maintenance:
+                restart_in = int((server.restart_time - datetime.now(timezone.utc)).total_seconds())
+                value += f"Restart:  in {utils.format_time(restart_in)}\n"
             if server.settings['password']:
                 name = '🔐 ' + name
                 value += f"Password: {server.settings['password']}"

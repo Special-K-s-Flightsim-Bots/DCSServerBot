@@ -1,5 +1,5 @@
 from core import EventListener, utils, Server, Report, Player, event
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class MOTDListener(EventListener):
@@ -18,7 +18,7 @@ class MOTDListener(EventListener):
                     return None
             return utils.format_string(config['message'])
 
-    async def on_birth(self, config: dict, server: Server, player: Player) -> Tuple[Optional[str], Optional[dict]]:
+    async def on_birth(self, config: dict, server: Server, player: Player) -> tuple[Optional[str], Optional[dict]]:
         if 'messages' in config:
             for cfg in config['messages']:
                 message, _ = await self.on_birth(cfg, server, player)

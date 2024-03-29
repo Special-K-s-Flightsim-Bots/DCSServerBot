@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from discord.utils import MISSING
 from services import DCSServerBot
-from typing import Union, Optional, Tuple
+from typing import Union, Optional
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer
 from .listener import UserStatisticsEventListener
@@ -20,7 +20,7 @@ yaml = YAML()
 
 
 def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
-        -> Tuple[Union[discord.Member, str], str]:
+        -> tuple[Union[discord.Member, str], str]:
     num = len(params)
     if not member:
         member = ctx.message.author
@@ -81,7 +81,8 @@ class UserStatistics(Plugin):
             self.persistent_highscore.cancel()
         await super().cog_unload()
 
-    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
@@ -89,6 +90,17 @@ class UserStatistics(Plugin):
         elif days > -1:
             await conn.execute(f"""
                 DELETE FROM statistics WHERE hop_off < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
+            """)
+        if server:
+            await conn.execute("""
+                DELETE FROM statistics WHERE mission_id in (
+                    SELECT id FROM missions WHERE server_name = %s
+                )
+            """, (server, ))
+            await conn.execute("""
+                DELETE FROM statistics WHERE mission_id NOT IN (
+                    SELECT id FROM missions
+                )
             """)
         self.log.debug('Userstats pruned.')
 

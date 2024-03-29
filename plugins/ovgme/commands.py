@@ -8,14 +8,14 @@ from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
 from services import DCSServerBot, OvGMEService
-from typing import Tuple, Optional, Literal
+from typing import Optional, Literal
 
 _ = get_translation(__name__.split('.')[1])
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 
 
-async def get_installed_mods(service: OvGMEService, server: Server) -> list[Tuple[str, str, str]]:
+async def get_installed_mods(service: OvGMEService, server: Server) -> list[tuple[str, str, str]]:
     installed = []
     for folder in OVGME_FOLDERS:
         _mods = [(folder, x, y) for x, y in await service.get_installed_packages(server, folder)]
@@ -24,7 +24,7 @@ async def get_installed_mods(service: OvGMEService, server: Server) -> list[Tupl
     return sorted(installed)
 
 
-async def get_available_mods(service: OvGMEService, server: Server) -> list[Tuple[str, str, str]]:
+async def get_available_mods(service: OvGMEService, server: Server) -> list[tuple[str, str, str]]:
     available = []
     config = service.get_config(server)
     for folder in OVGME_FOLDERS:
@@ -131,6 +131,13 @@ class OvGME(Plugin):
         if not self.service:
             raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 
+    async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
+                    server: Optional[str] = None) -> None:
+        self.log.debug('Pruning OvGME ...')
+        if server:
+            await conn.execute("DELETE FROM ovgme_packages WHERE server_name = %s", (server, ))
+        self.log.debug('OvGME pruned.')
+
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
@@ -145,8 +152,8 @@ class OvGME(Plugin):
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         class PackageView(View):
 
-            def __init__(derived, embed: discord.Embed, installed: list[Tuple[str, str, str]],
-                         available: list[Tuple[str, str, str]]):
+            def __init__(derived, embed: discord.Embed, installed: list[tuple[str, str, str]],
+                         available: list[tuple[str, str, str]]):
                 super().__init__()
                 derived.installed = installed
                 derived.available = available
@@ -417,7 +424,7 @@ class OvGME(Plugin):
     async def _list(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
-        installed: dict[str, list[Tuple[str, str]]] = dict()
+        installed: dict[str, list[tuple[str, str]]] = dict()
         for folder in OVGME_FOLDERS:
             installed[folder] = await self.service.get_installed_packages(server, folder)
         if not len(installed[OVGME_FOLDERS[0]]) and not len(installed[OVGME_FOLDERS[1]]):

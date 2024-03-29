@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import builtins
+import importlib
 import json
-import time
 import luadata
 import os
+import pkgutil
 import re
 import shutil
 import string
 import tempfile
+import time
 import unicodedata
 
 # for eval
@@ -19,7 +21,7 @@ from croniter import croniter
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator, Iterable
+from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
     from core import ServerProxy, DataObject, Node
 
 __all__ = [
+    "parse_time",
     "is_in_timeframe",
     "is_match_daystate",
     "str_to_class",
@@ -43,7 +46,6 @@ __all__ = [
     "format_period",
     "slugify",
     "alternate_parse_settings",
-    "get_all_servers",
     "get_all_players",
     "is_ucid",
     "get_presets",
@@ -51,6 +53,7 @@ __all__ = [
     "is_valid_url",
     "is_github_repo",
     "matches_cron",
+    "dynamic_import",
     "SettingsDict",
     "RemoteSettingsDict",
     "tree_delete",
@@ -58,6 +61,12 @@ __all__ = [
     "for_each",
     "YAMLError"
 ]
+
+
+def parse_time(time_str: str) -> datetime:
+    fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
+        if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
+    return datetime.strptime(time_str, fmt)
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
@@ -71,11 +80,6 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     :return: True if the time falls within the timeframe, False otherwise.
     :rtype: bool
     """
-    def parse_time(time_str: str) -> datetime:
-        fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
-            if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
-        return datetime.strptime(time_str, fmt)
-
     pos = timeframe.find('-')
     if pos != -1:
         start_time = parse_time(timeframe[:pos])
@@ -159,8 +163,11 @@ def format_time_units(units, label_single, label_plural=None):
 def process_time(seconds, time_unit_seconds, retval, label_symbol, label_single, colon_format=False):
     units, seconds = calculate_time(time_unit_seconds, seconds)
     if units != 0:
-        if len(retval) and colon_format:
-            retval += ":"
+        if len(retval):
+            if colon_format:
+                retval += ":"
+            else:
+                retval += " "
         formatted_time = format_time_units(units, label_single) if not colon_format else f"{units:02d}{label_symbol}"
         retval += formatted_time
     return seconds, retval
@@ -191,7 +198,8 @@ def convert_time(seconds: int):
     :param seconds: The number of seconds to be converted into time representation.
     :return: The formatted string representation of time.
     """
-    return convert_time_and_format(int(seconds), True)
+    retval = convert_time_and_format(int(seconds), True)
+    return retval
 
 
 def format_time(seconds: int):
@@ -294,24 +302,8 @@ def alternate_parse_settings(path: str):
     return settings
 
 
-def get_all_servers(self) -> list[str]:
-    """
-    Get a list of all servers that have been seen in the past week.
-
-    :param self: The instance of the class.
-    :return: A list of server names.
-    """
-    with self.pool.connection() as conn:
-        return [
-            row[0] for row in conn.execute("""
-                SELECT server_name FROM instances 
-                WHERE last_seen > (DATE(now() AT TIME ZONE 'utc') - interval '1 week')
-            """)
-        ]
-
-
 def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
-                    vip: Optional[bool] = None) -> list[Tuple[str, str]]:
+                    vip: Optional[bool] = None) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
     * `linked`, `watchlist`, and `vip`.
@@ -441,6 +433,13 @@ def matches_cron(datetime_obj: datetime, cron_string: str):
     next_date = cron_job.get_next(datetime)
     prev_date = cron_job.get_prev(datetime)
     return datetime_obj == prev_date or datetime_obj == next_date
+
+
+def dynamic_import(package_name: str):
+    package = importlib.import_module(package_name)
+    for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__):
+        if is_pkg:
+            globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
 
 
 class SettingsDict(dict):
