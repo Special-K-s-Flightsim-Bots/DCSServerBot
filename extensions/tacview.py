@@ -194,7 +194,7 @@ class Tacview(Extension):
                     try:
                         await self.bus.send_to_node_sync({
                             "command": "rpc",
-                            "service": BotService.__class__.__name__,
+                            "service": BotService.__name__,
                             "method": "send_message",
                             "params": {
                                 "channel": int(target[4:-1]),

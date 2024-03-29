@@ -79,7 +79,7 @@ class Backup(Plugin):
         try:
             rc = await self.bus.send_to_node_sync({
                 "command": "rpc",
-                "service": BackupService.__class__.__name__,
+                "service": BackupService.__name__,
                 "method": f"backup_{what}"
             }, node=node.name, timeout=300)
             assert rc['return'] is True
@@ -109,7 +109,7 @@ class Backup(Plugin):
         try:
             rc = await self.bus.send_to_node_sync({
                 "command": "rpc",
-                "service": BackupService.__class__.__name__,
+                "service": BackupService.__name__,
                 "method": f"recover_{what}",
                 "params": {
                     "date": date

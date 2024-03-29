@@ -155,7 +155,7 @@ class NodeImpl(Node):
         else:
             ServiceRegistry.get(ServiceBus).send_to_node({
                 "command": "rpc",
-                "service": BotService.__class__.__name__,
+                "service": BotService.__name__,
                 "method": "audit",
                 "params": {
                     "message": message,
@@ -752,7 +752,7 @@ class NodeImpl(Node):
                 rc = await self.update([300, 120, 60])
                 ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
-                    "service": BotService.__class__.__name__,
+                    "service": BotService.__name__,
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
                         "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
