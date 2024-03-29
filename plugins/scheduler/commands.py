@@ -671,28 +671,29 @@ class Scheduler(Plugin):
     @group.command(name="timeleft", description="Time until server / mission restart")
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
+    @app_commands.rename(_server="server")
     async def timeleft(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                       _server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[
                                Status.RUNNING, Status.PAUSED
                            ])
                        ]):
-        config = self.get_config(server).get('restart')
+        config = self.get_config(_server).get('restart')
         if not config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("No restart configured for this server.", ephemeral=True)
             return
-        elif server.maintenance:
+        elif _server.maintenance:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Server is in maintenance mode, it will not restart.",
                                                     ephemeral=True)
             return
-        elif not server.restart_time:
+        elif not _server.restart_time:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
-        restart_in, rconf = self.eventlistener.get_next_restart(server, config)
+        restart_in, rconf = self.eventlistener.get_next_restart(_server, config)
         what = rconf['method']
         if what == 'restart_with_shutdown':
             what = 'restart'
@@ -702,12 +703,12 @@ class Scheduler(Plugin):
         else:
             item = 'Mission'
         message = f"{item} will {what}"
-        if 'local_times' in rconf or server.status == Status.RUNNING:
-            if server.restart_time >= datetime.now(tz=timezone.utc):
-                message += f" <t:{int(server.restart_time.timestamp())}:R>"
+        if 'local_times' in rconf or _server.status == Status.RUNNING:
+            if _server.restart_time >= datetime.now(tz=timezone.utc):
+                message += f" <t:{int(_server.restart_time.timestamp())}:R>"
             else:
                 message += " now"
-            if not rconf.get('populated', True) and server.is_populated():
+            if not rconf.get('populated', True) and _server.is_populated():
                 message += ", if all players have left."
         else:
             if restart_in:
