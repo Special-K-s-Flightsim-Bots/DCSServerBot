@@ -163,40 +163,44 @@ class InfoView(View):
                                                    member=self.member)
             self.ucid = self._member.ucid
         else:
+            self._member = None
             self.ucid = self.member
 
     async def render(self) -> discord.Embed:
-        if isinstance(self.member, discord.Member):
-            if self._member.verified:
-                button = Button(emoji="🔀")
-                button.callback = self.on_unlink
+        if not self._member or self._member.ucid:
+            if isinstance(self.member, discord.Member):
+                if self._member.verified:
+                    button = Button(emoji="🔀")
+                    button.callback = self.on_unlink
+                    self.add_item(button)
+                else:
+                    button = Button(emoji="💯")
+                    button.callback = self.on_verify
+                    self.add_item(button)
+            banned = await self.is_banned()
+            if banned:
+                button = Button(emoji="✅")
+                button.callback = self.on_unban
                 self.add_item(button)
             else:
-                button = Button(emoji="💯")
-                button.callback = self.on_verify
+                button = Button(emoji="⛔")
+                button.callback = self.on_ban
                 self.add_item(button)
-        banned = await self.is_banned()
-        if banned:
-            button = Button(emoji="✅")
-            button.callback = self.on_unban
-            self.add_item(button)
+            if self.player:
+                button = Button(emoji="⏏️")
+                button.callback = self.on_kick
+                self.add_item(button)
+            watchlist = await self.is_watchlist()
+            if watchlist:
+                button = Button(emoji="🆓")
+                button.callback = self.on_unwatch
+                self.add_item(button)
+            else:
+                button = Button(emoji="🔍")
+                button.callback = self.on_watch
+                self.add_item(button)
         else:
-            button = Button(emoji="⛔")
-            button.callback = self.on_ban
-            self.add_item(button)
-        if self.player:
-            button = Button(emoji="⏏️")
-            button.callback = self.on_kick
-            self.add_item(button)
-        watchlist = await self.is_watchlist()
-        if watchlist:
-            button = Button(emoji="🆓")
-            button.callback = self.on_unwatch
-            self.add_item(button)
-        else:
-            button = Button(emoji="🔍")
-            button.callback = self.on_watch
-            self.add_item(button)
+            banned = watchlist = False
         button = Button(label="Cancel", style=discord.ButtonStyle.red)
         button.callback = self.on_cancel
         self.add_item(button)

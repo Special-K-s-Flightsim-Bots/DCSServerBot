@@ -7,7 +7,7 @@ from core.listener import EventListener
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timezone
 from discord.ext import commands
-from typing import Optional, Union, Tuple, TYPE_CHECKING, Any, Iterable
+from typing import Optional, Union, TYPE_CHECKING, Any, Iterable
 
 if TYPE_CHECKING:
     from core import Server, NodeImpl
@@ -325,7 +325,7 @@ class DCSServerBot(commands.Bot):
             admin_channel = int(server.channels.get(Channel.ADMIN, -1))
         return self.get_channel(admin_channel)
 
-    async def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_ucid_by_name(self, name: str) -> tuple[Optional[str], Optional[str]]:
         async with self.apool.connection() as conn:
             search = f'%{name}%'
             cursor = await conn.execute("""

@@ -16,8 +16,8 @@ from contextlib import closing, suppress
 from core import utils, SAVED_GAMES
 from pathlib import Path
 from rich import print
-from rich.prompt import IntPrompt, Prompt
-from typing import Optional, Tuple
+from rich.prompt import IntPrompt, Prompt, Confirm
+from typing import Optional
 from urllib.parse import quote, urlparse
 
 # ruamel YAML support
@@ -78,7 +78,7 @@ class Install:
             num_dcs_installs = winreg.QueryInfoKey(key)[0]
             if num_dcs_installs == 0:
                 raise FileNotFoundError
-            installs = list[Tuple[str, str]]()
+            installs = list[tuple[str, str]]()
             for i in range(0, num_dcs_installs):
                 name = winreg.EnumKey(key, i)
                 skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{name}", 0)
@@ -108,7 +108,7 @@ class Install:
                 skey.Close()
 
     @staticmethod
-    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> Optional[Tuple[str, int]]:
+    def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> Optional[tuple[str, int]]:
         if not utils.is_open(host, port):
             print(f'[red]No PostgreSQL-database found on {host}:{port}![/]')
             host = Prompt.ask("Enter the hostname of your PostgreSQL-database", default='127.0.0.1')
@@ -154,7 +154,7 @@ class Install:
             except psycopg.OperationalError:
                 print("[red]Master password wrong. Please try again.[/]")
 
-    def install_master(self) -> Tuple[dict, dict, dict]:
+    def install_master(self) -> tuple[dict, dict, dict]:
         print("""
 For a successful installation, you need to fulfill the following prerequisites:
 
@@ -162,16 +162,14 @@ For a successful installation, you need to fulfill the following prerequisites:
     2. A Discord TOKEN for your bot from https://discord.com/developers/applications
 
         """)
-        if Prompt.ask(prompt="Have you fulfilled all these requirements", choices=['y', 'n'], show_choices=True,
-                      default='n') == 'n':
+        if not Confirm.ask(prompt="Have you fulfilled all these requirements", default=False):
             print("Aborting.")
             self.log.warning("Aborted: missing requirements")
             exit(-2)
 
         print("\n1. General Setup")
         # check if we can enable autoupdate
-        autoupdate = Prompt.ask("Do you want your DCSServerBot being auto-updated?", choices=['y', 'n'],
-                                default='y') == 'y'
+        autoupdate = Confirm.ask("Do you want your DCSServerBot being auto-updated?")
         print("\n2. Discord Setup")
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
@@ -252,8 +250,8 @@ If you need any further assistance, please visit the support discord, listed in 
             except FileNotFoundError:
                 schedulers = {}
             if self.node in nodes:
-                if Prompt.ask("[red]A configuration for this nodes exists already![/]\n"
-                              "Do you want to overwrite it?", choices=['y', 'n'], default='n') == 'n':
+                if Confirm.ask("[red]A configuration for this nodes exists already![/]\n"
+                               "Do you want to overwrite it?", default=False):
                     print("Aborted.")
                     self.log.warning("Aborted: configuration exists")
                     exit(-1)
@@ -294,8 +292,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 "url": database_url
             }
         }
-        if Prompt.ask("Do you want your DCS installation being auto-updated by the bot?", choices=['y', 'n'],
-                      default='y') == 'y':
+        if Confirm.ask("Do you want your DCS installation being auto-updated by the bot?"):
             node["DCS"]["autoupdate"] = True
         # Check for SRS
         srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
@@ -329,9 +326,8 @@ If you need any further assistance, please visit the support discord, listed in 
         if not instances == 0:
             print("There are no DCS servers installed yet.")
         for name, instance in instances:
-            if Prompt.ask(f'\nDCS server "{name}" found.\n'
-                          'Would you like to manage this server through DCSServerBot?)',
-                          choices=['y', 'n'], show_choices=True, default='y') == 'y':
+            if Confirm.ask(f'\nDCS server "{name}" found.\n'
+                           'Would you like to manage this server through DCSServerBot?)'):
                 self.log.info(f"Adding instance {instance} with server {name} ...")
                 node['instances'][instance] = {
                     "bot_port": bot_port,

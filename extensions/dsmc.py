@@ -3,7 +3,7 @@ import re
 import shutil
 
 from core import Extension
-from typing import Optional, Union, Tuple
+from typing import Optional, Union
 
 
 class DSMC(Extension):
@@ -76,7 +76,7 @@ class DSMC(Extension):
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
         return True
 
-    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if not os.path.basename(filename).startswith('DSMC'):
             return filename, False
         orig = filename

@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 from core import Extension, MizFile, utils, DEFAULT_TAG, Server
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class RealWeatherException(Exception):
@@ -38,7 +38,7 @@ class RealWeather(Extension):
         else:
             return None
 
-    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         rw_home = os.path.expandvars(self.config['installation'])
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)

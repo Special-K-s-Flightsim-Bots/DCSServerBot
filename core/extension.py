@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC
-from typing import Optional, TYPE_CHECKING, Tuple
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server
@@ -25,7 +25,7 @@ class Extension(ABC):
     async def prepare(self) -> bool:
         return True
 
-    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         return filename, False
 
     async def startup(self) -> bool:

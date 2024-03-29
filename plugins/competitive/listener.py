@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from discord.ext import tasks
 from plugins.competitive import rating
 from trueskill import Rating
-from typing import Optional, Tuple
+from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -17,7 +17,7 @@ class Match:
     match_id: str
     alive: dict[Side, list[Player]] = field(default_factory=dict)
     dead: dict[Side, list[Player]] = field(default_factory=dict)
-    log: list[Tuple[datetime, str]] = field(default_factory=list)
+    log: list[tuple[datetime, str]] = field(default_factory=list)
     started: datetime = field(init=False)
 
     @property

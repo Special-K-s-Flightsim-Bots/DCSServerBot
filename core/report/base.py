@@ -13,7 +13,7 @@ from core import utils, Channel
 from discord import Interaction, SelectOption
 from discord.ui import View, Button, Select, Item
 from discord.utils import MISSING
-from typing import Tuple, Optional, TYPE_CHECKING, Any, cast, Union
+from typing import Optional, TYPE_CHECKING, Any, cast, Union
 
 from .elements import ReportElement
 from .env import ReportEnv
@@ -145,7 +145,7 @@ class PaginationReport(Report):
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
-    async def read_param(self, param: dict, **kwargs) -> Tuple[str, list]:
+    async def read_param(self, param: dict, **kwargs) -> tuple[str, list]:
         name = param['name']
         values = None
         if 'sql' in param:

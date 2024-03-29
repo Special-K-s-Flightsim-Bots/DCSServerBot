@@ -2,7 +2,7 @@ import asyncio
 from core import utils
 from core.report.errors import ValueNotInRange
 from psycopg.rows import dict_row
-from typing import Any, Tuple
+from typing import Any
 
 __all__ = [
     "parse_params",
@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 
-def parse_params(kwargs: dict, params: Tuple[dict, list]):
+def parse_params(kwargs: dict, params: tuple[dict, list]):
     new_args = kwargs.copy()
     if isinstance(params, dict):
         for key, value in params.items():

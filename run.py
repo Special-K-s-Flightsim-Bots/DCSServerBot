@@ -5,7 +5,6 @@ import os
 import platform
 import psycopg
 import sys
-import traceback
 
 from core import (
     NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS
@@ -13,6 +12,8 @@ from core import (
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError
+from rich import print
+from rich.console import Console
 
 from services import Dashboard
 
@@ -107,11 +108,12 @@ class Main:
 
 
 if __name__ == "__main__":
+    console = Console()
     if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
-        print("You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)!")
+        print("[red]You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)![/]")
         exit(-2)
     elif int(platform.python_version_tuple()[1]) == 9:
-        print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
+        print("[yellow]Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.[/]")
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
@@ -132,7 +134,7 @@ if __name__ == "__main__":
     except PermissionError:
         exit(-2)
     except PidFileError:
-        print(f"Process already running for node {args.node}! Exiting...")
+        print(f"\n[red]Process already running for node {args.node}! Exiting...[/r]")
         exit(-2)
     except KeyboardInterrupt:
         # restart again (old handling)
@@ -141,15 +143,18 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException) as ex:
-        print(ex)
+        print(f"\n[red]{ex}[/]")
+        input("Press any key to continue ...")
         # do not restart again
         exit(-2)
     except psycopg.OperationalError as ex:
-        print(f"Database Error: {ex}")
+        print(f"\n[red]Database Error: {ex}[/]")
+        input("Press any key to continue ...")
+        # do not restart again
         exit(-2)
     except SystemExit as ex:
         exit(ex.code)
     except:
-        traceback.print_exc()
+        console.print_exception(show_locals=True, max_frames=1)
         # restart on unknown errors
         exit(-1)

@@ -3,7 +3,7 @@ import os
 from core.translations import get_translation
 from enum import Enum, auto
 from pathlib import Path
-from typing import Union, Optional, Tuple, TYPE_CHECKING
+from typing import Union, Optional, TYPE_CHECKING
 
 from ..utils.helper import YAMLError
 
@@ -123,7 +123,7 @@ class Node:
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
         raise NotImplemented()
 
-    async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
+    async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         raise NotImplemented()
 
     async def handle_module(self, what: str, module: str) -> None:
@@ -135,7 +135,7 @@ class Node:
     async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
         raise NotImplemented()
 
-    async def shell_command(self, cmd: str) -> Optional[Tuple[str, str]]:
+    async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
         raise NotImplemented()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
@@ -165,7 +165,7 @@ class Node:
     async def rename_instance(self, instance: "Instance", new_name: str) -> None:
         raise NotImplemented()
 
-    async def find_all_instances(self) -> list[Tuple[str, str]]:
+    async def find_all_instances(self) -> list[tuple[str, str]]:
         raise NotImplemented()
 
     async def migrate_server(self, server: "Server", instance: "Instance") -> None:

@@ -21,7 +21,7 @@ from croniter import croniter
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator, Iterable
+from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -303,7 +303,7 @@ def alternate_parse_settings(path: str):
 
 
 def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[bool] = None,
-                    vip: Optional[bool] = None) -> list[Tuple[str, str]]:
+                    vip: Optional[bool] = None) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
     * `linked`, `watchlist`, and `vip`.

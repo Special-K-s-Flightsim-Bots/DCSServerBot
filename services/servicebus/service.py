@@ -19,7 +19,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, Union, Any, TYPE_CHECKING
+from typing import Callable, Optional, cast, Union, Any, TYPE_CHECKING
 
 from ..bot.service import BotService
 from ..bot.dcsserverbot import DCSServerBot
@@ -615,7 +615,7 @@ class ServiceBus(Service):
                 udp_server.message_queue[server.name].put(data)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(derived, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
+            def __init__(derived, server_address: tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 try:
                     # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                     MyThreadingUDPServer.allow_reuse_address = True

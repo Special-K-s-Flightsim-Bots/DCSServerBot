@@ -20,7 +20,7 @@ from discord.utils import MISSING, _shorten
 from os import path
 from packaging import version
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Tuple
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
@@ -414,7 +414,7 @@ class Plugin(commands.Cog):
             raise YAMLError(filename, ex)
 
     # get default and specific configs to be merged in derived implementations
-    def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
+    def get_base_config(self, server: Server) -> tuple[Optional[dict], Optional[dict]]:
         def get_theatre() -> Optional[str]:
             if server.current_mission:
                 return server.current_mission.map

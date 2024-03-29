@@ -12,7 +12,7 @@ import stat
 from contextlib import suppress
 from core.const import SAVED_GAMES
 from core.utils.helper import alternate_parse_settings
-from typing import Optional, Tuple
+from typing import Optional
 
 UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
@@ -29,7 +29,7 @@ __all__ = [
 ]
 
 
-def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]:
+def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]:
     instances = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):

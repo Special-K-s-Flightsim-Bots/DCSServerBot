@@ -1,7 +1,7 @@
 from __future__ import annotations
 import discord
 from contextlib import closing
-from typing import TYPE_CHECKING, Tuple, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from discord import app_commands
 from psycopg.rows import dict_row
 
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-def get_running_campaign(bot: DCSServerBot, server: Optional[Server] = None) -> Tuple[Any, Any]:
+def get_running_campaign(bot: DCSServerBot, server: Optional[Server] = None) -> tuple[Any, Any]:
     with bot.pool.connection() as conn:
         with closing(conn.cursor()) as cursor:
             if server:

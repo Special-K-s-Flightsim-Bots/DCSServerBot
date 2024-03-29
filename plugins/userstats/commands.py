@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from discord.utils import MISSING
 from services import DCSServerBot
-from typing import Union, Optional, Tuple
+from typing import Union, Optional
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer
 from .listener import UserStatisticsEventListener
@@ -20,7 +20,7 @@ yaml = YAML()
 
 
 def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
-        -> Tuple[Union[discord.Member, str], str]:
+        -> tuple[Union[discord.Member, str], str]:
     num = len(params)
     if not member:
         member = ctx.message.author

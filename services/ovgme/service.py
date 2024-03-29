@@ -12,7 +12,7 @@ from filecmp import cmp
 from packaging import version
 from pathlib import Path
 from psycopg.rows import dict_row
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlparse
 
 from ..servicebus import ServiceBus
@@ -109,7 +109,7 @@ class OvGMEService(Service):
                         server.maintenance = False
 
     @staticmethod
-    def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str]]:
+    def parse_filename(filename: str) -> tuple[Optional[str], Optional[str]]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
         exp = re.compile('(?P<package>.*)_v?(?P<version>.*)')
@@ -119,7 +119,7 @@ class OvGMEService(Service):
         else:
             return None, None
 
-    async def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
+    async def get_installed_packages(self, server: Server, folder: str) -> list[tuple[str, str]]:
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(
