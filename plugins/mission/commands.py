@@ -179,7 +179,7 @@ class Mission(Plugin):
             if env.buffer:
                 env.buffer.close()
 
-    @mission.command(description='Manage the active mission')
+    @mission.command(description=_('Manage the active mission'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def manage(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
@@ -192,11 +192,11 @@ class Mission(Plugin):
         finally:
             await interaction.delete_original_response()
 
-    @mission.command(description='Information about a specific airport')
+    @mission.command(description=_('Information about a specific airport'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    @app_commands.rename(idx='airport')
-    @app_commands.describe(idx='Airport for ATIS information')
+    @app_commands.rename(idx=_('airport'))
+    @app_commands.describe(idx=_('Airport for ATIS information'))
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     async def atis(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
@@ -204,7 +204,8 @@ class Mission(Plugin):
                    idx: int):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -219,7 +220,7 @@ class Mission(Plugin):
         env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
         await interaction.followup.send(embed=env.embed)
 
-    @mission.command(description='Shows briefing of the active mission')
+    @mission.command(description=_('Shows briefing of the active mission'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def briefing(self, interaction: discord.Interaction,
@@ -234,7 +235,8 @@ class Mission(Plugin):
 
         if server.status not in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Server {server.display_name} is not running.", ephemeral=True)
+            await interaction.response.send_message(_("Server {} is not running.").format(server.display_name),
+                                                    ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -246,7 +248,7 @@ class Mission(Plugin):
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
         await interaction.followup.send(embed=env.embed)
 
-    @mission.command(description='Restarts the current active mission\n')
+    @mission.command(description=_('Restarts the current active mission\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def restart(self, interaction: discord.Interaction,
@@ -255,7 +257,7 @@ class Mission(Plugin):
                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False):
         await self._restart(interaction, server, delay, reason, run_extensions, rotate=False)
 
-    @mission.command(description='Rotates the current active mission\n')
+    @mission.command(description=_('Rotates to the next mission\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def rotate(self, interaction: discord.Interaction,
@@ -278,24 +280,26 @@ class Mission(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f"Can't restart server {server.display_name} as it is {server.status.name}!", ephemeral=True)
+                _("Can't restart server {server} as it is {status}!").format(server=server.display_name,
+                                                                             status=server.status.name), ephemeral=True)
             return
-        if server.restart_pending and not await utils.yn_question(interaction,
-                                                                  f'A restart is currently pending.\n'
-                                                                  f'Would you still like to {what} the mission?',
-                                                                  ephemeral=ephemeral):
+        if server.restart_pending and not await utils.yn_question(
+                interaction, _('A restart is currently pending.\n'
+                               'Would you still like to {} the mission?').format(_(what)),
+                ephemeral=ephemeral):
             return
         else:
             server.on_empty = dict()
         if server.is_populated():
-            result = await utils.populated_question(interaction, f"Do you really want to {what} the mission?",
-                                                    ephemeral=ephemeral)
+            result = await utils.populated_question(
+                interaction, _("Do you really want to {} the mission?").format(_(what)), ephemeral=ephemeral)
             if not result:
                 return
             elif result == 'later':
                 server.on_empty = {"command": what, "user": interaction.user}
                 server.restart_pending = True
-                await interaction.followup.send(f'{what.title()} postponed when server is empty.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Mission will {}, when server is empty.').format(_(what)),
+                                                ephemeral=ephemeral)
                 return
 
         server.restart_pending = True
@@ -305,34 +309,38 @@ class Mission(Plugin):
             await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated():
             if delay > 0:
-                message = f"!!! Mission will be {actions.get(what)} in {utils.format_time(delay)}!!!"
+                message = _("!!! Mission will be {what} in {when}!!!").format(what=_(actions.get(what)),
+                                                                              when=utils.format_time(delay))
             else:
-                message = f"!!! Mission will be {actions.get(what)} NOW !!!"
+                message = _("!!! Mission will be {} NOW !!!").format(_(actions.get(what)))
             # have we got a message to present to the users?
             if reason:
-                message += f' Reason: {reason}'
+                message += _(' Reason: {}').format(reason)
 
             msg = await interaction.followup.send(
-                f'{what.title()}ing mission in {utils.format_time(delay)} (warning users before)...',
+                _('Mission will be {what} in {when} (warning users before)...').format(what=_(actions.get(what)),
+                                                                                       when=utils.format_time(delay)),
                 ephemeral=ephemeral)
             server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
             await asyncio.sleep(delay)
             await msg.delete()
         try:
-            msg = await interaction.followup.send(f'Mission will {what} now, please wait ...', ephemeral=ephemeral)
+            msg = await interaction.followup.send(_('Mission will {} now, please wait ...').format(_(what)),
+                                                  ephemeral=ephemeral)
             if rotate:
                 await server.loadNextMission(modify_mission=run_extensions)
             else:
                 await server.restart(modify_mission=run_extensions)
             await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
             await msg.delete()
-            await interaction.followup.send(f"Mission {actions.get(what)}.", ephemeral=ephemeral)
+            await interaction.followup.send(_("Mission {}.").format(_(actions.get(what))), ephemeral=ephemeral)
         except (TimeoutError, asyncio.TimeoutError):
-            await interaction.followup.send(f"Timeout while {actions.get(what).replace('ed', 'ing')} the mission.\n"
-                                            f"Please check with /mission info, if the server is up.",
-                                            ephemeral=ephemeral)
+            await interaction.followup.send(
+                _("Timeout while the mission {}.\n"
+                  "Please check with `/mission info`, if the mission is running.").format(_(actions.get(what))),
+                ephemeral=ephemeral)
 
-    @mission.command(description='(Re-)Loads a mission from the list\n')
+    @mission.command(description=_('Loads a mission\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
@@ -345,18 +353,20 @@ class Mission(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f"Can't load mission on server {server.display_name} as it is {server.status.name}!", ephemeral=True)
+                _("Can't load mission on server {server} as it is {status}!").format(
+                    server=server.display_name, status=server.status.name), ephemeral=True)
             return
-        if server.restart_pending and not await utils.yn_question(interaction,
-                                                                  'A restart is currently pending.\n'
-                                                                  'Would you still like to change the mission?',
-                                                                  ephemeral=ephemeral):
+        if server.restart_pending and not await utils.yn_question(
+                interaction, _('A restart is currently pending.\n'
+                               'Would you still like to {} the mission?').format(_("change")),
+                ephemeral=ephemeral):
             return
         else:
             server.on_empty = dict()
 
         if server.is_populated():
-            result = await utils.populated_question(interaction, f"Do you really want to change the mission?",
+            result = await utils.populated_question(interaction,
+                                                    _("Do you really want to {} the mission?").format(_("change")),
                                                     ephemeral=ephemeral)
             if not result:
                 return
@@ -372,12 +382,11 @@ class Mission(Plugin):
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
                 server.restart_pending = True
-                await interaction.followup.send(f'Mission {server.current_mission.display_name} will be restarted '
-                                                f'when server is empty.', ephemeral=ephemeral)
+                await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
+                                                ephemeral=ephemeral)
             else:
                 await server.restart(modify_mission=run_extensions)
-                await interaction.followup.send(f'Mission {server.current_mission.display_name} restarted.',
-                                                ephemeral=ephemeral)
+                await interaction.followup.send(_('Mission {}.').format(_('restarted')), ephemeral=ephemeral)
         else:
             name = os.path.basename(mission[:-4])
             if result == 'later':
@@ -386,24 +395,26 @@ class Mission(Plugin):
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
                 server.restart_pending = True
                 await interaction.followup.send(
-                    f'Mission {name} will be loaded when server is empty or on the next restart.', ephemeral=ephemeral)
+                    _('Mission {} will be loaded when server is empty or on the next restart.').format(name),
+                    ephemeral=ephemeral)
             else:
-                tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
+                tmp = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
                                                       ephemeral=ephemeral)
                 try:
                     await server.loadMission(mission_id + 1, modify_mission=run_extensions)
                     await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
                                          user=interaction.user)
-                    await interaction.followup.send(f'Mission {name} loaded.', ephemeral=ephemeral)
+                    await interaction.followup.send(_('Mission {} loaded.').format(name), ephemeral=ephemeral)
                 except (TimeoutError, asyncio.TimeoutError):
-                    await interaction.followup.send(f'Timeout while loading mission {name}.', ephemeral=ephemeral)
+                    await interaction.followup.send(_('Timeout while loading mission {}!').format(name),
+                                                    ephemeral=ephemeral)
                 finally:
                     await tmp.delete()
 
-    @mission.command(description='Adds a mission to the list')
+    @mission.command(description=_('Adds a mission to the list\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.rename(idx="path")
+    @app_commands.rename(idx=_("path"))
     @app_commands.autocomplete(idx=mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
@@ -413,23 +424,24 @@ class Mission(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
         all_missions = await server.listAvailableMissions()
         if idx >= len(all_missions):
-            await interaction.followup.send('No mission found.', ephemeral=True)
+            await interaction.followup.send(_('No mission found.'), ephemeral=True)
             return
         path = all_missions[idx]
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
-        await interaction.followup.send(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
+        await interaction.followup.send(_('Mission "{}" added.').format(utils.escape_string(name)), ephemeral=ephemeral)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
-                not await utils.yn_question(interaction, 'Do you want to load this mission?',
+                not await utils.yn_question(interaction, _('Do you want to load this mission?'),
                                             ephemeral=ephemeral):
             return
-        tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...', ephemeral=ephemeral)
+        tmp = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
+                                              ephemeral=ephemeral)
         await server.loadMission(path)
         await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server, user=interaction.user)
         await tmp.delete()
-        await interaction.followup.send(f'Mission {utils.escape_string(name)} loaded.', ephemeral=ephemeral)
+        await interaction.followup.send(_('Mission {} loaded.').format(utils.escape_string(name)), ephemeral=ephemeral)
 
-    @mission.command(description='Deletes a mission from the list')
+    @mission.command(description=_('Deletes a mission from the list\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
@@ -442,33 +454,36 @@ class Mission(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
-            await interaction.followup.send("No mission found.")
+            await interaction.followup.send(_("No mission found."))
             return
         filename = missions[mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and server.current_mission and \
                 filename == server.current_mission.filename:
-            await interaction.followup.send("You can't delete the (only) running mission.", ephemeral=True)
+            await interaction.followup.send(_("You can't delete the running mission."), ephemeral=True)
             return
         name = filename[:-4]
 
-        if await utils.yn_question(interaction, f'Delete mission "{os.path.basename(name)}" from the mission list?',
+        if await utils.yn_question(interaction,
+                                   _('Delete mission "{}" from the mission list?').format(os.path.basename(name)),
                                    ephemeral=ephemeral):
             try:
                 await server.deleteMission(mission_id + 1)
-                await interaction.followup.send(f'Mission "{os.path.basename(name)}" removed from list.',
+                await interaction.followup.send(_('Mission "{}" removed from list.').format(os.path.basename(name)),
                                                 ephemeral=ephemeral)
-                if await utils.yn_question(interaction, f'Delete "{name}" also from disk?', ephemeral=ephemeral):
+                if await utils.yn_question(interaction, _('Delete "{}" also from disk?').format(name),
+                                           ephemeral=ephemeral):
                     try:
                         await server.node.remove_file(filename)
-                        await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=ephemeral)
+                        await interaction.followup.send(_('Mission "{}" deleted.').format(name), ephemeral=ephemeral)
                     except FileNotFoundError:
-                        await interaction.followup.send(f'Mission "{name}" was already deleted.', ephemeral=ephemeral)
+                        await interaction.followup.send(_('Mission "{}" was already deleted.').format(name),
+                                                        ephemeral=ephemeral)
             except (TimeoutError, asyncio.TimeoutError):
-                await interaction.followup.send("Timeout while deleting mission.\n"
-                                                "Please reconfirm that the deletion was succesful.",
+                await interaction.followup.send(_("Timeout while deleting mission.\n"
+                                                  "Please reconfirm that the deletion was successful."),
                                                 ephemeral=ephemeral)
 
-    @mission.command(description='Pauses the current running mission')
+    @mission.command(description=_('Pauses the current running mission'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def pause(self, interaction: discord.Interaction,
@@ -478,13 +493,14 @@ class Mission(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(thinking=True, ephemeral=ephemeral)
             await server.current_mission.pause()
-            await interaction.followup.send(f'Server "{server.display_name}" paused.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Mission on server "{}" paused.').format(server.display_name),
+                                            ephemeral=ephemeral)
         else:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server "{server.display_name}" is not running.',
+            await interaction.response.send_message(_('Server {} is not running.').format(server.display_name),
                                                     ephemeral=ephemeral)
 
-    @mission.command(description='Unpauses the running mission')
+    @mission.command(description=_('Resumes the running mission'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def unpause(self, interaction: discord.Interaction,
@@ -494,21 +510,24 @@ class Mission(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(thinking=True, ephemeral=ephemeral)
             await server.current_mission.unpause()
-            await interaction.followup.send(f'Server "{server.display_name}" unpaused.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Mission on server "{}" resumed.').format(server.display_name),
+                                            ephemeral=ephemeral)
         elif server.status == Status.RUNNING:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server "{server.display_name}" is already running.',
+            await interaction.response.send_message(_('Server "{}" is not paused.').format(server.display_name),
                                                     ephemeral=ephemeral)
         else:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Server {server.display_name} is {server.status.name}, "
-                                                    f"can't unpause.", ephemeral=ephemeral)
+            await interaction.response.send_message(
+                _("Server {server} is {status}, can't unpause.").format(server=server.display_name,
+                                                                        status=server.status.name),
+                ephemeral=ephemeral)
 
-    @mission.command(description='Modify mission with a preset')
+    @mission.command(description=_('Modify mission with a preset\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(presets_file=presets_autocomplete)
-    @app_commands.describe(presets_file='Select the file where you have stored your presets')
+    @app_commands.describe(presets_file=_('Chose an alternate presets file'))
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
@@ -520,7 +539,7 @@ class Mission(Plugin):
         except FileNotFoundError:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f'No presets available, please configure them in {presets_file}.', ephemeral=True)
+                _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
             return
         try:
             options = [
@@ -531,14 +550,15 @@ class Mission(Plugin):
         except AttributeError:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f"There is an error in your {presets_file}. Please check the file structure.", ephemeral=True)
+                _("There is an error in your {}. Please check the file structure.").format(presets_file),
+                ephemeral=True)
             return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
         result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:
-            question = 'Do you want to restart the server for a preset change?'
+            question = _('Do you want to restart the server for a mission change?')
             if server.is_populated():
                 result = await utils.populated_question(interaction, question, ephemeral=ephemeral)
             else:
@@ -562,16 +582,16 @@ class Mission(Plugin):
         if result == 'later':
             server.on_empty = {"command": "preset", "preset": view.result, "user": interaction.user}
             server.restart_pending = True
-            await interaction.followup.send(f'Preset will be changed when server is empty.', ephemeral=ephemeral)
+            await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
         else:
             startup = False
-            msg = await interaction.followup.send('Changing presets...', ephemeral=ephemeral)
+            msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
             if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
             new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
-            message = 'Preset changed to: {}.'.format(','.join(view.result))
+            message = _('The following preset were applied: {}.').format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
                 await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
@@ -580,16 +600,16 @@ class Mission(Plugin):
             if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 try:
                     await server.restart(modify_mission=False)
-                    message += '\nMission reloaded.'
+                    message += _('\nMission reloaded.')
                     await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
                                          user=interaction.user)
                     await msg.delete()
                 except (TimeoutError, asyncio.TimeoutError):
-                    message = ("Timeout during restart of mission!\n"
-                               "Please check, if your server is running or if the mission somehow got corrupted.")
+                    message = _("Timeout during restart of mission!\n"
+                                "Please check, if the mission is running or if it somehow got corrupted.")
             await interaction.followup.send(message, ephemeral=ephemeral)
 
-    @mission.command(description='Save mission preset')
+    @mission.command(description=_('Save mission preset\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def save_preset(self, interaction: discord.Interaction,
@@ -597,6 +617,7 @@ class Mission(Plugin):
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                           name: str):
         ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         miz = await asyncio.to_thread(MizFile, self.bot, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
             with open('config/presets.yaml', mode='r', encoding='utf-8') as infile:
@@ -604,8 +625,9 @@ class Mission(Plugin):
         else:
             presets = dict()
         if name in presets and \
-                not await utils.yn_question(interaction, f'Do you want to overwrite the existing preset '
-                                                         f'"{name}"?', ephemeral=ephemeral):
+                not await utils.yn_question(interaction,
+                                            _('Do you want to overwrite the existing preset "{}"?').format(name),
+                                            ephemeral=ephemeral):
             return
         presets[name] = {
             "start_time": miz.start_time,
@@ -624,13 +646,9 @@ class Mission(Plugin):
         with open(f'config/presets.yaml', mode='w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)
         # noinspection PyUnresolvedReferences
-        if interaction.response.is_done():
-            await interaction.followup.send(f'Preset "{name}" added.', ephemeral=ephemeral)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Preset "{name}" added.', ephemeral=ephemeral)
+        await interaction.followup.send(_('Preset "{}" added.').format(name), ephemeral=ephemeral)
 
-    @mission.command(description='Rollback to the original mission file after any modifications')
+    @mission.command(description=_('Rollback to the original mission file after any modifications'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
@@ -640,12 +658,12 @@ class Mission(Plugin):
         missions = await server.getMissionList()
         if mission_id >= len(missions):
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("No mission found.")
+            await interaction.response.send_message(_("No mission found."))
             return
         filename = missions[mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED] and filename == server.current_mission.filename:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("Please stop your server first to rollback the running mission.",
+            await interaction.response.send_message(_("Please stop your server first to rollback the running mission."),
                                                     ephemeral=True)
             return
         mission_folder = await server.get_missions_dir()
@@ -657,12 +675,13 @@ class Mission(Plugin):
         except FileNotFoundError:
             # we should never be here, but just in case
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("No orig file there, the mission was not changed.", ephemeral=True)
+            await interaction.response.send_message(_('No ".orig" file there, the mission was never changed.'),
+                                                    ephemeral=True)
             return
         if new_file != filename:
             await server.replaceMission(mission_id, new_file)
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(f"Mission {miz_file[:-4]} has been rolled back.",
+        await interaction.response.send_message(_("Mission {} has been rolled back.").format(miz_file[:-4]),
                                                 ephemeral=utils.get_ephemeral(interaction))
 
     # New command group "/player"
@@ -682,7 +701,7 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @player.command(description='Kicks a player by name or UCID')
+    @player.command(description='Kicks a player by name or UCID\n')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def kick(self, interaction: discord.Interaction,
@@ -726,7 +745,7 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(BanModal())
 
-    @player.command(description='Moves a player to spectators')
+    @player.command(description='Moves a player to spectators\n')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def spec(self, interaction: discord.Interaction,
@@ -837,7 +856,7 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message('Message sent.', ephemeral=utils.get_ephemeral(interaction))
 
-    @player.command(description='Sends a chat message to a player')
+    @player.command(description='Sends a chat message to a player\n')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def chat(self, interaction: discord.Interaction,

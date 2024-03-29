@@ -132,9 +132,11 @@ if __name__ == "__main__":
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
     except PermissionError:
+        # do not restart again
         exit(-2)
     except PidFileError:
         print(f"\n[red]Process already running for node {args.node}! Exiting...[/r]")
+        # do not restart again
         exit(-2)
     except KeyboardInterrupt:
         # restart again (old handling)
