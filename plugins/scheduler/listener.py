@@ -25,7 +25,7 @@ class SchedulerListener(EventListener):
                 else:
                     return 0, restart
             elif 'local_times' in restart:
-                min_time_difference = 99999
+                min_time_difference = 86400
                 for t in restart['local_times']:
                     restart_time = utils.parse_time(t)
                     check_time = datetime.now().replace(year=restart_time.year, month=restart_time.month,
@@ -33,9 +33,9 @@ class SchedulerListener(EventListener):
                     if restart_time <= check_time:
                         restart_time += timedelta(days=1)
                     time_difference_in_seconds = int((restart_time - check_time).total_seconds())
-                    if 0 <= time_difference_in_seconds < min_time_difference:
+                    if 0 < time_difference_in_seconds < min_time_difference:
                         min_time_difference = time_difference_in_seconds
-                if min_time_difference != 99999:
+                if min_time_difference != 86400:
                     return min_time_difference, restart
                 else:
                     return None
@@ -123,7 +123,7 @@ class SchedulerListener(EventListener):
         # noinspection PyAsyncCall
         asyncio.create_task(self._init_extensions(server, data))
         if data['channel'].startswith('sync-'):
-            self.set_restart_time(server)
+            self.set_restart_time(server, initialize=True)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -135,7 +135,6 @@ class SchedulerListener(EventListener):
 
     @event(name="onSimulationPause")
     async def onSimulationPause(self, server: Server, _: dict) -> None:
-        server.restart_time = None
         if server.on_empty:
             # noinspection PyAsyncCall
             asyncio.create_task(self.process(server, server.on_empty.copy()))
@@ -143,7 +142,7 @@ class SchedulerListener(EventListener):
 
     @event(name="onSimulationResume")
     async def onSimulationResume(self, server: Server, _: dict) -> None:
-        self.set_restart_time(server)
+        self.set_restart_time(server, initialize=True)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -170,7 +169,7 @@ class SchedulerListener(EventListener):
         # invalidate the config cache
         self.plugin.get_config(server, use_cache=False)
         server.restart_pending = False
-        server.restart_time = None
+        self.set_restart_time(server, initialize=True)
         server.on_empty.clear()
         server.on_mission_end.clear()
 
@@ -199,9 +198,9 @@ class SchedulerListener(EventListener):
             # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onShutdown']))
 
-    def set_restart_time(self, server: Server):
+    def set_restart_time(self, server: Server, *, initialize: Optional[bool] = False) -> None:
         config = self.get_config(server)
-        if not config or not server.current_mission or server.restart_time:
+        if not config or not server.current_mission or (server.restart_time and not initialize):
             return
         restart = config.get('restart')
         if not restart:
