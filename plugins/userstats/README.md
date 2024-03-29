@@ -15,7 +15,7 @@ DEFAULT:
     params:
       period: month   # can be one of day, month, quarter, year, or any campaign name
       limit: 10       # number of players per entry
-DCS.server:
+DCS.release_server:
   highscore:  # server-specific persistent highscore (optional)
   - channel: 9988776655443322
     params:

@@ -7,7 +7,7 @@ DEFAULT:
     directory: "{instance.home}/Tracks/Multiplayer"
     pattern: "*.trk"
     delete_after: 30
-DCS.server:
+DCS.release_server:
   greenieboard:
     directory: "{instance.home}/airboss"
     pattern:

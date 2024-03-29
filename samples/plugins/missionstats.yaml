@@ -1,4 +1,4 @@
-DCS.server:
+DCS.release_server:
   enabled: true
   display: true
   persistence: true

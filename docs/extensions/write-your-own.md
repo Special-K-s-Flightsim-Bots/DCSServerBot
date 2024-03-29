@@ -45,7 +45,7 @@ You can then use this extension in your scheduler.json like so:
 {
   "configs": [
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       [...]
       "extensions": {
         "mymodule.MyExtension": {}

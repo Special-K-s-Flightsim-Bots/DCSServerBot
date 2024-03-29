@@ -31,7 +31,7 @@ Adding sneaker is quite straightforward, if you looked at the above examples alr
       [...]
     },
     {
-      "installation": "DCS.server",
+      "installation": "DCS.release_server",
       [...]
       "extensions": {
         "Sneaker": {

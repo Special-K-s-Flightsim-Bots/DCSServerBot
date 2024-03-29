@@ -9,7 +9,7 @@ running and if there is new data to be displayed.
 ```yaml
 DEFAULT:
   update_interval: 120        # interval in seconds when the embed should update (default = 120)
-DCS.server:
+DCS.release_server:
   json_file_path: '{instance.home}\Missions\Saves\player_stats.json' # this is the default
   channel: 1122334455667788   # channel, where to upload the stats into (default: Status channel)
 ```
