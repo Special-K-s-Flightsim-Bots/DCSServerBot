@@ -92,11 +92,12 @@ class CompetitiveListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         player: Player = server.get_player(ucid=data['ucid'])
-        player.sendChatMessage(
-            _("Your TrueSkill rating is: {}").format(self.calculate_rating(self.get_rating(player))))
+        if player:
+            player.sendChatMessage(
+                _("Your TrueSkill rating is: {}").format(self.calculate_rating(self.get_rating(player))))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:

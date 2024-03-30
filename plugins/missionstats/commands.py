@@ -3,7 +3,8 @@ import psycopg
 
 from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command, get_translation
 from discord import app_commands
-from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer
+from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer, PeriodFilter, \
+    CampaignFilter, MissionFilter
 from services import DCSServerBot
 from typing import Optional, Union
 
@@ -123,8 +124,9 @@ class MissionStatistics(Plugin):
                           user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
                           module: Optional[str],
                           period: Optional[app_commands.Transform[
-                              StatisticsFilter, PeriodTransformer(flt=[MissionStatisticsFilter])]
-                          ] = MissionStatisticsFilter()):
+                              StatisticsFilter, PeriodTransformer(
+                                  flt=[PeriodFilter, CampaignFilter, MissionFilter]
+                              )]] = PeriodFilter()):
         if not user:
             user = interaction.user
         if not module:

@@ -144,9 +144,11 @@ class PunishmentEventListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         player: Player = server.get_player(ucid=data['ucid'])
+        if not player:
+            return
         points = self._get_punishment_points(player)
         if points > 0:
             player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")

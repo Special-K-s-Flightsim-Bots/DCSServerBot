@@ -434,17 +434,24 @@ class MissionEventListener(EventListener):
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
+    def _stop_player(self, server: Server, player: Player):
+        player.active = False
+        if player.ucid in server.afk:
+            del server.afk[player.ucid]
+        self.display_mission_embed(server)
+        self.display_player_embed(server)
+
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        player: Player = server.get_player(ucid=data['ucid'])
+        if 'ucid' in data:
+            player = server.get_player(ucid=data['ucid'])
+        else:
+            # this should never happen
+            player = server.get_player(id=data['id'])
         if player:
-            player.active = False
-            if player.ucid in server.afk:
-                del server.afk[player.ucid]
-        self.display_mission_embed(server)
-        self.display_player_embed(server)
+            self._stop_player(server, player)
 
     def _disconnect(self, server: Server, player: Player):
         if not player or not player.active:
@@ -453,11 +460,7 @@ class MissionEventListener(EventListener):
             self.send_dcs_event(server, player.side,
                                 self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
         finally:
-            player.active = False
-            if player.ucid in server.afk:
-                del server.afk[player.ucid]
-            self.display_mission_embed(server)
-            self.display_player_embed(server)
+            self._stop_player(server, player)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:

@@ -46,10 +46,12 @@ class CreditSystemListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.plugin.get_config(server)
         player = cast(CreditPlayer, server.get_player(ucid=data['ucid']))
+        if not player:
+            return
         if player.points == -1:
             player.points = self.get_initial_points(player, config)
             player.audit('init', 0, _('Initial points received'))

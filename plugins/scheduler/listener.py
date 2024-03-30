@@ -131,7 +131,8 @@ class SchedulerListener(EventListener):
             return
         if server.restart_pending:
             player: Player = server.get_player(ucid=data['ucid'])
-            player.sendChatMessage("*** Mission is about to be restarted soon! ***")
+            if player:
+                player.sendChatMessage("*** Mission is about to be restarted soon! ***")
 
     @event(name="onSimulationPause")
     async def onSimulationPause(self, server: Server, _: dict) -> None:
@@ -205,9 +206,9 @@ class SchedulerListener(EventListener):
         restart = config.get('restart')
         if not restart:
             return
-        restart_in, _ = self.get_next_restart(server, restart)
-        if restart_in:
-            server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=restart_in)
+        result = self.get_next_restart(server, restart)
+        if result:
+            server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=result[0])
 
     @event(name="getMissionUpdate")
     async def getMissionUpdate(self, server: Server, _: dict) -> None:

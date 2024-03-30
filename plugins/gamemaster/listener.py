@@ -80,26 +80,30 @@ class GameMasterEventListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] != 1 and server.locals.get('coalitions'):
-            player: Player = server.get_player(ucid=data['ucid'])
-            if player.has_discord_roles(['DCS Admin', 'GameMaster']):
-                side = Side.UNKNOWN
-            elif player.coalition == Coalition.BLUE:
-                side = Side.BLUE
-            elif player.coalition == Coalition.RED:
-                side = Side.RED
-            else:
-                side = Side.SPECTATOR
-            server.send_to_dcs({
-                "command": "setUserCoalition",
-                "ucid": player.ucid,
-                "coalition": side.value
-            })
+        if data['id'] == 1 or not server.locals.get('coalitions') or 'ucid' not in data:
+            return
+        player: Player = server.get_player(ucid=data['ucid'])
+        if not player:
+            return
+
+        if player.has_discord_roles(['DCS Admin', 'GameMaster']):
+            side = Side.UNKNOWN
+        elif player.coalition == Coalition.BLUE:
+            side = Side.BLUE
+        elif player.coalition == Coalition.RED:
+            side = Side.RED
+        else:
+            side = Side.SPECTATOR
+        server.send_to_dcs({
+            "command": "setUserCoalition",
+            "ucid": player.ucid,
+            "coalition": side.value
+        })
+        # noinspection PyAsyncCall
+        asyncio.create_task(self._coalition(server, player))
+        if self.get_coalition_password(server, player.coalition):
             # noinspection PyAsyncCall
-            asyncio.create_task(self._coalition(server, player))
-            if self.get_coalition_password(server, player.coalition):
-                # noinspection PyAsyncCall
-                asyncio.create_task(self._password(server, player))
+            asyncio.create_task(self._password(server, player))
 
     async def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                        description: Optional[str] = None, start: Optional[datetime] = None,
