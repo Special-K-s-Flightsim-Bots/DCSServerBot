@@ -49,7 +49,7 @@ class ServerInfo(report.EmbedElement):
             value += f"{server.settings['password']}"
         self.add_field(name=name, value=value)
         if server.current_mission:
-            value = server.current_mission.map if server.current_mission else 'n/a'
+            value = server.current_mission.map
             if not server.locals.get('coalitions'):
                 value += (f"\n\n**Avail. Slots**\n"
                           f"🔹 {server.current_mission.num_slots_blue}  |  {server.current_mission.num_slots_red} 🔸")
