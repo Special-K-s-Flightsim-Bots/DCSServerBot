@@ -213,7 +213,7 @@ class PeriodTransformer(app_commands.Transformer):
         for flt in self.filter:
             if flt.supports(interaction.client, value):
                 return flt(value)
-        return None
+        return PeriodFilter()
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         try:

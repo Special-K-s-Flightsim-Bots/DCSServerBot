@@ -46,12 +46,13 @@ class MOTDListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.plugin.get_config(server)
         if config and 'on_join' in config:
             player: Player = server.get_player(ucid=data['ucid'])
-            player.sendChatMessage(await self.on_join(config['on_join'], server, player))
+            if player:
+                player.sendChatMessage(await self.on_join(config['on_join'], server, player))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:

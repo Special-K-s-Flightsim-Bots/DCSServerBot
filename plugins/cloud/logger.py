@@ -22,7 +22,8 @@ class CloudLoggingHandler(logging.Handler):
         line = -1
         while trace is not None:
             filename = trace.tb_frame.f_code.co_filename
-            if self.cwd in filename and '\\venv\\' not in filename:
+            directories_to_exclude = ['\\venv\\', '\\.venv\\']
+            if self.cwd in filename and all(directory not in filename for directory in directories_to_exclude):
                 filename = os.path.relpath(filename, self.cwd)
                 if not file:
                     file = filename

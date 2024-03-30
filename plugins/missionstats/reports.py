@@ -153,36 +153,45 @@ class ModuleStats2(report.EmbedElement):
     async def render(self, ucid: str, module: str, flt: StatisticsFilter) -> None:
         weapons = hs_ratio = ks_ratio = ''
         category = None
+        inner_sql1 = """
+            SELECT CASE WHEN COALESCE(m.weapon, '') = '' OR m.event = 'S_EVENT_SHOOTING_START' 
+                        THEN 'Gun' ELSE m.weapon 
+                   END AS weapon, 
+                   COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') 
+                                     THEN 1 ELSE 0 
+                                END), 0) AS shots 
+            FROM missionstats m, statistics s 
+            WHERE m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
+            AND m.init_id = %(ucid)s AND m.init_type = %(module)s 
+        """
+        inner_sql1 += ' AND ' + flt.filter(self.env.bot)
+        inner_sql1 += " GROUP BY 1"
+        inner_sql2 = """
+            SELECT CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' 
+                        WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' 
+                   END AS target_cat, 
+                   CASE WHEN COALESCE(m.weapon, '') = '' THEN 'Gun' ELSE m.weapon 
+                   END AS weapon, 
+                   COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, 
+                   COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), 0) AS kills 
+            FROM missionstats m, statistics s 
+            WHERE m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
+            AND m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
+            AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
+        """
+        inner_sql2 += ' AND ' + flt.filter(self.env.bot)
+        inner_sql2 += " GROUP BY 1, 2"
+        sql = f"""
+                SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd 
+                FROM (
+                    {inner_sql1}
+                )x, (
+                    {inner_sql2}
+                ) y WHERE x.weapon = y.weapon AND x.shots <> 0 ORDER BY 1, 6 DESC
+        """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd 
-                    FROM (
-                        SELECT CASE WHEN COALESCE(m.weapon, '') = '' OR m.event = 'S_EVENT_SHOOTING_START' 
-                                    THEN 'Gun' ELSE m.weapon 
-                               END AS weapon, 
-                               COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') 
-                                                 THEN 1 ELSE 0 
-                                            END), 0) AS shots 
-                        FROM missionstats m, statistics s 
-                        WHERE m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
-                        AND m.init_id = %(ucid)s AND m.init_type = %(module)s 
-                        GROUP BY 1
-                    )x, (
-                        SELECT CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' 
-                                    WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' 
-                               END AS target_cat, 
-                               CASE WHEN COALESCE(m.weapon, '') = '' THEN 'Gun' ELSE m.weapon 
-                               END AS weapon, 
-                               COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, 
-                               COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), 0) AS kills 
-                        FROM missionstats m, statistics s 
-                        WHERE m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') 
-                        AND m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) 
-                        AND m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s
-                        GROUP BY 1, 2 
-                    ) y WHERE x.weapon = y.weapon AND x.shots <> 0 ORDER BY 1, 6 DESC
-                """, self.env.params)
+                await cursor.execute(sql, self.env.params)
                 async for row in cursor:
                     if row['weapon'] == _('Gun'):
                         continue

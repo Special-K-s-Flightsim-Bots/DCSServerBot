@@ -204,7 +204,7 @@ class VotingListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.get_config(server)
         if 'welcome_message' not in config:
