@@ -125,6 +125,7 @@ The following environment variables can be used in the "run" command:
 | /server config      |                                          | admin-channel | DCS Admin | Changes the configuration of a server, like name, password, max players.                                                                                                         |
 | /server rename      |                                          | admin-channel | DCS Admin | Rename the respective DCS server. Handle with care!                                                                                                                              |
 | /server migrate     | instance                                 | admin-channel | DCS Admin | WIP: Migrate a server to another instance (maybe even node).                                                                                                                     |
+| /server timeleft    | server                                   | all           | DCS       | Shows the time until the next scheduled restart.                                                                                                                                 |
 
 > ⚠️ **Attention!**<br>
 > If a server gets started or stopped manually (using `/server startup` or `/server shutdown`), it will be put into 
