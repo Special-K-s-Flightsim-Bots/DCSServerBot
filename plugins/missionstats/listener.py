@@ -18,12 +18,12 @@ class MissionStatisticsEventListener(EventListener):
 
     UNIT_CATEGORY = {
         None: None,
-        0: _('Airplanes'),
-        1: _('Helicopters'),
-        2: _('Ground Units'),
-        3: _('Ships'),
-        4: _('Structures'),
-        5: _('Unknown')
+        0: 'Airplanes',
+        1: 'Helicopters',
+        2: 'Ground Units',
+        3: 'Ships',
+        4: 'Structures',
+        5: 'Unknown'
     }
 
     EVENT_TEXTS = {
