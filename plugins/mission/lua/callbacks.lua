@@ -313,10 +313,10 @@ function mission.onSimulationResume()
 end
 
 local function handleTakeoffLanding(arg1)
-    if utils.isWithinInterval(mission.last_change_slot[arg1], 60) then
+    if utils.isWithinInterval(mission.last_change_slot[arg1], 20) then
         return false
     end
-    if utils.isWithinInterval(mission.last_to_landing[arg1], 10) then
+    if utils.isWithinInterval(mission.last_to_landing[arg1], 30) then
         return false
     else
         mission.last_to_landing[arg1] = os.clock()

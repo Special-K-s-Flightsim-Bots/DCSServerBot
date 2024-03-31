@@ -1,0 +1,278 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# Master Setup
+msgid "The bot can be set to the same language, which means, that all Discord and in-game messages will be in your language as well. Would you like me to configure the bot this way?"
+msgstr "Der Bot kann alle Nachrichten in Discord oder DCS auch in dieser Sprache ausgeben. Möchtest Du das?"
+
+msgid ""
+"\n"
+"For a successful installation, you need to fulfill the following prerequisites:\n"
+"\n"
+"    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n"
+"    2. A Discord TOKEN for your bot from https://discord.com/developers/applications\n"
+"\n"
+""
+msgstr ""
+"\n"
+"Für eine erfolgreiche Installation musst Du die folgenden Voraussetzungen erfüllen:\n"
+"\n"
+"    1. Installation der PostgreSQL-Datenbank von https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n"
+"    2. Ein Discord-TOKEN für Deinen Bot von https://discord.com/developers/applications\n"
+"\n"
+""
+
+msgid "Have you fulfilled all these requirements?"
+msgstr "Hast Du diese Voraussetzungen erfüllt?"
+
+msgid "Aborted: missing requirements."
+msgstr "Abgebrochen. Voraussetzungen nicht erfüllt."
+
+msgid "\n1. General Setup"
+msgstr "\n1. Allgemeine Konfiguration"
+
+msgid "Do you want your DCSServerBot being auto-updated?"
+msgstr "Möchtest Du Deinen Bot automatisch updaten lassen?"
+
+msgid "\n2. Discord Setup"
+msgstr "\n2. Discord-Konfiguration"
+
+msgid "Please enter your Discord Guild ID (right click on your Discord server, \"Copy Server ID\")"
+msgstr "Bitte gebe Deine \"Guild ID\" ein (rechts-klick auf den Discord-Server, \"Copy Server ID\")"
+
+msgid "Please enter your discord TOKEN (see documentation)"
+msgstr "Bitte gebe Deinen Discord-TOKEN ein (s. Dokumentation)"
+
+msgid "Please enter your Owner ID (right click on your discord user, \"Copy User ID\")"
+msgstr "Bitte gebe die Benutzer-ID an (rechts-klick auf Deinen Discord-Benutzer \"Copy User ID\")"
+
+msgid "\nWe now need to setup your Discord roles and channels.\n"
+"DCSServerBot creates a role mapping for your bot users. It has the following internal roles:"
+msgstr "\nNun erstellen wir das Discord-Rollen-Mapping und die Discord-Kanäle.\n"
+"DCSServerBot hat ein eigenes Rollen-Mapping. Es gibt die folgenden internen Rollen:"
+
+# Admin
+msgid "Users can delete data, change the bot, run commands on your server"
+msgstr "Benutzer können bspw. alle Daten löschen, den Bot verändern oder sogar Kommandos auf dem PC ausführen."
+
+# DCS Admin
+msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
+msgstr "Benutzer können bspw. Missionen hochladen, DCS-Server starten und stoppen sowie Nutzer kicken und bannen."
+
+# DCS
+msgid "Please enter the path to your DCS World installation"
+msgstr "Bitte gebe den Pfad zu Deiner DCS World Installation an"
+
+msgid "Directory not found. Please try again."
+msgstr "Verzeichnis nicht gefunden. Bitte versuche es noch einmal."
+
+msgid "\nSearching for DCS installations ..."
+msgstr "\nSuche DCS-World Installationen ..."
+
+msgid "I've found multiple installations of DCS World on this PC:"
+msgstr "Ich habe mehrere DCS-Installationen auf diesem PC gefunden:"
+
+msgid "Other"
+msgstr "Andere"
+
+msgid "Please specify, which installation you want the bot to use"
+msgstr "Bitte gebe an, welche Installation Du für den Bot nutzen möchtest"
+
+msgid "Normal user, can pull statistics, ATIS, etc."
+msgstr "Normale Benutzerrolle, kann Statistiken aufrufen, ATIS, etc."
+
+msgid "Please separate roles by comma, if you want to provide more than one.\n"
+"You can keep the defaults, if unsure and create the respective roles in your Discord server."
+msgstr "Bitte separiere mehrere Rollen mit Kommas, falls notwendig.\n"
+"Du kannst auch den Standard beibehalten, musst dann aber die entsprechenden Rollen in Discord anlegen."
+
+msgid "Which role(s) in your discord should hold the [bold]{}[/] role?"
+msgstr "Welche Rolle(n) möchtest Du auf die [bold]{}[/]-Rolle mappen?"
+
+msgid "\nPlease provide a channel ID for audit events (optional)"
+msgstr "\nBitte gebe die Kanal-ID für den Audit-Kanal an (optional)"
+
+msgid "\nThe bot can either use a dedicated admin channel for each server or a central admin channel for all servers.\n"
+"If you want to use a central one, please provide the ID (optional)"
+msgstr "\nDer Bot kann entweder einen zentralen Admin-Kanal nutzen, oder einen Admin-Kanal für jeden zu verwaltenden Server.\n"
+"Wenn Du einen zentralen Admin-Kanal nutzen möchtest, bitte gebe die ID an (optional)"
+
+# Node Setup
+msgid "[red]A configuration for this nodes exists already![/]\n"
+"Do you want to overwrite it?"
+msgstr "[red]Für diesen Knoten gibt es bereits eine Konfiguration!![/]\n"
+"Möchtest Du sie überschreiben?"
+
+msgid "Aborted: configuration exists"
+msgstr "Abgebrochen. Diese Konfiguration existiert bereits."
+
+msgid "[yellow]Configuration found, adding another node...[/]"
+msgstr "[yellow]Konfiguration vorhanden, füge einen weiteren Knoten hinzu...[/]"
+
+# Database Configuration
+msgid "\n{}. Database Setup"
+msgstr "\n{}. Datenbank-Konfiguration"
+
+msgid "[red]No PostgreSQL-database found on {host}:{port}![/]"
+msgstr "[red]Keine PostgreSQL-Datenbank auf {host}:{port} gefunden![/]"
+
+msgid "Enter the hostname of your PostgreSQL-database"
+msgstr "Bitte gebe den Hostnamen des PostgreSQL-Datenbankservers an"
+
+msgid "Enter the port to your PostgreSQL-database"
+msgstr "Bitte gebe den Datenbank-Port an"
+
+msgid "Please enter your PostgreSQL master password (user=postgres)"
+msgstr "Bitte gebe das Passwort für den postgres-Benutzer ein"
+
+msgid "[yellow]Existing {} user found![/]"
+msgstr "[yellow]Der Benutzer {} existiert bereits![/]"
+
+msgid "Please enter your password for user {}"
+msgstr "Bitte gebe des Passwort für den Benutzer {} ein"
+
+msgid "[red]Wrong password! Try again.[/]"
+msgstr "[red]Falsches Passwort! Bitte probiere es erneut.[/]"
+
+msgid "[green]- Database user and database created.[/]"
+msgstr "[green]- Datenbank-Benutzer und Datenbank erzeugt.[/]"
+
+msgid "[red]Master password wrong. Please try again.[/]"
+msgstr "[red]Falsches Passwort für den Benutzer \"postgres\". Bitte versuche es erneut.[/]"
+
+msgid "Aborted: No valid Database URL provided."
+msgstr "Abgebrochen. Keine gültige Datenbank-URL angegeben."
+
+msgid "\n{}. Node Setup"
+msgstr "\n{}. Knoten-Konfiguration"
+
+# DCS Configuration
+msgid "Aborted: No DCS installation found."
+msgstr "Abgebrochen. Keine DCS-Installation gefunden."
+
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "Möchtest Du DCS vom Bot automatisch aktualisieren lassen?"
+
+# SRS
+msgid "Please enter the path to your DCS-SRS installation.\n"
+"Press ENTER, if there is none."
+msgstr "Bitte gib den Pfad zur DCS-SRS-Installation ein.\n"
+"Drücke auf ENTER, wenn Du kein SRS installiert hast."
+
+msgid "DCS-SRS installation path: {}"
+msgstr "DCS-SRS Installations-Verzeichnis: {}"
+
+msgid "DCS-SRS not configured."
+msgstr "DCS-SRS wurde nicht konfiguriert."
+
+# DCS Server Configuration
+msgid "\n{}. DCS Server Setup"
+msgstr "\n{}. DCS-Server-Konfiguration"
+
+msgid "No configured DCS servers found."
+msgstr "Keine konfigurierten DCS-Server gefunden."
+
+msgid "\nDCS server \"{}\" found.\n"
+"Would you like to manage this server through DCSServerBot?"
+msgstr "\nDCS-Server \"{}\" gefunden.\n"
+"Möchtest Du diesen Server zukünftig über DCSServerBot verwalten?"
+
+msgid "Adding instance {instance} with server {name} ..."
+msgstr "Füge Instanz {instance} mit dem Server {name} hinzu ..."
+
+msgid "[red]SRS configuration could not be created.\n"
+"Please copy your server.cfg to {} manually.[/]"
+msgstr "[red]SRS-Konfiguration konnte nicht erzeugt werden.\n"
+"Bitte kopiere Deine server.cfg manuell nach {}.[/]"
+
+msgid "SRS configuration could not be created, manual setup necessary."
+msgstr "SRS-Konfiguration konnte nicht erzeugt werden, manuelle Konfiguration notwendig."
+
+msgid "DCSServerBot uses up to {} channels per supported server:"
+msgstr "Du kannst bis zu {} Discord-Kanäle pro DCS-Server anlegen:"
+
+# Status Channel
+msgid "To display the mission and player status."
+msgstr "Zeigt den Status des DCS-Servers und die aktuelle Spieler-Liste an"
+
+# Chat Channel
+msgid "[bright_black]Optional:[/]: An in-game chat replication."
+msgstr "[bright_black]Optional:[/]: Repliziert die Chatnachrichten aus DCS."
+
+# Admin Channel
+msgid "For admin commands."
+msgstr "Für Admin-Kommandos."
+
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\n"
+"The Chat Channel should be readable and writable by everyone.\n"
+"The Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\n"
+"You can create these channels now, as I will ask for the IDs in a bit.\n"
+"DCSServerBot needs the following permissions on them to work:\n\n"
+"    - View Channel\n"
+"    - Send Messages\n"
+"    - Read Messages\n"
+"    - Read Message History\n"
+"    - Add Reactions\n"
+"    - Attach Files\n"
+"    - Embed Links\n"
+"    - Manage Messages\n\n"
+msgstr "\nDer Statuskanal sollte für jeden lesbar und nur vom Bot beschreibbar sein.\n"
+"Der Chat-Kanal sollte für jeden lesbar und beschreibbar sein.\n"
+"Der Admin-Kanal - ob zentral oder nicht - sollte nur von Admin und DCS Admin lesbar und beschreibbar sein.\n\n"
+"Du kannst diese Kanäle jetzt erstellen, da ich gleich nach den IDs fragen werde.\n"
+"DCSServerBot benötigt die folgenden Berechtigungen auf all diesen Kanälen:\n\n"
+"    - View Channel\n"
+"    - Send Messages\n"
+"    - Read Messages\n"
+"    - Read Message History\n"
+"    - Add Reactions\n"
+"    - Attach Files\n"
+"    - Embed Links\n"
+"    - Manage Messages\n\n"
+
+msgid "Please enter the ID of your [bold]Status Channel[/]"
+msgstr "Bitte gib die ID des [bold]Status-Kanals[/] ein"
+
+msgid "Please enter the ID of your [bold]Chat Channel[/] (optional)"
+msgstr "Bitte gib die ID des [bold]Chat-Kanals[/] ein (optional)"
+
+msgid "Please enter the ID of your [bold]Admin Channel[/]"
+msgstr "Bitte gib die ID des [bold]Admin-Kanals[/] ein"
+
+msgid "Do you want DCSServerBot to autostart this server?"
+msgstr "Möchtest Du, dass DCSServerBot diesen DCS-Server automatisch startet?"
+
+msgid "Instance {} configured."
+msgstr "Instanz {} konfiguriert."
+
+msgid "\n\nAll set. Writing / updating your config files now..."
+msgstr "\n\nAlles erledigt. Schreibe die Konfiguration..."
+
+msgid "- Created {}"
+msgstr "- {} erzeugt"
+
+msgid "{} written"
+msgstr "{} geschrieben"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
+"You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
+"There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
+"You can start DCSServerBot with:\n\n"
+"    [bright_black]run.cmd[/]\n\n"
+msgstr"\n[green]Deine DCSServerBot-Konfiguration ist abgeschlossen.[/]\n\n"
+"Du kannst nun die erstellten Konfigurationsdateien im config-Ordner der DCSServerBot-Installation überprüfen.\n"
+"Es gibt noch viel mehr zu entdecken und zu konfigurieren, also vergesse bitte nicht, einen Blick auf die Dokumentation zu werfen!\n\n"
+"So kannst Du DCSServerBot starten:\n\n"
+"    [bright_black]run.cmd[/]\n\n"
+
+msgid "Installation finished."
+msgstr "Installation abgeschlossen."
+
+msgid "\nAborted."
+msgstr "\nAbgebrochen."
