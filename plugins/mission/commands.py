@@ -1468,7 +1468,7 @@ class Mission(Plugin):
                     modify = await utils.yn_question(ctx, _("Do you want to apply extensions before mission start?"))
                 else:
                     modify = False
-                tmp = await message.channel.send(_('Loading mission {name} ...').format(name))
+                tmp = await message.channel.send(_('Loading mission {} ...').format(name))
                 try:
                     await server.loadMission(filename, modify_mission=modify)
                 except (TimeoutError, asyncio.TimeoutError):
