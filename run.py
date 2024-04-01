@@ -135,7 +135,7 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except PidFileError:
-        print(f"\n[red]Process already running for node {args.node}! Exiting...[/r]")
+        print(f"\n[red]Process already running for node {args.node}! Exiting...[/]")
         # do not restart again
         exit(-2)
     except KeyboardInterrupt:
