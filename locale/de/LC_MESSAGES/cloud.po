@@ -16,6 +16,15 @@ msgstr "Prüfe Cloud-Verbindung ..."
 msgid "Cloud connection established."
 msgstr "Cloud-Verbindung hergestellt."
 
+msgid "\nCloud TOKEN configured and valid."
+msgstr "\nCloud-TOKEN ist konfiguriert und gültig."
+
+msgid "\nCloud TOKEN configured, but invalid!"
+msgstr "\n Cloud-TOKEN ist konfiguriert aber ungültig!"
+
+msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nHol Dir einen Cloud-TOKEN, wenn Du Cloud-Statistiken nutzen möchtest!"
+
 msgid "Cloud not connected!"
 msgstr "Keine Verbindung zur Cloud möglich!"
 
