@@ -617,6 +617,7 @@ class Mission(Plugin):
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                           name: str):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         miz = await asyncio.to_thread(MizFile, self.bot, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):

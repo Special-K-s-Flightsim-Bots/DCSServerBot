@@ -107,6 +107,13 @@ class Main:
                 await self.node.unregister()
 
 
+def run_node(name, config_dir=None, no_autoupdate=False):
+    with NodeImpl(name=name, config_dir=config_dir) as node:
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        asyncio.run(Main(node, no_autoupdate=no_autoupdate).run())
+
+
 if __name__ == "__main__":
     console = Console()
     if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
@@ -124,13 +131,10 @@ if __name__ == "__main__":
     try:
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                node = NodeImpl(name=args.node, config_dir=args.config)
+                run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate)
             except FatalException:
                 Install(node=args.node).install()
-                node = NodeImpl(name=args.node)
-            if sys.platform == "win32":
-                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-            asyncio.run(Main(node, no_autoupdate=args.noupdate).run())
+                run_node(name=args.node, no_autoupdate=args.noupdate)
     except PermissionError:
         # do not restart again
         exit(-2)

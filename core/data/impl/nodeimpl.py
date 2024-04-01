@@ -108,6 +108,21 @@ class NodeImpl(Node):
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        if self.pool:
+            try:
+                self.pool.close()
+            except Exception as ex:
+                self.log.exception(ex)
+        if self.apool:
+            try:
+                asyncio.run(self.apool.close())
+            except Exception as ex:
+                self.log.exception(ex)
+
     async def post_init(self):
         self.pool, self.apool = self.init_db()
         try:
