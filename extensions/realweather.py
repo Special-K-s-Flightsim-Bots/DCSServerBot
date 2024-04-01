@@ -56,7 +56,7 @@ class RealWeather(Extension):
                 else:
                     cfg[name] = config[name]
         icao = self.get_icao_code(filename)
-        if icao and icso != self.config.get('metar', {}).get('icao'):
+        if icao and icao != self.config.get('metar', {}).get('icao'):
             cfg |= {
                 "metar": {
                     "icao": icao
