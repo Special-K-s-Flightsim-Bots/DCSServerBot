@@ -1,8 +1,10 @@
 import asyncio
 
-from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils
+from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils, get_translation
 from plugins.competitive.commands import Competitive
 from typing import Optional
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class PunishmentEventListener(EventListener):
@@ -82,10 +84,12 @@ class PunishmentEventListener(EventListener):
                 if 'target' in data and data['target'] != -1:
                     target = server.get_player(name=data['target'])
                     if 'forgive' in config:
-                        target.sendUserMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
-                                               f"player {data['initiator']}.\nIf you send {self.prefix}forgive in "
-                                               f"chat within the next {config['forgive']} seconds, you can pardon the "
-                                               f"other player.")
+                        target.sendUserMessage(
+                            _("{victim}, you are a victim of a {event} event by player {offender}.\n"
+                              "If you send {prefix}forgive in chat within the next {time} seconds, "
+                              "you can pardon the other player.").format(
+                                victim=target.name, event=data['eventName'], offender=data['initiator'],
+                                prefix=self.prefix, time=config['forgive']))
                 else:
                     target = None
                 # add the event to the database
@@ -151,13 +155,14 @@ class PunishmentEventListener(EventListener):
             return
         points = self._get_punishment_points(player)
         if points > 0:
-            player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")
+            player.sendChatMessage(_("{name}, you have {points} punishment points.").format(name=player.name,
+                                                                                            points=points))
 
-    @chat_command(name="forgive", help="forgive another user for teamhits/-kills")
-    async def forgive(self, server: Server, target: Player, _: list[str]):
+    @chat_command(name="forgive", help=_("forgive another user for their infraction"))
+    async def forgive(self, server: Server, target: Player, params: list[str]):
         config = self.plugin.get_config(server)
         if 'forgive' not in config:
-            target.sendChatMessage(f'{self.prefix}forgive is not enabled on this server.')
+            target.sendChatMessage(_('{prefix}forgive is not enabled on this server.').format(prefix=self.prefix))
             return
 
         forgive = config.get('forgive', 30)
@@ -173,7 +178,7 @@ class PunishmentEventListener(EventListener):
                     initiators = [x[0] async for x in cursor]
                     # there were no events, so forgive would not do anything
                     if not initiators:
-                        target.sendChatMessage('There is nothing to forgive (anymore).')
+                        target.sendChatMessage(_('There is nothing to forgive (maybe too late?)'))
                         return
                     # clean the punishment table from these events
                     await conn.execute(f"""
@@ -190,15 +195,15 @@ class PunishmentEventListener(EventListener):
                 player = server.get_player(ucid=initiator)
                 if player:
                     names.append(player.name)
-                    player.sendUserMessage(
-                        f'You have been forgiven by {target.name} and you will not be punished '
-                        f'for your recent actions.')
+                    player.sendUserMessage(_("{offender}, You have been forgiven by {victim} and you will not be "
+                                             "punished for your recent actions.").format(offender=player.name,
+                                                                                         victim=target.name))
             if not names:
                 names = ['another player']
             target.sendChatMessage(
-                'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
+                _('You have chosen to forgive {} for their actions.').format(', '.join(names)))
 
-    @chat_command(name="penalty", help="displays your penalty points")
-    async def penalty(self, _: Server, player: Player, __: list[str]):
+    @chat_command(name="penalty", help=_("displays your penalty points"))
+    async def penalty(self, server: Server, player: Player, params: list[str]):
         points = self._get_punishment_points(player)
-        player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")
+        player.sendChatMessage(_("{name}, you have {points} punishment points.").format(name=player.name))
