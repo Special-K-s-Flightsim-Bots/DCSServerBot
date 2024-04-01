@@ -112,16 +112,7 @@ class NodeImpl(Node):
         return self
 
     def __exit__(self, type, value, traceback):
-        if self.pool:
-            try:
-                self.pool.close()
-            except Exception as ex:
-                self.log.exception(ex)
-        if self.apool:
-            try:
-                asyncio.run(self.apool.close())
-            except Exception as ex:
-                self.log.exception(ex)
+        self.close_db()
 
     async def post_init(self):
         self.pool, self.apool = self.init_db()
@@ -201,6 +192,7 @@ class NodeImpl(Node):
 
     async def restart(self):
         await ServiceRegistry.shutdown()
+        await self.aclose_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
     def read_locals(self) -> dict:
@@ -255,6 +247,30 @@ class NodeImpl(Node):
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
                                        check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
         return db_pool, db_apool
+
+    def close_db(self):
+        if self.pool:
+            try:
+                self.pool.close()
+            except Exception as ex:
+                self.log.exception(ex)
+        if self.apool:
+            try:
+                asyncio.run(self.apool.close())
+            except Exception as ex:
+                self.log.exception(ex)
+
+    async def aclose_db(self):
+        if self.pool:
+            try:
+                self.pool.close()
+            except Exception as ex:
+                self.log.exception(ex)
+        if self.apool:
+            try:
+               await self.apool.close()
+            except Exception as ex:
+                self.log.exception(ex)
 
     def init_instances(self):
         grouped = defaultdict(list)
@@ -372,6 +388,7 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
+            await self.aclose_db()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
