@@ -755,7 +755,9 @@ class NodeImpl(Node):
                     "service": BotService.__name__,
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
-                        "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                        "title": "DCS Update Issue",
+                        "message": f"DCS World updated to version {new_version} on node {self.node.name}."
+                        if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     }
                 })
         except aiohttp.ClientError as ex:

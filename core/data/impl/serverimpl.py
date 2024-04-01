@@ -443,12 +443,14 @@ class ServerImpl(Server):
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         try:
-            await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+            await self.wait_for_status_change([Status.SHUTDOWN, Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+            if self.status == Status.SHUTDOWN:
+                raise TimeoutError()
             if sys.platform == 'win32' and self.node.locals.get('DCS', {}).get('minimized', True):
                 self._minimize()
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch?
-            if not await self.is_running():
+            if self.status != Status.SHUTDOWN and not await self.is_running():
                 self.status = Status.SHUTDOWN
             raise
 

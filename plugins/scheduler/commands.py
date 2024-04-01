@@ -379,17 +379,25 @@ class Scheduler(Plugin):
                 if mission_id is not None:
                     server.settings['listStartIndex'] = mission_id + 1
                 await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
-                await interaction.followup.send(f"DCS server \"{server.display_name}\" started." +
-                                                ("\nServer is in maintenance mode now! Use `/scheduler clear` to "
-                                                 "reset maintenance mode." if maintenance else ""), ephemeral=ephemeral)
+                if maintenance:
+                    embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" started.",
+                                                             text="Server is in maintenance mode!\n"
+                                                                  "Use `/scheduler clear` to reset maintenance mode.")
+                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                else:
+                    await interaction.followup.send(f"DCS server \"{server.display_name}\" started.",
+                                                    ephemeral=ephemeral)
             except (TimeoutError, asyncio.TimeoutError):
                 if server.status == Status.SHUTDOWN:
-                    await interaction.followup.send(
-                        f'Server {server.display_name} was closed / crashed while starting up!', ephemeral=ephemeral)
+                    embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" crashed!",
+                                                             text="The server has crashed while starting.\n"
+                                                                  "You should look for a cause in its dcs.log.")
+                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
                 else:
-                    await interaction.followup.send(f'Timeout while launching DCS server "{server.display_name}".\n'
-                                                    f'The server might be running anyway, check with /server list.',
-                                                    ephemeral=ephemeral)
+                    embed, file = utils.create_warning_embed(title=f"Timeout while launching \"{server.display_name}\"!",
+                                                             text="The server might be running anyway\n"
+                                                                  "Check with `/server list`.")
+                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             finally:
                 await msg.delete()
         else:
@@ -414,9 +422,13 @@ class Scheduler(Plugin):
                 await server.shutdown()
             else:
                 await self.teardown_dcs(server, interaction.user)
-            await interaction.followup.send(f"DCS server \"{server.display_name}\" shut down.\n" +
-                                            (f"Server in maintenance mode now! Use /scheduler clear to reset "
-                                             f"maintenance mode." if maintenance else ""), ephemeral=ephemeral)
+            if maintenance:
+                embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" shut down.",
+                                                         text="Server is in maintenance mode!\n"
+                                                              "Use `/scheduler clear` to reset maintenance mode.")
+                await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+            else:
+                await interaction.followup.send(f"DCS server \"{server.display_name}\" shut down.", ephemeral=ephemeral)
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -459,8 +471,11 @@ class Scheduler(Plugin):
             try:
                 await server.start()
             except (TimeoutError, asyncio.TimeoutError):
-                await interaction.followup.send(f"Timeout while trying to start server {server.name}.",
-                                                ephemeral=ephemeral)
+                embed, file = utils.create_warning_embed(
+                    title=f"Timeout while starting server \"{server.display_name}\"!",
+                    text="Please check manually, if the server has started.\n"
+                         "If not, check the dcs.log for errors.")
+                await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
                 return
             await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=ephemeral)
             await self.bot.audit('started the server', server=server, user=interaction.user)
@@ -496,7 +511,11 @@ class Scheduler(Plugin):
             msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=ephemeral)
             await server.stop()
         except (TimeoutError, asyncio.TimeoutError):
-            await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=ephemeral)
+            embed, file = utils.create_warning_embed(
+                title=f"Timeout while stopping server \"{server.display_name}\"!",
+                text="Please check manually, if the server has stopped.\n"
+                     "If not, check the dcs.log for errors.")
+            await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             return
         finally:
             if msg:
@@ -663,9 +682,14 @@ class Scheduler(Plugin):
             if running:
                 msg: discord.Message = await interaction.followup.send("Starting up ...", ephemeral=ephemeral)
                 await server.startup()
-                await msg.edit(content=f'DCS server "{server.display_name}" started.' +
-                                       ('\nServer is in maintenance mode now! Use `/scheduler clear` '
-                                        'to reset maintenance mode.' if maintenance else ''))
+                if maintenance:
+                    await msg.delete()
+                    embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" started.",
+                                                             text="Server is in maintenance mode!\n"
+                                                                  "Use `/scheduler clear` to reset maintenance mode.")
+                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                else:
+                    await msg.edit(content=f"DCS server \"{server.display_name}\" started.")
         finally:
             server.maintenance = maintenance
 
@@ -731,9 +755,10 @@ class Scheduler(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if not server.maintenance:
             if (server.restart_pending or server.on_empty or server.on_mission_end) and \
-                    not await utils.yn_question(interaction, "Server is configured for a pending restart.\n"
-                                                             "Setting the maintenance flag will abort this restart.\n"
-                                                             "Are you sure?", ephemeral=ephemeral):
+                    not await utils.yn_question(
+                        interaction, "Server is configured for a pending restart.\n"
+                                     "Setting the maintenance flag will abort this restart.\n"
+                                     "Are you sure?", ephemeral=ephemeral):
                 await interaction.followup.send("Aborted.", ephemeral=ephemeral)
                 return
             server.maintenance = True
