@@ -51,11 +51,12 @@ class MusicPlayer(View):
             title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(current)[:-4])
             artist = utils.escape_string(tag.artist[:255] if tag.artist else _('n/a'))
             album = utils.escape_string(tag.album[:255] if tag.album else _('n/a'))
-            embed.add_field(name='▬' * 13 + _(" Now Playing ") + '▬' * 13, value='_ _', inline=False)
+            embed.add_field(name=utils.print_ruler(header=_(" Now Playing "), ruler_length=32),
+                            value='_ _', inline=False)
             embed.add_field(name=_("Title"), value=title)
             embed.add_field(name=_('Artist'), value=artist)
             embed.add_field(name=_('Album'), value=album)
-        embed.add_field(name='▬' * 14 + _(" Playlist ") + '▬' * 14, value='_ _', inline=False)
+        embed.add_field(name=utils.print_ruler(header=_(" Playlist "), ruler_length=32), value='_ _', inline=False)
         playlist = []
         for idx, title in enumerate(self.titles):
             playlist.append(

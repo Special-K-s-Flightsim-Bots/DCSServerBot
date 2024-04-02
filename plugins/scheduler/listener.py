@@ -15,7 +15,7 @@ class SchedulerListener(EventListener):
                 result = self.get_next_restart(server, r)
                 if result:
                     results.append(result)
-            return min(results, key=lambda x: x[0])
+            return min(results, key=lambda x: x[0]) if results else None
         else:
             mission_time = restart.get('max_mission_time', restart.get('mission_time'))
             if mission_time:

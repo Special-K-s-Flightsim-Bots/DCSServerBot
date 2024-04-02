@@ -526,7 +526,8 @@ class Admin(Plugin):
                 await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
                 return
         elif user and not await utils.yn_question(
-                interaction, _("We are going to delete all data of user {}. Are you sure?").format(user)):
+                interaction, _("We are going to delete all data of user {}. Are you sure?").format(
+                    user.display_name if isinstance(user, discord.Member) else user)):
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         elif _server and not await utils.yn_question(
@@ -538,20 +539,33 @@ class Admin(Plugin):
             async with conn.transaction():
                 async with conn.cursor() as cursor:
                     if user:
-                        for plugin in self.bot.cogs.values():  # type: Plugin
-                            await plugin.prune(conn, ucids=[user])
-                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (user, ))
-                            await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (user, ))
-                            await interaction.followup.send(_("Data of user {} deleted.").format(user))
+                        if isinstance(user, discord.Member):
+                            ucid = self.bot.get_ucid_by_member(user, verified=True)
+                            if not ucid:
+                                await interaction.followup.send("Member {} is not linked!".format(user.display_name))
+                                return
+                        elif utils.is_ucid(user):
+                            ucid = user
+                        else:
+                            await interaction.followup.send("{} is not a valid UCID!".format(user))
                             return
+                        for plugin in self.bot.cogs.values():  # type: Plugin
+                            await plugin.prune(conn, ucids=[ucid])
+                            await cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                            await cursor.execute('DELETE FROM players_hist WHERE ucid = %s', (ucid, ))
+                        if isinstance(user, discord.Member):
+                            await interaction.followup.send(_("Data of user {} deleted.").format(user.display_name))
+                        else:
+                            await interaction.followup.send(_("Data of UCID {} deleted.").format(ucid))
+                        return
                     elif _server:
                         for plugin in self.bot.cogs.values():  # type: Plugin
                             await plugin.prune(conn, server=_server)
                             await cursor.execute('DELETE FROM servers WHERE server_name = %s', (_server, ))
                             await cursor.execute('DELETE FROM instances WHERE server_name = %s', (_server, ))
                             await cursor.execute('DELETE FROM message_persistence WHERE server_name = %s', (_server, ))
-                            await interaction.followup.send(_("Data of server {} deleted.").format(_server))
-                            return
+                        await interaction.followup.send(_("Data of server {} deleted.").format(_server))
+                        return
                     elif view.what in ['users', 'non-members']:
                         sql = (f"SELECT ucid FROM players "
                                f"WHERE last_seen < (DATE((now() AT TIME ZONE 'utc')) - interval '{view.age} days')")

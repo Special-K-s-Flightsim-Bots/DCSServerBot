@@ -43,6 +43,7 @@ __all__ = [
     "embed_to_simpletext",
     "create_warning_embed",
     "escape_string",
+    "print_ruler",
     "match",
     "get_interaction_param",
     "get_all_linked_members",
@@ -756,6 +757,15 @@ def escape_string(msg: str) -> str:
     :rtype: str
     """
     return re.sub(r"([\\_*~`|>#+\-={}!.\[\]()])", r"\\\1", msg)
+
+
+def print_ruler(*, ruler_length: Optional[int] = 34, header: Optional[str] = None) -> str:
+    if header:
+        header = ' ' + header + ' '
+    filler = int((ruler_length - len(header) / 2.5) / 2)
+    if filler <= 0:
+        filler = 1
+    return '▬' * filler + header + '▬' * filler
 
 
 def normalize_name(name: Optional[str] = None) -> Optional[str]:

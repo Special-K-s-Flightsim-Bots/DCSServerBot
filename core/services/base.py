@@ -13,8 +13,7 @@ from ..data.dataobject import DataObject
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -97,8 +96,8 @@ class Service(ABC):
         self.log.debug(f'  - Reading service configuration from {filename} ...')
         try:
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except (ParserError, ScannerError) as ex:
-            raise YAMLError(filename, ex)
+        except MarkedYAMLError as ex:
+            raise ServiceInstallationError(self.name, ex.__str__())
 
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:

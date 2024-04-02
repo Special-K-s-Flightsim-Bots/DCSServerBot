@@ -28,8 +28,7 @@ from .utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -410,7 +409,7 @@ class Plugin(commands.Cog):
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
         try:
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except (ParserError, ScannerError) as ex:
+        except MarkedYAMLError as ex:
             raise YAMLError(filename, ex)
 
     # get default and specific configs to be merged in derived implementations

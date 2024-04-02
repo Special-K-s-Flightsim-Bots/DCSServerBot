@@ -26,9 +26,7 @@ from urllib.parse import urlparse
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
-
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -701,5 +699,5 @@ class YAMLError(Exception):
     **Methods:**
 
     """
-    def __init__(self, file: str, ex: Union[ParserError, ScannerError]):
+    def __init__(self, file: str, ex: Union[MarkedYAMLError, ValueError]):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))

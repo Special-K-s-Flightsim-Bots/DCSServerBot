@@ -64,7 +64,8 @@ class MusicService(Service):
             for name, radio in self.radios[server.name].items():
                 if radio_name and name != radio_name:
                     continue
-                await radio.start()
+                if not radio.is_running():
+                    await radio.start()
 
     @proxy
     async def stop_radios(self, server: Server, radio_name: Optional[str] = None) -> None:

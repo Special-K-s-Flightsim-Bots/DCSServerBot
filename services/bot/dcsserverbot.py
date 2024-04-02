@@ -1,7 +1,7 @@
 import asyncio
 import discord
 
-from core import Channel, utils, Status
+from core import Channel, utils, Status, PluginError
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -89,13 +89,16 @@ class DCSServerBot(commands.Bot):
             await self.load_extension(f'plugins.{plugin}.commands')
             return True
         except ModuleNotFoundError:
-            self.log.error(f'  - Plugin "{plugin}" not found!')
+            self.log.error(f'  - Plugin "{plugin.title()}" not found!')
         except commands.ExtensionNotFound:
-            self.log.error(f'  - No commands.py found for plugin "{plugin}"!')
+            self.log.error(f'  - No commands.py found for plugin "{plugin.title()}"!')
         except commands.ExtensionAlreadyLoaded:
-            self.log.warning(f'  - Plugin "{plugin} was already loaded"')
+            self.log.warning(f'  - Plugin "{plugin.title()} was already loaded"')
         except commands.ExtensionFailed as ex:
-            self.log.exception(ex.original if ex.original else ex)
+            if ex.original and isinstance(ex.original, PluginError):
+                self.log.error(f'  - {ex.original}')
+            else:
+                self.log.error(f'  - Plugin "{plugin.title()} not loaded: {ex.original if ex.original else ex}')
         except Exception as ex:
             self.log.exception(ex)
         return False

@@ -20,8 +20,7 @@ from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -76,7 +75,7 @@ class Server(DataObject):
         if os.path.exists(config_file):
             try:
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except (ParserError, ScannerError) as ex:
+            except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
             if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
@@ -284,7 +283,8 @@ class Server(DataObject):
         else:
             raise NotImplemented()
 
-    def sendPopupMessage(self, recipient: Union[Coalition, str], message: str, timeout: Optional[int] = -1, sender: str = None):
+    def sendPopupMessage(self, recipient: Union[Coalition, str], message: str, timeout: Optional[int] = -1,
+                         sender: str = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
         self.send_to_dcs({

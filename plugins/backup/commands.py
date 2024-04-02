@@ -9,8 +9,7 @@ from services import DCSServerBot, BackupService
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
@@ -62,7 +61,7 @@ class Backup(Plugin):
             return {}
         try:
             return yaml.load(Path('config/services/backup.yaml').read_text(encoding='utf-8'))
-        except (ParserError, ScannerError) as ex:
+        except MarkedYAMLError as ex:
             raise YAMLError('config/services/backup.yaml', ex)
 
     @command(description=_('Backup your data'))

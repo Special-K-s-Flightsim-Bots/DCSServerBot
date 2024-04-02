@@ -44,8 +44,7 @@ from core.utils.helper import SettingsDict, YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 
@@ -201,7 +200,7 @@ class NodeImpl(Node):
         if os.path.exists(config_file):
             try:
                 self.all_nodes: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except (ParserError, ScannerError) as ex:
+            except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:
@@ -268,7 +267,7 @@ class NodeImpl(Node):
                 self.log.exception(ex)
         if self.apool:
             try:
-               await self.apool.close()
+                await self.apool.close()
             except Exception as ex:
                 self.log.exception(ex)
 
