@@ -1,0 +1,509 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+# /mission
+msgid "Commands to manage a DCS mission"
+msgstr "Команды управления DCS миссией"
+
+# /mission info
+msgid "Info about the running mission"
+msgstr "Информация о запущенной миссии"
+
+# /mission manage
+msgid "Manage the active mission"
+msgstr "Управление активной миссией"
+
+# /mission atis
+msgid "Information about a specific airport"
+msgstr "Информация о конкретном аэропорте"
+
+msgid "airport"
+msgstr "аэропорт"
+
+msgid "Airport for ATIS information"
+msgstr "Аэропорт для ATIS информации"
+
+msgid "Server {} is not running."
+msgstr "Сервер {} не запущен."
+
+# /mission briefing
+msgid "Shows briefing of the active mission"
+msgstr "Показывает брифинг активной миссии"
+
+# /mission restart
+msgid "Restarts the current active mission\n"
+msgstr "Перезапускает текущую активную миссию\n"
+
+# /mission rotate
+msgid "Rotates to the next mission\n"
+msgstr "Ротация на следующую миссию\n"
+
+msgid "Can't restart server {server} as it is {status}!"
+msgstr "Невозможно перезапустить сервер {server} поскольку он находится в статусе {status}!"
+
+msgid "A restart is currently pending.\n"
+"Would you still like to {} the mission?"
+msgstr "Перезапуск уже выполняется.\n"
+"Вы все равно хотите {} миссию?"
+
+msgid "restart"
+msgstr "перезапустить"
+
+msgid "rotate"
+msgstr "ротировать"
+
+msgid "Do you really want to {} the mission?"
+msgstr "Вы действительно хотите {} миссию?"
+
+msgid "Mission will {}, when server is empty."
+msgstr "Миссия будет {} когда сервер будет пуст."
+
+msgid "!!! Mission will be {what} in {when}!!!"
+msgstr "!!! Миссия будет {what} в {when}!!!"
+
+msgid "restarted"
+msgstr "перезапущена"
+
+msgid "rotated"
+msgstr "ротирована"
+
+msgid "!!! Mission will be {} NOW !!!"
+msgstr "!!! Миссия будет {} СЕЙЧАС!!!"
+
+msgid " Reason: {}"
+msgstr " Причина: {}"
+
+msgid "Mission will be {what} in {when} (warning users before)..."
+msgstr "Миссия будует {what} в {when} (предупреждаем игроков)..."
+
+msgid "Mission will {} now, please wait ..."
+msgstr "Миссия будет {} сейчас, пожалуйста подождите ..."
+
+msgid "Mission {}."
+msgstr "Миссия {}."
+
+msgid "Timeout while the mission {}.\n"
+"Please check with `/mission info`, if the mission is running."
+msgstr "Истекло время ожидания {} миссии."
+"Пожалуйста проверьте статус командой `/mission info`."
+
+# /mission load
+msgid "Loads a mission\n"
+msgstr "Загружает миссию\n"
+
+msgid "Can't load mission on server {server} as it is {status}!"
+msgstr "Невозможно загрузить миссию на сервер {server} поскольку он находится в статусе {status}."
+
+msgid "change"
+msgstr "смена"
+
+msgid "Mission {} will be loaded when server is empty or on the next restart."
+msgstr "Миссия {} будет загружена когда сервер будет пуст или при следующей перезагрузке."
+
+msgid "Loading mission {} ..."
+msgstr "Загрузка миссии {} ..."
+
+msgid "Mission {} loaded."
+msgstr "Миссия {} загружена."
+
+msgid "Timeout while loading mission {}!"
+msgstr "Истекло время загрузки миссии {}!"
+
+# /mission add
+msgid "Adds a mission to the list\n"
+msgstr "Добавляет миссию в список\n"
+
+msgid "path"
+msgstr "путь"
+
+msgid "No mission found."
+msgstr "Миссии не найдено."
+
+msgid "Mission \"{}\" added."
+msgstr "Миссия \"{}\" добавлена."
+
+msgid "Do you want to load this mission?"
+msgstr "Вы хотите загрузить эту миссию?"
+
+# /mission delete
+msgid "Deletes a mission from the list\n"
+msgstr "Удаляет миссию из списка\n"
+
+msgid "You can't delete the running mission."
+msgstr "Вы не можете удалить запущенную миссию."
+
+msgid "Delete mission \"{}\" from the mission list?"
+msgstr "Удалить миссию \"{}\" из списка миссий?"
+
+msgid "Mission \"{}\" removed from list."
+msgstr "Миссия \"{}\" удалена из списка."
+
+msgid "Delete \"{}\" also from disk?"
+msgstr "Удалить миссию \"{}\" с диска?"
+
+msgid "Mission \"{}\" deleted."
+msgstr "Миссия \"{}\" была удалена с диска."
+
+msgid "Mission \"{}\" was already deleted."
+msgstr "Миссия \"{}\" уже была удалена."
+
+msgid "Timeout while deleting mission.\n"
+"Please reconfirm that the deletion was successful."
+msgstr "Истекло время удаления миссии.\n"
+"Убедитесь в том, что миссия была удалена с диска."
+
+# /mission pause
+msgid "Pauses the current running mission"
+msgstr "Постановка текущей миссии на паузу"
+
+msgid "Mission on server \"{}\" paused."
+msgstr "Миссия на сервере \"{}\" поставлена на паузу."
+
+# /mission unpause
+msgid "Resumes the running mission"
+msgstr "Снимает текущую миссию с паузы"
+
+msgid "Mission on server \"{}\" resumed."
+msgstr "Миссия на сервере \"{}\" снята с паузы."
+
+msgid "Server \"{}\" is not paused."
+msgstr "Сервер \"{}\" не стоит на паузе."
+
+msgid "Server {server} is {status}, can't unpause."
+msgstr "Сервер {server} находится в статусе {status}, невозможно поставить на паузу."
+
+# /mission modify
+msgid "Modify mission with a preset\n"
+msgstr "Изменяет миссию при помощи пресетов\n"
+
+msgid "Chose an alternate presets file"
+msgstr "Выберите альтернативный файл пресетов"
+
+msgid "No presets available, please configure them in {}."
+msgstr "Пресетов не найдено. Пожалуйста настройте их в {}."
+
+msgid "There is an error in your {}. Please check the file structure."
+msgstr "Ошибка в {}. Проверьте структуру файла."
+
+msgid "Do you want to restart the server for a mission change?"
+msgstr "Вы хотите перезапустить сервер для смены миссии?"
+
+msgid "Mission will be changed when server is empty."
+msgstr "Миссия будет сменена когда сервер будет пуст."
+
+msgid "Changing mission ..."
+msgstr "Выполняется смена миссии ..."
+
+msgid "The following preset were applied: {}."
+msgstr "Следующие пресеты были применены: {}."
+
+msgid "\nMission reloaded."
+msgstr "\nМиссия перезагружена."
+
+msgid "Timeout during restart of mission!\n"
+"Please check, if the mission is running or if it somehow got corrupted."
+msgstr "Истекло время ожидания перезапуска миссии!\n"
+"Проверьте, запустилась ли миссия или убедитесь в её целостности."
+
+# /mission save_preset
+msgid "Save mission preset\n"
+msgstr "Сохранить пресет миссии\n"
+
+msgid "Do you want to overwrite the existing preset \"{}\"?"
+msgstr "Вы хотите перезаписать текущий пресет \"{}\"?"
+
+msgid "Preset \"{}\" added."
+msgstr "Пресет \"{}\" добавлен."
+
+# /mission rollback
+msgid "Rollback to the original mission file after any modifications"
+msgstr "Откатить миссию до оригинального состояния после модификаций"
+
+msgid "Please stop your server first to rollback the running mission."
+msgstr "Пожалуйста остановите ваш сервер для отката запущенной миссии."
+
+msgid "No \".orig\" file there, the mission was never changed."
+msgstr "Не найдено \".orig\"-файла, миссия не была изменена."
+
+msgid "Mission {} has been rolled back."
+msgstr "Произведен откат миссии {} до оригинального состояния."
+
+# /player
+msgid "Commands to manage DCS players"
+msgstr "Команды для управления DCS игроками"
+
+# /player list
+msgid "Lists the current players"
+msgstr "Показывает текущих игроков"
+
+# /player kick
+msgid "Kicks a player\n"
+msgstr "Кикает игрока\n"
+
+msgid "Player not found."
+msgstr "Игрок не найден."
+
+msgid "Player {name} (ucid={ucid}) kicked."
+msgstr "Игрок {name} (ucid={ucid}) кикнут."
+
+# /player ban
+msgid "Bans an active player"
+msgstr "Банит текущего игрока"
+
+msgid "Ban Details"
+msgstr "Подробности бана"
+
+msgid "Reason"
+msgstr "Причина"
+
+msgid "n/a"
+msgstr "н.д."
+
+msgid "Days (empty = forever)"
+msgstr "Дней (пусто = навсегда)"
+
+msgid "Player {} banned on all servers "
+msgstr "Игрок {} забанен на всех серверах "
+
+msgid "for {} days."
+msgstr "на {} дней."
+
+# /player spec
+msgid "Moves a player to spectators\n"
+msgstr "Перемещает игрока в зрители\n"
+
+msgid "You have been moved to spectators. Reason: {}"
+msgstr "Вы перемещены в зрители. Причина: {}"
+
+msgid "Player \"{}\" moved to spectators."
+msgstr "Игрок \"{}\" перемещен в зрители."
+
+# /players afk
+msgid "List of AFK players"
+msgstr "Список AFK игроков"
+
+msgid "These players are AFK for more than {} minutes:"
+msgstr "Данные игроки провели в AFK более {} минут:"
+
+msgid "Name"
+msgstr "Имя"
+
+msgid "Time"
+msgstr "Время"
+
+msgid "Server"
+msgstr "Сервер"
+
+msgid "No player is AFK for more than {} minutes."
+msgstr "Игроков AFK более {} минут не найдено."
+
+# /player exempt
+msgid "Exempt player from AFK kicks"
+msgstr "Освободить игрока от AFK-кика"
+
+msgid "Do you want to permanently add this user to the AFK exemption list?"
+msgstr "Вы хотите добавить игрока в список освобожденных от AFK-кика?"
+
+msgid "User added to the exemption list."
+msgstr "Игрок добавлен в список освобожденных."
+
+msgid "Player is on the list already. Do you want to remove them?"
+msgstr "Игрок уже находится в списке? Удалить его из списка?"
+
+msgid "Aborted."
+msgstr "Отмена."
+
+msgid "User removed from the exemption list."
+msgstr "Пользователь удален из списка освобожденных."
+
+# /player popup
+msgid "Sends a popup to a player\n"
+msgstr "Отправляет popup сообщение игроку\n"
+
+msgid "Message sent."
+msgstr "Сообщение отправлено."
+
+# /player chat
+msgid "Sends a chat message to a player\n"
+msgstr "Отправляет chat сообщение игроку\n"
+
+# /player watch
+msgid "Adds a player to the watchlist"
+msgstr "Добавляет игрока в список отслеживания"
+
+msgid "Player {} is now on the watchlist."
+msgstr "Игрок {} теперь в списке отслеживания."
+
+# /player unwatch
+msgid "Removes a player from the watchlist"
+msgstr "Удаляет игрока из списка отслеживания"
+
+msgid "Player {} removed from watchlist."
+msgstr "Игрок {} удален из списка отслеживания."
+
+# / group
+msgid "Commands to manage DCS groups"
+msgstr "Команды для управления DCS группами"
+
+# /group popup
+msgid "Sends a popup to a group\n"
+msgstr "Отправляет popup сообщение группе\n"
+
+# /link
+msgid "Links a member to a DCS user"
+msgstr "Линкует пользователя Discord к DCS игроку"
+
+msgid "This member is linked to this UCID already."
+msgstr "Этот пользователь уже слинкован с данным UCID."
+
+msgid "Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?"
+msgstr "Пользователь {name} уже слинкован с другим UCID ({ucid}). Вы хотите перелинковать?"
+
+msgid "Member {name} linked to UCID {ucid}."
+msgstr "Пользователь {name} слинкован с UCID {ucid}."
+
+# /unlink
+msgid "Unlinks a member or ucid"
+msgstr "Удаляет привязку пользователя или ucid"
+
+msgid "Name of player, member or UCID"
+msgstr "Имя игрока, пользователя Discord или UCID"
+
+msgid "Member {name} unlinked from UCID {ucid}."
+msgstr "Пользователь {name} разлинкован от UCID {ucid}."
+
+msgid "Player is not linked!"
+msgstr "Игрок не слинкован!"
+
+msgid "Unknown player / member provided"
+msgstr "Указан неизвестный игрок / пользователь"
+
+# /find, /player find
+msgid "Find a player by name"
+msgstr "Найти игрока по имени"
+
+msgid "last seen"
+msgstr "Последнее посещение:"
+
+msgid "No user found."
+msgstr "Пользователя не найдено."
+
+msgid "Select a User"
+msgstr "Выберите пользователя"
+
+# /info, /player info
+msgid "Shows player information"
+msgstr "Показывает информацию об игроке"
+
+msgid "This user does not exist. Try `/find` to find them in the historic data."
+msgstr "Данный пользователь не существует. Попробуйте найти информацию по нему командой `/find`."
+
+# /linkcheck
+msgid "Show players that could be linked"
+msgstr "Показывает потенциальных игроков для линкования"
+
+msgid "Unlinked Players"
+msgstr "Неслинкованные игроки"
+
+msgid "These players could be possibly linked:"
+msgstr "Эти игроки могут быть слинкованы:"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "DCS Player"
+msgstr "DCS Игрок"
+
+msgid "Member"
+msgstr "Член"
+
+msgid "Press a number to link this specific user."
+msgstr "Выберите число для линковки конкретного пользователя."
+
+msgid "No unmatched member could be matched."
+msgstr "Не найдено потенциально совпадающих пользоваталей."
+
+msgid "DCS player {player} linked to member {member}."
+msgstr "DCS игрок {player} был слинкован с пользователем {member}."
+
+# /mislinks
+msgid "Show possibly mislinked players"
+msgstr "Показывает потенциально некорректно слинкованных игроков"
+
+msgid "Possible Mislinks"
+msgstr "Возможные ошибки линкования"
+
+msgid "These players could be possibly mislinked:"
+msgstr "Эти игроки потенциально могут быть некорректно слинкованы:"
+
+msgid "Press a number to unlink this specific user."
+msgstr "Выберите число для разлинковки конкретного пользователя."
+
+msgid "No mislinked players found."
+msgstr "Некорректно слинкованных игроков не найдено."
+
+msgid "UCID {ucid} transferred from member {old_member} to member {new_member}."
+msgstr "UCID {ucid} переведен от {old_member} к {new_member}."
+
+# /linkme
+msgid "Link your DCS and Discord user"
+msgstr "Линкует ваш DCS и Discord аккаунты"
+
+msgid "**Your secure TOKEN is: {token}**\n"
+"To link your user, type in the following into the DCS chat of one of our servers:"
+"```{prefix}linkme {token}```\n\n"
+"**The TOKEN will expire in 2 days!**"
+msgstr "**Ваш TOKEN для линковки: {token}**\n"
+"Для линковки вашего DCS аккаунта с Discord, напишите во внутриигровом DCS чате следующее:"
+"```{prefix}linkme {token}```\n\n"
+"**TOKEN действителен 2 дня!**"
+
+msgid "You already have a verified DCS account!\n"
+"Are you sure you want to re-link your account? (Ex: Switched from Steam to Standalone)"
+
+msgstr "Ваш DCS аккаунт уже верифицирован.\n"
+"Вы точно хотите перепривязать аккаунт? (Напр: переход от Steam к Standalone версии)"
+
+# /player inactive
+msgid "Shows inactive players"
+msgstr "Показать неактивных игроков"
+
+# Mission Uploads
+msgid "To which server do you want to upload this mission to?"
+msgstr "На какой сервер вы хотите залить эту миссию?"
+
+msgid "Upload aborted."
+msgstr "Загрузка отменена."
+
+msgid "A mission is currently active.\n"
+"Do you want me to stop the DCS-server to replace it?"
+msgstr "Миссия уже активна.\n"
+"Вы хотите остановить DCS-сервер для её замены?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Файл существует. Вы хотите перезаписать его?"
+
+msgid "Error while uploading: {}"
+msgstr "Ошибка во время загрузки: {}"
+
+msgid "Mission \"{mission}\" uploaded to server {server}.\n"
+"As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
+msgstr "Миссия \"{mission}\" загружена на сервер {server}.\n"
+"Поскольку включён \"autoscan\", потребуется несколько секунд для появления её в списке миссий."
+
+msgid "Error while uploading: File not found in severSettings.lua!"
+msgstr "Ошибка во время загрузки: Файл не найден в serverSettings.lua!"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and added."
+msgstr "Миссия \"{mission}\" загружена на сервер {server} и добавлена."
+
+msgid "Do you want to apply extensions before mission start?"
+msgstr "Вы хотите применить расширения перед запуском миссии?"
+
+msgid "Timeout while trying to load the mission."
+msgstr "Истекло время попытки загрузки миссии."

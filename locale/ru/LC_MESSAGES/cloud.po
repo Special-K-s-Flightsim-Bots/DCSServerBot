@@ -46,3 +46,12 @@ msgstr "Используйте команду `/linkme`, для сопряжен
 
 msgid "No cloud-based statistics found for this user."
 msgstr "Для данного пользователя не найдена статистика в облаке."
+
+msgid "\nCloud TOKEN configured and valid."
+msgstr "\nCloud-TOKEN сконфигурирован и действителен."
+
+msgid "\nCloud TOKEN configured, but invalid!"
+msgstr "\n Cloud-TOKEN сконфигурирован но недействителен!"
+
+msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nПолучите Cloud-TOKEN, если вы хотите использовать облачную статистику!"
