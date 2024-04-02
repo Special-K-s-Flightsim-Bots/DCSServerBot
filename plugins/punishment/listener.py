@@ -206,4 +206,5 @@ class PunishmentEventListener(EventListener):
     @chat_command(name="penalty", help=_("displays your penalty points"))
     async def penalty(self, server: Server, player: Player, params: list[str]):
         points = self._get_punishment_points(player)
-        player.sendChatMessage(_("{name}, you have {points} punishment points.").format(name=player.name))
+        player.sendChatMessage(_("{name}, you have {points} punishment points.").format(name=player.name,
+                                                                                        points=points))

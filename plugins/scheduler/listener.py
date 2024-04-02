@@ -249,8 +249,8 @@ class SchedulerListener(EventListener):
         elif not server.restart_time:
             player.sendChatMessage("Please try again in a minute.")
             return
-        restart_in = int((server.restart_time - datetime.now(timezone.utc)).total_seconds())
+        restart_in, rconf = self.get_next_restart(server, restart)
         message = f"The mission will restart in {utils.format_time(restart_in)}"
-        if not restart.get('populated', True):
+        if not rconf.get('populated', True):
             message += ", if all players have left"
         player.sendChatMessage(message)
