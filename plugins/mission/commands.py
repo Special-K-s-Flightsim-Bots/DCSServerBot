@@ -966,6 +966,16 @@ class Mission(Plugin):
             name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
+        # If autorole is enabled, give the user the DCS role:
+        if self.bot.locals.get('autorole', '') == 'linkme':
+            role = self.bot.roles['DCS'][0]
+            if role != '@everyone':
+                try:
+                    await member.add_roles(self.bot.get_role(role))
+                except discord.Forbidden:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member))
+
         # check if they are an active player on any of our servers
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
@@ -1015,12 +1025,13 @@ class Mission(Plugin):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 if isinstance(user, discord.Member):
+                    member = user
                     cursor = await conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
                     rows = await cursor.fetchall()
                     for row in rows:
                         ucid = row[0]
-                        await clear_user_roles(ucid)
                         await unlink_member(user, ucid)
+                        await clear_user_roles(ucid)
                 elif utils.is_ucid(user):
                     ucid = user
                     member = self.bot.get_member_by_ucid(ucid)
@@ -1032,6 +1043,16 @@ class Mission(Plugin):
                 else:
                     await interaction.followup.send(_('Unknown player / member provided'), ephemeral=True)
                     return
+
+        # If autorole is enabled, remove the DCS role from the user:
+        if self.bot.locals.get('autorole', '') == 'linkme':
+            role = self.bot.roles['DCS'][0]
+            if role != '@everyone':
+                try:
+                    await member.remove_roles(self.bot.get_role(role))
+                except discord.Forbidden:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member))
 
     async def _find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
