@@ -340,15 +340,8 @@ class Mission(Plugin):
                   "Please check with `/mission info`, if the mission is running.").format(_(actions.get(what))),
                 ephemeral=ephemeral)
 
-    @mission.command(description=_('Loads a mission\n'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    @app_commands.rename(mission_id="mission")
-    @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
-    async def load(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(
-                       status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
-                   mission_id: int, run_extensions: Optional[bool] = False):
+    async def _load(self, interaction: discord.Interaction, server: Server, mission_id: int,
+                    run_extensions: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             # noinspection PyUnresolvedReferences
@@ -381,7 +374,6 @@ class Mission(Plugin):
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
-                server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
                                                 ephemeral=ephemeral)
             else:
@@ -391,9 +383,8 @@ class Mission(Plugin):
             name = os.path.basename(mission[:-4])
             if result == 'later':
                 # make sure, we load that mission, independently on what happens to the server
-                await server.setStartIndex(mission_id)
+                await server.setStartIndex(mission_id + 1)
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
-                server.restart_pending = True
                 await interaction.followup.send(
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(name),
                     ephemeral=ephemeral)
@@ -410,6 +401,17 @@ class Mission(Plugin):
                                                     ephemeral=ephemeral)
                 finally:
                     await tmp.delete()
+
+    @mission.command(description=_('Loads a mission\n'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(mission_id="mission")
+    @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    async def load(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
+                   mission_id: int, run_extensions: Optional[bool] = False):
+        await self._load(interaction, server, mission_id, run_extensions)
 
     @mission.command(description=_('Adds a mission to the list\n'))
     @app_commands.guild_only()
@@ -428,18 +430,14 @@ class Mission(Plugin):
             return
         path = all_missions[idx]
         await server.addMission(path, autostart=autostart)
-        name = os.path.basename(path)[:-4]
+        name = os.path.basename(path)
         await interaction.followup.send(_('Mission "{}" added.').format(utils.escape_string(name)), ephemeral=ephemeral)
+        mission_id = (await server.getMissionList()).index(path)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, _('Do you want to load this mission?'),
                                             ephemeral=ephemeral):
             return
-        tmp = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
-                                              ephemeral=ephemeral)
-        await server.loadMission(path)
-        await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server, user=interaction.user)
-        await tmp.delete()
-        await interaction.followup.send(_('Mission {} loaded.').format(utils.escape_string(name)), ephemeral=ephemeral)
+        await self._load(interaction, server, mission_id, False)
 
     @mission.command(description=_('Deletes a mission from the list\n'))
     @app_commands.guild_only()

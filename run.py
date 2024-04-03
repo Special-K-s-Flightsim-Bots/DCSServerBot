@@ -139,7 +139,8 @@ if __name__ == "__main__":
                 run_node(name=args.node, no_autoupdate=args.noupdate)
     except PermissionError:
         # do not restart again
-        console.print_exception(show_locals=True, max_frames=1)
+        print(f"\n[red]There is a permission error.\n"
+              f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node} and try again.[/]")
         exit(-2)
     except PidFileError:
         print(f"\n[red]Process already running for node {args.node}! Exiting...[/]")

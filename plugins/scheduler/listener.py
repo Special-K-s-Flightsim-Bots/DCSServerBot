@@ -130,9 +130,15 @@ class SchedulerListener(EventListener):
         if data['id'] == 1 or 'ucid' not in data:
             return
         if server.restart_pending:
+            restart = self.get_config(server).get('restart')
+            if restart:
+                restart_in, _ = self.get_next_restart(server, restart)
+                restart_time = f"in {utils.format_time(restart_in)}"
+            else:
+                restart_time = 'soon'
             player: Player = server.get_player(ucid=data['ucid'])
             if player:
-                player.sendChatMessage("*** Mission is about to be restarted soon! ***")
+                player.sendChatMessage("*** Mission is about to be restarted {}! ***".format(restart_time))
 
     @event(name="onSimulationPause")
     async def onSimulationPause(self, server: Server, _: dict) -> None:

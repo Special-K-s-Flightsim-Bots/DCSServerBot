@@ -224,26 +224,30 @@ class Scheduler(Plugin):
         else:
             server.restart_pending = True
 
-        if 'shutdown' in method:
-            self.log.debug(f"Scheduler: Shutting down DCS Server {server.name}")
-            await self.teardown_dcs(server)
-        if method == 'restart_with_shutdown':
-            try:
-                self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
-                await self.launch_dcs(server)
-            except (TimeoutError, asyncio.TimeoutError):
-                await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
-                                     server=server)
-        elif method == 'restart':
-            self.log.debug(f"Scheduler: Restarting mission on server {server.name}")
-            await server.restart()
-            await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
-                                 f"{server.current_mission.display_name}", server=server)
-        elif method == 'rotate':
-            self.log.debug(f"Scheduler: Rotating mission on server {server.name}")
-            await server.loadNextMission()
-            await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
-                                 f"{server.current_mission.display_name}", server=server)
+        try:
+            if 'shutdown' in method:
+                self.log.debug(f"Scheduler: Shutting down DCS Server {server.name}")
+                await self.teardown_dcs(server)
+            if method == 'restart_with_shutdown':
+                try:
+                    self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
+                    await self.launch_dcs(server)
+                except (TimeoutError, asyncio.TimeoutError):
+                    await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
+                                         server=server)
+            elif method == 'restart':
+                self.log.debug(f"Scheduler: Restarting mission on server {server.name}")
+                await server.restart()
+                await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
+                                     f"{server.current_mission.display_name}", server=server)
+            elif method == 'rotate':
+                self.log.debug(f"Scheduler: Rotating mission on server {server.name}")
+                await server.loadNextMission()
+                await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
+                                     f"{server.current_mission.display_name}", server=server)
+        except Exception as ex:
+            self.log.error(f"Error with method {method} on server {server.name}: {ex}")
+            server.restart_pending = False
 
     async def check_mission_state(self, server: Server, config: dict):
         def check_mission_restart(rconf: dict):

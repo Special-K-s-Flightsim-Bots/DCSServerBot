@@ -426,9 +426,12 @@ class Admin(Plugin):
                                        _("Shutdown all servers on node {} for the installation?").format(node.name),
                                        ephemeral=ephemeral):
             return
+        msg = await interaction.followup.send(
+            _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
+            ephemeral=ephemeral)
         await node.handle_module('install', module)
-        await interaction.followup.send(
-            _("Module {module} installed on node {node}.").format(module=module, node=node.name), ephemeral=ephemeral)
+        await msg.edit(content=_("Module {module} installed on node {node}.").format(module=module, node=node.name), 
+                       ephemeral=ephemeral)
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()
