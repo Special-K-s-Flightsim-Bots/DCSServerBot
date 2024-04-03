@@ -201,7 +201,8 @@ class Scheduler(Plugin):
         # check if the server is populated
         if server.is_populated():
             self.log.debug(f"Scheduler: Server is populated.")
-            if not rconf.get('populated', True):
+            # max_mission_time overwrites the populated false
+            if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
                 self.log.debug("Scheduler: Setting on_empty trigger.")
@@ -738,7 +739,7 @@ class Scheduler(Plugin):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"
             else:
                 message += " now"
-            if not rconf.get('populated', True) and _server.is_populated():
+            if not rconf.get('populated', True) and _server.is_populated() and not rconf.get('max_mission_time'):
                 message += ", if all players have left."
         else:
             if restart_in:
