@@ -204,13 +204,9 @@ class Scheduler(Plugin):
             if not rconf.get('populated', True):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
-                if 'max_mission_time' not in rconf:
-                    self.log.debug("Scheduler: Setting on_empty trigger.")
-                    server.restart_pending = True
-                    return
-                elif server.current_mission.mission_time <= (rconf['max_mission_time'] * 60 - max_warn_time):
-                    self.log.debug("Scheduler: We have not reached max_mission_time yet, waiting.")
-                    return
+                self.log.debug("Scheduler: Setting on_empty trigger.")
+                server.restart_pending = True
+                return
             server.restart_pending = True
             self.log.debug("Scheduler: Warning users ...")
             await self.warn_users(server, config, method, max_warn_time)
@@ -265,8 +261,13 @@ class Scheduler(Plugin):
                             asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
                             return
                 elif 'mission_time' in rconf:
-                    if (server.current_mission.mission_time + warn_time) >= (rconf['mission_time'] * 60):
-                        restart_in = int((rconf['mission_time'] * 60) - server.current_mission.mission_time)
+                    # check the maximum time the mission is allowed to run
+                    if 'max_mission_time' in rconf and server.is_populated() and not rconf.get('populated', True):
+                        max_mission_time = rconf['max_mission_time'] * 60
+                    else:
+                        max_mission_time = rconf['mission_time'] * 60
+                    if (server.current_mission.mission_time + warn_time) >= max_mission_time:
+                        restart_in = int(max_mission_time - server.current_mission.mission_time)
                         if restart_in < 0:
                             restart_in = 0
                         asyncio.create_task(self.restart_mission(server, config, rconf, restart_in))
