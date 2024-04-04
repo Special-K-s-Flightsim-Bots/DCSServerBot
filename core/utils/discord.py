@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
-import functools
 import discord
+import functools
 import os
 import re
 
@@ -12,6 +12,7 @@ from discord.ext import commands
 from discord.ui import Button, View, Select
 from enum import Enum, auto
 from fuzzywuzzy import fuzz
+from io import BytesIO
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
 from .helper import get_all_players, is_ucid, format_string
@@ -40,7 +41,9 @@ __all__ = [
     "format_embed",
     "embed_to_text",
     "embed_to_simpletext",
+    "create_warning_embed",
     "escape_string",
+    "print_ruler",
     "match",
     "get_interaction_param",
     "get_all_linked_members",
@@ -729,6 +732,22 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
     return message
 
 
+def create_warning_embed(title: str, text: Optional[str] = None,
+                         fields: Optional[list[tuple[str, str]]] = None) -> tuple[discord.Embed, discord.File]:
+    embed = discord.Embed(title=title, color=discord.Color.yellow())
+    if text:
+        embed.description = text
+    with open("images/warning.png", mode="rb") as img:
+        img_bytes = img.read()
+    buffer = BytesIO(img_bytes)
+    file = discord.File(fp=buffer, filename="warning.png")
+    embed.set_thumbnail(url="attachment://warning.png")
+    if fields:
+        for name, value in fields:
+            embed.add_field(name=name, value=value)
+    return embed, file
+
+
 def escape_string(msg: str) -> str:
     """
     Escape special characters in a given string to display them in Discord.
@@ -738,6 +757,15 @@ def escape_string(msg: str) -> str:
     :rtype: str
     """
     return re.sub(r"([\\_*~`|>#+\-={}!.\[\]()])", r"\\\1", msg)
+
+
+def print_ruler(*, ruler_length: Optional[int] = 34, header: Optional[str] = None) -> str:
+    if header:
+        header = ' ' + header + ' '
+    filler = int((ruler_length - len(header) / 2.5) / 2)
+    if filler <= 0:
+        filler = 1
+    return '▬' * filler + header + '▬' * filler
 
 
 def normalize_name(name: Optional[str] = None) -> Optional[str]:

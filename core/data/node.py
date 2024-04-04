@@ -9,8 +9,7 @@ from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -102,7 +101,7 @@ class Node:
             return config
         except FileNotFoundError:
             raise FatalException()
-        except (ParserError, ScannerError) as ex:
+        except MarkedYAMLError as ex:
             raise YAMLError(file, ex)
 
     def read_locals(self) -> dict:

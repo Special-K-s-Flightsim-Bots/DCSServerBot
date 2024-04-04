@@ -603,7 +603,10 @@ class MissionEventListener(EventListener):
         player.sendUserMessage(message, 30)
 
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
-    async def load(self, server: Server, _: Player, params: list[str]):
+    async def load(self, server: Server, player: Player, params: list[str]):
+        if not params or not params[0].isnumeric():
+            player.sendChatMessage(f"Usage: {self.prefix}load <number>")
+            return
         self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
@@ -651,7 +654,7 @@ class MissionEventListener(EventListener):
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):
         if not params:
-            player.sendChatMessage(f"Syntax: {self.prefix}linkme token\nYou get the token with /linkme in our Discord.")
+            player.sendChatMessage(f"Usage: {self.prefix}linkme token\nYou get the token with /linkme in our Discord.")
             return
 
         token = params[0]

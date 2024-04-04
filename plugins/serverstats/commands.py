@@ -10,7 +10,8 @@ from services import DCSServerBot
 from typing import Type, Optional, Literal, Union
 
 from .listener import ServerStatsListener
-from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer
+from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, \
+    SquadronFilter
 
 
 class ServerStats(Plugin):
@@ -75,7 +76,7 @@ class ServerStats(Plugin):
                           _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                           period: Optional[app_commands.Transform[
                               StatisticsFilter, PeriodTransformer(
-                                  flt=[PeriodFilter, CampaignFilter, MissionFilter]
+                                  flt=[PeriodFilter, CampaignFilter, MissionFilter, SquadronFilter]
                               )]] = PeriodFilter()):
         try:
             if _server:

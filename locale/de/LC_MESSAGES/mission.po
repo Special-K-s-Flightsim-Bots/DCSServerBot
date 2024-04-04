@@ -1,0 +1,509 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# /mission
+msgid "Commands to manage a DCS mission"
+msgstr "Befehle zur Verwaltung von DCS-Missionen"
+
+# /mission info
+msgid "Info about the running mission"
+msgstr "Infos über die laufende Mission"
+
+# /mission manage
+msgid "Manage the active mission"
+msgstr "Verwalte die aktuelle Mission"
+
+# /mission atis
+msgid "Information about a specific airport"
+msgstr "Informationen zu einem Flugplatz"
+
+msgid "airport"
+msgstr "flugplatz"
+
+msgid "Airport for ATIS information"
+msgstr "Flugplatz für ATIS-Information"
+
+msgid "Server {} is not running."
+msgstr "Server {} läuft nicht."
+
+# /mission briefing
+msgid "Shows briefing of the active mission"
+msgstr "Zeigt das Missions-Briefing an"
+
+# /mission restart
+msgid "Restarts the current active mission\n"
+msgstr "Startet die Mission neu\n"
+
+# /mission rotate
+msgid "Rotates to the next mission\n"
+msgstr "Rotiert zur nächsten Mission\n"
+
+msgid "Can't restart server {server} as it is {status}!"
+msgstr "Server {server} ist im Status {status} und kann nicht neu gestartet werden!"
+
+msgid "A restart is currently pending.\n"
+"Would you still like to {} the mission?"
+msgstr "Ein Restart läuft bereits.\n"
+"Möchtest Du die Mission trotzdem {}?"
+
+msgid "restart"
+msgstr "restarten"
+
+msgid "rotate"
+msgstr "rotieren"
+
+msgid "Do you really want to {} the mission?"
+msgstr "Möchtest Du die Mission wirklich {}?"
+
+msgid "Mission will {}, when server is empty."
+msgstr "Die Mission wird {}, wenn der Server leer ist."
+
+msgid "!!! Mission will be {what} in {when}!!!"
+msgstr "!!! Die Mission wird in {when} {what} !!!"
+
+msgid "restarted"
+msgstr "neu gestartet"
+
+msgid "rotated"
+msgstr "rotiert"
+
+msgid "!!! Mission will be {} NOW !!!"
+msgstr "!!! Die Mission wird JETZT {} !!!"
+
+msgid " Reason: {}"
+msgstr " Grund: {}"
+
+msgid "Mission will be {what} in {when} (warning users before)..."
+msgstr "Die Mission wird in {when} {what}, (warne Nutzer) ..."
+
+msgid "Mission will {} now, please wait ..."
+msgstr "Die Mission wird jetzt {}, bitte warten ..."
+
+msgid "Mission {}."
+msgstr "Die Mission wurde {}."
+
+msgid "Timeout while the mission {}.\n"
+"Please check with `/mission info`, if the mission is running."
+msgstr "Timeout während die Mission {} wurde."
+"Bitte prüfe mit `/mission info`, ob die Mission läuft."
+
+# /mission load
+msgid "Loads a mission\n"
+msgstr "Lädt eine Mission\n"
+
+msgid "Can't load mission on server {server} as it is {status}!"
+msgstr "Server {server} ist im Status {status}, kann keine Mission laden."
+
+msgid "change"
+msgstr "ändern"
+
+msgid "Mission {} will be loaded when server is empty or on the next restart."
+msgstr "Mission {} wird geladen, wenn der Server leer ist oder neu gestartet wird."
+
+msgid "Loading mission {} ..."
+msgstr "Lade Mission {} ..."
+
+msgid "Mission {} loaded."
+msgstr "Mission {} geladen."
+
+msgid "Timeout while loading mission {}!"
+msgstr "Timeout während des Ladens der Mission {}!"
+
+# /mission add
+msgid "Adds a mission to the list\n"
+msgstr "Fügt eine Mission der Liste hinzu\n"
+
+msgid "path"
+msgstr "dateipfad"
+
+msgid "No mission found."
+msgstr "Keine Mission gefunden."
+
+msgid "Mission \"{}\" added."
+msgstr "Mission \"{}\" hinzugefügt."
+
+msgid "Do you want to load this mission?"
+msgstr "Möchtest Du diese Mission laden?"
+
+# /mission delete
+msgid "Deletes a mission from the list\n"
+msgstr "Löscht eine Mission aus der Liste\n"
+
+msgid "You can't delete the running mission."
+msgstr "Du kannst die laufende Mission nicht löschen."
+
+msgid "Delete mission \"{}\" from the mission list?"
+msgstr "Möchtest Du Mission \"{}\" aus der Missionsliste entfernen?"
+
+msgid "Mission \"{}\" removed from list."
+msgstr "Mission \"{}\" aus der Liste entfernt."
+
+msgid "Delete \"{}\" also from disk?"
+msgstr "Möchtest Du Mission \"{}\" auch von der Festplatte löschen?"
+
+msgid "Mission \"{}\" deleted."
+msgstr "Mission \"{}\" von Festplatte gelöscht."
+
+msgid "Mission \"{}\" was already deleted."
+msgstr "Mission \"{}\" war bereits gelöscht."
+
+msgid "Timeout while deleting mission.\n"
+"Please reconfirm that the deletion was successful."
+msgstr "Timeout während des Löschens der Mission.\n"
+"Bitte überprüfe manuell, ob die Mission wirklich gelöscht wurde."
+
+# /mission pause
+msgid "Pauses the current running mission"
+msgstr "Pausiert die aktuelle Mission"
+
+msgid "Mission on server \"{}\" paused."
+msgstr "Die Mission auf Server \"{}\" wurde pausiert."
+
+# /mission unpause
+msgid "Resumes the running mission"
+msgstr "Setzt die aktuelle Mission fort"
+
+msgid "Mission on server \"{}\" resumed."
+msgstr "Mission auf Server \"{}\" fortgesetzt."
+
+msgid "Server \"{}\" is not paused."
+msgstr "Server \"{}\" ist nicht pausiert."
+
+msgid "Server {server} is {status}, can't unpause."
+msgstr "Server {server} ist im Status {status} und kann nicht fortgesetzt werden."
+
+# /mission modify
+msgid "Modify mission with a preset\n"
+msgstr "Ändere die Mission\n"
+
+msgid "Chose an alternate presets file"
+msgstr "Wähle eine alternative Presets-Datei"
+
+msgid "No presets available, please configure them in {}."
+msgstr "Keine Presets vorhanden. Bitte konfiguriere Sie in {}."
+
+msgid "There is an error in your {}. Please check the file structure."
+msgstr "Die Datei {} hat Fehler. Bitte überprüfe die Struktur."
+
+msgid "Do you want to restart the server for a mission change?"
+msgstr "Möchtest Du den Server neu starten, um die Missionsänderung durchzuführen?"
+
+msgid "Mission will be changed when server is empty."
+msgstr "Die Mission wird geändert, sobald der Server leer ist."
+
+msgid "Changing mission ..."
+msgstr "Verändere die Mission ..."
+
+msgid "The following preset were applied: {}."
+msgstr "Folgende Presets wurden angewendet: {}."
+
+msgid "\nMission reloaded."
+msgstr "\nMission neu geladen."
+
+msgid "Timeout during restart of mission!\n"
+"Please check, if the mission is running or if it somehow got corrupted."
+msgstr "Timeout während des Restarts der Mission!\n"
+"Bitte überprüfe ob die Mission läuft und falls nicht, ob sie ggf. beschädigt wurde."
+
+# /mission save_preset
+msgid "Save mission preset\n"
+msgstr "Erstelle Preset aus Mission\n"
+
+msgid "Do you want to overwrite the existing preset \"{}\"?"
+msgstr "Möchtest Du das bestehende Preset \"{}\" überschreiben?"
+
+msgid "Preset \"{}\" added."
+msgstr "Preset \"{}\" hinzugefügt."
+
+# /mission rollback
+msgid "Rollback to the original mission file after any modifications"
+msgstr "Führt ein Rollback auf die originale Missionsdatei aus"
+
+msgid "Please stop your server first to rollback the running mission."
+msgstr "Bitte stoppe den Server, um die Mission zurückrollen zu können."
+
+msgid "No \".orig\" file there, the mission was never changed."
+msgstr "Es gibt keine passende \".orig\"-Datei. Die Mission wurde vermutlich nie verändert."
+
+msgid "Mission {} has been rolled back."
+msgstr "Mission {} wurde zurückgerollt."
+
+# /player
+msgid "Commands to manage DCS players"
+msgstr "Befehle zur Verwaltung aktiver Spieler"
+
+# /player list
+msgid "Lists the current players"
+msgstr "Zeigt die aktuellen Spieler"
+
+# /player kick
+msgid "Kicks a player\n"
+msgstr "Kicked einen Spieler\n"
+
+msgid "Player not found."
+msgstr "Spieler nicht gefunden."
+
+msgid "Player {name} (ucid={ucid}) kicked."
+msgstr "Spieler {name} (ucid={ucid}) gekicked."
+
+# /player ban
+msgid "Bans an active player"
+msgstr "Bannt einen aktiven Spieler"
+
+msgid "Ban Details"
+msgstr "Details zum Bann"
+
+msgid "Reason"
+msgstr "Grund"
+
+msgid "n/a"
+msgstr "n.v."
+
+msgid "Days (empty = forever)"
+msgstr "Tage (leer = für immer)"
+
+msgid "Player {} banned on all servers "
+msgstr "Spieler {} wurde auf allen Servern gebannt "
+
+msgid "for {} days."
+msgstr "für {} Tage."
+
+# /player spec
+msgid "Moves a player to spectators\n"
+msgstr "Setzt einen Spieler auf Spectator\n"
+
+msgid "You have been moved to spectators. Reason: {}"
+msgstr "Du wurdest auf Spectator gesetzt. Grund: {}"
+
+msgid "Player \"{}\" moved to spectators."
+msgstr "Spieler \"{}\" wurde auf Spectator gesetzt."
+
+# /players afk
+msgid "List of AFK players"
+msgstr "Welche Spieler sind AFK"
+
+msgid "These players are AFK for more than {} minutes:"
+msgstr "Diese Spieler sind länger als {} Minuten AFK:"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Time"
+msgstr "Zeit"
+
+msgid "Server"
+msgstr "Server"
+
+msgid "No player is AFK for more than {} minutes."
+msgstr "Kein Spieler ist mehr als {} Minuten AFK."
+
+# /player exempt
+msgid "Exempt player from AFK kicks"
+msgstr "AFK-Ausschluss"
+
+msgid "Do you want to permanently add this user to the AFK exemption list?"
+msgstr "Möchtest Du diesen Spieler auf die AFK-Ausnahmeliste setzen?"
+
+msgid "User added to the exemption list."
+msgstr "Spieler wurde auf Ausnahmeliste gesetzt."
+
+msgid "Player is on the list already. Do you want to remove them?"
+msgstr "Der Spieler ist bereits auf der Ausnahmeliste. Möchtest Du ihn davon entfernen?"
+
+msgid "Aborted."
+msgstr "Abgebrochen."
+
+msgid "User removed from the exemption list."
+msgstr "Der Spieler wurde von der Ausnahmeliste entfernt."
+
+# /player popup
+msgid "Sends a popup to a player\n"
+msgstr "Sendet einem Spieler ein Popup\n"
+
+msgid "Message sent."
+msgstr "Nachricht gesendet."
+
+# /player chat
+msgid "Sends a chat message to a player\n"
+msgstr "Sendet einem Spieler eine Nachricht\n"
+
+# /player watch
+msgid "Adds a player to the watchlist"
+msgstr "Fügt Spieler der Watchliste hinzu"
+
+msgid "Player {} is now on the watchlist."
+msgstr "Spieler {} ist jetzt auf der Watchliste."
+
+# /player unwatch
+msgid "Removes a player from the watchlist"
+msgstr "Entfernt Spieler von der Watchliste"
+
+msgid "Player {} removed from watchlist."
+msgstr "Spieler {} von der Watchliste entfernt."
+
+# / group
+msgid "Commands to manage DCS groups"
+msgstr "Befehle um DCS-Gruppen zu verwalten"
+
+# /group popup
+msgid "Sends a popup to a group\n"
+msgstr "Sendet einer Gruppe ein Popup\n"
+
+# /link
+msgid "Links a member to a DCS user"
+msgstr "DCS-/Discord-Account verbinden"
+
+msgid "This member is linked to this UCID already."
+msgstr "Dieser Benutzer ist bereits mit dieser UCID verbunden."
+
+msgid "Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?"
+msgstr "Benutzer {name} ist bereits mit einer anderen UCID ({ucid}) verbunden. Möchtest Du ihn neu verbinden?"
+
+msgid "Member {name} linked to UCID {ucid}."
+msgstr "Benutzer {name} wurde mit UCID {ucid} verbunden."
+
+# /unlink
+msgid "Unlinks a member or ucid"
+msgstr "Hebt Account-Verbindung auf"
+
+msgid "Name of player, member or UCID"
+msgstr "Spielername, Discord-Benutzer oder UCID"
+
+msgid "Member {name} unlinked from UCID {ucid}."
+msgstr "Account-Verbindung für Benutzer {name} zu UCID {ucid} aufgehoben."
+
+msgid "Player is not linked!"
+msgstr "Account is nicht verbunden!"
+
+msgid "Unknown player / member provided"
+msgstr "Unbekannter Benutzer"
+
+# /find, /player find
+msgid "Find a player by name"
+msgstr "Suche einen Spieler"
+
+msgid "last seen"
+msgstr "Gesehen:"
+
+msgid "No user found."
+msgstr "Kein Benutzer gefunden."
+
+msgid "Select a User"
+msgstr "Wähle einen Benutzer"
+
+# /info, /player info
+msgid "Shows player information"
+msgstr "Zeigt Spieler-Infos"
+
+msgid "This user does not exist. Try `/find` to find them in the historic data."
+msgstr "Dieser Spieler existiert nicht. Versuche ihn mit `/find` zu finden."
+
+# /linkcheck
+msgid "Show players that could be linked"
+msgstr "Prüft Verbindungen"
+
+msgid "Unlinked Players"
+msgstr "Nicht verbundene Spieler"
+
+msgid "These players could be possibly linked:"
+msgstr "Diese Spieler können vermutlich verbunden werden:"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "DCS Player"
+msgstr "DCS Spieler"
+
+msgid "Member"
+msgstr "Benutzer"
+
+msgid "Press a number to link this specific user."
+msgstr "Drücke eine Zahl, um diese Verbindung herzustellen."
+
+msgid "No unmatched member could be matched."
+msgstr "Keine neue Verbindung identifiziert."
+
+msgid "DCS player {player} linked to member {member}."
+msgstr "Der DCS-Spieler {player} wurde mit dem Benutzer {member} verknüpft."
+
+# /mislinks
+msgid "Show possibly mislinked players"
+msgstr "Zeige mögl. Fehlverbindungen"
+
+msgid "Possible Mislinks"
+msgstr "Mögliche Fehlverbindungen"
+
+msgid "These players could be possibly mislinked:"
+msgstr "Diese Spieler könnten falsch verbunden sein:"
+
+msgid "Press a number to unlink this specific user."
+msgstr "Drücke eine Zahl, um diese Verbindung aufzulösen."
+
+msgid "No mislinked players found."
+msgstr "Keine Fehlverbindungen gefunden."
+
+msgid "UCID {ucid} transferred from member {old_member} to member {new_member}."
+msgstr "UCID {ucid} wurde von Benutzer {old_member} auf Benutzer {new_member} übertragen."
+
+# /linkme
+msgid "Link your DCS and Discord user"
+msgstr "Verbinde DCS und Discord Account"
+
+msgid "**Your secure TOKEN is: {token}**\n"
+"To link your user, type in the following into the DCS chat of one of our servers:"
+"```{prefix}linkme {token}```\n\n"
+"**The TOKEN will expire in 2 days!**"
+msgstr "**Dein geheimer TOKEN ist: {token}**\n"
+"Um Deinen DCS-Benutzer mit Deinem Discord-Benutzer zu verknüpfen, musst Du den folgenden Text in das DCS Chat-Fenster eingeben:"
+"```{prefix}linkme {token}```\n\n"
+"**Der TOKEN wird in 2 Tagen ablaufen!**"
+
+msgid "You already have a verified DCS account!\n"
+"Are you sure you want to re-link your account? (Ex: Switched from Steam to Standalone)"
+
+msgstr "Deine Benutzer wurden bereits verknüpft.\n"
+"Bist Du sicher, dass Du neu verknüfen möchtest (bspw. nach einem Wechsel von Steam nach Standalone)?"
+
+# /player inactive
+msgid "Shows inactive players"
+msgstr "Zeigt inaktive Spieler"
+
+# Mission Uploads
+msgid "To which server do you want to upload this mission to?"
+msgstr "Auf welchen Server soll diese Mission geladen werden?"
+
+msgid "Upload aborted."
+msgstr "Upload abgebrochen."
+
+msgid "A mission is currently active.\n"
+"Do you want me to stop the DCS-server to replace it?"
+msgstr "Eine Mission ist zurzeit aktiv.\n"
+"Möchtest Du den DCS-Server stoppen, um sie mit dieser zu ersetzen?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Die Datei existiert. Möchtest Du sie überschreiben?"
+
+msgid "Error while uploading: {}"
+msgstr "Fehler beim Upload: {}"
+
+msgid "Mission \"{mission}\" uploaded to server {server}.\n"
+"As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
+msgstr "Mission \"{mission}\" wurde auf Server {server} geladen.\n"
+"Da Du \"autoscan\" aktiviert hast, kann es kurz dauern, bis die Mission in Deiner Liste erscheint."
+
+msgid "Error while uploading: File not found in severSettings.lua!"
+msgstr "Fehler bei Upload: Mission konnte nicht in der serverSettings.lua gefunden werden!"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and added."
+msgstr "Mission \"{mission}\" wurde auf Server {server} geladen und zur Missionsliste zugefügt."
+
+msgid "Do you want to apply extensions before mission start?"
+msgstr "Möchtest Du die Mission durch Erweiterungen modifizieren?"
+
+msgid "Timeout while trying to load the mission."
+msgstr "Es ist ein Timeout beim Laden der Mission aufgetreten."

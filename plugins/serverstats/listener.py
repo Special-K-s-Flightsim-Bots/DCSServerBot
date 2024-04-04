@@ -28,7 +28,8 @@ class ServerStatsListener(EventListener):
                         server=server, fps=round(fps, 2), min_fps=min_fps, period=period)
                     if config.get("mentioning", True):
                         # noinspection PyAsyncCall
-                        asyncio.create_task(ServiceRegistry.get(BotService).alert(message, server))
+                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title="Server Performance Low!",
+                                                                                  message=message, server=server))
                     else:
                         # noinspection PyAsyncCall
                         asyncio.create_task(self.bot.get_admin_channel(server).send(message))

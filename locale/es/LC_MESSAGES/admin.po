@@ -137,6 +137,9 @@ msgstr "Instalar módulos en tu servidor de DCS"
 msgid "Shutdown all servers on node {} for the installation?"
 msgstr "¿Apagar todos los servidores del nodo {} para la instalación?"
 
+msgid "Installing module {module} on node {node}, please wait ..."
+msgstr "Instalando módulo {module} en el nodo {node}. Por favor, espere ..."
+
 msgid "Module {module} installed on node {node}."
 msgstr "El módulo {module} ha sido instalado en el nodo {node}."
 

@@ -45,6 +45,8 @@ class StatisticsFilter(ABC):
             return PeriodFilter(period)
         elif CampaignFilter.supports(bot, period):
             return CampaignFilter(period)
+        elif SquadronFilter.supports(bot, period):
+            return SquadronFilter(period)
         return None
 
 
@@ -176,6 +178,30 @@ class MonthFilter(StatisticsFilter):
     def format(self, bot: DCSServerBot) -> str:
         month = MonthFilter.get_month(self.period[6:].strip())
         return f'Month "{const.MONTH[month]}" '
+
+
+class SquadronFilter(StatisticsFilter):
+    @staticmethod
+    def list(bot: DCSServerBot) -> list[str]:
+        with bot.pool.connection() as conn:
+            rows = conn.execute("SELECT name FROM squadrons").fetchall()
+            return [f"squadron:{row[0]}" for row in rows]
+
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return period and period.lower().startswith('squadron:')
+
+    def filter(self, bot: DCSServerBot) -> str:
+        return f"""
+            s.player_ucid IN (
+                SELECT player_ucid 
+                FROM squadron_members sm, squadrons ss 
+                WHERE ss.id = sm.squadron_id AND ss.name = '{self.period[9:].strip()}'
+            )
+        """
+
+    def format(self, bot: DCSServerBot) -> str:
+        return f'Squadron "{self.period[9:].strip().title()}"\n'
 
 
 class MissionStatisticsFilter(PeriodFilter):

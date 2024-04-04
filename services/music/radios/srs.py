@@ -25,7 +25,9 @@ class SRSRadio(Radio):
 
         try:
             try:
-                srs_inst = os.path.expandvars(self.server.extensions['SRS'].config['installation'])
+                srs_inst = os.path.expandvars(
+                    self.server.extensions['SRS'].config.get('installation',
+                                                             '%ProgramFiles%\\DCS-SimpleRadio-Standalone'))
                 srs_port = self.server.extensions['SRS'].locals['Server Settings']['SERVER_PORT']
             except KeyError:
                 raise RadioInitError("You need to set the SRS path in your nodes.yaml!")
@@ -47,11 +49,13 @@ class SRSRadio(Radio):
             if 'popup' in self.config:
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
-                self.server.sendPopupMessage(Coalition.ALL, utils.format_string(self.config['popup'], **kwargs))
+                self.server.sendPopupMessage(Coalition(int(self.config['coalition'])),
+                                             utils.format_string(self.config['popup'], **kwargs))
             if 'chat' in self.config:
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
-                self.server.sendChatMessage(Coalition.ALL, utils.format_string(self.config['popup'], **kwargs))
+                self.server.sendChatMessage(Coalition(int(self.config['coalition'])),
+                                            utils.format_string(self.config['chat'], **kwargs))
             await asyncio.to_thread(self.process.wait)
         except Exception as ex:
             self.log.exception(ex)

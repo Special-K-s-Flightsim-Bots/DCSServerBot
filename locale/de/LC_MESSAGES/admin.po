@@ -119,10 +119,10 @@ msgid "Updating DCS to version {version}@{branch}, please wait ..."
 msgstr "Aktualisiere DCS auf Version {version}@{branch}, bitte warten ..."
 
 msgid "DCS updated to version {version}@{branch} on node {name}."
-msgstr "DCS wurde auf Node {name} auf Version {version}@{branch} aktualisiert."
+msgstr "DCS wurde auf Knoten {name} auf Version {version}@{branch} aktualisiert."
 
 msgid "Error while updating DCS on node {name}, code={rc}"
-msgstr "Fehler beim Aktualisieren von DCS auf Node {name}: Code={rc}"
+msgstr "Fehler beim Aktualisieren von DCS auf Knoten {name}: Code={rc}"
 
 msgid "The update takes longer than 10 minutes, please check back regularly, if it has finished."
 msgstr "Dieses Update scheint länger zu brauchen. Bitte prüfe regelmäßig, ob es abgeschlossen ist."
@@ -135,23 +135,26 @@ msgid "Install modules in your DCS server"
 msgstr "Installiere DCS-Module"
 
 msgid "Shutdown all servers on node {} for the installation?"
-msgstr "Stoppe alle Server auf Node {} zur Installation des Moduls?"
+msgstr "Stoppe alle Server auf Knoten {} zur Installation des Moduls?"
+
+msgid "Installing module {module} on node {node}, please wait ..."
+msgstr "Das Modul {module} wird auf Knoten {node} installiert, bitte warten ..."
 
 msgid "Module {module} installed on node {node}."
-msgstr "Das Modul {module} wurde auf dem Node {node} installiert."
+msgstr "Das Modul {module} wurde auf dem Knoten {node} installiert."
 
 # /dcs uninstall
 msgid "Uninstall modules from your DCS server"
 msgstr "Deinstalliere DCS-Module"
 
 msgid "Shutdown all servers on node {} for the uninstallation?"
-msgstr "Stoppe alle Server auf dem Node {} zur Deinstallation?"
+msgstr "Stoppe alle Server auf dem Knoten {} zur Deinstallation?"
 
 msgid "Aborted."
 msgstr "Abgebrochen."
 
 msgid "Module {module} uninstalled on node {node}."
-msgstr "Das Modul {module} wurde auf dem Node {node} deinstalliert."
+msgstr "Das Modul {module} wurde auf dem Knoten {node} deinstalliert."
 
 # /download
 msgid "Download files from your server"
@@ -214,15 +217,15 @@ msgstr "Alle Daten älter als {} Tage wurden gelöscht."
 
 # /node
 msgid "Commands to manage your nodes"
-msgstr "Kommandos, um Deine Nodes zu administrieren"
+msgstr "Kommandos, um Deine Knoten zu administrieren"
 
 # /node statistics
 msgid "Statistics of your nodes"
-msgstr "Node-Statistiken"
+msgstr "Knoten-Statistiken"
 
 # /node list
 msgid "Status of all nodes"
-msgstr "Status Deiner Nodes"
+msgstr "Status Deiner Knoten"
 
 msgid "DCSServerBot Cluster Overview"
 msgstr "DCSServerBot Cluster-Übersicht"
@@ -241,10 +244,10 @@ msgstr "Status"
 
 # /node upgrade / restart
 msgid "Do you want to {} all nodes?"
-msgstr "Möchtest Du alle Nodes {}"
+msgstr "Möchtest Du alle Knoten {}"
 
 msgid "Do you want to {method} node {node}?"
-msgstr "Möchtest Du Node {node} {method}?"
+msgstr "Möchtest Du Knoten {node} {method}?"
 
 msgid "upgrade"
 msgstr "aktualisieren"
@@ -256,10 +259,10 @@ msgid "restart"
 msgstr "restarten"
 
 msgid "Node {node} - {method} sent."
-msgstr "Node {node} - {method} gesendet."
+msgstr "Knoten {node} - {method} gesendet."
 
 msgid "All nodes are"
-msgstr "Alle Nodes werden"
+msgstr "Alle Knoten werden"
 
 msgid "Master is"
 msgstr "Der Master wird"
@@ -269,25 +272,25 @@ msgstr " **JETZT** {}"
 
 # /node shutdown
 msgid "Shuts a specific node down"
-msgstr "Fährt einen Node herunter"
+msgstr "Fährt einen Knoten herunter"
 
 # /node restart
 msgid "Restarts a specific node"
-msgstr "Startet einen Node neu"
+msgstr "Startet einen Knoten neu"
 
 # /node offline
 msgid "Shuts down all servers, enables maintenance"
 msgstr "Wartungsmodus für alle Server an"
 
 msgid "Node {} is now offline."
-msgstr "Node {} ist jetzt im Wartungsmodus."
+msgstr "Knoten {} ist jetzt im Wartungsmodus."
 
 # /node online
 msgid "Clears the maintenance mode for all servers"
 msgstr "Wartungsmodus für alle Server aus"
 
 msgid "Node {} is now online."
-msgstr "Node {} ist wieder online."
+msgstr "Knoten {} ist wieder online."
 
 # /node upgrade
 msgid "Upgrade DCSServerBot"
@@ -300,10 +303,10 @@ msgid "your cluster"
 msgstr "Dein Cluster"
 
 msgid "node {}"
-msgstr "Node {}"
+msgstr "Knoten {}"
 
 msgid "You are trying to upgrade an agent node in a cluster. Are you really sure?"
-msgstr "Bist Du Dir sicher, dass Du einen Agenten-Node in einem Cluster updaten möchtest?"
+msgstr "Bist Du Dir sicher, dass Du einen Agenten-Knoten in einem Cluster updaten möchtest?"
 
 # /node shell
 msgid "Run a shell command on a node"
@@ -353,7 +356,7 @@ msgid "Instance {instance} added to node {node}."
 "- DCS Port:    {dcs_port} (TCP/UDP)"
 "- WebGUI Port: {webgui_port} (TCP)"
 "```"
-msgstr "Instanz {instance} zum Node {node} hinzugefügt."
+msgstr "Instanz {instance} zum Knoten {node} hinzugefügt."
 "Bitte stelle sicher, dass Du folgende Port-Weiterleitungen einrichtest:"
 "```"
 "- DCS Port:    {dcs_port} (TCP/UDP)"
@@ -361,7 +364,7 @@ msgstr "Instanz {instance} zum Node {node} hinzugefügt."
 "```"
 
 msgid "Instance {instance} could not be added to node {node}, see log."
-msgstr "Instanz {instance} konnte nicht zum Node {node} hinzugefügt werden.\nBitte überprüfe das Logfile."
+msgstr "Instanz {instance} konnte nicht zum Knoten {node} hinzugefügt werden.\nBitte überprüfe das Logfile."
 
 # /node delete_instance
 msgid "Delete an instance\n"
@@ -370,7 +373,7 @@ msgstr "Lösche eine Instanz\n"
 msgid "The instance is in use by server \"{}\".\n"
 "Please migrate this server to another node first."
 msgstr "Die Instanz wird zurzeit vom Server \"{}\" genutzt.\n"
-"Bitte migriere den Server zuerst auf einen anderen Node."
+"Bitte migriere den Server zuerst auf einen anderen Knoten."
 
 msgid "Do you really want to delete instance {}?"
 msgstr "Möchtest Du Instanz {} wiklich löschen?"
@@ -379,7 +382,7 @@ msgid "Do you want to remove the directory {}?"
 msgstr "Möchtest Du das Verzeichnis {} auch löschen?"
 
 msgid "Instance {instance} removed from node {node}."
-msgstr "Instanz {instance} wurde vom Node {node} gelöscht."
+msgstr "Instanz {instance} wurde vom Knoten {node} gelöscht."
 
 # /node rename_instance
 msgid "Rename an instance\n"
@@ -399,7 +402,7 @@ msgid "To which server do you want to upload this configuration to?"
 msgstr "Auf welchen Server soll diese Konfigurationsdatei geladen werden?"
 
 msgid "Error while uploading file to node {}!"
-msgstr "Fehler beim Upload auf Node {}!"
+msgstr "Fehler beim Upload auf Knoten {}!"
 
 msgid "Error while reading file from discord."
 msgstr "Fehler beim Laden von Discord."

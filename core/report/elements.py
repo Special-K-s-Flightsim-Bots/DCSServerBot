@@ -87,12 +87,8 @@ class Image(EmbedElement):
 
 class Ruler(EmbedElement):
     async def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34, *, text: Optional[str] = None):
-        if header:
-            header = ' ' + header + ' '
-        filler = int((ruler_length - len(header) / 2.5) / 2)
-        if filler <= 0:
-            filler = 1
-        self.add_field(name='▬' * filler + header + '▬' * filler, value=text or '_ _', inline=False)
+        self.add_field(name=utils.print_ruler(header=header, ruler_length=ruler_length),
+                       value=text or '_ _', inline=False)
 
 
 class Field(EmbedElement):

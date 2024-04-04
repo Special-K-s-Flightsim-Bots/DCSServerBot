@@ -21,15 +21,16 @@ class RestAPI(Plugin):
         global app
 
         super().__init__(bot)
-        self.router = APIRouter()
-        self.router.add_api_route("/topkills", self.topkills, methods=["GET"])
-        self.router.add_api_route("/topkdr", self.topkdr, methods=["GET"])
-        self.router.add_api_route("/trueskill", self.trueskill, methods=["GET"])
-        self.router.add_api_route("/getuser", self.getuser, methods=["POST"])
-        self.router.add_api_route("/missilepk", self.missilepk, methods=["POST"])
-        self.router.add_api_route("/stats", self.stats, methods=["POST"])
-        self.app = app
         cfg = self.locals[DEFAULT_TAG]
+        prefix = cfg.get('prefix', '')
+        self.router = APIRouter()
+        self.router.add_api_route(prefix + "/topkills", self.topkills, methods=["GET"])
+        self.router.add_api_route(prefix + "/topkdr", self.topkdr, methods=["GET"])
+        self.router.add_api_route(prefix + "/trueskill", self.trueskill, methods=["GET"])
+        self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
+        self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
+        self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
+        self.app = app
         self.config = Config(app=self.app, host=cfg['listen'], port=cfg['port'], log_level=logging.ERROR,
                              use_colors=False)
         self.server: uvicorn.Server = uvicorn.Server(config=self.config)

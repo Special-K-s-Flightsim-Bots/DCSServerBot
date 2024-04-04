@@ -15,7 +15,7 @@ class SchedulerListener(EventListener):
                 result = self.get_next_restart(server, r)
                 if result:
                     results.append(result)
-            return min(results, key=lambda x: x[0])
+            return min(results, key=lambda x: x[0]) if results else None
         else:
             mission_time = restart.get('max_mission_time', restart.get('mission_time'))
             if mission_time:
@@ -130,9 +130,15 @@ class SchedulerListener(EventListener):
         if data['id'] == 1 or 'ucid' not in data:
             return
         if server.restart_pending:
+            restart = self.get_config(server).get('restart')
+            if restart:
+                restart_in, _ = self.get_next_restart(server, restart)
+                restart_time = f"in {utils.format_time(restart_in)}"
+            else:
+                restart_time = 'soon'
             player: Player = server.get_player(ucid=data['ucid'])
             if player:
-                player.sendChatMessage("*** Mission is about to be restarted soon! ***")
+                player.sendChatMessage("*** Mission is about to be restarted {}! ***".format(restart_time))
 
     @event(name="onSimulationPause")
     async def onSimulationPause(self, server: Server, _: dict) -> None:
@@ -249,8 +255,8 @@ class SchedulerListener(EventListener):
         elif not server.restart_time:
             player.sendChatMessage("Please try again in a minute.")
             return
-        restart_in = int((server.restart_time - datetime.now(timezone.utc)).total_seconds())
+        restart_in, rconf = self.get_next_restart(server, restart)
         message = f"The mission will restart in {utils.format_time(restart_in)}"
-        if not restart.get('populated', True):
+        if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
             message += ", if all players have left"
         player.sendChatMessage(message)

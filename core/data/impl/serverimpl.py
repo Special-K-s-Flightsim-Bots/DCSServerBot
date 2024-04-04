@@ -443,12 +443,14 @@ class ServerImpl(Server):
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         try:
-            await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+            await self.wait_for_status_change([Status.SHUTDOWN, Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+            if self.status == Status.SHUTDOWN:
+                raise TimeoutError()
             if sys.platform == 'win32' and self.node.locals.get('DCS', {}).get('minimized', True):
                 self._minimize()
         except (TimeoutError, asyncio.TimeoutError):
             # server crashed during launch?
-            if not await self.is_running():
+            if self.status != Status.SHUTDOWN and not await self.is_running():
                 self.status = Status.SHUTDOWN
             raise
 
@@ -674,16 +676,21 @@ class ServerImpl(Server):
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
+        if '.dcssb' in path:
+            secondary = os.path.join(os.path.dirname(os.path.dirname(path)), os.path.basename(path))
+        else:
+            secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         missions = self.settings['missionList']
-        if path not in missions:
-            if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-                data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
-                self.settings['missionList'] = data['missionList']
-            else:
-                missions.append(path)
-                self.settings['missionList'] = missions
-        elif autostart:
-            self.settings['listStartIndex'] = missions.index(path) + 1
+        if path in missions or secondary in missions:
+            return
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+            self.settings['missionList'] = data['missionList']
+        else:
+            missions.append(path)
+            self.settings['missionList'] = missions
+            if autostart:
+                self.settings['listStartIndex'] = missions.index(path if path in missions else secondary) + 1
 
     async def deleteMission(self, mission_id: int) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:

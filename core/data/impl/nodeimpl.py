@@ -44,8 +44,7 @@ from core.utils.helper import SettingsDict, YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 
@@ -107,6 +106,12 @@ class NodeImpl(Node):
         self._master = None
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close_db()
 
     async def post_init(self):
         self.pool, self.apool = self.init_db()
@@ -186,6 +191,7 @@ class NodeImpl(Node):
 
     async def restart(self):
         await ServiceRegistry.shutdown()
+        await self.aclose_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
     def read_locals(self) -> dict:
@@ -194,7 +200,7 @@ class NodeImpl(Node):
         if os.path.exists(config_file):
             try:
                 self.all_nodes: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except (ParserError, ScannerError) as ex:
+            except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:
@@ -240,6 +246,30 @@ class NodeImpl(Node):
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
                                        check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
         return db_pool, db_apool
+
+    def close_db(self):
+        if self.pool:
+            try:
+                self.pool.close()
+            except Exception as ex:
+                self.log.exception(ex)
+        if self.apool:
+            try:
+                asyncio.run(self.apool.close())
+            except Exception as ex:
+                self.log.exception(ex)
+
+    async def aclose_db(self):
+        if self.pool:
+            try:
+                self.pool.close()
+            except Exception as ex:
+                self.log.exception(ex)
+        if self.apool:
+            try:
+                await self.apool.close()
+            except Exception as ex:
+                self.log.exception(ex)
 
     def init_instances(self):
         grouped = defaultdict(list)
@@ -357,6 +387,7 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
+            await self.aclose_db()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
@@ -755,7 +786,9 @@ class NodeImpl(Node):
                     "service": BotService.__name__,
                     "method": "audit" if rc == 0 else "alert",
                     "params": {
-                        "message": f"DCS World updated to version {new_version} on node {self.node.name}." if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                        "title": "DCS Update Issue",
+                        "message": f"DCS World updated to version {new_version} on node {self.node.name}."
+                        if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     }
                 })
         except aiohttp.ClientError as ex:

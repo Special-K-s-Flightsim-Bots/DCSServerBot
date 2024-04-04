@@ -130,11 +130,20 @@ class CloudHandler(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Checking cloud connection ...'), ephemeral=ephemeral)
+        message = ""
         try:
-            await self.get('verify')
-            await interaction.followup.send(_('Cloud connection established.'), ephemeral=ephemeral)
-            return
-        except aiohttp.ClientError:
+            await self.get('discord-bans')
+            message = _('Cloud connection established.')
+            if 'token' in self.config:
+                try:
+                    await self.get('verify')
+                    message += _('\nCloud TOKEN configured and valid.')
+                except aiohttp.ClientError as ex:
+                    message += _('\nCloud TOKEN configured, but invalid!')
+            else:
+                message += _("\nGet a cloud TOKEN, if you want to use cloud statistics!")
+            await interaction.followup.send(message, ephemeral=ephemeral)
+        except aiohttp.ClientError as ex:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=ephemeral)
         finally:
             await interaction.delete_original_response()

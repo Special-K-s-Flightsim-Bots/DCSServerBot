@@ -8,6 +8,7 @@ There is some very basic endpoint configuration available as of now:
 DEFAULT:
   listen: 0.0.0.0   # the interface to bind the internal webserver to
   port: 9876        # the port the internal webserver is listening on
+  prefix: /stats    # use this prefix (optional)
 ```
 
 ## RestAPI

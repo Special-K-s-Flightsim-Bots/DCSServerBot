@@ -6,8 +6,7 @@ from pathlib import Path
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
 
 
@@ -23,11 +22,11 @@ class MizEdit(Extension):
             try:
                 self.presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
                 if not isinstance(self.presets, dict):
-                    raise ParserError("File must contain a dictionary. not a list!")
+                    raise ValueError("File must contain a dictionary. not a list!")
             except FileNotFoundError:
                 self.log.error(f"MizEdit: File {file} not found!")
                 continue
-            except (ParserError, ScannerError) as ex:
+            except (MarkedYAMLError, ValueError) as ex:
                 raise YAMLError(file, ex)
 
     async def get_presets(self, config: dict) -> list[dict]:

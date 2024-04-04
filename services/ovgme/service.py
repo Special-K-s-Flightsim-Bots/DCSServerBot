@@ -327,7 +327,7 @@ class OvGMEService(Service):
         elif os.path.isdir(filename):
             await asyncio.to_thread(copy_tree)
         else:
-            self.log.info(f"- Installation of package {package_name}_v{version} failed, no package.")
+            self.log.error(f"- Installation of package {package_name}_v{version} failed, no package.")
             return False
         async with aiofiles.open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
             await log.writelines(log_entries)

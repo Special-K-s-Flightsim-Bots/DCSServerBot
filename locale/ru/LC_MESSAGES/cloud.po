@@ -18,6 +18,15 @@ msgstr "Выполнить проверку соединения с облако
 msgid "Checking cloud connection ..."
 msgstr "Проверка соединения с облаком..."
 
+msgid "\nCloud TOKEN configured and valid."
+msgstr "\nCloud-TOKEN сконфигурирован и действителен."
+
+msgid "\nCloud TOKEN configured, but invalid!"
+msgstr "\n Cloud-TOKEN сконфигурирован но недействителен!"
+
+msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nПолучите Cloud-TOKEN, если вы хотите использовать облачную статистику!"
+
 msgid "Cloud connection established."
 msgstr "Соединение с облаком установлено."
 

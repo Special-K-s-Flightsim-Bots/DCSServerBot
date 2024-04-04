@@ -83,7 +83,7 @@ class MonitoringService(Service):
         if server.process:
             server.process.cpu_affinity(affinity)
 
-    async def warn_admins(self, server: Server, message: str) -> None:
+    async def warn_admins(self, server: Server, title: str, message: str) -> None:
         message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
         self.bus.send_to_node({
@@ -92,6 +92,7 @@ class MonitoringService(Service):
             "method": "alert",
             "params": {
                 "server": server.name,
+                "title": title,
                 "message": message
             }
         })
@@ -135,7 +136,7 @@ class MonitoringService(Service):
         await self.node.audit("Server killed due to a hung state.", server=server)
         server.status = Status.SHUTDOWN
         if server.locals.get('ping_admin_on_crash', True):
-            await self.warn_admins(server, message)
+            await self.warn_admins(server, title=f'Server \"{server.name}\" unreachable', message=message)
 
     async def heartbeat(self):
         for server in list(self.bus.servers.values()):  # type: ServerImpl
@@ -144,11 +145,15 @@ class MonitoringService(Service):
                 continue
             # check if the process is dead (on load it might take some seconds for the process to appear)
             if server.process and not await server.is_running():
-                message = f'Server "{server.name}" died. Setting state to SHUTDOWN.'
-                self.log.warning(message)
+                # we do not need to warn, if the server was just launched manually
+                if server.maintenance and server.status == Status.LOADING:
+                    return
+                title = f'Server "{server.name}" died!'
+                message = 'Setting state to SHUTDOWN.'
+                self.log.warning(title + ' ' + message)
                 server.status = Status.SHUTDOWN
                 if server.locals.get('ping_admin_on_crash', True):
-                    await self.warn_admins(server, message)
+                    await self.warn_admins(server, title=title, message=message)
                 await self.node.audit(f'Server died.', server=server)
                 return
             # No, check if the process is still doing something

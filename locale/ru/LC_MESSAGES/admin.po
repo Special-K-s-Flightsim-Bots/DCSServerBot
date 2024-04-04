@@ -144,6 +144,9 @@ msgstr "Устанавливает модули на ваш сервер DCS"
 msgid "Shutdown all servers on node {} for the installation?"
 msgstr "Выключить все сервера на ноде {} для установки модулей?"
 
+msgid "Installing module {module} on node {node}, please wait ..."
+msgstr "Установка модуля {module} на ноду {node}, пожалуйста подождите ..."
+
 msgid "Module {module} installed on node {node}."
 msgstr "Модуль {module} установлен на ноде {node}."
 
