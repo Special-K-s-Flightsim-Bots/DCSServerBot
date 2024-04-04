@@ -254,7 +254,7 @@ class GameMasterEventListener(EventListener):
                             try:
                                 await member.remove_roles(roles[row[2]])
                             except discord.Forbidden:
-                                await self.bot.audit(f'permission "Manage Roles" missing.',
+                                await self.bot.audit('permission "Manage Roles" missing.',
                                                      user=self.bot.member)
                                 raise
                     await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',

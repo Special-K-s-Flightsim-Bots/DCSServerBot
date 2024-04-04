@@ -4,6 +4,11 @@ achievements like k/d-ratio, flighttimes per module, server or map, etc. For ser
 of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. 
 public players).
 
+## Squadrons
+If you want to group people to see group stats etc, you can create squadrons with DCSServerBot.<br>
+Commands to manage squadrons are describe below. You can select squadrons in the period parameter of highscore and
+other statistics commands where it makes sense.
+
 ## Configuration
 The plugin can be configured via yaml in config/plugins/userstats.yaml. If such a file does not exists, create one.
 
@@ -34,12 +39,16 @@ instance2:
 
 ## Discord Commands
 
-| Command             | Parameter         | Channel       | Role           | Description                                                                                         |
-|---------------------|-------------------|---------------|----------------|-----------------------------------------------------------------------------------------------------|
-| /statistics         | [user] [period]   | all           | DCS            | Display your own statistics or that of a specific user. A period can be supplied.                   |
-| /highscore          | [server] [period] | all           | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)   |
-| /reset_statistics   | [server]          | admin-channel | Admin          | Deletes the statistics. If a server is provided, only this server is affected.                      |
-| /delete_statistics  | [user]            | all           | DCS, DCS Admin | Lets a user delete their own statistics, or an DCS Admin do it for any user.                        |
+| Command            | Parameter         | Channel       | Role           | Description                                                                                       |
+|--------------------|-------------------|---------------|----------------|---------------------------------------------------------------------------------------------------|
+| /statistics        | [user] [period]   | all           | DCS            | Display your own statistics or that of a specific user. A period can be supplied.                 |
+| /highscore         | [server] [period] | all           | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship) |
+| /reset_statistics  | [server]          | admin-channel | Admin          | Deletes the statistics. If a server is provided, only this server is affected.                    |
+| /delete_statistics | [user]            | all           | DCS, DCS Admin | Lets a user delete their own statistics, or an DCS Admin do it for any user.                      |
+| /squadron create   | <name> [role]     | all           | DCS Admin      | Create a new squadron and give it an optional auto-role.                                          |
+| /squadron delete   | <name>            | all           | DCS Admin      | Deletes a squadron and removes all players from that squadron mapping.                            |
+| /squadron join     | <name>            | all           | DCS            | Join a squadron (and get the optional auto role).                                                 |
+| /squadron leave    | <name>            | all           | DCS            | Leave a squadron (and remove the optional auto role).                                             |
 
 ### Periods
 Periods can be used to specify, if you only want to see statistics for a specific time-period.

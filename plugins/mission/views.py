@@ -259,7 +259,7 @@ class InfoView(View):
                     await member.remove_roles(self.bot.get_role(role))
                 except discord.Forbidden:
                     # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member))
+                    asyncio.create_task(self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member))
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):

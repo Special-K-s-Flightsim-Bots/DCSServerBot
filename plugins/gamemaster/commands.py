@@ -238,7 +238,7 @@ class GameMaster(Plugin):
             await interaction.followup.send(_('The bot is missing the "Manage Roles" permission!'), ephemeral=ephemeral)
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
-    # New command group "/mission"
+    # New command group "/campaign"
     campaign = Group(name="campaign", description=_("Commands to manage DCS campaigns"))
 
     @campaign.command(name='list', description=_("Lists all (active) campaigns"))
