@@ -2,6 +2,7 @@ import discord
 import math
 
 from core import report, utils, Side, Server, Coalition
+from decimal import Decimal
 from psycopg.rows import dict_row
 from typing import Optional
 
@@ -79,8 +80,8 @@ class HighscoreElement(report.GraphElement):
                         'deaths_helicopters + deaths_ships + deaths_sams + deaths_ground)::DECIMAL) END',
             'PvP-KD-Ratio': 'CASE WHEN SUM(s.deaths_pvp) = 0 THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL)/SUM('
                             's.deaths_pvp::DECIMAL) END',
-            'Most Efficient Killers': 'SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600.0)',
-            'Most Wasteful Pilots': 'SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600.0)'
+            'Most Efficient Killers': 'SUM(s.kills::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))::DECIMAL / 3600.0)',
+            'Most Wasteful Pilots': 'SUM(s.crashes::DECIMAL) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))::DECIMAL / 3600.0)'
         }
         xlabels = {
             'Air Targets': 'kills',
@@ -121,7 +122,7 @@ class HighscoreElement(report.GraphElement):
         self.axes.barh(labels, values, color=colors, label=kill_type, height=0.75)
         if values and bar_labels:
             for c in self.axes.containers:
-                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], float) else '%d', label_type='edge',
+                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], Decimal) else '%d', label_type='edge',
                                     padding=2)
             self.axes.margins(x=0.125)
         self.axes.set_title(kill_type, color='white', fontsize=25)
