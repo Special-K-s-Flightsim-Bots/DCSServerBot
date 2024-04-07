@@ -205,7 +205,7 @@ class GreenieBoard(EmbedElement):
                 await cursor.execute(sql1, {
                     "server_name": server_name,
                     "num_rows": num_rows,
-                    "squadron_id": squadron['id']
+                    "squadron_id": squadron['id'] if squadron else None
                 })
                 rows = await cursor.fetchall()
                 for row in rows:
