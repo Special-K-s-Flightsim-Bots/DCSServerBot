@@ -51,6 +51,12 @@ To avoid any discussions - the one that dies last, is still a winner. So if the 
 dive to the ground and hit it, the one that generates the last crash event in DCS is the winner of that round.
 
 ## Configuration
+As Competitive is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - competitive
+```
+
 There is no yaml-configuration for now. You can integrate the TrueSkill™️-rating into your highscores though.<br>
 To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/userstats. Then replace one of the
 "Graph" elements with this: 

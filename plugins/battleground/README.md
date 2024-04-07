@@ -4,6 +4,12 @@ The plugin use the coalition feature for communication with the database so you 
 and "COALITION_RED_CHANNEL" for your servers in dcsserverbot.ini
 
 ## DCSBattlegound's configuration
+As Battleground is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - battleground
+```
+
 DCSBattleground is a sneaker's fork created by Frigondin, you can find all information about it [here](https://github.com/Frigondin/DCSBattleground/).</br>
 You can find a wiki with some examples and an introduction to the tool [here](https://github.com/Frigondin/DCSBattleground/wiki).</br>
 

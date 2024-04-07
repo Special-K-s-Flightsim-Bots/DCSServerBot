@@ -74,7 +74,13 @@ documentation for now) and you need to link the place where you downloaded FunkM
 > there is no auto-cleanup.
 
 ## Configuration
-Greenieboard comes as many other plugins with a yaml configuration. If you don't generate your own config, DCSServerBot
+As GreenieBoard is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - greenieboard
+```
+
+The plugin comes as many other plugins with a yaml configuration. If you don't generate your own config, DCSServerBot
 will just copy over the sample by itself and use that one. This will do it for the most users, if you don't plan to
 use the persistent mode.
 

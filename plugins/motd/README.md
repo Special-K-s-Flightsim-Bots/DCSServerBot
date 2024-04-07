@@ -2,8 +2,14 @@
 This plugin adds a message of the day to the server, that is displayed either on join or when you hop into a plane.
 
 ## Configuration
-The plugin is configured via yaml, as many others. If you don't generate your custom yaml file (sample available in the 
-samples directory), the plugin will not generate any messages.
+As MOTD is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - motd
+```
+
+The plugin itself is configured via yaml, as many others. If you don't generate your custom yaml file (sample available 
+in the samples directory), the plugin will not generate any messages.
 
 To be able to create a message on "birth", MISSION_STATISTICS = true has to be enabled on your server.
 

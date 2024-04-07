@@ -2,7 +2,13 @@
 This plugin will dump the whole DCSServerBot database every hour to ./export/_tablename_.json files for further processing, if needed.
 
 ## Configuration
-As usual, you can configure this plugin with a simple yaml file.
+As DBExporter is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - dbexporter
+```
+
+As usual, you can configure this plugin with a simple yaml file in config/plugins/dbexporter.yaml:
 ```yaml
 DEFAULT:
   autoexport: true  # if true, the configured tables are exported every hour

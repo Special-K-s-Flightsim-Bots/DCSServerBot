@@ -5,7 +5,13 @@ Donators for instance), by credit points (see [CreditSystem](../creditsystem/REA
 assigned in this plugins configuration.
 
 ## Configuration
-The slot blocking is configured with a file named config/plugins/slotblocking.yaml. 
+As SlotBlocking is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - slotblocking
+```
+
+The plugin itself is configured with a file named config/plugins/slotblocking.yaml. 
 You'll find a sample file in the ./samples directory:
 ```yaml
 DEFAULT:            # Default section - true for all your servers.
