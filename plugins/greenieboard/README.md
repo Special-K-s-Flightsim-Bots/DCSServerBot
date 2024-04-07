@@ -86,7 +86,10 @@ DEFAULT:
   num_landings: 5           # display the last 5 landings
   num_rows: 10              # display 10 players
   persistent_board: false   # if true, a persistent board will be uploaded into persistent_channel
-#  persistent_channel: 123456789
+  persistent_channel: 123456789 # in which channel to post the board
+  squadrons:
+    - 'My Fancy Squadron 1' # Optional: display boards for these squadrons
+    - 'My Fancy Squadron 2'
   ratings:                  # Default points per LSO rating, amend them to your needs
     _OK_: 5
     OK: 4
@@ -105,6 +108,12 @@ DCS.release_server:        # our server uses Moose.AIRBOSS
     delete_after: 180       # they will be deleted after 180 days
     grades: AIRBOSS-{carrier}_LSOGrades.csv
     trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'
+  persistent_board: true    # if true, a persistent board will be uploaded into persistent_channel
+  persistent_channel: 123456789 # Optional: in which channel to post the board (default: status channel)
+  squadrons: 
+  - 'My Fancy Squadron 1'   # Optional: display boards for these squadrons
+  - 'My Fancy Squadron 2'
+  num_rows: 5               # Number of rows to display (default: 10)
 #instance2:                 # uncomment, if you have more than one istance and name it accordingly
 #  FunkMan:                 # instance2 uses FunkMan
 #    basedir: trapsheets    # DCSServerBot will generate trapsheet images in here

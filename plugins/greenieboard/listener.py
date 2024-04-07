@@ -5,7 +5,7 @@ import string
 import sys
 import uuid
 
-from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation
+from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation, utils
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
@@ -49,19 +49,43 @@ class GreenieBoardEventListener(EventListener):
         try:
             # update the server specific board
             config = self.plugin.get_config(server)
-            if 'persistent_channel' in config and config.get('persistent_board', True):
-                channel_id = int(config['persistent_channel'])
+            if config.get('persistent_board', False):
+                channel_id = int(config.get('persistent_channel', server.channels[Channel.STATUS]))
                 num_rows = config.get('num_rows', 10)
-                report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                          embed_name='greenieboard', server=server, channel_id=channel_id)
-                await report.render(server_name=server.name, num_rows=num_rows)
+                squadrons = config.get('squadrons', [])
+                if squadrons:
+                    for squadron in squadrons:
+                        row = await utils.get_squadron(self.bot, name=squadron)
+                        if not row:
+                            self.log.warning(f"Squadron {squadron} not found!")
+                            continue
+                        report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                                  embed_name=f"greenieboard_s{row['id']}", server=server,
+                                                  channel_id=channel_id)
+                        await report.render(server_name=server.name, num_rows=num_rows, squadron=row)
+                else:
+                    report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                              embed_name='greenieboard', server=server, channel_id=channel_id)
+                    await report.render(server_name=server.name, num_rows=num_rows)
             # update the global board
             config = self.get_config()
-            if 'persistent_channel' in config and config.get('persistent_board', True):
+            if 'persistent_channel' in config and config.get('persistent_board', False):
+                channel_id = int(config.get('persistent_channel'))
                 num_rows = config.get('num_rows', 10)
-                report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json', embed_name='greenieboard',
-                                          channel_id=int(config['persistent_channel']))
-                await report.render(server_name=None, num_rows=num_rows)
+                squadrons = config.get('squadrons', [])
+                if squadrons:
+                    for squadron in squadrons:
+                        row = await utils.get_squadron(self.bot, name=squadron)
+                        if not row:
+                            self.log.warning(f"Squadron {squadron} not found!")
+                            continue
+                        report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                                  embed_name=f"greenieboard_s{row['id']}", channel_id=channel_id)
+                        await report.render(server_name=None, num_rows=num_rows, squadron=row)
+                else:
+                    report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                              embed_name='greenieboard', channel_id=channel_id)
+                    await report.render(server_name=None, num_rows=num_rows)
         except FileNotFoundError as ex:
             self.log.error(f'  => File not found: {ex}')
 

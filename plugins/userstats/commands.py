@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
+from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Union, Optional
 
@@ -41,18 +42,6 @@ def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *param
         member = name
         period = params[i] if i < num else None
     return member, period
-
-
-async def squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("SELECT id, name FROM squadrons WHERE name ILIKE %s", ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
-        return choices[:25]
 
 
 class UserStatistics(Plugin):
@@ -267,11 +256,29 @@ class UserStatistics(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(SquadronModal(name, role))
 
+    @squadron.command(description='Edit a squadron')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.app_has_role('DCS Admin')
+    async def edit(self, interaction: discord.Interaction, squadron_id: int, role: Optional[discord.Role] = None):
+        async with interaction.client.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
+                row = await cursor.fetchone()
+                if not role:
+                    role = self.bot.get_role(row['role'])
+                name = row['name']
+                description = row['description']
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(SquadronModal(name, role, description))
+
     @squadron.command(description='Delete a squadron')
     @app_commands.guild_only()
-    @app_commands.autocomplete(squadron=squadron_autocomplete)
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS Admin')
-    async def delete(self, interaction: discord.Interaction, squadron: int):
+    async def delete(self, interaction: discord.Interaction, squadron_id: int):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction, "Do you really want to delete this Squadron?", ephemeral=ephemeral):
             await interaction.followup.send('Aborted.')
@@ -281,7 +288,7 @@ class UserStatistics(Plugin):
                 async for row in await conn.execute("""
                     SELECT m.player_ucid, s.role FROM squadron_members m, squadrons s 
                     WHERE m.squadron_id = s.id AND squadron_id = %s
-                """, (squadron,)):
+                """, (squadron_id,)):
                     if row[1]:
                         member = self.bot.get_member_by_ucid(row[0], verified=True)
                         role = self.bot.get_role(row[1])
@@ -291,13 +298,13 @@ class UserStatistics(Plugin):
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                     await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
-                                       (squadron, row[0]))
-                await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron, ))
+                                       (squadron_id, row[0]))
+                await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
         await interaction.followup.send('Squadron deleted.')
 
     @squadron.command(description='Join a squadron')
     @app_commands.guild_only()
-    @app_commands.autocomplete(squadron_id=squadron_autocomplete)
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS')
     async def join(self, interaction: discord.Interaction, squadron_id: int):
@@ -334,7 +341,7 @@ class UserStatistics(Plugin):
 
     @squadron.command(description='Leave a squadron')
     @app_commands.guild_only()
-    @app_commands.autocomplete(squadron_id=squadron_autocomplete)
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS')
     async def leave(self, interaction: discord.Interaction, squadron_id: int):
@@ -364,6 +371,47 @@ class UserStatistics(Plugin):
                 else:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
+
+    @squadron.command(description='List members of a squadron')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.app_has_role('DCS')
+    async def list(self, interaction: discord.Interaction, squadron_id: int):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        embed = discord.Embed(color=discord.Color.blue())
+        discord_ids = dcs_names = ""
+        async with interaction.client.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
+                                     (squadron_id, ))
+                row = await cursor.fetchone()
+                embed.title = f"Members of Squadron \"{row['name']}\""
+                embed.description = row['description'] or MISSING
+                embed.set_thumbnail(url=row['image_url'])
+                async for row in await cursor.execute("""
+                    SELECT DISTINCT p.discord_id, p.name
+                    FROM players p JOIN squadron_members m
+                    ON p.ucid = m.player_ucid
+                    AND m.squadron_id = %s
+                """, (squadron_id, )):
+                    new_discord_id = f"<@{row['discord_id']}>\n"
+                    new_dcs_name = row['name'] + '\n'
+                if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
+                    embed.add_field(name="Member", value=discord_ids)
+                    embed.add_field(name="DCS Name", value=dcs_names)
+                    embed.add_field(name='_ _', value='_ _')
+                    discord_ids = new_discord_id
+                    dcs_names = new_dcs_name
+                else:
+                    discord_ids += new_discord_id
+                    dcs_names += new_dcs_name
+        if discord_ids.strip():
+            embed.add_field(name="Member", value=discord_ids)
+            embed.add_field(name="DCS Name", value=dcs_names)
+            embed.add_field(name='_ _', value='_ _')
+        await interaction.followup.send(embed=embed)
 
     async def render_highscore(self, highscore: Union[dict, list], server: Optional[Server] = None,
                                mission_end: Optional[bool] = False):
