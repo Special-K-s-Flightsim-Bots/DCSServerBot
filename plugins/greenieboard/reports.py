@@ -186,7 +186,7 @@ class GreenieBoard(EmbedElement):
             sql1 += f" WHERE mission_id in (SELECT id FROM missions WHERE server_name = %(server_name)s)"
             sql2 += f" AND mission_id in (SELECT id FROM missions WHERE server_name = %(server_name)s)"
         if squadron:
-            if len(self.embed.description):
+            if self.embed.description:
                 self.embed.description += '\n'
             else:
                 self.embed.description = ""
