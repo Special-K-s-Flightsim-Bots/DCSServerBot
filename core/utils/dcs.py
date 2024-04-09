@@ -18,6 +18,7 @@ UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
 __all__ = [
+    "ParseError",
     "findDCSInstances",
     "getLatestVersion",
     "desanitize",
@@ -29,6 +30,13 @@ __all__ = [
 ]
 
 
+class ParseError(Exception):
+    def __init__(self, filename, original=None):
+        super().__init__(f'Parse error in file: {filename}')
+        self.filename = filename
+        self.original = original
+
+
 def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]:
     instances = []
     for dirname in os.listdir(SAVED_GAMES):
@@ -38,8 +46,11 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]
                 try:
                     settings = luadata.read(path, encoding='utf-8')
                 except Exception:
-                    # DSMC workaround
-                    settings = alternate_parse_settings(path)
+                    try:
+                        # DSMC workaround
+                        settings = alternate_parse_settings(path)
+                    except Exception as ex:
+                        raise ParseError(path, ex)
                 if 'name' not in settings:
                     settings['name'] = 'DCS Server'
                 if server_name:

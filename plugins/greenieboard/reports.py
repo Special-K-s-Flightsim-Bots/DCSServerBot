@@ -177,25 +177,53 @@ class HighscoreTraps(report.GraphElement):
 
 class GreenieBoard(EmbedElement):
     async def render(self, server_name: str, num_rows: int, squadron: Optional[dict] = None):
-        sql1 = 'SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (' \
-               'SELECT player_ucid, ROW_NUMBER() OVER w AS rn, AVG(points) OVER w AS points, MAX(time) ' \
-               'OVER w AS time FROM greenieboard'
-        sql2 = 'SELECT TRIM(grade) as "grade", night FROM greenieboard WHERE player_ucid = %(player_ucid)s'
+        sql1 = """
+            SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (
+                SELECT player_ucid, ROW_NUMBER() OVER w AS rn, 
+                                    AVG(points) OVER w AS points, 
+                                    MAX(time) OVER w AS time 
+                FROM greenieboard
+        """
+        sql2 = """
+            SELECT TRIM(grade) as "grade", night FROM greenieboard 
+            WHERE player_ucid = %(player_ucid)s
+        """
         if server_name:
             self.embed.description = utils.escape_string(server_name)
-            sql1 += f" WHERE mission_id in (SELECT id FROM missions WHERE server_name = %(server_name)s)"
-            sql2 += f" AND mission_id in (SELECT id FROM missions WHERE server_name = %(server_name)s)"
+            sql1 += """
+                WHERE mission_id in (
+                    SELECT id FROM missions WHERE server_name = %(server_name)s
+                )
+            """
+            sql2 += """
+                AND mission_id in (
+                    SELECT id FROM missions WHERE server_name = %(server_name)s
+                )
+            """
         if squadron:
             if len(self.embed.description):
                 self.embed.description += '\n'
             else:
                 self.embed.description = ""
             self.embed.description += f"Squadron \"{utils.escape_string(squadron['name'])}\""
-            sql1 += (f" AND player_ucid IN (SELECT player_ucid FROM squadron_members "
-                     f"WHERE squadron_id = %(squadron_id)s)")
-        sql1 += (' WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN CURRENT ROW AND 9 FOLLOWING)) '
-                 'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 '
-                 'ORDER BY 3 DESC LIMIT %(num_rows)s')
+            if server_name:
+                sql1 += " AND "
+            else:
+                sql1 += " WHERE "
+            sql1 += """
+                player_ucid IN (
+                    SELECT player_ucid FROM squadron_members WHERE squadron_id = %(squadron_id)s
+                )
+                """
+        sql1 += """
+                WINDOW w AS (
+                    PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN CURRENT ROW AND 9 FOLLOWING
+                )
+            ) g, players p 
+            WHERE g.player_ucid = p.ucid AND g.rn = 1 
+            GROUP BY 1, 2, 3 
+            ORDER BY 3 DESC LIMIT %(num_rows)s
+        """
         sql2 += ' ORDER BY ID DESC LIMIT 10'
 
         async with self.apool.connection() as conn:
