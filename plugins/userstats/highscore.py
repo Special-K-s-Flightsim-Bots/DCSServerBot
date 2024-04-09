@@ -57,7 +57,7 @@ class HighscorePlaytime(report.GraphElement):
         self.axes.set_xlabel('hours')
         if bar_labels:
             for c in self.axes.containers:
-                self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2)
+                self.axes.bar_label(c, fmt='%.1f h', label_type='edge', padding=2)
             self.axes.margins(x=0.1)
         self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
         if len(values) == 0:
