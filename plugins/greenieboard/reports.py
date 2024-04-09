@@ -201,7 +201,7 @@ class GreenieBoard(EmbedElement):
                 )
             """
         if squadron:
-            if len(self.embed.description):
+            if self.embed.description:
                 self.embed.description += '\n'
             else:
                 self.embed.description = ""
