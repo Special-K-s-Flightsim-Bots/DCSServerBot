@@ -703,6 +703,7 @@ class Admin(Plugin):
                 # noinspection PyAsyncCall
                 asyncio.create_task(server.shutdown())
         await interaction.followup.send(_("Node {} is now offline.").format(node.name))
+        await self.bot.audit(f"took node {node.name} offline.", user=interaction.user)
 
     @node_group.command(description=_('Clears the maintenance mode for all servers'))
     @app_commands.guild_only()
@@ -712,12 +713,12 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
-        for server in self.bus.servers.values():
-            if server.node.name == node.name:
-                server.maintenance = False
-                # noinspection PyAsyncCall
-                asyncio.create_task(server.startup())
+        startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
+        for idx, server in enumerate([x for x in self.bus.servers.values() if x.node.name == node.name]):
+            server.maintenance = False
+            self.loop.call_later(idx * startup_delay, server.startup())
         await interaction.followup.send(_("Node {} is now online.").format(node.name))
+        await self.bot.audit(f"took node {node.name} online.", user=interaction.user)
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()

@@ -237,6 +237,7 @@ database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME
   pool_min: 5           # min size of the DB pool, default is 5
   pool_max: 10          # max size of the DB pool, default is 10
+  max_reties: 10        # maximum number of retries to initially connect to the database on startups
 logging:
   loglevel: DEBUG           # loglevel, default is DEBUG
   logrotate_count: 5        # Number of logfiles to keep after rotation. Default is 5.    
