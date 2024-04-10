@@ -781,16 +781,25 @@ class NodeImpl(Node):
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
-                ServiceRegistry.get(ServiceBus).send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit" if rc == 0 else "alert",
-                    "params": {
-                        "title": "DCS Update Issue",
-                        "message": f"DCS World updated to version {new_version} on node {self.node.name}."
-                        if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
-                    }
-                })
+                if rc == 0:
+                    ServiceRegistry.get(ServiceBus).send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "audit",
+                        "params": {
+                            "message": f"DCS World updated to version {new_version} on node {self.node.name}."
+                        }
+                    })
+                else:
+                    ServiceRegistry.get(ServiceBus).send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "alert",
+                        "params": {
+                            "title": "DCS Update Issue",
+                            "message": f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                        }
+                    })
         except aiohttp.ClientError as ex:
             self.log.warning(ex)
         except Exception as ex:
