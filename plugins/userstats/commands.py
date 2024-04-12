@@ -398,15 +398,15 @@ class UserStatistics(Plugin):
                 """, (squadron_id, )):
                     new_discord_id = f"<@{row['discord_id']}>\n"
                     new_dcs_name = row['name'] + '\n'
-                if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
-                    embed.add_field(name="Member", value=discord_ids)
-                    embed.add_field(name="DCS Name", value=dcs_names)
-                    embed.add_field(name='_ _', value='_ _')
-                    discord_ids = new_discord_id
-                    dcs_names = new_dcs_name
-                else:
-                    discord_ids += new_discord_id
-                    dcs_names += new_dcs_name
+                    if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
+                        embed.add_field(name="Member", value=discord_ids)
+                        embed.add_field(name="DCS Name", value=dcs_names)
+                        embed.add_field(name='_ _', value='_ _')
+                        discord_ids = new_discord_id
+                        dcs_names = new_dcs_name
+                    else:
+                        discord_ids += new_discord_id
+                        dcs_names += new_dcs_name
         if discord_ids.strip():
             embed.add_field(name="Member", value=discord_ids)
             embed.add_field(name="DCS Name", value=dcs_names)
