@@ -1,7 +1,7 @@
 import asyncio
 import discord
 
-from core import Channel, utils, Status, PluginError
+from core import Channel, utils, Status, PluginError, Group
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -226,7 +226,18 @@ class DCSServerBot(commands.Bot):
 
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
-                await self.tree.sync(guild=self.guilds[0])
+                app_cmds = await self.tree.sync(guild=self.guilds[0])
+                app_ids: dict[str, int] = {}
+                for app_cmd in app_cmds:
+                    app_ids[app_cmd.name] = app_cmd.id
+
+                for cmd in self.tree.get_commands(guild=self.guilds[0]):
+                    if isinstance(cmd, Group):
+                        for inner in cmd.commands:
+                            inner.mention = f"</{inner.qualified_name}:{app_ids[cmd.name]}>"
+                    else:
+                        cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
+
                 self.synced = True
                 self.log.info('- Discord Commands registered.')
                 if 'discord_status' in self.locals:

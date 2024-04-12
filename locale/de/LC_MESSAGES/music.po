@@ -14,8 +14,8 @@ msgstr "Befehle zur Verwaltung von Musik auf Deinem (DCS)-Server"
 msgid "Music Player"
 msgstr "Musik-Spieler"
 
-msgid "You don't have any playlists to play. Please create one with `/playlist add`."
-msgstr "Du hast noch keine Wiedergabeliste. Erstelle eine mit `/playlist add`."
+msgid "You don't have any playlists to play. Please create one with {}."
+msgstr "Du hast noch keine Wiedergabeliste. Erstelle eine mit {}."
 
 msgid "Frequency"
 msgstr "Frequenz"
@@ -145,6 +145,9 @@ msgstr "Lösche ein Lied"
 
 msgid "{title} has been removed from playlist {playlist}."
 msgstr "{title} wurde von Wiedergabeliste {playlist} entfernt."
+
+msgid "Playlist {} deleted."
+msgstr "Playlist {} wurde gelöscht."
 
 # upload
 msgid "File exists. Do you want to overwrite it?"

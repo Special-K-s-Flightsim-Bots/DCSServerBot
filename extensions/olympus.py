@@ -131,11 +131,11 @@ class Olympus(Extension):
             self.locals[self.frontend_tag]['port'] = client_port
             self.locals['authentication'] = {
                 "gameMasterPassword": hashlib.sha256(
-                    self.config.get('authentication', {}).get('gameMasterPassword', '').encode('utf-8')).hexdigest(),
+                    str(self.config.get('authentication', {}).get('gameMasterPassword', '')).encode('utf-8')).hexdigest(),
                 "blueCommanderPassword": hashlib.sha256(
-                    self.config.get('authentication', {}).get('blueCommanderPassword', '').encode('utf-8')).hexdigest(),
+                    str(self.config.get('authentication', {}).get('blueCommanderPassword', '')).encode('utf-8')).hexdigest(),
                 "redCommanderPassword": hashlib.sha256(
-                    self.config.get('authentication', {}).get('redCommanderPassword', '').encode('utf-8')).hexdigest()
+                    str(self.config.get('authentication', {}).get('redCommanderPassword', '')).encode('utf-8')).hexdigest()
             }
             with open(self.config_path, 'w', encoding='utf-8') as cfg:
                 json.dump(self.locals, cfg, indent=2)

@@ -455,7 +455,10 @@ class GameMaster(Plugin):
                 num = await self._upload_lua(message)
                 if num > 0:
                     await message.channel.send(
-                        _("{} LUA files uploaded. You can load any of them with `/do_script_file` now.").format(num))
+                        _("{num} LUA files uploaded. You can load any of them with {command} now.").format(
+                            num=num, command=(await utils.get_command(self.bot, name='do_script_file')).mention
+                        )
+                    )
                     await message.delete()
         else:
             for server in self.bot.servers.values():

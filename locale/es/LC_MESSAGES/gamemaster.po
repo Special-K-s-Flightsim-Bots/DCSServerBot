@@ -195,8 +195,8 @@ msgstr "El archivo ya existe. ¿Desea sobreescribirlo?"
 msgid "File {} could not be uploaded."
 msgstr "Archivo {} no pudo ser cargado."
 
-msgid "{} LUA files uploaded. You can load any of them with `/do_script_file` now."
-msgstr "{} ficheros LUA cargados. puede ejecutar cualquiera de ellos con `/do_script_file` ahora."
+msgid "{num} LUA files uploaded. You can load any of them with {command} now."
+msgstr "{num} ficheros LUA cargados. puede ejecutar cualquiera de ellos con {command} ahora."
 
 # In-game commands
 # -join

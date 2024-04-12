@@ -195,8 +195,8 @@ msgstr "Das File existiert. Möchtest Du es überschreiben?"
 msgid "File {} could not be uploaded."
 msgstr "Das File {} konnte nicht hochgeladen werden."
 
-msgid "{} LUA files uploaded. You can load any of them with `/do_script_file` now."
-msgstr "{} LUA files wurden hochgeladen. Du kannst jedes davon nun mit `/do_script_file` laden."
+msgid "{num} LUA files uploaded. You can load any of them with {command} now."
+msgstr "{num} LUA files wurden hochgeladen. Du kannst jedes davon nun mit {command} laden."
 
 # In-game commands
 # -join

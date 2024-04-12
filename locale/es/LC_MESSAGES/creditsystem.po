@@ -19,8 +19,8 @@ msgstr "¡Necesitas el rol de DCS Admin para usar éste comando!"
 msgid "Member {} is not linked to any DCS user!"
 msgstr "El miembro {} no está vinculado a ningún usuario de DCS!"
 
-msgid "Use `/linkme` to link your account."
-msgstr "Utiliza `/linkme` para vincular tu cuenta."
+msgid "Use {} to link your account."
+msgstr "Utiliza {} para vincular tu cuenta."
 
 msgid "{} has no campaign credits."
 msgstr "{} no tiene créditos de campaña."

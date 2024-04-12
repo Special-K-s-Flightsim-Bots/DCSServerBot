@@ -410,5 +410,5 @@ msgstr "Fehler beim Laden von Discord."
 msgid "Plugin {} re-loaded."
 msgstr "Plugin {} wurde neu geladen."
 
-msgid "To apply the new config by restarting a node or the whole cluster, use `/node restart`"
-msgstr "Um die neue Konfiguration zu laden, nutze `/node restart`"
+msgid "To apply the new config by restarting a node or the whole cluster, use {}"
+msgstr "Um die neue Konfiguration zu laden, nutze {}"

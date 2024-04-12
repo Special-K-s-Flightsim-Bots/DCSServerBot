@@ -86,7 +86,9 @@ class CreditSystem(Plugin):
             ucid = await self.bot.get_ucid_by_member(member)
             if not ucid:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Use `/linkme` to link your account."), ephemeral=True)
+                await interaction.response.send_message(_("Use {} to link your account.").format(
+                    (await utils.get_command(self.bot, name='linkme')).mention
+                ), ephemeral=True)
                 return
         data = await self.get_credits(ucid)
         name = member.display_name if isinstance(member, discord.Member) else member

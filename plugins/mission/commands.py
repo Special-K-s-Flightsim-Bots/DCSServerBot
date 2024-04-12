@@ -336,9 +336,11 @@ class Mission(Plugin):
             await interaction.followup.send(_("Mission {}.").format(_(actions.get(what))), ephemeral=ephemeral)
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
-                _("Timeout while the mission {}.\n"
-                  "Please check with `/mission info`, if the mission is running.").format(_(actions.get(what))),
-                ephemeral=ephemeral)
+                _("Timeout while the mission {what}.\n"
+                  "Please check with {command}, if the mission is running.").format(
+                    what=_(actions.get(what)),
+                    command=(await utils.get_command(self.bot, group='mission', name='info')).mention
+                ), ephemeral=ephemeral)
 
     async def _load(self, interaction: discord.Interaction, server: Server, mission_id: int,
                     run_extensions: Optional[bool] = False):
@@ -1098,7 +1100,9 @@ class Mission(Plugin):
         if not member:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("This user does not exist. Try `/find` to find them in the historic data."), ephemeral=True)
+                _("This user does not exist. Try {} to find them in the historic data.").format(
+                    (await utils.get_command(self.bot, name='find')).mention
+                ), ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences

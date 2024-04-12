@@ -45,8 +45,8 @@ msgstr "Zeige Cloud-Statistiken"
 msgid "Cloud statistics are not activated in this Discord!"
 msgstr "Cloud-Statistiken sind in diesem Discord leider nicht verfügbar."
 
-msgid "Use `/linkme` to link your account."
-msgstr "Nutze `/linkme`, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
+msgid "Use {} to link your account."
+msgstr "Nutze {}, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
 
 msgid "No cloud-based statistics found for this user."
 msgstr "Für diesen Nutzer konnten keine Cloud-Statistiken gefunden werden."

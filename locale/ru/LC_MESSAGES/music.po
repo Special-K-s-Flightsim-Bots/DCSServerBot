@@ -14,8 +14,8 @@ msgstr "Команды для управления музыкой на ваше�
 msgid "Music Player"
 msgstr "Музыкальный плеер"
 
-msgid "You don't have any playlists to play. Please create one with `/playlist add`."
-msgstr "Плейлистов не найдено. Создайте плейлист командой `/playlist add`."
+msgid "You don't have any playlists to play. Please create one with {}."
+msgstr "Плейлистов не найдено. Создайте плейлист командой {}."
 
 msgid "Frequency"
 msgstr "Частота"

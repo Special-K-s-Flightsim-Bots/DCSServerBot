@@ -2,9 +2,9 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, Command, utils, get_translation
+import core
+from core import Plugin, Report, ReportEnv, command, utils, get_translation
 from discord import app_commands, Interaction
-from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from functools import cache
 from io import BytesIO
@@ -17,16 +17,15 @@ _ = get_translation(__name__.split('.')[1])
 
 
 @cache
-async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
-    cmds: dict[str, app_commands.Command] = dict()
+async def get_commands(interaction: discord.Interaction) -> dict[str, core.Command]:
+    cmds: dict[str, core.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-        if isinstance(cmd, app_commands.Group):
-            basename = cmd.name
+        if isinstance(cmd, core.Group):
             for inner in cmd.commands:
                 if await inner._check_can_run(interaction):
-                    cmds['/' + basename + ' ' + inner.name] = inner
+                    cmds[inner.qualified_name] = inner
         elif await cmd._check_can_run(interaction):
-            cmds['/' + cmd.name] = cmd
+            cmds[cmd.name] = cmd
     return cmds
 
 
@@ -40,36 +39,12 @@ def get_usage(cmd: discord.app_commands.Command) -> str:
 async def commands_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
         return [
-            app_commands.Choice(name=name, value=name)
+            app_commands.Choice(name=f"/{name}", value=name)
             for name in sorted((await get_commands(interaction)).keys())
             if not current or current.casefold() in name.casefold()
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
-
-
-async def command_picker(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    try:
-        ctx = await commands.Context.from_interaction(interaction)
-        ret = list()
-        for cmd in interaction.client.commands:
-            if not cmd.enabled or cmd.hidden or (current and current.casefold() not in cmd.name):
-                continue
-            if not isinstance(cmd, discord.ext.commands.core.Command):
-                continue
-            if await cmd.can_run(ctx):
-                ret.append(app_commands.Choice(name=cmd.name, value=cmd.name))
-        for cmd in interaction.client.tree.get_commands():
-            if current and current.casefold() not in cmd.name:
-                continue
-            if not isinstance(cmd, discord.ext.commands.hybrid.HybridAppCommand) and \
-                    not isinstance(cmd, Command):
-                continue
-            if await cmd._check_can_run(interaction):
-                ret.append(app_commands.Choice(name=cmd.name, value=cmd.name))
-        return sorted(ret, key=lambda x: x.name)[:25]
-    except Exception as ex:
-        print(ex)
 
 
 class Help(Plugin):
@@ -106,7 +81,7 @@ class Help(Plugin):
                 group = None
 
             for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-                if group and isinstance(cmd, app_commands.Group) and cmd.name == group:
+                if group and isinstance(cmd, core.Group) and cmd.name == group:
                     for inner in cmd.commands:
                         if inner.name == _name:
                             cmd = inner
@@ -114,17 +89,17 @@ class Help(Plugin):
                     else:
                         return None
                     break
-                elif not group and isinstance(cmd, app_commands.Command) and cmd.name == _name:
+                elif not group and isinstance(cmd, core.Command) and cmd.name == _name:
                     break
             else:
                 return None
             if not await cmd._check_can_run(interaction):
                 raise PermissionError()
             help_embed = discord.Embed(color=discord.Color.blue())
-            help_embed.title = _("Command: {}").format(name)
+            help_embed.title = _("Command: {}").format(cmd.mention)
             help_embed.description = cmd.description
             usage = get_usage(cmd)
-            help_embed.add_field(name=_('Usage'), value=f"{name} {usage}", inline=False)
+            help_embed.add_field(name=_('Usage'), value=f"{cmd.mention} {usage}", inline=False)
             if usage:
                 help_embed.set_footer(text=_('<> mandatory, [] non-mandatory'))
             return help_embed
@@ -137,7 +112,7 @@ class Help(Plugin):
             descriptions = ""
             for name, cmd in (await get_commands(interaction)).items():
                 if cmd.module == plugin:
-                    new_cmd = f"{name} {get_usage(cmd)}\n"
+                    new_cmd = f"{cmd.mention} {get_usage(cmd)}\n"
                     new_desc = f"{cmd.description}\n"
                     if len(cmds + new_cmd) > 1024 or len(descriptions + new_desc) > 1024:
                         if cmds.strip():  # Only add if there's something besides whitespace
@@ -272,7 +247,8 @@ class Help(Plugin):
             finally:
                 await interaction.delete_original_response()
 
-    async def discord_commands_to_df(self, interaction: discord.Interaction) -> pd.DataFrame:
+    async def discord_commands_to_df(self, interaction: discord.Interaction, *,
+                                     use_mention: Optional[bool] = False) -> pd.DataFrame:
         df = pd.DataFrame(columns=['Plugin', 'Command', 'Parameter', 'Roles', 'Description'])
         for cmd in sorted((await get_commands(interaction)).values(), key=lambda x: x.qualified_name):
             for check in cmd.checks:
@@ -287,7 +263,8 @@ class Help(Plugin):
                         continue
                     plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
                     data_df = pd.DataFrame(
-                        [(plugin, '/' + cmd.qualified_name, get_usage(cmd), ','.join(roles), cmd.description)],
+                        [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
+                          get_usage(cmd), ','.join(roles), cmd.description.strip('\n'))],
                         columns=df.columns)
                     df = pd.concat([df, data_df], ignore_index=True)
                     break
@@ -296,7 +273,7 @@ class Help(Plugin):
             else:
                 plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
                 data_df = pd.DataFrame(
-                    [(plugin, '/' + cmd.qualified_name, get_usage(cmd), '', cmd.description)],
+                    [(plugin, '/' + cmd.qualified_name, get_usage(cmd), '', cmd.description.strip('\n'))],
                     columns=df.columns)
                 df = pd.concat([df, data_df], ignore_index=True)
         return df
@@ -373,13 +350,14 @@ _ _
                 channel = interaction.channel
             await channel.send(modal.header.value + '\n' + modal.intro.value)
             message = ""
-            discord_commands = await self.discord_commands_to_df(interaction)
+            discord_commands = await self.discord_commands_to_df(interaction, use_mention=True)
             for index, row in discord_commands.iterrows():
                 if not role or role in row['Roles'].split(','):
-                    message += f"**{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
-                    if len(message) > 1900:
+                    new_message = f"**{row['Command']}** {row['Parameter']}\n{row['Description']}\n\n"
+                    if len(message + new_message) > 2000:
                         await channel.send(message)
-                        message = ""
+                        message = '_ _\n'
+                    message += new_message
             if message:
                 await channel.send(message)
         else:

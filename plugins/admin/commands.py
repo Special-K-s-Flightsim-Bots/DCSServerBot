@@ -956,7 +956,10 @@ Please make sure you forward the following ports:
             await message.channel.send(_("Plugin {} re-loaded.").format(name.title()))
         else:
             await message.channel.send(
-                _('To apply the new config by restarting a node or the whole cluster, use `/node restart`'))
+                _('To apply the new config by restarting a node or the whole cluster, use {}').format(
+                    (await utils.get_command(self.bot, group='node', name='restart')).mention
+                )
+            )
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

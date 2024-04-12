@@ -386,9 +386,13 @@ class Scheduler(Plugin):
                     server.settings['listStartIndex'] = mission_id + 1
                 await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
                 if maintenance:
-                    embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" started.",
-                                                             text="Server is in maintenance mode!\n"
-                                                                  "Use `/scheduler clear` to reset maintenance mode.")
+                    embed, file = utils.create_warning_embed(
+                        title=f"DCS server \"{server.display_name}\" started.",
+                        text="Server is in maintenance mode!\n"
+                             "Use {} to reset maintenance mode.".format(
+                            (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                        )
+                    )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
                 else:
                     await interaction.followup.send(f"DCS server \"{server.display_name}\" started.",
@@ -400,9 +404,13 @@ class Scheduler(Plugin):
                                                                   "You should look for a cause in its dcs.log.")
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
                 else:
-                    embed, file = utils.create_warning_embed(title=f"Timeout while launching \"{server.display_name}\"!",
-                                                             text="The server might be running anyway\n"
-                                                                  "Check with `/server list`.")
+                    embed, file = utils.create_warning_embed(
+                        title=f"Timeout while launching \"{server.display_name}\"!",
+                        text="The server might be running anyway\n"
+                             "Check with {}.".format(
+                            (await utils.get_command(self.bot, group='server', name='list')).mention
+                        )
+                    )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             finally:
                 await msg.delete()
@@ -429,9 +437,13 @@ class Scheduler(Plugin):
             else:
                 await self.teardown_dcs(server, interaction.user)
             if maintenance:
-                embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" shut down.",
-                                                         text="Server is in maintenance mode!\n"
-                                                              "Use `/scheduler clear` to reset maintenance mode.")
+                embed, file = utils.create_warning_embed(
+                    title=f"DCS server \"{server.display_name}\" shut down.",
+                    text="Server is in maintenance mode!\n"
+                         "Use {} to reset maintenance mode.".format(
+                        (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                    )
+                )
                 await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             else:
                 await interaction.followup.send(f"DCS server \"{server.display_name}\" shut down.", ephemeral=ephemeral)
@@ -690,9 +702,13 @@ class Scheduler(Plugin):
                 await server.startup()
                 if maintenance:
                     await msg.delete()
-                    embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" started.",
-                                                             text="Server is in maintenance mode!\n"
-                                                                  "Use `/scheduler clear` to reset maintenance mode.")
+                    embed, file = utils.create_warning_embed(
+                        title=f"DCS server \"{server.display_name}\" started.",
+                        text="Server is in maintenance mode!\n"
+                             "Use {} to reset maintenance mode.".format(
+                            (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                        )
+                    )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
                 else:
                     await msg.edit(content=f"DCS server \"{server.display_name}\" started.")

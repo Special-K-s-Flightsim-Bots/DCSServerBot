@@ -165,8 +165,8 @@ msgstr "Abgebrochen."
 msgid "Error {code}: {mod}_v{version} {message}"
 msgstr "Fehler {code}: {mod}_v{version} {message}"
 
-msgid "{} downloaded. Use `/mods install` to install it."
-msgstr "{} heruntergeladen. Nutze `/mods install` um sie zu installieren."
+msgid "{file} downloaded. Use {command} to install it."
+msgstr "{file} heruntergeladen. Nutze {command} um sie zu installieren."
 
 msgid "Downloading {} ..."
 msgstr "Lade {} herunter ..."

@@ -269,7 +269,9 @@ class Punishment(Plugin):
             if not ucid:
                 # noinspection PyUnresolvedReferences
                 await interaction.response.send_message(
-                    _("Use `/linkme` to link your Discord and DCS accounts first."), ephemeral=True)
+                    _("Use {} to link your Discord and DCS accounts first.").format(
+                        (await utils.get_command(self.bot, name='linkme')).mention
+                    ), ephemeral=True)
                 return
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -321,7 +323,10 @@ class Punishment(Plugin):
         if not user:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("This user does not exist. Try `/find` to find them in the historic data."), ephemeral=True)
+                _("This user does not exist. Try {} to find them in the historic data.").format(
+                    (await utils.get_command(self.bot, name='find')).mention
+                ),
+                ephemeral=True)
             return
         if isinstance(user, str):
             ucid = user

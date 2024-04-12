@@ -133,7 +133,9 @@ class GreenieBoard(Plugin):
         if 'ratings' not in config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _('You need to specify ratings in your greenieboard.yaml to use `/traps add`!'), ephemeral=True)
+                _('You need to specify ratings in your greenieboard.yaml to use {}!').format(
+                    (await utils.get_command(self.bot, group='traps', name='add')).mention
+                ), ephemeral=True)
             return
 
         view = TrapView(self.bot, config, user)

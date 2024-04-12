@@ -15,8 +15,8 @@ msgstr ""
 msgid "Display your TrueSkill:tm: rating"
 msgstr "Показать TrueSkill:tm: рейтинг"
 
-msgid "Use `/linkme` to link your account."
-msgstr "Используйте команду `/linkme`, для сопряжения своего игрового и Discord идентификаторов."
+msgid "Use {} to link your account."
+msgstr "Используйте команду {}, для сопряжения своего игрового и Discord идентификаторов."
 
 msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
 msgstr "TrueSkill:tm: рейтинг игрока {name}: {rating:.2f}"

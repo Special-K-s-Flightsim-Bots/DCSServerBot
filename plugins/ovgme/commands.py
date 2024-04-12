@@ -475,8 +475,10 @@ class OvGME(Plugin):
                 await msg.edit(content=_("Error {code}: {mod}_v{version} {message}").format(
                     code=ex.status, mod=package_name, version=version, message=ex.message))
                 return
-            await msg.edit(content=_("{} downloaded. Use `/mods install` to install it.").format(
-                f"{package_name}_v{version}"))
+            await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
+                file=f"{package_name}_v{version}",
+                command=(await utils.get_command(self.bot, group='mods', name='install')).mention
+            ))
         else:
             filename = url.split('/')[-1]
             msg = await interaction.followup.send(_("Downloading {} ...").format(filename), ephemeral=ephemeral)
@@ -487,7 +489,8 @@ class OvGME(Plugin):
                                                ephemeral=ephemeral):
                     return
                 await self.service.download_from_repo(url, folder, version=version, force=True)
-            await msg.edit(content=_("{} downloaded. Use `/mods install` to install it.").format(filename))
+            await msg.edit(content=_("{file} downloaded. Use {command} to install it.").format(
+                file=filename, command=(await utils.get_command(self.bot, group='mods', name='install')).mention))
 
 
 async def setup(bot: DCSServerBot):

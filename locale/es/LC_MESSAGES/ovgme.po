@@ -165,8 +165,8 @@ msgstr "Abortado."
 msgid "Error {code}: {mod}_v{version} {message}"
 msgstr "Error {code}: {mod}_v{version} {message}"
 
-msgid "{} downloaded. Use `/mods install` to install it."
-msgstr "{} descargado. Utilice `/mods install` para instalarlo."
+msgid "{file} downloaded. Use {command} to install it."
+msgstr "{file} descargado. Utilice {command} para instalarlo."
 
 msgid "Downloading {} ..."
 msgstr "Descargando {} ..."

@@ -128,6 +128,7 @@ class Command(app_commands.Command):
 
         super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
                          guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
+        self.mention = ""
         bot = ServiceRegistry.get(BotService).bot
         # remove node parameter from slash commands if only one node is there
         nodes = len(bot.node.all_nodes)

@@ -50,8 +50,8 @@ msgstr "Сгенерировать статистику из облака"
 msgid "Cloud statistics are not activated in this Discord!"
 msgstr "Облачная статистика для данного Discord не активирована!"
 
-msgid "Use `/linkme` to link your account."
-msgstr "Используйте команду `/linkme`, для сопряжения своего игрового и Discord идентификаторов."
+msgid "Use {} to link your account."
+msgstr "Используйте команду {}, для сопряжения своего игрового и Discord идентификаторов."
 
 msgid "No cloud-based statistics found for this user."
 msgstr "Для данного пользователя не найдена статистика в облаке."

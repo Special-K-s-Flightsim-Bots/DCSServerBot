@@ -19,8 +19,9 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
-    from core import Server, Player, Node, Instance, Plugin
+    from core import Server, Player, Node, Instance, Plugin, Command
     from services import DCSServerBot, ServiceBus
+
 
 __all__ = [
     "PlayerType",
@@ -59,7 +60,8 @@ __all__ = [
     "squadron_autocomplete",
     "get_squadron",
     "server_selection",
-    "get_ephemeral"
+    "get_ephemeral",
+    "get_command"
 ]
 
 
@@ -1195,3 +1197,16 @@ def get_ephemeral(interaction: discord.Interaction) -> bool:
         return True
     channel = bot.get_admin_channel(server)
     return not channel == interaction.channel
+
+
+async def get_command(bot: DCSServerBot, *, name: str,
+                      group: Optional[str] = None) -> Union[app_commands.AppCommand, app_commands.AppCommandGroup]:
+    for cmd in await bot.tree.fetch_commands(guild=bot.guilds[0]):
+        if cmd.options and isinstance(cmd.options[0], app_commands.AppCommandGroup):
+            if group != cmd.name:
+                continue
+            for inner in cmd.options:
+                if inner.name == name:
+                    return inner
+        elif cmd.name == name:
+            return cmd
