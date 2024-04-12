@@ -1,5 +1,10 @@
 import re
 
+KEY_WORDS = [
+    "and", "break", "do", "else", "elseif", "end", "false", "for", "function",
+    "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"
+]
+
 
 def __serialize(var, encoding, indent, level):
     parts = []
@@ -69,7 +74,7 @@ def __serialize(var, encoding, indent, level):
             # insert key
             if nohash:  # pure list: do not need a key
                 pass
-            elif isinstance(key, str) and re.match(
+            elif isinstance(key, str) and key not in KEY_WORDS and re.match(
                 r"^[a-zA-Z_][a-zA-Z0-9_]*$", key
             ):  # a = val
                 parts.append(key)

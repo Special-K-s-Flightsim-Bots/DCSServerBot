@@ -43,6 +43,9 @@ class TestSerializeMethods(unittest.TestCase):
     def test_dict(self):
         self.assertEqual(serialize({1: 1, 2: 2, "3": "3"}), '{1,2,["3"]="3"}')
 
+    def test_dict_keyword(self):
+        self.assertEqual(serialize({"and": 1, "if": "2"}), '{["and"]=1,["if"]="2"}')
+
     def test_dict_indent(self):
         self.assertEqual(
             serialize({1: 1, 2: 2, "3": "3"}, indent="  "),
