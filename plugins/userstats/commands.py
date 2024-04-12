@@ -396,7 +396,7 @@ class UserStatistics(Plugin):
                     ON p.ucid = m.player_ucid
                     AND m.squadron_id = %s
                 """, (squadron_id, )):
-                    new_discord_id = f"<@{row['discord_id']}>\n"
+                    new_discord_id = f"<@{row['discord_id']}>\n" if row['discord_id'] != -1 else 'not linked\n'
                     new_dcs_name = row['name'] + '\n'
                     if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
                         embed.add_field(name="Member", value=discord_ids)

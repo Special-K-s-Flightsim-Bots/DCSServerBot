@@ -55,13 +55,13 @@ class GreenieBoardEventListener(EventListener):
                 squadrons = config.get('squadrons', [])
                 if squadrons:
                     for squadron in squadrons:
-                        row = await utils.get_squadron(self.bot, name=squadron)
+                        row = await utils.get_squadron(self.bot, name=squadron['name'])
                         if not row:
-                            self.log.warning(f"Squadron {squadron} not found!")
+                            self.log.warning(f"Squadron {squadron['name']} not found!")
                             continue
                         report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
                                                   embed_name=f"greenieboard_s{row['id']}", server=server,
-                                                  channel_id=channel_id)
+                                                  channel_id=squadron.get('channel', channel_id))
                         await report.render(server_name=server.name, num_rows=num_rows, squadron=row)
                 else:
                     report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
@@ -75,12 +75,13 @@ class GreenieBoardEventListener(EventListener):
                 squadrons = config.get('squadrons', [])
                 if squadrons:
                     for squadron in squadrons:
-                        row = await utils.get_squadron(self.bot, name=squadron)
+                        row = await utils.get_squadron(self.bot, name=squadron['name'])
                         if not row:
-                            self.log.warning(f"Squadron {squadron} not found!")
+                            self.log.warning(f"Squadron {squadron['name']} not found!")
                             continue
                         report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                                  embed_name=f"greenieboard_s{row['id']}", channel_id=channel_id)
+                                                  embed_name=f"greenieboard_s{row['id']}",
+                                                  channel_id=squadron.get('channel', channel_id))
                         await report.render(server_name=None, num_rows=num_rows, squadron=row)
                 else:
                     report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
