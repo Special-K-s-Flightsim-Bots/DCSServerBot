@@ -82,8 +82,8 @@ msgstr "Necesita tener el rol de DCS Admin para mostrar los puntos de penalizaci
 msgid "Member {} is not linked."
 msgstr "Miembro {} no está enlazado."
 
-msgid "Use `/linkme` to link your Discord and DCS accounts first."
-msgstr "Utilice `/linkme` para enlazar sus cuentas de DCS y Discord."
+msgid "Use {} to link your Discord and DCS accounts first."
+msgstr "Utilice {} para enlazar sus cuentas de DCS y Discord."
 
 msgid "User has no penalty points."
 msgstr "El usuario no tiene puntos de penalización."
@@ -124,8 +124,8 @@ msgstr "Actualmente se encuentra baneado.\n"
 msgid "Show last infractions of a user"
 msgstr "Muestra las últimas infraccioens de un usuario"
 
-msgid "This user does not exist. Try `/find` to find them in the historic data."
-msgstr "Este usuario no existe. Pruebe a utilizar `/find` para encontrarlos en el historial."
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Este usuario no existe. Pruebe a utilizar {} para encontrarlos en el historial."
 
 # LISTENER
 msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"

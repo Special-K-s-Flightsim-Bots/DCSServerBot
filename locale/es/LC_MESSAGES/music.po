@@ -14,8 +14,8 @@ msgstr "Comandos para manejar la música en su servidor de DCS"
 msgid "Music Player"
 msgstr "Reproductor de música"
 
-msgid "You don't have any playlists to play. Please create one with `/playlist add`."
-msgstr "No tiene una lista de reproducción. Por favor cree una con `/playlist add`."
+msgid "You don't have any playlists to play. Please create one with {}."
+msgstr "No tiene una lista de reproducción. Por favor cree una con {}."
 
 msgid "Frequency"
 msgstr "Frecuencia"
@@ -142,6 +142,9 @@ msgstr "¿Realmente desea añadir TODAS las canciones a la lista de reproducció
 # /playlist delete
 msgid "Remove a song from a playlist"
 msgstr "Eliminar una canción de la lista de reproducción"
+
+msgid "Playlist {} deleted."
+msgstr "Lista de reproducción {} eliminada."
 
 msgid "{title} has been removed from playlist {playlist}."
 msgstr "{title} ha sido eliminado de la lista de reproducción {playlist}."

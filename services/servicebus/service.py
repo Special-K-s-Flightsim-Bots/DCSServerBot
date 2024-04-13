@@ -515,6 +515,8 @@ class ServiceBus(Service):
                         "message": ex.__repr__()
                     }
                 }, node=data.get('node'))
+            else:
+                self.log.exception(ex)
 
     async def handle_broadcast_event(self, data: dict) -> None:
         if self.master:

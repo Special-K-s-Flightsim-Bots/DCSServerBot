@@ -82,8 +82,8 @@ msgstr "Du musst ein DCS Admin sein, um die Strafpunkte anderer User einsehen zu
 msgid "Member {} is not linked."
 msgstr "Benutzer {} ist nicht verknüpft."
 
-msgid "Use `/linkme` to link your Discord and DCS accounts first."
-msgstr "Benutze `/linkme`, um Deinen Discord- und DCS-Benutzer zu verknüpfen."
+msgid "Use {} to link your Discord and DCS accounts first."
+msgstr "Benutze {}, um Deinen Discord- und DCS-Benutzer zu verknüpfen."
 
 msgid "User has no penalty points."
 msgstr "Dieser Nutzer hat keine Strafpunkte."
@@ -124,8 +124,8 @@ msgstr "Du bist zurzeit gebannt.\n"
 msgid "Show last infractions of a user"
 msgstr "Zeigt letzte Benutzer-Verfehlungen"
 
-msgid "This user does not exist. Try `/find` to find them in the historic data."
-msgstr "Ein Spieler dieses Namens existiert nicht. Versuche ihn mit `/find` in den historischen Daten zu finden."
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Ein Spieler dieses Namens existiert nicht. Versuche ihn mit {} in den historischen Daten zu finden."
 
 # LISTENER
 msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"

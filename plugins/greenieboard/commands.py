@@ -114,9 +114,14 @@ class GreenieBoard(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     @app_commands.rename(num_rows='rows')
-    async def board(self, interaction: discord.Interaction, num_rows: Optional[Range[int, 5, 20]] = 10):
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    async def board(self, interaction: discord.Interaction,
+                    num_rows: Optional[Range[int, 5, 20]] = 10,
+                    squadron_id: Optional[int] = None):
         report = PaginationReport(self.bot, interaction, self.plugin_name, 'greenieboard.json')
-        await report.render(server_name=None, num_rows=num_rows)
+        squadron = (await utils.get_squadron(self.bot, squadron_id=squadron_id)) if squadron_id else None
+        await report.render(server_name=None, num_rows=num_rows, squadron=squadron)
 
     @traps.command(description=_('Adds a trap to the Greenieboard'))
     @app_commands.guild_only()
@@ -128,7 +133,9 @@ class GreenieBoard(Plugin):
         if 'ratings' not in config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _('You need to specify ratings in your greenieboard.yaml to use `/traps add`!'), ephemeral=True)
+                _('You need to specify ratings in your greenieboard.yaml to use {}!').format(
+                    (await utils.get_command(self.bot, group='traps', name='add')).mention
+                ), ephemeral=True)
             return
 
         view = TrapView(self.bot, config, user)

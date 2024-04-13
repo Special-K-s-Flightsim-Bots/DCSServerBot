@@ -13,13 +13,15 @@ from discord.ui import Button, View, Select
 from enum import Enum, auto
 from fuzzywuzzy import fuzz
 from io import BytesIO
+from psycopg.rows import dict_row
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
 from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
-    from core import Server, Player, Node, Instance, Plugin
+    from core import Server, Player, Node, Instance, Plugin, Command
     from services import DCSServerBot, ServiceBus
+
 
 __all__ = [
     "PlayerType",
@@ -55,8 +57,11 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "group_autocomplete",
+    "squadron_autocomplete",
+    "get_squadron",
     "server_selection",
-    "get_ephemeral"
+    "get_ephemeral",
+    "get_command"
 ]
 
 
@@ -1025,6 +1030,31 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
     ][:25]
 
 
+async def squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    async with interaction.client.apool.connection() as conn:
+        cursor = await conn.execute("SELECT id, name FROM squadrons WHERE name ILIKE %s", ('%' + current + '%', ))
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=row[1], value=row[0])
+            async for row in cursor
+        ]
+        return choices[:25]
+
+
+async def get_squadron(bot: DCSServerBot, *, name: Optional[str] = None,
+                       squadron_id: Optional[int] = None) -> Optional[dict]:
+    sql = "SELECT * FROM squadrons"
+    if name:
+        sql += " WHERE name = %(name)s"
+    elif squadron_id:
+        sql += " WHERE id = %(squadron_id)s"
+    async with bot.apool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cursor:
+            await cursor.execute(sql, {"name": name, "squadron_id": squadron_id})
+            return await cursor.fetchone()
+
+
 class UserTransformer(app_commands.Transformer):
     """
     A class for transforming interaction values to either discord.Member or ucid (str) objects and providing autocomplete choices for users.
@@ -1167,3 +1197,16 @@ def get_ephemeral(interaction: discord.Interaction) -> bool:
         return True
     channel = bot.get_admin_channel(server)
     return not channel == interaction.channel
+
+
+async def get_command(bot: DCSServerBot, *, name: str,
+                      group: Optional[str] = None) -> Union[app_commands.AppCommand, app_commands.AppCommandGroup]:
+    for cmd in await bot.tree.fetch_commands(guild=bot.guilds[0]):
+        if cmd.options and isinstance(cmd.options[0], app_commands.AppCommandGroup):
+            if group != cmd.name:
+                continue
+            for inner in cmd.options:
+                if inner.name == name:
+                    return inner
+        elif cmd.name == name:
+            return cmd

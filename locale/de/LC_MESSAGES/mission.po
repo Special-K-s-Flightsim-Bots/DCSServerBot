@@ -87,10 +87,10 @@ msgstr "Die Mission wird jetzt {}, bitte warten ..."
 msgid "Mission {}."
 msgstr "Die Mission wurde {}."
 
-msgid "Timeout while the mission {}.\n"
-"Please check with `/mission info`, if the mission is running."
-msgstr "Timeout während die Mission {} wurde."
-"Bitte prüfe mit `/mission info`, ob die Mission läuft."
+msgid "Timeout while the mission {what}.\n"
+"Please check with {command}, if the mission is running."
+msgstr "Timeout während die Mission {what} wurde."
+"Bitte prüfe mit {command}, ob die Mission läuft."
 
 # /mission load
 msgid "Loads a mission\n"
@@ -400,8 +400,8 @@ msgstr "Wähle einen Benutzer"
 msgid "Shows player information"
 msgstr "Zeigt Spieler-Infos"
 
-msgid "This user does not exist. Try `/find` to find them in the historic data."
-msgstr "Dieser Spieler existiert nicht. Versuche ihn mit `/find` zu finden."
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Dieser Spieler existiert nicht. Versuche ihn mit {} zu finden."
 
 # /linkcheck
 msgid "Show players that could be linked"

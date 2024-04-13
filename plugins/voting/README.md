@@ -6,6 +6,12 @@ You can define who can create a new voting, and you can define who can participa
 with the [CreditSystem](../creditsystem/README.md), meaning you can make votes cost credits if you like.
 
 ## Configuration
+As Voting is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - voting
+```
+
 The plugin can be configured via yaml in config/plugins/voting.yaml:
 ```yaml
 DEFAULT:

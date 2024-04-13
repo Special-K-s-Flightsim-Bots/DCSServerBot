@@ -200,8 +200,8 @@ msgstr "Файл существует. Вы хотите его перезапи
 msgid "File {} could not be uploaded."
 msgstr "Файл {} не был загружен."
 
-msgid "{} LUA files uploaded. You can load any of them with `/do_script_file` now."
-msgstr "{} lua файлов загружено. Вы можете выполнить любой из них командой `/do_script_file`."
+msgid "{num} LUA files uploaded. You can load any of them with {command} now."
+msgstr "{num} lua файлов загружено. Вы можете выполнить любой из них командой {command}."
 
 # In-game commands
 # -join

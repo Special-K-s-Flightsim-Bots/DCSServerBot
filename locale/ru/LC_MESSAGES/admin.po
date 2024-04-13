@@ -425,5 +425,5 @@ msgstr "Ошибка чтения файла из Discord."
 msgid "Plugin {} re-loaded."
 msgstr "Плагин {} перезагружен."
 
-msgid "To apply the new config by restarting a node or the whole cluster, use `/node restart`"
-msgstr "Для применения новой конфигурации перезапуском ноды или всего кластера, используйте команду `/node restart`"
+msgid "To apply the new config by restarting a node or the whole cluster, use {}"
+msgstr "Для применения новой конфигурации перезапуском ноды или всего кластера, используйте команду {}"

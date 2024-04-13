@@ -3,7 +3,13 @@
 This is the OvGME service, which lets you install packaged modifications (mods) to your DCS server.
 
 ## Configuration
-The service is configured via yaml. There is an additional [plugin](../../plugins/ovgme/README.md) to provide Discord
+To activate the OvGME service, you need to add an optional plugin in your main.yaml first like so:
+```yaml
+opt_plugins:
+  - ovgme
+```
+
+The service itself is configured via yaml. There is an additional [plugin](../../plugins/ovgme/README.md) to provide Discord
 commands to operate the service.
 
 ```yaml

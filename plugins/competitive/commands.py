@@ -82,7 +82,9 @@ class Competitive(Plugin):
             ucid = user
         if not ucid:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Use `/linkme` to link your account."), ephemeral=True)
+            await interaction.response.send_message(_("Use {} to link your account.").format(
+                (await utils.get_command(self.bot, name='linkme')).mention
+            ), ephemeral=True)
             return
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:

@@ -3,6 +3,12 @@ With this plugin, you can apply real weather supplied by [DCS-real-weather](http
 to your mission.
 
 ## Configuration
+As RealWeather is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - realweather
+```
+
 You need to point to your DCS-real-weather installation in your nodes.yaml like so:
 ```yaml
 MyNode:

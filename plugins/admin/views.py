@@ -24,7 +24,7 @@ class CleanupView(View):
         discord.SelectOption(label='Everything', value='0'),
         discord.SelectOption(label='Older than 90 days', value='90'),
         discord.SelectOption(label='Older than 180 days', value='180', default=True),
-        discord.SelectOption(label='Older than 1 year', value='360 days')
+        discord.SelectOption(label='Older than 1 year', value='360')
     ])
     async def set_age(self, interaction: discord.Interaction, select: Select):
         self.age = select.values[0]

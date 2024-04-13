@@ -5,7 +5,13 @@ It comes alongside the [Music Plugin](../../plugins/music/README.md), which allo
 and configure which playlist should be played on which server and which frequency.
 
 ## Configuration
-As per usual, the Music service is configured with a yaml file in config/services/music.yaml.
+To activate the Music Service, you need to add an optional plugin to your main.yaml first like so:
+```yaml
+opt_plugins:
+  - music
+```
+
+As per usual, the Music service itself is configured with a yaml file in config/services/music.yaml.
 
 ```yaml
 DEFAULT:

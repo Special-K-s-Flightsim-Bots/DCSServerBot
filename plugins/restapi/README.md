@@ -3,7 +3,14 @@ This API provides a very simple RestAPI that you can call from your webserver to
 It is WIP and it will be enhanced in the future.
 
 ## Configuration
-There is some very basic endpoint configuration available as of now:
+As RestAPI is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - restapi
+```
+
+There is some very basic endpoint configuration available as of now, which you can add in your 
+config/plugins/restapi.yaml like so:
 ```yaml
 DEFAULT:
   listen: 0.0.0.0   # the interface to bind the internal webserver to

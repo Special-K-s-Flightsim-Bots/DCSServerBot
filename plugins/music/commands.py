@@ -60,7 +60,9 @@ class Music(Plugin):
         if not playlists:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("You don't have any playlists to play. Please create one with `/playlist add`."), ephemeral=True)
+                _("You don't have any playlists to play. Please create one with {}.").format(
+                    (await utils.get_command(self.bot, group='playlist', name='add')).mention
+                ), ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)
         # noinspection PyUnresolvedReferences
@@ -160,18 +162,23 @@ class Music(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=songs_autocomplete)
-    async def delete(self, interaction: discord.Interaction, playlist: str, song: str):
+    async def delete(self, interaction: discord.Interaction, playlist: str, song: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
         p = await Playlist.create(playlist)
         try:
-            await p.remove(song)
-            song = os.path.join(await self.service.get_music_dir(), song)
-            title = get_tag(song).title or os.path.basename(song)
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _('{title} has been removed from playlist {playlist}.').format(title=utils.escape_string(title),
-                                                                               playlist=playlist),
-                ephemeral=ephemeral)
+            if song:
+                await p.remove(song)
+                song = os.path.join(await self.service.get_music_dir(), song)
+                title = get_tag(song).title or os.path.basename(song)
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    _('{title} has been removed from playlist {playlist}.').format(title=utils.escape_string(title),
+                                                                                   playlist=playlist),
+                    ephemeral=ephemeral)
+            else:
+                await p.clear()
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_('Playlist {} deleted.').format(playlist), ephemeral=ephemeral)
         except OSError as ex:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(ex, ephemeral=ephemeral)

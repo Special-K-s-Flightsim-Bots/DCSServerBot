@@ -128,6 +128,7 @@ class Command(app_commands.Command):
 
         super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
                          guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
+        self.mention = ""
         bot = ServiceRegistry.get(BotService).bot
         # remove node parameter from slash commands if only one node is there
         nodes = len(bot.node.all_nodes)
@@ -241,7 +242,7 @@ class Plugin(commands.Cog):
         self.loop = self.bot.loop
         self.locals = self.read_locals()
         if self.plugin_name != 'commands' and 'commands' in self.locals:
-            self._change_commands(self.locals['commands'], {x.name: x for x in self.get_app_commands()})
+            self.change_commands(self.locals['commands'], {x.name: x for x in self.get_app_commands()})
         self._config = dict[str, dict]()
         self.eventlistener: Type[TEventListener] = eventlistener(self) if eventlistener else None
         self.wait_for_on_ready.start()
@@ -260,16 +261,16 @@ class Plugin(commands.Cog):
         self._config.clear()
         self.log.info(f'  => {self.plugin_name.title()} unloaded.')
 
-    def _change_commands(self, cmds: dict, all_cmds: dict) -> None:
+    def change_commands(self, cmds: dict, all_cmds: dict) -> None:
         for name, params in cmds.items():
             for cmd_name, cmd in all_cmds.items():
-                if cmd_name == name and isinstance(cmd, app_commands.commands.Group):
+                if cmd_name == name and isinstance(cmd, Group):
                     group_commands = {x.name: x for x in cmd.commands}
                     if isinstance(params, list):
                         for param in params:
-                            self._change_commands(param, group_commands)
+                            self.change_commands(param, group_commands)
                     else:
-                        self._change_commands(params, group_commands)
+                        self.change_commands(params, group_commands)
                     break
                 elif cmd_name == name and isinstance(cmd, Command):
                     if cmd.parent:

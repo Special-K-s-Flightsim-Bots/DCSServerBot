@@ -19,8 +19,8 @@ msgstr "Du brauchst die DCS Admin-Rolle, um diesen Befehl zu nutzen!"
 msgid "Member {} is not linked to any DCS user!"
 msgstr "Spieler {} hat sein DCS-Konto noch nicht verknüpft!"
 
-msgid "Use `/linkme` to link your account."
-msgstr "Nutze `/linkme`, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
+msgid "Use {} to link your account."
+msgstr "Nutze {}, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
 
 msgid "{} has no campaign credits."
 msgstr "{} hat noch keine Kampagnen-Credits."

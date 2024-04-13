@@ -83,8 +83,8 @@ class PeriodFilter(StatisticsFilter):
             return 'Overall '
         elif period == 'day':
             return 'Daily '
-        elif period == 'yesterday':
-            return 'Yesterdays '
+        elif period in ['today', 'yesterday']:
+            return period.capitalize() + 's '
         else:
             return period.capitalize() + 'ly '
 

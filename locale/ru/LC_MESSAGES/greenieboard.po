@@ -36,8 +36,8 @@ msgstr "Отобразить текущий Greenieboard"
 msgid "Adds a trap to the Greenieboard"
 msgstr "Добавить посадку в Greenieboard"
 
-msgid "You need to specify ratings in your greenieboard.yaml to use `/traps add`!"
-msgstr "Вам необходимо указать рейтинги в вашем greenieboard.yaml для использования команды `/traps add`!"
+msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
+msgstr "Вам необходимо указать рейтинги в вашем greenieboard.yaml для использования команды {}!"
 
 msgid "Trap added."
 msgstr "Посадка добавлена."

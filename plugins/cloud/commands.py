@@ -138,12 +138,12 @@ class CloudHandler(Plugin):
                 try:
                     await self.get('verify')
                     message += _('\nCloud TOKEN configured and valid.')
-                except aiohttp.ClientError as ex:
+                except aiohttp.ClientError:
                     message += _('\nCloud TOKEN configured, but invalid!')
             else:
                 message += _("\nGet a cloud TOKEN, if you want to use cloud statistics!")
             await interaction.followup.send(message, ephemeral=ephemeral)
-        except aiohttp.ClientError as ex:
+        except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=ephemeral)
         finally:
             await interaction.delete_original_response()
@@ -191,7 +191,9 @@ class CloudHandler(Plugin):
             ucid = await self.bot.get_ucid_by_member(user)
             if not ucid:
                 # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Use `/linkme` to link your account."), ephemeral=True)
+                await interaction.response.send_message(_("Use {} to link your account.").format(
+                    (await utils.get_command(self.bot, name='linkme')).mention
+                ), ephemeral=True)
                 return
             name = user.display_name
         else:

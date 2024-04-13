@@ -114,7 +114,7 @@ class NodeImpl(Node):
         self.close_db()
 
     async def post_init(self):
-        self.pool, self.apool = self.init_db()
+        self.pool, self.apool = await self.init_db()
         try:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -232,11 +232,22 @@ class NodeImpl(Node):
         log2.addHandler(ch)
         return log
 
-    def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
+    async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         # quick connection check
-        with psycopg.connect(url):
-            self.log.info("- Connection to database established.")
+        db_available = False
+        max_attempts = self.config.get("database", self.locals.get('database')).get('max_retries', 10)
+        while not db_available:
+            try:
+                with psycopg.connect(url):
+                    self.log.info("- Connection to database established.")
+                    db_available = True
+            except OperationalError:
+                max_attempts -= 1
+                if not max_attempts:
+                    raise
+                self.log.warning("- Database not available, trying again in 5s ...")
+                await asyncio.sleep(5)
         pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 4)
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
@@ -781,16 +792,25 @@ class NodeImpl(Node):
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
-                ServiceRegistry.get(ServiceBus).send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit" if rc == 0 else "alert",
-                    "params": {
-                        "title": "DCS Update Issue",
-                        "message": f"DCS World updated to version {new_version} on node {self.node.name}."
-                        if rc == 0 else f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
-                    }
-                })
+                if rc == 0:
+                    ServiceRegistry.get(ServiceBus).send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "audit",
+                        "params": {
+                            "message": f"DCS World updated to version {new_version} on node {self.node.name}."
+                        }
+                    })
+                else:
+                    ServiceRegistry.get(ServiceBus).send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "alert",
+                        "params": {
+                            "title": "DCS Update Issue",
+                            "message": f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                        }
+                    })
         except aiohttp.ClientError as ex:
             self.log.warning(ex)
         except Exception as ex:

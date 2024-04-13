@@ -60,9 +60,9 @@ from time to time, but you as a community member can also create your own plugin
 | UserStats     | Users statistics system.                                                      | yes*     | Mission                 | [README](./plugins/userstats/README.md)     |
 | CreditSystem  | User credits, based on achievements.                                          | yes*     | Mission                 | [README](./plugins/creditsystem/README.md)  |
 | MissionStats  | Detailed users statistics / mission statistics.                               | yes*     | Userstats               | [README](./plugins/missionstats/README.md)  |
+| Cloud         | Cloud-based statistics and connection to the DGSA global ban system.          | yes*     | Userstats               | [README](./plugins/cloud/README.md)         |
 | Punishment    | Punish users for teamhits or teamkills.                                       | yes      | Mission                 | [README](./plugins/punishment/README.md)    |
 | SlotBlocking  | Slotblocking either based on discord roles or credits.                        | yes      | Mission, Creditsystem   | [README](./plugins/slotblocking/README.md)  |
-| Cloud         | Cloud-based statistics and connection to the DGSA global ban system.          | yes      | Userstats               | [README](./plugins/cloud/README.md)         |
 | ServerStats   | Server statistics for your DCS servers.                                       | yes      | Userstats               | [README](./plugins/serverstats/README.md)   |
 | GreenieBoard  | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS / FunkMan)   | yes      | Missionstats            | [README](./plugins/greenieboard/README.md)  |
 | MOTD          | Message for players on join or when they jump in a module.                    | yes      | Mission, Missionstats   | [README](./plugins/motd/README.md)          |
@@ -237,6 +237,7 @@ database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME
   pool_min: 5           # min size of the DB pool, default is 5
   pool_max: 10          # max size of the DB pool, default is 10
+  max_reties: 10        # maximum number of retries to initially connect to the database on startups
 logging:
   loglevel: DEBUG           # loglevel, default is DEBUG
   logrotate_count: 5        # Number of logfiles to keep after rotation. Default is 5.    

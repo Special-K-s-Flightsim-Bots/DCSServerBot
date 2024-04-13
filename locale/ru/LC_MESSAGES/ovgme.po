@@ -165,8 +165,8 @@ msgstr "Отмена."
 msgid "Error {code}: {mod}_v{version} {message}"
 msgstr "Ошибка {code}: {mod}_v{version} {message}"
 
-msgid "{} downloaded. Use `/mods install` to install it."
-msgstr "{} скачан. Используйте команду `/mods install` для установки."
+msgid "{file} downloaded. Use {command} to install it."
+msgstr "{file} скачан. Используйте команду {command} для установки."
 
 msgid "Downloading {} ..."
 msgstr "Скачивание {} ..."

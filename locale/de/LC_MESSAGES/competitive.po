@@ -10,8 +10,8 @@ msgstr ""
 msgid "Display your TrueSkill:tm: rating"
 msgstr "Zeit Dein TrueSkill:tm:-Rating"
 
-msgid "Use `/linkme` to link your account."
-msgstr "Nutze `/linkme`, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
+msgid "Use {} to link your account."
+msgstr "Nutze {}, um Dein DCS-Konto mit Deinem Discord-Konto zu verknüpfen."
 
 msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
 msgstr "Das TrueSkill:tm:-Rating von Spieler {name} ist: {rating:.2f}"

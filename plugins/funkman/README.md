@@ -13,8 +13,15 @@ For samples on how to configure FunkMan support into Moose, see the respective s
 > DCSServeBot and Funkman is port **10042**. 
 
 ## Configuration
-For a start, you just need to add the path to your FunkMan installation to your funkman.yaml. If you have configured 
-your FunkMan.ini already, DCSServerBot will automatically take over your config parameters.
+As FunkMan is an optional plugin, you need to activate it in main.yaml first like so:
+```yaml
+opt_plugins:
+  - funkman
+```
+
+The plugin itself is configured with a yaml file in config/plugins/funkman.yaml. For a start, you just need to add the 
+path to your FunkMan installation to your funkman.yaml. If you have configured your FunkMan.ini already, DCSServerBot 
+will automatically take over your config parameters.
 
 ```yaml
 DEFAULT:
