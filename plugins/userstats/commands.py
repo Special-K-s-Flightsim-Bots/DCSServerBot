@@ -50,6 +50,10 @@ class UserStatistics(Plugin):
         super().__init__(bot, listener)
         if self.locals:
             self.persistent_highscore.start()
+            if not self.locals.get(DEFAULT_TAG, {}).get('squadrons', {}).get('self_join', True):
+                super().change_commands({
+                    "squadron": {"join": {"enabled": False}}
+                }, {x.name: x for x in self.get_app_commands()})
 
     def migrate(self, version: str) -> None:
         if version == '3.2':
@@ -89,11 +93,12 @@ class UserStatistics(Plugin):
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
-                await conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+                await conn.execute("DELETE FROM statistics WHERE player_ucid = %s", (ucid, ))
+                await conn.execute("DELETE FROM squadron_members WHERE player_ucid = %s", (ucid, ))
         elif days > -1:
-            await conn.execute(f"""
-                DELETE FROM statistics WHERE hop_off < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')
-            """)
+            await conn.execute("""
+                DELETE FROM statistics WHERE hop_off < (DATE(now() AT TIME ZONE 'utc') - %s::interval)
+            """, (f'{days} days',))
         if server:
             await conn.execute("""
                 DELETE FROM statistics WHERE mission_id in (
@@ -327,7 +332,7 @@ class UserStatistics(Plugin):
                             role = self.bot.get_role(row[1])
                             try:
                                 await interaction.user.add_roles(role)
-                                message += f" and be given the {role.name} role"
+                                message += f" and got the {role.name} role"
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                         # noinspection PyUnresolvedReferences
@@ -363,7 +368,7 @@ class UserStatistics(Plugin):
                         role = self.bot.get_role(row[1])
                         try:
                             await interaction.user.remove_roles(role)
-                            message += f" and be taken the {role.name} role"
+                            message += f" and lost the {role.name} role"
                         except discord.Forbidden:
                             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                     # noinspection PyUnresolvedReferences
@@ -482,6 +487,36 @@ class UserStatistics(Plugin):
                     ucids = [row[0] async for row in cursor]
                     for plugin in self.bot.cogs.values():  # type: Plugin
                         await plugin.prune(conn, ucids=ucids)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        # did a member change their roles?
+        if before.roles == after.roles:
+            return
+        # only linked members are affected
+        ucid = await self.bot.get_ucid_by_member(after, verified=True)
+        if not ucid:
+            return
+        removed_roles = [x.id for x in set(before.roles) - set(after.roles)]
+        new_roles = [x.id for x in set(after.roles) - set(before.roles)]
+        try:
+            # get possible squadron roles
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async for row in await conn.execute('SELECT id, role FROM squadrons WHERE role IS NOT NULL'):
+                        # do we have to add the member to a squadron?
+                        if row[1] in new_roles:
+                            await conn.execute("""
+                                INSERT INTO squadron_members VALUES (%s, %s) 
+                                ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                            """, (row[0], ucid))
+                        # do we have to remove the member from a squadron?
+                        elif row[1] in removed_roles:
+                            await conn.execute("""
+                                DELETE FROM squadron_members WHERE squadron_id = %s and player_ucid = %s
+                            """, (row[0], ucid))
+        except Exception as ex:
+            self.log.exception(ex)
 
 
 async def setup(bot: DCSServerBot):

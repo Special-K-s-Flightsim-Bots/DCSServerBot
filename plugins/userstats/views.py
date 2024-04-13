@@ -28,6 +28,20 @@ class SquadronModal(Modal):
                     ON CONFLICT (name) DO UPDATE
                     SET description = excluded.description, role = excluded.role, image_url = excluded.image_url
                 """, (self.name, self.description.value, self.role.id if self.role else None, self.image_url.value))
+                if self.role:
+                    cursor = await conn.execute("SELECT id FROM squadrons WHERE name = %s", (self.name,))
+                    # might be a role change, so wipe the squadron first
+                    squadron_id = (await cursor.fetchone())[0]
+                    await conn.execute("""
+                        DELETE FROM squadron_members WHERE squadron_id = %s
+                    """, (squadron_id, ))
+                    for member in self.role.members:
+                        ucid = await interaction.client.get_ucid_by_member(member, verified=True)
+                        if ucid:
+                            await conn.execute("""
+                                INSERT INTO squadron_members VALUES (%s, %s)
+                                ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                            """, (squadron_id, ucid))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Squadron {self.name} created/updated.", ephemeral=ephemeral)
 

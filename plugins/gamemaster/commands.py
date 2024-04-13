@@ -368,17 +368,18 @@ class GameMaster(Plugin):
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        # did a member change its roles?
-        if before.roles != after.roles:
-            for server in self.bot.servers.values():
-                player: Player = server.get_player(discord_id=after.id)
-                if player:
-                    server.send_to_dcs({
-                        'command': 'uploadUserRoles',
-                        'id': player.id,
-                        'ucid': player.ucid,
-                        'roles': [x.id for x in after.roles]
-                    })
+        # did a member change their roles?
+        if before.roles == after.roles:
+            return
+        for server in self.bot.servers.values():
+            player: Player = server.get_player(discord_id=after.id)
+            if player:
+                server.send_to_dcs({
+                    'command': 'uploadUserRoles',
+                    'id': player.id,
+                    'ucid': player.ucid,
+                    'roles': [x.id for x in after.roles]
+                })
 
     async def _create_embed(self, message: discord.Message) -> None:
         async with aiohttp.ClientSession() as session:

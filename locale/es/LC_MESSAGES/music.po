@@ -143,6 +143,9 @@ msgstr "¿Realmente desea añadir TODAS las canciones a la lista de reproducció
 msgid "Remove a song from a playlist"
 msgstr "Eliminar una canción de la lista de reproducción"
 
+msgid "Playlist {} deleted."
+msgstr "Lista de reproducción {} eliminada."
+
 msgid "{title} has been removed from playlist {playlist}."
 msgstr "{title} ha sido eliminado de la lista de reproducción {playlist}."
 
