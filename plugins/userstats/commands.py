@@ -377,12 +377,12 @@ class UserStatistics(Plugin):
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
 
-    @squadron.command(description='List members of a squadron')
+    @squadron.command(name='list', description='List members of a squadron')
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS')
-    async def list(self, interaction: discord.Interaction, squadron_id: int):
+    async def _list(self, interaction: discord.Interaction, squadron_id: int):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         embed = discord.Embed(color=discord.Color.blue())
