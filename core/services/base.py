@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Callable, Any
 
 from ..const import DEFAULT_TAG
-from ..utils.helper import YAMLError
 from ..data.dataobject import DataObject
 
 # ruamel YAML support

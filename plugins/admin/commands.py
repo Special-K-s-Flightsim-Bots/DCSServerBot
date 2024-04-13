@@ -139,7 +139,7 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     ]
 
 
-async def get_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def get_branches(interaction: discord.Interaction, _: str) -> list[app_commands.Choice[str]]:
     current_branch, _ = await interaction.client.node.get_dcs_branch_and_version()
     if 'dcs_server' not in current_branch:
         branch = 'release'
@@ -212,7 +212,7 @@ class Admin(Plugin):
                         name = ucid
                 else:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(_("{} is not a valid UCID!", ephemeral=ephemeral))
+                    await interaction.response.send_message(_("{} is not a valid UCID!"), ephemeral=ephemeral)
                     return
                 await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 # noinspection PyUnresolvedReferences
@@ -382,11 +382,11 @@ class Admin(Plugin):
                 ephemeral=ephemeral)
         elif new_version:
             if not await utils.yn_question(interaction,
-                                       _('Would you like to update from version {old_version}@{old_branch} to '
-                                         '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
-                                         ).format(old_version=old_version, old_branch=_branch, new_version=new_version,
-                                                  new_branch=branch),
-                                       ephemeral=ephemeral):
+                                           _('Would you like to update from version {old_version}@{old_branch} to '
+                                             '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
+                                             ).format(old_version=old_version, old_branch=_branch,
+                                                      new_version=new_version, new_branch=branch),
+                                           ephemeral=ephemeral):
                 await interaction.followup.send(_("Aborted."))
                 return
             await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",

@@ -53,7 +53,7 @@ class MissionStatistics(Plugin):
             for ucid in ucids:
                 await conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
         elif days > -1:
-            await conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
+            await conn.execute("DELETE FROM missionstats WHERE time < (DATE(NOW()) - %s::interval)", (f'{days} days', ))
         if server:
             await conn.execute("""
                 DELETE FROM missionstats WHERE mission_id in (

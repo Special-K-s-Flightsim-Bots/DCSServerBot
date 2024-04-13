@@ -59,7 +59,7 @@ class ServerStats(Plugin):
                          period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
         try:
             if _server:
-                await self.display_report(interaction, 'serverload.json', period, _server,
+                await self.display_report(interaction, 'serverload.json', str(period), _server,
                                           ephemeral=utils.get_ephemeral(interaction))
             else:
                 report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')

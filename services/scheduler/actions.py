@@ -22,7 +22,7 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
         await bot.get_channel(channel).send(embed=env.embed)
 
 
-async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, rotate: Optional[bool] = False,
+async def restart(_: Node, server: Server, shutdown: Optional[bool] = False, rotate: Optional[bool] = False,
                   run_extensions: Optional[bool] = True):
     if not server or server.status in [Status.SHUTDOWN, Status.UNREGISTERED]:
         return

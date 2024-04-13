@@ -57,8 +57,8 @@ class GameMaster(Plugin):
             for ucid in ucids:
                 await conn.execute('DELETE FROM coalitions WHERE player_ucid = %s', (ucid, ))
         if days > -1:
-            await conn.execute(
-                f"DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - interval '{days} days')")
+            await conn.execute("DELETE FROM campaigns WHERE stop < (DATE(now() AT TIME ZONE 'utc') - %s::interval)",
+                               (f'{days} days', ))
         if server:
             await conn.execute("DELETE FROM campaigns_servers WHERE server_name = %s", (server, ))
             await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server, ))

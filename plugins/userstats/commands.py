@@ -323,7 +323,7 @@ class UserStatistics(Plugin):
             async with interaction.client.apool.connection() as conn:
                 async with conn.transaction():
                     await conn.execute("INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)",
-                                        (squadron_id, ucid))
+                                       (squadron_id, ucid))
                     cursor = await conn.execute("SELECT name, role FROM squadrons WHERE id = %s", (squadron_id, ))
                     row = await cursor.fetchone()
                     if row:

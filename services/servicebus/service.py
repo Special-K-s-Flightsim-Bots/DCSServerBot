@@ -316,7 +316,7 @@ class ServiceBus(Service):
 
     async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:
-            until = datetime.utcnow() + timedelta(days=days)
+            until = datetime.now(tz=timezone.utc) + timedelta(days=days)
             until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
         else:
             until = datetime(year=9999, month=12, day=31)
@@ -327,7 +327,7 @@ class ServiceBus(Service):
                     INSERT INTO bans (ucid, banned_by, reason, banned_until) 
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT DO NOTHING
-                """, (ucid, banned_by, reason, until))
+                """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                 continue
