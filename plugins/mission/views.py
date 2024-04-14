@@ -250,6 +250,19 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         await self._member.unlink(self.ucid)
+        self.bot.bus.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onMemberUnlinked",
+                "server": None,
+                "data": {
+                    "ucid": self.ucid,
+                    "discord_id": member.id
+                }
+            }
+        })
         await interaction.followup.send("Member has been unlinked.", ephemeral=self.ephemeral)
         # If autorole is enabled, remove the DCS role from the user:
         if self.bot.locals.get('autorole', '') == 'linkme':
@@ -267,6 +280,19 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         await self._member.link(self.ucid)
+        self.bot.bus.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onMemberLinked",
+                "server": None,
+                "data": {
+                    "ucid": self.ucid,
+                    "discord_id": member.id
+                }
+            }
+        })
         await interaction.followup.send("Member has been verified.", ephemeral=self.ephemeral)
         # If autorole is enabled, give the user the DCS role:
         if self.bot.locals.get('autorole', '') == 'linkme':
