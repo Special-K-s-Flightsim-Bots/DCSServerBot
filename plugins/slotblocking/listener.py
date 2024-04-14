@@ -36,7 +36,8 @@ class SlotBlockingListener(EventListener):
             # get all linked members
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("""
-                         SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND LENGTH(ucid) = 32
+                    SELECT ucid, discord_id FROM players 
+                    WHERE discord_id != -1 AND LENGTH(ucid) = 32 AND manual = TRUE
                 """)
                 batch = []
                 async for row in cursor:

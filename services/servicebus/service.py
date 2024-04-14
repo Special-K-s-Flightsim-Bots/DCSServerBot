@@ -428,7 +428,7 @@ class ServiceBus(Service):
             elif data.get('command', '') != 'rpc':
                 server_name = data['server_name']
                 if server_name not in self.udp_server.message_queue:
-                    self.log.debug(f"Message received for unregistered server {server_name} - ignoring.")
+                    self.log.debug(f"Message received for unregistered server {server_name}, ignoring.")
                 else:
                     self.udp_server.message_queue[server_name].put(data)
             else:
@@ -538,7 +538,7 @@ class ServiceBus(Service):
         if 'channel' in data and data['channel'].startswith('sync-'):
             server: Server = self.servers.get(server_name)
             if not server:
-                self.log.warning(f'Message for unregistered server {server_name} received, ignoring.')
+                self.log.warning(f'Message received for unregistered server {server_name}, ignoring.')
                 return
             f = server.listeners.get(data['channel'])
             if f and not f.done():
@@ -583,6 +583,14 @@ class ServiceBus(Service):
             for key, value in data['params'].items():
                 setattr(obj, key, value)
 
+    async def propagate_event(self, command: str, data: dict, server: Optional[Server] = None):
+        tasks = [
+            asyncio.create_task(listener.processEvent(command, server, deepcopy(data)))
+            for listener in self.eventListeners
+            if listener.has_event(command)
+        ]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):
 
@@ -600,7 +608,7 @@ class ServiceBus(Service):
                 server = self.servers.get(server_name)
                 if not server:
                     self.log.debug(
-                        f"Command {data['command']} for unregistered server {server_name} received, ignoring.")
+                        f"Command {data['command']} received for unregistered server {server_name}, ignoring.")
                     return
                 server.last_seen = datetime.now(timezone.utc)
                 if 'channel' in data and data['channel'].startswith('sync-'):
@@ -646,7 +654,7 @@ class ServiceBus(Service):
                                         self.log.debug(f"Registering server {server.name} on Master node ...")
                             elif server.status == Status.UNREGISTERED:
                                 self.log.debug(
-                                    f"Command {command} for unregistered server {server.name} received, ignoring.")
+                                    f"Command {command} received for unregistered server {server.name}, ignoring.")
                                 continue
                             if self.master:
                                 futures = [

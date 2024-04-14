@@ -373,10 +373,9 @@ class GameMaster(Plugin):
             return
         for server in self.bot.servers.values():
             player: Player = server.get_player(discord_id=after.id)
-            if player:
+            if player and player.verified:
                 server.send_to_dcs({
                     'command': 'uploadUserRoles',
-                    'id': player.id,
                     'ucid': player.ucid,
                     'roles': [x.id for x in after.roles]
                 })

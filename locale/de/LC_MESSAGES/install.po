@@ -133,6 +133,9 @@ msgstr "Bitte gebe das Passwort für den postgres-Benutzer ein"
 msgid "[yellow]Existing {} user found![/]"
 msgstr "[yellow]Der Benutzer {} existiert bereits![/]"
 
+msgid "Do you remember the password of {}?"
+msgstr "Erinnerst Du Dich an das Passwort von {}?"
+
 msgid "Please enter your password for user {}"
 msgstr "Bitte gebe des Passwort für den Benutzer {} ein"
 
@@ -259,6 +262,9 @@ msgstr "- {} erzeugt"
 
 msgid "{} written"
 msgstr "{} geschrieben"
+
+msgid "[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]"
+msgstr "[red]Du musst DCSServerBot Schreibrechte auf {} geben, um die MissionScripting.lua desanitisieren zu können![/]"
 
 msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
 "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"

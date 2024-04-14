@@ -6,7 +6,7 @@ import platform
 import psycopg
 import secrets
 import shutil
-import traceback
+import stat
 import sys
 
 if sys.platform == 'win32':
@@ -16,6 +16,7 @@ from contextlib import closing, suppress
 from core import utils, SAVED_GAMES, translations
 from pathlib import Path
 from rich import print
+from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
 from typing import Optional, Callable
 from urllib.parse import quote, urlparse
@@ -125,15 +126,18 @@ class Install:
                                 cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
                             except psycopg.Error:
                                 print(_('[yellow]Existing {} user found![/]').format(DCSSB_DB_USER))
-                                while True:
-                                    passwd = Prompt.ask(
-                                        _("Please enter your password for user {}").format(DCSSB_DB_USER))
-                                    try:
-                                        with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
-                                            pass
-                                        break
-                                    except psycopg.Error:
-                                        print(_("[red]Wrong password! Try again.[/]"))
+                                if Confirm.ask(_('Do you remember the password of {}?').format(DCSSB_DB_USER)):
+                                    while True:
+                                        passwd = Prompt.ask(
+                                            _("Please enter your password for user {}").format(DCSSB_DB_USER))
+                                        try:
+                                            with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
+                                                pass
+                                            break
+                                        except psycopg.Error:
+                                            print(_("[red]Wrong password! Try again.[/]"))
+                                else:
+                                    cursor.execute(f"ALTER USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
                             with open('password.pkl', mode='wb') as f:
                                 pickle.dump(passwd, f)
                             with suppress(psycopg.Error):
@@ -436,6 +440,10 @@ If you need any further assistance, please visit the support discord, listed in 
                 yaml.dump(schedulers, out)
             print(_("- Created {}").format("config/plugins/scheduler.yaml"))
             self.log.info(_("{} written.").format("config/plugins/scheduler.yaml"))
+        try:
+            os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
+        except PermissionError:
+            print(_("[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]").format(dcs_installation))
         print(_("\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
                 "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
                 "There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
@@ -449,10 +457,11 @@ if __name__ == "__main__":
                                      epilog='If unsure about the parameters, please check the documentation.')
     parser.add_argument('-n', '--node', help='Node name', default=platform.node())
     args = parser.parse_args()
+    console = Console()
     try:
         Install(args.node).install()
     except KeyboardInterrupt:
         pass
     except Exception:
-        traceback.print_exc()
+        console.print_exception(show_locals=True, max_frames=1)
         print(_("\nAborted."))

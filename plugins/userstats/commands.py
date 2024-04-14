@@ -44,6 +44,27 @@ def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *param
     return member, period
 
 
+async def squadron_users_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        squadron_id = utils.get_interaction_param(interaction, 'squadron')
+        if not squadron_id:
+            return []
+        async with interaction.client.apool.connection() as conn:
+            choices: list[app_commands.Choice[str]] = [
+                app_commands.Choice(name=row[0], value=row[1])
+                async for row in await conn.execute("""
+                    SELECT p.name, s.player_ucid FROM squadron_members s, players p
+                    WHERE s.player_ucid = p.ucid AND s.squadron_id = %s 
+                    AND p.name ILIKE %s 
+                """, (squadron_id, f'%{current}%'))
+            ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 class UserStatistics(Plugin):
 
     def __init__(self, bot, listener):
@@ -114,6 +135,7 @@ class UserStatistics(Plugin):
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         await conn.execute("UPDATE statistics SET player_ucid = %s WHERE player_ucid = %s", (new_ucid, old_ucid))
+        await conn.execute("UPDATE squadron_members SET player_ucid = %s WHERE player_ucid = %s", (new_ucid, old_ucid))
 
     @command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
@@ -278,22 +300,90 @@ class UserStatistics(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(SquadronModal(name, role, description))
 
-    @squadron.command(description='Delete a squadron')
+    @squadron.command(description='Add a user to a squadron')
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS Admin')
-    async def delete(self, interaction: discord.Interaction, squadron_id: int):
+    async def add(self, interaction: discord.Interaction, squadron_id: int,
+                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction, "Do you really want to delete this Squadron?", ephemeral=ephemeral):
-            await interaction.followup.send('Aborted.')
-            return
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         async with interaction.client.apool.connection() as conn:
             async with conn.transaction():
-                async for row in await conn.execute("""
-                    SELECT m.player_ucid, s.role FROM squadron_members m, squadrons s 
-                    WHERE m.squadron_id = s.id AND squadron_id = %s
-                """, (squadron_id,)):
+                cursor = await conn.execute("SELECT role FROM squadrons WHERE id = %s", (squadron_id,))
+                role = (await cursor.fetchone())[0]
+                if isinstance(user, str):
+                    member = self.bot.get_member_by_ucid(ucid=user, verified=True)
+                    ucid = user
+                else:
+                    member = user
+                    ucid = await self.bot.get_ucid_by_member(member, verified=True)
+                    if not ucid:
+                        await interaction.followup.send(
+                            f"Member {member.display_name} needs to be linked to join this squadron!", ephemeral=True)
+                        return
+                if not member:
+                    prefix = f"User {ucid}"
+                else:
+                    prefix = f"Member {member.display_name}"
+                if role:
+                    if not member:
+                        if not await utils.yn_question(interaction,
+                                                       f"{prefix} is not linked, but auto-role is configured for this "
+                                                       f"squadron. Are you sure you want to add them?",
+                                                       ephemeral=ephemeral):
+                            await interaction.followup.send("Aborted", ephemeral=ephemeral)
+                            return
+                    elif role not in [x.id for x in member.roles]:
+                        _role = self.bot.get_role(role)
+                        if not await utils.yn_question(interaction,
+                                                       f"{prefix} needs to have the \"{_role.name}\" role to join "
+                                                       f"this squadron.\n"
+                                                       f"Do you want to give them the role?", ephemeral=True):
+                            await interaction.followup.send("Aborted", ephemeral=ephemeral)
+                            return
+                        try:
+                            # auto-role will make them a member
+                            await member.add_roles(self.bot.get_role(role))
+                        except discord.Forbidden:
+                            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                        await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
+                        return
+                try:
+                    await conn.execute("INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)",
+                                       (squadron_id, ucid))
+
+                    await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
+                except UniqueViolation:
+                    await interaction.followup.send(f"{prefix} is a member of this squadron already!", ephemeral=True)
+
+    @squadron.command(description='Deletes users from squadrons')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.autocomplete(user=squadron_users_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.app_has_role('DCS Admin')
+    async def delete(self, interaction: discord.Interaction, squadron_id: int, user: Optional[str] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if not user:
+            message = "Do you really want to delete this squadron?"
+        else:
+            message = "Do you really want to delete this user from this squadron?"
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send('Aborted.')
+            return
+
+        sql = """
+            SELECT m.player_ucid, s.role FROM squadron_members m, squadrons s 
+            WHERE m.squadron_id = s.id AND squadron_id = %(squadron_id)s
+        """
+        if user:
+            sql += " AND m.player_ucid = %(user)s"
+        async with interaction.client.apool.connection() as conn:
+            async with conn.transaction():
+                async for row in await conn.execute(sql, {"squadron_id": squadron_id, "user": user}):
                     if row[1]:
                         member = self.bot.get_member_by_ucid(row[0], verified=True)
                         role = self.bot.get_role(row[1])
@@ -302,10 +392,16 @@ class UserStatistics(Plugin):
                                 await member.remove_roles(role)
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
-                    await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
-                                       (squadron_id, row[0]))
-                await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
-        await interaction.followup.send('Squadron deleted.')
+                    else:
+                        await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
+                                           (squadron_id, row[0]))
+                if not user:
+                    await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
+                    await interaction.followup.send('Squadron deleted.', ephemeral=ephemeral)
+                else:
+                    await interaction.followup.send('User removed from squadron. '
+                                                    'If a role was configured, it was removed also.',
+                                                    ephemeral=ephemeral)
 
     @squadron.command(description='Join a squadron')
     @app_commands.guild_only()

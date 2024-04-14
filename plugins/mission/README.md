@@ -20,6 +20,7 @@ You can configure the behaviour of the mission plugin with an optional config/pl
 DEFAULT:
   greeting_message_members: "{player.name}, welcome back to {server.name}!"
   greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
+  greeting_message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.'
   uploads:          # Configure how mission uploads are handled
     enabled: true   # Here you can disable the feature at all (default: true = enabled)
     discord:

@@ -38,7 +38,7 @@ numpy==1.26.4
 openpyxl==3.1.2
 
 # Pandas: Python data analysis library
-pandas==2.2.1
+pandas==2.2.2
 
 # Packaging: A core package providing support for PEP 440 version identifiers
 packaging==24.0
@@ -59,7 +59,7 @@ psutil==5.9.8
 pyarrow==15.0.2
 
 # python-Levenshtein: Python extension for computing string edit distances and similarities
-python-Levenshtein==0.25.0
+python-Levenshtein==0.25.1
 
 # python-multipart: A library for parsing multipart/form-data input requests
 python-multipart==0.0.9
