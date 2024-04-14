@@ -203,9 +203,6 @@ msgstr "{num} LUA files wurden hochgeladen. Du kannst jedes davon nun mit {comma
 msgid "join a coalition"
 msgstr "Trete einer Koalition bei"
 
-msgid "Coalitions are not enabled on this server."
-msgstr "Koalitionen sind auf diesem Server nicht aktiv."
-
 msgid "Usage: {}join <blue|red>"
 msgstr "Aufruf: {}join <blue|red>"
 

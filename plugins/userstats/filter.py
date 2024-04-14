@@ -65,7 +65,7 @@ class PeriodFilter(StatisticsFilter):
             period = self.period[7:]
         else:
             period = self.period
-        if period in [None, 'all']:
+        if period not in PeriodFilter.list(bot) or period in [None, 'all']:
             return '1 = 1'
         elif period == 'yesterday':
             return "DATE_TRUNC('day', s.hop_on) = current_date - 1"
@@ -105,6 +105,7 @@ class CampaignFilter(StatisticsFilter):
             period = self.period[9:]
         else:
             period = self.period
+        period = utils.sanitize_string(period)
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
                f"WHERE name ILIKE '{period}') AND m.server_name in (SELECT server_name FROM campaigns_servers)"
 
@@ -128,7 +129,8 @@ class MissionFilter(StatisticsFilter):
         return period and period.lower().startswith('mission:')
 
     def filter(self, bot: DCSServerBot) -> str:
-        return f"m.mission_name ILIKE '%%{self.period[8:].strip()}%%'"
+        name = utils.sanitize_string(self.period[8:].strip())
+        return f"m.mission_name ILIKE '%%{name}%%'"
 
     def format(self, bot: DCSServerBot) -> str:
         return f'Missions containing "{self.period[8:].strip().title()}"\n'
@@ -146,7 +148,8 @@ class MissionIDFilter(StatisticsFilter):
         return period and period.startswith('mission_id:')
 
     def filter(self, bot: DCSServerBot) -> str:
-        return f"m.id = {self.period[11:].strip()}"
+        mission_id = utils.sanitize_string(self.period[11:].strip())
+        return f"m.id = {mission_id}"
 
     def format(self, bot: DCSServerBot) -> str:
         return f'Mission '
@@ -192,11 +195,12 @@ class SquadronFilter(StatisticsFilter):
         return period and period.lower().startswith('squadron:')
 
     def filter(self, bot: DCSServerBot) -> str:
+        name = utils.sanitize_string(self.period[9:].strip())
         return f"""
             s.player_ucid IN (
                 SELECT player_ucid 
                 FROM squadron_members sm, squadrons ss 
-                WHERE ss.id = sm.squadron_id AND ss.name = '{self.period[9:].strip()}'
+                WHERE ss.id = sm.squadron_id AND ss.name = '{name}'
             )
         """
 
@@ -209,7 +213,7 @@ class MissionStatisticsFilter(PeriodFilter):
     def filter(self, bot: DCSServerBot) -> str:
         if self.period in [None, 'all']:
             return '1 = 1'
-        else:
+        elif self.period in self.list(bot):
             return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {self.period}')"
 
 

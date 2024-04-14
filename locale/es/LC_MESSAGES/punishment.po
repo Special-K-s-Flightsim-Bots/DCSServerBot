@@ -137,9 +137,6 @@ msgstr "{victim}, has sido víctima de {event} por el jugador {offender}\n"
 msgid "forgive another user for their infraction"
 msgstr "perdona a otro usuario por su infracción"
 
-msgid "{prefix}forgive is not enabled on this server."
-msgstr "{prefix}forgive no está habilitado en este servidor."
-
 msgid "There is nothing to forgive (maybe too late?)"
 msgstr "No hay nada que perdonar (¿quizás demasiado tarde?)"
 

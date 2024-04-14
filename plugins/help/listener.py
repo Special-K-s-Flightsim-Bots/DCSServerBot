@@ -17,13 +17,13 @@ class HelpListener(EventListener):
             player.sendChatMessage(f"Use \"{self.prefix}help\" for commands.")
 
     @chat_command(name="help", help="The help command")
-    async def help(self, _: Server, player: Player, __: list[str]):
+    async def help(self, server: Server, player: Player, params: list[str]):
         messages = [
             f'You can use the following commands:\n'
         ]
         for listener in self.bot.eventListeners:
             for command in listener.chat_commands:
-                if command.roles and not player.has_discord_roles(command.roles):
+                if not listener.can_run(command, server, player):
                     continue
                 cmd = f"{self.prefix}{command.name}"
                 if command.usage:

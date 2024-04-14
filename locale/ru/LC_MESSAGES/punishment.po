@@ -137,9 +137,6 @@ msgstr "{victim}, вы стали жертвой {event} игрока {offender}
 msgid "forgive another user for their infraction"
 msgstr "Прощает другого игрока за их нарушения"
 
-msgid "{prefix}forgive is not enabled on this server."
-msgstr "{prefix}forgive не включен для этого сервера."
-
 msgid "There is nothing to forgive (maybe too late?)"
 msgstr "Нечего прощать (может уже поздно?)"
 

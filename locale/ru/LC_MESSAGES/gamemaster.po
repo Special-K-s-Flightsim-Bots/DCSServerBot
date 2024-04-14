@@ -208,9 +208,6 @@ msgstr "{num} lua файлов загружено. Вы можете выпол�
 msgid "join a coalition"
 msgstr "присоединиться к коалиции"
 
-msgid "Coalitions are not enabled on this server."
-msgstr "Коалиции не включены для данного сервера."
-
 msgid "Usage: {}join <blue|red>"
 msgstr "Использование: {}join <blue|red>"
 

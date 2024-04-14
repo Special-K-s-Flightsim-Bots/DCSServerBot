@@ -1,21 +1,23 @@
 from __future__ import annotations
 import inspect
 from dataclasses import MISSING
-from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional
+from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable
 
 if TYPE_CHECKING:
     from core import Plugin, Server, Player
     from services import DCSServerBot
 
 __all__ = [
+    "Event",
     "event",
+    "ChatCommand",
     "chat_command",
     "EventListener",
     "TEventListener"
 ]
 
 
-def event(name: str = MISSING, cls: Type[Event] = MISSING, **attrs) -> Any:
+def event(name: str = MISSING, cls: Type[Event] = MISSING, **attrs) -> Callable[[Any], Event]:
     if cls is MISSING:
         cls = Event
 
@@ -36,7 +38,7 @@ class Event:
         await self.callback(listener, server, data)
 
 
-def chat_command(name: str = MISSING, cls: Type[ChatCommand] = MISSING, **attrs) -> Any:
+def chat_command(name: str = MISSING, cls: Type[ChatCommand] = MISSING, **attrs) -> Callable[[Any], ChatCommand]:
     if cls is MISSING:
         cls = ChatCommand
 
@@ -50,12 +52,13 @@ def chat_command(name: str = MISSING, cls: Type[ChatCommand] = MISSING, **attrs)
 
 class ChatCommand:
     def __init__(self, func, **kwargs):
-        self.name: str = kwargs.get('name') or func.__name__
+        self.name: str = kwargs.get('name', func.__name__)
         self.help: str = inspect.cleandoc(kwargs.get('help', ''))
         self.roles: list[str] = kwargs.get('roles', [])
         self.usage: str = kwargs.get('usage')
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func
+        self.enabled = kwargs.get('enabled', True)
 
     async def __call__(self, listener: EventListener, server: Server, player: Player, params: list[str]) -> None:
         await self.callback(listener, server, player, params)
@@ -114,11 +117,11 @@ class EventListener(metaclass=EventListenerMeta):
         self.prefix = self.node.config.get('chat_command_prefix', '-')
 
     @property
-    def events(self) -> Any:
+    def events(self) -> Iterable[Event]:
         return self.__events__.values()
 
     @property
-    def chat_commands(self) -> Any:
+    def chat_commands(self) -> Iterable[ChatCommand]:
         return self.__chat_commands__.values()
 
     def has_event(self, name: str) -> bool:
@@ -135,17 +138,20 @@ class EventListener(metaclass=EventListenerMeta):
         return self.plugin.get_config(server, plugin_name=plugin_name, use_cache=use_cache)
 
     @event(name="onChatCommand")
-    async def onChatCommand(self, server: Server, data: dict) -> None:
+    async def _onChatCommand(self, server: Server, data: dict) -> None:
         player: Player = server.get_player(id=data['from'], active=True)
         command = self.__all_commands__.get(data['subcommand'])
-        if not command or not player:
-            return
-        if command.roles and not player.has_discord_roles(command.roles):
+        if not command or not player or not self.can_run(command, server, player):
             return
         await command(self, server, player, data.get('params'))
 
     async def shutdown(self) -> None:
         ...
+
+    def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+        if not command.enabled or (command.roles and not player.has_discord_roles(command.roles)):
+            return False
+        return True
 
 
 TEventListener = TypeVar("TEventListener", bound=EventListener)
