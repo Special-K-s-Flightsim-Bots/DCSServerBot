@@ -41,12 +41,12 @@ class ServerInfo(report.EmbedElement):
         if server.node.public_ip:
             name = "Server-IP / Port"
             value = f"{server.node.public_ip}:{server.settings['port']}"
-        if server.settings['password'] and show_password:
+        if server.settings['password']:
             if value:
                 value += '\n\n**Password**\n'
             else:
                 name = "Password"
-            value += f"{server.settings['password']}"
+            value += f"{server.settings['password']}" if show_password else r'\*\*\*\*\*\*\*\*'
         self.add_field(name=name, value=value)
         if server.current_mission:
             value = server.current_mission.map
