@@ -38,12 +38,16 @@ class Member(DataObject):
 
     @ucid.setter
     def ucid(self, ucid: str):
+        if ucid == self._ucid:
+            return
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (self.member.id, ucid))
-                conn.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s AND discord_id = %s',
-                             (self._ucid, self.member.id))
-        self._ucid = ucid
+                # if there was an old link, delete it
+                if self._ucid:
+                    conn.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s AND discord_id = %s',
+                                 (self._ucid, self.member.id))
+                self._ucid = ucid
+                conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (self.member.id, self._ucid))
 
     @property
     def verified(self) -> bool:

@@ -977,7 +977,7 @@ class Mission(Plugin):
                     asyncio.create_task(self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member))
         # Generate the onMemberLinked event
         for server_name, server in self.bot.servers.items():
-            player = server.get_player(ucid=ucid)
+            player = server.get_player(ucid=ucid, active=True)
             if player:
                 player.member = self.bot.get_member_by_ucid(player.ucid)
                 player.verified = True
@@ -1006,21 +1006,21 @@ class Mission(Plugin):
                      user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
 
         async def unlink_member(member: discord.Member, ucid: str):
-            await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
-            await interaction.followup.send(_('Member {name} unlinked from UCID {ucid}.').format(
-                name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=ephemeral)
-            await self.bot.audit(
-                f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
-                user=interaction.user)
             # change the link status of that member if they are an active player
             for server_name, server in self.bot.servers.items():
-                player = server.get_player(ucid=ucid)
+                player = server.get_player(ucid=ucid, active=True)
                 if player:
                     player.member = None
                     player.verified = False
                     break
             else:
+                await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid,))
                 server = None
+            await interaction.followup.send(_('Member {name} unlinked from UCID {ucid}.').format(
+                name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=ephemeral)
+            await self.bot.audit(
+                f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
+                user=interaction.user)
             self.bot.bus.send_to_node({
                 "command": "rpc",
                 "service": "ServiceBus",
