@@ -133,6 +133,9 @@ msgstr "Введите мастер-пароль вашего СУБД-серв�
 msgid "[yellow]Existing {} user found![/]"
 msgstr "[yellow]Пользователь {} уже существует![/]"
 
+msgid "Do you remember the password of {}?"
+msgstr "Вы помните пароль от {}?"
+
 msgid "Please enter your password for user {}"
 msgstr "Пожалуйста введите пароль для пользователя {}"
 
@@ -259,6 +262,9 @@ msgstr "- {} Создан"
 
 msgid "{} written"
 msgstr "{} записан"
+
+msgid "[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]"
+msgstr "[red]Вам необходимо предоставить DCSServerBot права на запись {} для десанитизации вашего MissionScripting.lua![/]"
 
 msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
 "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"

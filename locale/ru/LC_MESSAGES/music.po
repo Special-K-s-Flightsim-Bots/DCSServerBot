@@ -143,6 +143,9 @@ msgstr "Вы действительно хотите добавить ВСЕ т�
 msgid "Remove a song from a playlist"
 msgstr "Удалить трек из плейлиста"
 
+msgid "Playlist {} deleted."
+msgstr "Плейлист {} удалён."
+
 msgid "{title} has been removed from playlist {playlist}."
 msgstr "{title} был удалён из плейлиста {playlist}."
 
