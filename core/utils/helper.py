@@ -67,6 +67,16 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     return string_
 
 
+def sanitize_string(s: str) -> str:
+    # Replace single and double quotes, semicolons and backslashes
+    s = re.sub(r"[\"';\\]", "", s)
+
+    # Replace comment sequences
+    s = re.sub(r"--|/\*|\*/", "", s)
+
+    return s
+
+
 def convert_time(seconds: int):
     retval = ""
     days = int(seconds / 86400)

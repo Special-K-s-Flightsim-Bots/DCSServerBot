@@ -46,14 +46,13 @@ class PeriodFilter(StatisticsFilter):
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if period and period.startswith('period:'):
             period = period[7:]
-        if period in [None, 'all']:
-            return '1 = 1'
-        elif period == 'yesterday':
+        if period == 'yesterday':
             return "DATE_TRUNC('day', s.hop_on) = current_date - 1"
         elif period == 'today':
             return "DATE_TRUNC('day', s.hop_on) = current_date"
-        else:
+        elif period in ['day', 'week', 'month', 'year']:
             return f'DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+        return '1 = 1'
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
@@ -81,6 +80,7 @@ class CampaignFilter(StatisticsFilter):
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if period and period.startswith('campaign:'):
             period = period[9:]
+        period = utils.sanitize_string(period)
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
                f"WHERE name ILIKE '{period}')"
 
@@ -135,7 +135,8 @@ class MissionFilter(StatisticsFilter):
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        return f"m.mission_name ILIKE '%%{period[8:]}%%'"
+        name = utils.sanitize_string(period[8:])
+        return f"m.mission_name ILIKE '%%{name}%%'"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
@@ -175,10 +176,10 @@ class MissionStatisticsFilter(StatisticsFilter):
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        if period in [None, 'all', 'all']:
-            return '1 = 1'
-        else:
+        if period in ['day', 'week', 'month', 'year']:
             return f'DATE(time) > (DATE(NOW()) - interval \'1 {period}\')'
+        else:
+            return '1 = 1'
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:

@@ -32,7 +32,7 @@ class SlotBlockingListener(EventListener):
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1')
+                    cursor.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1 AND manual = True')
                     for row in cursor.fetchall():
                         member = guild.get_member(row[1])
                         if not member:
