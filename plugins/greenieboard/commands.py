@@ -53,7 +53,7 @@ class GreenieBoard(Plugin):
             for ucid in ucids:
                 await conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
         elif days > -1:
-            await conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
+            await conn.execute("DELETE FROM greenieboard WHERE time < (DATE(NOW()) - %s::interval)", (f'{days} days', ))
         self.log.debug('Greenieboard pruned.')
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:

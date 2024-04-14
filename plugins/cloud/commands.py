@@ -130,7 +130,6 @@ class CloudHandler(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Checking cloud connection ...'), ephemeral=ephemeral)
-        message = ""
         try:
             await self.get('discord-bans')
             message = _('Cloud connection established.')

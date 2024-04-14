@@ -31,7 +31,8 @@ class RealWeather(Extension):
         else:
             return self.config
 
-    def get_icao_code(self, filename: str) -> Optional[str]:
+    @staticmethod
+    def get_icao_code(filename: str) -> Optional[str]:
         index = filename.find('ICAO_')
         if index != -1:
             return filename[index + 5:index + 9]
@@ -62,7 +63,7 @@ class RealWeather(Extension):
                     "icao": icao
                 }
             }
-            self.config['metar'] = { "icao": icao }
+            self.config['metar'] = {"icao": icao}
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), mode='w', encoding='utf-8') as outfile:
             json.dump(cfg, outfile, indent=2)

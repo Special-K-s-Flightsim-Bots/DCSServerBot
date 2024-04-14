@@ -975,20 +975,28 @@ class Mission(Plugin):
                 except discord.Forbidden:
                     # noinspection PyAsyncCall
                     asyncio.create_task(self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member))
-
-        # check if they are an active player on any of our servers
+        # Generate the onMemberLinked event
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
             if player:
-                player.member = member
+                player.member = self.bot.get_member_by_ucid(player.ucid)
                 player.verified = True
                 break
-            else:
-                server.send_to_dcs({
-                    'command': 'uploadUserRoles',
-                    'ucid': ucid,
-                    'roles': [x.id for x in member.roles]
-                })
+        else:
+            server = None
+        self.bot.bus.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onMemberLinked",
+                "server": server.name if server else None,
+                "data": {
+                    "ucid": ucid,
+                    "discord_id": member.id
+                }
+            }
+        })
 
     @command(description=_('Unlinks a member or ucid'))
     @app_commands.guild_only()
@@ -1004,20 +1012,28 @@ class Mission(Plugin):
             await self.bot.audit(
                 f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                 user=interaction.user)
-
-        async def clear_user_roles(ucid: str):
             # change the link status of that member if they are an active player
             for server_name, server in self.bot.servers.items():
                 player = server.get_player(ucid=ucid)
                 if player:
                     player.member = None
                     player.verified = False
-                else:
-                    server.send_to_dcs({
-                        'command': 'uploadUserRoles',
-                        'ucid': ucid,
-                        'roles': []
-                    })
+                    break
+            else:
+                server = None
+            self.bot.bus.send_to_node({
+                "command": "rpc",
+                "service": "ServiceBus",
+                "method": "propagate_event",
+                "params": {
+                    "command": "onMemberUnlinked",
+                    "server": server.name if server else None,
+                    "data": {
+                        "ucid": ucid,
+                        "discord_id": member.id
+                    }
+                }
+            })
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -1031,7 +1047,6 @@ class Mission(Plugin):
                     for row in rows:
                         ucid = row[0]
                         await unlink_member(user, ucid)
-                        await clear_user_roles(ucid)
                 elif utils.is_ucid(user):
                     ucid = user
                     member = self.bot.get_member_by_ucid(ucid)
@@ -1039,7 +1054,6 @@ class Mission(Plugin):
                         await interaction.followup.send(_('Player is not linked!'), ephemeral=True)
                         return
                     await unlink_member(member, ucid)
-                    await clear_user_roles(ucid)
                 else:
                     await interaction.followup.send(_('Unknown player / member provided'), ephemeral=True)
                     return

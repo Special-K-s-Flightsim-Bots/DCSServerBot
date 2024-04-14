@@ -48,7 +48,7 @@ class UserStatisticsEventListener(EventListener):
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
-            if name == 'registerDCSServer' or server.name in self.statistics:
+            if name in ['registerDCSServer', 'onMemberLinked', 'onMemberUnlinked'] or server.name in self.statistics:
                 await super().processEvent(name, server, data)
         except Exception as ex:
             self.log.exception(ex)
@@ -313,3 +313,34 @@ class UserStatisticsEventListener(EventListener):
                 # noinspection PyAsyncCall
                 # noinspection PyUnresolvedReferences
                 asyncio.create_task(self.plugin.render_highscore(config['highscore'], server, True))
+
+    @event(name="onMemberLinked")
+    async def onMemberLinked(self, server: Server, data: dict) -> None:
+        member = self.bot.guilds[0].get_member(data['discord_id'])
+        roles = [x.id for x in member.roles]
+        try:
+            # get possible squadron roles
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    async for row in await conn.execute('SELECT id, role FROM squadrons WHERE role IS NOT NULL'):
+                        # do we have to add the member to a squadron?
+                        if row[1] in roles:
+                            await conn.execute("""
+                                INSERT INTO squadron_members VALUES (%s, %s) 
+                                ON CONFLICT (squadron_id, player_ucid) DO NOTHING
+                            """, (row[0], data['ucid']))
+        except Exception as ex:
+            self.log.exception(ex)
+
+    @event(name="onMemberUnlinked")
+    async def onMemberUnlinked(self, server: Server, data: dict) -> None:
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
+                        DELETE FROM squadron_members WHERE player_ucid = %s AND squadron_id IN (
+                            SELECT id FROM squadrons WHERE role IS NOT NULL
+                        ) 
+                    """, (data['ucid'], ))
+        except Exception as ex:
+            self.log.exception(ex)

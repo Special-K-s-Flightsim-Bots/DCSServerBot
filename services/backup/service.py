@@ -47,7 +47,7 @@ class BackupService(Service):
         target = os.path.expandvars(self.locals.get('target'))
         directory = os.path.join(target, utils.slugify(self.node.name) + '_' + datetime.now().strftime("%Y%m%d"))
         os.makedirs(directory, exist_ok=True)
-        return directory
+        return str(directory)
 
     @staticmethod
     def zip_path(zf: ZipFile, base: str, path: str):

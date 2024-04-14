@@ -203,9 +203,6 @@ msgstr "{num} ficheros LUA cargados. puede ejecutar cualquiera de ellos con {com
 msgid "join a coalition"
 msgstr "Unirse a una coalición"
 
-msgid "Coalitions are not enabled on this server."
-msgstr "No están habilitadas las coaliciones en éste servidor."
-
 msgid "Usage: {}join <blue|red>"
 msgstr "Uso: {}join <blue|red>"
 

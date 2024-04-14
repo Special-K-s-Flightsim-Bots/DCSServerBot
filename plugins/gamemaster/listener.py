@@ -6,7 +6,7 @@ import os
 import psycopg
 
 from core import EventListener, Side, Coalition, Channel, utils, event, chat_command, CloudRotatingFileHandler, \
-    get_translation
+    get_translation, ChatCommand
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
@@ -21,6 +21,12 @@ class GameMasterEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.chat_log = dict()
+
+    def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+        if (command.name in ['join', 'leave', 'red', 'blue', 'coalition', 'password'] and
+                not self.get_coalition(server, player)):
+            return False
+        return super().can_run(command, server, player)
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _: dict) -> None:
@@ -175,9 +181,6 @@ class GameMasterEventListener(EventListener):
         await self.campaign('start', servers=[server], name=name)
 
     async def _join(self, server: Server, player: Player, params: list[str]):
-        if not server.locals.get('coalitions'):
-            player.sendChatMessage(_("Coalitions are not enabled on this server."))
-            return
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage(_("Usage: {}join <blue|red>").format(self.prefix))
@@ -322,8 +325,6 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="coalition", help=_("displays your current coalition"))
     async def coalition(self, server: Server, player: Player, params: list[str]):
-        if not server.locals.get('coalitions'):
-            player.sendChatMessage(_("Coalitions are not enabled on this server."))
         # noinspection PyAsyncCall
         asyncio.create_task(self._coalition(server, player))
 
@@ -341,8 +342,6 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="password", aliases=["passwd"], help=_("displays the coalition password"))
     async def password(self, server: Server, player: Player, params: list[str]):
-        if not server.locals.get('coalitions'):
-            player.sendChatMessage(_("Coalitions are not enabled on this server."))
         # noinspection PyAsyncCall
         asyncio.create_task(self._password(server, player))
 

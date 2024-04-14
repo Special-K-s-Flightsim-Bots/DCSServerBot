@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils, get_translation
+from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils, get_translation, ChatCommand
 from plugins.competitive.commands import Competitive
 from typing import Optional
 
@@ -12,6 +12,11 @@ class PunishmentEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.lock = asyncio.Lock()
+
+    def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+        if command.name == 'forgive':
+            return self.plugin.get_config(server).get('forgive') is not None
+        return super().can_run(command, server, player)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
@@ -161,10 +166,6 @@ class PunishmentEventListener(EventListener):
     @chat_command(name="forgive", help=_("forgive another user for their infraction"))
     async def forgive(self, server: Server, target: Player, params: list[str]):
         config = self.plugin.get_config(server)
-        if 'forgive' not in config:
-            target.sendChatMessage(_('{prefix}forgive is not enabled on this server.').format(prefix=self.prefix))
-            return
-
         forgive = config.get('forgive', 30)
         async with self.lock:
             async with self.apool.connection() as conn:

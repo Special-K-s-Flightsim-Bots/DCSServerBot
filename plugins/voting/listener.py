@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin, event
+from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin, event, ChatCommand
 from functools import partial
 from itertools import islice
 from typing import Optional
@@ -132,8 +132,12 @@ class VotingHandler:
 
 
 class VotingListener(EventListener):
-    def __init__(self, plugin: Plugin):
-        super().__init__(plugin)
+
+    def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+        config = self.get_config(server=server)
+        if not config:
+            return False
+        return super().can_run(command, server, player)
 
     def check_role(self, player: Player, roles: Optional[list[str]] = None) -> bool:
         if not roles:
@@ -219,8 +223,6 @@ class VotingListener(EventListener):
         global all_votes
 
         config = self.get_config(server=server)
-        if not config:
-            return
         if server.name in all_votes:
             if len(params) == 1 and params[0] == 'cancel':
                 if utils.check_roles(['DCS Admin'], player.member):

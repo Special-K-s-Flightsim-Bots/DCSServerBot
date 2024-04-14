@@ -383,16 +383,11 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             player.update(data)
-        if player.is_banned():
-            server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
-            return
-        if player.member:
-            server.send_to_dcs({
-                'command': 'uploadUserRoles',
-                'id': player.id,
-                'ucid': player.ucid,
-                'roles': [x.id for x in player.member.roles]
-            })
+        server.send_to_dcs({
+            'command': 'uploadUserRoles',
+            'ucid': player.ucid,
+            'roles': [x.id for x in player.member.roles] if player.member and player.verified else []
+        })
         if player.watchlist:
             # noinspection PyAsyncCall
             asyncio.create_task(self._watchlist_alert(server, player))
@@ -401,6 +396,20 @@ class MissionEventListener(EventListener):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
+        # check if the server only allows linked members to join
+        discord_roles = server.locals.get('discord')
+        if discord_roles:
+            member = self.bot.get_member_by_ucid(data['ucid'])
+            roles = discord_roles if isinstance(discord_roles, list) else [discord_roles]
+            if not member or not utils.check_roles(roles, member):
+                server.send_to_dcs({
+                    "command": "kick",
+                    "id": data['id'],
+                    "reason": self.get_config(server).get('greeting_message_reserved',
+                                                          'This server is locked for specific users.\n'
+                                                          'Please contact a server admin.')
+                })
+                return
         player: Player = server.get_player(ucid=data['ucid'])
         if not player:
             player = DataObjectFactory().new(
@@ -409,6 +418,10 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             player.update(data)
+        # security check, if a banned player somehow managed to get here (should never happen)
+        if player.is_banned():
+            server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
+            return
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
@@ -557,6 +570,32 @@ class MissionEventListener(EventListener):
                     player.name if player else 'AI')
                 )
 
+    @event(name="onMemberLinked")
+    async def onMemberLinked(self, server: Server, data: dict) -> None:
+        # as an exception, server might be empty here
+        if not server:
+            return
+        player = server.get_player(ucid=data['ucid'])
+        if player:
+            server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'ucid': player.ucid,
+                'roles': [x.id for x in player.member.roles]
+            })
+
+    @event(name="onMemberUnlinked")
+    async def onMemberUnlinked(self, server: Server, data: dict) -> None:
+        # as an exception, server might be empty here
+        if not server:
+            return
+        player = server.get_player(ucid=data['ucid'])
+        if player:
+            server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'ucid': player.ucid,
+                'roles': []
+            })
+
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
     async def atis(self, server: Server, player: Player, params: list[str]):
         if len(params) == 0:
@@ -690,6 +729,19 @@ class MissionEventListener(EventListener):
                                                        user=player.member))
                     player.sendChatMessage('Your account has been updated.')
                 elif not old_ucid:
+                    self.bot.bus.send_to_node({
+                        "command": "rpc",
+                        "service": "ServiceBus",
+                        "method": "propagate_event",
+                        "params": {
+                            "command": "onMemberLinked",
+                            "server": server.name,
+                            "data": {
+                                "ucid": player.ucid,
+                                "discord_id": player.member.id
+                            }
+                        }
+                    })
                     # noinspection PyAsyncCall
                     asyncio.create_task(self.bot.audit(
                         f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',

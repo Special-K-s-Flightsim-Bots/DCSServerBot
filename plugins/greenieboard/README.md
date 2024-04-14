@@ -94,8 +94,8 @@ DEFAULT:
   persistent_board: false   # if true, a persistent board will be uploaded into persistent_channel
   persistent_channel: 123456789 # in which channel to post the board
   squadrons:
-    - 'My Fancy Squadron 1' # Optional: display boards for these squadrons
-    - 'My Fancy Squadron 2'
+    - name: 'My Fancy Squadron 1' # Optional: display boards for these squadrons
+    - name: 'My Fancy Squadron 2'
   ratings:                  # Default points per LSO rating, amend them to your needs
     _OK_: 5
     OK: 4

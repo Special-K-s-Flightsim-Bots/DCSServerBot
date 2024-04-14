@@ -67,7 +67,7 @@ class SlotBlocking(Plugin):
         for server in self.bot.servers.values():
             player: Player = server.get_player(discord_id=after.id)
             if not player:
-                ucid = await self.bot.get_ucid_by_member(after)
+                ucid = await self.bot.get_ucid_by_member(after, verified=True)
                 if not ucid:
                     return
                 roles = [
