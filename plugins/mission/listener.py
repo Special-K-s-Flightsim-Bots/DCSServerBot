@@ -310,6 +310,11 @@ class MissionEventListener(EventListener):
                 server.add_player(player)
             else:
                 player.update(p)
+            server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'ucid': player.ucid,
+                'roles': [x.id for x in player.member.roles] if player.member and player.verified else []
+            })
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
@@ -701,54 +706,69 @@ class MissionEventListener(EventListener):
             async with conn.transaction():
                 cursor = await conn.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
                 row = await cursor.fetchone()
-                if not row:
+                if not row or len(token) > 4:
                     player.sendChatMessage('Invalid token.')
                     # noinspection PyAsyncCall
                     asyncio.create_task(self.bot.get_admin_channel(server).send(
                         f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.'))
                     return
-
                 discord_id = row[0]
-                discord_member = self.bot.guilds[0].get_member(discord_id)
-                member = DataObjectFactory().new(Member, name=discord_member.name, node=self.node,
-                                                 member=discord_member)
-
-                old_ucid = member.ucid if member.verified else None
-                if old_ucid:
-                    member.ucid = player.ucid
-                else:
-                    player.member = member.member
-                member.verified = True
-                await conn.execute('DELETE FROM players WHERE ucid = %s', (token,))
-                # make sure we update all tables with the new UCID
-                if old_ucid and old_ucid != player.ucid:
+                member = self.bot.guilds[0].get_member(discord_id)
+                # link the user
+                player.member = member
+                player.verified = True
+                # delete all old automated links (this will delete the token also)
+                await conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (player.ucid, ))
+                await conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
+                                   (discord_id, ))
+                # now check, if there was indeed a valid mapping for this discord_id (meaning the UCID has changed)
+                cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
+                                            (discord_id, player.ucid))
+                row = await cursor.fetchone()
+                if row:
+                    old_ucid = row[0]
+                    await cursor.execute("UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s",
+                                         (old_ucid, ))
                     for plugin in self.bot.cogs.values():  # type: Plugin
                         await plugin.update_ucid(conn, old_ucid, player.ucid)
                     # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.',
+                    asyncio.create_task(self.bot.audit(f'updated their UCID from {old_ucid} to {player.ucid}.',
                                                        user=player.member))
                     player.sendChatMessage('Your account has been updated.')
-                elif not old_ucid:
+                    # unlink the member from the old ucid
                     self.bot.bus.send_to_node({
                         "command": "rpc",
                         "service": "ServiceBus",
                         "method": "propagate_event",
                         "params": {
-                            "command": "onMemberLinked",
+                            "command": "onMemberUnlinked",
                             "server": server.name,
                             "data": {
-                                "ucid": player.ucid,
-                                "discord_id": player.member.id
+                                "ucid": old_ucid,
+                                "discord_id": discord_id
                             }
                         }
                     })
+                else:
                     # noinspection PyAsyncCall
                     asyncio.create_task(self.bot.audit(
                         f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
                         user=player.member))
-                    player.sendChatMessage('Your user has been linked.')
-                else:
-                    player.sendChatMessage('Your user was linked already!')
+                    player.sendChatMessage('Your account has been linked.')
+
+        self.bot.bus.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onMemberLinked",
+                "server": server.name,
+                "data": {
+                    "ucid": player.ucid,
+                    "discord_id": player.member.id
+                }
+            }
+        })
 
         # If autorole is enabled, give the user the DCS role:
         if self.bot.locals.get('autorole', '') == 'linkme':
