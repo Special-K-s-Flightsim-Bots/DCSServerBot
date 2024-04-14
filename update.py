@@ -19,39 +19,42 @@ from version import __version__
 def do_update_git(delete: Optional[bool]) -> int:
     import git
 
-    with closing(git.Repo('.')) as repo:
-        current_hash = repo.head.commit.hexsha
-        origin = repo.remotes.origin
-        origin.fetch()
-        new_hash = origin.refs[repo.active_branch.name].object.hexsha
-        if new_hash != current_hash:
-            modules = False
-            print('- Updating myself...')
-            diff = repo.head.commit.diff(new_hash)
-            for d in diff:
-                if d.b_path == 'requirements.txt':
-                    modules = True
-            try:
-                repo.remote().pull(repo.active_branch)
-                print('  => DCSServerBot updated to the latest version.')
-                if modules:
-                    print('  => requirements.txt has changed. Installing missing modules...')
-                    rc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                    if rc.returncode:
-                        print('  => Autoupdate failed!')
-                        print('     Please run update.cmd manually.')
-                        return -1
-            except git.exc.InvalidGitRepositoryError:
-                return do_update_github(delete)
-            except git.exc.GitCommandError:
-                print('  => Autoupdate failed!')
-                print('     Please revert back the changes in these files:')
-                for item in repo.index.diff(None):
-                    print(f'     ./{item.a_path}')
-                return -1
-        else:
-            print('- No update found for DCSServerBot.')
-            return 0
+    try:
+        with closing(git.Repo('.')) as repo:
+            current_hash = repo.head.commit.hexsha
+            origin = repo.remotes.origin
+            origin.fetch()
+            new_hash = origin.refs[repo.active_branch.name].object.hexsha
+            if new_hash != current_hash:
+                modules = False
+                print('- Updating myself...')
+                diff = repo.head.commit.diff(new_hash)
+                for d in diff:
+                    if d.b_path == 'requirements.txt':
+                        modules = True
+                try:
+                    repo.remote().pull(repo.active_branch)
+                    print('  => DCSServerBot updated to the latest version.')
+                    if modules:
+                        print('  => requirements.txt has changed. Installing missing modules...')
+                        rc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+                        if rc.returncode:
+                            print('  => Autoupdate failed!')
+                            print('     Please run update.cmd manually.')
+                            return -1
+                except git.exc.InvalidGitRepositoryError:
+                    return do_update_github(delete)
+                except git.exc.GitCommandError:
+                    print('  => Autoupdate failed!')
+                    print('     Please revert back the changes in these files:')
+                    for item in repo.index.diff(None):
+                        print(f'     ./{item.a_path}')
+                    return -1
+            else:
+                print('- No update found for DCSServerBot.')
+                return 0
+    except git.exc.InvalidGitRepositoryError:
+        return do_update_github(delete)
 
 
 def list_all_files(path):

@@ -190,6 +190,7 @@ class NodeImpl(Node):
         asyncio.get_event_loop().stop()
 
     async def restart(self):
+        self.log.info("Restarting ...")
         await ServiceRegistry.shutdown()
         await self.aclose_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
