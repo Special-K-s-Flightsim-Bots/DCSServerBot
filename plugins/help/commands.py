@@ -2,7 +2,6 @@ import discord
 import os
 import pandas as pd
 
-import core
 from core import Plugin, Report, ReportEnv, command, utils, get_translation
 from discord import app_commands, Interaction
 from discord.ui import View, Select, Button, Modal, TextInput, Item
@@ -17,10 +16,10 @@ _ = get_translation(__name__.split('.')[1])
 
 
 @cache
-async def get_commands(interaction: discord.Interaction) -> dict[str, core.Command]:
-    cmds: dict[str, core.Command] = dict()
+async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
+    cmds: dict[str, app_commands.Command] = dict()
     for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-        if isinstance(cmd, core.Group):
+        if isinstance(cmd, app_commands.Group):
             for inner in cmd.commands:
                 if await inner._check_can_run(interaction):
                     cmds[inner.qualified_name] = inner
@@ -81,7 +80,7 @@ class Help(Plugin):
                 group = None
 
             for cmd in interaction.client.tree.get_commands(guild=interaction.guild):
-                if group and isinstance(cmd, core.Group) and cmd.name == group:
+                if group and isinstance(cmd, app_commands.Group) and cmd.name == group:
                     for inner in cmd.commands:
                         if inner.name == _name:
                             cmd = inner
@@ -89,7 +88,7 @@ class Help(Plugin):
                     else:
                         return None
                     break
-                elif not group and isinstance(cmd, core.Command) and cmd.name == _name:
+                elif not group and isinstance(cmd, app_commands.Command) and cmd.name == _name:
                     break
             else:
                 return None
