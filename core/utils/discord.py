@@ -961,10 +961,10 @@ class InstanceTransformer(app_commands.Transformer):
             if not node:
                 return []
             if self.unused:
-                all_instances = [instance for server_name, instance in await node.find_all_instances()]
-                for instance in node.instances:
-                    all_instances.remove(instance.name)
-                instances = all_instances
+                instances = [
+                    instance for server_name, instance in await node.find_all_instances()
+                    if instance not in node.instances
+                ]
             else:
                 instances = [x.name for x in node.instances]
             return [

@@ -133,6 +133,9 @@ msgstr "Por favor, introduzca la contraseña maestra de su PostgreSQL (usuario=p
 msgid "[yellow]Existing {} user found![/]"
 msgstr "[yellow]¡Usuario {} ya existente encontrado![/]"
 
+msgid "Do you remember the password of {}?"
+msgstr "¿Recuerdas la contraseña de {}?"
+
 msgid "Please enter your password for user {}"
 msgstr "Por favor, introduzca su contraseña para el usuario {}"
 
@@ -258,6 +261,9 @@ msgstr "- {} ha sido creado"
 
 msgid "{} written"
 msgstr "{} ha sido escrito"
+
+msgid "[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]"
+msgstr "[red]¡Necesitas otorgar permisos de escritura a DCSServerBot en {} para desanitizar el archivo MissionScripting.lua![/]"
 
 msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
 "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"

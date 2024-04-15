@@ -249,7 +249,7 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         member: discord.Member = self._member.member
-        await self._member.unlink(self.ucid)
+        self._member.unlink()
         self.bot.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -279,7 +279,7 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         member: discord.Member = self._member.member
-        await self._member.link(self.ucid)
+        self._member.verified = True
         self.bot.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",

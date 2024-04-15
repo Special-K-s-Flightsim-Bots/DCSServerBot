@@ -1305,6 +1305,7 @@ class Mission(Plugin):
             await send_token(member.ucid)
             return
 
+        # generate the TOKEN
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 async with conn.cursor() as cursor:

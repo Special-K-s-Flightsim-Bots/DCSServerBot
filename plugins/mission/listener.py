@@ -703,25 +703,22 @@ class MissionEventListener(EventListener):
 
         token = params[0]
         async with self.apool.connection() as conn:
+            cursor = await conn.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
+            row = await cursor.fetchone()
+            if not row or len(token) > 4:
+                player.sendChatMessage('Invalid token.')
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.bot.get_admin_channel(server).send(
+                    f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.'))
+                return
+            discord_id = row[0]
+        member = self.bot.guilds[0].get_member(discord_id)
+        # link the user
+        player.member = member
+        player.verified = True
+        async with self.apool.connection() as conn:
             async with conn.transaction():
-                cursor = await conn.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
-                row = await cursor.fetchone()
-                if not row or len(token) > 4:
-                    player.sendChatMessage('Invalid token.')
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.get_admin_channel(server).send(
-                        f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.'))
-                    return
-                discord_id = row[0]
-                member = self.bot.guilds[0].get_member(discord_id)
-                # link the user
-                player.member = member
-                player.verified = True
-                # delete all old automated links (this will delete the token also)
-                await conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (player.ucid, ))
-                await conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
-                                   (discord_id, ))
-                # now check, if there was indeed a valid mapping for this discord_id (meaning the UCID has changed)
+                # now check, if there was an old validated mapping for this discord_id (meaning the UCID has changed)
                 cursor = await conn.execute("SELECT ucid FROM players WHERE discord_id = %s and ucid != %s",
                                             (discord_id, player.ucid))
                 row = await cursor.fetchone()
