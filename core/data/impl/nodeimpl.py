@@ -611,6 +611,8 @@ class NodeImpl(Node):
                                 return True
                             # I am the master
                             if cluster['master'] == self.name:
+                                # set the master here already to avoid race conditions
+                                self.master = True
                                 if cluster['update_pending']:
                                     if not await self.upgrade_pending():
                                         # we have just finished updating, so restart all other nodes (if there are any)
