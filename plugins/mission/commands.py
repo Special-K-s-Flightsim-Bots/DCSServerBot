@@ -925,43 +925,39 @@ class Mission(Plugin):
     @command(description=_("Links a member to a DCS user"))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.rename(ucid="user")
     async def link(self, interaction: discord.Interaction, member: discord.Member,
-                   ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                   user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        if isinstance(ucid, discord.Member):
-            if ucid == member:
-                await interaction.followup.send(_("This member is linked to this UCID already."), ephemeral=ephemeral)
+        _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)
+        if isinstance(user, discord.Member):
+            _new_member = DataObjectFactory().new(Member, name=user.name, node=self.node, member=user)
+            ucid = _new_member.ucid
+            if ucid == _member.ucid:
+                if _member.verified:
+                    await interaction.followup.send(_("This member is linked to this UCID already."), ephemeral=ephemeral)
+                    return
+            elif not await utils.yn_question(
+                interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
+                               "Do you want to relink?").format(
+                    name=utils.escape_string(user.display_name), ucid=ucid), ephemeral=ephemeral):
                 return
             else:
-                _member = ucid
-                ucid = await self.bot.get_ucid_by_member(ucid)
+                _new_member.unlink()
         else:
-            _member = self.bot.get_member_by_ucid(ucid)
-        if _member and not await utils.yn_question(
-                interaction,
-                _("Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?").format(
-                    name=utils.escape_string(_member.display_name), ucid=ucid), ephemeral=ephemeral):
-            return
-        _ucid = await self.bot.get_ucid_by_member(member)
-        if _ucid and not await utils.yn_question(
-                interaction,
-                _("Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?").format(
-                    name=utils.escape_string(member.display_name), ucid=_ucid), ephemeral=ephemeral):
-            return
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                # delete an old mapping, if one existed
-                await conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s',
-                                   (member.id, ))
-                await conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                   (member.id, ucid))
-                # delete a token, if one existed
-                await conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
+            ucid = user
+        if _member.verified:
+            if not await utils.yn_question(
+                interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
+                               "Do you want to relink?").format(
+                    name=utils.escape_string(member.display_name), ucid=_member.ucid), ephemeral=ephemeral):
+                return
+            else:
+                _member.unlink()
+        _member.link(ucid, verified=True)
         await interaction.followup.send(_('Member {name} linked to UCID {ucid}.').format(
             name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',

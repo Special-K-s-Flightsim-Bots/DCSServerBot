@@ -1,0 +1,1 @@
+DELETE FROM players WHERE discord_id IN (SELECT discord_id FROM players WHERE manual = True) AND manual = False;
