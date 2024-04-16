@@ -875,9 +875,10 @@ class ServerTransformer(app_commands.Transformer):
     :type status: list of :class:`Status`
 
     """
-    def __init__(self, *, status: list[Status] = None):
+    def __init__(self, *, status: list[Status] = None, maintenance: Optional[bool] = None):
         super().__init__()
         self.status: list[Status] = status
+        self.maintenance = maintenance
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
         if value:
@@ -899,7 +900,9 @@ class ServerTransformer(app_commands.Transformer):
             choices: list[app_commands.Choice[str]] = [
                 app_commands.Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
-                if (value.status != Status.UNREGISTERED and (not self.status or value.status in self.status) and
+                if (value.status != Status.UNREGISTERED and
+                    (not self.status or value.status in self.status) and
+                    (not self.maintenance or value.maintenance == self.maintenance) and
                     (not current or current.casefold() in name.casefold()))
             ]
             return choices[:25]
