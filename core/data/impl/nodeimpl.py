@@ -364,14 +364,20 @@ class NodeImpl(Node):
             return False
 
     async def _upgrade_pending_non_git(self) -> bool:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(REPO_URL) as response:
-                result = await response.json()
-                current_version = __version__
-                latest_version = result[0]["tag_name"]
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(REPO_URL) as response:
+                    result = await response.json()
+                    current_version = __version__
+                    latest_version = result[0]["tag_name"]
 
-                if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
-                    return True
+                    if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
+                        return True
+        except aiohttp.ClientResponseError as ex:
+            # ignore rate limits
+            if ex.status == 403:
+                pass
+            raise
         return False
 
     async def upgrade_pending(self) -> bool:
