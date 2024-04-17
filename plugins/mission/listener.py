@@ -433,16 +433,11 @@ class MissionEventListener(EventListener):
             if self.bot.locals.get('automatch', True) and server.settings['password']:
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.get_admin_channel(server).send(
-                    f"Player {player.name} (ucid={player.ucid}) can't be matched to a discord user."))
+                    f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
             player.sendChatMessage(self.get_config(server).get(
                 'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
                                               'if you want to see your user stats!').format(server=server,
                                                                                             player=player))
-            # only warn for unknown users if it is a non-public server and automatch is on
-            if self.bot.locals.get('automatch', True) and server.settings['password']:
-                # noinspection PyAsyncCall
-                asyncio.create_task(self.bot.get_admin_channel(server).send(
-                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.'))
         else:
             player.sendChatMessage(self.get_config(server).get(
                 'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,

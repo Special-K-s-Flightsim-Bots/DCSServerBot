@@ -86,7 +86,9 @@ In addition, you can upload embeds to discord channels, just by using json files
       "inline": true
     }
   ],
-  "footer": "Just kidding, they forgot to put their gear down!"
+  "footer": {
+    "text": "Just kidding, they forgot to put their gear down!"
+  }
 }
 ```
 

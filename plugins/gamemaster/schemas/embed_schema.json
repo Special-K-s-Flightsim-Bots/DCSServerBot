@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "color": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "footer": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "icon_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": ["text"]
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "inline": {
+            "type": "boolean"
+          }
+        },
+        "required": ["name", "value"]
+      }
+    }
+  },
+  "required": ["title", "description"]
+}

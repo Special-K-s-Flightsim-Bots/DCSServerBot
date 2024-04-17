@@ -1,5 +1,6 @@
-import asyncio
 import aiohttp
+import asyncio
+import json
 import discord
 import os
 import psycopg
@@ -9,6 +10,7 @@ from core import Plugin, utils, Report, Status, Server, Coalition, Channel, comm
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
+from jsonschema import validate, ValidationError
 from services import DCSServerBot
 from typing import Optional, Literal
 
@@ -385,6 +387,12 @@ class GameMaster(Plugin):
             async with session.get(message.attachments[0].url) as response:
                 if response.status == 200:
                     data = await response.json(encoding="utf-8")
+                    with open('plugins/gamemaster/schemas/embed_schema.json', mode='r') as infile:
+                        schema = json.load(infile)
+                    try:
+                        validate(instance=data, schema=schema)
+                    except ValidationError as ex:
+                        return
                     embed = utils.format_embed(data, bot=self.bot, bus=self.bus, node=self.bus.node,
                                                user=message.author)
                     msg = None
@@ -448,7 +456,7 @@ class GameMaster(Plugin):
             return
         if message.attachments:
             if (message.attachments[0].filename.endswith('.json') and
-                    utils.check_roles(self.bot.roles['Admin'], message.author)):
+                    utils.check_roles(self.bot.roles['DCS Admin'], message.author)):
                 await self._create_embed(message)
             elif (message.attachments[0].filename.endswith('.lua') and
                   utils.check_roles(self.bot.roles['DCS Admin'], message.author)):

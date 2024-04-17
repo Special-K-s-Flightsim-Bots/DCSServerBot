@@ -568,7 +568,7 @@ def format_embed(data: dict, **kwargs) -> discord.Embed:
     Example usage:
 
     data = {
-        'color': discord.Color.red(),
+        'color': 3430907, (#3498DB = blue)
         'title': 'Hello World',
         'description': 'This is an example embed',
         'footer': {
@@ -591,7 +591,7 @@ def format_embed(data: dict, **kwargs) -> discord.Embed:
 
     embed = format_embed(data)
     """
-    color = data['color'] if 'color' in data else discord.Color.blue()
+    color = int(data.get('color', discord.Color.blue()))
     embed = discord.Embed(color=color)
     if 'title' in data:
         embed.title = format_string(data['title'], **kwargs) or '_ _'

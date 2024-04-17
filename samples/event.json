@@ -1,0 +1,26 @@
+{
+  "message_id": 967120121632006228,
+  "title": "Special K successfully landed at Senaki!",
+  "description": "Special K did it again and succeeded at his try to land at Senaki.",
+  "img": "https://i.chzbgr.com/full/8459987200/hB315ED4E/damn-instruction-manual",
+  "fields": [
+    {
+      "name": "Pilot",
+      "value": "sexy as hell",
+      "inline": true
+    },
+    {
+      "name": "Speed",
+      "value": "130 kn",
+      "inline": true
+    },
+    {
+      "name": "Wind",
+      "value": "calm",
+      "inline": true
+    }
+  ],
+  "footer": {
+    "text": "Just kidding, they forgot to put their gear down!"
+  }
+}
