@@ -14,7 +14,7 @@ from enum import Enum, auto
 from fuzzywuzzy import fuzz
 from io import BytesIO
 from psycopg.rows import dict_row
-from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
+from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any, Callable
 
 from .helper import get_all_players, is_ucid, format_string
 
@@ -232,7 +232,7 @@ class SelectView(View):
 async def selection(interaction: Union[discord.Interaction, commands.Context], *, title: Optional[str] = None,
                     placeholder: Optional[str] = None, embed: discord.Embed = None,
                     options: list[SelectOption], min_values: Optional[int] = 1,
-                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[Union[list, str]]:
+                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[Union[list, str, int]]:
     """
     This function generates a selection menu on Discord with provided options.
     If only one option is present, it immediately returns that option's value.
@@ -1145,18 +1145,24 @@ class PlayerTransformer(app_commands.Transformer):
             interaction.client.log.exception(ex)
 
 
+def _server_filter(server: Server) -> bool:
+    return True
+
+
 async def server_selection(bus: ServiceBus,
                            interaction: Union[discord.Interaction, commands.Context], *, title: str,
                            multi_select: Optional[bool] = False,
-                           ephemeral: Optional[bool] = True) -> Optional[Union[Server, list[Server]]]:
+                           ephemeral: Optional[bool] = True,
+                           filter_func: Callable[[Server], bool] = _server_filter
+                           ) -> Optional[Union[Server, list[Server]]]:
     """
 
     """
-    all_servers = list(bus.servers.keys())
+    all_servers = list(bus.servers.values())
     if len(all_servers) == 0:
         return []
     elif len(all_servers) == 1:
-        return [bus.servers[all_servers[0]]]
+        return [all_servers[0]]
     if multi_select:
         max_values = len(all_servers)
     else:
@@ -1166,17 +1172,17 @@ async def server_selection(bus: ServiceBus,
         server = interaction.client.get_server(interaction)
     s = await selection(interaction, title=title,
                         options=[
-                            SelectOption(label=x, value=x, default=(
+                            SelectOption(label=x.name, value=str(idx), default=(
                                 True if server and server == x else
                                 True if not server and idx == 0 else
                                 False
-                            )) for idx, x in enumerate(all_servers)
+                            )) for idx, x in enumerate(all_servers) if filter_func(x)
                         ],
                         max_values=max_values, ephemeral=ephemeral)
     if isinstance(s, list):
-        return [bus.servers[x] for x in s]
+        return [all_servers[int(x)] for x in s]
     elif s:
-        return bus.servers[s]
+        return all_servers[int(s)]
     return None
 
 

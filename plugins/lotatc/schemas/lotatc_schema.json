@@ -1,0 +1,56 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "__comments": {
+            "type": "string"
+        },
+        "enable": {
+            "type": "boolean"
+        },
+        "transponders": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "mode3": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "callsign": {
+                        "type": "string"
+                    },
+                    "mode1": {
+                        "type": "string"
+                    },
+                    "comment": {
+                        "type": "string"
+                    },
+                    "classification": {
+                        "type": "object",
+                        "properties": {
+                            "classification": {
+                                "type": "string"
+                            },
+                            "dimension": {
+                                "type": "string"
+                            },
+                            "sub_dimension": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["classification", "dimension", "sub_dimension"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        }
+    },
+    "required": ["enable", "transponders"],
+    "additionalProperties": false
+}
