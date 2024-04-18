@@ -413,7 +413,10 @@ class Scheduler(Plugin):
                     )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             finally:
-                await msg.delete()
+                try:
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is started already.",
@@ -536,8 +539,11 @@ class Scheduler(Plugin):
             await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             return
         finally:
-            if msg:
-                await msg.delete()
+            try:
+                if msg:
+                    await msg.delete()
+            except discord.NotFound:
+                pass
         await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=ephemeral)
         await self.bot.audit('stopped the server', server=server, user=interaction.user)
 
@@ -628,7 +634,10 @@ class Scheduler(Plugin):
                         await server.reload()
                 await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')
         finally:
-            await msg.delete()
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
 
     @group.command(name='rename', description='Rename a DCS server')
     @app_commands.guild_only()

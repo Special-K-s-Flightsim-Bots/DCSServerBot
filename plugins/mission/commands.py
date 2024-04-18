@@ -578,7 +578,10 @@ class Mission(Plugin):
             if await view.wait() or view.result is None:
                 return
         finally:
-            await msg.delete()
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
         if result == 'later':
             server.on_empty = {"command": "preset", "preset": view.result, "user": interaction.user}
             server.restart_pending = True
@@ -1139,7 +1142,10 @@ class Mission(Plugin):
         try:
             await view.wait()
         finally:
-            await msg.delete()
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
 
     @player.command(description=_('Shows player information'))
     @utils.app_has_role('DCS Admin')

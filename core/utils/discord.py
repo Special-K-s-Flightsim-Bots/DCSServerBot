@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 __all__ = [
     "PlayerType",
     "wait_for_single_reaction",
-    "input_value",
     "selection_list",
     "selection",
     "yn_question",
@@ -108,31 +107,6 @@ async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Inter
             task.cancel()
 
 
-async def input_value(bot: DCSServerBot, interaction: discord.Interaction, message: Optional[str] = None,
-                      delete: Optional[bool] = False, timeout: Optional[float] = 300.0):
-    def check(m):
-        return (m.channel == interaction.channel) & (m.author == interaction.user)
-
-    msg = response = None
-    try:
-        if message:
-            # noinspection PyUnresolvedReferences
-            if interaction.response.is_done():
-                msg = await interaction.followup.send(message, ephemeral=True)
-            else:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(message, ephemeral=True)
-                msg = await interaction.original_response()
-        response = await bot.wait_for('message', check=check, timeout=timeout)
-        return response.content if response.content != '.' else None
-    finally:
-        if delete:
-            if msg:
-                await msg.delete()
-            if response:
-                await response.delete()
-
-
 async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
     """
@@ -187,8 +161,11 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
                 return (ord(react.emoji[0]) - 0x31) + j * num
         return -1
     except (TimeoutError, asyncio.TimeoutError):
-        if message:
-            await message.delete()
+        try:
+            if message:
+                await message.delete()
+        except discord.NotFound:
+            pass
         return -1
 
 
@@ -263,8 +240,11 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
             return None
         return view.result
     finally:
-        if msg:
-            await msg.delete()
+        try:
+            if msg:
+                await msg.delete()
+        except discord.NotFound:
+            pass
 
 
 class YNQuestionView(View):
@@ -313,7 +293,10 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
             return False
         return view.result
     finally:
-        await msg.delete()
+        try:
+            await msg.delete()
+        except discord.NotFound:
+            pass
 
 
 class PopulatedQuestionView(View):
@@ -371,7 +354,10 @@ async def populated_question(interaction: discord.Interaction, question: str, me
             return None
         return view.result
     finally:
-        await msg.delete()
+        try:
+            await msg.delete()
+        except discord.NotFound:
+            pass
 
 
 def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:

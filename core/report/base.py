@@ -312,8 +312,11 @@ class PaginationReport(Report):
             self.log.error(f"Exception while processing report {self.filename}!")
             raise
         finally:
-            if message:
-                await message.delete()
+            try:
+                if message:
+                    await message.delete()
+            except discord.NotFound:
+                pass
         return self.env
 
 
