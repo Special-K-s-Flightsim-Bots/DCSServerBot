@@ -265,14 +265,12 @@ class InfoView(View):
         })
         await interaction.followup.send("Member has been unlinked.", ephemeral=self.ephemeral)
         # If autorole is enabled, remove the DCS role from the user:
-        if self.bot.locals.get('autorole', '') == 'linkme':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await member.remove_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member))
+        autorole = self.bot.locals.get('autorole', {}).get('linked')
+        if autorole:
+            try:
+                await member.remove_roles(self.bot.get_role(autorole))
+            except discord.Forbidden:
+                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):
@@ -294,15 +292,13 @@ class InfoView(View):
             }
         })
         await interaction.followup.send("Member has been verified.", ephemeral=self.ephemeral)
-        # If autorole is enabled, give the user the DCS role:
-        if self.bot.locals.get('autorole', '') == 'linkme':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await member.add_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member))
+        # If autorole is enabled, give the user the role:
+        autorole = self.bot.locals.get('autorole', {}).get('linked')
+        if autorole:
+            try:
+                await member.add_roles(self.bot.get_role(autorole))
+            except discord.Forbidden:
+                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
         self.stop()
 
     async def on_watch(self, interaction: discord.Interaction):

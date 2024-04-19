@@ -969,13 +969,12 @@ Please make sure you forward the following ports:
         if self.bot.locals.get('greeting_dm'):
             channel = await member.create_dm()
             await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
-        if self.bot.locals.get('autorole', '') == 'join':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await member.add_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+        autorole = self.bot.locals.get('autorole', {}).get('on_join')
+        if autorole:
+            try:
+                await member.add_roles(self.bot.get_role(autorole))
+            except discord.Forbidden:
+                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):

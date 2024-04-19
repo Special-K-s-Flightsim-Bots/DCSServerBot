@@ -19,6 +19,10 @@ from typing import Optional, Union, TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
 
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
+
 if TYPE_CHECKING:
     from core import Server, Plugin
 
@@ -31,6 +35,20 @@ class BotService(Service):
     def __init__(self, node):
         super().__init__(node=node, name="Bot")
         self.bot: Optional[DCSServerBot] = None
+        # do we need to change the bot.yaml file?
+        if isinstance(self.locals.get('autorole'), str):
+            value = self.locals.pop('autorole')
+            if self.locals.get('roles', {}).get('DCS', []) and self.locals['roles']['DCS'][0] != '@everyone':
+                if value == 'join':
+                    self.locals['autorole'] = {
+                        "on_join": self.locals['roles']['DCS'][0]
+                    }
+                elif value == 'linkme':
+                    self.locals['autorole'] = {
+                        "linked": self.locals['roles']['DCS'][0]
+                    }
+            with open(os.path.join('config', 'services', self.name + '.yaml'), mode='w', encoding='utf-8') as outfile:
+                yaml.dump(self.locals, outfile)
 
     def init_bot(self):
         def get_prefix(client, message):

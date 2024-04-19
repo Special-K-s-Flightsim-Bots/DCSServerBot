@@ -5,7 +5,7 @@ import os
 import shlex
 
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, Member
+    Channel, DataObjectFactory, event, chat_command, ServiceRegistry
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
@@ -310,6 +310,10 @@ class MissionEventListener(EventListener):
                 server.add_player(player)
             else:
                 player.update(p)
+            if player.member:
+                # noinspection PyAsyncCall
+                asyncio.create_task(player.add_role(self.bot.locals.get('autorole', {}).get('online')))
+
             server.send_to_dcs({
                 'command': 'uploadUserRoles',
                 'ucid': player.ucid,
@@ -442,6 +446,8 @@ class MissionEventListener(EventListener):
             player.sendChatMessage(self.get_config(server).get(
                 'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,
                                                                                                     server=server))
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.add_role(self.bot.locals.get('autorole', {}).get('online')))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
@@ -451,6 +457,8 @@ class MissionEventListener(EventListener):
         player.active = False
         if player.ucid in server.afk:
             del server.afk[player.ucid]
+        if player.member:
+            asyncio.create_task(player.remove_role(self.bot.locals.get('autorole', {}).get('online')))
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -762,15 +770,9 @@ class MissionEventListener(EventListener):
             }
         })
 
-        # If autorole is enabled, give the user the DCS role:
-        if self.bot.locals.get('autorole', '') == 'linkme':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await player.member.add_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member))
+        # If autorole is enabled, give the user the respective role:
+        # noinspection PyAsyncCall
+        asyncio.create_task(player.add_role(self.bot.locals.get('autorole', {}).get('linked')))
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):

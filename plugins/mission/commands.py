@@ -90,8 +90,12 @@ class Mission(Plugin):
         self.check_for_unban.start()
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
+        if self.bot.locals.get('autorole', {}):
+            self.check_roles.start()
 
     async def cog_unload(self):
+        if self.bot.locals.get('autorole', {}):
+            self.check_roles.stop()
         self.expire_token.cancel()
         self.check_for_unban.cancel()
         self.afk_check.cancel()
@@ -941,7 +945,8 @@ class Mission(Plugin):
             ucid = _new_member.ucid
             if ucid == _member.ucid:
                 if _member.verified:
-                    await interaction.followup.send(_("This member is linked to this UCID already."), ephemeral=ephemeral)
+                    await interaction.followup.send(_("This member is linked to this UCID already."),
+                                                    ephemeral=ephemeral)
                     return
             elif not await utils.yn_question(
                 interaction, _("Member {name} is linked to another UCID ({ucid}) already. "
@@ -965,15 +970,13 @@ class Mission(Plugin):
             name=utils.escape_string(member.display_name), ucid=ucid), ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
-        # If autorole is enabled, give the user the DCS role:
-        if self.bot.locals.get('autorole', '') == 'linkme':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await member.add_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member))
+        # If autorole is enabled, give the user the role:
+        autorole = self.bot.locals.get('autorole', {}).get('linked')
+        if autorole:
+            try:
+                await member.add_roles(self.bot.get_role(autorole))
+            except discord.Forbidden:
+                await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
         # Generate the onMemberLinked event
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid, active=True)
@@ -1057,15 +1060,13 @@ class Mission(Plugin):
                     await interaction.followup.send(_('Unknown player / member provided'), ephemeral=True)
                     return
 
-        # If autorole is enabled, remove the DCS role from the user:
-        if self.bot.locals.get('autorole', '') == 'linkme':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await member.remove_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member))
+        # If autorole is enabled, remove the role from the user:
+        autorole = self.bot.locals.get('autorole', {}).get('linked')
+        if autorole:
+            try:
+                await member.remove_roles(self.bot.get_role(autorole))
+            except discord.Forbidden:
+                await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
 
     async def _find(self, interaction: discord.Interaction, name: str):
         ephemeral = utils.get_ephemeral(interaction)
@@ -1432,6 +1433,40 @@ class Mission(Plugin):
     async def before_afk_check(self):
         await self.bot.wait_until_ready()
 
+    @tasks.loop(minutes=5.0, count=2)
+    async def check_roles(self):
+        if not self.bot.is_ready():
+            return
+
+        role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('online'))
+        if role:
+            online_members: set[discord.Member] = set()
+            for server in self.bot.servers.copy().values():
+                for player in server.get_active_players():
+                    if player.member:
+                        online_members.add(player.member)
+            try:
+                # check who needs to lose the role
+                for member in (set(role.members) - online_members):
+                    await member.remove_roles(role)
+            except discord.Forbidden:
+                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                return
+        role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('linked'))
+        if role:
+            linked_members: set[discord.Member] = set()
+            async with self.apool.connection() as conn:
+                async for row in await conn.execute("""
+                    SELECT DISTINCT discord_id FROM players 
+                    WHERE discord_id <> -1 AND manual IS TRUE
+                """):
+                    member = self.bot.guilds[0].get_member(row[0])
+                    if member:
+                        linked_members.add(member)
+            for member in (linked_members - set(role.members)):
+                await member.add_roles(role)
+                self.log.debug(f"=> Member {member.display_name} is linked and got the {role.name} role.")
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # ignore bot messages or messages that do not contain miz attachments
@@ -1534,6 +1569,18 @@ class Mission(Plugin):
             if ucid:
                 await self.bus.ban(ucid, 'Discord',
                                    self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        ucid = self.bot.get_ucid_by_member(member, verified=True)
+        autorole = self.bot.locals.get('autorole', {}).get('linked')
+        if ucid and autorole:
+            try:
+                role = self.bot.get_role(autorole)
+                await member.add_roles(role)
+                self.log.debug(f"=> Rejoined member {member.display_name} got their role {role.name} back.")
+            except discord.Forbidden:
+                await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
 
 
 async def setup(bot: DCSServerBot):
