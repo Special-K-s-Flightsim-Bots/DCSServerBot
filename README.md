@@ -324,6 +324,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   afk_time: 300                 # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
+  autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people can not self-link on these servers and have to be liked properly already!
   channels:

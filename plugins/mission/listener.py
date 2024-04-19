@@ -311,8 +311,10 @@ class MissionEventListener(EventListener):
             else:
                 player.update(p)
             if player.member:
-                # noinspection PyAsyncCall
-                asyncio.create_task(player.add_role(self.bot.locals.get('autorole', {}).get('online')))
+                autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
+                if autorole:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(player.add_role(autorole))
 
             server.send_to_dcs({
                 'command': 'uploadUserRoles',
@@ -325,6 +327,13 @@ class MissionEventListener(EventListener):
         for p in list(server.players.values()):
             if not p.active and not p.id == 1:
                 del server.players[p.id]
+        # remove roles
+        if server.locals.get('autorole'):
+            role = self.bot.get_role(server.locals.get('autorole'))
+            all_members = set(x.member for x in server.players.values() if x.member)
+            for member in (set(role.members) - all_members):
+                # noinspection PyAsyncCall
+                asyncio.create_task(member.remove_roles(role))
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -446,8 +455,10 @@ class MissionEventListener(EventListener):
             player.sendChatMessage(self.get_config(server).get(
                 'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,
                                                                                                     server=server))
-            # noinspection PyAsyncCall
-            asyncio.create_task(player.add_role(self.bot.locals.get('autorole', {}).get('online')))
+            autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
+            if autorole:
+                # noinspection PyAsyncCall
+                asyncio.create_task(player.add_role(autorole))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)
@@ -458,7 +469,9 @@ class MissionEventListener(EventListener):
         if player.ucid in server.afk:
             del server.afk[player.ucid]
         if player.member:
-            asyncio.create_task(player.remove_role(self.bot.locals.get('autorole', {}).get('online')))
+            autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
+            if autorole:
+                asyncio.create_task(player.remove_role(autorole))
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -771,8 +784,10 @@ class MissionEventListener(EventListener):
         })
 
         # If autorole is enabled, give the user the respective role:
-        # noinspection PyAsyncCall
-        asyncio.create_task(player.add_role(self.bot.locals.get('autorole', {}).get('linked')))
+        autorole = self.bot.locals.get('autorole', {}).get('linked')
+        if autorole:
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.add_role())
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
