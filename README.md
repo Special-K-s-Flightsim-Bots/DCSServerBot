@@ -375,8 +375,11 @@ roles:                                          # Roles mapping. The bot uses in
   - Staff
   DCS:                                          # Map the bots DCS role to everyone in your discord. Only everyone needs the leading @!
   - @everyone
-
 ```
+> ⚠️ **Attention!**<br>
+> The bots role needs to be above any other role in your Discord server that it has to be able to manage.<br>
+> If you want the bot to give the "Online" role for people for example, it has to be below the bots role.
+
 #### Auto Matching (default: enabled)
 To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 
 and you can see a variety of statistics yourself as well. The bot offers a linking system between Discord and DCS accounts 
