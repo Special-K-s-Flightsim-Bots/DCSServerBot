@@ -17,6 +17,8 @@ _ = get_translation(__name__.split('.')[1])
 class LotAtc(Plugin):
 
     def lotatc_server_filter(self, server: Server) -> bool:
+        if not server:
+            return False
         return 'LotAtc' in server.locals.get('extensions')
 
     async def get_server(self, message: discord.Message) -> Optional[Server]:
