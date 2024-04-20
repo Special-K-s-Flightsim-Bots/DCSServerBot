@@ -109,13 +109,16 @@ class Player(DataObject):
 
     @verified.setter
     def verified(self, verified: bool) -> None:
+        if verified == self._verified:
+            return
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
-                # delete all old automated links (this will delete the token also)
-                conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
-                conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
-                             (self.member.id,))
+                if verified:
+                    # delete all old automated links (this will delete the token also)
+                    conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
+                    conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
+                                 (self.member.id,))
         self._verified = verified
 
     @property
