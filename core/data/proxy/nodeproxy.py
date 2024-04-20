@@ -65,10 +65,8 @@ class NodeProxy(Node):
                 return {}
             for name, element in node.items():
                 if name == 'instances':
-                    for _name, _element in node['instances'].items():
-                        instance = InstanceProxy(name=_name, node=self.local_node)
-                        instance.locals = _element
-                        self.instances.append(instance)
+                    for _name in node['instances'].keys():
+                        self.instances.append(InstanceProxy(name=_name, node=self.local_node))
                 else:
                     _locals[name] = element
         return _locals

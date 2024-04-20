@@ -24,6 +24,10 @@ class Instance(DataObject):
     _server: Optional[Server] = field(compare=False, repr=False, default=None, init=False)
     missions_dir: str = field(repr=False, init=False, default=None)
 
+    def __post_init__(self):
+        super().__post_init__()
+        self.locals = self.node.locals.get('instances').get(self.name)
+
     @property
     def home(self) -> str:
         raise NotImplementedError()
