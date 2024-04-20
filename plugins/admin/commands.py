@@ -542,7 +542,7 @@ class Admin(Plugin):
                 async with conn.cursor() as cursor:
                     if user:
                         if isinstance(user, discord.Member):
-                            ucid = self.bot.get_ucid_by_member(user, verified=True)
+                            ucid = await self.bot.get_ucid_by_member(user, verified=True)
                             if not ucid:
                                 await interaction.followup.send("Member {} is not linked!".format(user.display_name))
                                 return

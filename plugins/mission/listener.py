@@ -787,7 +787,7 @@ class MissionEventListener(EventListener):
         autorole = self.bot.locals.get('autorole', {}).get('linked')
         if autorole:
             # noinspection PyAsyncCall
-            asyncio.create_task(player.add_role())
+            asyncio.create_task(player.add_role(autorole))
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):

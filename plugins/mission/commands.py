@@ -1572,7 +1572,7 @@ class Mission(Plugin):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        ucid = self.bot.get_ucid_by_member(member, verified=True)
+        ucid = await self.bot.get_ucid_by_member(member, verified=True)
         autorole = self.bot.locals.get('autorole', {}).get('linked')
         if ucid and autorole:
             try:
