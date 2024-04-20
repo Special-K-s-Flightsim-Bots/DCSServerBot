@@ -99,10 +99,10 @@ class CreditSystemListener(EventListener):
                 self.log.error(f"Role {role} not found in your Discord!")
                 return
             try:
-                if action == "add" and role not in member.roles:
+                if action == "add" and _role not in member.roles:
                     await member.add_roles(_role)
                     await self.bot.audit(f"achieved the rank {_role.name}", user=member)
-                elif action == "remove" and role in member.roles:
+                elif action == "remove" and _role in member.roles:
                     await member.remove_roles(_role)
                     await self.bot.audit(f"lost the rank {_role.name}", user=member)
             except discord.Forbidden:
