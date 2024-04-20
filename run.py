@@ -124,6 +124,9 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("[yellow]Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.[/]")
 
+    # disable quick edit mode (thanks to Moots)
+    utils.quick_edit_mode(False)
+
     # get the command line args from core
     args = COMMAND_LINE_ARGS
 

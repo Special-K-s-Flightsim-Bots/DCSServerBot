@@ -546,6 +546,7 @@ class NodeImpl(Node):
             "MARIANAISLANDS_terrain",
             "FALKLANDS_terrain",
             "SINAIMAP_terrain",
+            "KOLA_terrain",
             "WWII-ARMOUR",
             "SUPERCARRIER"
         }

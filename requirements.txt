@@ -25,6 +25,9 @@ fuzzywuzzy==0.18.0
 # GitPython: Python library for interacting with git repositories
 GitPython==3.1.43
 
+# jsonschema: An implementation of JSON Schema for Python
+jsonschema==4.21.1
+
 # Matplotlib: Python 2D plotting library
 matplotlib==3.8.4
 

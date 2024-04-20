@@ -1,0 +1,22 @@
+{
+    "__comments":"THIS FILE IS AN EXAMPLE AND WILL NOT BE LOADED BECAUSE enable=false",
+    "enable": false,
+    "transponders" : [
+        {
+            "mode3": "7123",
+            "name": "Bones 11",
+            "type": "F/A-18C",
+            "callsign": "BN11"
+        },
+        {
+            "mode1": "23",
+            "comment": "SEAD on TGT A",
+            "classification": {
+                "classification": "friend",
+                "dimension": "air",
+                "sub_dimension": "fighter"
+            }
+        }
+    ]
+}
+

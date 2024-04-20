@@ -412,7 +412,10 @@ class Scheduler(Plugin):
                     )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             finally:
-                await msg.delete()
+                try:
+                    await msg.delete()
+                except discord.NotFound:
+                    pass
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is started already.",
@@ -535,8 +538,11 @@ class Scheduler(Plugin):
             await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
             return
         finally:
-            if msg:
-                await msg.delete()
+            try:
+                if msg:
+                    await msg.delete()
+            except discord.NotFound:
+                pass
         await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=ephemeral)
         await self.bot.audit('stopped the server', server=server, user=interaction.user)
 
@@ -627,7 +633,10 @@ class Scheduler(Plugin):
                         await server.reload()
                 await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')
         finally:
-            await msg.delete()
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
 
     @group.command(name='rename', description='Rename a DCS server')
     @app_commands.guild_only()
@@ -772,7 +781,7 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def maintenance(self, interaction: discord.Interaction,
-                          server: app_commands.Transform[Server, utils.ServerTransformer]):
+                          server: app_commands.Transform[Server, utils.ServerTransformer(maintenance=False)]):
         ephemeral = utils.get_ephemeral(interaction)
         if not server.maintenance:
             if (server.restart_pending or server.on_empty or server.on_mission_end) and \
@@ -804,7 +813,7 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def clear(self, interaction: discord.Interaction,
-                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer(maintenance=True)]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.maintenance:
             server.maintenance = False

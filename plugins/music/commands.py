@@ -74,7 +74,10 @@ class Music(Plugin):
                 await msg.edit(embed=await view.render(), view=view)
                 await asyncio.sleep(1)
         finally:
-            await msg.delete()
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
 
     @music.command(description=_("Play a song or a playlist\n"))
     @utils.app_has_role('DCS Admin')
@@ -219,7 +222,10 @@ class Music(Plugin):
             self.log.exception(ex)
         finally:
             if delete:
-                await message.delete()
+                try:
+                    await message.delete()
+                except discord.NotFound:
+                    pass
 
 
 async def setup(bot: DCSServerBot):

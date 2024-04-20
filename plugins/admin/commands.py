@@ -430,8 +430,7 @@ class Admin(Plugin):
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
             ephemeral=ephemeral)
         await node.handle_module('install', module)
-        await msg.edit(content=_("Module {module} installed on node {node}.").format(module=module, node=node.name), 
-                       ephemeral=ephemeral)
+        await msg.edit(content=_("Module {module} installed on node {node}.").format(module=module, node=node.name))
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()
@@ -970,13 +969,12 @@ Please make sure you forward the following ports:
         if self.bot.locals.get('greeting_dm'):
             channel = await member.create_dm()
             await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
-        if self.bot.locals.get('autorole', '') == 'join':
-            role = self.bot.roles['DCS'][0]
-            if role != '@everyone':
-                try:
-                    await member.add_roles(self.bot.get_role(role))
-                except discord.Forbidden:
-                    await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+        autorole = self.bot.locals.get('autorole', {}).get('on_join')
+        if autorole:
+            try:
+                await member.add_roles(self.bot.get_role(autorole))
+            except discord.Forbidden:
+                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):

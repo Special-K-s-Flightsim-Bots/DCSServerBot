@@ -14,7 +14,7 @@ from enum import Enum, auto
 from fuzzywuzzy import fuzz
 from io import BytesIO
 from psycopg.rows import dict_row
-from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
+from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any, Callable
 
 from .helper import get_all_players, is_ucid, format_string
 
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 __all__ = [
     "PlayerType",
     "wait_for_single_reaction",
-    "input_value",
     "selection_list",
     "selection",
     "yn_question",
@@ -108,31 +107,6 @@ async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Inter
             task.cancel()
 
 
-async def input_value(bot: DCSServerBot, interaction: discord.Interaction, message: Optional[str] = None,
-                      delete: Optional[bool] = False, timeout: Optional[float] = 300.0):
-    def check(m):
-        return (m.channel == interaction.channel) & (m.author == interaction.user)
-
-    msg = response = None
-    try:
-        if message:
-            # noinspection PyUnresolvedReferences
-            if interaction.response.is_done():
-                msg = await interaction.followup.send(message, ephemeral=True)
-            else:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(message, ephemeral=True)
-                msg = await interaction.original_response()
-        response = await bot.wait_for('message', check=check, timeout=timeout)
-        return response.content if response.content != '.' else None
-    finally:
-        if delete:
-            if msg:
-                await msg.delete()
-            if response:
-                await response.delete()
-
-
 async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
     """
@@ -187,8 +161,11 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
                 return (ord(react.emoji[0]) - 0x31) + j * num
         return -1
     except (TimeoutError, asyncio.TimeoutError):
-        if message:
-            await message.delete()
+        try:
+            if message:
+                await message.delete()
+        except discord.NotFound:
+            pass
         return -1
 
 
@@ -232,7 +209,7 @@ class SelectView(View):
 async def selection(interaction: Union[discord.Interaction, commands.Context], *, title: Optional[str] = None,
                     placeholder: Optional[str] = None, embed: discord.Embed = None,
                     options: list[SelectOption], min_values: Optional[int] = 1,
-                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[Union[list, str]]:
+                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[Union[list, str, int]]:
     """
     This function generates a selection menu on Discord with provided options.
     If only one option is present, it immediately returns that option's value.
@@ -263,8 +240,11 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
             return None
         return view.result
     finally:
-        if msg:
-            await msg.delete()
+        try:
+            if msg:
+                await msg.delete()
+        except discord.NotFound:
+            pass
 
 
 class YNQuestionView(View):
@@ -313,7 +293,10 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
             return False
         return view.result
     finally:
-        await msg.delete()
+        try:
+            await msg.delete()
+        except discord.NotFound:
+            pass
 
 
 class PopulatedQuestionView(View):
@@ -371,7 +354,10 @@ async def populated_question(interaction: discord.Interaction, question: str, me
             return None
         return view.result
     finally:
-        await msg.delete()
+        try:
+            await msg.delete()
+        except discord.NotFound:
+            pass
 
 
 def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:
@@ -568,7 +554,7 @@ def format_embed(data: dict, **kwargs) -> discord.Embed:
     Example usage:
 
     data = {
-        'color': discord.Color.red(),
+        'color': 3430907, (#3498DB = blue)
         'title': 'Hello World',
         'description': 'This is an example embed',
         'footer': {
@@ -591,7 +577,7 @@ def format_embed(data: dict, **kwargs) -> discord.Embed:
 
     embed = format_embed(data)
     """
-    color = data['color'] if 'color' in data else discord.Color.blue()
+    color = int(data.get('color', discord.Color.blue()))
     embed = discord.Embed(color=color)
     if 'title' in data:
         embed.title = format_string(data['title'], **kwargs) or '_ _'
@@ -875,9 +861,10 @@ class ServerTransformer(app_commands.Transformer):
     :type status: list of :class:`Status`
 
     """
-    def __init__(self, *, status: list[Status] = None):
+    def __init__(self, *, status: list[Status] = None, maintenance: Optional[bool] = None):
         super().__init__()
         self.status: list[Status] = status
+        self.maintenance = maintenance
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
         if value:
@@ -899,7 +886,9 @@ class ServerTransformer(app_commands.Transformer):
             choices: list[app_commands.Choice[str]] = [
                 app_commands.Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
-                if (value.status != Status.UNREGISTERED and (not self.status or value.status in self.status) and
+                if (value.status != Status.UNREGISTERED and
+                    (not self.status or value.status in self.status) and
+                    (not self.maintenance or value.maintenance == self.maintenance) and
                     (not current or current.casefold() in name.casefold()))
             ]
             return choices[:25]
@@ -961,10 +950,10 @@ class InstanceTransformer(app_commands.Transformer):
             if not node:
                 return []
             if self.unused:
-                all_instances = [instance for server_name, instance in await node.find_all_instances()]
-                for instance in node.instances:
-                    all_instances.remove(instance.name)
-                instances = all_instances
+                instances = [
+                    instance for server_name, instance in await node.find_all_instances()
+                    if instance not in node.instances
+                ]
             else:
                 instances = [x.name for x in node.instances]
             return [
@@ -1142,18 +1131,24 @@ class PlayerTransformer(app_commands.Transformer):
             interaction.client.log.exception(ex)
 
 
+def _server_filter(server: Server) -> bool:
+    return True
+
+
 async def server_selection(bus: ServiceBus,
                            interaction: Union[discord.Interaction, commands.Context], *, title: str,
                            multi_select: Optional[bool] = False,
-                           ephemeral: Optional[bool] = True) -> Optional[Union[Server, list[Server]]]:
+                           ephemeral: Optional[bool] = True,
+                           filter_func: Callable[[Server], bool] = _server_filter
+                           ) -> Optional[Union[Server, list[Server]]]:
     """
 
     """
-    all_servers = list(bus.servers.keys())
+    all_servers = list(bus.servers.values())
     if len(all_servers) == 0:
         return []
     elif len(all_servers) == 1:
-        return [bus.servers[all_servers[0]]]
+        return [all_servers[0]]
     if multi_select:
         max_values = len(all_servers)
     else:
@@ -1163,17 +1158,17 @@ async def server_selection(bus: ServiceBus,
         server = interaction.client.get_server(interaction)
     s = await selection(interaction, title=title,
                         options=[
-                            SelectOption(label=x, value=x, default=(
+                            SelectOption(label=x.name, value=str(idx), default=(
                                 True if server and server == x else
                                 True if not server and idx == 0 else
                                 False
-                            )) for idx, x in enumerate(all_servers)
+                            )) for idx, x in enumerate(all_servers) if filter_func(x)
                         ],
                         max_values=max_values, ephemeral=ephemeral)
     if isinstance(s, list):
-        return [bus.servers[x] for x in s]
+        return [all_servers[int(x)] for x in s]
     elif s:
-        return bus.servers[s]
+        return all_servers[int(s)]
     return None
 
 

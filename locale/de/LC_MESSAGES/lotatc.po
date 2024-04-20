@@ -1,0 +1,19 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+msgid "To which server do you want to upload this transponder file to?"
+msgstr "Auf welchen Server möchtest Du das Transponder-File laden?"
+
+msgid "LotAtc is not configured on any server."
+msgstr "LotAtc ist auf keinem Server aktiviert."
+
+msgid "Transponder file {} uploaded."
+msgstr "Transponder-File {} wurde hochgeladen."
+
+msgid "Transponder file {} could not be uploaded!"
+msgstr "Transponder File {} konnte nicht hochgeladen werden!"

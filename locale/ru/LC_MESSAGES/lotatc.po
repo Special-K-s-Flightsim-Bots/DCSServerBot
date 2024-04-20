@@ -1,0 +1,24 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+msgid "To which server do you want to upload this transponder file to?"
+msgstr "На какой сервер вы хотите загрузить файл ответчика?"
+
+msgid "LotAtc is not configured on any server."
+msgstr "LotAtc не настроен на всех серверах."
+
+msgid "Transponder file {} uploaded."
+msgstr "Файл ответчика {} загружен."
+
+msgid "Transponder file {} could not be uploaded!"
+msgstr "Файл ответчика {} не может быть загружен!"

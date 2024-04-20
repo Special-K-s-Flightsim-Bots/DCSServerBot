@@ -334,9 +334,9 @@ def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[boo
         sql += " AND vip IS NOT FALSE"
     if linked is not None:
         if linked:
-            sql += " AND discord_id != -1"
+            sql += " AND discord_id != -1 AND manual IS TRUE"
         else:
-            sql += " AND discord_id = -1"
+            sql += " AND manual IS FALSE"
     with self.pool.connection() as conn:
         return [(row[0], row[1]) for row in conn.execute(sql)]
 

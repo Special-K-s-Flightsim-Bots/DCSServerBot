@@ -5,7 +5,7 @@ from core import utils
 from core.data.dataobject import DataObject, DataObjectFactory
 from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from core.services.registry import ServiceRegistry
 
@@ -112,6 +112,10 @@ class Player(DataObject):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
+                # delete all old automated links (this will delete the token also)
+                conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
+                conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
+                             (self.member.id,))
         self._verified = verified
 
     @property
@@ -236,3 +240,19 @@ class Player(DataObject):
             "id": self.unit_name,
             "sound": sound
         })
+
+    async def add_role(self, role: Union[str, int]):
+        if not self.member or not role:
+            return
+        try:
+            await self.member.add_roles(self.bot.get_role(role))
+        except discord.Forbidden:
+            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+
+    async def remove_role(self, role: Union[str, int]):
+        if not self.member or not role:
+            return
+        try:
+            await self.member.remove_roles(self.bot.get_role(role))
+        except discord.Forbidden:
+            await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)

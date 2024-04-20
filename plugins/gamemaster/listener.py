@@ -224,17 +224,13 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage(_("Your coalition password is {}").format(password))
 
         # set the discord role
-        try:
-            if player.member:
-                roles = {
-                    Coalition.RED: self.bot.get_role(server.locals['coalitions']['red_role']),
-                    Coalition.BLUE: self.bot.get_role(server.locals['coalitions']['blue_role'])
-                }
-                role = roles[player.coalition]
-                if role:
-                    await player.member.add_roles(role)
-        except discord.Forbidden:
-            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+        if player.member:
+            roles = {
+                Coalition.RED: server.locals['coalitions']['red_role'],
+                Coalition.BLUE: server.locals['coalitions']['blue_role']
+            }
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.add_role(roles[player.coalition]))
 
     async def reset_coalitions(self, server: Server, discord_roles: bool):
         guild = self.bot.guilds[0]
@@ -257,9 +253,7 @@ class GameMasterEventListener(EventListener):
                             try:
                                 await member.remove_roles(roles[row[2]])
                             except discord.Forbidden:
-                                await self.bot.audit('permission "Manage Roles" missing.',
-                                                     user=self.bot.member)
-                                raise
+                                await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                     await cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
                                          (server.name, row[0]))
         server.send_to_dcs({"command": "resetUserCoalitions"})
@@ -271,10 +265,8 @@ class GameMasterEventListener(EventListener):
                 f'Event "resetUserCoalitions" received, but COALITIONS are disabled on server "{server.name}"')
             return
         discord_roles = data.get('discord_roles', False)
-        try:
-            await self.reset_coalitions(server, discord_roles)
-        except discord.Forbidden:
-            self.log.error('The bot is missing the "Manage Roles" permission.')
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.reset_coalitions(server, discord_roles))
 
     @chat_command(name="join", usage="<red|blue>", help=_("join a coalition"))
     async def join(self, server: Server, player: Player, params: list[str]):
@@ -295,17 +287,14 @@ class GameMasterEventListener(EventListener):
                 """, (server.name, player.ucid))
                 player.sendChatMessage(_("You left the {} coalition!").format(player.coalition.name))
         # remove discord roles
-        try:
-            if player.member:
-                roles = {
-                    Coalition.RED: self.bot.get_role(server.locals['coalitions']['red_role']),
-                    Coalition.BLUE: self.bot.get_role(server.locals['coalitions']['blue_role'])
-                }
-                await player.member.remove_roles(roles[player.coalition])
-        except discord.Forbidden:
-            await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.', user=self.bot.member)
-        finally:
-            player.coalition = None
+        if player.member:
+            roles = {
+                Coalition.RED: server.locals['coalitions']['red_role'],
+                Coalition.BLUE: server.locals['coalitions']['blue_role']
+            }
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.remove_role(roles[player.coalition]))
+        player.coalition = None
 
     @chat_command(name="red", help=_("join the red side"))
     async def red(self, server: Server, player: Player, _: list[str]):
