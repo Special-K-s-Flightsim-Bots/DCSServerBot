@@ -99,10 +99,10 @@ class CreditSystemListener(EventListener):
                 self.log.error(f"Role {role} not found in your Discord!")
                 return
             try:
-                if action == "add":
+                if action == "add" and _role not in member.roles:
                     await member.add_roles(_role)
                     await self.bot.audit(f"achieved the rank {_role.name}", user=member)
-                elif action == "remove":
+                elif action == "remove" and _role in member.roles:
                     await member.remove_roles(_role)
                     await self.bot.audit(f"lost the rank {_role.name}", user=member)
             except discord.Forbidden:
@@ -125,7 +125,7 @@ class CreditSystemListener(EventListener):
             if given:
                 await manage_role(member, achievement['role'], 'remove')
                 continue
-            if 'combined' in achievement and achievement['combined']:
+            if achievement.get('combined'):
                 if ('credits' in achievement and player.points >= achievement['credits']) and \
                         ('playtime' in achievement and playtime >= achievement['playtime']):
                     await manage_role(member, achievement['role'], 'add')
