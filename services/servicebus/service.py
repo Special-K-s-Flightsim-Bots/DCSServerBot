@@ -430,6 +430,7 @@ class ServiceBus(Service):
                 if server_name not in self.udp_server.message_queue:
                     self.log.debug(f"Message received for unregistered server {server_name}, ignoring.")
                 else:
+                    self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
                     self.udp_server.message_queue[server_name].put(data)
             else:
                 asyncio.create_task(self.handle_rpc(data))
@@ -456,6 +457,8 @@ class ServiceBus(Service):
         try:
             self.send_to_node(message, node=node)
             return await asyncio.wait_for(future, timeout)
+        except Exception as ex:
+            self.log.exception(str(ex), exc_info=True)
         finally:
             del self.listeners[token]
 
