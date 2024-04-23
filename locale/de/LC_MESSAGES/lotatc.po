@@ -17,3 +17,25 @@ msgstr "Transponder-File {} wurde hochgeladen."
 
 msgid "Transponder file {} could not be uploaded!"
 msgstr "Transponder File {} konnte nicht hochgeladen werden!"
+
+# Listener
+msgid "GCI {} on station."
+msgstr "GCI {} ist aktiv."
+
+msgid "GCI {} offline."
+msgstr "GCI {} ist offline."
+
+msgid "{num} {coalition} GCI{s} on station."
+msgstr "Es sind {num} GCI{s} für Koalition {coalition} im Einsatz."
+
+msgid "{coalition} GCI \"{name}\" on station."
+msgstr "{coalition} GCI \"{name}\" ist aktiv."
+
+msgid "{coalition} GCI \"{name}\" offline."
+msgstr "{coalition} GCI \"{name}\" ist offline."
+
+msgid "The following GCIs are active on the {coalition} side:\n{gcis}"
+msgstr "Die folgenden GCIs sind zurzeit für Koalition {coalition} im Einsatz:\n{gcis}"
+
+msgid "No GCIs are active on the {} side."
+msgstr "Es sind keine GCIs für die Koaltion {} im Einsatz."

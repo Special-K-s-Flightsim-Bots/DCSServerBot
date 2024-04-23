@@ -9,6 +9,8 @@ from jsonschema import validate, ValidationError
 from services import DCSServerBot
 from typing import Optional
 
+from .listener import LotAtcEventListener
+
 LOTATC_DIR = r"Mods\services\LotAtc\userdb\transponders\{}"
 
 _ = get_translation(__name__.split('.')[1])
@@ -76,4 +78,4 @@ class LotAtc(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(LotAtc(bot))
+    await bot.add_cog(LotAtc(bot, LotAtcEventListener))
