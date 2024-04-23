@@ -1,15 +1,12 @@
 import json
-
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
-from watchdog.observers import Observer
-
 import luadata
 import os
 
 from core import Extension, utils, Server, ServiceRegistry
-from typing import Optional
-
 from services import ServiceBus
+from typing import Optional
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
+from watchdog.observers import Observer
 
 ports: dict[int, str] = dict()
 
@@ -18,7 +15,7 @@ class LotAtc(Extension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'LotAtc')
         super().__init__(server, config)
-        self.observer = None
+        self.observer: Optional[Observer] = None
         self.bus = ServiceRegistry.get(ServiceBus)
         self.gcis = {
             "blue": [],
@@ -99,7 +96,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                             "name": gci
                         })
                 self.gcis = gcis
-        except PermissionError:
+        except Exception:
             pass
 
     def on_moved(self, event: FileSystemEvent):
@@ -151,4 +148,4 @@ class LotAtc(Extension, FileSystemEventHandler):
         return True
 
     def is_running(self) -> bool:
-        return self.observer
+        return self.observer is not None
