@@ -64,7 +64,7 @@ class MOTD(Plugin):
     async def motd(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
-                   option: Literal['join', 'birth', 'nudge']):
+                   option: Literal['on_join', 'on_birth']):
         config = self.get_config(server)
         if not config:
             # noinspection PyUnresolvedReferences
@@ -76,13 +76,21 @@ class MOTD(Plugin):
                                                     ephemeral=True)
             return
         message = None
-        if 'join' in option:
-            message = self.eventlistener.on_join(config)
-        elif 'birth' in option:
-            message = await self.eventlistener.on_birth(config, server, player)
-        elif 'nudge' in option:
+        if option == 'on_join':
+            if not config.get(option):
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("on_join not set in your motd.yaml.", ephemeral=True)
+            else:
+                message = await self.eventlistener.on_join(config[option], server, player)
+        elif option == 'on_birth':
+            if not config.get(option):
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message("on_join not set in your motd.yaml.", ephemeral=True)
+            message = await self.eventlistener.on_birth(config[option], server, player)
+        elif option == 'nudge':
             # TODO
-            pass
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Not implemented."), ephemeral=True)
         if message:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"```{message}```")
