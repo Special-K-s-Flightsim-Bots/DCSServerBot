@@ -1,0 +1,2 @@
+DEFAULT:
+  enforce_srs: true # block slots until SRS is activated
