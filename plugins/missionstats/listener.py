@@ -123,6 +123,12 @@ class MissionStatisticsEventListener(EventListener):
         update = False
         if data['eventName'] == 'S_EVENT_BIRTH':
             initiator = data['initiator']
+            # set the real unit id in the player
+            player_name = initiator.get('name')
+            init_player = server.get_player(name=player_name) if player_name else None
+            if init_player:
+                init_player.unit_id = initiator['unit']['id_']
+
             coalition: Coalition = self.COALITION[initiator['coalition']]
             # no stats for Neutral
             if coalition == Coalition.NEUTRAL:

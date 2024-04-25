@@ -1,7 +1,10 @@
 local base          = _G
+local dcsbot        = base.dcsbot
 local config	    = base.require("DCSServerBotConfig")
 local utils         = base.require("DCSServerBotUtils")
 local gamemaster    = gamemaster or {}
+
+dcsbot.userInfo = dcsbot.userInfo or {}
 
 function gamemaster.onMissionLoadEnd()
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: onMissionLoadEnd()')

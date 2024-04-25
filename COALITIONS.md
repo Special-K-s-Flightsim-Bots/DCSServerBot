@@ -8,7 +8,7 @@ Coalitions are implemented by slot blocking, but can use the feature of coalitio
 > ⚠️ **Attention!**</BR>
 > With COALITIONS enabled, some persistent displays will not appear in your server status channels (or will be changed)
 > like Player information or Mission Statistics, which would render all the work useless, if you could peek in there and 
-> see what is going on. You can still use the commands `/player list` or `/missionstats` in your dedicated coalition 
+> see what is going on. You can still use the commands like `/player list` or `/missionstats` in your dedicated coalition 
 > channels, but you can't see data from the opposite coalition anymore.
 
 COALITION handling can be enabled in each server individually. So if you only want to enable strict red/blue 

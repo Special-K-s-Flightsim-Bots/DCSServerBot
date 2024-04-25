@@ -3,6 +3,10 @@ title: Overview
 nav_order: 1
 layout: home
 ---
+# This documentation is currently outdated!
+### Please refer to the [GitHub project page](https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot) for up-to-date information!
+#
+#
 DCSServerBot is a tool written in [Python] to connect your [DCS] dedicated servers with your [Discord] server.
 This connection is bidirectional. The bot is able to get information from the DCS server (like the running mission, connected players etc.) and displays it on Discord as server status embeds.
 You are able to manage the DCS server with Discord bot commands to start and stop the server, change the password or the running mission and so on.

@@ -44,7 +44,7 @@ class Header(report.EmbedElement):
                     self.embed.description = 'User "{}" is not linked or unknown.'.format(
                         utils.escape_string(member if isinstance(member, str) else member.display_name)
                     )
-                    # do we maybe have an permanent ban without a user?
+                    # do we maybe have a permanent ban without a user?
                     if isinstance(member, str) and utils.is_ucid(member):
                         await cursor.execute("""
                                                     SELECT 1 as banned, reason, banned_by, banned_until 
@@ -161,3 +161,29 @@ class Footer(report.EmbedElement):
             if player:
                 footer += f'⏏️ Kick them from {player.server.name}'
         self.embed.set_footer(text=footer)
+
+
+class PlayerInfo(report.EmbedElement):
+    async def render(self, player: Player):
+        self.add_field(name="DCS-Name", value=player.display_name)
+        if player.member and player.verified:
+            self.add_field(name="Discord", value=f"<@{player.member.id}>")
+        else:
+            self.add_field(name='Not Linked', value='_ _')
+        self.add_field(name='_ _', value='_ _')
+
+        self.add_field(name="Server", value=player.server.display_name)
+        self.add_field(name="Side",
+                       value='Blue' if player.side == Side.BLUE else 'Red' if player.side == Side.RED else '_ _')
+        if player.slot != -1:
+            self.add_field(name="Slot", value=player.unit_callsign)
+
+            self.add_field(name="Module", value=player.unit_display_name)
+            if player.radios:
+                self.add_field(name="Radios", value='\n'.join([utils.format_frequency(x) for x in player.radios]))
+            else:
+                self.add_field(name='_ _', value='_ _')
+            self.add_field(name='_ _', value='_ _')
+        else:
+            self.add_field(name="Slot", value="Spectator")
+

@@ -26,6 +26,7 @@ __all__ = [
     "get_active_runways",
     "create_writable_mission",
     "lua_pattern_to_python_regex",
+    "format_frequency",
     "LICENSES_URL"
 ]
 
@@ -180,3 +181,17 @@ def lua_pattern_to_python_regex(lua_pattern):
         python_regex = python_regex.replace(lua, python)
 
     return python_regex
+
+
+def format_frequency(frequency_hz: int, *, band: bool = True) -> str:
+    frequency_mhz = frequency_hz / 1e6
+    if 30 <= frequency_mhz < 300:
+        _band = "VHF"
+    elif 300 <= frequency_mhz < 3000:
+        _band = "UHF"
+    else:
+        _band = None
+    if band:
+        return f"{frequency_mhz:.1f} MHz ({_band})"
+    else:
+        return f"{frequency_mhz:.1f} MHz"

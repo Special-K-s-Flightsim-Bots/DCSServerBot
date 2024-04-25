@@ -1149,11 +1149,15 @@ class Mission(Plugin):
                 pass
 
     @player.command(description=_('Shows player information'))
-    @utils.app_has_role('DCS Admin')
+    @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def info(self, interaction: discord.Interaction,
-                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
-        await self._info(interaction, member)
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        report = Report(self.bot, 'mission', 'player-info.json')
+        env = await report.render(player=player)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description=_('Shows player information'))
     @utils.app_has_role('DCS Admin')

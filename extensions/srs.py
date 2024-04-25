@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import certifi
+import json
 import os
 import psutil
 import shutil
@@ -9,25 +10,31 @@ import ssl
 import sys
 
 from configparser import RawConfigParser
-from core import Extension, utils, Server
+from core import Extension, utils, Server, ServiceRegistry, Autoexec
 from discord.ext import tasks
+from services import ServiceBus
 from typing import Optional
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
+from watchdog.observers import Observer
 
 ports: dict[int, str] = dict()
 SRS_GITHUB_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest"
 
 
-class SRS(Extension):
+class SRS(Extension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
         super().__init__(server, config)
+        self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
+        self.observer: Optional[Observer] = None
+        self.clients: dict[str, set[int]] = {}
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
             self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
-            return {s: dict(self.cfg.items(s)) for s in self.cfg.sections()}
+            return {s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)} for s in self.cfg.sections()}
         else:
             return {}
 
@@ -60,11 +67,9 @@ class SRS(Extension):
             shutil.copy2(autoconnect, autoconnect + '.bak')
             os.remove(autoconnect)
 
-    async def _maybe_update_config(self, section, key, value_key, to_lower=False):
+    def _maybe_update_config(self, section, key, value_key):
         if value_key in self.config:
-            value = str(self.config[value_key])
-            if to_lower:
-                value = value.lower()
+            value = Autoexec.unparse(self.config[value_key])
             if self.cfg[section][key] != value:
                 self.cfg.set(section, key, value)
                 self.log.info(f"  => {self.server.name}: {key} set to {self.config[value_key]}")
@@ -74,18 +79,35 @@ class SRS(Extension):
     async def prepare(self) -> bool:
         global ports
 
-        dirty = await self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
-        dirty = await self._maybe_update_config('General Settings',
-                                                'EXTERNAL_AWACS_MODE',
-                                                'awacs', to_lower=True) or dirty
-        dirty = await self._maybe_update_config('External AWACS Mode Settings',
-                                                'EXTERNAL_AWACS_MODE_BLUE_PASSWORD',
-                                                'blue_password') or dirty
-        dirty = await self._maybe_update_config('External AWACS Mode Settings',
-                                                'EXTERNAL_AWACS_MODE_RED_PASSWORD',
-                                                'red_password') or dirty
+        path = os.path.expandvars(self.config['config'])
+        if 'client_export_file_path' not in self.config:
+            self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
+        dirty = self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
+        dirty = self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
+                                          'client_export_file_path') or dirty
+        # enable SRS on spectators for slot blocking
+        self.config['spectators_audio_disabled'] = False
+        dirty = self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
+                                          'spectators_audio_disabled') or dirty
+        if 'LotAtc' in self.server.extensions:
+            self.config['lotatc'] = True
+            dirty = self._maybe_update_config('General Settings',
+                                              'LOTATC_EXPORT_ENABLED',
+                                              'lotatc') or dirty
+            self.config['awacs'] = True
+
+        if self.config.get('awacs', True):
+            dirty = self._maybe_update_config('General Settings',
+                                              'EXTERNAL_AWACS_MODE',
+                                              'awacs') or dirty
+            dirty = self._maybe_update_config('External AWACS Mode Settings',
+                                              'EXTERNAL_AWACS_MODE_BLUE_PASSWORD',
+                                              'blue_password') or dirty
+            dirty = self._maybe_update_config('External AWACS Mode Settings',
+                                              'EXTERNAL_AWACS_MODE_RED_PASSWORD',
+                                              'red_password') or dirty
+
         if dirty:
-            path = os.path.expandvars(self.config['config'])
             with open(path, mode='w', encoding='utf-8') as ini:
                 self.cfg.write(ini)
             self.locals = self.load_config()
@@ -152,13 +174,75 @@ class SRS(Extension):
                 except Exception as ex:
                     self.log.error(f'Error during shutdown of SRS: {str(ex)}')
                     return False
+
             return True
+
+    def on_modified(self, event: FileSystemEvent) -> None:
+        self.process_export_file(event.src_path)
+
+    def process_export_file(self, path: str):
+        try:
+            with open(path, mode='r', encoding='utf-8') as infile:
+                data = json.load(infile)
+            for client in data['Clients']:
+                if client['Name'] == '---':
+                    continue
+                target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
+                if client['Name'] not in self.clients:
+                    self.clients[client['Name']] = target
+                    self.bus.send_to_node({
+                        "command": "onSRSConnect",
+                        "server_name": self.server.name,
+                        "player_name": client['Name'],
+                        "side": client['Coalition'],
+                        "unit": client['RadioInfo']['unit'],
+                        "unit_id": client['RadioInfo']['unitId'],
+                        "radios": list(self.clients[client['Name']])
+                    })
+                else:
+                    actual = self.clients[client['Name']]
+                    if actual != target:
+                        self.clients[client['Name']] = target
+                        self.bus.send_to_node({
+                            "command": "onSRSUpdate",
+                            "server_name": self.server.name,
+                            "player_name": client['Name'],
+                            "side": client['Coalition'],
+                            "unit": client['RadioInfo']['unit'],
+                            "unit_id": client['RadioInfo']['unitId'],
+                            "radios": list(self.clients[client['Name']])
+                        })
+            all_clients = set(self.clients.keys())
+            active_clients = set([x['Name'] for x in data['Clients']])
+            # any clients disconnected?
+            for client in all_clients - active_clients:
+                self.bus.send_to_node({
+                    "command": "onSRSDisconnect",
+                    "server_name": self.server.name,
+                    "player_name": client
+                })
+                del self.clients[client]
+        except Exception:
+            pass
 
     def is_running(self) -> bool:
         server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+        running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+        if running and not self.observer:
+            path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
+            if os.path.exists(path):
+                self.process_export_file(path)
+            self.observer = Observer()
+            self.observer.schedule(self, path=os.path.dirname(path))
+            self.observer.start()
+        elif not running and self.observer:
+            self.observer.stop()
+            self.observer.join()
+            self.observer = None
+            self.clients.clear()
+        return running
 
     def get_inst_path(self) -> str:
         return os.path.join(

@@ -13,20 +13,20 @@ class Main(report.EmbedElement):
         for player in players:
             coalitions[player.side]['names'].append(player.display_name)
             coalitions[player.side]['units'].append(player.unit_type if player.side != 0 else '')
-        if Coalition.BLUE in sides and len(coalitions[Side.BLUE]['names']):
-            self.add_field(name='Blue', value='_ _')
-            self.add_field(name='Name', value='\n'.join(coalitions[Side.BLUE]['names']) or '_ _')
-            self.add_field(name='Unit', value='\n'.join(coalitions[Side.BLUE]['units']) or '_ _')
-        if Coalition.RED in sides and len(coalitions[Side.RED]['names']):
-            self.add_field(name='Red', value='_ _')
-            self.add_field(name='Name', value='\n'.join(coalitions[Side.RED]['names']) or '_ _')
-            self.add_field(name='Unit', value='\n'.join(coalitions[Side.RED]['units']) or '_ _')
-        if Coalition.NEUTRAL in sides and len(coalitions[Side.NEUTRAL]['names']):
-            self.add_field(name='Neutral', value='_ _')
-            self.add_field(name='Name', value='\n'.join(coalitions[Side.NEUTRAL]['names']) or '_ _')
-            self.add_field(name='Unit', value='\n'.join(coalitions[Side.NEUTRAL]['units']) or '_ _')
+        extensions = server.instance.locals.get('extensions')
+        has_srs = ('SRS' in extensions)
+        for coalition in [Coalition.BLUE, Coalition.RED, Coalition.NEUTRAL]:
+            side = getattr(Side, coalition.name)
+            if coalition in sides and len(coalitions[side]['names']):
+                self.add_field(name='▬' * 13 + f' {coalition.name.title()} ' + '▬' * 13, value='_ _', inline=False)
+                self.add_field(name='Name', value='\n'.join(coalitions[side]['names']) or '_ _')
+                self.add_field(name='Unit', value='\n'.join(coalitions[side]['units']) or '_ _')
+                if has_srs:
+                    self.add_field(name='SRS',
+                                   value='\n'.join([':green_circle:' if x.radios else ':red_circle:' for x in players]))
         # Spectators
         if len(coalitions[Side.SPECTATOR]['names']):
-            self.add_field(name='Spectator', value='_ _')
+            self.add_field(name='▬' * 13 + ' Spectator ' + '▬' * 13, value='_ _', inline=False)
             self.add_field(name='Name', value='\n'.join(coalitions[Side.SPECTATOR]['names']) or '_ _')
+            self.add_field(name='_ _', value='_ _')
             self.add_field(name='_ _', value='_ _')

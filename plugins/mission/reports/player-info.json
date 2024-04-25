@@ -1,0 +1,16 @@
+{
+  "color": "blue",
+  "title": "Player Information",
+  "input": [
+    {
+      "name": "ruler_length",
+      "value": 32
+    }
+  ],
+  "elements":
+  [
+    {
+      "class": "plugins.mission.info.PlayerInfo"
+    }
+  ]
+}

@@ -146,7 +146,8 @@ if __name__ == "__main__":
               f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node} and try again.[/]")
         exit(-2)
     except PidFileError:
-        print(f"\n[red]Process already running for node {args.node}! Exiting...[/]")
+        print(f"\n[red]Process already running for node {args.node}![/]\n"
+              f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.\n\n")
         # do not restart again
         exit(-2)
     except KeyboardInterrupt:

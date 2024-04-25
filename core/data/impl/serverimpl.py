@@ -7,6 +7,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import traceback
 
 if sys.platform == 'win32':
     import win32con
@@ -462,7 +463,9 @@ class ServerImpl(Server):
 
         for res in results:
             if isinstance(res, Exception):
-                self.log.error(f"Error during startup_extension()", exc_info=True)
+                tb_str = "".join(
+                    traceback.format_exception(type(res), res, res.__traceback__))
+                self.log.error(f"Error during startup_extension(): %s", tb_str)
 
     async def shutdown_extensions(self) -> None:
         running_extensions = [ext for ext in self.extensions.values() if ext.is_running()]
@@ -540,7 +543,8 @@ class ServerImpl(Server):
                 self.locals['autoscan'] = True
 
     async def keep_alive(self):
-        self.send_to_dcs({"command": "getMissionUpdate"})
+        if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            self.send_to_dcs({"command": "getMissionUpdate"})
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""

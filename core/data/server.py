@@ -15,7 +15,7 @@ from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
-from .const import Status, Coalition, Channel
+from .const import Status, Coalition, Channel, Side
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
@@ -187,14 +187,16 @@ class Server(DataObject):
                 continue
             if 'ucid' in kwargs and player.ucid == kwargs['ucid']:
                 return player
-            if 'name' in kwargs and player.name == kwargs['name']:
-                return player
             if 'discord_id' in kwargs and player.member and player.member.id == kwargs['discord_id']:
+                return player
+            if 'unit_id' in kwargs and player.unit_id == kwargs['unit_id']:
+                return player
+            if 'name' in kwargs and player.name == kwargs['name']:
                 return player
         return None
 
-    def get_active_players(self) -> list[Player]:
-        return [x for x in self.players.values() if x.active]
+    def get_active_players(self, *, side: Side = None) -> list[Player]:
+        return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
     def get_crew_members(self, pilot: Player):
         members = []
