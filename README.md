@@ -326,12 +326,14 @@ My Fancy Server:                # Your server name, as displayed in the server l
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
   autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).
+  force_voice: false            # Optional: enforce the usage of a voice channel (users needs to be linked!) - default: false
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people can not self-link on these servers and have to be liked properly already!
   channels:
     status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right click on your channel and select "Copy Channel ID".
     chat: 8877665544332211      # The Discord channel for the in-game chat replication. You can disable it with setting it to -1.
     admin: 1188227733664455     # The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server specific ones. See bot.yaml for more.
+    voice: 1827364518273645     # The voice channel, where people need to connect to (if force_voice is true). 
   chat_log:
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 
@@ -369,7 +371,7 @@ roles:                                          # Roles mapping. The bot uses in
   Admin:                                        # Map your Discord role "Admin" to the bots role "Admin" (default: Admin)
   - Admin                                       
   Alert:                                        # Optional Alert role. Default is DCS Admin. Would be pinged on server crashes and low performance
-    - DCS Admin
+  - DCS Admin
   DCS Admin:                                    # Map your Discord role "Moderator" and "Staff" to the bots "DCS Admin" role (default: DCS Admin)
   - Moderator
   - Staff
