@@ -425,9 +425,8 @@ class MissionEventListener(EventListener):
                 server.send_to_dcs({
                     "command": "kick",
                     "id": data['id'],
-                    "reason": self.get_config(server).get('greeting_message_reserved',
-                                                          'This server is locked for specific users.\n'
-                                                          'Please contact a server admin.')
+                    "reason": server.locals.get('message_reserved', 'This server is locked for specific users.\n'
+                                                                    'Please contact a server admin.')
                 })
                 return
         player: Player = server.get_player(ucid=data['ucid'])
@@ -471,7 +470,7 @@ class MissionEventListener(EventListener):
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
                         return
                     if not player.member.voice:
-                        server.kick(player, reason=self.get_config(server).get(
+                        server.kick(player, reason=server.locals.get(
                             'message_no_voice','You need to be in voice channel "{}" to use this server!'
                         ).format(voice.name))
                         return

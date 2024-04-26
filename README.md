@@ -318,6 +318,7 @@ another. This is much easier with a non-coupled approach like that.
 DEFAULT:
   message_afk: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
   message_server_full: The server is full, please try again later!  # default message, if the server is considered full (see SlotBlocking plugin)
+  message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
   message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
