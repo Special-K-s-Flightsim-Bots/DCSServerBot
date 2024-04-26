@@ -36,3 +36,11 @@ async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, 
         await server.loadNextMission(modify_mission=run_extensions)
     else:
         await server.restart(modify_mission=run_extensions)
+
+
+async def cmd(node: Node, cmd: str):
+    out, err = await node.shell_command(cmd)
+    if err:
+        node.log.info(err)
+    else:
+        node.log.info(out)

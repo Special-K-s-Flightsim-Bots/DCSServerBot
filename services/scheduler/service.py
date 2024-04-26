@@ -1,25 +1,26 @@
 import asyncio
 
-from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server
+from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server, Status
 from datetime import datetime
 from discord.ext import tasks
 from typing import Optional
 
 from . import actions
 from ..bot import BotService
+from ..servicebus import ServiceBus
 
 
-@ServiceRegistry.register(master_only=True, plugin="scheduler")
+@ServiceRegistry.register(plugin="scheduler")
 class SchedulerService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="Scheduler")
-        self.bot = None
+        self.bus = None
 
     async def start(self, *args, **kwargs):
         if self.locals:
             await super().start()
-            self.bot = ServiceRegistry.get(BotService).bot
+            self.bus = ServiceRegistry.get(ServiceBus)
             self.schedule.start()
 
     async def stop(self, *args, **kwargs):
@@ -31,7 +32,10 @@ class SchedulerService(Service):
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
         else:
-            return self.locals.get(server.instance.name, {})
+            if self.node.name in self.locals:
+                return self.locals[self.node.name].get(server.instance.name, {})
+            else:
+                return self.locals.get(server.instance.name, {})
 
     async def do_actions(self, config: dict, server: Optional[Server] = None):
         action = config['action']
@@ -50,7 +54,7 @@ class SchedulerService(Service):
 
     @tasks.loop(minutes=1)
     async def schedule(self):
-        async def check_run(server: Optional[Server] = None):
+        async def check_run(config: dict, server: Optional[Server] = None):
             now = datetime.now().replace(second=0, microsecond=0)
             for cfg in config['actions']:
                 if 'cron' in cfg and not utils.matches_cron(now, cfg['cron']):
@@ -64,16 +68,17 @@ class SchedulerService(Service):
         try:
             config = self.get_config()
             # run all default tasks
-            await check_run(None)
+            await check_run(config)
             # do the servers
-            for server in self.bot.servers.copy().values():
+            for server in [x for x in self.bus.servers.values() if not x.is_remote and x.status != Status.UNREGISTERED]:
                 config = self.get_config(server)
                 if config:
-                    await check_run(server)
+                    await check_run(config, server)
         except Exception as ex:
             self.log.exception(ex)
 
     @schedule.before_loop
     async def before_loop(self):
-        if self.bot:
-            await self.bot.wait_until_ready()
+        if self.node.master:
+            bot = ServiceRegistry.get(BotService).bot
+            await bot.wait_until_ready()
