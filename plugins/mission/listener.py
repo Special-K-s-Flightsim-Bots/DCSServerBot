@@ -471,8 +471,9 @@ class MissionEventListener(EventListener):
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
                         return
                     if not player.member.voice:
-                        server.kick(player,
-                                    reason=f"You need to be in voice channel \"{voice.name}\" to use this server!")
+                        server.kick(player, reason=self.get_config(server).get(
+                            'message_no_voice','You need to be in voice channel "{}" to use this server!'
+                        ).format(voice.name))
                         return
                     else:
                         await player.member.move_to(voice)
