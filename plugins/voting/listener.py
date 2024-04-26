@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, chat_command, Server, Player, utils, Coalition, Plugin, event, ChatCommand
+from core import EventListener, chat_command, Server, Player, utils, Coalition, event, ChatCommand
 from functools import partial
 from itertools import islice
 from typing import Optional
@@ -92,9 +92,10 @@ class VotingHandler:
     def check_vote(self) -> int:
         message = "Voting finished"
         voting_rule = self.config.get('voting_rule', 'majority')
-        if not self.votes:
-            message += " without any participant."
-        elif self.config.get('voting_threshold') and (sum(self.votes.values()) / self._get_possible_voters()) < self.config.get('voting_threshold'):
+        possible_voters = self._get_possible_voters()
+        if not self.votes or not possible_voters:
+            message += " without any (active) participant."
+        elif self.config.get('voting_threshold') and (sum(self.votes.values()) / possible_voters) < self.config.get('voting_threshold'):
             message += f" but less than {self.config['voting_threshold'] * 100}% players participated."
         elif voting_rule == 'majority':
             return max(self.votes, key=self.votes.get) - 1
@@ -225,7 +226,7 @@ class VotingListener(EventListener):
         config = self.get_config(server=server)
         if server.name in all_votes:
             if len(params) == 1 and params[0] == 'cancel':
-                if utils.check_roles(['DCS Admin'], player.member):
+                if utils.check_roles(self.bot.roles['DCS Admin'], player.member):
                     all_votes[server.name].cancel()
                     del all_votes[server.name]
                     message = "The voting has been cancelled by an Admin."
