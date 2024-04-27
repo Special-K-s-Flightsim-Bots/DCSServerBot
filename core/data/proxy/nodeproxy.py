@@ -124,7 +124,11 @@ class NodeProxy(Node):
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "handle_module"
+            "method": "handle_module",
+            "params": {
+                "what": what,
+                "module": module
+            }
         }, node=self.name)
 
     async def get_installed_modules(self) -> list[str]:
@@ -139,7 +143,11 @@ class NodeProxy(Node):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "get_available_modules"
+            "method": "get_available_modules",
+            "params": {
+                "userid": userid,
+                "password": password
+            }
         }, timeout=60, node=self.name)
         return data['return']
 
