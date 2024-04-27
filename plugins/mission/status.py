@@ -1,6 +1,6 @@
 import asyncio
 
-from core import const, report, Status, Server, utils, ServiceRegistry, Plugin
+from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side
 from datetime import datetime, timedelta, timezone
 from services import BotService
 from typing import Optional, cast
@@ -51,8 +51,13 @@ class ServerInfo(report.EmbedElement):
         if server.current_mission:
             value = server.current_mission.map
             if not server.locals.get('coalitions'):
-                value += (f"\n\n**Avail. Slots**\n"
-                          f"🔹 {server.current_mission.num_slots_blue}  |  {server.current_mission.num_slots_red} 🔸")
+                blue = len(server.get_active_players(side=Side.BLUE))
+                red = len(server.get_active_players(side=Side.RED))
+                value += "\n\n**Slots**\n"
+                if server.current_mission.num_slots_blue:
+                    value += f"🔹Used: {blue} / {server.current_mission.num_slots_blue}\n"
+                if server.current_mission.num_slots_red:
+                    value += f"🔸Used: {red} / {server.current_mission.num_slots_red}"
             else:
                 value += "\n\n**Coalitions**\nYes"
             self.add_field(name='Map', value=value)

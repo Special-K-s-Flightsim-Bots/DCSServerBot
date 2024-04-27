@@ -437,10 +437,12 @@ end
 function dcsbot.force_player_slot(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: force_player_slot()')
     net.force_player_slot(json.playerID, json.sideID or 0, json.slotID or '')
-    if json.slotID == 0 and json.reason ~= 'n/a' then
-        net.send_chat_to("You have been moved to spectators because of " .. reason, json.playerID)
-    else
-        net.send_chat_to("You have been moved to spectators by an admin", json.playerID)
+    if json.sideID == 0 then
+        if json.reason ~= 'n/a' then
+            net.send_chat_to(reason, json.playerID)
+        else
+            net.send_chat_to("You have been moved to spectators by an admin", json.playerID)
+        end
     end
 end
 

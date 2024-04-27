@@ -65,4 +65,9 @@ class SRSEventListener(EventListener):
         player.radios = []
         if self.get_config(server).get('enforce_srs', False):
             server.send_to_dcs({"command": "disableSRS", "ucid": player.ucid})
+            if self.get_config(server).get('move_to_spec', False):
+                server.move_to_spectators(player,
+                                          reason=self.get_config(server).get(
+                                              'message_no_srs',
+                                              'You need to enable SRS to use any slot on this server!'))
         self.mission.eventlistener.display_player_embed(server)
