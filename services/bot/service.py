@@ -154,6 +154,8 @@ class BotService(Service):
                            filename: Optional[str] = None, embed: Optional[dict] = None):
         _channel = self.bot.get_channel(channel)
         if not _channel:
+            if channel != -1:
+                raise ValueError(f"Channel {channel} not found!")
             return
         if embed:
             _embed = discord.Embed.from_dict(embed)

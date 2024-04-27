@@ -471,10 +471,12 @@ class ServiceBus(Service):
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
-                        self.loop.call_soon_threadsafe(
-                            f.set_exception,
-                            utils.str_to_class(data['exception']['class'])(data['exception']['message'])
-                        )
+                        try:
+                            ex = utils.str_to_class(data['exception']['class'])(*data['exception']['args'],
+                                                                                **data['exception']['kwargs'])
+                        except Exception:
+                            ex = PermissionError(data['exception']['args'])
+                        self.loop.call_soon_threadsafe(f.set_exception, ex)
                     else:
                         # TODO: change to data['return']
                         self.loop.call_soon_threadsafe(f.set_result, data)
@@ -515,8 +517,9 @@ class ServiceBus(Service):
                     "channel": data['channel'],
                     "return": '',
                     "exception": {
-                        "class": ex.__class__.__name__,
-                        "message": ex.__repr__()
+                        "class": f"{ex.__class__.__module__}.{ex.__class__.__name__}",
+                        "args": ex.args,
+                        "kwargs": getattr(ex, 'kwargs', {})
                     }
                 }, node=data.get('node'))
             else:
