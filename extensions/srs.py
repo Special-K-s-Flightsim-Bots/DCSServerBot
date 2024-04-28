@@ -234,9 +234,9 @@ class SRS(Extension, FileSystemEventHandler):
             path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
             if os.path.exists(path):
                 self.process_export_file(path)
-            self.observer = Observer()
-            self.observer.schedule(self, path=os.path.dirname(path))
-            self.observer.start()
+                self.observer = Observer()
+                self.observer.schedule(self, path=os.path.dirname(path))
+                self.observer.start()
         elif not running and self.observer:
             self.observer.stop()
             self.observer.join()

@@ -124,6 +124,8 @@ class LotAtc(Extension, FileSystemEventHandler):
             return {}
 
     def is_installed(self) -> bool:
+        if not self.config.get('enabled', True):
+            return False
         if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
                 not os.path.exists(os.path.join(self.home, 'config.lua'))):
             self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
