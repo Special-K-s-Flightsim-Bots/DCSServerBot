@@ -235,6 +235,7 @@ autoupdate: true        # use the bots autoupdate functionality, default is fals
 use_dashboard: true     # Use the dashboard display for your node. Default is true.
 chat_command_prefix: .  # The command prefix to be used for in-game chat commands. Default is "."
 mission_rewrite: false  # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
+language: de            # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
 database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME
   pool_min: 5           # min size of the DB pool, default is 5
@@ -316,6 +317,7 @@ will learn to love it, especially when you decide to move a server from one inst
 another. This is much easier with a non-coupled approach like that.
 ```yaml
 DEFAULT:
+  message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
   message_afk: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
   message_server_full: The server is full, please try again later!  # default message, if the server is considered full (see SlotBlocking plugin)
   message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)

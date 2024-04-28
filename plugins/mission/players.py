@@ -13,7 +13,7 @@ class Main(report.EmbedElement):
         for player in players:
             coalitions[player.side]['names'].append(player.display_name)
             coalitions[player.side]['units'].append(player.unit_type if player.side != 0 else '')
-        extensions = server.instance.locals.get('extensions')
+        extensions = server.instance.locals.get('extensions', {})
         has_srs = ('SRS' in extensions)
         for coalition in [Coalition.BLUE, Coalition.RED, Coalition.NEUTRAL]:
             side = getattr(Side, coalition.name)
