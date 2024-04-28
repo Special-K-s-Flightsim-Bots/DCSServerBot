@@ -1,0 +1,41 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    startup_delay: {type: int, range: {min: 0}}
+    warn:
+      type: map
+      mapping:
+        text: {type: str}
+        times:
+          type: any
+          # todo - we allow lists and a map in here atm
+    schedule:
+      type: map
+      mapping:
+        regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): {type: str, pattern: '^[YNP]{7}$'}
+    restart:
+      type: map
+      mapping:
+        local_times:
+          type: seq
+          sequence:
+            - type: str
+              pattern: '^(0?[0-9]|1[0-9]|2[0-3])(:[0-5][0-9])'
+        mission_time: {type: int, range: {min: 1}}
+        max_mission_time: {type: int, range: {min: 1}}
+        method: {type: str, enum: ['restart', 'rotate', 'restart_with_shutdown']}
+        populated: {type: bool}
+        mission_end: {type: bool}
+        onMissionStart: {type: str}
+        onMissionEnd: {type: str}
+        onShutdown: {type: str}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

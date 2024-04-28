@@ -1,0 +1,16 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    update_interval: {type: int, range: {min: 60}}
+    json_file_path: {type: str}
+    channel: {type: int}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

@@ -1,0 +1,22 @@
+schema;settings_schema:
+  type: any
+  # todo
+
+schema;mizedit_schema:
+  type: map
+  mapping:
+    presets:
+      type: seq
+      sequence:
+        - type: str
+          unique: true
+    settings:
+      include: 'settings_schema'
+    theatre:
+      type: map
+      mapping:
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|Marianas|Falklands|Kola):
+          type: map
+          mapping:
+            settings:
+              include: 'settings_schema'

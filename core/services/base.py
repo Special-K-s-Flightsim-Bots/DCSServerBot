@@ -11,6 +11,8 @@ from ..const import DEFAULT_TAG
 from ..data.dataobject import DataObject
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
+from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -94,8 +96,14 @@ class Service(ABC):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
         try:
+            path = os.path.join('services', self.name.lower(), 'schemas')
+            if os.path.exists(path):
+                schema_files = [str(x) for x in Path(path).glob('*.yaml')]
+                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
+                # TODO: change this to true after testing phase
+                c.validate(raise_exception=False)
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except MarkedYAMLError as ex:
+        except (MarkedYAMLError, SchemaError) as ex:
             raise ServiceInstallationError(self.name, ex.__str__())
 
     def get_config(self, server: Optional[Server] = None) -> dict:

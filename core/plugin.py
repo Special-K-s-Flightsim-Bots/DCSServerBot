@@ -17,7 +17,6 @@ from discord.app_commands import locale_str
 from discord.app_commands.commands import CommandCallback, GroupT, P, T
 from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
-from os import path
 from packaging import version
 from pathlib import Path
 from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
@@ -27,6 +26,8 @@ from .listener import TEventListener
 from .utils.helper import YAMLError
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
+from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -297,9 +298,9 @@ class Plugin(commands.Cog):
         if await self._init_db():
             # create report directories for convenience
             source_path = f'./plugins/{self.plugin_name}/reports'
-            if path.exists(source_path):
+            if os.path.exists(source_path):
                 target_path = f'./reports/{self.plugin_name}'
-                if not path.exists(target_path):
+                if not os.path.exists(target_path):
                     os.makedirs(target_path)
             return True
         return False
@@ -325,7 +326,7 @@ class Plugin(commands.Cog):
                     # first installation
                     if cursor.rowcount == 0:
                         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
-                        if path.exists(tables_file):
+                        if os.path.exists(tables_file):
                             with open(tables_file, mode='r') as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
@@ -343,7 +344,7 @@ class Plugin(commands.Cog):
                             installed = installed[1:]
                         while version.parse(installed) < version.parse(self.plugin_version):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
-                            if path.exists(updates_file):
+                            if os.path.exists(updates_file):
                                 with open(updates_file, mode='r') as updates_sql:
                                     for query in updates_sql.readlines():
                                         self.log.debug(query.rstrip())
@@ -397,20 +398,27 @@ class Plugin(commands.Cog):
     def read_locals(self) -> dict:
         old_file = os.path.join(self.node.config_dir, f'{self.plugin_name}.json')
         new_file = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-        if path.exists(old_file):
+        if os.path.exists(old_file):
             self.log.info('  => Migrating old JSON config format to YAML ...')
             self.migrate_to_3(self.node.name, self.plugin_name)
             self.log.info(f'  => Config file {old_file} migrated to {new_file}.')
-        if path.exists(new_file):
+        if os.path.exists(new_file):
             filename = new_file
-        elif path.exists(f'./plugins/{self.plugin_name}/config/config.yaml'):
+        elif os.path.exists(f'./plugins/{self.plugin_name}/config/config.yaml'):
             filename = f'./plugins/{self.plugin_name}/config/config.yaml'
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
         try:
+            path = f'./plugins/{self.plugin_name}/schemas'
+            if os.path.exists(path):
+                schema_files = [str(x) for x in Path(path).glob('*.yaml')]
+                schema_files.append('./schemas/commands_schema.yaml')
+                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
+                # TODO: change this to true after testing phase
+                c.validate(raise_exception=False)
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except MarkedYAMLError as ex:
+        except (MarkedYAMLError, SchemaError) as ex:
             raise YAMLError(filename, ex)
 
     # get default and specific configs to be merged in derived implementations

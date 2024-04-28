@@ -1,0 +1,45 @@
+schema;master_schema:
+  allowempty: true
+  type: map
+  mapping:
+    options:
+      type: map
+      allowempty: true
+      mapping:
+        preset:
+          include: 'preset_schema'
+        mission:
+          include: 'mission_schema'
+        restart:
+          include: 'restart_schema'
+        kill:
+          include: 'kick_schema'
+        tempban:
+          include: 'tempban_schema'
+    creator:
+      type: seq
+      sequence:
+        - type: text
+    voter:
+      type: seq
+      sequence:
+        - type: text
+    mission_time: {type: int, range: {min: 1}}
+    time: {type: int, range: {min: 60}}
+    reminder:
+      type: seq
+      sequence:
+        - type: int
+    voting_threshold: {type: float}
+    voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute']}
+    welcome_message: {type: str}
+    credits: {type: int}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

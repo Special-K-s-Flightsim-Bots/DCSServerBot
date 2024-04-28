@@ -1,0 +1,42 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    num_landings: {type: int, range: {min: 1, max: 10}}
+    num_rows: {type: int, range: {min: 1, max: 20}}
+    persistent_board: {type: bool}
+    persistent_channel: {type: int}
+    squadrons:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            name: {type: str}
+            channel: {type: int}
+    ratings:
+      type: map
+      mapping:
+        regex;(\_OK\_|OK|\(OK\)|B|\-\-|OWO|WO|C): {type: float, range: {min: 0.0}}
+    Moose.AIRBOSS:
+      type: map
+      mapping:
+        basedir: {type: str}
+        delete_after: {type: int}
+        grades: {type: str}
+        trapsheets: {type: str}
+    FunkMan:
+      type: map
+      mapping:
+        install: {type: str}
+        IMAGEPATH: {type: str}
+        basedir: {type: str}
+        delete_after: {type: int}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

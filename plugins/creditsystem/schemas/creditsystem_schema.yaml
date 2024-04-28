@@ -1,0 +1,37 @@
+schema;master_schema:
+  type: map
+  allowempty: true  # we need to set this here, because we might have got an instance name instead (node/instance mapping)
+  mapping:
+    initial_points: {type: any}
+    max_points: {type: int, range: {min: 1}}
+    multiplier: {type: float}
+    points_per_kill:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            default: {type: int, range: {min: 0}}
+            category: {type: str, enum: ['Planes', 'Helicopters', 'Ships', 'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Locomotive', 'Carriage', 'MissilesSS']}
+            type: {type: str, enum: ['AI', 'Player']}
+            unit_type: {type: str}
+            unit_name: {type: str}
+            group_name: {type: str}
+            points: {type: int}
+    achievements:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            credits: {type: int, range: {min: 0}}
+            playtime: {type: int, range: {min: 0}}
+            combined: {type: bool}
+            role: {type: text}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

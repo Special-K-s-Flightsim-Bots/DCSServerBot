@@ -1,0 +1,3 @@
+schema;commands_schema:
+  type: any
+  # todo

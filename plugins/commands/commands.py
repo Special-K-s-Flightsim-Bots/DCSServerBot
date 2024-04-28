@@ -32,7 +32,7 @@ class Commands(Plugin):
             cwd = os.path.expandvars(config['cwd'])
         else:
             cwd = None
-        if 'shell' in config:
+        if config.get('shell', False):
             try:
                 def run_cmd():
                     result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -70,7 +70,7 @@ class Commands(Plugin):
 
     async def event(self, ctx: commands.Context, config: dict, **kwargs) -> list[dict]:
         async def do_send(server: Server):
-            if 'sync' in config:
+            if config.get('sync', False):
                 if server.status != Status.SHUTDOWN:
                     return await server.send_to_dcs_sync(config)
                 else:

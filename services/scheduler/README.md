@@ -6,6 +6,7 @@ backup and maybe monitoring.<br>
 You can use it to run pre-defined actions at specific times. For now, this can be:
 - report - generate reports with the [Reporting Framework](../../reports/README.md)
 - restart - restart your DCS servers or rotate missions (no user warning implemented yet!)
+- cmd - run a shell command
  
 More to come.
 

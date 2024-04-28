@@ -1,0 +1,7 @@
+schema;preset_schema:
+  type: map
+  mapping:
+    choices:
+      type: seq
+      sequence:
+        - type: str

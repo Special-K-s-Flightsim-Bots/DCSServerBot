@@ -1,0 +1,29 @@
+schema;node_olympus_schema:
+  type: map
+  mapping:
+    nodejs: {type: str, required: true, nullable: false}
+schema;instance_olympus_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}
+    debug: {type: bool}
+    url: {type: str, pattern: 'http(s)?://[a-zA-Z0-9\-.]+(:[0-9]+)?(/.*)?'}
+    regex;(backend|server):
+      type: map
+      required: true
+      mapping:
+        address: {type: str}
+        port: {type: int, required: true, range: {min: 80, max: 65535}}
+    authentication:
+      type: map
+      required: true
+      mapping:
+        gameMasterPassword: {type: str, required: true}
+        blueCommanderPassword: {type: str, required: true}
+        redCommanderPassword: {type: str, required: true}
+    regex;(frontend|client):
+      type: map
+      required: true
+      mapping:
+        path: {type: str}
+        port: {type: int, required: true, range: {min: 80, max: 65535}}

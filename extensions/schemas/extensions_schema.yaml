@@ -1,0 +1,44 @@
+schema;node_extensions_schema:
+  type: map
+  allowempty: true
+  mapping:
+    Lardoon:
+      include: 'node_lardoon_schema'
+    Olympus:
+      include: 'node_olympus_schema'
+    RealWeather:
+      include: 'node_realweather_schema'
+    Sneaker:
+      include: 'node_sneaker_schema'
+    SRS:
+      include: 'node_srs_schema'
+    Tacview:
+      include: 'node_tacview_schema'
+schema;instance_extensions_schema:
+  type: map
+  allowempty: true
+  mapping:
+    DSMC:
+      include: 'dsmc_schema'
+    gRPC:
+      include: 'grpc_schema'
+    Lardoon:
+      include: 'instance_lardoon_schema'
+    LotAtc:
+      include: 'lotatc_schema'
+    MizEdit:
+      include: 'mizedit_schema'
+    Olympus:
+      include: 'instance_olympus_schema'
+    OvGME:
+      include: 'instance_ovgme_schema'
+    RealWeather:
+      include: 'instance_realweather_schema'
+    Sneaker:
+      include: 'instance_sneaker_schema'
+    SRS:
+      include: 'instance_srs_schema'
+    Tacview:
+      include: 'instance_tacview_schema'
+    VoiceChat:
+      include: 'instance_voicechat_schema'

@@ -25,6 +25,7 @@ from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable
 from urllib.parse import urlparse
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -710,5 +711,5 @@ class YAMLError(Exception):
     **Methods:**
 
     """
-    def __init__(self, file: str, ex: Union[MarkedYAMLError, ValueError]):
+    def __init__(self, file: str, ex: Union[MarkedYAMLError, ValueError, SchemaError]):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))

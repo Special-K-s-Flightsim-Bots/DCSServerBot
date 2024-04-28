@@ -19,6 +19,8 @@ from .const import Status, Coalition, Channel, Side
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
+from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -74,8 +76,12 @@ class Server(DataObject):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         if os.path.exists(config_file):
             try:
+                c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8')
+                # TODO: change this to true after testing phase
+                c.validate(raise_exception=False)
+
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except MarkedYAMLError as ex:
+            except (MarkedYAMLError, SchemaError) as ex:
                 raise YAMLError(config_file, ex)
             if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')

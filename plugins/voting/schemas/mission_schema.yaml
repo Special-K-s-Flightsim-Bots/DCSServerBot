@@ -1,0 +1,10 @@
+schema;mission_schema:
+  type: map
+  mapping:
+    mission:
+      type: map
+      mapping:
+        choices:
+          type: seq
+          sequence:
+            - type: str

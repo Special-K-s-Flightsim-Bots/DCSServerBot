@@ -8,6 +8,8 @@ from typing import Union, Optional, TYPE_CHECKING
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
+from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -77,6 +79,10 @@ class Node:
     @staticmethod
     def read_config(file) -> dict:
         try:
+            c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8')
+            # TODO: change this to true after testing phase
+            c.validate(raise_exception=False)
+
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
             # set defaults
             config['autoupdate'] = config.get('autoupdate', False)
@@ -101,7 +107,7 @@ class Node:
             return config
         except FileNotFoundError:
             raise FatalException()
-        except MarkedYAMLError as ex:
+        except (MarkedYAMLError, SchemaError) as ex:
             raise YAMLError(file, ex)
 
     def read_locals(self) -> dict:

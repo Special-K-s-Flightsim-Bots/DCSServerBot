@@ -1,0 +1,4 @@
+schema;dsmc_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}

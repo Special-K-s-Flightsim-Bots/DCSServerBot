@@ -1,0 +1,17 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    min_fps: {type: int, range: {min: 0}}
+    period: {type: int, range: {min: 3}}
+    mentioning: {type: bool}
+    message: {type: str}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

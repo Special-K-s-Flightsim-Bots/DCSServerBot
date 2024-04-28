@@ -43,6 +43,8 @@ from core.utils.dcs import LICENSES_URL
 from core.utils.helper import SettingsDict, YAMLError
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
+from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -200,8 +202,13 @@ class NodeImpl(Node):
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         if os.path.exists(config_file):
             try:
+                schema_files = ['./schemas/nodes_schema.yaml']
+                schema_files.extend([str(x) for x in Path('./extensions/schemas').glob('*.yaml')])
+                c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8')
+                # TODO: change this to true after testing phase
+                c.validate(raise_exception=False)
                 self.all_nodes: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except MarkedYAMLError as ex:
+            except (MarkedYAMLError, SchemaError) as ex:
                 raise YAMLError('config_file', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:

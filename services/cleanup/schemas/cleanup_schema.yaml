@@ -1,0 +1,19 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    regex;(.+):
+      type: map
+      mapping:
+        directory: {type: str, required: true}
+        pattern: {type: any, required: true}
+        delete_after: {type: int, required: true}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'
