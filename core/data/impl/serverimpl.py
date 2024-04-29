@@ -708,6 +708,7 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
 
     async def replaceMission(self, mission_id: int, path: str) -> None:
+        path = os.path.normpath(path)
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
         else:

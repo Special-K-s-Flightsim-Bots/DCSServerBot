@@ -61,10 +61,14 @@ class MizFile:
                     elif item.filename not in filenames:
                         zout.writestr(item, zin.read(item.filename))
                 for item in self._files:
+                    def get_dir_path(name):
+                        return name if os.path.isdir(name) else os.path.dirname(name)
+
                     for file in utils.list_all_files(item['source']):
                         try:
                             zout.write(
-                                os.path.join(item['source'], file), utils.make_unix_filename(item['target'], file)
+                                os.path.join(get_dir_path(item['source']), file),
+                                utils.make_unix_filename(item['target'], file)
                             )
                         except FileNotFoundError:
                             self.log.warning(

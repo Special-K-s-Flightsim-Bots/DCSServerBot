@@ -687,7 +687,7 @@ class Mission(Plugin):
                                                     ephemeral=True)
             return
         if new_file != filename:
-            await server.replaceMission(mission_id, new_file)
+            await server.replaceMission(mission_id + 1, new_file)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Mission {} has been rolled back.").format(miz_file[:-4]),
                                                 ephemeral=utils.get_ephemeral(interaction))

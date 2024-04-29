@@ -94,8 +94,15 @@ def get_windows_version(cmd: str) -> Optional[str]:
 
 
 def list_all_files(path: str) -> list[str]:
-    # Returns a list of all file paths in the given directory and its subdirectories.
-    # The paths are in the form of relative paths from the given root directory.
+    """
+    Returns a list of all files in a given directory path, including files in subdirectories.
+
+    :param path: The path of the directory to search for files.
+    :return: A list of file paths relative to the given directory path.
+    """
+    # If we only have one file, return that
+    if not os.path.isdir(path):
+        return [os.path.basename(path)]
     file_paths = []
     for dirpath, dirnames, filenames in os.walk(path):
         for filename in filenames:
