@@ -238,6 +238,10 @@ class NodeImpl(Node):
         log2 = logging.getLogger(name='psycopg.pool')
         log2.setLevel(logging.ERROR)
         log2.addHandler(ch)
+        # Pykwalify logging
+        log3 = logging.getLogger('pykwalify.core')
+        log3.addHandler(ch)
+        log3.addHandler(fh)
         return log
 
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
