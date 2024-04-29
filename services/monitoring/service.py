@@ -148,7 +148,6 @@ class MonitoringService(Service):
                 # we do not need to warn, if the server was just launched manually
                 if server.maintenance and server.status == Status.LOADING:
                     return
-                server.status = Status.SHUTDOWN
                 # only escalate, if the server was not stopped (maybe the process was manually shut down)
                 if server.status != Status.STOPPED:
                     title = f'Server "{server.name}" died!'
@@ -157,6 +156,7 @@ class MonitoringService(Service):
                     if server.locals.get('ping_admin_on_crash', True):
                         await self.warn_admins(server, title=title, message=message)
                     await self.node.audit(f'Server died.', server=server)
+                server.status = Status.SHUTDOWN
                 return
             # No, check if the process is still doing something
             try:
