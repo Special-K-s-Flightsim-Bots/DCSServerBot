@@ -11,8 +11,8 @@ import tempfile
 import zipfile
 
 from contextlib import closing
+from core import utils
 from typing import Iterable, Optional
-
 from version import __version__
 
 
@@ -57,18 +57,6 @@ def do_update_git(delete: Optional[bool]) -> int:
         return do_update_github(delete)
 
 
-def list_all_files(path):
-    # Returns a list of all file paths in the given directory and its subdirectories.
-    # The paths are in the form of relative paths from the given root directory.
-    file_paths = []
-    for dirpath, dirnames, filenames in os.walk(path):
-        for filename in filenames:
-            full_path = os.path.join(dirpath, filename)
-            relative_path = os.path.relpath(full_path, path)
-            file_paths.append(relative_path)
-    return file_paths
-
-
 def cleanup_local_files(to_delete_set: Iterable):
     # Exclude directories from deletion
     exclude_dirs = {'__pycache__', '.git', 'config', 'reports', 'sounds', 'services', 'extensions', 'plugins', 'logs'}
@@ -106,8 +94,8 @@ def do_update_github(delete: Optional[bool] = False) -> int:
 
                     if delete:
                         # check for necessary file deletions
-                        old_files_set = set(list_all_files(os.getcwd()))
-                        new_files_set = set(list_all_files(extracted_folder))
+                        old_files_set = set(utils.list_all_files(os.getcwd()))
+                        new_files_set = set(utils.list_all_files(extracted_folder))
                         to_delete_set = old_files_set - new_files_set
                         cleanup_local_files(to_delete_set)
 

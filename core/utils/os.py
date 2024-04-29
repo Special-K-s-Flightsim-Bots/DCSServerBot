@@ -31,6 +31,8 @@ __all__ = [
     "find_process",
     "is_process_running",
     "get_windows_version",
+    "list_all_files",
+    "make_unix_filename",
     "safe_rmtree",
     "terminate_process",
     "quick_edit_mode",
@@ -89,6 +91,22 @@ def get_windows_version(cmd: str) -> Optional[str]:
     except pywintypes.error:
         version = None
     return version
+
+
+def list_all_files(path: str) -> list[str]:
+    # Returns a list of all file paths in the given directory and its subdirectories.
+    # The paths are in the form of relative paths from the given root directory.
+    file_paths = []
+    for dirpath, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            full_path = os.path.join(dirpath, filename)
+            relative_path = os.path.relpath(full_path, path)
+            file_paths.append(relative_path)
+    return file_paths
+
+
+def make_unix_filename(*args) -> str:
+    return '/'.join(arg.replace('\\', '/').strip('/') for arg in args)
 
 
 def safe_rmtree(path: Union[str, Path]):

@@ -252,7 +252,7 @@ class Plugin(commands.Cog):
         await self.install()
         if self.eventlistener:
             self.bus.register_eventListener(self.eventlistener)
-        self.log.info(f'  => {self.plugin_name.title()} loaded.')
+        self.log.info(f'  => {self.__cog_name__} loaded.')
 
     async def cog_unload(self) -> None:
         if self.eventlistener:
@@ -260,7 +260,7 @@ class Plugin(commands.Cog):
             self.bus.unregister_eventListener(self.eventlistener)
         # delete a possible configuration
         self._config.clear()
-        self.log.info(f'  => {self.plugin_name.title()} unloaded.')
+        self.log.info(f'  => {self.__cog_name__} unloaded.')
 
     def change_commands(self, cmds: dict, all_cmds: dict) -> None:
         for name, params in cmds.items():

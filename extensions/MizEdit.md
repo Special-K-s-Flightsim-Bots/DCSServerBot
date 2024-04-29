@@ -90,8 +90,18 @@ Sounds:
   - sounds/alarm.ogg
   - sounds/beep.ogg
 ```
-This will create a new preset "Sounds", that - if applied - copies the two ogg files into your i10n directory of your
-miz-file. The path of these files is relative to your DCSServerBot installation directory.
+This will create a new preset "Sounds", that - if applied - copies the two ogg files into your l10n/DEFAULT directory 
+of your miz-file. The path of these files is relative to your DCSServerBot installation directory.
+
+If you want to add files to a specific directory, you can do it like so:
+```yaml
+AddFiles:
+  files:
+    - source: sounds/alarm.ogg    # upload a single file to the target dir inside of the mission
+      target: l10n/EN 
+    - source: kneeboards          # upload the whole file structure from this directory into the mission
+      target: KNEEBOARDS          # at this place
+```
 
 #### c) Complex Modifications
 Sometimes, only changing the weather is not enough and you want to change some parts in the mission that are deeply 

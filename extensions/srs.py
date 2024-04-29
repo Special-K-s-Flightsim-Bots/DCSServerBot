@@ -70,9 +70,9 @@ class SRS(Extension, FileSystemEventHandler):
     def _maybe_update_config(self, section, key, value_key):
         if value_key in self.config:
             value = Autoexec.unparse(self.config[value_key])
-            if self.cfg[section][key] != value:
+            if Autoexec.parse(self.cfg[section][key]) != value:
                 self.cfg.set(section, key, value)
-                self.log.info(f"  => {self.server.name}: {key} set to {self.config[value_key]}")
+                self.log.info(f"  => {self.server.name}: [{section}][{key}] set to {self.config[value_key]}")
                 return True
         return False
 

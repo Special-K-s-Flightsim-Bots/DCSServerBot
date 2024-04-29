@@ -139,14 +139,16 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     ]
 
 
-async def get_branches(interaction: discord.Interaction, _: str) -> list[app_commands.Choice[str]]:
+async def get_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     current_branch, _ = await interaction.client.node.get_dcs_branch_and_version()
     if 'dcs_server' not in current_branch:
-        branch = 'release'
+        branches = [('Release', 'release')]
     else:
-        branch = 'dcs_server.release'
+        branches = [('Release', 'dcs_server.release')]
     return [
-        app_commands.Choice(name="Release", value=branch)
+        app_commands.Choice(name=x[0], value=x[1])
+        for x in branches
+        if not current or current.casefold() in x[0].casefold()
     ]
 
 
