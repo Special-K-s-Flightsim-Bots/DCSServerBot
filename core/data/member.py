@@ -1,7 +1,7 @@
 from __future__ import annotations
 import discord
 
-from core import DataObjectFactory, DataObject, utils
+from core import DataObjectFactory, DataObject
 from dataclasses import dataclass, field
 from typing import Optional
 

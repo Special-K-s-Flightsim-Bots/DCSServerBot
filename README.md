@@ -190,7 +190,7 @@ desanitizations are required and conducts them.
 
 > ⚠️ **Attention!**<br>
 > DCSServerBot needs write-permissions on the DCS-installation directory.<br>
-> You can usually achieve that by giving the "User group" write permissions on it. Right click on your DCS installation
+> You can usually achieve that by giving the "User group" write permissions on it. Right-click on your DCS installation
 > folder,<br>select Properties -> Security -> Edit, select "Users (...)" and tick Modify below. Then press the OK button.
 > There might be a question about changing the permission on all subdirectories - say yes in that case. 
 
@@ -388,7 +388,7 @@ roles:                                          # Roles mapping. The bot uses in
 ```
 > ⚠️ **Attention!**<br>
 > The bots role needs to be above any other role in your Discord server that it has to be able to manage.<br>
-> If you want the bot to give the "Online" role for people for example, it has to be below the bots role.
+> If you want the bot to give the "Online" role for people for example, it has to be below the bot's role.
 
 #### Auto Matching (default: enabled)
 To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 

@@ -1,12 +1,7 @@
-import aiohttp
-import certifi
-import gzip
-import json
 import luadata
 import math
 import os
 import shutil
-import ssl
 import stat
 
 from contextlib import suppress

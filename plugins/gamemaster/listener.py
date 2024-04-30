@@ -163,7 +163,7 @@ class GameMasterEventListener(EventListener):
         try:
             await self.campaign('start', servers=[server], name=name)
         except psycopg.errors.UniqueViolation:
-            await self.resetCampaign(data)
+            await self.resetCampaign(server, data)
 
     @event(name="stopCampaign")
     async def stopCampaign(self, server: Server, _: dict) -> None:
