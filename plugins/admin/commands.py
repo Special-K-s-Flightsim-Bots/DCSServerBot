@@ -420,9 +420,12 @@ class Admin(Plugin):
     async def _install(self, interaction: discord.Interaction,
                        node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction,
-                                       _("Shutdown all servers on node {} for the installation?").format(node.name),
-                                       ephemeral=ephemeral):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        if num_servers and not await utils.yn_question(
+                interaction, _("Shutdown all servers on node {} for the installation?").format(node.name),
+                ephemeral=ephemeral):
             return
         msg = await interaction.followup.send(
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
@@ -437,8 +440,12 @@ class Admin(Plugin):
     async def _uninstall(self, interaction: discord.Interaction,
                          node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction,
-                                       _("Shutdown all servers on node {} for the uninstallation?").format(node.name)):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        if num_servers and not await utils.yn_question(
+                interaction, _("Shutdown all servers on node {} for the uninstallation?").format(node.name),
+                ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
         await node.handle_module('uninstall', module)
