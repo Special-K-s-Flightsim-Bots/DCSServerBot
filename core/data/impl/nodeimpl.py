@@ -760,15 +760,18 @@ class NodeImpl(Node):
             """, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
 
-    async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
+    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
         def run_subprocess():
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            return proc.communicate()
+            return proc.communicate(timeout=timeout)
 
         self.log.debug('Running shell-command: ' + cmd)
-        stdout, stderr = await asyncio.to_thread(run_subprocess)
-        return (stdout.decode('cp1252', 'ignore') if stdout else None,
-                stderr.decode('cp1252', 'ignore') if stderr else None)
+        try:
+            stdout, stderr = await asyncio.to_thread(run_subprocess)
+            return (stdout.decode('cp1252', 'ignore') if stdout else None,
+                    stderr.decode('cp1252', 'ignore') if stderr else None)
+        except subprocess.TimeoutExpired:
+            raise TimeoutError()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
         path = os.path.expandvars(path)

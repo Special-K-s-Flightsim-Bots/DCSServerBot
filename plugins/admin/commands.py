@@ -747,19 +747,23 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                    cmd: str):
+                    cmd: str, timeout: Optional[app_commands.Range[int, 10, 300]] = 60):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        stdout, stderr = await node.shell_command(cmd)
-        embed = discord.Embed(colour=discord.Color.blue())
-        if stdout:
-            embed.description = "```" + stdout[:4090] + "```"
-        if stderr:
-            embed.set_footer(text=stderr[:2048])
-        if not stdout and not stderr:
-            embed.description = _("```Command executed.```")
-        await interaction.followup.send(embed=embed)
+        try:
+            await self.bot.audit(f"ran a shell command:\n```cmd\n{cmd}\n```", user=interaction.user)
+            stdout, stderr = await node.shell_command(cmd, timeout)
+            embed = discord.Embed(colour=discord.Color.blue())
+            if stdout:
+                embed.description = "```" + stdout[:4090] + "```"
+            if stderr:
+                embed.set_footer(text=stderr[:2048])
+            if not stdout and not stderr:
+                embed.description = _("```Command executed.```")
+            await interaction.followup.send(embed=embed)
+        except TimeoutError:
+            await interaction.followup.send(_("Timeout during shell command."))
 
     @command(description=_('Reloads a plugin'))
     @app_commands.guild_only()

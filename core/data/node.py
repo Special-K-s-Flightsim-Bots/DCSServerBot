@@ -157,7 +157,7 @@ class Node:
     async def get_latest_version(self, branch: str) -> Optional[str]:
         raise NotImplemented()
 
-    async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
+    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
         raise NotImplemented()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
