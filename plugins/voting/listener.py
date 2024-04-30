@@ -136,7 +136,7 @@ class VotingListener(EventListener):
 
     def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         config = self.get_config(server=server)
-        if not config:
+        if not config or not config.get('enabled', True):
             return False
         return super().can_run(command, server, player)
 
@@ -212,7 +212,7 @@ class VotingListener(EventListener):
         if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.get_config(server)
-        if 'welcome_message' not in config:
+        if 'welcome_message' not in config or not config.get('enabled', True):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:

@@ -25,6 +25,23 @@ class Main:
         self.log = node.log
         self.no_autoupdate = no_autoupdate
         utils.dynamic_import('services')
+        self.create_secret_dir()
+
+    @staticmethod
+    def create_secret_dir():
+        path = os.path.join('config', '.secret')
+        os.makedirs(path, exist_ok=True)
+        if sys.platform == 'win32':
+            import ctypes
+            ctypes.windll.kernel32.SetFileAttributesW(path, 2)
+
+    @staticmethod
+    def reveal_passwords():
+        print("[yellow]These are your hidden secrets:[/]")
+        for file in utils.list_all_files(os.path.join('config', '.secret')):
+            key = file[:-4]
+            print(f"{key}: {utils.get_password(key)}")
+        print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
 
     async def run(self):
         await self.node.post_init()
@@ -130,6 +147,11 @@ if __name__ == "__main__":
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
+
+    # check if we should reveal the passwords
+    if args.secret:
+        Main.reveal_passwords()
+        exit(-2)
 
     # Call the DCSServerBot 2.x migration utility
     if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):

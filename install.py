@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import pickle
 import platform
 import psycopg
 import secrets
@@ -117,35 +116,34 @@ class Install:
             try:
                 with psycopg.connect(url, autocommit=True) as conn:
                     with closing(conn.cursor()) as cursor:
-                        if os.path.exists('password.pkl'):
-                            with open('password.pkl', mode='rb') as f:
-                                passwd = pickle.load(f)
-                        else:
+                        try:
+                            passwd = utils.get_password('database')
+                        except ValueError:
                             passwd = secrets.token_urlsafe(8)
-                            try:
-                                cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
-                            except psycopg.Error:
-                                print(_('[yellow]Existing {} user found![/]').format(DCSSB_DB_USER))
-                                if Confirm.ask(_('Do you remember the password of {}?').format(DCSSB_DB_USER)):
-                                    while True:
-                                        passwd = Prompt.ask(
-                                            _("Please enter your password for user {}").format(DCSSB_DB_USER))
-                                        try:
-                                            with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
-                                                pass
-                                            break
-                                        except psycopg.Error:
-                                            print(_("[red]Wrong password! Try again.[/]"))
-                                else:
-                                    cursor.execute(f"ALTER USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
-                            with open('password.pkl', mode='wb') as f:
-                                pickle.dump(passwd, f)
-                            with suppress(psycopg.Error):
-                                cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
-                                cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
-                                cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
-                            print(_("[green]- Database user and database created.[/]"))
-                        return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
+                        try:
+                            cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
+                        except psycopg.Error:
+                            print(_('[yellow]Existing {} user found![/]').format(DCSSB_DB_USER))
+                            if Confirm.ask(_('Do you remember the password of {}?').format(DCSSB_DB_USER)):
+                                while True:
+                                    passwd = Prompt.ask(
+                                        _("Please enter your password for user {}").format(DCSSB_DB_USER))
+                                    try:
+                                        with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
+                                            pass
+                                        break
+                                    except psycopg.Error:
+                                        print(_("[red]Wrong password! Try again.[/]"))
+                            else:
+                                cursor.execute(f"ALTER USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
+                        # store the password
+                        utils.set_password('database', passwd)
+                        with suppress(psycopg.Error):
+                            cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
+                            cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
+                            cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
+                        print(_("[green]- Database user and database created.[/]"))
+                    return f"postgres://{DCSSB_DB_USER}:SECRET@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
             except psycopg.OperationalError:
                 print(_("[red]Master password wrong. Please try again.[/]"))
 
@@ -194,6 +192,7 @@ For a successful installation, you need to fulfill the following prerequisites:
         if use_lang_in_game:
             main['language'] = translations.get_language()
         token = Prompt.ask(_('Please enter your discord TOKEN (see documentation)')) or '<see documentation>'
+        utils.set_password('token', token)
         owner = IntPrompt.ask(_('Please enter your Owner ID (right click on your discord user, "Copy User ID")'))
         print(_("\nWe now need to setup your Discord roles and channels.\n"
                 "DCSServerBot creates a role mapping for your bot users. It has the following internal roles:"))
@@ -214,7 +213,6 @@ For a successful installation, you need to fulfill the following prerequisites:
                 default=default).split(',')
 
         bot = {
-            "token": token,
             "owner": owner,
             "roles": roles
         }
@@ -425,8 +423,6 @@ If you need any further assistance, please visit the support discord, listed in 
             self.log.info(_("{} written.").format("config/services/bot.yaml"))
         with open('config/nodes.yaml', mode='w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
-            if os.path.exists('password.pkl'):
-                os.remove('password.pkl')
         print(_("- Created {}").format("config/nodes.yaml"))
         self.log.info(_("{} written.").format("config/nodes.yaml"))
         with open('config/servers.yaml', mode='w', encoding='utf-8') as out:

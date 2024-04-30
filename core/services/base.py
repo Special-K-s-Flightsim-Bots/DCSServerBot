@@ -106,6 +106,10 @@ class Service(ABC):
         except (MarkedYAMLError, SchemaError) as ex:
             raise ServiceInstallationError(self.name, ex.__str__())
 
+    def save_config(self):
+        with open(os.path.join('config', 'services', self.name + '.yaml'), mode='w', encoding='utf-8') as outfile:
+            yaml.dump(self.locals, outfile)
+
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG, {})

@@ -27,8 +27,8 @@ mapping:
           autoupdate: {type: bool}
           desanitize: {type: bool}
           minimized: {type: bool}
-          dcs_user: {type: str}
-          dcs_password: {type: str}
+          user: {type: str}
+          password: {type: str}
       extensions:
         include: 'node_extensions_schema'
       instances:

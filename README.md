@@ -237,7 +237,7 @@ chat_command_prefix: .  # The command prefix to be used for in-game chat command
 mission_rewrite: false  # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
 language: de            # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
 database:
-  url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME
+  url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
   pool_min: 5           # min size of the DB pool, default is 5
   pool_max: 10          # max size of the DB pool, default is 10
   max_reties: 10        # maximum number of retries to initially connect to the database on startups
@@ -289,6 +289,8 @@ NODENAME:                       # this will be your hostname
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
+    user: xxxx                  # Your DCS username (only needed for specific usecases)
+    password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
   instances:
     DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.release_server' # The path to your saved games directory.
@@ -354,7 +356,7 @@ See [MizEdit](./extensions/MizEdit.md) for further details.
 This is your Discord-bot configuration.
 
 ```yaml
-token: AAaahhg2347286adhjdjasd2347263473        # Your TOKEN, as received from the discord developer portal.
+token: SECRET_DISCORD_TOKEN                     # Your TOKEN, as received from the discord developer portal. This will be auto-moved to a secret place by the bot.
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
@@ -399,7 +401,7 @@ match! It can generate false links though, which is why I prefer (or recommend) 
 to like the auto-matching, that is why it is in and you can use it (enabled per default).
 
 #### Auto-Banning (default: disabled)
-The bot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join 
+DCSServerBot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join 
 your Discord guild. If you like that feature, set `autoban: true` in services/bot.yaml (default: false).
 
 However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from 
@@ -418,6 +420,12 @@ You can map your Discord roles to these internal roles like described in the exa
 
 See [Coalitions](./COALITIONS.md) for coalition roles.
 
+### Discord TOKEN & Passwords
+DCSServerBot stores the secret Discord TOKEN and your database and (optional) DCS password in separate files. If ever you 
+have added these to your config files like mentioned above, the bot will take them and move them away. This is a 
+security feature. If you somehow forgot the values, you can always reveal them by starting the bot with the -s option
+like so: `run.cmd -s`.
+
 ### DCS/Hook Configuration
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
 
@@ -426,7 +434,9 @@ To view some sample configurations for the bot or for each configurable plugin, 
 
 ### Additional Security Features
 Players that have no pilot ID (empty or whitespace) or that share an account with others, will not be able to join your 
-DCS server. This is not configurable, it's a general rule (and a good one in my eyes).
+DCS server. This is not configurable, it's a general rule (and a good one in my eyes).<br>
+Besides that, people that try to join from the very same IP that a banned user has used before will be rejected also
+(ban-avoidance). You get a message in the discord admin-channel about it.
 
 ### Setup Multiple Servers on a Single Host
 To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different 

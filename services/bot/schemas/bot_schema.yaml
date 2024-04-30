@@ -1,6 +1,6 @@
 type: map
 mapping:
-  token: {type: str, required: true}
+  token: {type: str}
   owner: {type: int, required: true}
   automatch: {type: bool}
   autoban: {type: bool}

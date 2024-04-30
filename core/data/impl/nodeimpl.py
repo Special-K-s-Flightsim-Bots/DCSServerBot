@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import certifi
 import discord
+import gzip
 import json
 import logging
 import os
@@ -29,6 +30,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Optional, Union, Awaitable, Callable, Any
+from urllib.parse import urlparse
 from version import __version__
 
 from core.autoexec import Autoexec
@@ -39,7 +41,6 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
-from core.utils.dcs import LICENSES_URL
 from core.utils.helper import SettingsDict, YAMLError
 
 # ruamel YAML support
@@ -64,6 +65,9 @@ LOGLEVEL = {
 }
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
+LOGIN_URL = 'https://www.digitalcombatsimulator.com/gameapi/login/'
+UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
+LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
 # Internationalisation
 _ = get_translation('core')
@@ -213,6 +217,23 @@ class NodeImpl(Node):
             node: dict = self.all_nodes.get(self.name)
             if not node:
                 raise FatalException(f'No configuration found for node {self.name} in {config_file}!')
+            dirty = False
+            # check if we need to secure the database URL
+            database_url = node.get('database', {}).get('url')
+            if database_url:
+                url = urlparse(database_url)
+                if url.password != 'SECRET':
+                    utils.set_password('database', url.password)
+                    node['database']['url'] = \
+                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{url.port}{url.path}?sslmode=prefer"
+                    self.log.info("Database password found, removing it from config.")
+            password = node['DCS'].pop('password', None)
+            if password:
+                utils.set_password('DCS', password)
+                dirty = True
+            if dirty:
+                with open(config_file, 'w', encoding='utf-8') as f:
+                    yaml.dump(self.all_nodes, f)
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
 
@@ -246,6 +267,7 @@ class NodeImpl(Node):
 
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
+        url = url.replace('SECRET', utils.get_password('database'))
         # quick connection check
         db_available = False
         max_attempts = self.config.get("database", self.locals.get('database')).get('max_retries', 10)
@@ -546,7 +568,7 @@ class NodeImpl(Node):
             data = json.load(cfg)
         return data['modules']
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
+    async def get_available_modules(self) -> list[str]:
         licenses = {
             "CAUCASUS_terrain",
             "NEVADA_terrain",
@@ -561,12 +583,14 @@ class NodeImpl(Node):
             "WWII-ARMOUR",
             "SUPERCARRIER"
         }
-        if not userid:
+        user = self.locals['DCS'].get('user')
+        if not user:
             return list(licenses)
-        else:
-            auth = aiohttp.BasicAuth(login=userid, password=password)
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                    ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
+        password = utils.get_password('DCS')
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+            response = await session.post(LOGIN_URL, data={"login": user, "password": password})
+            if response.status == 200:
                 async with session.get(LICENSES_URL) as response:
                     if response.status == 200:
                         all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
@@ -574,6 +598,20 @@ class NodeImpl(Node):
                             if lic.endswith('_terrain'):
                                 licenses.add(lic)
             return list(licenses)
+
+    async def get_latest_version(self, branch: str) -> Optional[str]:
+        user = self.locals['DCS'].get('user')
+        if user:
+            password = utils.get_password('DCS')
+            auth = aiohttp.BasicAuth(login=user, password=password)
+        else:
+            auth = None
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
+            async with session.get(UPDATER_URL.format(branch)) as response:
+                if response.status == 200:
+                    return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+        return None
 
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
@@ -586,8 +624,7 @@ class NodeImpl(Node):
         else:
             branch, old_version = await self.get_dcs_branch_and_version()
             try:
-                new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
-                                                           password=self.locals['DCS'].get('dcs_password'))
+                new_version = await self.get_latest_version(branch)
                 if new_version and old_version != new_version:
                     self.log.warning(
                         f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
@@ -805,8 +842,7 @@ class NodeImpl(Node):
         try:
             try:
                 branch, old_version = await self.get_dcs_branch_and_version()
-                new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
-                                                           password=self.locals['DCS'].get('dcs_password'))
+                new_version = await self.get_latest_version(branch)
             except Exception:
                 self.log.warning("Update check failed, possible server outage at ED.")
                 return

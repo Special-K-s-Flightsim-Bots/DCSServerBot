@@ -300,8 +300,8 @@ def migrate(node: str):
             "desanitize": cfg['BOT'].getboolean('DESANITIZE')
         }
         if 'DCS_USER' in cfg['DCS']:
-            nodes[node]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
-            nodes[node]['DCS']['dcs_password'] = cfg['DCS']['DCS_PASSWORD']
+            nodes[node]['DCS']['user'] = cfg['DCS']['DCS_USER']
+            nodes[node]['DCS']['password'] = cfg['DCS']['DCS_PASSWORD']
         nodes[node]['database'] = {
             "url": cfg['BOT']['DATABASE_URL'],
             "pool_min": int(cfg['DB']['MASTER_POOL_MIN']),

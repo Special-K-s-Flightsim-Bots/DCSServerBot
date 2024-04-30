@@ -57,9 +57,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
-        userid = node.locals['DCS'].get('dcs_user')
-        password = node.locals['DCS'].get('dcs_password')
-        available_modules = (set(await node.get_available_modules(userid, password)) -
+        available_modules = (set(await node.get_available_modules()) -
                              set(await node.get_installed_modules()))
         return [
             app_commands.Choice(name=x, value=x)
@@ -370,9 +368,7 @@ class Admin(Plugin):
             _branch, old_version = await node.get_dcs_branch_and_version()
             if not branch:
                 branch = _branch
-            new_version = await utils.getLatestVersion(branch,
-                                                       userid=node.locals['DCS'].get('dcs_user'),
-                                                       password=node.locals['DCS'].get('dcs_password'))
+            new_version = await node.get_latest_version(branch)
         except Exception:
             await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
                                             ephemeral=True)

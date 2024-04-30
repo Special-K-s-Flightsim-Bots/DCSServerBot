@@ -139,17 +139,22 @@ class NodeProxy(Node):
         }, node=self.name)
         return data['return']
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
+    async def get_available_modules(self) -> list[str]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "get_available_modules",
-            "params": {
-                "userid": userid,
-                "password": password
-            }
+            "method": "get_available_modules"
         }, timeout=60, node=self.name)
         return data['return']
+
+    async def get_latest_version(self, branch: str) -> Optional[str]:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "get_latest_version"
+        }, timeout=60, node=self.name)
+        return data['return']
+
 
     async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
         data = await self.bus.send_to_node_sync({

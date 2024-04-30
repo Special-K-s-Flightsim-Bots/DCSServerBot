@@ -1,9 +1,11 @@
 import os
 
+from core import utils
 from core.translations import get_translation
 from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, TYPE_CHECKING
+from urllib.parse import urlparse
 
 from ..utils.helper import YAMLError
 
@@ -84,6 +86,18 @@ class Node:
             c.validate(raise_exception=False)
 
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
+            # check if we need to secure the database URL
+            database_url = config.get('database', {}).get('url')
+            if database_url:
+                url = urlparse(database_url)
+                if url.password != 'SECRET':
+                    utils.set_password('database', url.password)
+                    config['database']['url'] = \
+                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{url.port}{url.path}?sslmode=prefer"
+                    with open(file, 'w', encoding='utf-8') as f:
+                        yaml.dump(config, f)
+                    print("Database password found, removing it from config.")
+
             # set defaults
             config['autoupdate'] = config.get('autoupdate', False)
             config['logging'] = config.get('logging', {})
@@ -137,7 +151,10 @@ class Node:
     async def get_installed_modules(self) -> list[str]:
         raise NotImplemented()
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
+    async def get_available_modules(self) -> list[str]:
+        raise NotImplemented()
+
+    async def get_latest_version(self, branch: str) -> Optional[str]:
         raise NotImplemented()
 
     async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:

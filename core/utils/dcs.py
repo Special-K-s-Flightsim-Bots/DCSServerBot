@@ -14,20 +14,15 @@ from core.const import SAVED_GAMES
 from core.utils.helper import alternate_parse_settings
 from typing import Optional
 
-UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
-LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
-
 __all__ = [
     "ParseError",
     "findDCSInstances",
-    "getLatestVersion",
     "desanitize",
     "dd_to_dms",
     "get_active_runways",
     "create_writable_mission",
     "lua_pattern_to_python_regex",
-    "format_frequency",
-    "LICENSES_URL"
+    "format_frequency"
 ]
 
 
@@ -60,20 +55,6 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]
                 else:
                     instances.append((settings['name'], dirname))
     return instances
-
-
-async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
-                           password: Optional[str] = None) -> Optional[str]:
-    if userid:
-        auth = aiohttp.BasicAuth(login=userid, password=password)
-    else:
-        auth = None
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-            ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
-        async with session.get(UPDATER_URL.format(branch)) as response:
-            if response.status == 200:
-                return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
-    return None
 
 
 def desanitize(self, _filename: str = None) -> None:

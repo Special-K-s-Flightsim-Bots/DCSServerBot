@@ -1,3 +1,4 @@
+import pickle
 from logging.handlers import RotatingFileHandler
 
 import aiohttp
@@ -36,6 +37,9 @@ __all__ = [
     "safe_rmtree",
     "terminate_process",
     "quick_edit_mode",
+    "set_password",
+    "get_password",
+    "delete_password",
     "CloudRotatingFileHandler"
 ]
 
@@ -160,6 +164,26 @@ def quick_edit_mode(turn_on=None):
         screen_buffer.SetConsoleMode(new_mode | ENABLE_EXTENDED_FLAGS)
 
     return is_on if turn_on is None else turn_on
+
+
+def set_password(key: str, password: str):
+    with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='wb') as f:
+        pickle.dump(password, f)
+
+
+def get_password(key: str) -> str:
+    try:
+        with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='rb') as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        raise ValueError(key)
+
+
+def delete_password(key: str):
+    try:
+        os.remove(os.path.join('config', '.secret', f'{key}.pkl'))
+    except FileNotFoundError:
+        raise ValueError(key)
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):
