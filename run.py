@@ -29,7 +29,7 @@ class Main:
     @staticmethod
     def create_secret_dir():
         path = os.path.join('config', '.secret')
-        if not os.path.exists():
+        if not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
             if sys.platform == 'win32':
                 import ctypes
