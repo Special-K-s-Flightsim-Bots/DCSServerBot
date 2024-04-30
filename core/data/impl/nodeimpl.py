@@ -898,9 +898,9 @@ class NodeImpl(Node):
                 break
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
-        max_bot_port = -1
-        max_dcs_port = -1
-        max_webgui_port = -1
+        max_bot_port = 6666-1
+        max_dcs_port = 10308-10
+        max_webgui_port = 8088-2
         for instance in self.instances:
             if instance.bot_port > max_bot_port:
                 max_bot_port = instance.bot_port

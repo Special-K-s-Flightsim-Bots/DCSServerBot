@@ -130,7 +130,7 @@ msgstr "Dieses Update scheint länger zu brauchen. Bitte prüfe regelmäßig, ob
 msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
 msgstr "Ich kann den Branch {} nicht aktualisieren. Du musst ggf. Deine DCS-Zugangsdaten in nodes.yaml hinterlegen."
 
-# /dec install
+# /dcs install
 msgid "Install modules in your DCS server"
 msgstr "Installiere DCS-Module"
 
@@ -341,8 +341,8 @@ msgstr "Wähle eine vorhanden Instanz aus oder gib den Namen für eine neue an."
 msgid "Take this instance configuration as a reference"
 msgstr "Nutze diese Instanz als Referenz"
 
-msgid "Instance created.\nDo you want to configure the server for this instance?"
-msgstr "Instanz angelegt.\nMöchtest Du einen Server für diese Instanz konfigurieren?"
+msgid "Instance \"{}\" created.\nDo you want to configure a server for this instance?"
+msgstr "Instanz \"{}\" angelegt.\nMöchtest Du einen Server für diese Instanz konfigurieren?"
 
 msgid "Server {server} assigned to instance {instance}."
 msgstr "Server {server} wurde der Instanz {instance} zugeordnet."

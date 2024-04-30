@@ -5,7 +5,7 @@ mapping:
     type: map
     mapping:
       listen_address: {type: str}
-      listen_port: {type: int, range: {min: 1025, max: 65535}, required: true}
+      listen_port: {type: int, range: {min: 1025, max: 65535}}
       public_ip: {type: str}
       autoupdate: {type: bool}
       slow_system: {type: bool}

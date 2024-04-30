@@ -137,7 +137,7 @@ msgstr "Обновление идёт более 10 минут. Пожалуйс
 msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
 msgstr "Невозможно обновить ветку {}. Вам может потребоваться ввести данные пользователя DCS вручную."
 
-# /dec install
+# /dcs install
 msgid "Install modules in your DCS server"
 msgstr "Устанавливает модули на ваш сервер DCS"
 
@@ -354,11 +354,9 @@ msgstr "Выберите существующий инстанс или введ
 msgid "Take this instance configuration as a reference"
 msgstr "Взять конфигурацию данного инстанса за основу"
 
-msgid ""
-"Instance created.\n"
-"Do you want to configure the server for this instance?"
-msgstr ""
-"Инстанс создан.\n"
+msgid "Instance \"{}\" created.\n"
+"Do you want to configure a server for this instance?"
+msgstr "Инстанс \"{}\" создан.\n"
 "Произвести настройку сервера для этого инстанса?"
 
 msgid "Server {server} assigned to instance {instance}."

@@ -811,7 +811,8 @@ class Admin(Plugin):
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server
             view = ConfigView(self.bot, server)
-            embed = discord.Embed(title=_("Instance created.\nDo you want to configure the server for this instance?"),
+            embed = discord.Embed(title=_("Instance \"{}\" created.\n"
+                                          "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())
             try:
                 # noinspection PyUnresolvedReferences
