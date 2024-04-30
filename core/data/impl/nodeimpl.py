@@ -267,7 +267,10 @@ class NodeImpl(Node):
 
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
-        url = url.replace('SECRET', utils.get_password('database'))
+        try:
+            url = url.replace('SECRET', utils.get_password('database'))
+        except ValueError:
+            pass
         # quick connection check
         db_available = False
         max_attempts = self.config.get("database", self.locals.get('database')).get('max_retries', 10)

@@ -25,15 +25,15 @@ class Main:
         self.log = node.log
         self.no_autoupdate = no_autoupdate
         utils.dynamic_import('services')
-        self.create_secret_dir()
 
     @staticmethod
     def create_secret_dir():
         path = os.path.join('config', '.secret')
-        os.makedirs(path, exist_ok=True)
-        if sys.platform == 'win32':
-            import ctypes
-            ctypes.windll.kernel32.SetFileAttributesW(path, 2)
+        if not os.path.exists():
+            os.makedirs(path, exist_ok=True)
+            if sys.platform == 'win32':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(path, 2)
 
     @staticmethod
     def reveal_passwords():
@@ -149,6 +149,7 @@ if __name__ == "__main__":
     args = COMMAND_LINE_ARGS
 
     # check if we should reveal the passwords
+    Main.create_secret_dir()
     if args.secret:
         Main.reveal_passwords()
         exit(-2)

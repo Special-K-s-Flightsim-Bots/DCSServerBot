@@ -267,7 +267,7 @@ If you need any further assistance, please visit the support discord, listed in 
             _ = translations.get_translation("install")
 
             if self.node in nodes:
-                if Confirm.ask(_("[red]A configuration for this nodes exists already![/]\n"
+                if Confirm.ask(_("[red]A configuration for this node exists already![/]\n"
                                  "Do you want to overwrite it?"), default=False):
                     self.log.warning(_("Aborted: configuration exists"))
                     exit(-1)
