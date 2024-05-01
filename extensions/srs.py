@@ -85,6 +85,9 @@ class SRS(Extension, FileSystemEventHandler):
         dirty = self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
         dirty = self._maybe_update_config('Server Settings', 'CLIENT_EXPORT_FILE_PATH',
                                           'client_export_file_path') or dirty
+        self.config['client_export_enabled'] = True
+        dirty = self._maybe_update_config('General Settings', 'CLIENT_EXPORT_ENABLED',
+                                          'client_export_enabled') or dirty
         # enable SRS on spectators for slot blocking
         self.config['spectators_audio_disabled'] = False
         dirty = self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',

@@ -6,14 +6,8 @@ schema;master_schema:
       type: map
       mapping:
         audit: {type: bool}
-        discord:
-          type: seq
-          sequence:
-            - type: text
-        ucid:
-          type: seq
-          sequence:
-            - type: str
+        discord: {type: any}
+        ucid: {type: any}
         slots: {type: int, range: {min: 1}}
     restricted:
       type: seq
@@ -23,7 +17,7 @@ schema;master_schema:
             unit_type: {type: str}
             unit_name: {type: str}
             group_name: {type: str}
-            discord: {type: text}
+            discord: {type: any}
             message: {type: str}
             points: {type: int}
             costs: {type: int}
