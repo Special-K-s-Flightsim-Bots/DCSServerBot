@@ -154,10 +154,9 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Download
-Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then can use the 
-instant autoupdate functionality of the bot and always have the newest fixes, independent of and release version. 
-Otherwise, download the latest release version as ZIP and extract it somewhere on your PC that is running the DCS 
-server(s) and give it write permissions, if needed. 
+Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
+the newest fixes, independent of and release version. Otherwise, download the latest release version as ZIP and extract 
+it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
 
 > ⚠️ **Attention!**<br>
 > Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
@@ -165,8 +164,8 @@ server(s) and give it write permissions, if needed.
 
 ### Database
 DCSServerBot uses PostgreSQL to store all information that needs to be persistent. This consists of, but is not limited
-to: players, mission information, statistics and whatnot. DCSServerBot needs a fast database to do this. Install the 
-latest available PostgreSQL version from the above-mentioned website.<br>
+to: players, mission information, statistics. DCSServerBot needs a fast database to do this. Install the latest 
+available PostgreSQL version from the above-mentioned website.<br>
 
 > ⚠️ **Attention!**<br>
 > If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
@@ -220,11 +219,11 @@ bother with the bots configuration in first place.
 
 > ⚠️ **Attention!**<br>
 > If you run more than one bot node, best is to share the configuration between all nodes. This can be done via a cloud
-> drive for instance.
+> drive for instance or with some file sync tool.
 
 The following samples will show you what you can configure in DCSServerBot. For most of the configuration, default 
-values will apply, so you don't need all these values explicitly. I printed them here for completeness and for the
-sake of documentation.
+values will apply, so you don't need to define all these values explicitly. I printed them here for completeness and 
+for the sake of documentation.
 
 ### config/main.yaml
 This file holds the main information about DCSServerBot. You can configure which plugins are loaded here for instance.
@@ -275,9 +274,9 @@ For a cluster installation, you want to describe all your nodes and instances on
 (auto-)migrate stuff in-between the cluster!
 
 ```yaml
-NODENAME:                       # this will be your hostname
-  listen_address: 0.0.0.0       # On which interface should the bot listen to? Default is 0.0.0.0
-  listen_port: 10042            # On which port should the bot listen to? Default is 10042
+NODENAME:                       # this will usually be your hostname
+  listen_address: 0.0.0.0       # On which interface should the bot listen? Default is 0.0.0.0
+  listen_port: 10042            # On which port should the bot listen? Default is 10042
   slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
@@ -289,7 +288,7 @@ NODENAME:                       # this will be your hostname
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
-    user: xxxx                  # Your DCS username (only needed for specific usecases)
+    user: xxxx                  # Your DCS username (only needed for specific use-cases)
     password: xxxx              # Your DCS password (will be auto-moved by the bot to a secret place)
   instances:
     DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
@@ -394,7 +393,7 @@ roles:                                          # Roles mapping. The bot uses in
 To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 
 and you can see a variety of statistics yourself as well. The bot offers a linking system between Discord and DCS accounts 
 to enable this.
-Players can do this with the /linkme command. This creates a permanent and secured link that can then be used for in-game 
+Players can do this with the `/linkme` command. This creates a permanent and secured link that can then be used for in-game 
 commands. The bot can also auto-match a DCS player to Discord user. This way, players can see their own stats via Discord 
 commands. The bot will try to match the Discord username to DCS player name. This works best when DCS and Discord names 
 match! It can generate false links though, which is why I prefer (or recommend) the /linkme command. People still seem 
