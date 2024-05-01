@@ -424,9 +424,11 @@ if __name__ == "__main__":
     if not os.path.exists('config/dcsserverbot.ini'):
         print("Please run 'python install.py' first.")
         exit(-1)
-    if int(platform.python_version_tuple()[0]) != 3 or int(platform.python_version_tuple()[1]) not in range(9, 13):
-        print("You need Python 3.9 to 3.12 to run DCSServerBot!")
+    if int(platform.python_version_tuple()[0]) != 3 or int(platform.python_version_tuple()[1]) not in range(9, 12):
+        print("You need Python 3.9 to 3.11 to run DCSServerBot!")
         exit(-1)
+
+    print("DCSServerBot 2.0 is discontinued. Please upgrade to 3.0!")
     try:
         Install.verify()
         asyncio.run(Main().run())
