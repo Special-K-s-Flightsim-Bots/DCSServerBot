@@ -222,10 +222,12 @@ class NodeImpl(Node):
             database_url = node.get('database', {}).get('url')
             if database_url:
                 url = urlparse(database_url)
-                if url.password != 'SECRET':
+                if url.password and url.password != 'SECRET':
                     utils.set_password('database', url.password)
                     node['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{url.port}{url.path}?sslmode=prefer"
+                    # we do not have a logger yet, so print it
+                    print("Database password found, removing it from config.")
             password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
             if password:
                 node['DCS']['user'] = node['DCS'].pop('dcs_user')
@@ -268,7 +270,7 @@ class NodeImpl(Node):
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         try:
-            url = url.replace('SECRET', utils.get_password('database'))
+            url = url.replace('SECRET', utils.get_password('database') or '')
         except ValueError:
             pass
         # quick connection check
