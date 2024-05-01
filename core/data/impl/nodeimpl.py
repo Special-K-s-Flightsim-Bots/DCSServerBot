@@ -226,6 +226,7 @@ class NodeImpl(Node):
                     utils.set_password('database', url.password)
                     node['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{url.port}{url.path}?sslmode=prefer"
+                    dirty = True
                     # we do not have a logger yet, so print it
                     print("Database password found, removing it from config.")
             password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
