@@ -25,6 +25,7 @@ mapping:
         mapping:
           status: {type: int, required: true}
           chat: {type: int}
+          events: {type: int}
           admin: {type: int}
           voice: {type: int}
           blue: {type: int}
