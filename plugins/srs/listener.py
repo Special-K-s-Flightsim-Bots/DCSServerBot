@@ -69,5 +69,5 @@ class SRSEventListener(EventListener):
                 server.move_to_spectators(player,
                                           reason=self.get_config(server).get(
                                               'message_no_srs',
-                                              'You need to enable SRS to use any slot on this server!'))
+                                              'You need to use SRS to play on this server!'))
         self.mission.eventlistener.display_player_embed(server)

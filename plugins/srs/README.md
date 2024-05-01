@@ -15,7 +15,7 @@ opt_plugins:
 If you want to use the slot blocking feature, you need to create a config/plugins/srs.yaml file like so:
 ```yaml
 DEFAULT:
-  message_no_srs: You need to enable SRS to use any slot on this server!
+  message_no_srs: You need to use SRS to play on this server!
   enforce_srs: true   # block slots until SRS is activated
   move_to_spec: true  # move people back to spectators, if they leave SRS (only if enforce is true) 
 ```
