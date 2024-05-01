@@ -30,7 +30,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
 from typing import Optional, Union, Awaitable, Callable, Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 from version import __version__
 
 from core.autoexec import Autoexec
@@ -271,7 +271,7 @@ class NodeImpl(Node):
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         try:
-            url = url.replace('SECRET', utils.get_password('database') or '')
+            url = url.replace('SECRET', quote(utils.get_password('database')) or '')
         except ValueError:
             pass
         # quick connection check
