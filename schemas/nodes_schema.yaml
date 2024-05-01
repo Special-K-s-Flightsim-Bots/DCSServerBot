@@ -43,6 +43,6 @@ mapping:
               bot_port: {type: int, range: {min: 1025, max: 65535}, required: true}
               server_user: {type: str}
               max_hung_minutes: {type: int, range: {min: 0}}
-              affinity: {type: seq, sequence: [{type: int}]}
+              affinity: {type: any}
               extensions:
                 include: 'instance_extensions_schema'
