@@ -40,7 +40,7 @@ class SRSRadio(Radio):
                     "-m", self.config['modulation'],
                     "-c", str(self.config['coalition']),
                     "-v", str(self.config.get('volume', 1.0)),
-                    "-p", srs_port,
+                    "-p", str(srs_port),
                     "-n", self.config.get('display_name', 'DCSSB MusicBox'),
                     "-i", file
                 ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
