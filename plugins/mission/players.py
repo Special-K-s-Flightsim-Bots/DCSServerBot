@@ -14,8 +14,8 @@ class Main(report.EmbedElement):
         has_srs = ('SRS' in extensions)
         for player in players:
             coalitions[player.side]['names'].append(player.display_name)
-            coalitions[player.side]['units'].append(player.unit_type if player.side != 0 else '')
-            if has_srs and player.side != 0:
+            coalitions[player.side]['units'].append(player.unit_type if player.side != Side.SPECTATOR else '')
+            if has_srs and player.side != Side.SPECTATOR:
                 coalitions[player.side]['SRS'].append(':green_circle:' if player.radios else ':red_circle:')
         for coalition in [Coalition.BLUE, Coalition.RED, Coalition.NEUTRAL]:
             side = getattr(Side, coalition.name)
@@ -25,8 +25,6 @@ class Main(report.EmbedElement):
                 self.add_field(name='Unit', value='\n'.join(coalitions[side]['units']) or '_ _')
                 if has_srs:
                     self.add_field(name='SRS', value='\n'.join(coalitions[side]['SRS']) or '_ _')
-                else:
-                    self.add_field(name='_ _', value='_ _')
         # Spectators
         if len(coalitions[Side.SPECTATOR]['names']):
             self.add_field(name='▬' * 13 + ' Spectator ' + '▬' * 13, value='_ _', inline=False)
