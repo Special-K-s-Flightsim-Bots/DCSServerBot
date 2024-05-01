@@ -9,7 +9,7 @@ from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, InstanceProxy, utils, PubSub
+from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from core.data.impl.serverimpl import ServerImpl
@@ -389,9 +389,9 @@ class ServiceBus(Service):
                     port=-1,
                     name=server_name
                 )
-                instance = InstanceProxy(name=instance, node=node)
-                instance.home = home
-                server.instance = instance
+                _instance = next(x for x in node.instances if x.name == instance)
+                _instance.home = home
+                server.instance = _instance
                 self.servers[server_name] = server
                 server.settings = settings
                 server.options = options
