@@ -25,6 +25,6 @@ DEFAULT.
 ## Discord Commands
 The following Discord commands are available through the SRS plugin:
 
-| Command               | Parameter           | Channel               | Role                  | Description                                                                                                                                |
-|-----------------------|---------------------|-----------------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| /linkme               |                     | all                   | DCS                   | Link a discord user to a DCS user (user self-service).                                                                                     |
+| Command   | Parameter           | Channel               | Role                  | Description                                            |
+|-----------|---------------------|-----------------------|-----------------------|--------------------------------------------------------|
+| /srs list |                     | all                   | DCS                   | Shows active users on SRS with their connected radios. |
