@@ -224,8 +224,9 @@ class NodeImpl(Node):
                 url = urlparse(database_url)
                 if url.password and url.password != 'SECRET':
                     utils.set_password('database', url.password)
+                    port = url.port or 5432
                     node['database']['url'] = \
-                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{url.port}{url.path}?sslmode=prefer"
+                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     dirty = True
                     # we do not have a logger yet, so print it
                     print("Database password found, removing it from config.")
