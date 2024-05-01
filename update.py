@@ -1,8 +1,5 @@
-import argparse
-import core
 import io
 import os
-import platform
 import re
 import requests
 import shutil
@@ -123,17 +120,11 @@ def do_update_github(delete: Optional[bool] = False) -> int:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='update.py', description="Welcome to DCSServerBot!",
-                                     epilog='If unsure about the parameters, please check the documentation.')
-    parser.add_argument('-n', '--node', help='Node name', default=platform.node())
-    parser.add_argument('-c', '--config', help='Path to configuration', default='config')
-    parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
-    parser.add_argument('-r', '--no-restart', action='store_true', default=False,
-                        help="don't start DCSServerBot after the update")
-    core.set_commandline_args(parser.parse_args())
+    # get the command line args from core
+    args = COMMAND_LINE_ARGS
     try:
-        rc = do_update_git(COMMAND_LINE_ARGS.delete)
+        rc = do_update_git(args.delete)
     except ImportError:
-        rc = do_update_github(COMMAND_LINE_ARGS.delete)
-    if not COMMAND_LINE_ARGS.no_restart:
+        rc = do_update_github(args.delete)
+    if not args.no_restart:
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py', '--noupdate'] + sys.argv[1:])
