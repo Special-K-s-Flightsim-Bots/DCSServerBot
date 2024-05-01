@@ -32,23 +32,41 @@ __all__ = ["BotService"]
 @ServiceRegistry.register(master_only=True)
 class BotService(Service):
 
+    def _migrate_autorole(self) -> bool:
+        if not isinstance(self.locals.get('autorole'), str):
+            return False
+        value = self.locals.pop('autorole')
+        if self.locals.get('roles', {}).get('DCS', []) and self.locals['roles']['DCS'][0] != '@everyone':
+            if value == 'join':
+                self.locals['autorole'] = {
+                    "on_join": self.locals['roles']['DCS'][0]
+                }
+            elif value == 'linkme':
+                self.locals['autorole'] = {
+                    "linked": self.locals['roles']['DCS'][0]
+                }
+        return True
+
+    def _secure_token(self) -> bool:
+        token = self.locals.pop('token', None)
+        if not token:
+            return False
+        self.log.info("Discord TOKEN found, removing it from yaml ...")
+        utils.set_password('token', token)
+        return True
+
     def __init__(self, node):
         super().__init__(node=node, name="Bot")
         self.bot: Optional[DCSServerBot] = None
         # do we need to change the bot.yaml file?
-        if isinstance(self.locals.get('autorole'), str):
-            value = self.locals.pop('autorole')
-            if self.locals.get('roles', {}).get('DCS', []) and self.locals['roles']['DCS'][0] != '@everyone':
-                if value == 'join':
-                    self.locals['autorole'] = {
-                        "on_join": self.locals['roles']['DCS'][0]
-                    }
-                elif value == 'linkme':
-                    self.locals['autorole'] = {
-                        "linked": self.locals['roles']['DCS'][0]
-                    }
-            with open(os.path.join('config', 'services', self.name + '.yaml'), mode='w', encoding='utf-8') as outfile:
-                yaml.dump(self.locals, outfile)
+        dirty = self._migrate_autorole()
+        dirty = self._secure_token() or dirty
+        if dirty:
+            self.save_config()
+
+    @property
+    def token(self) -> str:
+        return utils.get_password('token')
 
     def init_bot(self):
         def get_prefix(client, message):
@@ -80,7 +98,7 @@ class BotService(Service):
             self.bot = self.init_bot()
             await self.install_fonts()
             async with self.bot:
-                await self.bot.start(self.locals['token'], reconnect=reconnect)
+                await self.bot.start(self.token, reconnect=reconnect)
         except PermissionError as ex:
             self.log.error("Please check the permissions for " + str(ex))
             raise
@@ -154,6 +172,8 @@ class BotService(Service):
                            filename: Optional[str] = None, embed: Optional[dict] = None):
         _channel = self.bot.get_channel(channel)
         if not _channel:
+            if channel != -1:
+                raise ValueError(f"Channel {channel} not found!")
             return
         if embed:
             _embed = discord.Embed.from_dict(embed)

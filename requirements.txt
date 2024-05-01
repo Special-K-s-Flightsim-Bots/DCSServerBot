@@ -64,6 +64,9 @@ psutil==5.9.8
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
 pyarrow==15.0.2
 
+# pyKwalify: A Python library for YAML/JSON schema validation
+pykwalify==1.8.0
+
 # python-Levenshtein: Python extension for computing string edit distances and similarities
 python-Levenshtein==0.25.1
 

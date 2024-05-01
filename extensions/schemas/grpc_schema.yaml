@@ -1,0 +1,5 @@
+schema;grpc_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}
+    port: {type: int, range: {min: 80, max: 65535}}

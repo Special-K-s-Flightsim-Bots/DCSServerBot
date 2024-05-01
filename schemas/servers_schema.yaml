@@ -1,0 +1,44 @@
+type: map
+mapping:
+  regex;(.+):
+    type: map
+    mapping:
+      message_ban: {type: str}
+      message_afk: {type: str}
+      message_server_full: {type: str}
+      message_reserved: {type: str}
+      message_no_voice: {type: str}
+      message_timeout: {type: int, range: {min: 5, max: 60}}
+      display_ai_chat: {type: bool}
+      server_user: {type: str}
+      afk_time: {type: int, range: {min: -1}}
+      ping_admin_on_crash: {type: bool}
+      autoscan: {type: bool}
+      autorole: {type: text}
+      force_voice: {type: bool}
+      discord:
+        type: seq
+        sequence:
+          - type: text
+      channels:
+        type: map
+        mapping:
+          status: {type: int, required: true}
+          chat: {type: int}
+          admin: {type: int}
+          voice: {type: int}
+          blue: {type: int}
+          red: {type: int}
+      chat_log:
+        type: map
+        mapping:
+          count: {type: int, range: {min: 1}}
+          size: {type: int}
+      coalitions:
+        type: map
+        mapping:
+          lock_time: {type: str}
+          allow_players_pool: {type: bool}
+          blue_role: {type: text}
+          red_role: {type: text}
+      no_coalition_chat: {type: bool}

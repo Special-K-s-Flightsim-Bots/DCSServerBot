@@ -130,7 +130,7 @@ msgstr "La actualización tardará más de 10 minutos. Por favor comprueba regul
 msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
 msgstr "No se puede actualizar la rama {}. Quizás necesites credenciales de DCS adecuadas para hacerlo."
 
-# /dec install
+# /dcs install
 msgid "Install modules in your DCS server"
 msgstr "Instalar módulos en tu servidor de DCS"
 
@@ -341,8 +341,8 @@ msgstr "Selecciones el nombre de una instancia existente o una nueva"
 msgid "Take this instance configuration as a reference"
 msgstr "Utilice la configuración de ésta instancia como referencia"
 
-msgid "Instance created.\nDo you want to configure the server for this instance?"
-msgstr "Instancia creada.\n¿Desea configurar el servidor para esta instancia?"
+msgid "Instance \"{}\" created.\nDo you want to configure a server for this instance?"
+msgstr "Instancia \"{}\" creada.\n¿Desea configurar el servidor para esta instancia?"
 
 msgid "Server {server} assigned to instance {instance}."
 msgstr "Server {server} asignado a la instancia {instance}."

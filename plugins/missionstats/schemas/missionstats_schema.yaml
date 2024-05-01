@@ -1,0 +1,23 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    enabled: {type: bool}
+    display: {type: bool}
+    persistence: {type: bool}
+    persist_ai_statistics: {type: bool}
+    mission_end:
+      type: map
+      mapping:
+        persistent: {type: bool}
+        channel: {type: int}
+        title: {type: str}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

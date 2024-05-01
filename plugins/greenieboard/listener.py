@@ -89,6 +89,8 @@ class GreenieBoardEventListener(EventListener):
                     await report.render(server_name=None, num_rows=num_rows)
         except FileNotFoundError as ex:
             self.log.error(f'  => File not found: {ex}')
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]

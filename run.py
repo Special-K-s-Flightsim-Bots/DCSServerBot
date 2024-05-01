@@ -26,6 +26,23 @@ class Main:
         self.no_autoupdate = no_autoupdate
         utils.dynamic_import('services')
 
+    @staticmethod
+    def create_secret_dir():
+        path = os.path.join('config', '.secret')
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+            if sys.platform == 'win32':
+                import ctypes
+                ctypes.windll.kernel32.SetFileAttributesW(path, 2)
+
+    @staticmethod
+    def reveal_passwords():
+        print("[yellow]These are your hidden secrets:[/]")
+        for file in utils.list_all_files(os.path.join('config', '.secret')):
+            key = file[:-4]
+            print(f"{key}: {utils.get_password(key)}")
+        print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
+
     async def run(self):
         await self.node.post_init()
         # check for updates
@@ -124,11 +141,18 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("[yellow]Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.[/]")
 
-    # disable quick edit mode (thanks to Moots)
-    utils.quick_edit_mode(False)
+    if sys.platform == 'win32':
+        # disable quick edit mode (thanks to Moots)
+        utils.quick_edit_mode(False)
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
+
+    # check if we should reveal the passwords
+    Main.create_secret_dir()
+    if args.secret:
+        Main.reveal_passwords()
+        exit(-2)
 
     # Call the DCSServerBot 2.x migration utility
     if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):
@@ -146,7 +170,8 @@ if __name__ == "__main__":
               f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node} and try again.[/]")
         exit(-2)
     except PidFileError:
-        print(f"\n[red]Process already running for node {args.node}! Exiting...[/]")
+        print(f"\n[red]Process already running for node {args.node}![/]\n"
+              f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.\n\n")
         # do not restart again
         exit(-2)
     except KeyboardInterrupt:

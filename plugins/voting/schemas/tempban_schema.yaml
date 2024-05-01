@@ -1,0 +1,5 @@
+schema;tempban_schema:
+  type: map
+  mapping:
+    duration: {type: int, range: {min: 1}}
+

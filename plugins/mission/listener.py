@@ -416,6 +416,8 @@ class MissionEventListener(EventListener):
             return
         # check if the server only allows linked members to join
         discord_roles = server.locals.get('discord')
+        if server.locals.get('force_voice', False) and not discord_roles:
+            discord_roles = ['@everyone']
         if discord_roles:
             member = self.bot.get_member_by_ucid(data['ucid'])
             roles = discord_roles if isinstance(discord_roles, list) else [discord_roles]
@@ -423,9 +425,8 @@ class MissionEventListener(EventListener):
                 server.send_to_dcs({
                     "command": "kick",
                     "id": data['id'],
-                    "reason": self.get_config(server).get('greeting_message_reserved',
-                                                          'This server is locked for specific users.\n'
-                                                          'Please contact a server admin.')
+                    "reason": server.locals.get('message_reserved', 'This server is locked for specific users.\n'
+                                                                    'Please contact a server admin.')
                 })
                 return
         player: Player = server.get_player(ucid=data['ucid'])
@@ -459,6 +460,22 @@ class MissionEventListener(EventListener):
             if autorole:
                 # noinspection PyAsyncCall
                 asyncio.create_task(player.add_role(autorole))
+            # check if we need to enforce voice chat usage
+            if server.locals.get('force_voice', False):
+                # we do not check DCS Admin users
+                if not utils.check_roles(self.bot.roles['DCS Admin'], player.member):
+                    voice: discord.VoiceChannel = self.bot.get_channel(server.channels[Channel.VOICE])
+                    if not voice:
+                        self.log.error(
+                            f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
+                        return
+                    if not player.member.voice:
+                        server.kick(player, reason=server.locals.get(
+                            'message_no_voice','You need to be in voice channel "{}" to use this server!'
+                        ).format(voice.name))
+                        return
+                    else:
+                        await player.member.move_to(voice)
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
         self.display_mission_embed(server)

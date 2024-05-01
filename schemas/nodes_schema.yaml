@@ -1,0 +1,48 @@
+type: map
+matching-rule: 'any'
+mapping:
+  regex;(.+):   # Any string as a node name
+    type: map
+    mapping:
+      listen_address: {type: str}
+      listen_port: {type: int, range: {min: 1025, max: 65535}}
+      public_ip: {type: str}
+      autoupdate: {type: bool}
+      slow_system: {type: bool}
+      preferred_master: {type: bool}
+      heartbeat: {type: int, range: {min: 10}}
+      cloud_drive: {type: bool}
+      nodestats: {type: bool}
+      database:
+        type: map
+        mapping:
+          url: {type: str}
+          pool_min: {type: int, range: {min: 2}}
+          pool_max: {type: int, range: {min: 5}}
+          max_idle: {type: int}
+      DCS:
+        type: map
+        mapping:
+          installation: {type: str, required: true}
+          autoupdate: {type: bool}
+          desanitize: {type: bool}
+          minimized: {type: bool}
+          user: {type: str}
+          password: {type: str}
+      extensions:
+        include: 'node_extensions_schema'
+      instances:
+        type: map
+        mapping:
+          regex;(.+):   # Any string as an instance name
+            type: map
+            mapping:
+              home: {type: str}
+              missions_dir: {type: str}
+              autoscan: {type: bool}
+              bot_port: {type: int, range: {min: 1025, max: 65535}, required: true}
+              server_user: {type: str}
+              max_hung_minutes: {type: int, range: {min: 0}}
+              affinity: {type: seq, sequence: [{type: int}]}
+              extensions:
+                include: 'instance_extensions_schema'

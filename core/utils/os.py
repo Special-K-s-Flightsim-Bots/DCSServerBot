@@ -1,3 +1,4 @@
+import pickle
 from logging.handlers import RotatingFileHandler
 
 import aiohttp
@@ -31,9 +32,14 @@ __all__ = [
     "find_process",
     "is_process_running",
     "get_windows_version",
+    "list_all_files",
+    "make_unix_filename",
     "safe_rmtree",
     "terminate_process",
     "quick_edit_mode",
+    "set_password",
+    "get_password",
+    "delete_password",
     "CloudRotatingFileHandler"
 ]
 
@@ -91,6 +97,29 @@ def get_windows_version(cmd: str) -> Optional[str]:
     return version
 
 
+def list_all_files(path: str) -> list[str]:
+    """
+    Returns a list of all files in a given directory path, including files in subdirectories.
+
+    :param path: The path of the directory to search for files.
+    :return: A list of file paths relative to the given directory path.
+    """
+    # If we only have one file, return that
+    if not os.path.isdir(path):
+        return [os.path.basename(path)]
+    file_paths = []
+    for dirpath, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            full_path = os.path.join(dirpath, filename)
+            relative_path = os.path.relpath(full_path, path)
+            file_paths.append(relative_path)
+    return file_paths
+
+
+def make_unix_filename(*args) -> str:
+    return '/'.join(arg.replace('\\', '/').strip('/') for arg in args)
+
+
 def safe_rmtree(path: Union[str, Path]):
     # if path is a single file, delete that
     if os.path.isfile(path):
@@ -135,6 +164,26 @@ def quick_edit_mode(turn_on=None):
         screen_buffer.SetConsoleMode(new_mode | ENABLE_EXTENDED_FLAGS)
 
     return is_on if turn_on is None else turn_on
+
+
+def set_password(key: str, password: str):
+    with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='wb') as f:
+        pickle.dump(password, f)
+
+
+def get_password(key: str) -> str:
+    try:
+        with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='rb') as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        raise ValueError(key)
+
+
+def delete_password(key: str):
+    try:
+        os.remove(os.path.join('config', '.secret', f'{key}.pkl'))
+    except FileNotFoundError:
+        raise ValueError(key)
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

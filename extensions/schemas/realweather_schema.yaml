@@ -1,0 +1,59 @@
+schema;node_realweather_schema:
+  type: map
+  mapping:
+    installation: {type: str, required: true, nullable: false}
+schema;instance_realweather_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}
+    debug: {type: bool}
+    metar:
+      type: map
+      required: true
+      allowempty: true  # allow the author to change values
+      mapping:
+        icao: {type: str, required: true, pattern: '^[A-Za-z]{4}$'}
+        runway-elevation: {type: int, range: {min: 0}}
+        remarks: {type: str}
+        add-to-brief: {type: bool}
+    options:
+      type: map
+      allowempty: true
+      mapping:
+        update-time: {type: bool}
+        update-weather: {type: bool}
+        time-offset: {type: str, pattern: '^[+-]?\d+h\d+m$'}
+        wind:
+          type: map
+          allowempty: true
+          mapping:
+            minimum: {type: int}
+            maximum: {type: int}
+            stability: {type: float}
+            fixed-reference: {type: bool}
+            clouds:
+              type: map
+              allowempty: true
+              mapping:
+                disallowed-presets:
+                  type: seq
+                  sequence:
+                    - type: str
+                fallback-to-no-preset: {type: bool}
+                default-preset: {type: str}
+            fog:
+              type: map
+              allowempty: true
+              mapping:
+                enabled: {type: bool}
+                thickness-minimum: {type: int, range: {min: 0}}
+                thickness-maximum: {type: int, range: {max: 1000}}
+                visibility-minimum: {type: int, range: {min: 0}}
+                visibility-maximum: {type: int, range: {max: 6000}}
+            dust:
+              type: map
+              allowempty: true
+              mapping:
+                enabled: {type: bool}
+                visibility-minimum: {type: int, range: {min: 300}}
+                visibility-maximum: {type: int, range: {max: 3000}}

@@ -1,0 +1,39 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    VIP:
+      type: map
+      mapping:
+        audit: {type: bool}
+        discord:
+          type: seq
+          sequence:
+            - type: text
+        ucid:
+          type: seq
+          sequence:
+            - type: str
+        slots: {type: int, range: {min: 1}}
+    restricted:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            unit_type: {type: str}
+            unit_name: {type: str}
+            group_name: {type: str}
+            discord: {type: text}
+            message: {type: str}
+            points: {type: int}
+            costs: {type: int}
+    payback: {type: bool}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

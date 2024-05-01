@@ -1,0 +1,22 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    enabled: {type: bool}
+    wipe_stats_on_leave: {type: bool}
+    squadrons:
+      type: map
+      mapping:
+        self_join: {type: bool}
+    highscore:
+      type: any
+      # todo
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

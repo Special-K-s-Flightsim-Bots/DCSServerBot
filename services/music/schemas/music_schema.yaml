@@ -1,0 +1,30 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    music_dir: {type: str}
+    popup: {type: str}
+    chat: {type: str}
+    pause_without_players: {type: bool}
+    radios:
+      type: map
+      mapping:
+        regex;(.+):
+          type: map
+          mapping:
+            type: {type: str, enum: ['SRSRadio'], required: true}
+            mode: {type: int, enum: [1, 2], required: true}
+            frequency: {type: text, required: true}
+            modulation: {type: str, enum: ['AM', 'FM'], required: true}
+            coalition: {type: int, enum: [1, 2, 3], required: true}
+            volume: {type: text}
+            display_name: {type: str}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

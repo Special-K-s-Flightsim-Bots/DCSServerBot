@@ -1,0 +1,10 @@
+type: map
+mapping:
+  DEFAULT:
+    type: map
+    mapping:
+      autoexport: {type: bool}
+      tablefilter:
+        type: seq
+        sequence:
+          - type: str

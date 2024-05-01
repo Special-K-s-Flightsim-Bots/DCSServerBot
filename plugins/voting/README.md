@@ -44,6 +44,8 @@ DEFAULT:
   voting_threshold: 0.25  # 25% of all players have to vote for the vote to count
   voting_rule: "majority" # one of "majority" (default), "supermajority" (>= 33%), "unanimous" or "absolute" (>= 50%)
   credits: 10             # a vote costs 10 credit points (default: 0 = off)
+instance2:
+  enabled: false        # Disable the Voting plugin on instance2
 ```
 
 If you don't want to provide a list of presets or missions, just send an empty tag like so:

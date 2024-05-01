@@ -380,34 +380,37 @@ class ServiceBus(Service):
                            maintenance: bool) -> None:
         from core import NodeProxy
 
-        server: ServerProxy = cast(ServerProxy, self.servers.get(server_name))
-        if not server or not server.is_remote:
-            node = NodeProxy(self.node, node, public_ip, self.node.config_dir)
-            server = ServerProxy(
-                node=node,
-                port=-1,
-                name=server_name
-            )
-            instance = InstanceProxy(name=instance, node=node)
-            instance.home = home
-            server.instance = instance
-            self.servers[server_name] = server
-            server.settings = settings
-            server.options = options
-            server.dcs_version = dcs_version
-            server.maintenance = maintenance
-            # to support remote channel configs (for remote testing)
-            if not server.locals.get('channels'):
-                server.locals['channels'] = channels
-            # add eventlistener queue
-            if server.name not in self.udp_server.message_queue:
-                self.udp_server.message_queue[server.name] = Queue()
-                self.executor.submit(self.udp_server.process, server.name)
-            self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
-        else:
-            # IP might have changed, so update it
-            cast(NodeProxy, server.node).public_ip = public_ip
-        server.status = Status(status)
+        try:
+            server: ServerProxy = cast(ServerProxy, self.servers.get(server_name))
+            if not server or not server.is_remote:
+                node = NodeProxy(self.node, node, public_ip, self.node.config_dir)
+                server = ServerProxy(
+                    node=node,
+                    port=-1,
+                    name=server_name
+                )
+                instance = InstanceProxy(name=instance, node=node)
+                instance.home = home
+                server.instance = instance
+                self.servers[server_name] = server
+                server.settings = settings
+                server.options = options
+                server.dcs_version = dcs_version
+                server.maintenance = maintenance
+                # to support remote channel configs (for remote testing)
+                if not server.locals.get('channels'):
+                    server.locals['channels'] = channels
+                # add eventlistener queue
+                if server.name not in self.udp_server.message_queue:
+                    self.udp_server.message_queue[server.name] = Queue()
+                    self.executor.submit(self.udp_server.process, server.name)
+                self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
+            else:
+                # IP might have changed, so update it
+                cast(NodeProxy, server.node).public_ip = public_ip
+            server.status = Status(status)
+        except Exception as ex:
+            self.log.exception(str(ex), exc_info=True)
 
     def send_to_node(self, data: dict, *, node: Optional[Union[Node, str]] = None):
         if isinstance(node, Node):
@@ -430,6 +433,7 @@ class ServiceBus(Service):
                 if server_name not in self.udp_server.message_queue:
                     self.log.debug(f"Message received for unregistered server {server_name}, ignoring.")
                 else:
+                    self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
                     self.udp_server.message_queue[server_name].put(data)
             else:
                 asyncio.create_task(self.handle_rpc(data))
@@ -467,10 +471,12 @@ class ServiceBus(Service):
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
-                        self.loop.call_soon_threadsafe(
-                            f.set_exception,
-                            utils.str_to_class(data['exception']['class'])(data['exception']['message'])
-                        )
+                        try:
+                            ex = utils.str_to_class(data['exception']['class'])(*data['exception']['args'],
+                                                                                **data['exception']['kwargs'])
+                        except Exception:
+                            ex = PermissionError(data['exception']['args'])
+                        self.loop.call_soon_threadsafe(f.set_exception, ex)
                     else:
                         # TODO: change to data['return']
                         self.loop.call_soon_threadsafe(f.set_result, data)
@@ -511,8 +517,9 @@ class ServiceBus(Service):
                     "channel": data['channel'],
                     "return": '',
                     "exception": {
-                        "class": ex.__class__.__name__,
-                        "message": ex.__repr__()
+                        "class": f"{ex.__class__.__module__}.{ex.__class__.__name__}",
+                        "args": ex.args,
+                        "kwargs": getattr(ex, 'kwargs', {})
                     }
                 }, node=data.get('node'))
             else:

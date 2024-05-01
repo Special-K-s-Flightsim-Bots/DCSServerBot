@@ -24,7 +24,7 @@ from .logger import CloudLoggingHandler
 _ = get_translation(__name__.split('.')[1])
 
 
-class CloudHandler(Plugin):
+class Cloud(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -324,4 +324,4 @@ class CloudHandler(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(CloudHandler(bot, CloudListener))
+    await bot.add_cog(Cloud(bot, CloudListener))

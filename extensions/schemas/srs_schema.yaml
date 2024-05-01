@@ -1,0 +1,18 @@
+schema;node_srs_schema:
+  type: map
+  mapping:
+    installation: {type: str}
+    autoupdate: {type: bool}
+schema;instance_srs_schema:
+  type: map
+  mapping:
+    config: {type: str, required: true}
+    host: {type: str}
+    port: {type: int, range: {min: 80, max: 65535}}
+    minimized: {type: bool}
+    debug: {type: bool}
+    awacs: {type: bool}
+    blue_password: {type: str}
+    red_password: {type: str}
+    autostart: {type: bool}
+    no_shutdown: {type: bool}

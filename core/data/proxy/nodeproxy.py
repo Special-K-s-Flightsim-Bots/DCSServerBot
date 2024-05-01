@@ -65,10 +65,8 @@ class NodeProxy(Node):
                 return {}
             for name, element in node.items():
                 if name == 'instances':
-                    for _name, _element in node['instances'].items():
-                        instance = InstanceProxy(name=_name, node=self.local_node)
-                        instance.locals = _element
-                        self.instances.append(instance)
+                    for _name in node['instances'].keys():
+                        self.instances.append(InstanceProxy(name=_name, node=self, locals=element))
                 else:
                     _locals[name] = element
         return _locals
@@ -126,7 +124,11 @@ class NodeProxy(Node):
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "handle_module"
+            "method": "handle_module",
+            "params": {
+                "what": what,
+                "module": module
+            }
         }, node=self.name)
 
     async def get_installed_modules(self) -> list[str]:
@@ -137,7 +139,7 @@ class NodeProxy(Node):
         }, node=self.name)
         return data['return']
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
+    async def get_available_modules(self) -> list[str]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -145,15 +147,24 @@ class NodeProxy(Node):
         }, timeout=60, node=self.name)
         return data['return']
 
-    async def shell_command(self, cmd: str) -> Optional[tuple[str, str]]:
+    async def get_latest_version(self, branch: str) -> Optional[str]:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "get_latest_version"
+        }, timeout=60, node=self.name)
+        return data['return']
+
+    async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "shell_command",
             "params": {
-                "cmd": cmd
+                "cmd": cmd,
+                "timeout": timeout
             }
-        }, timeout=60, node=self.name)
+        }, timeout=timeout + 10, node=self.name)
         return data['return']
 
     async def read_file(self, path: str) -> Union[bytes, int]:

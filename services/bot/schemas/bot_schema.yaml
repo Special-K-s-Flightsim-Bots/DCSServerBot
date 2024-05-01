@@ -1,0 +1,47 @@
+type: map
+mapping:
+  token: {type: str}
+  owner: {type: int, required: true}
+  automatch: {type: bool}
+  autoban: {type: bool}
+  autorole:
+    type: map
+    mapping:
+      on_join: {type: text}
+      linked: {type: text}
+      online: {type: text}
+  no_dcs_autoban: {type: bool}
+  message_ban: {type: str}
+  message_autodelete: {type: int, range: {min: 0}}
+  audit_channel: {type: int}
+  admin_channel: {type: int}
+  greeting_dm: {type: str}
+  reports:
+    type: map
+    mapping:
+      num_workers: {type: int, range: {min: 4}}
+      cjk_font: {type: str, enum: ['TC', 'JP', 'KR']}
+  discord_status: {type: str}
+  roles:
+    type: map
+    mapping:
+      Admin:
+        type: seq
+        sequence:
+          - type: text
+      Alert:
+        type: seq
+        sequence:
+          - type: text
+      DCS Admin:
+        type: seq
+        sequence:
+          - type: text
+      GameMaster:
+        type: seq
+        sequence:
+          - type: text
+      DCS:
+        type: seq
+        sequence:
+          - type: text

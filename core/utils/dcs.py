@@ -1,12 +1,7 @@
-import aiohttp
-import certifi
-import gzip
-import json
 import luadata
 import math
 import os
 import shutil
-import ssl
 import stat
 
 from contextlib import suppress
@@ -14,19 +9,15 @@ from core.const import SAVED_GAMES
 from core.utils.helper import alternate_parse_settings
 from typing import Optional
 
-UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
-LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
-
 __all__ = [
     "ParseError",
     "findDCSInstances",
-    "getLatestVersion",
     "desanitize",
     "dd_to_dms",
     "get_active_runways",
     "create_writable_mission",
     "lua_pattern_to_python_regex",
-    "LICENSES_URL"
+    "format_frequency"
 ]
 
 
@@ -59,20 +50,6 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]
                 else:
                     instances.append((settings['name'], dirname))
     return instances
-
-
-async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
-                           password: Optional[str] = None) -> Optional[str]:
-    if userid:
-        auth = aiohttp.BasicAuth(login=userid, password=password)
-    else:
-        auth = None
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-            ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
-        async with session.get(UPDATER_URL.format(branch)) as response:
-            if response.status == 200:
-                return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
-    return None
 
 
 def desanitize(self, _filename: str = None) -> None:
@@ -180,3 +157,17 @@ def lua_pattern_to_python_regex(lua_pattern):
         python_regex = python_regex.replace(lua, python)
 
     return python_regex
+
+
+def format_frequency(frequency_hz: int, *, band: bool = True) -> str:
+    frequency_mhz = frequency_hz / 1e6
+    if 30 <= frequency_mhz < 300:
+        _band = "VHF"
+    elif 300 <= frequency_mhz < 3000:
+        _band = "UHF"
+    else:
+        _band = None
+    if band:
+        return f"{frequency_mhz:.1f} MHz ({_band})"
+    else:
+        return f"{frequency_mhz:.1f} MHz"

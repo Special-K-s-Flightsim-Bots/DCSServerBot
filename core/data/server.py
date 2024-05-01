@@ -15,10 +15,12 @@ from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
-from .const import Status, Coalition, Channel
+from .const import Status, Coalition, Channel, Side
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
+from pykwalify.errors import SchemaError
+from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -74,8 +76,12 @@ class Server(DataObject):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         if os.path.exists(config_file):
             try:
+                c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8')
+                # TODO: change this to true after testing phase
+                c.validate(raise_exception=False)
+
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except MarkedYAMLError as ex:
+            except (MarkedYAMLError, SchemaError) as ex:
                 raise YAMLError(config_file, ex)
             if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
@@ -187,14 +193,16 @@ class Server(DataObject):
                 continue
             if 'ucid' in kwargs and player.ucid == kwargs['ucid']:
                 return player
-            if 'name' in kwargs and player.name == kwargs['name']:
-                return player
             if 'discord_id' in kwargs and player.member and player.member.id == kwargs['discord_id']:
+                return player
+            if 'unit_id' in kwargs and player.unit_id == kwargs['unit_id']:
+                return player
+            if 'name' in kwargs and player.name == kwargs['name']:
                 return player
         return None
 
-    def get_active_players(self) -> list[Player]:
-        return [x for x in self.players.values() if x.active]
+    def get_active_players(self, *, side: Side = None) -> list[Player]:
+        return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
     def get_crew_members(self, pilot: Player):
         members = []
@@ -366,6 +374,8 @@ class Server(DataObject):
                 self._channels[Channel.CHAT] = -1
             if Channel.EVENTS not in self._channels:
                 self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
+            if Channel.VOICE not in self._channels:
+                self._channels[Channel.VOICE] = -1
             if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:
                 self._channels[Channel.COALITION_BLUE_EVENTS] = self._channels[Channel.COALITION_BLUE_CHAT]
             if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:

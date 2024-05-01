@@ -146,8 +146,9 @@ To delete old tacview files, checkout the [Cleanup](../services/cleanup/README.m
 ### LotAtc
 Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
 GCI or ATC work, there is no way around it. It perfectly integrates with DCS and DCS-SRS.<br/>
-DCSServerBot can detect if it is there and enabled, but that's about it. You'll get a notification in your servers
-status embed about ports and - if you like - passwords and the version of LotAtc printed in the footer.
+You'll get a notification in your servers status embed about ports and - if you like - passwords and the version of 
+LotAtc printed in the footer. If a GCI gets active on your server, players of the respective coalition will be informed
+via the in-game chat and a popup. Same if the GCI leaves their slot again.
 ```yaml
 MyNode:
   # [...]

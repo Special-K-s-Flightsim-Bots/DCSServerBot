@@ -1,0 +1,10 @@
+type: map
+mapping:
+  DEFAULT:
+    type: map
+    mapping:
+      regex;(header|servers|nodes|log):
+        type: map
+        mapping:
+          background: {type: str}
+          border: {type: str}

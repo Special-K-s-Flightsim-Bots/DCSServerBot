@@ -57,9 +57,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
-        userid = node.locals['DCS'].get('dcs_user')
-        password = node.locals['DCS'].get('dcs_password')
-        available_modules = (set(await node.get_available_modules(userid, password)) -
+        available_modules = (set(await node.get_available_modules()) -
                              set(await node.get_installed_modules()))
         return [
             app_commands.Choice(name=x, value=x)
@@ -139,14 +137,16 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     ]
 
 
-async def get_branches(interaction: discord.Interaction, _: str) -> list[app_commands.Choice[str]]:
+async def get_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     current_branch, _ = await interaction.client.node.get_dcs_branch_and_version()
     if 'dcs_server' not in current_branch:
-        branch = 'release'
+        branches = [('Release', 'release')]
     else:
-        branch = 'dcs_server.release'
+        branches = [('Release', 'dcs_server.release')]
     return [
-        app_commands.Choice(name="Release", value=branch)
+        app_commands.Choice(name=x[0], value=x[1])
+        for x in branches
+        if not current or current.casefold() in x[0].casefold()
     ]
 
 
@@ -368,9 +368,7 @@ class Admin(Plugin):
             _branch, old_version = await node.get_dcs_branch_and_version()
             if not branch:
                 branch = _branch
-            new_version = await utils.getLatestVersion(branch,
-                                                       userid=node.locals['DCS'].get('dcs_user'),
-                                                       password=node.locals['DCS'].get('dcs_password'))
+            new_version = await node.get_latest_version(branch)
         except Exception:
             await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
                                             ephemeral=True)
@@ -422,9 +420,12 @@ class Admin(Plugin):
     async def _install(self, interaction: discord.Interaction,
                        node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction,
-                                       _("Shutdown all servers on node {} for the installation?").format(node.name),
-                                       ephemeral=ephemeral):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        if num_servers and not await utils.yn_question(
+                interaction, _("Shutdown all servers on node {} for the installation?").format(node.name),
+                ephemeral=ephemeral):
             return
         msg = await interaction.followup.send(
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
@@ -439,8 +440,12 @@ class Admin(Plugin):
     async def _uninstall(self, interaction: discord.Interaction,
                          node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction,
-                                       _("Shutdown all servers on node {} for the uninstallation?").format(node.name)):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        if num_servers and not await utils.yn_question(
+                interaction, _("Shutdown all servers on node {} for the uninstallation?").format(node.name),
+                ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
         await node.handle_module('uninstall', module)
@@ -749,19 +754,23 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def shell(self, interaction: discord.Interaction,
                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                    cmd: str):
+                    cmd: str, timeout: Optional[app_commands.Range[int, 10, 300]] = 60):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        stdout, stderr = await node.shell_command(cmd)
-        embed = discord.Embed(colour=discord.Color.blue())
-        if stdout:
-            embed.description = "```" + stdout[:4090] + "```"
-        if stderr:
-            embed.set_footer(text=stderr[:2048])
-        if not stdout and not stderr:
-            embed.description = _("```Command executed.```")
-        await interaction.followup.send(embed=embed)
+        try:
+            await self.bot.audit(f"ran a shell command:\n```cmd\n{cmd}\n```", user=interaction.user)
+            stdout, stderr = await node.shell_command(cmd, timeout)
+            embed = discord.Embed(colour=discord.Color.blue())
+            if stdout:
+                embed.description = "```" + stdout[:4090] + "```"
+            if stderr:
+                embed.set_footer(text=stderr[:2048])
+            if not stdout and not stderr:
+                embed.description = _("```Command executed.```")
+            await interaction.followup.send(embed=embed)
+        except TimeoutError:
+            await interaction.followup.send(_("Timeout during shell command."))
 
     @command(description=_('Reloads a plugin'))
     @app_commands.guild_only()
@@ -802,7 +811,8 @@ class Admin(Plugin):
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server
             view = ConfigView(self.bot, server)
-            embed = discord.Embed(title=_("Instance created.\nDo you want to configure the server for this instance?"),
+            embed = discord.Embed(title=_("Instance \"{}\" created.\n"
+                                          "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())
             try:
                 # noinspection PyUnresolvedReferences

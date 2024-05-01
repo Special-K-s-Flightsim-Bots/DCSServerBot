@@ -1,0 +1,38 @@
+type: map
+mapping:
+  guild_id: {type: int, required: true}
+  autoupdate: {type: bool}
+  use_dashboard: {type: bool}
+  chat_command_prefix: {type: str, range: {min: 1, max: 1}}
+  mission_rewrite: {type: bool}
+  language: {type: str, enum: ['de', 'es', 'ru']}
+  database:
+    type: map
+    mapping:
+      url: {type: str, required: true}
+      pool_min: {type: int, range: {min: 2}}
+      pool_max: {type: int, range: {min: 5}}
+      max_reties: {type: int, range: {min: 1}}
+      max_idle: {type: int, range: {min: 0}}
+  logging:
+    type: map
+    mapping:
+      loglevel: {type: str, enum: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL']}
+      logrotate_count: {type: int}
+      logrotate_size: {type: int}
+  messages:
+    type: map
+    mapping:
+      player_username: {type: str}
+      player_default_username: {type: str}
+      player_banned: {type: str}
+  filter:
+    type: map
+    mapping:
+      server_name: {type: str}
+      mission_name: {type: str}
+      tag: {type: str}
+  opt_plugins:
+    type: seq
+    sequence:
+      - type: str

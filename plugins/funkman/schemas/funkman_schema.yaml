@@ -1,0 +1,22 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    install: {type: str}
+    CHANNELID_MAIN: {type: text}    # TODO: change this to int some day
+    CHANNELID_RANGE: {type: text}   # s.s.
+    CHANNELID_AIRBOSS: {type: text} # s.s.
+    IMAGEPATH: {type: str}
+    strafe_board: {type: bool}
+    strafe_channel: {type: int}
+    bomb_board: {type: bool}
+    bomb_channel: {type: int}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

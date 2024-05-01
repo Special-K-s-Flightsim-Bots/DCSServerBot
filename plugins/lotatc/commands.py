@@ -3,15 +3,38 @@ import discord
 import json
 import os
 
-from core import Plugin, utils, Server, get_translation
+from core import Plugin, utils, Server, get_translation, Group, Coalition, Status
+from discord import app_commands
 from discord.ext import commands
 from jsonschema import validate, ValidationError
 from services import DCSServerBot
-from typing import Optional
+from typing import Optional, Literal
+
+from .listener import LotAtcEventListener
 
 LOTATC_DIR = r"Mods\services\LotAtc\userdb\transponders\{}"
 
 _ = get_translation(__name__.split('.')[1])
+
+
+async def gci_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        coalition: str = utils.get_interaction_param(interaction, 'coalition')
+        listener = interaction.client.cogs['LotAtc'].eventlistener
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=x, value=x)
+            for x in listener.on_station.get(server.name, {}).get(coalition, {}).keys()
+            if not current or current.casefold() in x.casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 class LotAtc(Plugin):
@@ -35,6 +58,60 @@ class LotAtc(Plugin):
         except Exception as ex:
             self.log.exception(ex)
             return None
+
+    # New command group "/gci"
+    gci = Group(name="gci", description=_("Commands to manage GCIs"))
+
+    @gci.command(description=_('Info about a GCI'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(gci=gci_autocomplete)
+    async def info(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   coalition: Literal['blue', 'red'], gci: str):
+        sides = utils.get_sides(interaction.client, interaction, server)
+        if Coalition(coalition) not in sides:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("You are not allowed to see the {} GCIs.").format(coalition))
+            return
+        gcis = self.eventlistener.on_station.get(server.name, {}).get(coalition, {})
+        if not gcis:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("There are no {coalition} GCIs active in server {server}").format(
+                    coalition=coalition, server=server.name), ephemeral=True)
+            return
+        elif gci not in gcis:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("GCI {} not found.").format(gci), ephemeral=True)
+            return
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=self.eventlistener.create_gci_embed(gcis[gci]))
+
+    @gci.command(name="list", description=_('List of GCIs'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def _list(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    coalition: Literal['blue', 'red']):
+        sides = utils.get_sides(interaction.client, interaction, server)
+        if Coalition(coalition) not in sides:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("You are not allowed to see the {} GCIs.").format(coalition))
+            return
+        gcis = self.eventlistener.on_station.get(server.name, {}).get(coalition, {})
+        if not gcis:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("There are no {coalition} GCIs active in server {server}").format(
+                    coalition=coalition, server=server.name), ephemeral=True)
+            return
+        embed = discord.Embed(color=discord.Color.blue())
+        embed.title = _("List of active {} GCIs").format(coalition)
+        embed.description = _("Server: {}").format(server.display_name)
+        embed.add_field(name="Name", value='\n'.join(gcis.keys()))
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -76,4 +153,4 @@ class LotAtc(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(LotAtc(bot))
+    await bot.add_cog(LotAtc(bot, LotAtcEventListener))

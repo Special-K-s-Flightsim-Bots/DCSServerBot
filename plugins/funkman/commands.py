@@ -36,11 +36,11 @@ class FunkMan(Plugin):
                 ini = ConfigParser()
                 ini.read(os.path.join(config['install'], 'FunkMan.ini'))
                 if 'CHANNELID_MAIN' in ini['FUNKBOT']:
-                    config['CHANNELID_MAIN'] = ini['FUNKBOT']['CHANNELID_MAIN']
+                    config['CHANNELID_MAIN'] = int(ini['FUNKBOT']['CHANNELID_MAIN'])
                 if 'CHANNELID_RANGE' in ini['FUNKBOT']:
-                    config['CHANNELID_RANGE'] = ini['FUNKBOT']['CHANNELID_RANGE']
+                    config['CHANNELID_RANGE'] = int(ini['FUNKBOT']['CHANNELID_RANGE'])
                 if 'CHANNELID_AIRBOSS' in ini['FUNKBOT']:
-                    config['CHANNELID_AIRBOSS'] = ini['FUNKBOT']['CHANNELID_AIRBOSS']
+                    config['CHANNELID_AIRBOSS'] = int(ini['FUNKBOT']['CHANNELID_AIRBOSS'])
                 if 'IMAGEPATH' in ini['FUNKPLOT']:
                     if ini['FUNKPLOT']['IMAGEPATH'].startswith('.'):
                         config['IMAGEPATH'] = config['install'] + ini['FUNKPLOT']['IMAGEPATH'][1:]

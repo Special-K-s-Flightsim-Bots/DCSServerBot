@@ -1,0 +1,15 @@
+type: map
+mapping:
+  DEFAULT:
+    type: map
+    mapping:
+      dcs-ban: {type: bool}
+      discord-ban: {type: bool}
+      host: {type: str}
+      port: {type: int, range: {min: 80, max: 65535}}
+      protocol: {type: str, enum: ['http', 'https']}
+      register: {type: bool}
+      upload_errors: {type: bool}
+      token: {type: str}
+  commands:
+    include: 'commands_schema'

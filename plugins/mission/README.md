@@ -20,7 +20,6 @@ You can configure the behaviour of the mission plugin with an optional config/pl
 DEFAULT:
   greeting_message_members: "{player.name}, welcome back to {server.name}!"
   greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
-  greeting_message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.'
   uploads:          # Configure how mission uploads are handled
     enabled: true   # Here you can disable the feature at all (default: true = enabled)
     discord:
@@ -55,7 +54,8 @@ Missions folder of your DCS-server (for instance via a Google Drive) will be aut
 | /mission modify       | presets_file        | admin-channel         | DCS Admin             | Modify the mission with a specific [preset](../../extensions/MizEdit.md). You can provide an optional presets file (default: presets.yaml) |
 | /mission save_preset  | name                | admin-channel         | DCS Admin             | Save the current missions weather as a new preset.                                                                                         |
 | /mission rollback     | name                | admin-channel         | DCS Admin             | Rollback a mission to the original, unmodified version.                                                                                    |
-| /player info or /info | player              | all                   | DCS Admin             | Displays information about that user and let you (un)ban, kick or unlink them.                                                             |  
+| /info                 | member/player       | all                   | DCS Admin             | Displays information about that user and let you (un)ban, kick or unlink them.                                                             |  
+| /player info          | server player       | all                   | DCS                   | Displays information about this player (incl. radios, if SRS is active).                                                                   |
 | /player find or /find | name                | all                   | DCS Admin             | Finds players by name (incl. historic join data).                                                                                          |
 | /player list          |                     | all                   | DCS                   | Lists the players currently active on the server. Persistent display in status-channel.                                                    |
 | /player spec          | player [reason]     | admin-channel         | DCS Admin             | Moves the respective player to a spectator slot.                                                                                           |

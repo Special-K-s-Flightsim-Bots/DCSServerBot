@@ -21,11 +21,13 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: Trackfiles
     directory: '{server.instance.home}\Tracks'
     pattern: '*.trk'
+    target: 'G:\My Drive\Tracks' # download the files to a specific directory
   # This is for Tacview. If you use an instance-specific tacview directory, this needs to be changed.
   # Player-specific files aren't supported yet for download. See auto-upload to channels in the Tacview-extension.
   - label: Tacview
     directory: '%USERPROFILE%\Documents\Tacview'
     pattern: 'Tacview-*.acmi'
+    target: '<id:1122334455667788>' # download the files to a specific channel
   # If you decided to use dedicated chat logs per server (default), this is where you can find them.
   - label: Chat Logs
     directory: logs

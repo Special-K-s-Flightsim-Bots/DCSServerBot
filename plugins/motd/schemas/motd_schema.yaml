@@ -1,0 +1,79 @@
+schema;on_join:
+  type: map
+  mapping:
+    message: {type: str}
+    recipients: {type: str}
+    display_type: {type: str, enum: ['chat', 'popup']}
+    display_time: {type: int, range: {min: 1}}
+    sound: {type: str}
+
+schema;on_birth:
+  type: map
+  mapping:
+    recipients: {type: str}
+    message: {type: str}
+    report: {type: str}
+    display_type: {type: str, enum: ['chat', 'popup']}
+    display_time: {type: int, range: {min: 1}}
+    sound: {type: str}
+
+schema;nudge:
+  type: map
+  mapping:
+    message: {type: str}
+    recipients: {type: str}
+    display_type: {type: str, enum: ['chat', 'popup']}
+    display_time: {type: int, range: {min: 1}}
+    sound: {type: str}
+
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    on_join:
+      type: map
+      mapping:
+        message: {type: str}
+        recipients: {type: str}
+        display_type: {type: str, enum: ['chat', 'popup']}
+        display_time: {type: int, range: {min: 1}}
+        sound: {type: str}
+        messages:
+          type: seq
+          sequence:
+            - include: 'on_join'
+    on_birth:
+      type: map
+      mapping:
+        recipients: {type: str}
+        message: {type: str}
+        report: {type: str}
+        display_type: {type: str, enum: ['chat', 'popup']}
+        display_time: {type: int, range: {min: 1}}
+        sound: {type: str}
+        messages:
+          type: seq
+          sequence:
+            - include: 'on_birth'
+    nudge:
+      type: map
+      mapping:
+        delay: {type: int, range: {min: 0}}
+        message: {type: str}
+        recipients: {type: str}
+        display_type: {type: str, enum: ['chat', 'popup']}
+        display_time: {type: int, range: {min: 1}}
+        sound: {type: str}
+        messages:
+          type: seq
+          sequence:
+            - include: 'nudge'
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

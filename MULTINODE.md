@@ -37,13 +37,13 @@ One DCSServerBot node can run as many DCS servers as your PC can handle, but the
 installation. This means, you can **not** run two different DCS World installations with separate root mods installed.<br>
 To achieve this, you need to run two or more nodes on one PC.<br>
 DCSServerBot uses the hostname of the PC as node name, if not specified otherwise. To be able to run multiple nodes on
-the same PC, you need to specify an additional parameter -n (or --node) on startup (e. g. `run -n node01`).<br>
+the same PC, you need to specify an additional parameter -n (or --node) on startup (e.g. `run -n node01`).<br>
 This will start a new node (you'll be prompted for the installation of it, if it does not exist yet), with the name
 "node01". 
 > The node-name has to be unique in your **whole cluster**.
 
 ## Running multiple Nodes on multiple PCs
-If you setup your environment with a cloud drive for your installation and a central database that is accessible from
+If you set up your environment with a cloud drive for your installation and a central database that is accessible from
 every node, the installation of an additional node is quite straight forward.<br>
 You just need to run `run.cmd` or `install.cmd` on your new node and the installer will guide you through your 
 installation. If not specified otherwise, the node-name will be the hostname of the respective node.

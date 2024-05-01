@@ -1,0 +1,16 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    message_no_srs: {type: str}
+    enforce_srs: {type: bool}
+    move_to_spec: {type: bool}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

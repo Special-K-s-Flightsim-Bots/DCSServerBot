@@ -1,0 +1,4 @@
+schema;instance_voicechat_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}

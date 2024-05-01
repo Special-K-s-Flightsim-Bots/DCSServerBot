@@ -1,0 +1,28 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    greeting_message_members: {type: str}
+    greeting_message_unmatched: {type: str}
+    uploads:
+      type: map
+      mapping:
+        enabled: {type: bool}
+        discord:
+          type: seq
+          sequence:
+            - type: text
+    afk_exemptions:
+      type: seq
+      sequence:
+        - type: str
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'
+

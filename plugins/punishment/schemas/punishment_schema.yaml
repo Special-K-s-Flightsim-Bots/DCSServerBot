@@ -1,0 +1,49 @@
+schema;master_schema:
+  type: map
+  allowempty: true
+  mapping:
+    penalties:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            event: {type: str, required: true}
+            human: {type: int}
+            AI: {type: int}
+            reason: {type: str}
+            action: {type: str}
+            days: {type: int}     # ban only
+            penalty: {type: int}  # credits only
+    forgive: {type: int, range: {min: 30}}  # it does not make sense to specify a forgive value lower than 30s
+    punishments:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            points: {type: int, range: {min: 1}, required: true}
+            action: {type: str}
+            days: {type: int}     # ban only
+            penalty: {type: int}  # credits only
+    flightHoursWeight:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            time: {type: int, range: {min: 0}, required: true}
+            weight: {type: float}
+    decay:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            days: {type: int, range: {min: 0}, required: true}
+            weight: {type: float}
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'
