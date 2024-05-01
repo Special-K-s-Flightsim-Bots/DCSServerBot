@@ -117,7 +117,7 @@ class Install:
                 with psycopg.connect(url, autocommit=True) as conn:
                     with closing(conn.cursor()) as cursor:
                         try:
-                            passwd = utils.get_password('database')
+                            passwd = utils.get_password('database') or ''
                         except ValueError:
                             passwd = secrets.token_urlsafe(8)
                         try:
