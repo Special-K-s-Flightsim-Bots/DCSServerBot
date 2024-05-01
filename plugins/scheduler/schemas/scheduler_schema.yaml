@@ -7,6 +7,7 @@ schema;master_schema:
       type: map
       mapping:
         text: {type: str}
+        sound: {type: str}
         times:
           type: any
           # todo - we allow lists and a map in here atm
