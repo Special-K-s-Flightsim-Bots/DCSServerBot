@@ -16,14 +16,8 @@ schema;master_schema:
           include: 'kick_schema'
         tempban:
           include: 'tempban_schema'
-    creator:
-      type: seq
-      sequence:
-        - type: text
-    voter:
-      type: seq
-      sequence:
-        - type: text
+    creator: {type: any}
+    voter: {type: any}
     mission_time: {type: int, range: {min: 1}}
     time: {type: int, range: {min: 60}}
     reminder:
