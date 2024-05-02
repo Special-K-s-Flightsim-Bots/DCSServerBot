@@ -25,6 +25,7 @@ mapping:
       - type: map
         mapping:
           name: {type: str, required: true}
+          description: {type: str}
           roles:
             type: seq
             sequence:
