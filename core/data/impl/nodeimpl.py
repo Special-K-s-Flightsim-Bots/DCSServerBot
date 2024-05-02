@@ -330,10 +330,9 @@ class NodeImpl(Node):
         duplicates = {server_name: instances for server_name, instances in grouped.items() if len(instances) > 1}
         for server_name, instances in duplicates.items():
             self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(server_name, ', '.join(instances)))
-        for _name, _element in self.locals['instances'].items():
+        for _name, _element in self.locals.pop('instances', {}).items():
             instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
-        del self.locals['instances']
 
     async def update_db(self):
         # Initialize the database

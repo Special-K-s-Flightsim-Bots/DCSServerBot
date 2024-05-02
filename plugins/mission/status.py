@@ -130,7 +130,7 @@ class WeatherInfo(report.EmbedElement):
 class ExtensionsInfo(report.EmbedElement):
 
     async def render(self, server: Server):
-        extensions = await server.render_extensions()
+        extensions = await server.render_extensions() if server.status in [Status.RUNNING, Status.PAUSED] else None
         # we don't have any extensions loaded (yet)
         if not extensions:
             return
