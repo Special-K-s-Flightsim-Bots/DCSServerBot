@@ -4,6 +4,7 @@ import asyncio
 import discord.errors
 import inspect
 import json
+import logging
 import os
 import psycopg
 import shutil
@@ -237,7 +238,7 @@ class Plugin(commands.Cog):
         self.bot: DCSServerBot = bot
         self.node = bot.node
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.log = self.bot.log
+        self.log = logging.getLogger(__name__)
         self.pool = self.bot.pool
         self.apool = self.bot.apool
         self.loop = self.bot.loop
@@ -415,10 +416,12 @@ class Plugin(commands.Cog):
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
                 schema_files.append('./schemas/commands_schema.yaml')
                 c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
-                # TODO: change this to true after testing phase
-                c.validate(raise_exception=False)
+                try:
+                    c.validate(raise_exception=True)
+                except SchemaError as ex:
+                    self.log.warning(f'Error while parsing {filename}:\n{ex}')
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except (MarkedYAMLError, SchemaError) as ex:
+        except MarkedYAMLError as ex:
             raise YAMLError(filename, ex)
 
     # get default and specific configs to be merged in derived implementations

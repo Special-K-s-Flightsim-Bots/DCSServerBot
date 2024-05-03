@@ -5,7 +5,6 @@ import certifi
 import discord
 import gzip
 import json
-import logging
 import os
 import platform
 import psycopg
@@ -14,14 +13,12 @@ import shutil
 import ssl
 import subprocess
 import sys
-import time
 
 from collections import defaultdict
 from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from core.translations import get_translation
-from core.utils.os import CloudRotatingFileHandler
 from discord.ext import tasks
 from packaging import version
 from pathlib import Path
@@ -55,15 +52,6 @@ __all__ = [
     "NodeImpl"
 ]
 
-LOGLEVEL = {
-    'DEBUG': logging.DEBUG,
-    'INFO': logging.INFO,
-    'WARNING': logging.WARNING,
-    'ERROR': logging.ERROR,
-    'CRITICAL': logging.CRITICAL,
-    'FATAL': logging.FATAL
-}
-
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
 LOGIN_URL = 'https://www.digitalcombatsimulator.com/gameapi/login/'
 UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
@@ -89,7 +77,6 @@ class NodeImpl(Node):
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.locals = self.read_locals()
-        self.log = self.init_logger()
         if sys.platform == 'win32':
             from os import system
             system(f"title DCSServerBot v{self.bot_version}.{self.sub_version}")
@@ -209,10 +196,12 @@ class NodeImpl(Node):
                 schema_files = ['./schemas/nodes_schema.yaml']
                 schema_files.extend([str(x) for x in Path('./extensions/schemas').glob('*.yaml')])
                 c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8')
-                # TODO: change this to true after testing phase
-                c.validate(raise_exception=False)
+                try:
+                    c.validate(raise_exception=True)
+                except SchemaError as ex:
+                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
                 self.all_nodes: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except (MarkedYAMLError, SchemaError) as ex:
+            except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:
@@ -228,11 +217,10 @@ class NodeImpl(Node):
                     node['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     dirty = True
-                    # we do not have a logger yet, so print it
-                    print("Database password found, removing it from config.")
+                    self.log.info("Database password found, removing it from config.")
             password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
             if password:
-                node['DCS']['user'] = node['DCS'].pop('dcs_user')
+                node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
                 utils.set_password('DCS', password)
                 dirty = True
             if dirty:
@@ -240,34 +228,6 @@ class NodeImpl(Node):
                     yaml.dump(self.all_nodes, f)
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
-
-    def init_logger(self):
-        log = logging.getLogger(name='dcsserverbot')
-        log.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
-                                      datefmt='%Y-%m-%d %H:%M:%S')
-        formatter.converter = time.gmtime
-        os.makedirs('logs', exist_ok=True)
-        fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{self.name}.log'), encoding='utf-8',
-                                      maxBytes=self.config['logging']['logrotate_size'],
-                                      backupCount=self.config['logging']['logrotate_count'])
-        fh.setLevel(LOGLEVEL[self.config['logging']['loglevel']])
-        fh.setFormatter(formatter)
-        fh.doRollover()
-        log.addHandler(fh)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        ch.setFormatter(formatter)
-        log.addHandler(ch)
-        # Database logging
-        log2 = logging.getLogger(name='psycopg.pool')
-        log2.setLevel(logging.ERROR)
-        log2.addHandler(ch)
-        # Pykwalify logging
-        log3 = logging.getLogger('pykwalify.core')
-        log3.addHandler(ch)
-        log3.addHandler(fh)
-        return log
 
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']

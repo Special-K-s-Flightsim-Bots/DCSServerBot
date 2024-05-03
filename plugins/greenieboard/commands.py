@@ -9,7 +9,7 @@ from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Optional, Union
+from typing import Optional, Union, override
 
 from .listener import GreenieBoardEventListener
 from .views import TrapView
@@ -28,6 +28,7 @@ class GreenieBoard(Plugin):
             config = super().read_locals()
         return config
 
+    @override
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:
         # retrieve the config from another plugin

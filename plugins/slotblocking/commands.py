@@ -5,7 +5,7 @@ from core import Plugin, PluginRequiredError, Server, Player, TEventListener, Pl
 from discord.ext import commands
 from pathlib import Path
 from services import DCSServerBot
-from typing import Optional, Type
+from typing import Optional, Type, override
 
 from .listener import SlotBlockingListener
 
@@ -43,6 +43,7 @@ class SlotBlocking(Plugin):
             with open(path, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(data, outfile)
 
+    @override
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:
         if plugin_name:

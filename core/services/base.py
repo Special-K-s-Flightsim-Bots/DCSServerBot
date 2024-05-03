@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import logging
 import os
 
 from abc import ABC
@@ -72,7 +74,7 @@ class Service(ABC):
         self.name = name or self.__class__.__name__
         self.running: bool = False
         self.node: NodeImpl = node
-        self.log = node.log
+        self.log = logging.getLogger(__name__)
         self.pool = node.pool
         self.apool = node.apool
         self.config = node.config
@@ -100,8 +102,10 @@ class Service(ABC):
             if os.path.exists(path):
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
                 c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
-                # TODO: change this to true after testing phase
-                c.validate(raise_exception=False)
+                try:
+                    c.validate(raise_exception=True)
+                except SchemaError as ex:
+                    self.log.warning(f'Error while parsing {filename}:\n{ex}')
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except (MarkedYAMLError, SchemaError) as ex:
             raise ServiceInstallationError(self.name, ex.__str__())

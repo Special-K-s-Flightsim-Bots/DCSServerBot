@@ -11,7 +11,7 @@ from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
 from services import DCSServerBot, MusicService
-from typing import Type, Optional
+from typing import Type, Optional, override
 
 from .listener import MusicEventListener
 from .utils import (radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag,
@@ -31,6 +31,7 @@ class Music(Plugin):
         if not self.service.locals:
             raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 
+    @override
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:
         if plugin_name:

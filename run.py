@@ -1,30 +1,87 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
+
+import discord
+import logging
 import os
+import pathlib
 import platform
 import psycopg
 import sys
+import time
+
+from rich.text import Text
 
 from core import (
-    NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS
+    NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
+    CloudRotatingFileHandler
 )
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError
 from rich import print
 from rich.console import Console
+from rich.logging import RichHandler
 
 from services import Dashboard
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class Main:
 
     def __init__(self, node: NodeImpl, no_autoupdate: bool) -> None:
         self.node = node
-        self.log = node.log
+        self.log = logging.getLogger(__name__)
         self.no_autoupdate = no_autoupdate
         utils.dynamic_import('services')
+
+    @staticmethod
+    def setup_logging(node: str):
+        def time_formatter(time: datetime, format_string: str = None) -> Text:
+            log_time = time.astimezone(timezone.utc)
+            return Text(log_time.strftime('%H:%M:%S'))
+
+        # Setup console logger
+        ch = RichHandler(rich_tracebacks=True, tracebacks_suppress=[discord], log_time_format=time_formatter)
+        ch.setLevel(logging.INFO)
+
+        # Setup file logging
+        config_file = pathlib.Path("config/main.yaml")
+        try:
+            with open(config_file) as logconfig:
+                config = yaml.load(logconfig)['logging']
+        except (FileNotFoundError, KeyError, YAMLError):
+            config = {
+                "loglevel": "DEBUG",
+                "logrotate_count": 5,
+                "logrotate_size": 10485760,
+            }
+        os.makedirs('logs', exist_ok=True)
+        fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{node}.log'), encoding='utf-8',
+                                      maxBytes=config['logrotate_size'], backupCount=config['logrotate_count'])
+        fh.setLevel(logging.getLevelNamesMapping()[config['loglevel']])
+        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
+                                      datefmt='%Y-%m-%d %H:%M:%S')
+        formatter.converter = time.gmtime
+        fh.setFormatter(formatter)
+        fh.doRollover()
+
+        # Configure the root logger
+        logging.basicConfig(level=logging.DEBUG, format="%(message)s", handlers=[ch, fh])
+
+        # Change 3rd-party logging
+        logging.getLogger(name='asyncio').setLevel(logging.WARNING)
+        logging.getLogger(name='discord').setLevel(logging.WARNING)
+        logging.getLogger(name='git').setLevel(logging.WARNING)
+        logging.getLogger(name='matplotlib').setLevel(logging.ERROR)
+        logging.getLogger(name='PidFile').setLevel(logging.ERROR)
+        logging.getLogger(name='psycopg.pool').setLevel(logging.WARNING)
+        logging.getLogger(name='pykwalify').setLevel(logging.CRITICAL)
 
     @staticmethod
     def create_secret_dir():
@@ -135,11 +192,6 @@ def run_node(name, config_dir=None, no_autoupdate=False):
 
 if __name__ == "__main__":
     console = Console()
-    if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
-        print("[red]You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)![/]")
-        exit(-2)
-    elif int(platform.python_version_tuple()[1]) == 9:
-        print("[yellow]Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.[/]")
 
     if sys.platform == 'win32':
         # disable quick edit mode (thanks to Moots)
@@ -148,11 +200,21 @@ if __name__ == "__main__":
     # get the command line args from core
     args = COMMAND_LINE_ARGS
 
+    # Setup the logging
+    Main.setup_logging(args.node)
+    log = logging.getLogger("dcsserverbot")
     # check if we should reveal the passwords
     Main.create_secret_dir()
     if args.secret:
         Main.reveal_passwords()
         exit(-2)
+
+    # Check versions
+    if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
+        log.error("You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)!")
+        exit(-2)
+    elif int(platform.python_version_tuple()[1]) == 9:
+        log.warning("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
 
     # Call the DCSServerBot 2.x migration utility
     if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):
@@ -166,12 +228,12 @@ if __name__ == "__main__":
                 run_node(name=args.node, no_autoupdate=args.noupdate)
     except PermissionError:
         # do not restart again
-        print(f"\n[red]There is a permission error.\n"
-              f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node} and try again.[/]")
+        log.error("There is a permission error.")
+        log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node} and try again.")
         exit(-2)
     except PidFileError:
-        print(f"\n[red]Process already running for node {args.node}![/]\n"
-              f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.\n\n")
+        log.error(f"[red]Process already running for node {args.node}![/]")
+        log.error(f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.")
         # do not restart again
         exit(-2)
     except KeyboardInterrupt:
@@ -181,12 +243,12 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException) as ex:
-        print(f"\n[red]{ex}[/]")
+        log.exception(ex)
         input("Press any key to continue ...")
         # do not restart again
         exit(-2)
     except psycopg.OperationalError as ex:
-        print(f"\n[red]Database Error: {ex}[/]")
+        log.error(f"Database Error: {ex}")
         input("Press any key to continue ...")
         # do not restart again
         exit(-2)

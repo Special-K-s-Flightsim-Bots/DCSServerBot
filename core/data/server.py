@@ -77,11 +77,13 @@ class Server(DataObject):
         if os.path.exists(config_file):
             try:
                 c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8')
-                # TODO: change this to true after testing phase
-                c.validate(raise_exception=False)
+                try:
+                    c.validate(raise_exception=True)
+                except SchemaError as ex:
+                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
 
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except (MarkedYAMLError, SchemaError) as ex:
+            except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
             if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
