@@ -4,7 +4,7 @@ import os
 import sys
 
 from core import ServiceRegistry, Service, Server, proxy
-from typing import Optional, override
+from typing import Optional
 
 from .radios import Radio, Mode
 from ..servicebus import ServiceBus
@@ -21,7 +21,6 @@ class MusicService(Service):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.radios: dict[str, dict[str, Radio]] = dict()
 
-    @override
     def get_config(self, server: Optional[Server] = None, radio_name: Optional[str] = None) -> dict:
         if not radio_name:
             return super().get_config(server)

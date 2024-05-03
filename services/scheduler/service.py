@@ -3,7 +3,7 @@ import asyncio
 from core import ServiceRegistry, Service, DEFAULT_TAG, utils, Server, Status
 from datetime import datetime
 from discord.ext import tasks
-from typing import Optional, override
+from typing import Optional
 
 from . import actions
 from ..bot import BotService
@@ -28,7 +28,6 @@ class SchedulerService(Service):
             self.schedule.cancel()
             await super().stop()
 
-    @override
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG, {})

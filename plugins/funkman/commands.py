@@ -4,7 +4,7 @@ import psycopg
 from configparser import ConfigParser
 from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG, Server
 from services import DCSServerBot
-from typing import Optional, override
+from typing import Optional
 
 from .listener import FunkManEventListener
 
@@ -52,7 +52,6 @@ class FunkMan(Plugin):
             return True
         return False
 
-    @override
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:
         # retrieve the config from another plugin
