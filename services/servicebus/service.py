@@ -181,7 +181,7 @@ class ServiceBus(Service):
                 "dcs_version": dcs_version,
                 "maintenance": server.maintenance
             }
-        })
+        }, timeout=60)
 
     async def register_local_servers(self):
         timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
