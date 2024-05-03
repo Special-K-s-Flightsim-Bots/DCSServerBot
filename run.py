@@ -84,15 +84,6 @@ class Main:
         logging.getLogger(name='pykwalify').setLevel(logging.CRITICAL)
 
     @staticmethod
-    def create_secret_dir():
-        path = os.path.join('config', '.secret')
-        if not os.path.exists(path):
-            os.makedirs(path, exist_ok=True)
-            if sys.platform == 'win32':
-                import ctypes
-                ctypes.windll.kernel32.SetFileAttributesW(path, 2)
-
-    @staticmethod
     def reveal_passwords():
         print("[yellow]These are your hidden secrets:[/]")
         for file in utils.list_all_files(os.path.join('config', '.secret')):
@@ -204,7 +195,7 @@ if __name__ == "__main__":
     Main.setup_logging(args.node)
     log = logging.getLogger("dcsserverbot")
     # check if we should reveal the passwords
-    Main.create_secret_dir()
+    utils.create_secret_dir()
     if args.secret:
         Main.reveal_passwords()
         exit(-2)
