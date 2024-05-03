@@ -92,8 +92,9 @@ class Node:
                 url = urlparse(database_url)
                 if url.password != 'SECRET':
                     utils.set_password('database', url.password)
+                    port = url.port or 5432
                     config['database']['url'] = \
-                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{url.port}{url.path}?sslmode=prefer"
+                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     with open(file, 'w', encoding='utf-8') as f:
                         yaml.dump(config, f)
                     print("Database password found, removing it from config.")
