@@ -2,7 +2,7 @@
 aiofiles==23.2.1
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.9.3
+aiohttp==3.9.4
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2024.2.2
@@ -17,7 +17,7 @@ discord.py==2.3.2
 eyeD3==0.9.7
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.110.1
+fastapi==0.111.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -26,7 +26,7 @@ fuzzywuzzy==0.18.0
 GitPython==3.1.43
 
 # jsonschema: An implementation of JSON Schema for Python
-jsonschema==4.21.1
+jsonschema==4.22.0
 
 # Matplotlib: Python 2D plotting library
 matplotlib==3.8.4
@@ -62,7 +62,7 @@ psycopg_pool==3.2.1
 psutil==5.9.8
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-pyarrow==15.0.2
+pyarrow==16.0.0
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
