@@ -36,7 +36,7 @@ class SRS(Plugin):
         radios = ""
         for player in server.get_active_players(side=Side.BLUE if coalition == 'blue' else Side.RED):
             names += player.display_name + "\n"
-            radios += ', '.join([utils.format_frequency(x, band=False) for x in player.radios[:2]])
+            radios += ', '.join([utils.format_frequency(x, band=False) for x in player.radios[:2]]) + "\n"
         if names:
             embed.add_field(name=_("DCS-Name"), value=names)
             embed.add_field(name=_("Radios"), value=radios)
