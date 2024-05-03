@@ -10,15 +10,13 @@ class SRSEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.mission: Mission = self.bot.cogs.get('Mission')
+        self.mission: Mission = self.bot.cogs['Mission']
 
     def get_player(self, server: Server, data: dict) -> Optional[Player]:
         if data['unit_id'] in range(100000000, 100000099):
-            player = server.get_player(id=data['unit_id'] - 100000000 + 1)
+            player = server.get_player(name=data['player_name'])
         else:
             player = server.get_player(unit_id=data['unit_id'])
-        if not player:
-            player = server.get_player(name=data['player_name'])
         return player
 
     @event(name="onPlayerStart")
@@ -36,7 +34,7 @@ class SRSEventListener(EventListener):
             return
         player = self.get_player(server, data)
         if not player:
-            self.log.info(f"SRS client {data['player_name']} not found on the server.")
+            self.log.debug(f"SRS client {data['player_name']} could not be matched to a player.")
             return
         elif player.name != data['player_name']:
             player.sendChatMessage("Please use the same name on SRS as you do in DCS!")

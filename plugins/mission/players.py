@@ -16,7 +16,7 @@ class Main(report.EmbedElement):
             coalitions[player.side]['names'].append(player.display_name)
             coalitions[player.side]['units'].append(player.unit_type if player.side != Side.SPECTATOR else '')
             if has_srs and player.side != Side.SPECTATOR:
-                coalitions[player.side]['SRS'].append(':green_circle:' if player.radios else ':red_circle:')
+                coalitions[player.side]['SRS'].append(':green_circle:' if player.srs else ':red_circle:')
         for coalition in [Coalition.BLUE, Coalition.RED, Coalition.NEUTRAL]:
             side = getattr(Side, coalition.name)
             if coalition in sides and len(coalitions[side]['names']):
