@@ -37,6 +37,7 @@ __all__ = [
     "safe_rmtree",
     "terminate_process",
     "quick_edit_mode",
+    "create_secret_dir",
     "set_password",
     "get_password",
     "delete_password",
@@ -166,7 +167,17 @@ def quick_edit_mode(turn_on=None):
     return is_on if turn_on is None else turn_on
 
 
+def create_secret_dir():
+    path = os.path.join('config', '.secret')
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+        if sys.platform == 'win32':
+            import ctypes
+            ctypes.windll.kernel32.SetFileAttributesW(path, 2)
+
+
 def set_password(key: str, password: str):
+    create_secret_dir()
     with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='wb') as f:
         pickle.dump(password, f)
 
