@@ -37,7 +37,7 @@ class SRSEventListener(EventListener):
         if self.get_config(server).get('enforce_srs', False):
             player: Player = server.get_player(ucid=data['ucid'])
             if player.name not in self.srs_users.get(server.name, {}):
-                server.send_to_dcs({"command": "disableSRS", "ucid": player.ucid})
+                server.send_to_dcs({"command": "disableSRS", "name": player.name})
 
     @event(name="onSRSConnect")
     async def onSRSConnect(self, server: Server, data: dict) -> None:
