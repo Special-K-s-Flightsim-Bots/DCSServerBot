@@ -2,12 +2,12 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local dcs_srs   = dcs_srs or {}
 
-dcsbot.userInfo = dcsbot.userInfo or {}
+dcsbot.srs = dcsbot.srs or {}
 
 function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: onPlayerTryChangeSlot()')
     local name = net.get_player_info(playerID, 'name')
-    local srs = dcsbot.userInfo[name].srs
+    local srs = dcsbot.srs[name]
     if srs == nil then
         return
     end

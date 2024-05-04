@@ -1,16 +1,14 @@
 local base 	= _G
 local dcsbot= base.dcsbot
 
-dcsbot.userInfo = dcsbot.userInfo or {}
+dcsbot.srs = dcsbot.srs or {}
 
 function dcsbot.enableSRS(json)
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: enableSRS()')
-    dcsbot.userInfo[json.name] = dcsbot.userInfo[json.name] or {}
-    dcsbot.userInfo[json.name].srs = true
+    dcsbot.srs[json.name] = true
 end
 
 function dcsbot.disableSRS(json)
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: disableSRS()')
-    dcsbot.userInfo[json.name] = dcsbot.userInfo[json.name] or {}
-    dcsbot.userInfo[json.name].srs = false
+    dcsbot.srs[json.name] = false
 end
