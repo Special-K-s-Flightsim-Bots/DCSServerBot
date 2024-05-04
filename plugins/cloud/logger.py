@@ -53,6 +53,5 @@ class CloudLoggingHandler(logging.Handler):
                 })
 
     def emit(self, record: logging.LogRecord):
-        if record.levelname in ['ERROR', 'CRITICAL'] and record.exc_info is not None:
-            loop = asyncio.get_event_loop()
-            loop.create_task(self.send_post(record))
+        if record.levelno in [logging.ERROR, logging.CRITICAL] and record.exc_info is not None:
+            asyncio.create_task(self.send_post(record))

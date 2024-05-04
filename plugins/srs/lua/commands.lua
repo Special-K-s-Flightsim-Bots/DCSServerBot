@@ -5,12 +5,12 @@ dcsbot.userInfo = dcsbot.userInfo or {}
 
 function dcsbot.enableSRS(json)
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: enableSRS()')
-    dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
-    dcsbot.userInfo[json.ucid].srs = true
+    dcsbot.userInfo[json.name] = dcsbot.userInfo[json.name] or {}
+    dcsbot.userInfo[json.name].srs = true
 end
 
 function dcsbot.disableSRS(json)
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: disableSRS()')
-    dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
-    dcsbot.userInfo[json.ucid].srs = false
+    dcsbot.userInfo[json.name] = dcsbot.userInfo[json.name] or {}
+    dcsbot.userInfo[json.name].srs = false
 end

@@ -6,13 +6,13 @@ dcsbot.userInfo = dcsbot.userInfo or {}
 
 function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
     log.write('DCSServerBot', log.DEBUG, 'DCS-SRS: onPlayerTryChangeSlot()')
-    local ucid = net.get_player_info(playerID, 'ucid')
-    local srs = dcsbot.userInfo[ucid].srs
+    local name = net.get_player_info(playerID, 'name')
+    local srs = dcsbot.userInfo[name].srs
     if srs == nil then
         return
     end
     if side == 1 or side == 2 and srs == false then
-        net.send_chat_to("You need to enable SRS to use any slot on this server!", playerID)
+        net.send_chat_to("You need to use SRS to play on this server!", playerID)
         return false
     end
 end

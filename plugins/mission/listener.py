@@ -290,8 +290,6 @@ class MissionEventListener(EventListener):
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
-        elif server.is_remote or data['channel'].startswith('sync-'):
-            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
         # all players are inactive for now
         for p in server.players.values():
@@ -334,6 +332,9 @@ class MissionEventListener(EventListener):
             for member in (set(role.members) - all_members):
                 # noinspection PyAsyncCall
                 asyncio.create_task(member.remove_roles(role))
+        # Set the status at the latest possible place
+        if server.is_remote or data['channel'].startswith('sync-'):
+            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
