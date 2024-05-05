@@ -13,7 +13,7 @@ function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
         return
     end
     log.write('DCSServerBot', log.DEBUG, 'Player found in the SRS table, status is ' .. tostring(srs))
-    if side == 1 or side == 2 and srs == false then
+    if (side == 1 or side == 2) and srs == false then
         net.send_chat_to("You need to use SRS to play on this server!", playerID)
         return false
     end
