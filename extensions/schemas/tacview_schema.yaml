@@ -7,12 +7,22 @@ schema;instance_tacview_schema:
   type: map
   allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
   mapping:
-    tacviewExportPath: {type: str}
     host: {type: str}
     log: {type: str}
+    tacviewExportPath: {type: str}
+    tacviewAutoDiscardFlights: {type: int}
+    tacviewDebugMode: {type: int}
+    tacviewFlightDataRecordingEnabled: {type: bool}
+    tacviewModuleEnabled: {type: bool}
+    tacviewMultiplayerFlightsAsClient: {type: int}
+    tacviewMultiplayerFlightsAsHost: {type: int}
+    tacviewRealTimeTelemetryEnabled: {type: bool}
     tacviewRealTimeTelemetryPort: {type: int, range: {min: 80, max: 65535}}
     tacviewRealTimeTelemetryPassword: {type: str}
+    tacviewRemoteControlEnabled: {type: bool}
     tacviewRemoteControlPort: {type: int, range: {min: 80, max: 65535}}
     tacviewRemoteControlPassword: {type: str}
+    tacviewSinglePlayerFlights: {type: int}
+    tacviewTerrainExport: {type: int}
     tacviewPlaybackDelay: {type: int, range: {min: 0}}
     target: {type: str}

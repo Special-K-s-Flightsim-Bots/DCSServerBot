@@ -2,14 +2,19 @@ schema;node_realweather_schema:
   type: map
   mapping:
     installation: {type: str, required: true, nullable: false}
+
 schema;instance_realweather_schema:
   type: map
   mapping:
     enabled: {type: bool}
     debug: {type: bool}
+    terrains:
+      type: map
+      mapping:
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|Marianas|Falklands|Kola):
+          include: 'instance_realweather_schema'
     metar:
       type: map
-      required: true
       allowempty: true  # allow the author to change values
       mapping:
         icao: {type: str, required: true, pattern: '^[A-Za-z]{4}$'}
