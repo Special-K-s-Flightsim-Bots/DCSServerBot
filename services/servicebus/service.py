@@ -199,9 +199,9 @@ class ServiceBus(Service):
             for server in local_servers:
                 if not self.master:
                     await self.send_init(server)
-                    calls[server.name] = asyncio.create_task(
-                        server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
-                    )
+                calls[server.name] = asyncio.create_task(
+                    server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                )
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
             num = 0
             for i, name in enumerate(calls.keys()):
