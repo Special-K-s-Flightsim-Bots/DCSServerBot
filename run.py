@@ -29,6 +29,15 @@ from services import Dashboard
 from ruamel.yaml import YAML
 yaml = YAML()
 
+LOGLEVEL = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL,
+    'FATAL': logging.FATAL
+}
+
 
 class Main:
 
@@ -60,7 +69,7 @@ class Main:
         os.makedirs('logs', exist_ok=True)
         fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{node}.log'), encoding='utf-8',
                                       maxBytes=config['logrotate_size'], backupCount=config['logrotate_count'])
-        fh.setLevel(logging.getLevelNamesMapping()[config['loglevel']])
+        fh.setLevel(LOGLEVEL[config['loglevel']])
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         formatter.converter = time.gmtime
