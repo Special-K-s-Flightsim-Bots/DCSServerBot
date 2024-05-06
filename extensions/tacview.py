@@ -7,7 +7,7 @@ import shutil
 from core import Extension, utils, ServiceRegistry, Server
 from discord.ext import tasks
 from services import ServiceBus, BotService
-from typing import Optional
+from typing import Optional, Any
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 rtt_ports: dict[int, str] = dict()
@@ -54,37 +54,31 @@ class Tacview(Extension):
             self.server.options['plugins'] = options
         return options['Tacview']
 
+    def set_option(self, options: dict, name: str, value: Any, default: Optional[Any] = None) -> bool:
+        if options['Tacview'].get(name, default) != value:
+            options['Tacview'][name] = value
+            self.log.info(f'  => {self.server.name}: Setting ["{name}"] = {value}')
+            return True
+        return False
+
     async def prepare(self) -> bool:
         global rtt_ports, rcp_ports
 
-        dirty = False
         options = self.server.options['plugins']
-        if 'tacviewExportPath' in self.config:
-            path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
-            if options['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR) != path:
-                options['Tacview']['tacviewExportPath'] = path
-                dirty = True
-                if not os.path.exists(path):
-                    os.makedirs(path)
-                self.log.info(f'  => {self.server.name}: Setting ["tacviewExportPath"] = "{path}".')
-        for param in ['tacviewRealTimeTelemetryPort', 'tacviewRemoteControlPort']:
-            if param in self.config:
-                if param not in options['Tacview'] or int(options['Tacview'][param]) != int(self.config[param]):
-                    options['Tacview'][param] = str(self.config[param])
-                    dirty = True
-        for param in ['tacviewRealTimeTelemetryPassword', 'tacviewRemoteControlPassword']:
-            if param in self.config:
-                if param not in options['Tacview'] or options['Tacview'][param] != self.config[param]:
-                    options['Tacview'][param] = self.config[param]
-                    dirty = True
-        for param in ['tacviewPlaybackDelay']:
-            if param in self.config:
-                if param not in options['Tacview'] or int(options['Tacview'][param]) != int(self.config[param]):
-                    options['Tacview'][param] = int(self.config[param])
-                    dirty = True
-        if 'tacviewPlaybackDelay' not in options['Tacview'] or not options['Tacview']['tacviewPlaybackDelay']:
-            self.log.warning(f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see '
-                             f'performance issues!')
+        dirty = False
+        for name, value in self.config.items():
+            if not name.startswith('tacview'):
+                continue
+            if name == 'tacviewExportPath':
+                path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
+                os.makedirs(path, exist_ok=True)
+                dirty = self.set_option(options, name, path, TACVIEW_DEFAULT_DIR) or dirty
+            else:
+                dirty = self.set_option(options, name, value) or dirty
+
+        if not options['Tacview'].get('tacviewPlaybackDelay', 0):
+            self.log.warning(
+                f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']
