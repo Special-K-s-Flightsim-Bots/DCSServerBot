@@ -30,6 +30,17 @@ class SRSEventListener(EventListener):
             return
         self.srs_users[server.name].pop(data['player_name'], None)
 
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        config = self.get_config(server) or {
+            "message_no_srs": "You need to use SRS to play on this server!"
+        }
+        server.send_to_dcs({
+            'command': 'loadParams',
+            'plugin': self.plugin_name,
+            'params': config
+        })
+
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
