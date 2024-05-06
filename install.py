@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import platform
@@ -12,7 +11,7 @@ if sys.platform == 'win32':
     import winreg
 
 from contextlib import closing, suppress
-from core import utils, SAVED_GAMES, translations
+from core import utils, SAVED_GAMES, translations, COMMAND_LINE_ARGS
 from pathlib import Path
 from rich import print
 from rich.console import Console
@@ -23,9 +22,6 @@ from urllib.parse import quote, urlparse
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
-
-DCSSB_DB_USER = "dcsserverbot"
-DCSSB_DB_NAME = "dcsserverbot"
 
 # for gettext // i18n
 _: Optional[Callable[[str], str]] = None
@@ -108,7 +104,7 @@ class Install:
         return host, port
 
     @staticmethod
-    def get_database_url() -> Optional[str]:
+    def get_database_url(user: str, database: str) -> Optional[str]:
         host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
             passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user=postgres)'))
@@ -121,29 +117,29 @@ class Install:
                         except ValueError:
                             passwd = secrets.token_urlsafe(8)
                         try:
-                            cursor.execute(f"CREATE USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
+                            cursor.execute(f"CREATE USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
                         except psycopg.Error:
-                            print(_('[yellow]Existing {} user found![/]').format(DCSSB_DB_USER))
-                            if Confirm.ask(_('Do you remember the password of {}?').format(DCSSB_DB_USER)):
+                            print(_('[yellow]Existing {} user found![/]').format(user))
+                            if Confirm.ask(_('Do you remember the password of {}?').format(user)):
                                 while True:
                                     passwd = Prompt.ask(
-                                        _("Please enter your password for user {}").format(DCSSB_DB_USER))
+                                        _("Please enter your password for user {}").format(user))
                                     try:
-                                        with psycopg.connect(f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"):
+                                        with psycopg.connect(f"postgres://{user}:{quote(passwd)}@{host}:{port}/{database}?sslmode=prefer"):
                                             pass
                                         break
                                     except psycopg.Error:
                                         print(_("[red]Wrong password! Try again.[/]"))
                             else:
-                                cursor.execute(f"ALTER USER {DCSSB_DB_USER} WITH ENCRYPTED PASSWORD '{passwd}'")
+                                cursor.execute(f"ALTER USER {user} WITH ENCRYPTED PASSWORD '{passwd}'")
                         # store the password
                         utils.set_password('database', passwd)
                         with suppress(psycopg.Error):
-                            cursor.execute(f"CREATE DATABASE {DCSSB_DB_NAME}")
-                            cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {DCSSB_DB_NAME} TO {DCSSB_DB_USER}")
-                            cursor.execute(f"ALTER DATABASE {DCSSB_DB_NAME} OWNER TO {DCSSB_DB_USER}")
+                            cursor.execute(f"CREATE DATABASE {database}")
+                            cursor.execute(f"GRANT ALL PRIVILEGES ON DATABASE {database} TO {user}")
+                            cursor.execute(f"ALTER DATABASE {database} OWNER TO {user}")
                         print(_("[green]- Database user and database created.[/]"))
-                    return f"postgres://{DCSSB_DB_USER}:SECRET@{host}:{port}/{DCSSB_DB_NAME}?sslmode=prefer"
+                    return f"postgres://{user}:SECRET@{host}:{port}/{database}?sslmode=prefer"
             except psycopg.OperationalError:
                 print(_("[red]Master password wrong. Please try again.[/]"))
 
@@ -228,7 +224,7 @@ For a successful installation, you need to fulfill the following prerequisites:
         nodes = {}
         return main, nodes, bot
 
-    def install(self):
+    def install(self, user: str, database: str):
         global _
 
         major_version = int(platform.python_version_tuple()[1])
@@ -267,8 +263,8 @@ If you need any further assistance, please visit the support discord, listed in 
             _ = translations.get_translation("install")
 
             if self.node in nodes:
-                if Confirm.ask(_("[red]A configuration for this node exists already![/]\n"
-                                 "Do you want to overwrite it?"), default=False):
+                if not Confirm.ask(_("[red]A configuration for this node exists already![/]\n"
+                                     "Do you want to overwrite it?"), default=False):
                     self.log.warning(_("Aborted: configuration exists"))
                     exit(-1)
             else:
@@ -278,7 +274,7 @@ If you need any further assistance, please visit the support discord, listed in 
 
         print(_("\n{}. Database Setup").format(i+1))
         if master:
-            database_url = Install.get_database_url()
+            database_url = Install.get_database_url(user, database)
             if not database_url:
                 self.log.error(_("Aborted: No valid Database URL provided."))
                 exit(-1)
@@ -289,7 +285,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 hostname, port = self.get_database_host(url.hostname, url.port)
                 database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
             except StopIteration:
-                database_url = Install.get_database_url()
+                database_url = Install.get_database_url(user, database)
 
         print(_("\n{}. Node Setup").format(i+2))
         if sys.platform == 'win32':
@@ -449,13 +445,11 @@ If you need any further assistance, please visit the support discord, listed in 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog='DCSServerBot', description="Welcome to DCSServerBot!",
-                                     epilog='If unsure about the parameters, please check the documentation.')
-    parser.add_argument('-n', '--node', help='Node name', default=platform.node())
-    args = parser.parse_args()
+    # get the command line args from core
+    args = COMMAND_LINE_ARGS
     console = Console()
     try:
-        Install(args.node).install()
+        Install(args.node).install(args.user, args.database)
     except KeyboardInterrupt:
         pass
     except Exception:

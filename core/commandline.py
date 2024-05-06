@@ -23,5 +23,7 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
         parser.add_argument('-r', '--no-restart', action='store_true', default=False,
                             help="don't start DCSServerBot after the update")
-
+    elif program == 'install.py':
+        parser.add_argument('-u', '--user', help='Database username', default='dcsserverbot')
+        parser.add_argument('-d', '--database', help='Database name', default='dcsserverbot')
     COMMAND_LINE_ARGS = parser.parse_args()

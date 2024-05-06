@@ -182,6 +182,22 @@ When finished, the bot should launch successfully and maybe even start your serv
 > You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
 > the servers Scripts directory.
 
+You can start the installer with these parameters:
+```
+Usage: install.cmd [-h] [-n NODE] [-c CONFIG] [-u USER] [-d DATABASE]
+
+Welcome to DCSServerBot!
+
+options:
+  -h, --help                        Show this help message and exit
+  -n NODE, --node NODE              Node name (default = hostname)
+  -c CONFIG, --config CONFIG        Path to configuration
+  -u USER, --user USER              Database username (default = dcsserverbot)
+  -d DATABASE, --database DATABASE  Database name (default = dcsserverbot)
+```
+You might want to provide different node names, if you install multiple nodes on one PC and different database user
+and database names, if you want to install multiple bots for multiple Discord groups.
+
 ### Desanitization
 DCSServerBot desanitizes your MissionScripting environment. That means, it changes entries in Scripts\MissionScripting.lua
 of your DCS installation. If you use any other method of desanitization, DCSServerBot checks, if additional 
