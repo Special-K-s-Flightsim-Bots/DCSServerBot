@@ -389,8 +389,8 @@ roles:                                          # Roles mapping. The bot uses in
 > If you want the bot to give the "Online" role for people for example, it has to be below the bot's role.
 
 ### CJK-Fonts Support
-DCSServerBot does support external fonts, especially CJK-fonts to render the graphs and show your player names using
-the real characters of your language. Unfortunately, I can not auto-download the respective fonts from Google Fonts
+DCSServerBot supports external fonts, especially CJK-fonts to render the graphs and show your player names using the 
+real characters of your language. Unfortunately, I can not auto-download the respective fonts from Google Fonts
 anymore, where I have to ask you guys to do that on your own.<br>
 To download the supported fonts, go to https://fonts.google.com/ and search for 
 - [Noto Sans Traditional Chinese](https://fonts.google.com/noto/specimen/Noto+Sans+TC)
@@ -399,7 +399,7 @@ To download the supported fonts, go to https://fonts.google.com/ and search for
 
 Then press "Get font" and "Download all". Copy the ZIP file into a folder "fonts" that you create below the DCSServerBot
 installation directory. The bot will take this ZIP on its next startup, unpack it and delete the ZIP file. From then
-on, the bot can use the respective font(s).
+on, the bot will use the respective font(s) without further configurations.
 
 #### Auto Matching (default: enabled)
 To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 
