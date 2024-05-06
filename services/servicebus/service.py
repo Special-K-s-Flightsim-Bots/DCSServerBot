@@ -199,13 +199,9 @@ class ServiceBus(Service):
             for server in local_servers:
                 if not self.master:
                     await self.send_init(server)
-                if not server.maintenance:
-                    calls[server.name] = asyncio.create_task(
-                        server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
-                    )
-                else:
-                    server.status = Status.SHUTDOWN
-                    self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
+                calls[server.name] = asyncio.create_task(
+                    server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                )
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
             num = 0
             for i, name in enumerate(calls.keys()):
