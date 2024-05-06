@@ -34,6 +34,7 @@ class GameMasterEventListener(EventListener):
             return
         os.makedirs('logs', exist_ok=True)
         self.chat_log[server.name] = logging.getLogger(name=f'chat-{server.name}')
+        self.chat_log[server.name].propagate = False
         self.chat_log[server.name].setLevel(logging.INFO)
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
