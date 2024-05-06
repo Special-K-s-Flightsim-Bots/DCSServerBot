@@ -58,6 +58,10 @@ class SRS(Extension, FileSystemEventHandler):
                     elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
                         line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
                                f'-- set to your PUBLIC ipv4 address\n'
+                    elif line.startswith('SRSAuto.MESSAGE_PREFIX = ') and self.config.get('srs_message_prefix'):
+                        line = f"SRSAuto.MESSAGE_PREFIX = \"{self.config.get('srs_message_prefix')}\"\n"
+                    elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
+                        line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
                     outfile.write(line)
 
     def disable_autoconnect(self):
