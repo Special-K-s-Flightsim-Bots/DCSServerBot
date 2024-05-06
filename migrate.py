@@ -274,10 +274,6 @@ def migrate(node: str):
 
             if 'GREETING_DM' in cfg['BOT']:
                 bot['greeting_dm'] = cfg['BOT']['GREETING_DM']
-            if 'CJK_FONT' in cfg['REPORTS']:
-                bot['reports'] = {
-                    'cjk_font': cfg['REPORTS']['CJK_FONT']
-                }
             if 'DISCORD_STATUS' in cfg['BOT']:
                 bot['discord_status'] = cfg['BOT']['DISCORD_STATUS']
             if 'AUDIT_CHANNEL' in cfg['BOT']:

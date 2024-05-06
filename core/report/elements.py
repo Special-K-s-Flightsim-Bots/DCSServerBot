@@ -5,6 +5,7 @@ import discord
 import inspect
 import numpy as np
 import os
+import re
 import sys
 import uuid
 import warnings
@@ -16,7 +17,7 @@ from discord import ButtonStyle, Interaction
 from io import BytesIO
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
-from typing import Optional, Any, TYPE_CHECKING, Union
+from typing import Optional, Any, TYPE_CHECKING, Union, Iterable
 
 from .env import ReportEnv
 from .errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
@@ -44,6 +45,22 @@ __all__ = [
     "PieChart",
     "SQLPieChart"
 ]
+
+_languages = None
+
+
+def get_supported_fonts() -> set[str]:
+    global _languages
+
+    if _languages is None:
+        _languages = set()
+        for filename in os.listdir('fonts'):
+            if filename.startswith("NotoSans"):
+                match = re.search(r"NotoSans(..)-", filename)
+                if match:
+                    lang = match.group(1)
+                    _languages.add(lang)
+    return _languages
 
 
 class ReportElement(ABC):
@@ -189,8 +206,9 @@ class Graph(ReportElement):
                      facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
-        if 'cjk_font' in self.bot.locals.get('reports', {}):
-            plt.rcParams['font.family'] = [f"Noto Sans {self.bot.locals['reports']['cjk_font']}", 'sans-serif']
+        fonts = get_supported_fonts()
+        if fonts:
+            plt.rcParams['font.family'] = [f"Noto Sans {x}" for x in fonts] + ['sans-serif']
         self.env.figure = plt.figure(figsize=(width, height))
         try:
             if facecolor:

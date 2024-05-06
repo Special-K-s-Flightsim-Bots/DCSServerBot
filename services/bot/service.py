@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import aiofiles
 import aiohttp
 import asyncio
@@ -127,46 +129,21 @@ class BotService(Service):
             await self.bot.get_admin_channel(server).send(content=mentions, embed=embed, file=file)
 
     async def install_fonts(self):
-        font = self.locals.get('reports', {}).get('cjk_font')
-        if font:
-            if not os.path.exists('fonts'):
-                os.makedirs('fonts')
-
-                async def fetch_file(url: str):
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(url) as resp:
-                            assert resp.status == 200
-                            data = await resp.read()
-
-                    async with aiofiles.open(
-                            os.path.join('fonts', "temp.zip"), "wb") as outfile:
-                        await outfile.write(data)
-
-                    with zipfile.ZipFile('fonts/temp.zip', 'r') as zip_ref:
-                        for file in zip_ref.namelist():
-                            if not file.endswith('.ttf') and not file.endswith('.otf'):
-                                continue
-                            zip_ref.extract(file, 'fonts')
-                            if file != os.path.basename(file):
-                                shutil.move(os.path.join('fonts', file), 'fonts')
-                                os.rmdir(os.path.join('fonts', os.path.dirname(file)))
-
-                    os.remove('fonts/temp.zip')
-                    for f in font_manager.findSystemFonts('fonts'):
-                        font_manager.fontManager.addfont(f)
-                    self.log.info('- CJK font installed and loaded.')
-
-                fonts = {
-                    "TC": "https://fonts.google.com/download?family=Noto%20Sans%20TC",
-                    "JP": "https://fonts.google.com/download?family=Noto%20Sans%20JP",
-                    "KR": "https://fonts.google.com/download?family=Noto%20Sans%20KR"
-                }
-
-                await fetch_file(fonts[font])
-            else:
-                for f in font_manager.findSystemFonts('fonts'):
-                    font_manager.fontManager.addfont(f)
-                self.log.debug('- CJK fonts loaded.')
+        font_dir = Path('fonts')
+        if not font_dir.exists() or not font_dir.is_dir():
+            return
+        for file in Path('fonts').rglob('Noto_Sans_*.zip'):
+            self.log.info(f"  - Unpacking {file} ...")
+            with zipfile.ZipFile(file, 'r') as zip_ref:
+                # Extract all files
+                for member in zip_ref.namelist():
+                    # Check if file is in 'static' directory
+                    if member.startswith('static/'):
+                        with zip_ref.open(member) as file_to_extract:
+                            file_path = font_dir / Path(member).name
+                            with open(file_path, 'wb') as new_file:
+                                new_file.write(file_to_extract.read())
+            file.unlink()
 
     async def send_message(self, channel: int, content: Optional[str] = None, server: Optional[Server] = None,
                            filename: Optional[str] = None, embed: Optional[dict] = None):
