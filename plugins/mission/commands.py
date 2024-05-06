@@ -1383,8 +1383,10 @@ class Mission(Plugin):
             if server.status == Status.UNREGISTERED:
                 continue
             try:
-                # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
-                channel = self.bot.get_channel(server.channels[Channel.STATUS])
+                channel_id = server.channels[Channel.STATUS]
+                if channel_id == -1:
+                    continue
+                channel = self.bot.get_channel(channel_id)
                 if not channel:
                     channel = await self.bot.fetch_channel(server.channels[Channel.STATUS])
                 # name changes of the status channel will only happen with the correct permission

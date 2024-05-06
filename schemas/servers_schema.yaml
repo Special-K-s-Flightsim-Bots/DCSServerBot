@@ -23,13 +23,13 @@ mapping:
       channels:
         type: map
         mapping:
-          status: {type: int, required: true}
-          chat: {type: int}
-          events: {type: int}
-          admin: {type: int}
-          voice: {type: int}
-          blue: {type: int}
-          red: {type: int}
+          status: {type: int, range: {min: -1}}
+          chat: {type: int, range: {min: -1}}
+          events: {type: int, range: {min: -1}}
+          admin: {type: int, range: {min: -1}}
+          voice: {type: int, range: {min: -1}}
+          blue: {type: int, range: {min: -1}}
+          red: {type: int, range: {min: -1}}
       chat_log:
         type: map
         mapping:

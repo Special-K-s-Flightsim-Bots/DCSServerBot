@@ -5,7 +5,7 @@ of your servers and missions are being used most, at which time and from which k
 public players).
 
 ## Squadrons
-If you want to group people to see group stats etc, you can create squadrons with DCSServerBot.<br>
+If you want to group people to see group stats, etc., you can create squadrons with DCSServerBot.<br>
 Commands to manage squadrons are describe below. You can select squadrons in the period parameter of highscore and
 other statistics commands where it makes sense.
 

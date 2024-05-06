@@ -372,6 +372,8 @@ class Server(DataObject):
             self._channels = {}
             for key, value in self.locals['channels'].items():
                 self._channels[Channel(key)] = int(value)
+            if Channel.STATUS not in self._channels:
+                self._channels[Channel.STATUS] = -1
             if Channel.CHAT not in self._channels:
                 self._channels[Channel.CHAT] = -1
             if Channel.EVENTS not in self._channels:

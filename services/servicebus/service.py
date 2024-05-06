@@ -194,14 +194,13 @@ class ServiceBus(Service):
         for server in local_servers:
             if not self.master:
                 await self.send_init(server)
-            if await server.is_running():
-                calls[server.name] = asyncio.create_task(server.send_to_dcs_sync({"command": "registerDCSServer"},
-                                                                                 timeout))
+            if not server.maintenance:
+                calls[server.name] = asyncio.create_task(
+                    server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                )
             else:
                 server.status = Status.SHUTDOWN
-                if server.maintenance:
-                    self.log.warning(
-                        f'  => Maintenance mode enabled for Server {server.name}')
+                self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
         ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
         num = 0
         for i, name in enumerate(calls.keys()):
@@ -210,8 +209,7 @@ class ServiceBus(Service):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
                 if server.maintenance:
-                    self.log.warning(
-                        f'  => Maintenance mode enabled for Server {server.name}')
+                    self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
             elif isinstance(ret[i], Exception):
                 self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
             else:
@@ -248,6 +246,8 @@ class ServiceBus(Service):
         # set the PID
         if not server.process:
             server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
+            if not server.process:
+                self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
         server.dcs_version = data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:

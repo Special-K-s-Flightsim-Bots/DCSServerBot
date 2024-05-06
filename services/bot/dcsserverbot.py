@@ -208,7 +208,7 @@ class DCSServerBot(commands.Bot):
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 self.log.info('- Checking Roles & Channels ...')
                 roles = set()
-                for role in ['Admin', 'DCS Admin', 'DCS', 'GameMaster']:
+                for role in ['Admin', 'DCS Admin', 'Alert', 'DCS', 'GameMaster']:
                     roles |= set(self.roles[role])
                 self.check_roles(roles)
                 if self.locals.get('admin_channel'):
@@ -424,10 +424,13 @@ class DCSServerBot(commands.Bot):
         async with self.lock:
             if server and isinstance(channel_id, Channel):
                 channel_id = int(server.channels.get(channel_id, -1))
+                # we should not write to this channel
+                if channel_id == -1:
+                    return
             else:
                 channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
-            if not channel and channel_id != -1:
+            if not channel:
                 channel = await self.fetch_channel(channel_id)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
