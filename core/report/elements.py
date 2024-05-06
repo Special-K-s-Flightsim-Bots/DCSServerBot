@@ -17,7 +17,7 @@ from discord import ButtonStyle, Interaction
 from io import BytesIO
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
-from typing import Optional, Any, TYPE_CHECKING, Union, Iterable
+from typing import Optional, Any, TYPE_CHECKING, Union
 
 from .env import ReportEnv
 from .errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
@@ -54,12 +54,13 @@ def get_supported_fonts() -> set[str]:
 
     if _languages is None:
         _languages = set()
-        for filename in os.listdir('fonts'):
-            if filename.startswith("NotoSans"):
-                match = re.search(r"NotoSans(..)-", filename)
-                if match:
-                    lang = match.group(1)
-                    _languages.add(lang)
+        if os.path.exists('fonts'):
+            for filename in os.listdir('fonts'):
+                if filename.startswith("NotoSans"):
+                    match = re.search(r"NotoSans(..)-", filename)
+                    if match:
+                        lang = match.group(1)
+                        _languages.add(lang)
     return _languages
 
 
