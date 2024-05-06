@@ -54,6 +54,7 @@ class ServiceBus(Service):
         # nodes.yaml database connection has priority for broadcasts
         url = self.node.locals.get("database", self.node.config.get('database'))['url']
         self.broadcasts_channel = PubSub(self.node, 'broadcasts', url)
+        self._lock = asyncio.Lock()
 
     async def start(self):
         await super().start()
@@ -184,38 +185,42 @@ class ServiceBus(Service):
         }, timeout=60)
 
     async def register_local_servers(self):
-        timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
-        local_servers = [x for x in self.servers.values() if not x.is_remote]
-        if local_servers:
-            self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
-        else:
+        # we only run once
+        if self._lock.locked():
             return
-        calls: dict[str, Any] = dict()
-        for server in local_servers:
-            if not self.master:
-                await self.send_init(server)
-            if not server.maintenance:
-                calls[server.name] = asyncio.create_task(
-                    server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
-                )
+        async with self._lock:
+            timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
+            local_servers = [x for x in self.servers.values() if not x.is_remote]
+            if local_servers:
+                self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
             else:
-                server.status = Status.SHUTDOWN
-                self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
-        ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
-        num = 0
-        for i, name in enumerate(calls.keys()):
-            server = self.servers[name]
-            if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
-                self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
-                server.status = Status.SHUTDOWN
-                if server.maintenance:
+                return
+            calls: dict[str, Any] = dict()
+            for server in local_servers:
+                if not self.master:
+                    await self.send_init(server)
+                if not server.maintenance:
+                    calls[server.name] = asyncio.create_task(
+                        server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                    )
+                else:
+                    server.status = Status.SHUTDOWN
                     self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
-            elif isinstance(ret[i], Exception):
-                self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
-            else:
-                num += 1
-        if num == 0:
-            self.log.info('- No running local servers found.')
+            ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
+            num = 0
+            for i, name in enumerate(calls.keys()):
+                server = self.servers[name]
+                if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
+                    self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
+                    server.status = Status.SHUTDOWN
+                    if server.maintenance:
+                        self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
+                elif isinstance(ret[i], Exception):
+                    self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
+                else:
+                    num += 1
+            if num == 0:
+                self.log.info('- No running local servers found.')
 
     async def register_remote_node(self, node: str):
         self.log.info(f"- Registering remote node {node}.")
