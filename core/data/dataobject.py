@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import logging
+
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, Type, Optional, TypeVar
@@ -26,7 +29,7 @@ class DataObject:
     def __post_init__(self):
         self.pool = self.node.pool
         self.apool = self.node.apool
-        self.log = self.node.log
+        self.log = logging.getLogger(__name__)
         self.config = self.node.config
 
 

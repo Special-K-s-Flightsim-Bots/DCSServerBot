@@ -537,9 +537,11 @@ class UserStatistics(Plugin):
                              'highscore-campaign.json' if isinstance(flt, CampaignFilter) else 'highscore.json')
         embed_name = 'highscore-' + period
         channel_id = highscore.get('channel')
+        if not channel_id and server:
+            channel_id = server.channels[Channel.STATUS]
         if not mission_end:
             report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
-                                      channel_id=channel_id or Channel.STATUS)
+                                      channel_id=channel_id)
             await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
         else:
             report = Report(self.bot, self.plugin_name, file)

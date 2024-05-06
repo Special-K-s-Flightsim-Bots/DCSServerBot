@@ -77,11 +77,13 @@ class Server(DataObject):
         if os.path.exists(config_file):
             try:
                 c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8')
-                # TODO: change this to true after testing phase
-                c.validate(raise_exception=False)
+                try:
+                    c.validate(raise_exception=True)
+                except SchemaError as ex:
+                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
 
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
-            except (MarkedYAMLError, SchemaError) as ex:
+            except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
             if not data.get(self.name) and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
@@ -370,6 +372,8 @@ class Server(DataObject):
             self._channels = {}
             for key, value in self.locals['channels'].items():
                 self._channels[Channel(key)] = int(value)
+            if Channel.STATUS not in self._channels:
+                self._channels[Channel.STATUS] = -1
             if Channel.CHAT not in self._channels:
                 self._channels[Channel.CHAT] = -1
             if Channel.EVENTS not in self._channels:
@@ -395,7 +399,7 @@ class Server(DataObject):
         timeout = 300 if slow_system else 180
         self.send_to_dcs({"command": "shutdown"})
         with suppress(TimeoutError, asyncio.TimeoutError):
-            await self.wait_for_status_change([Status.STOPPED], timeout)
+            await self.wait_for_status_change([Status.STOPPED, Status.SHUTDOWN], timeout)
         self.current_mission = None
 
     async def init_extensions(self):

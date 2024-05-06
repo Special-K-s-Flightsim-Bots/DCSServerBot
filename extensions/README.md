@@ -86,6 +86,9 @@ MyNode:
           red_password: red
           autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
           no_shutdown: true   # optional: don't shut down SRS on mission end (default: false)
+          srs_message_prefix: 'SRS Running @ '        # optional: overwrite the message prefix
+          srs_nudge_message: 'Optional nudge message' # optional: overwrite the existing nudge message
+          
 ```
 You need one entry in the node section, pointing to your DCS-SRS installation and one in every instance section, 
 where you want to use SRS with. The next time the bot starts your server, it will auto-launch SRS and take care of it.
@@ -435,9 +438,9 @@ class MyExtension(Extension):
         self.log.debug("Hello World!")
         return True
 
-    async def shutdown(self) -> bool:
+    def shutdown(self) -> bool:
         self.log.debug("Cya World!")
-        return await super().shutdown()
+        return super().shutdown()
 
     def is_running(self) -> bool:
         return True

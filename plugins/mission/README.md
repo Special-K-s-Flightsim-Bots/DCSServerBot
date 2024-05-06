@@ -26,6 +26,11 @@ DEFAULT:
       - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
   afk_exemptions:   # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
     - aabbccddeeff1122334455
+  usage_alarm:
+    min_threshold: 30   # send a message, if less than 30 people fly on your server
+    max_threshold: 10   # send a message, if more than 10 people fly on your server
+    role: DCS Admin     # the role that should be pinged
+    channel: 1122334455 # the channel to send the ping in (default: admin channel)
 ```
 
 ## Auto-Scanning

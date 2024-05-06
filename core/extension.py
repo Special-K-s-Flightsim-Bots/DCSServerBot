@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import logging
+
 from abc import ABC
 from typing import Optional, TYPE_CHECKING
 
@@ -12,7 +15,7 @@ class Extension(ABC):
 
     def __init__(self, server: Server, config: dict):
         self.node = server.node
-        self.log = self.node.log
+        self.log = logging.getLogger(__name__)
         self.pool = self.node.pool
         self.config: dict = config
         self.server: Server = server

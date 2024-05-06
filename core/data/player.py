@@ -39,8 +39,6 @@ class Player(DataObject):
     _coalition: Coalition = field(compare=False, default=None)
     _watchlist: bool = field(compare=False, default=False)
     _vip: bool = field(compare=False, default=False)
-    srs: bool = field(compare=False, default=False)
-    radios: list[int] = field(compare=False, default_factory=list)
     bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):

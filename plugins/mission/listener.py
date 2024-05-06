@@ -82,9 +82,10 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.queue: dict[int, Queue[str]] = dict()
-        self.player_embeds: dict[str, bool] = dict()
-        self.mission_embeds: dict[str, bool] = dict()
+        self.queue: dict[int, Queue[str]] = {}
+        self.player_embeds: dict[str, bool] = {}
+        self.mission_embeds: dict[str, bool] = {}
+        self.alert_fired: dict[str, bool] = {}
         self.print_queue.start()
         self.update_player_embed.start()
         self.update_mission_embed.start()
@@ -277,6 +278,31 @@ class MissionEventListener(EventListener):
         embed.set_footer(text="Players can be removed from the watchlist by using the /info command.")
         await self.bot.get_admin_channel(server).send(mentions, embed=embed)
 
+    async def _threshold_alert(self, server: Server, config: dict):
+        if server.name in self.alert_fired:
+            return
+        role = config.get('role')
+        if role:
+            if role in self.bot.roles:
+                mentions = ''.join([self.bot.get_role(_role).mention for _role in self.bot.roles[role]])
+            else:
+                mentions = self.bot.get_role(role).mention
+        else:
+            mentions = None
+        embed = discord.Embed(title='Player Threshold Alert!', colour=discord.Color.red())
+        min_threshold = config.get('min_threshold')
+        max_threshold = config.get('max_threshold')
+        if min_threshold:
+            embed.description = f"Server {server.display_name} has less than {min_threshold} players."
+        elif max_threshold:
+            embed.description = f"Server {server.display_name} has more than {max_threshold} players."
+        channel = self.bot.get_channel(config.get('channel', server.channels[Channel.STATUS]))
+        if channel:
+            await channel.send(mentions, embed=embed)
+        else:
+            self.log.error("Player threshold configured, but channel is incorrect")
+        self.alert_fired[server.name] = True
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync-'):
@@ -290,8 +316,6 @@ class MissionEventListener(EventListener):
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
-        elif server.is_remote or data['channel'].startswith('sync-'):
-            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
         # all players are inactive for now
         for p in server.players.values():
@@ -334,6 +358,9 @@ class MissionEventListener(EventListener):
             for member in (set(role.members) - all_members):
                 # noinspection PyAsyncCall
                 asyncio.create_task(member.remove_roles(role))
+        # Set the status at the latest possible place
+        if server.is_remote or data['channel'].startswith('sync-'):
+            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -375,6 +402,7 @@ class MissionEventListener(EventListener):
         server.status = Status.STOPPED
         for p in server.get_active_players():
             p.side = Side.SPECTATOR
+        self.alert_fired.pop(server.name, None)
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -410,6 +438,13 @@ class MissionEventListener(EventListener):
             # noinspection PyAsyncCall
             asyncio.create_task(self._watchlist_alert(server, player))
 
+        # check if we've reached the max_threshold
+        config = self.get_config(server)
+        mt = config.get('usage_alarm', {}).get('max_threshold')
+        if mt and len(server.get_active_players()) == (mt + 1):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._threshold_alert(server, config['usage_alarm']))
+
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
@@ -441,6 +476,7 @@ class MissionEventListener(EventListener):
         if player.is_banned():
             server.kick(player, self.node.config.get('messages', {}).get('player_banned', 'n/a'))
             return
+        config = self.get_config(server)
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
@@ -448,12 +484,12 @@ class MissionEventListener(EventListener):
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.get_admin_channel(server).send(
                     f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
-            player.sendChatMessage(self.get_config(server).get(
+            player.sendChatMessage(config.get(
                 'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
                                               'if you want to see your user stats!').format(server=server,
                                                                                             player=player))
         else:
-            player.sendChatMessage(self.get_config(server).get(
+            player.sendChatMessage(config.get(
                 'greeting_message_members', '{player.name}, welcome back to {server.name}!').format(player=player,
                                                                                                     server=server))
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
@@ -489,6 +525,11 @@ class MissionEventListener(EventListener):
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
             if autorole:
                 asyncio.create_task(player.remove_role(autorole))
+        # check if we've reached the max_threshold
+        config = self.get_config(server)
+        mt = config.get('usage_alarm', {}).get('min_threshold')
+        if mt and len(server.get_active_players()) == (mt - 1):
+            asyncio.create_task(self._threshold_alert(server, config['usage_alarm']))
         self.display_mission_embed(server)
         self.display_player_embed(server)
 

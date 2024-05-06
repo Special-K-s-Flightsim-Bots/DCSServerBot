@@ -1,3 +1,4 @@
+import logging
 import os
 
 from core import utils
@@ -10,7 +11,7 @@ from urllib.parse import urlparse
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
+from pykwalify.errors import SchemaError, CoreError
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -52,6 +53,7 @@ class Node:
 
     def __init__(self, name: str, config_dir: Optional[str] = 'config'):
         self.name = name
+        self.log = logging.getLogger(__name__)
         self.config_dir = config_dir
         self.instances: list["Instance"] = list()
         self.locals = None
@@ -78,13 +80,13 @@ class Node:
     def extensions(self) -> dict:
         raise NotImplemented()
 
-    @staticmethod
-    def read_config(file) -> dict:
+    def read_config(self, file) -> dict:
         try:
             c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8')
-            # TODO: change this to true after testing phase
-            c.validate(raise_exception=False)
-
+            try:
+                c.validate(raise_exception=True)
+            except SchemaError as ex:
+                self.log.warning(f'Error while parsing {file}:\n{ex}')
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
             # check if we need to secure the database URL
             database_url = config.get('database', {}).get('url')
@@ -120,9 +122,9 @@ class Node:
             )
             config['chat_command_prefix'] = config.get('chat_command_prefix', '-')
             return config
-        except FileNotFoundError:
+        except (FileNotFoundError, CoreError):
             raise FatalException()
-        except (MarkedYAMLError, SchemaError) as ex:
+        except MarkedYAMLError as ex:
             raise YAMLError(file, ex)
 
     def read_locals(self) -> dict:

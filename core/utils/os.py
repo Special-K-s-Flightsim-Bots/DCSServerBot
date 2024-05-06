@@ -1,6 +1,4 @@
 import pickle
-from logging.handlers import RotatingFileHandler
-
 import aiohttp
 import ipaddress
 import os
@@ -15,6 +13,7 @@ if sys.platform == 'win32':
     import win32console
 
 from contextlib import closing, suppress
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional, Union
 

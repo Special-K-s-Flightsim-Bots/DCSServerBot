@@ -1383,8 +1383,10 @@ class Mission(Plugin):
             if server.status == Status.UNREGISTERED:
                 continue
             try:
-                # channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
-                channel = self.bot.get_channel(server.channels[Channel.STATUS])
+                channel_id = server.channels[Channel.STATUS]
+                if channel_id == -1:
+                    continue
+                channel = self.bot.get_channel(channel_id)
                 if not channel:
                     channel = await self.bot.fetch_channel(server.channels[Channel.STATUS])
                 # name changes of the status channel will only happen with the correct permission
@@ -1426,7 +1428,7 @@ class Mission(Plugin):
                             player.ucid in self.get_config(server).get('afk_exemptions', [])):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
-                        msg = self.get_config(server).get(
+                        msg = server.locals.get(
                             'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'
                         ).format(player=player, time=utils.format_time(max_time))
                         server.kick(player, msg)

@@ -8,6 +8,7 @@ schema;master_schema:
         - type: map
           mapping:
             event: {type: str, required: true}
+            default: {type: int}
             human: {type: int}
             AI: {type: int}
             reason: {type: str}
