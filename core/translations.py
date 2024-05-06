@@ -36,7 +36,7 @@ def set_language(language: str):
 
 if not _language:
     try:
-        config = yaml.load(Path(os.path.join(COMMAND_LINE_ARGS.config, 'main.yaml')))
+        config = yaml.load(Path(os.path.join(COMMAND_LINE_ARGS.config, 'main.yaml')).read_text(encoding='utf-8'))
         _language = config.get('language', 'en_US')
     except FileNotFoundError:
         _language = 'en_US'

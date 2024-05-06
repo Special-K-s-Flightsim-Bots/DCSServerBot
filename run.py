@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-
 import discord
 import logging
 import os
@@ -12,18 +10,18 @@ import psycopg
 import sys
 import time
 
-from rich.text import Text
-
 from core import (
     NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
     CloudRotatingFileHandler
 )
+from datetime import datetime, timezone
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError
 from rich import print
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.text import Text
 
 from services import Dashboard
 
@@ -51,10 +49,8 @@ class Main:
         ch.setLevel(logging.INFO)
 
         # Setup file logging
-        config_file = pathlib.Path("config/main.yaml")
         try:
-            with open(config_file) as logconfig:
-                config = yaml.load(logconfig)['logging']
+            config = yaml.load(pathlib.Path('config/main.yaml').read_text(encoding='utf-8'))['logging']
         except (FileNotFoundError, KeyError, YAMLError):
             config = {
                 "loglevel": "DEBUG",
