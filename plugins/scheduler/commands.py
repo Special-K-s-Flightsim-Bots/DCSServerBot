@@ -359,7 +359,7 @@ class Scheduler(Plugin):
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer],
+                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                       maintenance: Optional[bool] = False, run_extensions: Optional[bool] = True,
                       mission_id: Optional[int] = None):
         if server.status == Status.STOPPED:

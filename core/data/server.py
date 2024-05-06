@@ -399,7 +399,7 @@ class Server(DataObject):
         timeout = 300 if slow_system else 180
         self.send_to_dcs({"command": "shutdown"})
         with suppress(TimeoutError, asyncio.TimeoutError):
-            await self.wait_for_status_change([Status.STOPPED], timeout)
+            await self.wait_for_status_change([Status.STOPPED, Status.SHUTDOWN], timeout)
         self.current_mission = None
 
     async def init_extensions(self):
