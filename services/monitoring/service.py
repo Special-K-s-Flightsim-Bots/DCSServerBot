@@ -229,7 +229,7 @@ class MonitoringService(Service):
         })
 
     async def serverload(self):
-        for server in self.bus.servers.values():
+        for server in self.bus.servers.copy().values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
             if not server.process:
