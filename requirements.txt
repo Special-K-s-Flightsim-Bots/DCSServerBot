@@ -8,7 +8,7 @@ aiohttp==3.9.4
 certifi==2024.2.2
 
 # Croniter: Python iterator implementing a cron schedule format
-croniter==2.0.3
+croniter==2.0.5
 
 # discord.py: The python interface for the Discord API
 discord.py==2.3.2
