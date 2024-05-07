@@ -542,7 +542,10 @@ class NodeImpl(Node):
         if not user:
             return list(licenses)
         password = utils.get_password('DCS')
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+        headers = {
+            'User-Agent': 'DCS_Updater/'
+        }
+        async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
             response = await session.post(LOGIN_URL, data={"login": user, "password": password})
             if response.status == 200:
@@ -555,18 +558,30 @@ class NodeImpl(Node):
             return list(licenses)
 
     async def get_latest_version(self, branch: str) -> Optional[str]:
-        user = self.locals['DCS'].get('user')
-        if user:
+        async def _get_latest_version_no_auth():
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get(UPDATER_URL.format(branch)) as response:
+                    if response.status == 200:
+                        return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+
+        async def _get_latest_version_auth():
+            user = self.locals['DCS'].get('user')
             password = utils.get_password('DCS')
-            auth = aiohttp.BasicAuth(login=user, password=password)
-        else:
-            auth = None
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
-            async with session.get(UPDATER_URL.format(branch)) as response:
+            headers = {
+                'User-Agent': 'DCS_Updater/'
+            }
+            async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                response = await session.post(LOGIN_URL, data={"login": user, "password": password})
                 if response.status == 200:
-                    return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
-        return None
+                    async with session.get(UPDATER_URL.format(branch)) as response:
+                        return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+
+        if not self.locals['DCS'].get('user'):
+            return await _get_latest_version_no_auth()
+        else:
+            return await _get_latest_version_auth()
 
     async def register(self):
         self._public_ip = self.locals.get('public_ip')

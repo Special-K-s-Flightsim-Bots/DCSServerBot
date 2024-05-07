@@ -11,15 +11,25 @@ for /f "tokens=2 delims= " %%a in ('type .git\HEAD') do set branch=%%a
 :: Trim the branch name
 set branch=%branch:refs/heads/=%
 
-:: If current branch is development, switch to master
+@REM echo Current branch: %branch%
+
+:: Switch to the other branch
 if "%branch%" == "master" (
-	echo Switching to development branch
-	git checkout development
-	call update.cmd
+    choice /c yn /n /m "Switch to development branch? [Y/N] "
+    if ERRORLEVEL 2 (
+        echo Operation aborted.
+        goto :eof
+    )
+    git checkout development
+    call update.cmd
 ) else if "%branch%" == "development" (
-	echo Switching to master branch
-	git checkout master
-	call update.cmd
+    choice /c yn /n /m "Switch to master branch? [Y/N] "
+    if ERRORLEVEL 2 (
+        echo Operation aborted.
+        goto :eof
+    )
+    git checkout master
+    call update.cmd
 ) else (
-	echo Unknown branch: %branch%
+    echo Unknown branch: %branch%
 )
