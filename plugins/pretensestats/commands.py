@@ -1,9 +1,14 @@
+import discord
 import json
 import os
 
-from core import Plugin, Status, PersistentReport, Channel, utils
+from core import Plugin, Status, PersistentReport, Channel, utils, command, Server, Report, get_translation
+from discord import app_commands
 from discord.ext import tasks
+from discord.utils import MISSING
 from services import DCSServerBot
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class PretenseStats(Plugin):
@@ -23,6 +28,35 @@ class PretenseStats(Plugin):
     async def cog_unload(self) -> None:
         self.update_leaderboard.cancel()
         await super().cog_unload()
+
+    @command(description=_('Display the Pretense stats'))
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    async def pretensestats(self, interaction: discord.Interaction,
+                            server: app_commands.Transform[Server, utils.ServerTransformer]):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        config = self.get_config(server) or {}
+        json_file_path = config.get('json_file_path',
+                                    os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json"))
+        json_file_path = os.path.expandvars(utils.format_string(json_file_path, instance=server.instance))
+        json_file_path = os.path.expandvars(json_file_path)
+        try:
+            file_data = await server.node.read_file(json_file_path)
+        except FileNotFoundError:
+            await interaction.followup.send(_("No player_stats.json found on this server! Is Pretense active?"),
+                                            ephemeral=True)
+            return
+        content = file_data.decode(encoding='utf-8')
+        data = json.loads(content)
+        report = Report(self.bot, self.plugin_name, "pretense.json")
+        env = await report.render(data=data, server=server)
+        try:
+            file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
+            await interaction.followup.send(embed=env.embed, file=file)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @tasks.loop(seconds=120)
     async def update_leaderboard(self):

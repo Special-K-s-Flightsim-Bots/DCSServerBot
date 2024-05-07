@@ -6,6 +6,14 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: de\n"
 
+# /pretensestats
+msgid "Display the Pretense stats"
+msgstr "Pretense-Statistik"
+
+msgid "No player_stats.json found on this server! Is Pretense active?"
+msgstr "Keine player_stats.json gefunden. Ist eine Pretense-Mission aktiv?"
+
+# report
 msgid "Rankings as of <t:{}:f>:"
 msgstr "Rangliste von <t:{}:f>:"
 
