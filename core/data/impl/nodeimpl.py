@@ -186,7 +186,7 @@ class NodeImpl(Node):
     async def restart(self):
         self.log.info("Restarting ...")
         await ServiceRegistry.shutdown()
-        await self.aclose_db()
+        await self.close_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
     def read_locals(self) -> dict:
