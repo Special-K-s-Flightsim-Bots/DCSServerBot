@@ -21,6 +21,8 @@ schema;master_schema:
             message: {type: str}
             points: {type: int}
             costs: {type: int}
+            crew: {type: int}
+            VIP: {type: bool}
     payback: {type: bool}
 
 type: map
