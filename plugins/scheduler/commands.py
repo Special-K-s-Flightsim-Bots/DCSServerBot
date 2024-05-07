@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import functools
 import os
 
 from contextlib import suppress
@@ -283,6 +282,10 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
+        async def schedule_coroutine(delay, coro):
+            await asyncio.sleep(delay)
+            await coro
+
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.copy().items():
@@ -301,8 +304,7 @@ class Scheduler(Plugin):
                             next_startup = startup_delay
                         else:
                             server.status = Status.LOADING
-                            self.loop.call_later(next_startup, functools.partial(asyncio.create_task,
-                                                                                 self.launch_dcs(server)))
+                            asyncio.ensure_future(schedule_coroutine(next_startup, self.launch_dcs(server)))
                             next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED

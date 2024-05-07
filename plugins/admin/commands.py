@@ -714,13 +714,17 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def online(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+        async def schedule_coroutine(delay, coro):
+            await asyncio.sleep(delay)
+            await coro
+
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
         for idx, server in enumerate([x for x in self.bus.servers.values() if x.node.name == node.name]):
             server.maintenance = False
-            self.loop.call_later(idx * startup_delay, server.startup())
+            asyncio.ensure_future(schedule_coroutine(idx * startup_delay, server.startup()))
         await interaction.followup.send(_("Node {} is now online.").format(node.name))
         await self.bot.audit(f"took node {node.name} online.", user=interaction.user)
 

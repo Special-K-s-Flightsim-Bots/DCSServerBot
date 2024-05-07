@@ -49,7 +49,7 @@ class Main:
 
     @staticmethod
     def setup_logging(node: str):
-        def time_formatter(time: datetime, format_string: str = None) -> Text:
+        def time_formatter(time: datetime, _: str = None) -> Text:
             log_time = time.astimezone(timezone.utc)
             return Text(log_time.strftime('%H:%M:%S'))
 
@@ -68,8 +68,9 @@ class Main:
             }
         os.makedirs('logs', exist_ok=True)
         fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{node}.log'), encoding='utf-8',
-                                      maxBytes=config['logrotate_size'], backupCount=config['logrotate_count'])
-        fh.setLevel(LOGLEVEL[config['loglevel']])
+                                      maxBytes=config.get('logrotate_size', 10485760),
+                                      backupCount=config.get('logrotate_count', 5))
+        fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         formatter.converter = time.gmtime
@@ -77,7 +78,7 @@ class Main:
         fh.doRollover()
 
         # Configure the root logger
-        logging.basicConfig(level=logging.DEBUG, format="%(message)s", handlers=[ch, fh])
+        logging.basicConfig(level=LOGLEVEL[config.get('loglevel', 'DEBUG')], format="%(message)s", handlers=[ch, fh])
 
         # Change 3rd-party logging
         logging.getLogger(name='asyncio').setLevel(logging.WARNING)
@@ -220,7 +221,7 @@ if __name__ == "__main__":
             try:
                 run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate)
             except FatalException:
-                Install(node=args.node).install()
+                Install(node=args.node).install(user='dcsserverbot', database='dcsserverbot')
                 run_node(name=args.node, no_autoupdate=args.noupdate)
     except PermissionError:
         # do not restart again
