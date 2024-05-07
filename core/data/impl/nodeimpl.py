@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import certifi
 import discord
+import glob
 import gzip
 import json
 import os
@@ -97,7 +98,7 @@ class NodeImpl(Node):
         self.pool: Optional[ConnectionPool] = None
         self.apool: Optional[AsyncConnectionPool] = None
         self._master = None
-        self.listen_address = self.locals.get('listen_address', '0.0.0.0')
+        self.listen_address = self.locals.get('listen_address', '127.0.0.1')
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def __aenter__(self):
@@ -769,7 +770,9 @@ class NodeImpl(Node):
         return ret
 
     async def remove_file(self, path: str):
-        os.remove(path)
+        files = glob.glob(path)
+        for file in files:
+            os.remove(file)
 
     async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)

@@ -2,7 +2,7 @@ import discord
 import json
 import os
 
-from core import Plugin, Status, PersistentReport, Channel, utils, command, Server, Report, get_translation
+from core import Plugin, Status, PersistentReport, Channel, utils, command, Server, Report, get_translation, Group
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
@@ -11,7 +11,7 @@ from services import DCSServerBot
 _ = get_translation(__name__.split('.')[1])
 
 
-class PretenseStats(Plugin):
+class Pretense(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
@@ -29,10 +29,13 @@ class PretenseStats(Plugin):
         self.update_leaderboard.cancel()
         await super().cog_unload()
 
-    @command(description=_('Display the Pretense stats'))
+    # New command group "/mission"
+    pretense = Group(name="pretense", description=_("Commands to manage Pretense missions"))
+
+    @pretense.command(description=_('Display the Pretense stats'))
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    async def pretensestats(self, interaction: discord.Interaction,
+    async def stats(self, interaction: discord.Interaction,
                             server: app_commands.Transform[Server, utils.ServerTransformer]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -57,6 +60,25 @@ class PretenseStats(Plugin):
         finally:
             if env.buffer:
                 env.buffer.close()
+
+    @pretense.command(description=_('Reset Pretense progress'))
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def reset(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                        Status.STOPPED, Status.SHUTDOWN])]):
+        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Server {} needs to be shut down to reset the Pretense progress!").format(server.display_name),
+                ephemeral=True)
+            return
+        ephemeral = utils.get_ephemeral(interaction)
+        if not await utils.yn_question(interaction, _("Do you really want to reset the Pretense progress?")):
+            await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
+        path = os.path.join(await server.get_missions_dir(), 'Saves', "pretense_*.json")
+        await server.node.remove_file(path)
+        await interaction.followup.send(_("Pretense progress reset."))
 
     @tasks.loop(seconds=120)
     async def update_leaderboard(self):
@@ -88,4 +110,4 @@ class PretenseStats(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(PretenseStats(bot))
+    await bot.add_cog(Pretense(bot))

@@ -138,7 +138,7 @@ class ExtensionsInfo(report.EmbedElement):
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
-        footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if 'version' in ext])
+        footer += " | ".join([f"{ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
         self.embed.set_footer(text=footer)
 
 

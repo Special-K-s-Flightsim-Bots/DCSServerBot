@@ -1,14 +1,13 @@
-# Plugin PretenseStats
+# Plugin Pretense
 With this plugin, you can display persistent status update embeds for your Pretense missions.
 
 ## Configuration
-As PretenseStats is an optional plugin, you need to activate it in main.yaml first like so:
+As Pretense is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
 opt_plugins:
-  - pretensestats
+  - pretense
 ```
-
-The configuration has to be done in config/plugins/pretensestats.yaml and is quite easy. You can define a channel per 
+The configuration has to be done in config/plugins/pretense.yaml and is quite easy. You can define a channel per 
 instance that you want your embeds to be displayed in. And you can define, how often they should be updated. Embeds will 
 only be updated, if there is a pretense mission running and if there is new data to be displayed.
 

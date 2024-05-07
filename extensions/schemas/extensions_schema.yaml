@@ -42,3 +42,5 @@ schema;instance_extensions_schema:
       include: 'instance_tacview_schema'
     VoiceChat:
       include: 'instance_voicechat_schema'
+    Pretense:
+      include: 'instance_pretense_schema'

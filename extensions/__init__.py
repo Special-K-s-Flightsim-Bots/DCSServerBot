@@ -5,6 +5,7 @@ from .lotatc import *
 from .mizedit import *
 from .olympus import *
 from .ovgme import *
+from .pretense import *
 from .realweather import *
 from .sneaker import *
 from .srs import *

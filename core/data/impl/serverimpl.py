@@ -456,7 +456,9 @@ class ServerImpl(Server):
             raise
 
     async def startup_extensions(self) -> None:
-        not_running_extensions = [ext for ext in self.extensions.values() if not ext.is_running()]
+        not_running_extensions = [
+            ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
+        ]
         startup_coroutines = [ext.startup() for ext in not_running_extensions]
 
         results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
@@ -468,7 +470,9 @@ class ServerImpl(Server):
                 self.log.error(f"Error during startup_extension(): %s", tb_str)
 
     async def shutdown_extensions(self) -> None:
-        running_extensions = [ext for ext in self.extensions.values() if ext.is_running()]
+        running_extensions = [
+            ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
+        ]
         shutdown_coroutines = [asyncio.to_thread(ext.shutdown) for ext in running_extensions]
 
         results = await asyncio.gather(*shutdown_coroutines, return_exceptions=True)
