@@ -356,10 +356,10 @@ class NodeImpl(Node):
             async with aiohttp.ClientSession() as session:
                 async with session.get(REPO_URL) as response:
                     result = await response.json()
-                    current_version = __version__
-                    latest_version = result[0]["tag_name"]
+                    current_version = re.sub('^v', '', __version__)
+                    latest_version = re.sub('^v', '', result[0]["tag_name"])
 
-                    if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
+                    if version.parse(latest_version) > version.parse(current_version):
                         return True
         except aiohttp.ClientResponseError as ex:
             # ignore rate limits

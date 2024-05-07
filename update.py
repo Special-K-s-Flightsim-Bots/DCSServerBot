@@ -10,6 +10,7 @@ import zipfile
 
 from contextlib import closing
 from core import utils, COMMAND_LINE_ARGS
+from packaging import version
 from typing import Iterable, Optional
 from version import __version__
 
@@ -70,11 +71,10 @@ def cleanup_local_files(to_delete_set: Iterable):
 
 def do_update_github(delete: Optional[bool] = False) -> int:
     response = requests.get(f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases")
-    current_version = __version__
-    latest_version = response.json()[0]["tag_name"]
+    current_version = re.sub('^v', '', __version__)
+    latest_version = re.sub('^v', '', response.json()[0]["tag_name"])
 
-    # Comparing SemVer taking in account that there could be a "v" prefix
-    if re.sub('^v', '', latest_version) > re.sub('^v', '', current_version):
+    if version.parse(latest_version) > version.parse(current_version):
         print('- Updating myself...')
 
         zip_url = response.json()[0]['zipball_url']
