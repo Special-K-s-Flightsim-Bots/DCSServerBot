@@ -1,0 +1,20 @@
+{
+  "color": "blue",
+  "title": "Aircraft PvP stats",
+  "description": "Fetch stats for all slots and their stats",
+  "elements": [
+    {
+      "type": "Ruler",
+      "params": {
+        "ruler_length": 25
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params":  {
+	  "sql": "SELECT slot, sum(pvp) as \"PvP kills\", CAST(TO_CHAR(SUM(Age(hop_off, hop_on)), 'HH24') AS INTEGER) AS \"Time played (hrs)\" FROM statistics WHERE slot NOT IN ('artillery_commander', 'Windsock', 'SINGLE_HELIPAD', 'Sandbox', 'instructor') AND hop_on > %(hop_on)s::date AND hop_off < %(hop_off)s::date GROUP BY slot HAVING sum(pvp) > 0 AND CAST(TO_CHAR(SUM(Age(hop_off, hop_on)), 'HH24') AS INTEGER) >= 5 ORDER BY \"Time played (hrs)\" DESC"
+		}	
+    }
+  ]
+}
+
