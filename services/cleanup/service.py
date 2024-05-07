@@ -28,7 +28,8 @@ class CleanupService(Service):
     def do_cleanup(self, instance: Instance, now: time) -> None:
         for name, config in self.get_cfg_by_instance(instance).items():
             self.log.debug(f"- Running cleanup for {name} ...")
-            directory = Path(utils.format_string(config['directory'], node=self.node, instance=instance))
+            directory = Path(os.path.expandvars(utils.format_string(config['directory'], node=self.node,
+                                                                    instance=instance)))
             delete_after = int(config.get('delete_after', 30))
             threshold_time = now - delete_after * 86400
             for file_path in directory.glob(config['pattern']):
