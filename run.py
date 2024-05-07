@@ -61,11 +61,7 @@ class Main:
         try:
             config = yaml.load(pathlib.Path('config/main.yaml').read_text(encoding='utf-8'))['logging']
         except (FileNotFoundError, KeyError, YAMLError):
-            config = {
-                "loglevel": "DEBUG",
-                "logrotate_count": 5,
-                "logrotate_size": 10485760,
-            }
+            config = {}
         os.makedirs('logs', exist_ok=True)
         fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{node}.log'), encoding='utf-8',
                                       maxBytes=config.get('logrotate_size', 10485760),
@@ -180,11 +176,9 @@ class Main:
                 await self.node.unregister()
 
 
-def run_node(name, config_dir=None, no_autoupdate=False):
-    with NodeImpl(name=name, config_dir=config_dir) as node:
-        if sys.platform == "win32":
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        asyncio.run(Main(node, no_autoupdate=no_autoupdate).run())
+async def run_node(name, config_dir=None, no_autoupdate=False):
+    async with NodeImpl(name=name, config_dir=config_dir) as node:
+        await Main(node, no_autoupdate=no_autoupdate).run()
 
 
 if __name__ == "__main__":
@@ -193,6 +187,8 @@ if __name__ == "__main__":
     if sys.platform == 'win32':
         # disable quick edit mode (thanks to Moots)
         utils.quick_edit_mode(False)
+        # set the asyncio event loop policy
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     # get the command line args from core
     args = COMMAND_LINE_ARGS
@@ -219,10 +215,10 @@ if __name__ == "__main__":
     try:
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate)
+                asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 Install(node=args.node).install(user='dcsserverbot', database='dcsserverbot')
-                run_node(name=args.node, no_autoupdate=args.noupdate)
+                asyncio.run(run_node(name=args.node, no_autoupdate=args.noupdate))
     except PermissionError:
         # do not restart again
         log.error("There is a permission error.")

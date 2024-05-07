@@ -100,11 +100,11 @@ class NodeImpl(Node):
         self.listen_address = self.locals.get('listen_address', '0.0.0.0')
         self.listen_port = self.locals.get('listen_port', 10042)
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
-        self.close_db()
+    async def __aexit__(self, type, value, traceback):
+        await self.close_db()
 
     async def post_init(self):
         self.pool, self.apool = await self.init_db()
@@ -259,19 +259,7 @@ class NodeImpl(Node):
                                        check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
         return db_pool, db_apool
 
-    def close_db(self):
-        if self.pool:
-            try:
-                self.pool.close()
-            except Exception as ex:
-                self.log.exception(ex)
-        if self.apool:
-            try:
-                asyncio.run(self.apool.close())
-            except Exception as ex:
-                self.log.exception(ex)
-
-    async def aclose_db(self):
+    async def close_db(self):
         if self.pool:
             try:
                 self.pool.close()
@@ -404,7 +392,7 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
-            await self.aclose_db()
+            await self.close_db()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
