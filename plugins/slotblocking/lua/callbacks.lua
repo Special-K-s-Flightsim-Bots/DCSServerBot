@@ -109,7 +109,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                 return false
             -- blocking slots by discord groups
             elseif unit['discord'] and not has_value(unit['discord'], dcsbot.userInfo[player].roles) then
-                local message = unit['message'] or 'This slot is only accessible to members with the ' .. unit['discord'] .. ' role.'
+                local message = unit['message'] or 'This slot is only accessible to members with a specific Discord role.'
                 net.send_chat_to(message, playerID)
                 return false
             elseif unit['VIP'] and not is_vip(player) then
