@@ -1,6 +1,4 @@
 local base      = _G
-local Terrain   = base.require('terrain')
-local UC        = base.require("utils_common")
 
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
@@ -117,76 +115,10 @@ function mission.onMissionLoadEnd()
 
     msg.num_slots_blue = num_slots_blue
     msg.num_slots_red = num_slots_red
-    msg.weather = DCS.getCurrentMission().mission.weather
-    local clouds = msg.weather.clouds
-    if clouds.preset ~= nil then
-        local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
-
-        local env = {
-            type = _G.type,
-            next = _G.next,
-            setmetatable = _G.setmetatable,
-            getmetatable = _G.getmetatable,
-            _ = _,
-        }
-        setfenv(func, env)
-        func()
-        local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
-        if preset ~= nil then
-            msg.clouds = {}
-            msg.clouds.base = clouds.base
-            msg.clouds.preset = preset
-        end
-    else
-        msg.clouds = clouds
-    end
+    -- weather
+    msg.weather = {}
+    -- airbases
     msg.airbases = {}
-    for airdromeID, airdrome in pairs(Terrain.GetTerrainConfig("Airdromes")) do
-        if (airdrome.reference_point) and (airdrome.abandoned ~= true)  then
-            local airbase = {}
-            airbase.code = airdrome.code
-            if airdrome.display_name then
-                airbase.name = airdrome.display_name
-            else
-                airbase.name = airdrome.names['en']
-            end
-            airbase.id = airdrome.id
-            airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
-            airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
-            airbase.position = {}
-            airbase.position.x = airdrome.reference_point.x
-            airbase.position.y = airbase.alt
-            airbase.position.z = airdrome.reference_point.y
-            local frequencyList = {}
-            if airdrome.frequency then
-                frequencyList	= airdrome.frequency
-            else
-                if airdrome.radio then
-                    for k, radioId in pairs(airdrome.radio) do
-                        local frequencies = DCS.getATCradiosData(radioId)
-                        if frequencies then
-                            for kk,vv in pairs(frequencies) do
-                                table.insert(frequencyList, vv)
-                            end
-                        end
-                    end
-                end
-            end
-            airbase.frequencyList = frequencyList
-            airbase.runwayList = {}
-            if (airdrome.runwayName ~= nil) then
-                for r, runwayName in pairs(airdrome.runwayName) do
-                    table.insert(airbase.runwayList, runwayName)
-                end
-            end
-            heading = UC.toDegrees(Terrain.getRunwayHeading(airdrome.roadnet))
-            if (heading < 0) then
-                heading = 360 + heading
-            end
-            airbase.rwy_heading = heading
-            table.insert(msg.airbases, airbase)
-        end
-    end
     msg.dsmc_enabled = (base.HOOK ~= nil)
     utils.sendBotTable(msg)
 end

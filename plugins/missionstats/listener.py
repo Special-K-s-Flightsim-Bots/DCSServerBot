@@ -239,20 +239,21 @@ class MissionStatisticsEventListener(EventListener):
                     # noinspection PyAsyncCall
                     asyncio.create_task(channel.send(embed=env.embed))
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(seconds=30)
     async def do_update(self):
         for server_name, update in self.update.items():
-            if update:
-                server: Server = self.bot.servers[server_name]
-                # Hide the mission statistics embed, if coalitions are enabled
-                if self.plugin.get_config(server).get('display', True) and \
-                        not server.locals.get('coalitions'):
-                    stats = self.bot.mission_stats[server_name]
-                    if 'coalitions' in stats:
-                        report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
-                                                  embed_name='stats_embed', server=server)
-                        # noinspection PyAsyncCall
-                        asyncio.create_task(report.render(
-                            stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED],
-                            title='Mission Statistics'))
+            if not update:
+                continue
+            server: Server = self.bot.servers[server_name]
+            # Hide the mission statistics embed, if coalitions are enabled
+            if self.plugin.get_config(server).get('display', True) and \
+                    not server.locals.get('coalitions'):
+                stats = self.bot.mission_stats[server_name]
+                if 'coalitions' in stats:
+                    report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
+                                              embed_name='stats_embed', server=server)
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(report.render(
+                        stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED],
+                        title='Mission Statistics'))
             self.update[server_name] = False

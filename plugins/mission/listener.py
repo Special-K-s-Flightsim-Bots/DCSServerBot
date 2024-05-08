@@ -303,16 +303,41 @@ class MissionEventListener(EventListener):
             self.log.error("Player threshold configured, but channel is incorrect")
         self.alert_fired[server.name] = True
 
+    async def _load_weather_data(self, server: Server):
+        try:
+            server.current_mission.weather = (await server.send_to_dcs_sync({
+                "command": "getWeatherInfo"
+            })).get('weather')
+            self.display_mission_embed(server)
+        except TimeoutError:
+            pass
+
+    async def _load_airbases(self, server: Server):
+        try:
+            server.current_mission.airbases = (await server.send_to_dcs_sync({
+                "command": "getAirbases"
+            })).get('airbases')
+        except TimeoutError:
+            pass
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync-'):
             # noinspection PyAsyncCall
             asyncio.create_task(self._update_bans(server))
-        if 'current_mission' not in data:
+        if not data.get('current_mission'):
             server.status = Status.STOPPED
             return
+        # get the weather async (if not filled already)
+        if not data.get('weather'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._load_weather_data(server))
+        # get the airbases async (if not filled already)
+        if not data.get('airbases'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._load_airbases(server))
         self._update_mission(server, data)
-        if 'players' not in data:
+        if not data.get('players'):
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED

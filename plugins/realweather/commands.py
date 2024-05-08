@@ -57,7 +57,7 @@ class RealWeather(Plugin):
 
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
-        await asyncio.to_thread(MizFile, self, tmpname)
+        await asyncio.to_thread(MizFile, tmpname)
         # mission is good, take it
         new_filename = utils.create_writable_mission(filename)
         shutil.copy2(tmpname, new_filename)

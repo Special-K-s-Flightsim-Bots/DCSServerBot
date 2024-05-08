@@ -626,7 +626,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        miz = await asyncio.to_thread(MizFile, self.bot, server.current_mission.filename)
+        miz = await asyncio.to_thread(MizFile, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
             with open('config/presets.yaml', mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)

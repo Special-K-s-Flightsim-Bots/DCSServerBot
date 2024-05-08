@@ -224,7 +224,7 @@ For a successful installation, you need to fulfill the following prerequisites:
         nodes = {}
         return main, nodes, bot
 
-    def install(self, user: str, database: str):
+    def install(self, config_dir: str, user: str, database: str):
         global _
 
         major_version = int(platform.python_version_tuple()[1])
@@ -241,22 +241,23 @@ I will now guide you through the installation process.
 If you need any further assistance, please visit the support discord, listed in the documentation.
 
         """)
-        if not os.path.exists('config/main.yaml'):
+        if not os.path.exists(os.path.join(config_dir, 'main.yaml')):
             main, nodes, bot = self.install_master()
             master = True
             servers = {}
             schedulers = {}
             i = 2
         else:
-            main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
-            nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
-            bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
+            main = yaml.load(Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))
+            nodes = yaml.load(Path(os.path.join(config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
+            bot = yaml.load(Path(os.path.join(config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             try:
-                servers = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+                servers = yaml.load(Path(os.path.join(config_dir, 'servers.yaml')).read_text(encoding='utf-8'))
             except FileNotFoundError:
                 servers = {}
             try:
-                schedulers = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
+                schedulers = yaml.load(
+                    Path(os.path.join(config_dir, 'plugins', 'scheduler.yaml')).read_text(encoding='utf-8'))
             except FileNotFoundError:
                 schedulers = {}
 
@@ -407,31 +408,31 @@ If you need any further assistance, please visit the support discord, listed in 
                 self.log.info(_("Instance {} configured.").format(instance))
         print(_("\n\nAll set. Writing / updating your config files now..."))
         if master:
-            os.makedirs("config", exist_ok=True)
-            with open('config/main.yaml', mode='w', encoding='utf-8') as out:
+            os.makedirs(config_dir, exist_ok=True)
+            with open(os.path.join(config_dir, 'main.yaml'), mode='w', encoding='utf-8') as out:
                 yaml.dump(main, out)
-            print(_("- Created {}").format("config/main.yaml"))
-            self.log.info(_("{} written.").format("config/main.yaml"))
-            os.makedirs('config/services', exist_ok=True)
-            with open('config/services/bot.yaml', mode='w', encoding='utf-8') as out:
+            print(_("- Created {}").format(os.path.join(config_dir, "main.yaml")))
+            self.log.info(_("{} written.").format(os.path.join(config_dir, "main.yaml")))
+            os.makedirs(os.path.join(config_dir, 'services'), exist_ok=True)
+            with open(os.path.join(config_dir, 'services', 'bot.yaml'), mode='w', encoding='utf-8') as out:
                 yaml.dump(bot, out)
-            print(_("- Created {}").format("config/services/bot.yaml"))
-            self.log.info(_("{} written.").format("config/services/bot.yaml"))
-        with open('config/nodes.yaml', mode='w', encoding='utf-8') as out:
+            print(_("- Created {}").format(os.path.join(config_dir, 'services', 'bot.yaml')))
+            self.log.info(_("{} written.").format(os.path.join(config_dir, 'services', 'bot.yaml')))
+        with open(os.path.join(config_dir, 'nodes.yaml'), mode='w', encoding='utf-8') as out:
             yaml.dump(nodes, out)
-        print(_("- Created {}").format("config/nodes.yaml"))
-        self.log.info(_("{} written.").format("config/nodes.yaml"))
-        with open('config/servers.yaml', mode='w', encoding='utf-8') as out:
+        print(_("- Created {}").format(os.path.join(config_dir, "nodes.yaml")))
+        self.log.info(_("{} written.").format(os.path.join(config_dir, "nodes.yaml")))
+        with open(os.path.join(config_dir, 'servers.yaml'), mode='w', encoding='utf-8') as out:
             yaml.dump(servers, out)
-        print(_("- Created {}").format("config/servers.yaml"))
-        self.log.info(_("{} written.").format("config/servers.yaml"))
+        print(_("- Created {}").format(os.path.join(config_dir, "servers.yaml")))
+        self.log.info(_("{} written.").format(os.path.join(config_dir, "servers.yaml")))
         # write plugin configuration
         if scheduler:
-            os.makedirs('config/plugins', exist_ok=True)
-            with open('config/plugins/scheduler.yaml', mode='w', encoding='utf-8') as out:
+            os.makedirs(os.path.join(config_dir, 'plugins'), exist_ok=True)
+            with open(os.path.join(config_dir, 'plugins', 'scheduler.yaml'), mode='w', encoding='utf-8') as out:
                 yaml.dump(schedulers, out)
-            print(_("- Created {}").format("config/plugins/scheduler.yaml"))
-            self.log.info(_("{} written.").format("config/plugins/scheduler.yaml"))
+            print(_("- Created {}").format(os.path.join(config_dir, 'plugins', 'scheduler.yaml')))
+            self.log.info(_("{} written.").format(os.path.join(config_dir, 'plugins', 'scheduler.yaml')))
         try:
             os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
         except PermissionError:
@@ -449,7 +450,7 @@ if __name__ == "__main__":
     args = COMMAND_LINE_ARGS
     console = Console()
     try:
-        Install(args.node).install(args.user, args.database)
+        Install(node=args.node).install(config_dir=args.config, user=args.user, database=args.database)
     except KeyboardInterrupt:
         pass
     except Exception:

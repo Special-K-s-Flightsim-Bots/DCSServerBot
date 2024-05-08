@@ -325,7 +325,8 @@ MyNode:
       extensions:
         Olympus:
           debug: true                     # Show the Olympus console in the DCSSB console, default = false
-          url: http://myfancyurl:3000/   # optional: your own URL, if available
+          show_passwords: true            # show passwords in your server status embed (default: false)
+          url: http://myfancyurl:3000/    # optional: your own URL, if available
           backend:
             port: 3001                    # server port for DCS Olympus internal communication (needs to be unique)                   
           authentication:
@@ -376,7 +377,8 @@ MyNode:
       extensions:
         Olympus:
           debug: true                     # Show the Olympus console in the DCSSB console, default = false
-          url: http://myfancyurl:3000/   # optional: your own URL, if available
+          show_passwords: true            # show passwords in your server status embed (default: false)
+          url: http://myfancyurl:3000/    # optional: your own URL, if available
           server:
             address: '*'                  # your bind address. * = 0.0.0.0, use localhost for local only setups
             port: 3001                    # server port for DCS Olympus internal communication (needs to be unique)                   

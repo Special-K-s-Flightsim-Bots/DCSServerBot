@@ -26,7 +26,7 @@ class RealWeather(Extension):
 
     def get_config(self, filename: str) -> dict:
         if 'terrains' in self.config:
-            miz = MizFile(self.node, filename)
+            miz = MizFile(filename)
             return self.config['terrains'].get(miz.theatre, self.config['terrains'].get(DEFAULT_TAG, {}))
         else:
             return self.config
@@ -80,7 +80,7 @@ class RealWeather(Extension):
 
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
-        await asyncio.to_thread(MizFile, self, tmpname)
+        await asyncio.to_thread(MizFile, tmpname)
         # mission is good, take it
         new_filename = utils.create_writable_mission(filename)
         shutil.copy2(tmpname, new_filename)

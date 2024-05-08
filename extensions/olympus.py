@@ -90,8 +90,13 @@ class Olympus(Extension):
             value = self.config['url']
         else:
             value = f"http://{self.node.public_ip}:{self.config.get(self.frontend_tag, {}).get('port', 3000)}"
+        if self.config.get('show_passwords', False):
+            value += ''.join([
+                f"\n{x[0].upper() + x[1:]}: {self.config.get('authentication', {}).get(f'{x}Password', '')}"
+                for x in ['gameMaster', 'blueCommander', 'redCommander']
+            ])
         return {
-            "name": self.name,
+            "name": self.__class__.__name__,
             "version": self.version,
             "value": value
         }
