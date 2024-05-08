@@ -6,6 +6,30 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: ru\n"
 
+# /pretense stats
+msgid "Display the Pretense stats"
+msgstr "Показать статистику Pretense"
+
+msgid "No player_stats.json found on this server! Is Pretense active?"
+msgstr "Файл player_stats.json не найден. Pretense запущен?"
+
+# /pretense reset
+msgid "Reset Pretense progress"
+msgstr "Сброс прогресса Pretense"
+
+msgid "Server {} needs to be shut down to reset the Pretense progress!"
+msgstr "Сервер {} необходимо выключить для сброса прогресса Pretense!"
+
+msgid "Do you really want to reset the Pretense progress?"
+msgstr "Вы точно хотите выполнить сброс прогресса Pretense?"
+
+msgid "Aborted."
+msgstr "Отмена."
+
+msgid "Pretense progress reset."
+msgstr "Прогресс Pretense сброшен."
+
+# Reports
 msgid "Rankings as of <t:{}:f>:"
 msgstr "Рейтинги на <t:{}:f>:"
 
