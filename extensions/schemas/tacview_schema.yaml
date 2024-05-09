@@ -17,10 +17,10 @@ schema;instance_tacview_schema:
     tacviewMultiplayerFlightsAsClient: {type: int}
     tacviewMultiplayerFlightsAsHost: {type: int}
     tacviewRealTimeTelemetryEnabled: {type: bool}
-    tacviewRealTimeTelemetryPort: {type: str}  # because tacview can only handle strings as ports. funny but true.
+    tacviewRealTimeTelemetryPort: {type: text}
     tacviewRealTimeTelemetryPassword: {type: str}
     tacviewRemoteControlEnabled: {type: bool}
-    tacviewRemoteControlPort: {type: str} # because tacview can only handle strings as ports. funny but true.
+    tacviewRemoteControlPort: {type: text}
     tacviewRemoteControlPassword: {type: str}
     tacviewSinglePlayerFlights: {type: int}
     tacviewTerrainExport: {type: int}

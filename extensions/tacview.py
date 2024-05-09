@@ -73,6 +73,9 @@ class Tacview(Extension):
                 path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
                 os.makedirs(path, exist_ok=True)
                 dirty = self.set_option(options, name, path, TACVIEW_DEFAULT_DIR) or dirty
+            # Unbelievable but true. Tacview can only work with strings as ports.
+            elif name in ['tacviewRealTimeTelemetryPort', 'tacviewRemoteControlPort']:
+                dirty = self.set_option(options, name, str(value)) or dirty
             else:
                 dirty = self.set_option(options, name, value) or dirty
 
