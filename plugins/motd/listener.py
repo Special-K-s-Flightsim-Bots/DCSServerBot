@@ -10,6 +10,8 @@ class MOTDListener(EventListener):
                 message = await self.on_join(cfg, server, player)
                 if message:
                     return message
+            else:
+                return None
         else:
             if 'recipients' in config:
                 # noinspection PyUnresolvedReferences
@@ -24,6 +26,8 @@ class MOTDListener(EventListener):
                 message, _ = await self.on_birth(cfg, server, player)
                 if message:
                     return message, cfg
+            else:
+                return None, None
         else:
             message = None
             if 'recipients' in config:
