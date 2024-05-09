@@ -700,6 +700,24 @@ class MissionEventListener(EventListener):
                 'roles': []
             })
 
+    @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
+    async def pause(self, server: Server, player: Player, params: list[str]):
+        if server.status == Status.PAUSED:
+            player.sendChatMessage("Mission is paused already.")
+        else:
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.current_mission.pause())
+            player.sendChatMessage("Mission paused.")
+
+    @chat_command(name='unpause', help='unpause the mission', roles=['DCS Admin', 'GameMaster'])
+    async def unpause(self, server: Server, player: Player, params: list[str]):
+        if server.status == Status.RUNNING:
+            player.sendChatMessage("Mission is running already.")
+        else:
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.current_mission.unpause())
+            player.sendChatMessage("Mission unpaused.")
+
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
     async def atis(self, server: Server, player: Player, params: list[str]):
         if len(params) == 0:
@@ -730,7 +748,8 @@ class MissionEventListener(EventListener):
             else:
                 message = '!!! Server will be restarted NOW !!!'
             server.sendPopupMessage(Coalition.ALL, message)
-            self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.current_mission.restart())
         except ValueError:
             player.sendChatMessage(f"Wrong time: {params[0]}")
 
@@ -750,7 +769,8 @@ class MissionEventListener(EventListener):
         if not params or not params[0].isnumeric():
             player.sendChatMessage(f"Usage: {self.prefix}load <number>")
             return
-        self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
+        # noinspection PyAsyncCall
+        asyncio.create_task(server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
@@ -911,6 +931,7 @@ class MissionEventListener(EventListener):
                 player.sendUserMessage(message, 30)
             else:
                 n = int(params[0]) - 1
-                self.bot.loop.call_soon(asyncio.create_task, change_preset(presets[n]))
+                # noinspection PyAsyncCall
+                asyncio.create_task(change_preset(presets[n]))
         else:
             player.sendChatMessage(f"There are no presets available to select.")
