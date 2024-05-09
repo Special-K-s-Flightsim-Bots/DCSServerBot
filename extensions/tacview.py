@@ -82,13 +82,13 @@ class Tacview(Extension):
         if dirty:
             self.server.options['plugins'] = options
             self.locals = options['Tacview']
-        rtt_port = self.locals.get('tacviewRealTimeTelemetryPort', 42674)
+        rtt_port = int(self.locals.get('tacviewRealTimeTelemetryPort', 42674))
         if rtt_ports.get(rtt_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  {self.server.name}: tacviewRealTimeTelemetryPort {rtt_port} already in use by "
                            f"server {rtt_ports[rtt_port]}!")
             return False
         rtt_ports[rtt_port] = self.server.name
-        rcp_port = self.locals.get('tacviewRemoteControlPort', 42675)
+        rcp_port = int(self.locals.get('tacviewRemoteControlPort', 42675))
         if rcp_ports.get(rcp_port, self.server.name) != self.server.name:
             self.log.error(f"  =>  {self.server.name}: tacviewRemoteControlPort {rcp_port} already in use by "
                            f"server {rcp_ports[rcp_port]}!")

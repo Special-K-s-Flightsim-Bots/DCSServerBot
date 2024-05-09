@@ -129,7 +129,11 @@ function dcsbot.getAirbases(json)
         command = 'getAirbases',
         airbases = {}
     }
-    for airdromeID, airdrome in pairs(Terrain.GetTerrainConfig("Airdromes")) do
+    local airdromes = Terrain.GetTerrainConfig("Airdromes")
+    if (airdromes == nil) then
+    	utils.sendBotTable(msg, json.channel)
+    end
+    for airdromeID, airdrome in pairs(airdromes) do
         if (airdrome.reference_point) and (airdrome.abandoned ~= true)  then
             local airbase = {}
             airbase.code = airdrome.code
