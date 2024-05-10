@@ -359,6 +359,10 @@ My Fancy Server:                # Your server name, as displayed in the server l
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 
   no_coalition_chat: true       # Do not replicate red and blue chats to the Discord chat replication (default: false)
+  serverSettings:               # Overwrite the serverSettings.lua with these values
+    port: 10308
+    advanced:
+      resume_mode: 0
 My 2nd Fancy Server:            # You can have an unlimited amount of server configurations.
   ...
 ```

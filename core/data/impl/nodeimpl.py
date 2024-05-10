@@ -254,10 +254,14 @@ class NodeImpl(Node):
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
-        db_pool = ConnectionPool(url, min_size=2, max_size=4,
-                                 check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
+        db_pool = ConnectionPool(url, min_size=2, max_size=4, check=ConnectionPool.check_connection, max_idle=max_idle,
+                                 timeout=timeout, open=False)
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
-                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
+                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
+                                       open=False)
+        # we need to open the pools directly in here
+        db_pool.open()
+        await db_apool.open()
         return db_pool, db_apool
 
     async def close_db(self):

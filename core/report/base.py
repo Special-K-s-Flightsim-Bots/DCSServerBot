@@ -69,9 +69,9 @@ class Report:
             elif name == 'description':
                 self.env.embed.description = utils.format_string(item, **self.env.params)[:4096]
             elif name == 'url':
-                self.env.embed.url = item
+                self.env.embed.url = utils.format_string(item, **self.env.params)
             elif name == 'img':
-                self.env.embed.set_thumbnail(url=item)
+                self.env.embed.set_thumbnail(url=utils.format_string(item, **self.env.params))
             elif name == 'footer':
                 footer = self.env.embed.footer.text or ''
                 text = utils.format_string(item, **self.env.params)

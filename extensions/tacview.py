@@ -20,7 +20,7 @@ class Tacview(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
-        self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
+        self.exp = re.compile(r'Successfully saved \[(?P<filename>.*?)\]')
 
     async def startup(self) -> bool:
         await super().startup()
@@ -156,7 +156,8 @@ class Tacview(Extension):
     @tasks.loop(seconds=1)
     async def check_log(self):
         try:
-            logfile = os.path.join(self.server.instance.home, 'Logs', 'dcs.log')
+            logfile = os.path.expandvars(self.config.get('log',
+                                                         os.path.join(self.server.instance.home, 'Logs', 'dcs.log')))
             if not os.path.exists(logfile):
                 self.log_pos = 0
                 return
@@ -168,13 +169,13 @@ class Tacview(Extension):
                     await file.seek(self.log_pos, 0)
                 lines = await file.readlines()
                 for line in lines:
-                    if 'TACVIEW.DLL (Main): End of flight data recorder.' in line:
+                    if 'End of flight data recorder.' in line:
                         self.check_log.cancel()
                         self.log_pos = -1
                         return
                     match = self.exp.search(line)
                     if match:
-                        await self.send_tacview_file(match.group('filename')[1:-1])
+                        await self.send_tacview_file(match.group('filename'))
                 self.log_pos = await file.tell()
         except Exception as ex:
             self.log.exception(ex)
