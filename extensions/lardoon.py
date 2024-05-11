@@ -6,6 +6,7 @@ import subprocess
 
 from core import Extension, Server, utils
 from discord.ext import tasks
+from threading import Thread
 from typing import Optional
 
 from .tacview import TACVIEW_DEFAULT_DIR
@@ -37,13 +38,21 @@ class Lardoon(Extension):
             return False
         if not process or not process.is_running():
 
+            def log_output(proc: subprocess.Popen):
+                for line in iter(proc.stdout.readline, b''):
+                    self.log.info(line.decode('utf-8').rstrip())
+
             def run_subprocess():
-                out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+                out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
-                return subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
+                proc = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
                                         executable=os.path.expandvars(self.config['cmd']),
-                                        stdout=out, stderr=out)
+                                        stdout=out, stderr=subprocess.STDOUT)
+                if self.config.get('debug', False):
+                    Thread(target=log_output, args=(proc,)).start()
+                return proc
+
             p = await asyncio.to_thread(run_subprocess)
             try:
                 process = psutil.Process(p.pid)
@@ -117,7 +126,12 @@ class Lardoon(Extension):
         global lock, tacview_dirs
 
         def run_subprocess(args):
-            subprocess.run([cmd] + args, stdout=out, stderr=out)
+            proc = subprocess.Popen([cmd] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate()
+            if proc.returncode != 0:
+                self.log.error(stderr.decode('utf-8'))
+            if self.config.get('debug', False):
+                self.log.info(stdout.decode('utf-8'))
 
         for tacview_dir, server_list in tacview_dirs.items():
             if server_list and self.server.name == list(server_list)[0]:
@@ -129,7 +143,7 @@ class Lardoon(Extension):
             self.schedule.change_interval(minutes=minutes)
         try:
             cmd = os.path.expandvars(self.config['cmd'])
-            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             async with lock:
                 self.log.debug("Lardoon: Scheduled import run ...")
                 await asyncio.to_thread(run_subprocess, ["import", "-p", tacview_dir])

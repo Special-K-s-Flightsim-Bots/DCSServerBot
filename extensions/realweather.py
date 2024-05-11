@@ -69,14 +69,16 @@ class RealWeather(Extension):
             json.dump(cfg, outfile, indent=2)
 
         def run_subprocess():
-            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
-            subprocess.check_call([os.path.join(rw_home, 'realweather.exe')], stdout=out, stderr=out, cwd=cwd)
+            process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
+            stdout, stderr = process.communicate()
+            if process.returncode != 0:
+                self.log.error(stderr.decode('utf-8'))
+            if self.config.get('debug', False):
+                self.log.info(stdout.decode('utf-8'))
 
-        try:
-            async with self.lock:
-                await asyncio.to_thread(run_subprocess)
-        except subprocess.CalledProcessError:
-            raise RealWeatherException(f"Error in RealWeather. Enable debug in your extension to see more.")
+        async with self.lock:
+            await asyncio.to_thread(run_subprocess)
 
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)

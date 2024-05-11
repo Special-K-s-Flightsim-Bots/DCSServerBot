@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from core import Extension, utils, Server
+from threading import Thread
 from typing import Optional
 
 server_ports: dict[int, str] = dict()
@@ -152,9 +153,13 @@ class Olympus(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
-        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+
+        def log_output(proc: subprocess.Popen):
+            for line in iter(proc.stdout.readline, b''):
+                self.log.info(line.decode('utf-8').rstrip())
 
         def run_subprocess():
+            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
             args = [self.nodejs, os.path.join(path, 'bin', 'www')]
@@ -162,7 +167,10 @@ class Olympus(Extension):
                 args.append('--config')
                 args.append(self.config_path)
             self.log.debug("Launching {}".format(' '.join(args)))
-            return subprocess.Popen(args, cwd=path, stdout=out, stderr=out)
+            proc = subprocess.Popen(args, cwd=path, stdout=out, stderr=subprocess.STDOUT)
+            if self.config.get('debug', False):
+                Thread(target=log_output, args=(proc,)).start()
+            return proc
 
         try:
             p = await asyncio.to_thread(run_subprocess)

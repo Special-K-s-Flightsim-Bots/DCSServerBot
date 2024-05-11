@@ -387,7 +387,7 @@ class ServerImpl(Server):
                 [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
             )
             self.process = Process(p.pid)
-            self.log.debug(f"  => DCS server starting up with PID {p.pid}")
+            self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
