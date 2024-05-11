@@ -1383,7 +1383,7 @@ class Mission(Plugin):
             if server.status == Status.UNREGISTERED:
                 continue
             try:
-                channel_id = server.channels[Channel.STATUS]
+                channel_id = server.channels.get(Channel.STATUS, -1)
                 if channel_id == -1:
                     continue
                 channel = self.bot.get_channel(channel_id)
