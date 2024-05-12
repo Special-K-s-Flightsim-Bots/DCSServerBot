@@ -536,7 +536,7 @@ class ServerImpl(Server):
                 self.log.error(
                     f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
             else:
-                self.log.error(ex)
+                self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
             return filename
