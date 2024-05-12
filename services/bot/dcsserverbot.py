@@ -206,7 +206,7 @@ class DCSServerBot(commands.Bot):
                 self.member = await self.guilds[0].fetch_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
-                self.log.info('- Checking Roles & Channels ...')
+                self.log.debug('- Checking Roles & Channels ...')
                 roles = set()
                 for role in ['Admin', 'DCS Admin', 'Alert', 'DCS', 'GameMaster']:
                     roles |= set(self.roles[role])

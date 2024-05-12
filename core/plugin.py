@@ -306,7 +306,7 @@ class Plugin(commands.Cog):
             return True
         return False
 
-    def migrate(self, version: str) -> None:
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         ...
 
     async def before_dcs_update(self) -> None:
@@ -357,7 +357,7 @@ class Plugin(commands.Cog):
                             else:
                                 ver, rev = installed.split('.')
                                 installed = ver + '.' + str(int(rev) + 1)
-                            self.migrate(installed)
+                            await self.migrate(installed, conn)
                             self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
                         await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
                                              (self.plugin_version, self.plugin_name))

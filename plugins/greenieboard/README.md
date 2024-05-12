@@ -105,13 +105,15 @@ DEFAULT:
     OWO: 2
     WO: 1
     C: 0
-#  FunkMan:                 # if you want to use the FunkMan integration, uncomment this
-#    IMAGEPATH: ../FunkMan/funkpics/
-#    install: ../FunkMan
-DCS.release_server:        # our server uses Moose.AIRBOSS
   Moose.AIRBOSS:
-    basedir: airboss        # Trapsheets will be stored in Saved Games\DCS.release_server\airboss
-    delete_after: 180       # they will be deleted after 180 days
+    basedir: airboss        # Trapsheets will be stored in Saved Games\<instance>\airboss
+  FunkMan:                 # if you want to use the FunkMan integration
+    IMAGEPATH: ../FunkMan/funkpics/
+    install: ../FunkMan
+DCS.release_server:        # our server uses Moose.AIRBOSS
+  num_rows: 5               # Overwrite the number of rows to display (default: 10)
+  Moose.AIRBOSS:
+    basedir: airboss        # overwrite the default in here, if you like
     grades: AIRBOSS-{carrier}_LSOGrades.csv
     trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'
   persistent_board: true    # if true, a persistent board will be uploaded into persistent_channel
@@ -121,11 +123,6 @@ DCS.release_server:        # our server uses Moose.AIRBOSS
       channel: 1234567890         # Optional: channel ID (default, persistent_channel above)
     - name: 'My Fancy Squadron 2'
       channel: 9876543210
-  num_rows: 5               # Number of rows to display (default: 10)
-#instance2:                 # uncomment, if you have more than one istance and name it accordingly
-#  FunkMan:                 # instance2 uses FunkMan
-#    basedir: trapsheets    # DCSServerBot will generate trapsheet images in here
-#    delete_after: 180      # they will be deleted after 180 days
 ```
 You can use the DCS standard way (Super Carrier), Moose.AIRBOSS and FunkMan side by side. You just need to decide on one
 of these methods per server. You only get graphical trapsheets with Moose.AIRBOSS and FunkMan, the greenieboard works 

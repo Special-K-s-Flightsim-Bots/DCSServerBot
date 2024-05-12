@@ -1,15 +1,14 @@
 import discord
-import os
+import io
 import re
 
-from core import report, utils, EmbedElement, NothingToPlot, get_translation
+from core import report, utils, EmbedElement, get_translation
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 from typing import Optional
 
 from . import ERRORS, DISTANCE_MARKS, GRADES, const
-from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
 from ..userstats.highscore import get_sides
 
 _ = get_translation(__name__.split('.')[1])
@@ -25,7 +24,7 @@ class LSORating(report.EmbedElement):
         self.add_field(name=_("Carrier"), value=f"{landing['place']}")
 
         self.add_field(name=_("Case"), value=f"{landing['trapcase']}")
-        self.add_field(name=_("Wire"), value=f"{landing['wire']}")
+        self.add_field(name=_("Wire"), value=f"{landing['wire'] or '-'}")
         self.add_field(name=_("Points"), value=f"{landing['points']}")
 
         self.add_field(name=_("LSO Grade: {}").format(landing['grade'].replace('_', '\\_')), value=grade, inline=False)
@@ -109,23 +108,15 @@ class LSORating(report.EmbedElement):
                 self.add_field(name=text, value=comments, inline=False)
 
 
-class TrapSheet(report.MultiGraphElement):
-
+class TrapSheet(report.EmbedElement):
     async def render(self, landing: dict):
-        if 'trapsheet' not in landing or not landing['trapsheet']:
-            raise NothingToPlot()
-        trapsheet = landing['trapsheet']
-        if not os.path.exists(landing['trapsheet']):
-            self.log.error(f"Can't read trapsheet {landing['trapsheet']}, file not found.")
-            return
-        if landing['trapsheet'].endswith('.csv'):
-            ts = read_trapsheet(trapsheet)
-            ps = parse_filename(trapsheet)
-            plot_trapsheet(self.axes, ts, ps, trapsheet)
-        elif landing['trapsheet'].endswith('.png'):
-            self.env.filename = landing['trapsheet']
-        else:
-            self.log.error(f"Unsupported trapsheet format: {landing['trapsheet']}!")
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT trapsheet FROM traps WHERE id = %s", (landing['id'], ))
+            trapsheet = (await cursor.fetchone())[0]
+            if trapsheet:
+                self.env.filename = 'trapsheet.png'
+                self.env.buffer = io.BytesIO(trapsheet)
+                self.embed.set_image(url='attachment://trapsheet.png')
 
 
 class HighscoreTraps(report.GraphElement):
@@ -134,7 +125,7 @@ class HighscoreTraps(report.GraphElement):
                      flt: StatisticsFilter, include_bolters: bool = False, include_waveoffs: bool = False,
                      bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
-              "FROM greenieboard g, missions m, statistics s, players p " \
+              "FROM traps g, missions m, statistics s, players p " \
               "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
               "AND g.player_ucid = p.ucid AND g.unit_type = s.slot AND g.time BETWEEN s.hop_on AND s.hop_off "
         if server_name:
@@ -182,10 +173,10 @@ class GreenieBoard(EmbedElement):
                 SELECT player_ucid, ROW_NUMBER() OVER w AS rn, 
                                     AVG(points) OVER w AS points, 
                                     MAX(time) OVER w AS time 
-                FROM greenieboard
+                FROM traps
         """
         sql2 = """
-            SELECT TRIM(grade) as "grade", night FROM greenieboard 
+            SELECT TRIM(grade) as "grade", night FROM traps 
             WHERE player_ucid = %(player_ucid)s
         """
         if server_name:

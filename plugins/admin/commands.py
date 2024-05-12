@@ -613,7 +613,7 @@ class Admin(Plugin):
     async def statistics(self, interaction: discord.Interaction,
                          node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None,
                          period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
-        report = PaginationReport(self.bot, interaction, self.plugin_name, 'nodestats.json')
+        report = PaginationReport(interaction, self.plugin_name, 'nodestats.json')
         if not node:
             node = self.node
         await report.render(node=node.name, period=period)

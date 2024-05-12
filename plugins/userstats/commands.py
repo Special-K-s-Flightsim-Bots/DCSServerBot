@@ -76,7 +76,7 @@ class UserStatistics(Plugin):
                     "squadron": {"join": {"enabled": False}}
                 }, {x.name: x for x in self.get_app_commands()})
 
-    def migrate(self, version: str) -> None:
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         if version == '3.2':
             if not self.locals:
                 return
@@ -214,7 +214,7 @@ class UserStatistics(Plugin):
             if isinstance(name, discord.Member):
                 name = name.display_name
         file = 'userstats-campaign.json' if isinstance(period, CampaignFilter) else 'userstats.json'
-        report = PaginationReport(self.bot, interaction, self.plugin_name, file)
+        report = PaginationReport(interaction, self.plugin_name, file)
         await report.render(member=user, member_name=name, server_name=None, period=period.period, flt=period)
 
     @command(description='Displays the top players of your server(s)')
@@ -230,7 +230,7 @@ class UserStatistics(Plugin):
                             )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3, 20]] = None):
         file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
         if not _server:
-            report = PaginationReport(self.bot, interaction, self.plugin_name, file)
+            report = PaginationReport(interaction, self.plugin_name, file)
             await report.render(interaction=interaction, server_name=None, flt=period, period=period.period,
                                 limit=limit)
         else:

@@ -62,7 +62,7 @@ class ServerStats(Plugin):
                 await self.display_report(interaction, 'serverload.json', str(period), _server,
                                           ephemeral=utils.get_ephemeral(interaction))
             else:
-                report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
+                report = PaginationReport(interaction, self.plugin_name, 'serverload.json')
                 await report.render(period=period, server_name=None)
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
@@ -83,7 +83,7 @@ class ServerStats(Plugin):
                 await self.display_report(interaction, 'serverstats.json', period, _server,
                                           ephemeral=utils.get_ephemeral(interaction))
             else:
-                report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')
+                report = PaginationReport(interaction, self.plugin_name, 'serverstats.json')
                 await report.render(period=period, server_name=None)
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))

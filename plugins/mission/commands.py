@@ -102,7 +102,7 @@ class Mission(Plugin):
         self.update_channel_name.cancel()
         await super().cog_unload()
 
-    def migrate(self, version: str) -> None:
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         if version == '3.6':
             filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
             if not os.path.exists(filename):
