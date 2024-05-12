@@ -5,6 +5,7 @@ import os
 import psycopg
 import shutil
 
+from contextlib import suppress
 from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG, \
     get_translation
 from discord import SelectOption, app_commands
@@ -89,6 +90,7 @@ class GreenieBoard(Plugin):
         if new_version == '3.2':
             self.log.info(f'  => Migrating {self.plugin_name.title()} to version {new_version}. This may take a bit.')
             # migrate all trapsheets from the old greenieboard table
+            filenames = []
             async with conn.cursor(row_factory=dict_row) as cursor:
                 async for row in await cursor.execute("SELECT * FROM greenieboard"):
                     filename = row['trapsheet']
@@ -106,8 +108,10 @@ class GreenieBoard(Plugin):
                         VALUES (%(mission_id)s, %(player_ucid)s, %(unit_type)s, %(grade)s, %(comment)s, 
                                 %(place)s, %(trapcase)s, %(wire)s, %(night)s, %(points)s, %(trapsheet)s)
                     """, row)
-                    if filename:
-                        os.remove(filename)
+                    filenames.append(filename)
+            for filename in filenames:
+                with suppress(Exception):
+                    os.remove(filename)
             await conn.execute("DROP TABLE greenieboard")
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
