@@ -12,7 +12,7 @@ schema;mizedit_schema:
           unique: true
     settings:
       include: 'settings_schema'
-    theatre:
+    terrains:
       type: map
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|Marianas|Falklands|Kola):
