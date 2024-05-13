@@ -86,7 +86,9 @@ class Pretense(Plugin):
             try:
                 if server.status != Status.RUNNING:
                     continue
-                config = self.get_config(server) or {}
+                config = self.get_config(server)
+                if not config:
+                    continue
                 json_file_path = config.get('json_file_path',
                                             os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json"))
                 json_file_path = os.path.expandvars(utils.format_string(json_file_path, instance=server.instance))
