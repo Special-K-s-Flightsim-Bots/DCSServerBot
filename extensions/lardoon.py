@@ -129,8 +129,9 @@ class Lardoon(Extension):
             proc = subprocess.Popen([cmd] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate()
             if proc.returncode != 0:
-                self.log.error(stderr.decode('utf-8'))
-            if self.config.get('debug', False):
+                if stderr:
+                    self.log.error(stderr.decode('utf-8'))
+            if self.config.get('debug', False) and stdout:
                 self.log.info(stdout.decode('utf-8'))
 
         for tacview_dir, server_list in tacview_dirs.items():

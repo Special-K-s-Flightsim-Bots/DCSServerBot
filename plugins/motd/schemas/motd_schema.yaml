@@ -56,18 +56,18 @@ schema;master_schema:
           sequence:
             - include: 'on_birth'
     nudge:
-      type: map
-      mapping:
-        delay: {type: int, range: {min: 0}}
-        message: {type: str}
-        recipients: {type: str}
-        display_type: {type: str, enum: ['chat', 'popup']}
-        display_time: {type: int, range: {min: 1}}
-        sound: {type: str}
-        messages:
-          type: seq
-          sequence:
-            - include: 'nudge'
+      type: any
+#      mapping:
+#        delay: {type: int, range: {min: 0}}
+#        message: {type: str}
+#        recipients: {type: str}
+#        display_type: {type: str, enum: ['chat', 'popup']}
+#        display_time: {type: int, range: {min: 1}}
+#        sound: {type: str}
+#        messages:
+#          type: seq
+#          sequence:
+#            - include: 'nudge'
 
 type: map
 mapping:
