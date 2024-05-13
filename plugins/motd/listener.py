@@ -1,3 +1,5 @@
+import random
+
 from core import EventListener, utils, Server, Report, Player, event
 from typing import Optional
 
@@ -6,6 +8,9 @@ class MOTDListener(EventListener):
 
     async def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
         if 'messages' in config:
+            if config.get('random', False):
+                cfg = random.choice(config['messages'])
+                return await self.on_join(cfg, server, player)
             for cfg in config['messages']:
                 message = await self.on_join(cfg, server, player)
                 if message:
@@ -22,6 +27,9 @@ class MOTDListener(EventListener):
 
     async def on_birth(self, config: dict, server: Server, player: Player) -> tuple[Optional[str], Optional[dict]]:
         if 'messages' in config:
+            if config.get('random', False):
+                cfg = random.choice(config['messages'])
+                return await self.on_birth(cfg, server, player)
             for cfg in config['messages']:
                 message, _ = await self.on_birth(cfg, server, player)
                 if message:

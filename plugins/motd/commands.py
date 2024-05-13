@@ -1,4 +1,6 @@
 import asyncio
+import random
+
 import discord
 
 from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
@@ -118,9 +120,14 @@ class MOTD(Plugin):
                     message = utils.format_string(config['message'], server=server)
                     await process_message(config, message)
                 elif 'messages' in config:
-                    for cfg in config['messages']:
+                    if config.get('random', False):
+                        cfg = random.choice(config['messages'])
                         message = utils.format_string(cfg['message'], server=server)
                         await process_message(cfg, message)
+                    else:
+                        for cfg in config['messages']:
+                            message = utils.format_string(cfg['message'], server=server)
+                            await process_message(cfg, message)
                 # schedule next run
                 t = self.loop.call_later(
                     delay=delay, callback=partial(asyncio.create_task, process_nudge(server, config)))
