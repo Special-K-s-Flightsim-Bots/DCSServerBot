@@ -162,6 +162,9 @@ class Olympus(Extension):
             out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
+            if not os.path.exists(os.path.join(path, 'bin', 'www')):
+                self.log.error(f"Path {os.path.join(path, 'bin', 'www')} does not exist, can't launch Olympus!")
+                return
             args = [self.nodejs, os.path.join(path, 'bin', 'www')]
             if self.version != '1.0.3.0':
                 args.append('--config')

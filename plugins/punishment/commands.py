@@ -206,6 +206,8 @@ class Punishment(Plugin):
 
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('User punished with {} points.').format(points), ephemeral=ephemeral)
+        await self.bot.audit(_("punished user {ucid} with {points} points.").format(ucid=ucid, points=points),
+                             user=interaction.user)
 
     @command(description=_('Deletes a users punishment points'))
     @app_commands.guild_only()
@@ -240,6 +242,7 @@ class Punishment(Plugin):
             await interaction.followup.send(
                 _("All punishment points deleted and player unbanned (if they were banned by the bot before)."),
                 ephemeral=ephemeral)
+            await self.bot.audit(_("forgave player {}").format(ucid), user=interaction.user)
 
     @command(description=_('Displays the current penalty points'))
     @app_commands.guild_only()

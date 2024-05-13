@@ -894,6 +894,9 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(f"Usage: {self.prefix}911 <message>")
+            return
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         message = ' '.join(params)
         embed = discord.Embed(title='MAYDAY // 911 Call', colour=discord.Color.blue())
