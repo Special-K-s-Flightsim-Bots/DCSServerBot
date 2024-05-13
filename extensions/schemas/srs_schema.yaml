@@ -16,5 +16,5 @@ schema;instance_srs_schema:
     red_password: {type: str}
     autostart: {type: bool}
     no_shutdown: {type: bool}
-    srs_message_prefix: {type: str}
     srs_nudge_message: {type: str}
+    autoconnect: {type: bool}
