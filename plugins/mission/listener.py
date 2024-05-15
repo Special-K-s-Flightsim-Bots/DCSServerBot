@@ -304,19 +304,21 @@ class MissionEventListener(EventListener):
         self.alert_fired[server.name] = True
 
     async def _load_weather_data(self, server: Server):
+        timeout = 60 if server.is_remote else 30
         try:
             server.current_mission.weather = (await server.send_to_dcs_sync({
                 "command": "getWeatherInfo"
-            })).get('weather')
+            }, timeout=timeout)).get('weather')
             self.display_mission_embed(server)
         except TimeoutError:
             self.log.error("Timeout during load_weather_data()!")
 
     async def _load_airbases(self, server: Server):
+        timeout = 60 if server.is_remote else 30
         try:
             server.current_mission.airbases = (await server.send_to_dcs_sync({
                 "command": "getAirbases"
-            })).get('airbases')
+            }, timeout=timeout)).get('airbases')
         except TimeoutError:
             self.log.error("Timeout during load_airbases()!")
 
