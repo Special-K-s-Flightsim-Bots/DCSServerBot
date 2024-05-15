@@ -310,7 +310,7 @@ class MissionEventListener(EventListener):
             })).get('weather')
             self.display_mission_embed(server)
         except TimeoutError:
-            pass
+            self.log.error("Timeout during load_weather_data()!")
 
     async def _load_airbases(self, server: Server):
         try:
@@ -318,7 +318,7 @@ class MissionEventListener(EventListener):
                 "command": "getAirbases"
             })).get('airbases')
         except TimeoutError:
-            pass
+            self.log.error("Timeout during load_airbases()!")
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
