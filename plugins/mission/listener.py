@@ -399,6 +399,14 @@ class MissionEventListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # get the weather async (if not filled already)
+        if not data.get('weather'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._load_weather_data(server))
+        # get the airbases async (if not filled already)
+        if not data.get('airbases'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._load_airbases(server))
         # noinspection PyAsyncCall
         asyncio.create_task(self._update_bans(server))
         self._update_mission(server, data)

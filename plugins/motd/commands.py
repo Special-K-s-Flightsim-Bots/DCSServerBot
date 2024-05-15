@@ -1,7 +1,6 @@
 import asyncio
-import random
-
 import discord
+import random
 
 from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
     PluginInstallationError, command
@@ -25,6 +24,8 @@ class MOTD(Plugin):
 
     async def cog_unload(self):
         self.nudge.cancel()
+        for server in self.bot.servers.copy().values():
+            await self._cancel_handles(server)
         await super().cog_unload()
 
     @staticmethod
@@ -101,6 +102,13 @@ class MOTD(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"```{message}```")
 
+    async def _cancel_handles(self, server: Server):
+        async with self.lock:
+            # cancel open timers
+            for handle in self.nudge_active.get(server.name, {}).values():
+                handle.cancel()
+            self.nudge_active[server.name] = {}
+
     @tasks.loop(minutes=1.0)
     async def nudge(self):
         async def process_message(config: dict, message: str):
@@ -133,13 +141,6 @@ class MOTD(Plugin):
                     delay=delay, callback=partial(asyncio.create_task, process_nudge(server, config)))
                 self.nudge_active[server.name][delay] = t
 
-        async def cancel_handles(handles: dict[int, asyncio.TimerHandle]):
-            async with self.lock:
-                # cancel open timers
-                for handle in handles.values():
-                    handle.cancel()
-                self.nudge_active[server_name] = {}
-
         try:
             for server_name, server in self.bot.servers.copy().items():
                 config = self.get_config(server)
@@ -148,7 +149,7 @@ class MOTD(Plugin):
                 handles = self.nudge_active.get(server_name, {})
                 if server.status != Status.RUNNING:
                     if handles:
-                        await cancel_handles(handles)
+                        await self._cancel_handles(server)
                     return
                 elif handles:
                     return
