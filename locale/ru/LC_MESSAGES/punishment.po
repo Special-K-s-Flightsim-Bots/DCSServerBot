@@ -60,6 +60,9 @@ msgstr "Указанный UCID неверен."
 msgid "User punished with {} points."
 msgstr "Пользователю начислено {} штрафных очков."
 
+msgid "punished user {ucid} with {points} points."
+msgstr "оштрафовал {ucid} на {points} очков."
+
 # / forgive
 msgid "Deletes a users punishment points"
 msgstr "Удаляет все штрафные очки пользователя"
@@ -71,6 +74,9 @@ msgstr "Все штрафные очки пользователя будут у�
 
 msgid "All punishment points deleted and player unbanned (if they were banned by the bot before)."
 msgstr "Все штрафные очки обнулены и пользователь разбанен (если был забанен ранее)."
+
+msgid "forgave player {}"
+msgstr "амнистировать игрока {}"
 
 # /penalty
 msgid "Displays the current penalty points"
