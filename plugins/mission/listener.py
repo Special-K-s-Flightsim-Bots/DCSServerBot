@@ -322,6 +322,10 @@ class MissionEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
+        if not data.get('current_mission'):
+            server.status = Status.STOPPED
+            return
+        self._update_mission(server, data)
         if data['channel'].startswith('sync-'):
             # noinspection PyAsyncCall
             asyncio.create_task(self._update_bans(server))
@@ -333,10 +337,6 @@ class MissionEventListener(EventListener):
             if not data.get('airbases'):
                 # noinspection PyAsyncCall
                 asyncio.create_task(self._load_airbases(server))
-        if not data.get('current_mission'):
-            server.status = Status.STOPPED
-            return
-        self._update_mission(server, data)
         if not data.get('players'):
             server.players.clear()
             data['players'] = []
@@ -399,7 +399,7 @@ class MissionEventListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        # get the weather async (if not filled already)
+        self._update_mission(server, data)
         if not data.get('weather'):
             # noinspection PyAsyncCall
             asyncio.create_task(self._load_weather_data(server))
@@ -409,7 +409,6 @@ class MissionEventListener(EventListener):
             asyncio.create_task(self._load_airbases(server))
         # noinspection PyAsyncCall
         asyncio.create_task(self._update_bans(server))
-        self._update_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
