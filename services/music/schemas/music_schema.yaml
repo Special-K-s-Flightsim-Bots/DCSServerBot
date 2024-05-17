@@ -19,6 +19,8 @@ schema;master_schema:
             coalition: {type: int, enum: [1, 2, 3], required: true}
             volume: {type: text}
             display_name: {type: str}
+            popup: {type: str}
+            chat: {type: str}
 
 type: map
 mapping:
