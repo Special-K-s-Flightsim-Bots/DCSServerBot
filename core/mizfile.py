@@ -66,6 +66,8 @@ class MizFile:
                         return name if os.path.isdir(name) else os.path.dirname(name)
 
                     for file in utils.list_all_files(item['source']):
+                        if os.path.basename(file).lower() == 'desktop.ini':
+                            continue
                         try:
                             zout.write(
                                 os.path.join(get_dir_path(item['source']), file),
