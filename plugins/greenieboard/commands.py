@@ -92,9 +92,9 @@ class GreenieBoard(Plugin):
             # migrate all trapsheets from the old greenieboard table
             filenames = []
             async with conn.cursor(row_factory=dict_row) as cursor:
-                async for row in await cursor.execute("SELECT * FROM greenieboard WHERE trapsheet IS NOT NULL"):
+                async for row in await cursor.execute("SELECT * FROM greenieboard"):
                     filename = row['trapsheet']
-                    if os.path.exists(filename):
+                    if filename and os.path.exists(filename):
                         if filename.endswith('.png'):
                             async with aiofiles.open(filename, mode='rb') as file:
                                 row['trapsheet'] = psycopg.Binary(await file.read())
