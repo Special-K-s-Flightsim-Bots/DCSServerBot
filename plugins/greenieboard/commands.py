@@ -108,7 +108,8 @@ class GreenieBoard(Plugin):
                         VALUES (%(mission_id)s, %(player_ucid)s, %(unit_type)s, %(grade)s, %(comment)s, 
                                 %(place)s, %(trapcase)s, %(wire)s, %(night)s, %(points)s, %(trapsheet)s)
                     """, row)
-                    filenames.append(filename)
+                    if filename:
+                        filenames.append(filename)
             for filename in filenames:
                 with suppress(Exception):
                     os.remove(filename)
