@@ -482,6 +482,7 @@ class Mission(Plugin):
                     except FileNotFoundError:
                         await interaction.followup.send(_('Mission "{}" was already deleted.').format(name),
                                                         ephemeral=ephemeral)
+                await self.bot.audit(_("deleted mission {}").format(name), user=interaction.user)
             except (TimeoutError, asyncio.TimeoutError):
                 await interaction.followup.send(_("Timeout while deleting mission.\n"
                                                   "Please reconfirm that the deletion was successful."),
