@@ -164,6 +164,7 @@ class ServiceBus(Service):
                     self.log.exception(ex)
 
     async def send_init(self, server: Server):
+        timeout = 120 if self.node.locals.get('slow_system', False) else 60
         _, dcs_version = await self.node.get_dcs_branch_and_version()
         await self.send_to_node_sync({
             "command": "rpc",
@@ -182,7 +183,7 @@ class ServiceBus(Service):
                 "dcs_version": dcs_version,
                 "maintenance": server.maintenance
             }
-        }, timeout=60)
+        }, timeout=timeout)
 
     async def register_local_servers(self):
         # we only run once
