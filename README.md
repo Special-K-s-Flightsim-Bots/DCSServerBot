@@ -114,6 +114,8 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option!        |
 | DCS Real Weather | Real weather for your missions.                                                                                   |
 | OvGME            | Use mods within your DCS World servers.                                                                           |
+| gRPC             | Support gRPC, a communication framework with DCS World.                                                           |
+| Pretense         | Dynamic campaign framework by Dzsek.                                                                              |
 
 Check out [Extensions](./extensions/README.md) for more info on how to use them.
 
