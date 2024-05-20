@@ -76,18 +76,18 @@ class Sneaker(Extension):
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         try:
-            if 'config' not in self.config:
-                # we need to lock here, to avoid race conditions on parallel server startups
-                async with lock:
+            async with lock:
+                if 'config' not in self.config:
+                    # we need to lock here, to avoid race conditions on parallel server startups
                     await asyncio.to_thread(utils.terminate_process, process)
                     self.create_config()
                     p = await asyncio.to_thread(self._run_subprocess,
                                                 os.path.join(self.node.config_dir, 'sneaker.json'))
                     process = psutil.Process(p.pid)
-            elif not process or not process.is_running():
-                p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
-                process = psutil.Process(p.pid)
-                atexit.register(self.shutdown)
+                elif not process or not process.is_running():
+                    p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
+                    process = psutil.Process(p.pid)
+                    atexit.register(self.shutdown)
             servers.add(self.server.name)
             return True
         except Exception as ex:
