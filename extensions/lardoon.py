@@ -36,30 +36,31 @@ class Lardoon(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
-        if not process or not process.is_running():
+        async with lock:
+            if not process or not process.is_running():
 
-            def log_output(proc: subprocess.Popen):
-                for line in iter(proc.stdout.readline, b''):
-                    self.log.info(line.decode('utf-8').rstrip())
+                def log_output(proc: subprocess.Popen):
+                    for line in iter(proc.stdout.readline, b''):
+                        self.log.info(line.decode('utf-8').rstrip())
 
-            def run_subprocess():
-                out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
-                cmd = os.path.basename(self.config['cmd'])
-                self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
-                proc = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
-                                        executable=os.path.expandvars(self.config['cmd']),
-                                        stdout=out, stderr=subprocess.STDOUT)
-                if self.config.get('debug', False):
-                    Thread(target=log_output, args=(proc,)).start()
-                return proc
+                def run_subprocess():
+                    out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
+                    cmd = os.path.basename(self.config['cmd'])
+                    self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
+                    proc = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
+                                            executable=os.path.expandvars(self.config['cmd']),
+                                            stdout=out, stderr=subprocess.STDOUT)
+                    if self.config.get('debug', False):
+                        Thread(target=log_output, args=(proc,)).start()
+                    return proc
 
-            p = await asyncio.to_thread(run_subprocess)
-            try:
-                process = psutil.Process(p.pid)
-                atexit.register(self.shutdown)
-            except psutil.NoSuchProcess:
-                self.log.error(f"Error during launch of {self.config['cmd']}!")
-                return False
+                p = await asyncio.to_thread(run_subprocess)
+                try:
+                    process = psutil.Process(p.pid)
+                    atexit.register(self.shutdown)
+                except psutil.NoSuchProcess:
+                    self.log.error(f"Error during launch of {self.config['cmd']}!")
+                    return False
         servers.add(self.server.name)
         tacview_dir = self._get_tacview_dir()
         if tacview_dir not in tacview_dirs:
