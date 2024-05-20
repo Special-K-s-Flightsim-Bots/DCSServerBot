@@ -5,6 +5,7 @@ schema;default_schema:
     num_rows: {type: int, range: {min: 1, max: 20}}
     persistent_board: {type: bool}
     persistent_channel: {type: int}
+    credits: {type: bool}
     squadrons:
       type: seq
       sequence:

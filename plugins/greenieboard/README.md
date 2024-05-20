@@ -105,12 +105,13 @@ DEFAULT:
     OWO: 2
     WO: 1
     C: 0
+  credits: true             # People should get credits for their landings (see CreditSystem)
   Moose.AIRBOSS:
     basedir: airboss        # Trapsheets will be stored in Saved Games\<instance>\airboss
-  FunkMan:                 # if you want to use the FunkMan integration
+  FunkMan:                  # if you want to use the FunkMan integration
     IMAGEPATH: ../FunkMan/funkpics/
     install: ../FunkMan
-DCS.release_server:        # our server uses Moose.AIRBOSS
+DCS.release_server:         # our server uses Moose.AIRBOSS
   num_rows: 5               # Overwrite the number of rows to display (default: 10)
   Moose.AIRBOSS:
     basedir: airboss        # overwrite the default in here, if you like
