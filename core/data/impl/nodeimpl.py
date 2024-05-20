@@ -425,7 +425,7 @@ class NodeImpl(Node):
                                 _('Server is going down for a DCS update in {}!').format(utils.format_time(warn_time)))
                     await asyncio.sleep(1)
                     shutdown_in -= 1
-            await server.shutdown()
+            await server.shutdown(force=True)
 
         async def do_update(branch: Optional[str] = None) -> int:
             # disable any popup on the remote machine
@@ -858,16 +858,10 @@ class NodeImpl(Node):
 
         # wait for all servers to be in a proper state
         while True:
-            await asyncio.sleep(1)
             bus = ServiceRegistry.get(ServiceBus)
-            if not bus:
-                continue
-            server_initialized = True
-            for server in bus.servers.values():
-                if server.status == Status.UNREGISTERED:
-                    server_initialized = False
-            if server_initialized:
+            if bus and bus.servers and all(server.status != Status.UNREGISTERED for server in bus.servers.values()):
                 break
+            await asyncio.sleep(1)
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
         max_bot_port = 6666-1
