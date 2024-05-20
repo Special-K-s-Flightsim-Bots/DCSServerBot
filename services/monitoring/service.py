@@ -174,7 +174,7 @@ class MonitoringService(Service):
                     if 'affinity' in server.instance.locals:
                         await self.check_affinity(server, server.instance.locals['affinity'])
                     # check extension states
-                    for ext in [x for x in server.extensions.values() if not x.is_running()]:
+                    for ext in [x for x in server.extensions.values() if not await asyncio.to_thread(x.is_running)]:
                         try:
                             await ext.startup()
                         except Exception as ex:

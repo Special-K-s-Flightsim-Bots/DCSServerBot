@@ -303,16 +303,43 @@ class MissionEventListener(EventListener):
             self.log.error("Player threshold configured, but channel is incorrect")
         self.alert_fired[server.name] = True
 
+    async def _load_weather_data(self, server: Server):
+        timeout = 60 if server.is_remote else 30
+        try:
+            server.current_mission.weather = (await server.send_to_dcs_sync({
+                "command": "getWeatherInfo"
+            }, timeout=timeout)).get('weather')
+            self.display_mission_embed(server)
+        except TimeoutError:
+            self.log.error("Timeout during load_weather_data()!")
+
+    async def _load_airbases(self, server: Server):
+        timeout = 60 if server.is_remote else 30
+        try:
+            server.current_mission.airbases = (await server.send_to_dcs_sync({
+                "command": "getAirbases"
+            }, timeout=timeout)).get('airbases')
+        except TimeoutError:
+            self.log.error("Timeout during load_airbases()!")
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if data['channel'].startswith('sync-'):
-            # noinspection PyAsyncCall
-            asyncio.create_task(self._update_bans(server))
-        if 'current_mission' not in data:
+        if not data.get('current_mission'):
             server.status = Status.STOPPED
             return
         self._update_mission(server, data)
-        if 'players' not in data:
+        if data['channel'].startswith('sync-'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._update_bans(server))
+            # get the weather async (if not filled already)
+            if not data.get('weather'):
+                # noinspection PyAsyncCall
+                asyncio.create_task(self._load_weather_data(server))
+            # get the airbases async (if not filled already)
+            if not data.get('airbases'):
+                # noinspection PyAsyncCall
+                asyncio.create_task(self._load_airbases(server))
+        if not data.get('players'):
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
@@ -374,9 +401,16 @@ class MissionEventListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        self._update_mission(server, data)
+        if not data.get('weather'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._load_weather_data(server))
+        # get the airbases async (if not filled already)
+        if not data.get('airbases'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._load_airbases(server))
         # noinspection PyAsyncCall
         asyncio.create_task(self._update_bans(server))
-        self._update_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
@@ -675,6 +709,24 @@ class MissionEventListener(EventListener):
                 'roles': []
             })
 
+    @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
+    async def pause(self, server: Server, player: Player, params: list[str]):
+        if server.status == Status.PAUSED:
+            player.sendChatMessage("Mission is paused already.")
+        else:
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.current_mission.pause())
+            player.sendChatMessage("Mission paused.")
+
+    @chat_command(name='unpause', help='unpause the mission', roles=['DCS Admin', 'GameMaster'])
+    async def unpause(self, server: Server, player: Player, params: list[str]):
+        if server.status == Status.RUNNING:
+            player.sendChatMessage("Mission is running already.")
+        else:
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.current_mission.unpause())
+            player.sendChatMessage("Mission unpaused.")
+
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
     async def atis(self, server: Server, player: Player, params: list[str]):
         if len(params) == 0:
@@ -705,7 +757,8 @@ class MissionEventListener(EventListener):
             else:
                 message = '!!! Server will be restarted NOW !!!'
             server.sendPopupMessage(Coalition.ALL, message)
-            self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.current_mission.restart())
         except ValueError:
             player.sendChatMessage(f"Wrong time: {params[0]}")
 
@@ -725,7 +778,8 @@ class MissionEventListener(EventListener):
         if not params or not params[0].isnumeric():
             player.sendChatMessage(f"Usage: {self.prefix}load <number>")
             return
-        self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
+        # noinspection PyAsyncCall
+        asyncio.create_task(server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
@@ -849,6 +903,9 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(f"Usage: {self.prefix}911 <message>")
+            return
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         message = ' '.join(params)
         embed = discord.Embed(title='MAYDAY // 911 Call', colour=discord.Color.blue())
@@ -886,6 +943,7 @@ class MissionEventListener(EventListener):
                 player.sendUserMessage(message, 30)
             else:
                 n = int(params[0]) - 1
-                self.bot.loop.call_soon(asyncio.create_task, change_preset(presets[n]))
+                # noinspection PyAsyncCall
+                asyncio.create_task(change_preset(presets[n]))
         else:
             player.sendChatMessage(f"There are no presets available to select.")

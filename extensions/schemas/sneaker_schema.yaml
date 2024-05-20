@@ -4,6 +4,7 @@ schema;node_sneaker_schema:
     cmd: {type: str, required: true}
     bind: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', required: true}
     url: {type: str, pattern: 'http(s)?://[a-zA-Z0-9\-.]+(:[0-9]+)?(/.*)?'}
+    debug: {type: bool}
 schema;instance_sneaker_schema:
   type: map
   mapping:

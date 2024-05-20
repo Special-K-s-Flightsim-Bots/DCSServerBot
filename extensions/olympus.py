@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from core import Extension, utils, Server
+from threading import Thread
 from typing import Optional
 
 server_ports: dict[int, str] = dict()
@@ -90,8 +91,13 @@ class Olympus(Extension):
             value = self.config['url']
         else:
             value = f"http://{self.node.public_ip}:{self.config.get(self.frontend_tag, {}).get('port', 3000)}"
+        if self.config.get('show_passwords', False):
+            value += ''.join([
+                f"\n{x[0].upper() + x[1:]}: {self.config.get('authentication', {}).get(f'{x}Password', '')}"
+                for x in ['gameMaster', 'blueCommander', 'redCommander']
+            ])
         return {
-            "name": self.name,
+            "name": self.__class__.__name__,
             "version": self.version,
             "value": value
         }
@@ -147,17 +153,27 @@ class Olympus(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
-        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+
+        def log_output(proc: subprocess.Popen):
+            for line in iter(proc.stdout.readline, b''):
+                self.log.info(line.decode('utf-8').rstrip())
 
         def run_subprocess():
+            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
+            if not os.path.exists(os.path.join(path, 'bin', 'www')):
+                self.log.error(f"Path {os.path.join(path, 'bin', 'www')} does not exist, can't launch Olympus!")
+                return
             args = [self.nodejs, os.path.join(path, 'bin', 'www')]
             if self.version != '1.0.3.0':
                 args.append('--config')
                 args.append(self.config_path)
             self.log.debug("Launching {}".format(' '.join(args)))
-            return subprocess.Popen(args, cwd=path, stdout=out, stderr=out)
+            proc = subprocess.Popen(args, cwd=path, stdout=out, stderr=subprocess.STDOUT)
+            if self.config.get('debug', False):
+                Thread(target=log_output, args=(proc,)).start()
+            return proc
 
         try:
             p = await asyncio.to_thread(run_subprocess)

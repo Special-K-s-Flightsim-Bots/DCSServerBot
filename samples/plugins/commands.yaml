@@ -1,4 +1,5 @@
-command_prefix: .   # The prefix to use for these discord commands
+DEFAULT:
+  command_prefix: .
 commands:
 - name: dcs         # Create a command .dcs
   roles:            # that can be run by the DCS Admin role

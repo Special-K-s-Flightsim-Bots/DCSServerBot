@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import certifi
 import discord
+import glob
 import gzip
 import json
 import os
@@ -97,7 +98,7 @@ class NodeImpl(Node):
         self.pool: Optional[ConnectionPool] = None
         self.apool: Optional[AsyncConnectionPool] = None
         self._master = None
-        self.listen_address = self.locals.get('listen_address', '0.0.0.0')
+        self.listen_address = self.locals.get('listen_address', '127.0.0.1')
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def __aenter__(self):
@@ -253,10 +254,14 @@ class NodeImpl(Node):
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
-        db_pool = ConnectionPool(url, min_size=2, max_size=4,
-                                 check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
+        db_pool = ConnectionPool(url, min_size=2, max_size=4, check=ConnectionPool.check_connection, max_idle=max_idle,
+                                 timeout=timeout, open=False)
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
-                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout)
+                                       check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
+                                       open=False)
+        # we need to open the pools directly in here
+        db_pool.open()
+        await db_apool.open()
         return db_pool, db_apool
 
     async def close_db(self):
@@ -420,7 +425,7 @@ class NodeImpl(Node):
                                 _('Server is going down for a DCS update in {}!').format(utils.format_time(warn_time)))
                     await asyncio.sleep(1)
                     shutdown_in -= 1
-            await server.shutdown()
+            await server.shutdown(force=True)
 
         async def do_update(branch: Optional[str] = None) -> int:
             # disable any popup on the remote machine
@@ -541,7 +546,10 @@ class NodeImpl(Node):
         if not user:
             return list(licenses)
         password = utils.get_password('DCS')
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+        headers = {
+            'User-Agent': 'DCS_Updater/'
+        }
+        async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
             response = await session.post(LOGIN_URL, data={"login": user, "password": password})
             if response.status == 200:
@@ -554,18 +562,30 @@ class NodeImpl(Node):
             return list(licenses)
 
     async def get_latest_version(self, branch: str) -> Optional[str]:
-        user = self.locals['DCS'].get('user')
-        if user:
+        async def _get_latest_version_no_auth():
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get(UPDATER_URL.format(branch)) as response:
+                    if response.status == 200:
+                        return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+
+        async def _get_latest_version_auth():
+            user = self.locals['DCS'].get('user')
             password = utils.get_password('DCS')
-            auth = aiohttp.BasicAuth(login=user, password=password)
-        else:
-            auth = None
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
-            async with session.get(UPDATER_URL.format(branch)) as response:
+            headers = {
+                'User-Agent': 'DCS_Updater/'
+            }
+            async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                response = await session.post(LOGIN_URL, data={"login": user, "password": password})
                 if response.status == 200:
-                    return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
-        return None
+                    async with session.get(UPDATER_URL.format(branch)) as response:
+                        return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+
+        if not self.locals['DCS'].get('user'):
+            return await _get_latest_version_no_auth()
+        else:
+            return await _get_latest_version_auth()
 
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
@@ -769,7 +789,9 @@ class NodeImpl(Node):
         return ret
 
     async def remove_file(self, path: str):
-        os.remove(path)
+        files = glob.glob(path)
+        for file in files:
+            os.remove(file)
 
     async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
@@ -836,16 +858,10 @@ class NodeImpl(Node):
 
         # wait for all servers to be in a proper state
         while True:
-            await asyncio.sleep(1)
             bus = ServiceRegistry.get(ServiceBus)
-            if not bus:
-                continue
-            server_initialized = True
-            for server in bus.servers.values():
-                if server.status == Status.UNREGISTERED:
-                    server_initialized = False
-            if server_initialized:
+            if bus and bus.servers and all(server.status != Status.UNREGISTERED for server in bus.servers.values()):
                 break
+            await asyncio.sleep(1)
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
         max_bot_port = 6666-1

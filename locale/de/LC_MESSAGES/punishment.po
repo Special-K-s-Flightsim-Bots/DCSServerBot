@@ -60,6 +60,9 @@ msgstr "Die übergebene UCID ist ungültig."
 msgid "User punished with {} points."
 msgstr "Benutzer bekam {} zusätzliche Strafpunkte."
 
+msgid "punished user {ucid} with {points} points."
+msgstr "gab Nutzer {ucid} {points} Strafpunkte."
+
 # / forgive
 msgid "Deletes a users punishment points"
 msgstr "Löscht Strafpunkte eines Benutzers"
@@ -71,6 +74,9 @@ msgstr "Du bist im Begriff alle Strafpunkte des Benutzers zu löschen.\n"
 
 msgid "All punishment points deleted and player unbanned (if they were banned by the bot before)."
 msgstr "Alle Strafpunkte wurden gelöscht und der Spieler entbannt (sofern er vom Bot vorher gebannt wurde)."
+
+msgid "forgave player {}"
+msgstr "löschte alle Strafpunkte von Spieler {}"
 
 # /penalty
 msgid "Displays the current penalty points"

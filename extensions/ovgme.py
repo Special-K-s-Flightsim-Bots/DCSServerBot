@@ -14,7 +14,7 @@ class OvGME(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
-        mission = await asyncio.to_thread(MizFile, self, await self.server.get_current_mission_file())
+        mission = await asyncio.to_thread(MizFile, await self.server.get_current_mission_file())
         self.modules[self.server.name] = mission.requiredModules
         return True
 

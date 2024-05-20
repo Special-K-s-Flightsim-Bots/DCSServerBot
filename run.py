@@ -78,7 +78,7 @@ class Main:
 
         # Change 3rd-party logging
         logging.getLogger(name='asyncio').setLevel(logging.WARNING)
-        logging.getLogger(name='discord').setLevel(logging.ERROR)
+        logging.getLogger(name='discord').setLevel(logging.WARNING)
         logging.getLogger(name='git').setLevel(logging.WARNING)
         logging.getLogger(name='matplotlib').setLevel(logging.ERROR)
         logging.getLogger(name='PidFile').setLevel(logging.ERROR)
@@ -217,7 +217,7 @@ if __name__ == "__main__":
             try:
                 asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
-                Install(node=args.node).install(user='dcsserverbot', database='dcsserverbot')
+                Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
                 asyncio.run(run_node(name=args.node, no_autoupdate=args.noupdate))
     except PermissionError:
         # do not restart again

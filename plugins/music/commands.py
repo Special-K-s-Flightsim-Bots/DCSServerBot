@@ -72,7 +72,7 @@ class Music(Plugin):
         try:
             while not view.is_finished():
                 await msg.edit(embed=await view.render(), view=view)
-                await asyncio.sleep(1)
+                await asyncio.sleep(5)
         finally:
             try:
                 await msg.delete()

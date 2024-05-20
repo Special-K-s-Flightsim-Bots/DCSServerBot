@@ -1,5 +1,6 @@
 import discord
 import os
+import psycopg
 
 from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands
@@ -21,7 +22,7 @@ class SlotBlocking(Plugin):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
 
-    def migrate(self, version: str) -> None:
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         def _change_instance(instance: dict):
             if instance.get('use_reservations'):
                 instance['payback'] = instance['use_reservations']

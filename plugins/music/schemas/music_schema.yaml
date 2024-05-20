@@ -1,0 +1,4 @@
+type: map
+mapping:
+  commands:
+    include: 'commands_schema'

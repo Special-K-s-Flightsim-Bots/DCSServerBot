@@ -15,24 +15,7 @@
       "class": "plugins.greenieboard.reports.LSORating"
     },
     {
-      "type": "Graph",
-      "params": {
-        "width": 15,
-        "height": 10,
-        "cols": 1,
-        "rows": 3,
-        "facecolor": "#404040",
-        "elements": [
-          {
-            "class": "plugins.greenieboard.reports.TrapSheet",
-            "params": [
-              { "row": 0, "col": 0 },
-              { "row": 1, "col": 0, "sharex": true },
-              { "row": 2, "col": 0, "sharex": true }
-            ]
-          }
-        ]
-      }
+      "class": "plugins.greenieboard.reports.TrapSheet"
     }
   ]
 }

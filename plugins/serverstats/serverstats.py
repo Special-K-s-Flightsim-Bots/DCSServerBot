@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import warnings
 
 from core import const, report, EmbedElement, utils
-from matplotlib.ticker import FuncFormatter
 from psycopg.rows import dict_row
 from typing import Optional
 
@@ -139,16 +139,16 @@ class UniquePast14(report.GraphElement):
                     labels.append(row['date'].strftime('%a %m-%d'))
                     values.append(row['players'])
 
-        self.axes.bar(labels, values, width=0.5, color='dodgerblue')
-        self.axes.set_title('Unique Players past 14 Days', color='white', fontsize=25)
+        sns.barplot(x=labels, y=values, color='dodgerblue', ax=self.axes)
+        self.axes.set_title('Unique Players past 14 Days', fontsize=25)
+        self.axes.spines['top'].set_visible(False)
+        self.axes.spines['right'].set_visible(False)
+        self.axes.spines['bottom'].set_visible(False)
+        self.axes.spines['left'].set_visible(False)
         self.axes.set_yticks([])
-        for label in self.axes.get_xticklabels():
-            label.set_rotation(30)
-            label.set_ha('right')
-        for i in range(0, len(values)):
-            self.axes.annotate(values[i], xy=(
-                labels[i], values[i]), ha='center', va='bottom', weight='bold')
-        if len(values) == 0:
+        for i, value in enumerate(values):
+            self.axes.text(i, value, int(value), ha='center', va='bottom', weight='bold')
+        if not values:
             self.axes.set_xticks([])
             self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
@@ -175,9 +175,13 @@ class UsersPerDayTime(report.GraphElement):
                 async for row in cursor:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
 
-        self.axes.imshow(values, cmap='cividis', aspect='auto')
-        self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
-        self.axes.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: const.WEEKDAYS[int(np.clip(x, 0, 6))]))
+            sns.heatmap(values, cmap='viridis', cbar=False, annot=False,
+                        yticklabels=[f'{i:02d}h' for i in range(24)],
+                        xticklabels=[const.WEEKDAYS[i] for i in range(7)],
+                        ax=self.axes)
+            self.axes.invert_yaxis()
+            self.axes.set_yticklabels(self.axes.get_yticklabels(), rotation=0)
+            self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
 
 
 class ServerLoadHeader(EmbedElement):

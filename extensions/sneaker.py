@@ -9,6 +9,7 @@ import subprocess
 
 from core import Extension, Status, ServiceRegistry, Server, utils
 from services import ServiceBus
+from threading import Thread
 from typing import Optional
 
 process: Optional[psutil.Process] = None
@@ -51,14 +52,21 @@ class Sneaker(Extension):
         with open(filename, mode='w', encoding='utf-8') as file:
             json.dump(cfg, file, indent=2)
 
+    def _log_output(self, p: subprocess.Popen):
+        for line in iter(p.stdout.readline, b''):
+            self.log.info(line.decode('utf-8').rstrip())
+
     def _run_subprocess(self, config: str):
         cmd = os.path.basename(self.config['cmd'])
-        out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+        out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
         self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                        f"--config {config}")
-        return subprocess.Popen([
-            cmd, "--bind", self.config['bind'], "--config", config
-        ], executable=os.path.expandvars(self.config['cmd']), stdout=out, stderr=out)
+        p = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", config],
+                                executable=os.path.expandvars(self.config['cmd']),
+                                stdout=out, stderr=subprocess.STDOUT)
+        if self.config.get('debug', False):
+            Thread(target=self._log_output, args=(p,)).start()
+        return p
 
     async def startup(self) -> bool:
         global process, servers, lock
@@ -107,8 +115,8 @@ class Sneaker(Extension):
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                                f"--config config/sneaker.json")
-                p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
                 try:
+                    p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
                     process = psutil.Process(p.pid)
                 except Exception as ex:
                     self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")

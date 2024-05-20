@@ -159,15 +159,17 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
     ax.spines['left'].set_color(spinecolor)
 
     if pinfo['aircraft'] == 'AV-8B':
+        # top down view
         carrier01 = plt.imread('./plugins/greenieboard/img/boat03_2.png')
-        ax.figure.figimage(carrier01, 1075, 350, alpha=.75, zorder=1)
+        ax.figure.figimage(carrier01, 910, 340, alpha=.75, zorder=1, clip_on=True)
+        # side view for the glideslope plot
         carrier02 = plt.imread('./plugins/greenieboard/img/boat05_2.png')
-        ax.figure.figimage(carrier02, 1075, 610, alpha=0.75, zorder=1)
+        ax.figure.figimage(carrier02, 910, 560, alpha=0.75, zorder=1, clip_on=True)
     else:
         carrier01 = plt.imread('./plugins/greenieboard/img/boat03.png')
-        ax.figure.figimage(carrier01, 1075, 332, alpha=.45, zorder=1)
+        ax.figure.figimage(carrier01, 930, 343, alpha=.45, zorder=1, clip_on=True)
         carrier02 = plt.imread('./plugins/greenieboard/img/boat05.png')
-        ax.figure.figimage(carrier02, 1075, 610, alpha=.45, zorder=1)
+        ax.figure.figimage(carrier02, 930, 565, alpha=.45, zorder=1, clip_on=True)
 
     plt.setp(ax.get_xticklabels(), color=labelcolor)
     plt.setp(ax.get_yticklabels(), color=labelcolor)

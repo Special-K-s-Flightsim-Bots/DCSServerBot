@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS traps (id SERIAL PRIMARY KEY, mission_id INTEGER NOT NULL, player_ucid TEXT NOT NULL, unit_type TEXT NOT NULL, grade TEXT NOT NULL, comment TEXT NOT NULL, place TEXT NOT NULL, trapcase INTEGER NOT NULL, wire INTEGER, night BOOLEAN NOT NULL, points DECIMAL, trapsheet BYTEA, time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'));
+CREATE INDEX IF NOT EXISTS idx_traps_ucid ON traps(player_ucid);

@@ -79,7 +79,7 @@ class Cloud(Plugin):
         if self.config.get('register', True):
             self.register.cancel()
         if self.config.get('upload_errors', True):
-            for handler in self.log.handlers:
+            for handler in self.log.root.handlers:
                 if isinstance(handler, CloudLoggingHandler):
                     self.log.removeHandler(handler)
         if 'token' in self.config:
@@ -209,7 +209,7 @@ class Cloud(Plugin):
                 return
             # TODO: support period
             df = pd.DataFrame(response)
-            report = PaginationReport(self.bot, interaction, self.plugin_name, 'cloudstats.json')
+            report = PaginationReport(interaction, self.plugin_name, 'cloudstats.json')
             await report.render(user=name, data=df, guild=None)
         except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)

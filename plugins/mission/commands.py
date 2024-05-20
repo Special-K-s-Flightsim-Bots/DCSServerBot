@@ -102,7 +102,7 @@ class Mission(Plugin):
         self.update_channel_name.cancel()
         await super().cog_unload()
 
-    def migrate(self, version: str) -> None:
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         if version == '3.6':
             filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
             if not os.path.exists(filename):
@@ -482,6 +482,7 @@ class Mission(Plugin):
                     except FileNotFoundError:
                         await interaction.followup.send(_('Mission "{}" was already deleted.').format(name),
                                                         ephemeral=ephemeral)
+                await self.bot.audit(_("deleted mission {}").format(name), user=interaction.user)
             except (TimeoutError, asyncio.TimeoutError):
                 await interaction.followup.send(_("Timeout while deleting mission.\n"
                                                   "Please reconfirm that the deletion was successful."),
@@ -626,7 +627,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        miz = await asyncio.to_thread(MizFile, self.bot, server.current_mission.filename)
+        miz = await asyncio.to_thread(MizFile, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
             with open('config/presets.yaml', mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
@@ -1383,7 +1384,7 @@ class Mission(Plugin):
             if server.status == Status.UNREGISTERED:
                 continue
             try:
-                channel_id = server.channels[Channel.STATUS]
+                channel_id = server.channels.get(Channel.STATUS, -1)
                 if channel_id == -1:
                     continue
                 channel = self.bot.get_channel(channel_id)

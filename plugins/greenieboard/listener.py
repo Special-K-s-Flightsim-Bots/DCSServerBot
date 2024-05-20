@@ -1,15 +1,17 @@
 import asyncio
+import io
 import os
+import psycopg
 import re
 import string
 import sys
-import uuid
 
 from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation, utils
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
+from contextlib import suppress
 from typing import Optional, cast
 
 _ = get_translation(__name__.split('.')[1])
@@ -140,8 +142,7 @@ class GreenieBoardEventListener(EventListener):
                                               wire, night, points, trapsheet) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
-                      data['place']['name'], case, wire, night, points,
-                      data.get('trapsheet')))
+                      data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet'))))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> Optional[str]:
@@ -175,7 +176,16 @@ class GreenieBoardEventListener(EventListener):
     async def process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
         if not data['grade'].startswith("WO"):
-            data['trapsheet'] = self.get_trapsheet(config, server, player, data)
+            filename = self.get_trapsheet(config, server, player, data)
+            if filename and os.path.exists(filename):
+                # noinspection PyUnresolvedReferences
+                data['trapsheet'] = self.plugin.plot_trapheet(filename)
+                with suppress(Exception):
+                    os.remove(filename)
+            else:
+                data.pop('trapsheet', None)
+        else:
+            data.pop('trapsheet', None)
         await self.process_lso_event(config, server, player, data)
 
     async def process_sc_event(self, config: dict, server: Server, player: Player, data: dict):
@@ -190,20 +200,15 @@ class GreenieBoardEventListener(EventListener):
                 f"Can't process FunkMan event as FunkMan is not configured in your {self.plugin_name}.yaml!")
             return
         if not data['grade'].startswith('WO'):
-            filepath = os.path.join(server.instance.home,
-                                    config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
-            if not os.path.exists(filepath):
-                os.mkdir(filepath)
             try:
-                filename = os.path.join(filepath, f'{uuid.uuid4()}.png')
                 fig, _ = self.funkplot.PlotTrapSheet(data)
-                fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+                buf = io.BytesIO()
+                fig.savefig(buf, bbox_inches='tight', facecolor='#2C2F33')
+                data['trapsheet'] = buf.getvalue()
+                buf.close()
                 plt.close(fig)
-                data['trapsheet'] = filename
             except TypeError:
                 self.log.error("No trapsheet data received from DCS!")
-        else:
-            del data['trapsheet']
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
         data['place'] = {
             'name': data['carriername']

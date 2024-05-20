@@ -7,6 +7,7 @@ schema;instance_olympus_schema:
   mapping:
     enabled: {type: bool}
     debug: {type: bool}
+    show_passwords: {type: bool}
     url: {type: str, pattern: 'http(s)?://[a-zA-Z0-9\-.]+(:[0-9]+)?(/.*)?'}
     regex;(backend|server):
       type: map

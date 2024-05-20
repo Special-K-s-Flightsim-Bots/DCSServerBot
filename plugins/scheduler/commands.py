@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
+from functools import partial
 from services import DCSServerBot
 from typing import Type, Optional, Literal, Union
 
@@ -67,7 +68,7 @@ class Scheduler(Plugin):
         return server.status
 
     async def launch_dcs(self, server: Server, member: Optional[discord.Member] = None,
-                         modify_mission: Optional[bool] = True):
+                         modify_mission: Optional[bool] = True, ignore_exception: Optional[bool] = False):
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
             await server.startup(modify_mission=modify_mission)
@@ -87,7 +88,8 @@ class Scheduler(Plugin):
                 self.log.warning(f'  => DCS server "{server.name}" was closed / crashed while launching!')
             else:
                 self.log.warning(f'  => DCS server "{server.name}" timeout while launching.')
-            raise
+            if not ignore_exception:
+                raise
 
     @staticmethod
     def get_warn_times(config: dict) -> list[int]:
@@ -271,6 +273,16 @@ class Scheduler(Plugin):
                             restart_in = 0
                         asyncio.create_task(self.restart_mission(server, config, rconf, restart_in))
                         return
+                elif 'real_time' in rconf:
+                    real_time = rconf['real_time'] * 60
+                    if (server.current_mission.real_time + warn_time) >= real_time:
+                        restart_in = int(real_time - server.current_mission.real_time)
+                        if restart_in < 0:
+                            restart_in = 0
+                        if rconf['method'] == 'restart':
+                            rconf['method'] = 'restart_with_shutdown'
+                        asyncio.create_task(self.restart_mission(server, config, rconf, restart_in))
+                        return
 
         if 'restart' in config and not server.restart_pending:
             if isinstance(config['restart'], list):
@@ -281,10 +293,6 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
-        async def schedule_coroutine(delay, coro):
-            await asyncio.sleep(delay)
-            await coro
-
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.copy().items():
@@ -297,14 +305,11 @@ class Scheduler(Plugin):
                 try:
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
-                        if next_startup == 0:
-                            # noinspection PyAsyncCall
-                            asyncio.create_task(self.launch_dcs(server))
-                            next_startup = startup_delay
-                        else:
-                            server.status = Status.LOADING
-                            asyncio.ensure_future(schedule_coroutine(next_startup, self.launch_dcs(server)))
-                            next_startup += startup_delay
+                        server.status = Status.LOADING
+                        self.loop.call_later(
+                            delay=next_startup, callback=partial(asyncio.create_task,
+                                                                 self.launch_dcs(server, ignore_exception=True)))
+                        next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
                     ]:
@@ -318,12 +323,9 @@ class Scheduler(Plugin):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
-        initialized = 0
-        while initialized < len(self.bot.servers):
-            initialized = 0
-            for server_name, server in self.bot.servers.copy().items():
-                if server.status != Status.UNREGISTERED:
-                    initialized += 1
+        while True:
+            if all(server.status != Status.UNREGISTERED for server in self.bus.servers.values()):
+                break
             await asyncio.sleep(1)
 
     group = Group(name="server", description="Commands to manage a DCS server")
@@ -760,7 +762,7 @@ class Scheduler(Plugin):
         else:
             item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
-        if 'local_times' in rconf or _server.status == Status.RUNNING:
+        if 'local_times' in rconf or 'real_time' in rconf or _server.status == Status.RUNNING:
             if _server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"
             else:

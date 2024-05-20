@@ -4,7 +4,7 @@
   "elements":
   [
     {
-      "class": "plugins.pretensestats.reports.Header"
+      "class": "plugins.pretense.reports.Header"
     },
     {
       "type": "Ruler",
@@ -14,7 +14,7 @@
       }
     },
     {
-      "class": "plugins.pretensestats.reports.Top10Pilots"
+      "class": "plugins.pretense.reports.Top10Pilots"
     },
     {
       "type": "Ruler",
@@ -32,7 +32,7 @@
         "rows": 1,
         "elements": [
           {
-            "class": "plugins.pretensestats.reports.ZoneDistribution",
+            "class": "plugins.pretense.reports.ZoneDistribution",
             "params": {
               "col": 0,
               "row": 0

@@ -158,10 +158,11 @@ class Button(ReportElement):
 
 
 class GraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int,
-                 colspan: Optional[int] = 1, rowspan: Optional[int] = 1):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: Optional[int] = 0, col: Optional[int] = 0,
+                 colspan: Optional[int] = 1, rowspan: Optional[int] = 1, polar: Optional[bool] = False):
         super().__init__(env)
-        self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan, fig=self.env.figure)
+        self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan, fig=self.env.figure,
+                                     polar=polar)
 
     @abstractmethod
     async def render(self, **kwargs):
@@ -178,7 +179,8 @@ class MultiGraphElement(ReportElement):
             sharex = params[i]['sharex'] if 'sharex' in params[i] else False
             self.axes.append(plt.subplot2grid((rows, cols), (params[i]['row'], params[i]['col']), colspan=colspan,
                                               rowspan=rowspan, fig=self.env.figure,
-                                              sharex=self.axes[-1] if sharex else None))
+                                              sharex=self.axes[-1] if sharex else None,
+                                              polar=params[i].get('polar', False)))
 
     @abstractmethod
     async def render(self, **kwargs):

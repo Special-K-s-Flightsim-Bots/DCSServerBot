@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from abc import ABC
@@ -33,7 +34,7 @@ class Extension(ABC):
 
     async def startup(self) -> bool:
         # avoid race conditions
-        if self.is_running():
+        if await asyncio.to_thread(self.is_running):
             return True
         schedule = getattr(self, 'schedule', None)
         if schedule and not schedule.is_running():

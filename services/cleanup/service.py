@@ -32,10 +32,14 @@ class CleanupService(Service):
                                                                     instance=instance)))
             delete_after = int(config.get('delete_after', 30))
             threshold_time = now - delete_after * 86400
-            for file_path in directory.glob(config['pattern']):
-                if os.path.getctime(file_path) < threshold_time:
-                    self.log.debug(f"  => {file_path.name} is older then {delete_after} days, deleting ...")
-                    utils.safe_rmtree(file_path)
+            patterns = config['pattern']
+            if not isinstance(patterns, list):
+                patterns = [patterns]
+            for pattern in patterns:
+                for file_path in directory.glob(pattern):
+                    if os.path.getctime(file_path) < threshold_time:
+                        self.log.debug(f"  => {file_path.name} is older then {delete_after} days, deleting ...")
+                        utils.safe_rmtree(file_path)
 
     @tasks.loop(hours=12)
     async def schedule(self):

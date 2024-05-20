@@ -8,6 +8,7 @@ schema;instance_realweather_schema:
   mapping:
     enabled: {type: bool}
     debug: {type: bool}
+    api-key: {type: str}
     terrains:
       type: map
       mapping:

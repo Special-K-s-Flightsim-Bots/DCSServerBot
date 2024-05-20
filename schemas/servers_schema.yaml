@@ -1,3 +1,50 @@
+schema;settings_schema:
+  type: map
+  mapping:
+    bind_address: {type: str}
+    description: {type: str}
+    isPublic: {type: bool}
+    listLoop: {type: bool}
+    listShuffle: {type: bool}
+    maxPlayers: {type: int, range: {min: 2}}
+    name: {type: str}
+    password: {type: str}
+    port: {type: int, range: {min: 1025, max: 65535}}
+    require_pure_clients: {type: bool}
+    require_pure_models: {type: bool}
+    require_pure_scripts: {type: bool}
+    require_pure_textures: {type: bool}
+    missionList:
+      type: seq
+      sequence:
+        - type: str
+    advanced:
+      type: map
+      mapping:
+        client_outbound_limit: {type: int}
+        client_inbound_limit: {type: int}
+        disable_events: {type: bool}
+        maxPing: {type: int}
+        pause_on_load: {type: bool}
+        pause_without_clients: {type: bool}
+        resume_mode: {type: int, enum: [0, 1, 2]}
+        server_can_screenshot: {type: bool}
+        voice_chat_server: {type: bool}
+        allow_change_skin: {type: bool}
+        allow_change_tailno: {type: bool}
+        allow_dynamic_radio: {type: bool}
+        allow_ownship_export: {type: bool}
+        allow_object_export: {type: bool}
+        allow_players_pool: {type: bool}
+        allow_sensor_export: {type: bool}
+        allow_trial_only_clients: {type: bool}
+        event_Connect: {type: bool}
+        event_Crash: {type: bool}
+        event_Ejecting: {type: bool}
+        event_Kill: {type: bool}
+        event_Role: {type: bool}
+        event_Takeoff: {type: bool}
+
 type: map
 mapping:
   regex;(.+):
@@ -16,6 +63,8 @@ mapping:
       autoscan: {type: bool}
       autorole: {type: text}
       force_voice: {type: bool}
+      serverSettings:
+        include: 'settings_schema'
       discord:
         type: seq
         sequence:

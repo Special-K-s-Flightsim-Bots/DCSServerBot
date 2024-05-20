@@ -164,6 +164,7 @@ class ServiceBus(Service):
                     self.log.exception(ex)
 
     async def send_init(self, server: Server):
+        timeout = 120 if self.node.locals.get('slow_system', False) else 60
         _, dcs_version = await self.node.get_dcs_branch_and_version()
         await self.send_to_node_sync({
             "command": "rpc",
@@ -182,7 +183,7 @@ class ServiceBus(Service):
                 "dcs_version": dcs_version,
                 "maintenance": server.maintenance
             }
-        }, timeout=60)
+        }, timeout=timeout)
 
     async def register_local_servers(self):
         # we only run once
@@ -199,9 +200,14 @@ class ServiceBus(Service):
             for server in local_servers:
                 if not self.master:
                     await self.send_init(server)
-                calls[server.name] = asyncio.create_task(
-                    server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
-                )
+                if server.maintenance:
+                    self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
+                if utils.is_open('127.0.0.1', server.instance.dcs_port):
+                    calls[server.name] = asyncio.create_task(
+                        server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                    )
+                else:
+                    server.status = Status.SHUTDOWN
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
             num = 0
             for i, name in enumerate(calls.keys()):
@@ -209,8 +215,6 @@ class ServiceBus(Service):
                 if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
                     self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                     server.status = Status.SHUTDOWN
-                    if server.maintenance:
-                        self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
                 elif isinstance(ret[i], Exception):
                     self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
                 else:

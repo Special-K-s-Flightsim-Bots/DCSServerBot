@@ -33,11 +33,14 @@ class CloudLoggingHandler(logging.Handler):
         return file or '<unknown>', line, ret
 
     async def send_post(self, record: logging.LogRecord):
-        if isinstance(record.exc_info[1], discord.app_commands.CommandInvokeError):
-            # noinspection PyUnresolvedReferences
-            exc = record.exc_info[1].original
+        exc_info = record.exc_info
+        if (isinstance(exc_info, tuple) and len(exc_info) > 1 and
+                isinstance(exc_info[1], discord.app_commands.CommandInvokeError)):
+            exc = exc_info[1].original
+        elif isinstance(exc_info, tuple) and len(exc_info) > 1:
+            exc = exc_info[1]
         else:
-            exc = record.exc_info[1]
+            exc = None
         file, line, trace = self.format_traceback(exc.__traceback__) \
             if exc else (record.filename, record.lineno, [record.funcName])
         with suppress(Exception):

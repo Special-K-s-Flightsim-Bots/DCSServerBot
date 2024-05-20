@@ -54,8 +54,8 @@ class OvGMEService(Service):
         # uninstall all RootFolder-packages
         self.log.debug("  => Uninstalling any OvGME-packages from the DCS installation folder ...")
         for server_name, server in self.bus.servers.items():
-            for package_name, version in await self.get_installed_packages(server, 'RootFolder'):
-                await self.uninstall_package(server, 'RootFolder', package_name, version)
+            for package_name, _version in await self.get_installed_packages(server, 'RootFolder'):
+                await self.uninstall_package(server, 'RootFolder', package_name, _version)
 
     async def after_dcs_update(self):
         self.log.debug("  => Re-installing any OvGME-packages into the DCS installation folder ...")

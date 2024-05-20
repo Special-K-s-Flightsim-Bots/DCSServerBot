@@ -5,11 +5,17 @@ from .version import __version__
 
 
 def get_element(comment: str, element: str) -> Optional[str]:
-    if element == 'wire':
-        if 'WIRE#' in comment:
-            return re.search(r'WIRE# (?P<wire>\d)', comment)['wire']
-        else:
-            return None
-    elif 'WIRE#' in comment:
-        comment = re.sub(r'WIRE# (?P<wire>\d)', '', comment)
-    return re.search('LSO: GRADE:(?P<grade>[^ ]*) (?P<details>.*)', comment)[element].lstrip(' :')
+    match = re.search(r'LSO: GRADE:(?P<grade>\S*:) (?P<details>.*)', comment)
+
+    if element == 'grade':
+        return match.group('grade') if match else None
+
+    elif element == 'details':
+        details = match.group('details') if match else comment
+        details = re.sub(r'WIRE# \d', '', details)
+        return details.strip()
+
+    elif element == 'wire' and match and 'WIRE#' in match.group('details'):
+        return re.search(r'WIRE# (?P<wire>\d)', match.group('details'))['wire']
+
+    return None

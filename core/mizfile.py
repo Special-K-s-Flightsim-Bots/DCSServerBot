@@ -1,5 +1,6 @@
 from __future__ import annotations
 import io
+import logging
 import luadata
 import os
 import shutil
@@ -7,7 +8,7 @@ import tempfile
 import zipfile
 
 from datetime import datetime
-from typing import Union, Any, Optional
+from typing import Union, Optional
 
 from core import utils
 
@@ -19,8 +20,8 @@ __all__ = [
 
 class MizFile:
 
-    def __init__(self, root: Any, filename: str):
-        self.log = root.log
+    def __init__(self, filename: str):
+        self.log = logging.getLogger(__name__)
         self.filename = filename
         self.mission = dict()
         self.options = dict()
@@ -65,6 +66,8 @@ class MizFile:
                         return name if os.path.isdir(name) else os.path.dirname(name)
 
                     for file in utils.list_all_files(item['source']):
+                        if os.path.basename(file).lower() == 'desktop.ini':
+                            continue
                         try:
                             zout.write(
                                 os.path.join(get_dir_path(item['source']), file),
@@ -81,6 +84,32 @@ class MizFile:
             os.remove(tmpname)
         except PermissionError as ex:
             self.log.error(f"Can't write new mission file: {ex}")
+
+    def apply_preset(self, preset: Union[dict, list]):
+        if isinstance(preset, list):
+            for _preset in preset:
+                self.apply_preset(_preset)
+            return
+
+        for key, value in preset.items():
+            # handle special cases
+            if key == 'date':
+                self.date = datetime.strptime(value, '%Y-%m-%d')
+            elif key == 'clouds':
+                if isinstance(value, str):
+                    self.clouds = {"preset": value}
+                elif isinstance(value, dict):
+                    self.clouds = value
+                else:
+                    self.log.warning("Value 'clouds', str or dict required.")
+            elif key == 'modify':
+                self.modify(value)
+            else:
+                converted_value = int(value) if isinstance(value, str) and value.isdigit() else value
+                try:
+                    setattr(self, key, converted_value)
+                except AttributeError:
+                    self.log.warning(f"Value '{key}' can not be set, ignored.")
 
     @property
     def theatre(self) -> str:

@@ -30,56 +30,6 @@ function dcsbot.registerDCSServer(json)
 	msg.port = config.DCS_PORT
     -- airbases
     msg.airbases = {}
-    local airdromes = Terrain.GetTerrainConfig("Airdromes")
-    if (airdromes ~= nil) then
-        for airdromeID, airdrome in pairs(airdromes) do
-            if (airdrome.reference_point) and (airdrome.abandoned ~= true)  then
-                local airbase = {}
-                airbase.code = airdrome.code
-                if airdrome.display_name then
-                    airbase.name = airdrome.display_name
-                else
-                    airbase.name = airdrome.names['en']
-                end
-                airbase.id = airdrome.id
-                airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
-                airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
-                airbase.position = {}
-                airbase.position.x = airdrome.reference_point.x
-                airbase.position.y = airbase.alt
-                airbase.position.z = airdrome.reference_point.y
-
-                local frequencyList = {}
-                if airdrome.frequency then
-                    frequencyList	= airdrome.frequency
-                else
-                    if airdrome.radio then
-                        for k, radioId in pairs(airdrome.radio) do
-                            local frequencies = DCS.getATCradiosData(radioId)
-                            if frequencies then
-                                for kk,vv in pairs(frequencies) do
-                                    table.insert(frequencyList, vv)
-                                end
-                            end
-                        end
-                    end
-                end
-                airbase.frequencyList = frequencyList
-                airbase.runwayList = {}
-                if (airdrome.runwayName ~= nil) then
-                    for r, runwayName in pairs(airdrome.runwayName) do
-                        table.insert(airbase.runwayList, runwayName)
-                    end
-                end
-                heading = UC.toDegrees(Terrain.getRunwayHeading(airdrome.roadnet))
-                if (heading < 0) then
-                    heading = 360 + heading
-                end
-                airbase.rwy_heading = heading
-                table.insert(msg.airbases, airbase)
-            end
-        end
-    end
     -- mission
     if DCS.getCurrentMission() then
         msg.filename = DCS.getMissionFilename()
@@ -91,31 +41,7 @@ function dcsbot.registerDCSServer(json)
         msg.date = DCS.getCurrentMission().mission.date
         msg.pause = DCS.getPause()
         -- weather
-        local weather = DCS.getCurrentMission().mission.weather
-        msg.weather = weather
-        local clouds = weather.clouds
-        if clouds.preset ~= nil then
-            local presets
-            local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
-
-            local env = {
-              type = _G.type,
-              next = _G.next,
-              setmetatable = _G.setmetatable,
-              getmetatable = _G.getmetatable,
-              _ = _,
-            }
-            setfenv(func, env)
-            func()
-            local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
-            if preset ~= nil then
-              msg.clouds = {}
-              msg.clouds.base = clouds.base
-              msg.clouds.preset = preset
-            end
-        else
-            msg.clouds = clouds
-        end
+        msg.weather = {}
         -- slots
 		num_slots_red = 0
 		dcsbot.red_slots = {}
@@ -134,32 +60,29 @@ function dcsbot.registerDCSServer(json)
 		msg.num_slots_blue = num_slots_blue
 		msg.num_slots_red = num_slots_red
         -- players
+        msg.players = {}
         plist = net.get_player_list()
-        num_players = table.getn(plist)
-        if num_players > 0 then
-            msg.players = {}
-            for i = 1, num_players do
-                msg.players[i] = net.get_player_info(plist[i])
-                msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
-                msg.players[i].unit_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_NAME)
-                msg.players[i].unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.players[i].slot), "DisplayName")
-                msg.players[i].group_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUPNAME)
-                msg.players[i].group_id = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUP_MISSION_ID)
-                msg.players[i].unit_callsign = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_CALLSIGN)
-                -- DCS MC bug workaround
-				if msg.players[i].sub_slot > 0 and msg.players[i].side == 0 then
-					if dcsbot.blue_slots[msg.players[i].slot] ~= nil then
-						msg.players[i].side = 2
-					elseif dcsbot.red_slots[msg.players[i].slot] ~= nil then
-						msg.players[i].side = 1
-					end
-				end
-                -- server user is never active
-                if (msg.players[i].id == 1) then
-                    msg.players[i].active = false
-                else
-                    msg.players[i].active = true
+        for i = 1, table.getn(plist) do
+            msg.players[i] = net.get_player_info(plist[i])
+            msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
+            msg.players[i].unit_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_NAME)
+            msg.players[i].unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.players[i].slot), "DisplayName")
+            msg.players[i].group_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUPNAME)
+            msg.players[i].group_id = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUP_MISSION_ID)
+            msg.players[i].unit_callsign = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_CALLSIGN)
+            -- DCS MC bug workaround
+            if msg.players[i].sub_slot > 0 and msg.players[i].side == 0 then
+                if dcsbot.blue_slots[msg.players[i].slot] ~= nil then
+                    msg.players[i].side = 2
+                elseif dcsbot.red_slots[msg.players[i].slot] ~= nil then
+                    msg.players[i].side = 1
                 end
+            end
+            -- server user is never active
+            if (msg.players[i].id == 1) then
+                msg.players[i].active = false
+            else
+                msg.players[i].active = true
             end
         end
     end
@@ -198,6 +121,64 @@ function dcsbot.getMissionUpdate(json)
         mission_time = DCS.getModelTime(),
         real_time = DCS.getRealTime()
     }
+	utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getAirbases(json)
+    local msg = {
+        command = 'getAirbases',
+        airbases = {}
+    }
+    local airdromes = Terrain.GetTerrainConfig("Airdromes")
+    if (airdromes == nil) then
+    	utils.sendBotTable(msg, json.channel)
+    end
+    for airdromeID, airdrome in pairs(airdromes) do
+        if (airdrome.reference_point) and (airdrome.abandoned ~= true)  then
+            local airbase = {}
+            airbase.code = airdrome.code
+            if airdrome.display_name then
+                airbase.name = airdrome.display_name
+            else
+                airbase.name = airdrome.names['en']
+            end
+            airbase.id = airdrome.id
+            airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.position = {}
+            airbase.position.x = airdrome.reference_point.x
+            airbase.position.y = airbase.alt
+            airbase.position.z = airdrome.reference_point.y
+            local frequencyList = {}
+            if airdrome.frequency then
+                frequencyList	= airdrome.frequency
+            else
+                if airdrome.radio then
+                    for k, radioId in pairs(airdrome.radio) do
+                        local frequencies = DCS.getATCradiosData(radioId)
+                        if frequencies then
+                            for kk,vv in pairs(frequencies) do
+                                table.insert(frequencyList, vv)
+                            end
+                        end
+                    end
+                end
+            end
+            airbase.frequencyList = frequencyList
+            airbase.runwayList = {}
+            if (airdrome.runwayName ~= nil) then
+                for r, runwayName in pairs(airdrome.runwayName) do
+                    table.insert(airbase.runwayList, runwayName)
+                end
+            end
+            heading = UC.toDegrees(Terrain.getRunwayHeading(airdrome.roadnet))
+            if (heading < 0) then
+                heading = 360 + heading
+            end
+            airbase.rwy_heading = heading
+            table.insert(msg.airbases, airbase)
+        end
+    end
 	utils.sendBotTable(msg, json.channel)
 end
 
@@ -319,27 +300,35 @@ function dcsbot.getWeatherInfo(json)
 	local msg = {
         command = 'getWeatherInfo'
     }
-	local position = {
-		x = json.x,
-		y = json.y,
-		z = json.z
-	}
 	local weather = DCS.getCurrentMission().mission.weather
-	Weather.initAtmospere(weather)
-	local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
-	msg.temp = temp
-	local pressureQFE = pressure / 100
-	msg.qfe = {
-		pressureHPA = pressureQFE,
-		pressureMM = pressureQFE * 0.7500637554192,
-		pressureIN = pressureQFE * 0.0295300586467
-	}
-	local pressureQNH = pressureQFE + position.y * 0.12017
-	msg.qnh = {
-		pressureHPA = pressureQNH,
-		pressureMM = pressureQNH * 0.7500637554192,
-		pressureIN = pressureQNH * 0.0295300586467
-	}
+    if json.x then
+        local position = {
+            x = json.x,
+            y = json.y,
+            z = json.z
+        }
+    	Weather.initAtmospere(weather)
+	    local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
+	    msg.temp = temp
+	    local pressureQFE = pressure / 100
+        msg.qfe = {
+            pressureHPA = pressureQFE,
+            pressureMM = pressureQFE * 0.7500637554192,
+            pressureIN = pressureQFE * 0.0295300586467
+        }
+        local pressureQNH = pressureQFE + position.y * 0.12017
+        msg.qnh = {
+            pressureHPA = pressureQNH,
+            pressureMM = pressureQNH * 0.7500637554192,
+            pressureIN = pressureQNH * 0.0295300586467
+        }
+        msg.turbulence = UC.composeTurbulenceString(weather)
+        local wind = Weather.getGroundWindAtPoint({position = position})
+        msg.wind = {
+            speed = wind.v,
+            dir = UC.toPositiveDegrees(wind.a + math.pi)
+        }
+    end
 	msg.weather = weather
 	local clouds = msg.weather.clouds
 	if clouds.preset ~= nil then
@@ -363,12 +352,6 @@ function dcsbot.getWeatherInfo(json)
 	else
 		msg.clouds = clouds
 	end
-	msg.turbulence = UC.composeTurbulenceString(weather)
-	local wind = Weather.getGroundWindAtPoint({position = position})
-	msg.wind = {
-        speed = wind.v,
-        dir = UC.toPositiveDegrees(wind.a + math.pi)
-    }
 	utils.sendBotTable(msg, json.channel)
 end
 

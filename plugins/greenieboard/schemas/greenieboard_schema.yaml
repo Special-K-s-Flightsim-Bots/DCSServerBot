@@ -1,6 +1,5 @@
-schema;master_schema:
+schema;default_schema:
   type: map
-  allowempty: true
   mapping:
     num_landings: {type: int, range: {min: 1, max: 10}}
     num_rows: {type: int, range: {min: 1, max: 20}}
@@ -21,7 +20,6 @@ schema;master_schema:
       type: map
       mapping:
         basedir: {type: str}
-        delete_after: {type: int}
         grades: {type: str}
         trapsheets: {type: str}
     FunkMan:
@@ -29,14 +27,36 @@ schema;master_schema:
       mapping:
         install: {type: str}
         IMAGEPATH: {type: str}
+
+schema;instance_schema:
+  type: map
+  allowempty: true
+  mapping:
+    num_landings: {type: int, range: {min: 1, max: 10}}
+    num_rows: {type: int, range: {min: 1, max: 20}}
+    persistent_board: {type: bool}
+    persistent_channel: {type: int}
+    squadrons:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            name: {type: str}
+            channel: {type: int}
+    Moose.AIRBOSS:
+      type: map
+      mapping:
         basedir: {type: str}
-        delete_after: {type: int}
+        grades: {type: str}
+        trapsheets: {type: str}
 
 type: map
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'default_schema'
+  commands:
+    include: 'commands_schema'
   regex;(.+):
-    include: 'master_schema'
+    include: 'instance_schema'
     regex;(.+):
-      include: 'master_schema'
+      include: 'instance_schema'

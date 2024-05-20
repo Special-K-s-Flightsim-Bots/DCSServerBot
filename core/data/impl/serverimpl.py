@@ -22,7 +22,6 @@ from core.data.const import Status, Channel
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 from psutil import Process
@@ -272,7 +271,7 @@ class ServerImpl(Server):
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()
         if filename:
-            miz = await asyncio.to_thread(MizFile, self.node, filename)
+            miz = await asyncio.to_thread(MizFile, filename)
             return miz.theatre
 
     def serialize(self, message: dict):
@@ -388,7 +387,7 @@ class ServerImpl(Server):
                 [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
             )
             self.process = Process(p.pid)
-            self.log.debug(f"  => DCS server starting up with PID {p.pid}")
+            self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
@@ -456,7 +455,9 @@ class ServerImpl(Server):
             raise
 
     async def startup_extensions(self) -> None:
-        not_running_extensions = [ext for ext in self.extensions.values() if not ext.is_running()]
+        not_running_extensions = [
+            ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
+        ]
         startup_coroutines = [ext.startup() for ext in not_running_extensions]
 
         results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
@@ -468,7 +469,9 @@ class ServerImpl(Server):
                 self.log.error(f"Error during startup_extension(): %s", tb_str)
 
     async def shutdown_extensions(self) -> None:
-        running_extensions = [ext for ext in self.extensions.values() if ext.is_running()]
+        running_extensions = [
+            ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
+        ]
         shutdown_coroutines = [asyncio.to_thread(ext.shutdown) for ext in running_extensions]
 
         results = await asyncio.gather(*shutdown_coroutines, return_exceptions=True)
@@ -533,7 +536,7 @@ class ServerImpl(Server):
                 self.log.error(
                     f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
             else:
-                self.log.error(ex)
+                self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
             return filename
@@ -581,60 +584,8 @@ class ServerImpl(Server):
         return self.settings.get('missionList', [])
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
-        async def apply_preset(value: dict):
-            if 'start_time' in value:
-                miz.start_time = value['start_time']
-            if 'date' in value:
-                miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
-            if 'temperature' in value:
-                miz.temperature = int(value['temperature'])
-            if 'clouds' in value:
-                if isinstance(value['clouds'], str):
-                    miz.clouds = {"preset": value['clouds']}
-                else:
-                    miz.clouds = value['clouds']
-            if 'wind' in value:
-                miz.wind = value['wind']
-            if 'groundTurbulence' in value:
-                miz.groundTurbulence = int(value['groundTurbulence'])
-            if 'enable_dust' in value:
-                miz.enable_dust = value['enable_dust']
-            if 'dust_density' in value:
-                miz.dust_density = int(value['dust_density'])
-            if 'qnh' in value:
-                miz.qnh = int(value['qnh'])
-            if 'enable_fog' in value:
-                miz.enable_fog = value['enable_fog']
-            if 'fog' in value:
-                miz.fog = value['fog']
-            if 'halo' in value:
-                miz.halo = value['halo']
-            if 'requiredModules' in value:
-                miz.requiredModules = value['requiredModules']
-            if 'accidental_failures' in value:
-                miz.accidental_failures = value['accidental_failures']
-            if 'forcedOptions' in value:
-                miz.forcedOptions = value['forcedOptions']
-            if 'miscellaneous' in value:
-                miz.miscellaneous = value['miscellaneous']
-            if 'difficulty' in value:
-                miz.difficulty = value['difficulty']
-            if 'files' in value:
-                miz.files = value['files']
-            if 'modify' in value:
-                miz.modify(value['modify'])
-
-        miz = await asyncio.to_thread(MizFile, self, filename)
-        if isinstance(preset, list):
-            for p in preset:
-                if not isinstance(p, dict):
-                    self.log.error(f"{p} is not a dictionary!")
-                    continue
-                await apply_preset(p)
-        elif isinstance(preset, dict):
-            await apply_preset(preset)
-        else:
-            self.log.error(f"{preset} is not a dictionary!")
+        miz = await asyncio.to_thread(MizFile, filename)
+        await asyncio.to_thread(miz.apply_preset, preset)
         # write new mission
         new_filename = utils.create_writable_mission(filename)
         await asyncio.to_thread(miz.save, new_filename)

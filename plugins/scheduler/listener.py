@@ -24,6 +24,12 @@ class SchedulerListener(EventListener):
                     return delta, restart
                 else:
                     return 0, restart
+            elif 'real_time' in restart:
+                delta = restart['real_time'] * 60 - int(server.current_mission.real_time)
+                if delta >= 0:
+                    return delta, restart
+                else:
+                    return 0, restart
             elif 'local_times' in restart:
                 min_time_difference = 86400
                 for t in restart['local_times']:
@@ -132,6 +138,9 @@ class SchedulerListener(EventListener):
         if server.restart_pending:
             restart = self.get_config(server).get('restart')
             if restart:
+                # do not print any chat message when the server is set to restart on populated = False
+                if not restart.get('populated', True):
+                    return
                 restart_in, _ = self.get_next_restart(server, restart)
                 restart_time = f"in {utils.format_time(restart_in)}"
             else:

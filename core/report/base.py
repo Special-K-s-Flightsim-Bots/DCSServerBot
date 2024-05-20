@@ -69,9 +69,9 @@ class Report:
             elif name == 'description':
                 self.env.embed.description = utils.format_string(item, **self.env.params)[:4096]
             elif name == 'url':
-                self.env.embed.url = item
+                self.env.embed.url = utils.format_string(item, **self.env.params)
             elif name == 'img':
-                self.env.embed.set_thumbnail(url=item)
+                self.env.embed.set_thumbnail(url=utils.format_string(item, **self.env.params))
             elif name == 'footer':
                 footer = self.env.embed.footer.text or ''
                 text = utils.format_string(item, **self.env.params)
@@ -136,9 +136,9 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         ...
 
-    def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, plugin: str, filename: str,
+    def __init__(self, interaction: discord.Interaction, plugin: str, filename: str,
                  pagination: Optional[list] = None, keep_image: bool = False):
-        super().__init__(bot, plugin, filename)
+        super().__init__(interaction.client, plugin, filename)
         self.interaction = interaction
         self.pagination = pagination
         self.keep_image = keep_image
@@ -257,6 +257,7 @@ class PaginationReport(Report):
 
         @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
         async def on_cancel(self, interaction: Interaction, _: Button):
+            self.index = -1
             # noinspection PyUnresolvedReferences
             await interaction.response.defer()
             self.stop()

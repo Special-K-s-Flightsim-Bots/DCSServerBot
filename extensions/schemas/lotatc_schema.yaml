@@ -1,5 +1,6 @@
 schema;lotatc_schema:
   type: map
+  allowempty: true  # we might get other LotAtc options in here
   mapping:
     enabled: {type: bool}
     host: {type: str}
