@@ -4,7 +4,7 @@
     "param":
     {
       "name": "server_name",
-      "sql": "SELECT DISTINCT server_name FROM missions m, greenieboard g WHERE g.mission_id = m.id"
+      "sql": "SELECT DISTINCT server_name FROM missions m, traps g WHERE g.mission_id = m.id"
     }
   },
   "color": "blue",
