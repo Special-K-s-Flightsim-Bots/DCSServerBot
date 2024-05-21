@@ -6,7 +6,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "select COUNT(*) AS \"Traps\", SUM(CASE WHEN trapcase = 1 THEN 1 ELSE 0 END) AS \"Case I\", SUM(CASE WHEN trapcase = 2 THEN 1 ELSE 0 END) AS \"Case II\", SUM(CASE WHEN trapcase = 3 THEN 1 ELSE 0 END) AS \"Case III\", SUM(CASE WHEN wire = '1' THEN 1 ELSE 0 END) AS \"1-Wire\", SUM(CASE WHEN wire = '2' THEN 1 ELSE 0 END) AS \"2-Wire\", SUM(CASE WHEN wire = '3' THEN 1 ELSE 0 END) AS \"3-Wire\", SUM(CASE WHEN wire = '4' THEN 1 ELSE 0 END) AS \"4-Wire\", SUM(CASE WHEN grade = 'B' THEN 1 ELSE 0 END) AS \"Bolter\" FROM greenieboard WHERE player_ucid = %(ucid)s GROUP BY player_ucid",
+        "sql": "select COUNT(*) AS \"Traps\", SUM(CASE WHEN trapcase = 1 THEN 1 ELSE 0 END) AS \"Case I\", SUM(CASE WHEN trapcase = 2 THEN 1 ELSE 0 END) AS \"Case II\", SUM(CASE WHEN trapcase = 3 THEN 1 ELSE 0 END) AS \"Case III\", SUM(CASE WHEN wire = '1' THEN 1 ELSE 0 END) AS \"1-Wire\", SUM(CASE WHEN wire = '2' THEN 1 ELSE 0 END) AS \"2-Wire\", SUM(CASE WHEN wire = '3' THEN 1 ELSE 0 END) AS \"3-Wire\", SUM(CASE WHEN wire = '4' THEN 1 ELSE 0 END) AS \"4-Wire\", SUM(CASE WHEN grade = 'B' THEN 1 ELSE 0 END) AS \"Bolter\" FROM traps WHERE player_ucid = %(ucid)s GROUP BY player_ucid",
         "inline": true
       }
     },
