@@ -138,8 +138,8 @@ class GreenieBoardEventListener(EventListener):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
-                                              wire, night, points, trapsheet) 
+                    INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, wire, 
+                                       night, points, trapsheet) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
                       data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet'))))
