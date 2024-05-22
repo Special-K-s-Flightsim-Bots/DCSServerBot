@@ -333,7 +333,10 @@ class MizFile:
                         if debug:
                             print(f"Replacing {_what} with {_with}")
                         if isinstance(_what, int) and isinstance(element, list):
-                            element[_what - 1] = utils.evaluate(_with, reference=reference)
+                            try:
+                                element[_what - 1] = utils.evaluate(_with, reference=reference)
+                            except IndexError:
+                                element.append(utils.evaluate(_with, reference=reference))
                         elif isinstance(_with, dict):
                             for key, value in _with.items():
                                 if utils.evaluate(key, **element, reference=reference):
