@@ -49,8 +49,8 @@ class TrapModal(Modal):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, night, 
-                                              points, wire, trapcase) 
+                    INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, night, points, wire, 
+                                       trapcase) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (-1, ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
                       self.config['ratings'][grade], self.wire.value, self.case.value))
