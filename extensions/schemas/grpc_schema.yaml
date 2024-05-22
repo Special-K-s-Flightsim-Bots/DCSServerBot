@@ -1,5 +1,6 @@
 schema;grpc_schema:
   type: map
+  allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
   mapping:
     enabled: {type: bool}
     port: {type: int, range: {min: 80, max: 65535}}
