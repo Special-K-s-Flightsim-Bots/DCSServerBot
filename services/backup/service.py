@@ -25,6 +25,16 @@ class BackupService(Service):
             self.log.debug("  - No backup.yaml configured, skipping backup service.")
             return
         self.bus = ServiceRegistry.get(ServiceBus)
+        if self._secure_password():
+            self.save_config()
+
+    def _secure_password(self):
+        config = self.locals['backups'].get('database')
+        if config and config.get("password"):
+            utils.set_password("postgres", config["password"])
+            del config['password']
+            return True
+        return False
 
     async def start(self):
         if not self.locals:
@@ -103,7 +113,11 @@ class BackupService(Service):
         url = self.node.config.get("database", self.node.locals.get('database'))['url']
         database = urlparse(url).path.strip('/')
         args = shlex.split(f'--no-owner --no-privileges -U postgres -F t -f "{path}" -d "{database}"')
-        os.environ['PGPASSWORD'] = config['password']
+        try:
+            os.environ['PGPASSWORD'] = utils.get_password('postgres')
+        except ValueError:
+            self.log.error("Backup of database failed. No password set.")
+            return False
         self.log.info("Backing up database...")
         process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
