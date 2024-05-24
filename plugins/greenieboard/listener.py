@@ -199,16 +199,16 @@ class GreenieBoardEventListener(EventListener):
             self.log.warning(
                 f"Can't process FunkMan event as FunkMan is not configured in your {self.plugin_name}.yaml!")
             return
-        if not data['grade'].startswith('WO'):
-            try:
-                fig, _ = self.funkplot.PlotTrapSheet(data)
-                buf = io.BytesIO()
-                fig.savefig(buf, bbox_inches='tight', facecolor='#2C2F33')
-                data['trapsheet'] = buf.getvalue()
-                buf.close()
-                plt.close(fig)
-            except TypeError:
-                self.log.error("No trapsheet data received from DCS!")
+        try:
+            fig, _ = self.funkplot.PlotTrapSheet(data)
+            buf = io.BytesIO()
+            fig.savefig(buf, bbox_inches='tight', facecolor='#2C2F33')
+            data['trapsheet'] = buf.getvalue()
+            buf.close()
+            plt.close(fig)
+        except TypeError:
+            self.log.warning("No trapsheet data received from DCS!")
+            data.pop('trapsheet', None)
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
         data['place'] = {
             'name': data['carriername']
