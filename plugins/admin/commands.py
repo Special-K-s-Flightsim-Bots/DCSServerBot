@@ -1,4 +1,6 @@
 import asyncio
+from functools import partial
+
 import discord
 import os
 import shutil
@@ -696,37 +698,58 @@ class Admin(Plugin):
     @node_group.command(description=_('Shuts down all servers, enables maintenance'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.describe(shutdown=_('Shuts all servers down (default: on)'))
     async def offline(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
+                      shutdown: Optional[bool] = True):
+        async def _node_offline(node_name: str):
+            for server in self.bus.servers.values():
+                if server.node.name == node_name:
+                    server.maintenance = True
+                    if shutdown:
+                        # noinspection PyAsyncCall
+                        asyncio.create_task(server.shutdown())
+            await interaction.followup.send(_("Node {} is now offline.").format(node_name))
+            await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
+
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
-        for server in self.bus.servers.values():
-            if server.node.name == node.name:
-                server.maintenance = True
-                # noinspection PyAsyncCall
-                asyncio.create_task(server.shutdown())
-        await interaction.followup.send(_("Node {} is now offline.").format(node.name))
-        await self.bot.audit(f"took node {node.name} offline.", user=interaction.user)
+        if node:
+            await _node_offline(node.name)
+        else:
+            for node in await self.node.get_active_nodes():
+                await _node_offline(node)
+            await _node_offline(self.node.name)
 
     @node_group.command(description=_('Clears the maintenance mode for all servers'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.describe(startup=_('Start all your servers (default: off)'))
     async def online(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer]):
-        async def schedule_coroutine(delay, coro):
-            await asyncio.sleep(delay)
-            await coro
+                     node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
+                     startup: Optional[bool] = False):
+
+        async def _node_online(node_name: str):
+            next_startup = 0
+            for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
+                server.maintenance = False
+                if startup:
+                    self.loop.call_later(delay=next_startup, callback=partial(asyncio.create_task, server.startup()))
+                    next_startup += startup_delay
+            await interaction.followup.send(_("Node {} is now online.").format(node_name))
+            await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
-        for idx, server in enumerate([x for x in self.bus.servers.values() if x.node.name == node.name]):
-            server.maintenance = False
-            asyncio.ensure_future(schedule_coroutine(idx * startup_delay, server.startup()))
-        await interaction.followup.send(_("Node {} is now online.").format(node.name))
-        await self.bot.audit(f"took node {node.name} online.", user=interaction.user)
+        if node:
+            await _node_online(node.name)
+        else:
+            for node in await self.node.get_active_nodes():
+                await _node_online(node)
+            await _node_online(self.node.name)
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
