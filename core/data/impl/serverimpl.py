@@ -259,6 +259,8 @@ class ServerImpl(Server):
                     if os.path.exists(filename):
                         settings['listStartIndex'] = idx + 1
                         break
+                    else:
+                        self.log.warning(f"Non-existent mission {filename} in your missionList!")
                 else:
                     filename = None
         else:

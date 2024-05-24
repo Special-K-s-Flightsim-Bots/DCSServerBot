@@ -387,7 +387,7 @@ class Scheduler(Plugin):
             server.maintenance = maintenance
             try:
                 if mission_id is not None:
-                    server.settings['listStartIndex'] = mission_id + 1
+                    await server.setStartIndex(mission_id + 1)
                 await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
                 if maintenance:
                     embed, file = utils.create_warning_embed(

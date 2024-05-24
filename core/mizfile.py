@@ -311,10 +311,17 @@ class MizFile:
                 self._files.append(file)
 
     def modify(self, config: Union[list, dict]) -> None:
+
+        def sort_dict(d):
+            sorted_items = sorted(d.items())
+            d.clear()
+            for k, v in sorted_items:
+                d[k] = v
+
         def process_elements(reference: dict, **kwargs):
             if 'select' in config:
                 if debug:
-                    print("Processing SELECT ...")
+                    self.log.info("Processing SELECT ...")
                 if config['select'].startswith('/'):
                     elements = list(utils.for_each(self.mission, config['select'][1:].split('/'),
                                                    debug=debug, **kwargs))
@@ -323,31 +330,43 @@ class MizFile:
             else:
                 elements = [reference]
             for element in elements:
+                # Lua lists sometimes are represented as dictionaries with numeric keys. We can't use them as kwargs
+                if isinstance(element, dict) and not any(isinstance(key, (int, float)) for key in element.keys()):
+                    kkwargs = element
+                else:
+                    kkwargs = {}
                 if not element:
                     if reference and 'insert' in config:
                         if debug:
-                            print(f"Inserting new value: {config['insert']}")
-                        reference |= config['insert']
+                            self.log.info(f"Inserting new value: {config['insert']}")
+                        reference |= utils.evaluate(config['insert'], reference=reference, **kkwargs)
                 elif 'replace' in config:
+                    sort = False
                     for _what, _with in config['replace'].items():
                         if debug:
-                            print(f"Replacing {_what} with {_with}")
-                        if isinstance(_what, int) and isinstance(element, list):
-                            try:
-                                element[_what - 1] = utils.evaluate(_with, reference=reference)
-                            except IndexError:
-                                element.append(utils.evaluate(_with, reference=reference))
-                        elif isinstance(_with, dict):
+                            self.log.info(f"Replacing {_what} with {_with}")
+                        if isinstance(_what, int) and isinstance(element, (list, dict)):
+                            if isinstance(element, list):
+                                try:
+                                    element[_what - 1] = utils.evaluate(_with, reference=reference, **kkwargs)
+                                except IndexError:
+                                    element.append(utils.evaluate(_with, reference=reference, **kkwargs))
+                            elif isinstance(element, dict) and any(isinstance(key, (int, float)) for key in element.keys()):
+                                element[_what] = utils.evaluate(_with, reference=reference, **kkwargs)
+                                sort = True
+                        elif isinstance(_with, dict) and isinstance(element[_what], (int, str, float, bool)):
                             for key, value in _with.items():
-                                if utils.evaluate(key, **element, reference=reference):
-                                    element[_what] = utils.evaluate(value, **element, reference=reference)
+                                if utils.evaluate(key, reference=reference):
+                                    element[_what] = utils.evaluate(value, reference=reference, **kkwargs)
                                     break
                         else:
-                            element[_what] = utils.evaluate(_with, **element, reference=reference)
+                            element[_what] = utils.evaluate(_with, reference=reference, **kkwargs)
+                    if sort:
+                        sort_dict(element)
                 elif 'merge' in config:
                     for _what, _with in config['merge'].items():
                         if debug:
-                            print(f"Merging {_what} with {_with}")
+                            self.log.info(f"Merging {_what} with {_with}")
                         if isinstance(_with, dict):
                             element[_what] |= _with
                         else:
@@ -362,7 +381,7 @@ class MizFile:
                                 utils.tree_delete(reference, _with)
                 elif 'delete' in config:
                     if debug:
-                        print("Processing DELETE ...")
+                        self.log.info("Processing DELETE ...")
                     if isinstance(element, list):
                         for _what in element.copy():
                             if utils.evaluate(config['delete'], **_what):
@@ -401,7 +420,7 @@ class MizFile:
         for reference in utils.for_each(self.mission, for_each.split('/'), debug=debug, **kwargs):
             if 'where' in config:
                 if debug:
-                    print("Processing WHERE ...")
+                    self.log.info("Processing WHERE ...")
                 if check_where(reference, config['where'], debug=debug, **kwargs):
                     process_elements(reference, **kwargs)
             else:
