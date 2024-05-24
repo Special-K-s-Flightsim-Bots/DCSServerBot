@@ -65,6 +65,7 @@ class Member(DataObject):
                 if flag:
                     # delete all old automated links
                     conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
+                    conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4", (self.member.id,))
                     conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
                                  (self.member.id,))
         self._verified = flag
@@ -74,5 +75,5 @@ class Member(DataObject):
         self.verified = verified
 
     def unlink(self):
-        self.ucid = None
         self.verified = False
+        self.ucid = None

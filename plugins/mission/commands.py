@@ -1302,21 +1302,26 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=True)
         member = DataObjectFactory().new(Member, name=interaction.user.name, node=self.node, member=interaction.user)
-        if (utils.is_ucid(member.ucid) and member.verified and
-                not await utils.yn_question(interaction,
-                                            _("You already have a verified DCS account!\n"
-                                              "Are you sure you want to re-link your account? "
-                                              "(Ex: Switched from Steam to Standalone)"), ephemeral=True)):
-            await interaction.followup.send(_('Aborted.'))
-            return
-        elif member.ucid and not utils.is_ucid(member.ucid):
+        if member.ucid and not utils.is_ucid(member.ucid):
             await send_token(member.ucid)
             return
+        if utils.is_ucid(member.ucid) and member.verified:
+            if not await utils.yn_question(interaction,
+                                           _("You already have a verified DCS account!\n"
+                                             "Are you sure you want to re-link your account? "
+                                             "(Ex: Switched from Steam to Standalone)"), ephemeral=True):
+                await interaction.followup.send(_('Aborted.'))
+                return
+            member.unlink()
 
         # generate the TOKEN
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 async with conn.cursor() as cursor:
+                    # in the unlikely event that we had a token already and a linked user
+                    await cursor.execute("""
+                        DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4
+                    """, (interaction.user.id,))
                     # in the very unlikely event that we have generated the very same random number twice
                     while True:
                         try:
