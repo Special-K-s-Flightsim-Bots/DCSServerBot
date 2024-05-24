@@ -45,7 +45,7 @@ class Instance(DataObject):
 
     @property
     def extensions(self) -> dict:
-        return self.locals.get('extensions', {})
+        return self.locals.get('extensions') or {}
 
     @property
     def configured_server(self) -> Optional[str]:

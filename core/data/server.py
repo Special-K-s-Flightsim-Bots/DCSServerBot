@@ -177,7 +177,7 @@ class Server(DataObject):
 
     @property
     def coalitions(self) -> bool:
-        return self.locals.get('coalitions', None) is not None
+        return self.locals.get('coalitions') is not None
 
     async def get_missions_dir(self) -> str:
         raise NotImplemented()
