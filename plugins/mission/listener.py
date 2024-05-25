@@ -306,9 +306,9 @@ class MissionEventListener(EventListener):
     async def _load_weather_data(self, server: Server):
         timeout = 60 if server.is_remote else 30
         try:
-            server.current_mission.weather = (await server.send_to_dcs_sync({
-                "command": "getWeatherInfo"
-            }, timeout=timeout)).get('weather')
+            data = await server.send_to_dcs_sync({"command": "getWeatherInfo"}, timeout=timeout)
+            server.current_mission.weather = data.get('weather')
+            server.current_mission.clouds = data.get('clouds')
             self.display_mission_embed(server)
         except TimeoutError:
             self.log.error("Timeout during load_weather_data()!")
