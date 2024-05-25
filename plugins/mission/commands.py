@@ -103,7 +103,7 @@ class Mission(Plugin):
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        if version == '3.6':
+        if new_version == '3.6':
             filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
             if not os.path.exists(filename):
                 return

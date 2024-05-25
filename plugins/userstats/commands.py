@@ -77,7 +77,7 @@ class UserStatistics(Plugin):
                 }, {x.name: x for x in self.get_app_commands()})
 
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        if version == '3.2':
+        if new_version == '3.2':
             if not self.locals:
                 return
 
