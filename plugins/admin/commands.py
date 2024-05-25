@@ -730,13 +730,18 @@ class Admin(Plugin):
                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
                      startup: Optional[bool] = False):
 
+        async def _startup(server: Server):
+            await server.startup()
+            server.maintenance = False
+
         async def _node_online(node_name: str):
             next_startup = 0
             for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
-                server.maintenance = False
                 if startup:
-                    self.loop.call_later(delay=next_startup, callback=partial(asyncio.create_task, server.startup()))
+                    self.loop.call_later(delay=next_startup, callback=partial(asyncio.create_task, _startup(server)))
                     next_startup += startup_delay
+                else:
+                    server.maintenance = False
             await interaction.followup.send(_("Node {} is now online.").format(node_name))
             await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
 

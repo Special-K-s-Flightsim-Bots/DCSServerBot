@@ -342,7 +342,7 @@ msgid "Add/create an instance\n"
 msgstr "Füge eine neue Instanz hinzu\n"
 
 msgid "Either select an existing instance or enter the name of a new one"
-msgstr "Wähle eine vorhanden Instanz aus oder gib den Namen für eine neue an."
+msgstr "Wähle eine unbenutzte Instanz aus oder gib einen Namen für eine neue"
 
 msgid "Take this instance configuration as a reference"
 msgstr "Nutze diese Instanz als Referenz"

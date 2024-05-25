@@ -952,7 +952,7 @@ class InstanceTransformer(app_commands.Transformer):
             if self.unused:
                 instances = [
                     instance for server_name, instance in await node.find_all_instances()
-                    if instance not in node.instances
+                    if not any(instance == x.name for x in node.instances)
                 ]
             else:
                 instances = [x.name for x in node.instances]
