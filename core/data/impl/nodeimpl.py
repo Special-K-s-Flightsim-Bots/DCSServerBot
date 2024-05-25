@@ -864,9 +864,7 @@ class NodeImpl(Node):
             await asyncio.sleep(1)
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
-        max_bot_port = 6666-1
-        max_dcs_port = 10308-10
-        max_webgui_port = 8088-2
+        max_bot_port = max_dcs_port = max_webgui_port = -1
         for instance in self.instances:
             if instance.bot_port > max_bot_port:
                 max_bot_port = instance.bot_port
@@ -876,9 +874,9 @@ class NodeImpl(Node):
                 max_webgui_port = instance.webgui_port
         os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
         instance = DataObjectFactory().new(InstanceImpl, node=self, name=name, locals={
-            "bot_port": max_bot_port + 1,
-            "dcs_port": max_dcs_port + 10,
-            "webgui_port": max_webgui_port + 2
+            "bot_port": max_bot_port + 1 if max_bot_port != -1 else 6666,
+            "dcs_port": max_dcs_port + 10 if max_dcs_port != -1 else 10308,
+            "webgui_port": max_webgui_port + 2 if max_webgui_port != -1 else 8088
         })
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
         # should we copy from a template
@@ -895,7 +893,6 @@ class NodeImpl(Node):
                 shutil.copy2(os.path.expandvars(template.extensions['SRS']['config']),
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         autoexec = Autoexec(instance=instance)
-        autoexec.webgui_port = instance.webgui_port
         autoexec.crash_report_mode = "silent"
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:

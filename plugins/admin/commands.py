@@ -833,6 +833,9 @@ class Admin(Plugin):
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         instance = await node.add_instance(name, template=template)
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
@@ -842,8 +845,7 @@ class Admin(Plugin):
                                           "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())
             try:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(embed=embed, view=view)
+                await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             except Exception as ex:
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
@@ -864,10 +866,11 @@ class Admin(Plugin):
                 server.status = Status.SHUTDOWN
                 await interaction.followup.send(
                     _("Server {server} assigned to instance {instance}.").format(server=server.name,
-                                                                                 instance=instance.name))
+                                                                                 instance=instance.name),
+                    ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    _("Instance {} created blank with no server assigned.").format(instance.name))
+                    _("Instance {} created blank with no server assigned.").format(instance.name), ephemeral=ephemeral)
             await interaction.followup.send(_("""
 Instance {instance} added to node {node}.
 Please make sure you forward the following ports:
@@ -875,13 +878,13 @@ Please make sure you forward the following ports:
 - DCS Port:    {dcs_port} (TCP/UDP)
 - WebGUI Port: {webgui_port} (TCP)
 ```
-            """).format(instance=name, node=node.name, dcs_port=instance.dcs_port, webgui_port=instance.webgui_port))
+            """).format(instance=name, node=node.name, dcs_port=instance.dcs_port, webgui_port=instance.webgui_port),
+                                            ephemeral=ephemeral)
         else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 _("Instance {instance} could not be added to node {node}, see log.").format(instance=name,
                                                                                             node=node.name),
-                ephemeral=True)
+                ephemeral=ephemeral)
 
     @node_group.command(description=_("Delete an instance\n"))
     @app_commands.guild_only()
