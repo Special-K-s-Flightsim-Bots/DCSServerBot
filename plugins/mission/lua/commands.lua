@@ -344,11 +344,12 @@ function dcsbot.getWeatherInfo(json)
 		setfenv(func, env)
 		func()
 		local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
-		if preset ~= nil then
-			msg.clouds = {}
-			msg.clouds.base = clouds.base
-			msg.clouds.preset = preset
-		end
+        if preset ~= nil then
+			msg.clouds = {
+                base = clouds.base,
+                preset = preset
+            }
+        end
 	else
 		msg.clouds = clouds
 	end
