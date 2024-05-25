@@ -11,6 +11,7 @@ from core.services.registry import ServiceRegistry
 from discord.ext import commands
 from discord.utils import MISSING
 from io import BytesIO
+from matplotlib import font_manager
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING
 
@@ -139,6 +140,8 @@ class BotService(Service):
                             with open(file_path, 'wb') as new_file:
                                 new_file.write(file_to_extract.read())
             file.unlink()
+        for f in font_manager.findSystemFonts('fonts'):
+            font_manager.fontManager.addfont(f)
 
     async def send_message(self, channel: int, content: Optional[str] = None, server: Optional[Server] = None,
                            filename: Optional[str] = None, embed: Optional[dict] = None):
