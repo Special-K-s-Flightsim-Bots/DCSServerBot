@@ -651,6 +651,8 @@ class Admin(Plugin):
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         if not node:
             msg = _("Do you want to {} all nodes?").format(_(method))
         else:
