@@ -192,14 +192,15 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
     maxvalue = np.max(ts['AoA'][:-num_aoa])
     minvalue = np.min(ts['AoA'][:-num_aoa])
 
-    hornet_aoa = 'FA-18C_hornet'
+    hornet_aoa = 'FA-18'
+    growler_aoa = 'EA-18'
     hawk_aoa = 'T-45'
     tomcatA_aoa = 'F-14A-135-GR'
     tomcatB_aoa = 'F-14B'
     harrier_aoa = 'AV8BNA'
     skyhawk_aoa = 'A-4E-C'
 
-    if hornet_aoa in ps:  # 7.4 on speed min, 8.1 on speed, 8.8 onspeed max
+    if hornet_aoa in ps or growler_aoa in ps:  # 7.4 on speed min, 8.1 on speed, 8.8 onspeed max
         if maxvalue < 10 and minvalue > 6:
             maxvalue = 10.01
             minvalue = 5.99
