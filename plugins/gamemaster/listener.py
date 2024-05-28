@@ -79,7 +79,7 @@ class GameMasterEventListener(EventListener):
         return player.coalition
 
     async def get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
                                         (server.name,))
             row = await cursor.fetchone()

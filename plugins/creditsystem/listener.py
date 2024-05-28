@@ -83,7 +83,7 @@ class CreditSystemListener(EventListener):
                 player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
 
     async def get_flighttime(self, ucid: str, campaign_id: int) -> int:
-        async with self.pool.connection() as conn:
+        async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
                 FROM statistics s, missions m, campaigns c, campaigns_servers cs 
