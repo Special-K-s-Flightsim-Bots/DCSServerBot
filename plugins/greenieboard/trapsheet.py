@@ -1,4 +1,6 @@
 import csv
+import logging
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -11,6 +13,8 @@ from pathlib import Path
 ######################################################
 # This file has been taken and amended from HypeMan! #
 ######################################################
+
+log = logging.getLogger(__name__)
 
 
 def read_trapsheet(filename: str) -> dict[str, ndarray]:
@@ -365,32 +369,24 @@ def parse_filename(vinput) -> dict[str, str]:
     ind = ps.rfind('-')
     ps = ps[0:ind]
 
-    hornet = 'FA-18C_hornet'
-    tomcatB = 'F-14B'
-    harrier = 'AV8BNA'
-    tomcatA = 'F-14A-135-GR'
-    scooter = 'A-4E-C'
-    goshawk = 'T-45'
+    aircraft_mapping = {
+        'AV8BNA': 'AV-8B',
+        'A-4E-C': 'A-4',
+        'F-14B': 'F-14B',
+        'F-14A-135-GR': 'F-14A-135-GR',
+        'T-45': 'T-45C',
+        'FA-18C_hornet': 'F/A-18C',
+        'FA-18E': 'F/A-18E',
+        'FA-18F': 'F/A-18F',
+        'EA-18G': 'E/A-18G'
+    }
 
-    if hornet in ps:
-        ps = ps.replace(hornet, '')
-        pinfo['aircraft'] = 'F/A-18C'
-    elif goshawk in ps:
-        ps = ps.replace(goshawk, '')
-        pinfo['aircraft'] = 'T-45C'
-    elif tomcatA in ps:
-        ps = ps.replace(tomcatA, '')
-        pinfo['aircraft'] = 'F-14A-135-GR'
-    elif tomcatB in ps:
-        ps = ps.replace(tomcatB, '')
-        pinfo['aircraft'] = 'F-14B'
-    elif harrier in ps:
-        ps = ps.replace(harrier, '')
-        pinfo['aircraft'] = 'AV-8B'
-    elif scooter in ps:
-        ps = ps.replace(scooter, '')
-        pinfo['aircraft'] = 'A-4'
+    for aircraft_code, aircraft_name in aircraft_mapping.items():
+        if aircraft_code in ps:
+            ps = ps.replace(aircraft_code, '')
+            pinfo['aircraft'] = aircraft_name
+            break
     else:
-        print('unknown aircraft.')
+        log.warning(f'Trapsheet for unknown aircraft received: {ps}')
     pinfo['callsign'] = ps[0:-1]
     return pinfo
