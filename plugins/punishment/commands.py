@@ -79,14 +79,14 @@ class Punishment(Plugin):
             return
 
         if punishment['action'] == 'kick' and player.active:
-            server.kick(player, reason)
+            await server.kick(player, reason)
             await admin_channel.send(
                 _("Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}.").format(
                     player=player.display_name, ucid=player.ucid, kicked_by=self.bot.member.name, reason=reason))
 
         elif punishment['action'] == 'move_to_spec':
-            server.move_to_spectators(player)
-            player.sendUserMessage(_("You've been kicked back to spectators because of: {}.").format(reason))
+            await server.move_to_spectators(player)
+            await player.sendUserMessage(_("You've been kicked back to spectators because of: {}.").format(reason))
             await admin_channel.send(
                 _("Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}.").format(
                     player=player.display_name, ucid=player.ucid, spec_by=self.bot.member.name, reason=reason))
@@ -96,7 +96,7 @@ class Punishment(Plugin):
             old_points = player.points
             player.points -= punishment['penalty']
             player.audit('punishment', old_points, _("Punished for {}").format(reason))
-            player.sendUserMessage(
+            await player.sendUserMessage(
                 _("{name}, you have been punished for: {reason}!\n"
                   "Your current credit points are: {points}").format(
                     name=player.name, reason=reason, points=player.points))
@@ -105,14 +105,15 @@ class Punishment(Plugin):
                     player=player.display_name, ucid=player.ucid, punished_by=self.bot.member.name, reason=reason))
 
         elif punishment['action'] == 'warn':
-            player.sendUserMessage(_("{name}, you have been punished for: {reason}!").format(name=player.name,
+            await player.sendUserMessage(_("{name}, you have been punished for: {reason}!").format(name=player.name,
                                                                                              reason=reason))
             
         elif punishment['action'] == 'message':
-            player.sendUserMessage(_("{name}, check your fire: {reason}!").format(name=player.name, reason=reason))
+            await player.sendUserMessage(_("{name}, check your fire: {reason}!").format(name=player.name,
+                                                                                        reason=reason))
         if points:
-            player.sendUserMessage(_("{name}, you have {points} punishment points.").format(name=player.name,
-                                                                                            points=points))
+            await player.sendUserMessage(_("{name}, you have {points} punishment points.").format(name=player.name,
+                                                                                                  points=points))
 
     # TODO: change to pubsub
     @tasks.loop(minutes=1.0)
@@ -234,7 +235,7 @@ class Punishment(Plugin):
                         await conn.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
                         await conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
                         for server_name, server in self.bot.servers.items():
-                            server.send_to_dcs({
+                            await server.send_to_dcs({
                                 "command": "unban",
                                 "ucid": ucid
                             })

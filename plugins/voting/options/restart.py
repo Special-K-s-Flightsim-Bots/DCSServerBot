@@ -31,8 +31,8 @@ class Restart(VotableItem):
             if winner == "Don't restart":
                 return
             message = f"The mission will restart in 60s."
-            self.server.sendChatMessage(Coalition.ALL, message)
-            self.server.sendPopupMessage(Coalition.ALL, message)
+            await self.server.sendChatMessage(Coalition.ALL, message)
+            await self.server.sendPopupMessage(Coalition.ALL, message)
             await asyncio.sleep(60)
             await self.server.restart(modify_mission=self.config.get('run_extensions', False))
         finally:

@@ -2,7 +2,7 @@ import discord
 import os
 import re
 
-from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError, get_translation
+from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError, get_translation, PluginInstallationError
 from discord import app_commands
 from pathlib import Path
 from services import DCSServerBot, BackupService
@@ -55,6 +55,10 @@ class Backup(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
         self.service = ServiceRegistry.get(BackupService)
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No config/services/{self.plugin_name}.yaml file found!",
+                                          plugin=self.plugin_name)
+
 
     def read_locals(self) -> dict:
         if not os.path.exists('config/services/backup.yaml'):

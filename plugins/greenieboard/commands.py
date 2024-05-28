@@ -1,4 +1,5 @@
 import aiofiles
+import asyncio
 import discord
 import io
 import os
@@ -94,22 +95,27 @@ class GreenieBoard(Plugin):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 async for row in await cursor.execute("SELECT * FROM greenieboard"):
                     filename = row['trapsheet']
-                    if filename and os.path.exists(filename):
-                        if filename.endswith('.png'):
-                            async with aiofiles.open(filename, mode='rb') as file:
-                                row['trapsheet'] = psycopg.Binary(await file.read())
-                        elif filename.endswith('.csv'):
-                            row['trapsheet'] = psycopg.Binary(self.plot_trapheet(filename))
-                    else:
-                        row['trapsheet'] = filename = None
-                    await conn.execute("""
-                        INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
-                                           wire, night, points, trapsheet)
-                        VALUES (%(mission_id)s, %(player_ucid)s, %(unit_type)s, %(grade)s, %(comment)s, 
-                                %(place)s, %(trapcase)s, %(wire)s, %(night)s, %(points)s, %(trapsheet)s)
-                    """, row)
-                    if filename:
-                        filenames.append(filename)
+                    try:
+                        if filename and os.path.exists(filename):
+                            if filename.endswith('.png'):
+                                async with aiofiles.open(filename, mode='rb') as file:
+                                    row['trapsheet'] = psycopg.Binary(await file.read())
+                            elif filename.endswith('.csv'):
+                                row['trapsheet'] = psycopg.Binary(await asyncio.to_thread(self.plot_trapheet, filename))
+                        else:
+                            row['trapsheet'] = filename = None
+                        await conn.execute("""
+                            INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
+                                               wire, night, points, trapsheet)
+                            VALUES (%(mission_id)s, %(player_ucid)s, %(unit_type)s, %(grade)s, %(comment)s, 
+                                    %(place)s, %(trapcase)s, %(wire)s, %(night)s, %(points)s, %(trapsheet)s)
+                        """, row)
+                        if filename:
+                            filenames.append(filename)
+                    except Exception as ex:
+                        if filename:
+                            self.log.error(f"Error while migrating file {filename}: {ex}", exc_info=True)
+                        raise
             for filename in filenames:
                 with suppress(Exception):
                     os.remove(filename)

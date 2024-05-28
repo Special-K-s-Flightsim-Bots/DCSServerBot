@@ -387,9 +387,9 @@ As DCSServerBot stores a link between DCS players and Discord members, you can a
     @chat_command(name="linkcheck", help="check if you are linked")
     async def linkcheck(self, server: Server, player: Player, params: list[str]):
         if player.member:
-            player.sendChatMessage(f"You are linked to member {player.member.display_name}.")
+            await player.sendChatMessage(f"You are linked to member {player.member.display_name}.")
         else:
-            player.sendChatMessage(f"You are not linked.")
+            await player.sendChatMessage(f"You are not linked.")
 ```
 
 ## Reports

@@ -30,7 +30,7 @@ async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, 
         return
     server.maintenance = True
     if shutdown:
-        ServiceRegistry.get(ServiceBus).send_to_node({"command": "onShutdown", "server_name": server.name})
+        await ServiceRegistry.get(ServiceBus).send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
         await server.startup()

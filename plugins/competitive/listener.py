@@ -63,15 +63,15 @@ class CompetitiveListener(EventListener):
         for player in ([p for p in all_players[Side.BLUE]] + [p for p in all_players[Side.RED]]):
             await player.sendPopupMessage(message, timeout=time)
 
-    def rank_teams(self, winners: list[Player], losers: list[Player]):
+    async def rank_teams(self, winners: list[Player], losers: list[Player]):
         r_winners, r_losers = trueskill.rate([
-            [self.get_rating(p) for p in winners],
-            [self.get_rating(p) for p in losers]
+            [await self.get_rating(p) for p in winners],
+            [await self.get_rating(p) for p in losers]
         ], [0, 1])
         for idx, p in enumerate(winners):
-            self.set_rating(p, r_winners[idx])
+            await self.set_rating(p, r_winners[idx])
         for idx, p in enumerate(losers):
-            self.set_rating(p, r_losers[idx])
+            await self.set_rating(p, r_losers[idx])
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _: dict) -> None:
@@ -96,8 +96,8 @@ class CompetitiveListener(EventListener):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            player.sendChatMessage(
-                _("Your TrueSkill rating is: {}").format(self.calculate_rating(self.get_rating(player))))
+            await player.sendChatMessage(
+                _("Your TrueSkill rating is: {}").format(self.calculate_rating(await self.get_rating(player))))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
@@ -115,50 +115,52 @@ class CompetitiveListener(EventListener):
                 match = self.matches[server.name][match_id]
                 # check that we were not in the same match but died
                 if player in match.dead[Side.BLUE] or player in match.dead[Side.RED]:
-                    server.move_to_spectators(player, reason=_("You're not allowed to re-join the same match!"))
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(server.move_to_spectators(
+                        player, reason=_("You're not allowed to re-join the same match!")))
                     return
             is_on = match.is_on()
             match.player_join(player)
             self.in_match[server.name][player.ucid] = match
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.inform_players(
+            await self.inform_players(
                 match, _("Player {name} ({rating}) joined the {side} team!").format(
-                    name=player.name, rating=self.calculate_rating(self.get_rating(player)), side=player.side.name)))
+                    name=player.name, rating=self.calculate_rating(await self.get_rating(player)), 
+                    side=player.side.name))
             # inform the players if the match is on now
             if not is_on and match.is_on():
                 match.started = datetime.now(timezone.utc)
-                # noinspection PyAsyncCall
-                asyncio.create_task(self.inform_players(
-                    match, _("The match is on! If you die, crash or leave now, you lose!")))
+                await self.inform_players(
+                    match, _("The match is on! If you die, crash or leave now, you lose!"))
 
-    def get_rating(self, player: Player) -> Rating:
-        with self.pool.connection() as conn:
-            cursor = conn.execute("""
+    async def get_rating(self, player: Player) -> Rating:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
                 SELECT skill_mu, skill_sigma 
                 FROM trueskill 
                 WHERE player_ucid = %s
             """, (player.ucid, ))
-            row = cursor.fetchone()
+            row = await cursor.fetchone()
             if not row:
-                self.set_rating(player, rating.create_rating())
-                return self.get_rating(player)
+                r = rating.create_rating()
+                return await self.set_rating(player, r)
             else:
                 return Rating(float(row[0]), float(row[1]))
 
-    def set_rating(self, player: Player, skill: Rating) -> None:
-        with self.pool.connection() as conn:
-            conn.execute("""
+    async def set_rating(self, player: Player, skill: Rating) -> Rating:
+        async with self.apool.connection() as conn:
+            await conn.execute("""
                 INSERT INTO trueskill (player_ucid, skill_mu, skill_sigma) 
                 VALUES (%s, %s, %s)
                 ON CONFLICT (player_ucid) DO UPDATE
                 SET skill_mu = excluded.skill_mu, skill_sigma = excluded.skill_sigma
             """, (player.ucid, skill.mu, skill.sigma))
+        return skill
 
     @staticmethod
     def calculate_rating(r: Rating) -> float:
         return round(r.mu - 3.0 * r.sigma, 2)
 
-    def _onGameEvent(self, server: Server, data: dict) -> None:
+    async def _onGameEvent(self, server: Server, data: dict) -> None:
         def print_crew(players: list[Player]) -> str:
             return ' and '.join([p.name for p in players])
 
@@ -170,7 +172,7 @@ class CompetitiveListener(EventListener):
             # self-kill
             if data['arg1'] == data['arg4']:
                 data['eventName'] = 'self_kill'
-                self._onGameEvent(server, data)
+                await self._onGameEvent(server, data)
             # Multi-crew - pilot and all crew members gain points
             killers = server.get_crew_members(server.get_player(id=data['arg1']))
             victims = server.get_crew_members(server.get_player(id=data['arg4']))
@@ -189,13 +191,13 @@ class CompetitiveListener(EventListener):
                     del self.in_match[server.name][player.ucid]
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
-                self.rank_teams(killers, victims)
+                await self.rank_teams(killers, victims)
                 for player in killers:
-                    player.sendChatMessage(_("You won against {loser}! Your new rating is {rating}").format(
-                        loser=print_crew(victims), rating=self.calculate_rating(self.get_rating(player))))
+                    await player.sendChatMessage(_("You won against {loser}! Your new rating is {rating}").format(
+                        loser=print_crew(victims), rating=self.calculate_rating(await self.get_rating(player))))
                 for player in victims:
-                    player.sendChatMessage(_("You lost against {winner}! Your new rating is {rating}").format(
-                        winner=print_crew(killers), rating=self.calculate_rating(self.get_rating(player))))
+                    await player.sendChatMessage(_("You lost against {winner}! Your new rating is {rating}").format(
+                        winner=print_crew(killers), rating=self.calculate_rating(await self.get_rating(player))))
         elif data['eventName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
             if not players:
@@ -228,11 +230,13 @@ class CompetitiveListener(EventListener):
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
-        self._onGameEvent(server, data)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self._onGameEvent(server, data))
 
     @chat_command(name="skill", help=_("Display your rating"))
     async def skill(self, server: Server, player: Player, params: list[str]):
-        player.sendChatMessage(_("Your TrueSkill rating is: {}").format(self.calculate_rating(self.get_rating(player))))
+        await player.sendChatMessage(_("Your TrueSkill rating is: {}").format(
+            self.calculate_rating(await self.get_rating(player))))
 
     @tasks.loop(seconds=5)
     async def check_matches(self):
@@ -243,8 +247,8 @@ class CompetitiveListener(EventListener):
             for match in self.matches[server.name].values():
                 winner = match.is_over()
                 if winner:
-                    self.rank_teams(match.teams[winner],
-                                    match.teams[Side.BLUE if winner == Side.RED else Side.RED])
+                    await self.rank_teams(match.teams[winner],
+                                          match.teams[Side.BLUE if winner == Side.RED else Side.RED])
                     message = _("The match is over, {} won!\n\n"
                                 "The following players are still alive:\n").format(winner.name)
                     for player in match.alive[winner]:
@@ -254,7 +258,7 @@ class CompetitiveListener(EventListener):
                         message += f"{time:%H:%M:%S}: {log}\n"
                     message += _("\nYour new rating is as follows:\n")
                     for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
-                        message += f"- {player.name}: {self.calculate_rating(self.get_rating(player))}\n"
+                        message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
                     # noinspection PyAsyncCall
                     asyncio.create_task(self.inform_players(match, message, 30))
                     finished.append(match)

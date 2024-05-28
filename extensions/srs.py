@@ -189,13 +189,13 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
-            for client in data['Clients']:
+            for client in data.get('Clients', {}):
                 if client['Name'] == '---':
                     continue
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
                 if client['Name'] not in self.clients:
                     self.clients[client['Name']] = target
-                    self.bus.send_to_node({
+                    self.loop.create_task(self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
                         "player_name": client['Name'],
@@ -203,12 +203,12 @@ class SRS(Extension, FileSystemEventHandler):
                         "unit": client['RadioInfo']['unit'],
                         "unit_id": client['RadioInfo']['unitId'],
                         "radios": list(self.clients[client['Name']])
-                    })
+                    }))
                 else:
                     actual = self.clients[client['Name']]
                     if actual != target:
                         self.clients[client['Name']] = target
-                        self.bus.send_to_node({
+                        self.loop.create_task(self.bus.send_to_node({
                             "command": "onSRSUpdate",
                             "server_name": self.server.name,
                             "player_name": client['Name'],
@@ -216,18 +216,18 @@ class SRS(Extension, FileSystemEventHandler):
                             "unit": client['RadioInfo']['unit'],
                             "unit_id": client['RadioInfo']['unitId'],
                             "radios": list(self.clients[client['Name']])
-                        })
+                        }))
             all_clients = set(self.clients.keys())
             active_clients = set([x['Name'] for x in data['Clients']])
             # any clients disconnected?
             for client in all_clients - active_clients:
-                self.bus.send_to_node({
+                self.loop.create_task(self.bus.send_to_node({
                     "command": "onSRSDisconnect",
                     "server_name": self.server.name,
                     "player_name": client
-                })
+                }))
                 del self.clients[client]
-        except Exception:
+        except Exception as ex:
             pass
 
     def is_running(self) -> bool:

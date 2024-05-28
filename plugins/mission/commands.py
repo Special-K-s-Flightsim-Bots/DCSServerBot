@@ -325,7 +325,7 @@ class Mission(Plugin):
                 _('Mission will be {what} in {when} (warning users before)...').format(what=_(actions.get(what)),
                                                                                        when=utils.format_time(delay)),
                 ephemeral=ephemeral)
-            server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
+            await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
             await asyncio.sleep(delay)
             await msg.delete()
         try:
@@ -664,16 +664,17 @@ class Mission(Plugin):
     @app_commands.autocomplete(mission_id=orig_mission_autocomplete)
     async def rollback(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer], mission_id: int):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         missions = await server.getMissionList()
         if mission_id >= len(missions):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("No mission found."))
+            await interaction.followup.send(_("No mission found."), ephemeral=True)
             return
         filename = missions[mission_id]
         if server.status in [Status.RUNNING, Status.PAUSED] and filename == server.current_mission.filename:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Please stop your server first to rollback the running mission."),
-                                                    ephemeral=True)
+            await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
+                                            ephemeral=True)
             return
         mission_folder = await server.get_missions_dir()
         miz_file = os.path.basename(filename)
@@ -683,15 +684,13 @@ class Mission(Plugin):
             await server.node.rename_file(old_file, new_file, force=True)
         except FileNotFoundError:
             # we should never be here, but just in case
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_('No ".orig" file there, the mission was never changed.'),
-                                                    ephemeral=True)
+            await interaction.followup.send(_('No ".orig" file there, the mission was never changed.'),
+                                            ephemeral=True)
             return
         if new_file != filename:
             await server.replaceMission(mission_id + 1, new_file)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Mission {} has been rolled back.").format(miz_file[:-4]),
-                                                ephemeral=utils.get_ephemeral(interaction))
+        await interaction.followup.send(_("Mission {} has been rolled back.").format(miz_file[:-4]),
+                                        ephemeral=ephemeral)
 
     # New command group "/player"
     player = Group(name="player", description=_("Commands to manage DCS players"))
@@ -722,7 +721,7 @@ class Mission(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
-        server.kick(player, reason)
+        await server.kick(player, reason)
         await self.bot.audit(f'kicked player {player.display_name} with reason "{reason}"', user=interaction.user)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
@@ -768,10 +767,10 @@ class Mission(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
-        server.move_to_spectators(player)
+        await server.move_to_spectators(player)
         if reason:
-            player.sendChatMessage(_("You have been moved to spectators. Reason: {}").format(reason),
-                                   interaction.user.display_name)
+            await player.sendChatMessage(_("You have been moved to spectators. Reason: {}").format(reason),
+                                         interaction.user.display_name)
         await self.bot.audit(f'moved player {player.name} to spectators with reason "{reason}".', user=interaction.user)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Player "{}" moved to spectators.').format(player.name),
@@ -868,7 +867,7 @@ class Mission(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
-        player.sendPopupMessage(message, time, interaction.user.display_name)
+        await player.sendPopupMessage(message, time, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
@@ -882,7 +881,7 @@ class Mission(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Player not found."), ephemeral=True)
             return
-        player.sendChatMessage(message, interaction.user.display_name)
+        await player.sendChatMessage(message, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
@@ -926,7 +925,7 @@ class Mission(Plugin):
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     group: str, message: str, time: Optional[Range[int, 1, 30]] = -1):
-        server.sendPopupMessage(group, message, time, interaction.user.display_name)
+        await server.sendPopupMessage(group, message, time, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
@@ -987,7 +986,7 @@ class Mission(Plugin):
                 break
         else:
             server = None
-        self.bot.bus.send_to_node({
+        await self.bot.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
@@ -1024,7 +1023,7 @@ class Mission(Plugin):
             await self.bot.audit(
                 f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                 user=interaction.user)
-            self.bot.bus.send_to_node({
+            await self.bot.bus.send_to_node({
                 "command": "rpc",
                 "service": "ServiceBus",
                 "method": "propagate_event",
@@ -1367,7 +1366,7 @@ class Mission(Plugin):
                         for server in self.bot.servers.values():
                             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                                 continue
-                            server.send_to_dcs({
+                            await server.send_to_dcs({
                                 "command": "unban",
                                 "ucid": row[0]
                             })
@@ -1437,7 +1436,7 @@ class Mission(Plugin):
                         msg = server.locals.get(
                             'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'
                         ).format(player=player, time=utils.format_time(max_time))
-                        server.kick(player, msg)
+                        await server.kick(player, msg)
         except Exception as ex:
             self.log.exception(ex)
 
@@ -1488,9 +1487,11 @@ class Mission(Plugin):
         config = self.get_config().get('uploads', {})
         # check, if upload is enabled
         if not config.get('enabled', True):
+            self.log.debug("Mission upload is disabled!")
             return
         # check if the user has the correct role to upload, defaults to DCS Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['DCS Admin']), message.author):
+            self.log.debug(f"User {message.author.name} does not have the permission to upload missions!")
             return
         # check if the upload happens in the servers admin channel (if provided)
         server: Server = self.bot.get_server(message, admin_only=True)
@@ -1511,24 +1512,29 @@ class Mission(Plugin):
                 return
         att = message.attachments[0]
         try:
+            self.log.debug(f"Uploading mission {att.filename} to {server.name} ...")
             rc = await server.uploadMission(att.filename, att.url)
             if rc == UploadStatus.FILE_IN_USE:
+                self.log.debug("Mission file is in use, asking to stop server.")
                 if not await utils.yn_question(ctx, _('A mission is currently active.\n'
                                                       'Do you want me to stop the DCS-server to replace it?')):
                     await message.channel.send(_('Upload aborted.'))
                     return
             elif rc == UploadStatus.FILE_EXISTS:
+                self.log.debug("Mission file exists, asking for overwrite.")
                 if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
                     await message.channel.send(_('Upload aborted.'))
                     return
             if rc != UploadStatus.OK:
+                self.log.debug(f"Error while uploading: {rc}")
                 if (await server.uploadMission(att.filename, att.url, force=True)) != UploadStatus.OK:
                     await message.channel.send(_('Error while uploading: {}').format(rc.name))
                     return
-
+            self.log.debug("Mission uploaded successfully.")
             name = utils.escape_string(os.path.basename(att.filename)[:-4])
             try:
                 if server.locals.get('autoscan', False):
+                    self.log.debug("Autoscan enabled, waiting for mission to be auto-added.")
                     await message.channel.send(
                         _('Mission "{mission}" uploaded to server {server}.\n'
                           'As you have "autoscan" enabled, it might take some seconds to appear in your mission list.'
@@ -1538,8 +1544,11 @@ class Mission(Plugin):
                 filename = next((file for file in await server.getMissionList()
                                  if os.path.basename(file) == os.path.basename(att.filename)), None)
                 if not filename:
-                    await message.channel.send(_('Error while uploading: File not found in severSettings.lua!'))
+                    msg = 'Error while uploading: File not found in severSettings.lua!'
+                    self.log.error(msg)
+                    await message.channel.send(_(msg))
                     return
+                self.log.debug("Mission added to the mission list.")
                 await message.channel.send(_('Mission "{mission}" uploaded to server {server} and added.').format(
                     mission=name, server=server.display_name))
             finally:

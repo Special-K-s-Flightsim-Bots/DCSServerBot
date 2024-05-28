@@ -72,14 +72,14 @@ class NodeProxy(Node):
         return _locals
 
     async def shutdown(self):
-        self.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "object": "Node",
             "method": "shutdown"
         }, node=self.name)
 
     async def restart(self):
-        self.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "object": "Node",
             "method": "restart"
@@ -94,7 +94,7 @@ class NodeProxy(Node):
         return data['return']
 
     async def upgrade(self):
-        self.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "object": "Node",
             "method": "upgrade"

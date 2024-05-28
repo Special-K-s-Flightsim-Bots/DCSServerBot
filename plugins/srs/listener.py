@@ -1,5 +1,7 @@
+import asyncio
+
 from core import EventListener, event, Server, Player, Plugin, get_translation, Side
-from typing import Optional
+from typing import Optional, cast
 
 from plugins.mission.commands import Mission
 
@@ -10,10 +12,11 @@ class SRSEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.mission: Mission = self.bot.cogs['Mission']
+        self.mission: Mission = cast(Mission, self.bot.cogs['Mission'])
         self.srs_users: dict[str, dict[str, dict]] = {}
 
-    def _get_player(self, server: Server, data: dict) -> Optional[Player]:
+    @staticmethod
+    def _get_player(server: Server, data: dict) -> Optional[Player]:
         if data['unit_id'] in range(100000000, 100000099):
             player = server.get_player(name=data['player_name'])
         else:
@@ -31,15 +34,16 @@ class SRSEventListener(EventListener):
         self.srs_users[server.name].pop(data['player_name'], None)
 
     @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
+    async def registerDCSServer(self, server: Server, _: dict) -> None:
         config = self.get_config(server) or {
             "message_no_srs": "You need to use SRS to play on this server!"
         }
-        server.send_to_dcs({
+        # noinspection PyAsyncCall
+        asyncio.create_task(server.send_to_dcs({
             'command': 'loadParams',
             'plugin': self.plugin_name,
             'params': config
-        })
+        }))
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -48,7 +52,8 @@ class SRSEventListener(EventListener):
         if self.get_config(server).get('enforce_srs', False):
             player: Player = server.get_player(ucid=data['ucid'])
             if player.name not in self.srs_users.get(server.name, {}):
-                server.send_to_dcs({"command": "disableSRS", "name": player.name})
+                # noinspection PyAsyncCall
+                asyncio.create_task(server.send_to_dcs({"command": "disableSRS", "name": player.name}))
 
     @event(name="onSRSConnect")
     async def onSRSConnect(self, server: Server, data: dict) -> None:
@@ -56,7 +61,8 @@ class SRSEventListener(EventListener):
             return
         self._add_or_update_srs_user(server, data)
         if self.get_config(server).get('enforce_srs', False):
-            server.send_to_dcs({"command": "enableSRS", "name": data['player_name']})
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.send_to_dcs({"command": "enableSRS", "name": data['player_name']}))
         self.mission.eventlistener.display_player_embed(server)
 
     @event(name="onSRSUpdate")
@@ -71,10 +77,12 @@ class SRSEventListener(EventListener):
             return
         self._del_srs_user(server, data)
         if self.get_config(server).get('enforce_srs', False):
-            server.send_to_dcs({"command": "disableSRS", "name": data['player_name']})
+            # noinspection PyAsyncCall
+            asyncio.create_task(server.send_to_dcs({"command": "disableSRS", "name": data['player_name']}))
             if self.get_config(server).get('move_to_spec', False):
                 player = server.get_player(name=data['player_name'])
                 if player and player.side != Side.SPECTATOR:
-                    server.move_to_spectators(player, reason=self.get_config(server).get(
-                        'message_no_srs', 'You need to use SRS to play on this server!'))
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(server.move_to_spectators(player, reason=self.get_config(server).get(
+                        'message_no_srs', 'You need to use SRS to play on this server!')))
         self.mission.eventlistener.display_player_embed(server)

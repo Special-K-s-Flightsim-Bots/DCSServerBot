@@ -21,6 +21,7 @@ from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
+from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path, PurePath
@@ -43,19 +44,21 @@ __all__ = ["ServerImpl"]
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
-    def __init__(self, server: Server):
+    def __init__(self, server: Server, loop: asyncio.AbstractEventLoop):
         self.server = server
         self.log = server.log
+        self.loop = loop
 
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
-        if path.endswith('.miz'):
-            if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                self.server.send_to_dcs({"command": "addMission", "path": path})
-            else:
-                missions = self.server.settings['missionList']
-                missions.append(path)
-            self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
+        if not path.endswith('.miz'):
+            return
+        if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            self.loop.create_task(self.server.send_to_dcs({"command": "addMission", "path": path}))
+        else:
+            missions = self.server.settings['missionList']
+            missions.append(path)
+        self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def on_moved(self, event: FileSystemMovedEvent):
         self.on_deleted(event)
@@ -73,11 +76,13 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
                     self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
                     return
                 else:
-                    self.server.send_to_dcs({"command": "deleteMission", "id": idx})
+                    self.loop.create_task(self.server.send_to_dcs({"command": "deleteMission", "id": idx}))
             else:
                 missions.remove(path)
                 self.server.settings['missionList'] = missions
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
+        else:
+            self.log.debug(f"Mission file {path} got deleted from disk.")
 
 
 @dataclass
@@ -156,7 +161,7 @@ class ServerImpl(Server):
                 if (self._status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN]
                         and status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]):
                     if not self.observer.emitters:
-                        self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=False)
+                        self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=True)
                         self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
                 elif status == Status.SHUTDOWN:
                     if self._status == Status.UNREGISTERED:
@@ -242,7 +247,7 @@ class ServerImpl(Server):
         self._install_luas()
         # enable autoscan for missions changes
         if self.locals.get('autoscan', False):
-            self.event_handler = MissionFileSystemEventHandler(self)
+            self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
             self.observer = Observer()
             self.observer.start()
 
@@ -294,7 +299,7 @@ class ServerImpl(Server):
             message[key] = _serialize_value(value)
         return message
 
-    def send_to_dcs(self, message: dict):
+    async def send_to_dcs(self, message: dict):
         # As Lua does not support large numbers, convert them to strings
         message = self.serialize(deepcopy(message))
         msg = json.dumps(message)
@@ -358,6 +363,7 @@ class ServerImpl(Server):
         except Exception:
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
 
+    @performance_log()
     def do_startup(self):
         basepath = self.node.installation
         for exe in ['DCS_server.exe', 'DCS.exe']:
@@ -416,6 +422,13 @@ class ServerImpl(Server):
             except Exception as ex:
                 self.log.exception(ex)
 
+    async def prepare_extensions(self):
+        for ext in self.extensions.values():
+            try:
+                await ext.prepare()
+            except Exception as ex:
+                self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
+
     @staticmethod
     def _window_enumeration_handler(hwnd, top_windows):
         top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
@@ -434,11 +447,7 @@ class ServerImpl(Server):
 
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
-        for ext in self.extensions.values():
-            try:
-                await ext.prepare()
-            except Exception as ex:
-                self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
+        await self.prepare_extensions()
         if modify_mission:
             await self.apply_mission_changes()
         await asyncio.to_thread(self.do_startup)
@@ -456,6 +465,7 @@ class ServerImpl(Server):
                 self.status = Status.SHUTDOWN
             raise
 
+    @performance_log()
     async def startup_extensions(self) -> None:
         not_running_extensions = [
             ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
@@ -502,6 +512,7 @@ class ServerImpl(Server):
                 self.process.kill()
         self.process = None
 
+    @performance_log()
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         # disable autoscan
         autoscan = self.locals.get('autoscan', False)
@@ -549,7 +560,7 @@ class ServerImpl(Server):
 
     async def keep_alive(self):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.send_to_dcs({"command": "getMissionUpdate"})
+            await self.send_to_dcs({"command": "getMissionUpdate"})
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
@@ -627,7 +638,7 @@ class ServerImpl(Server):
 
     async def setStartIndex(self, mission_id: int) -> None:
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
+            await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
         else:
             self.settings['listStartIndex'] = mission_id
 
@@ -682,16 +693,16 @@ class ServerImpl(Server):
         try:
             idx = self.settings['missionList'].index(filename) + 1
             if idx == int(self.settings['listStartIndex']):
-                self.send_to_dcs({"command": "startMission", "filename": filename})
+                await self.send_to_dcs({"command": "startMission", "filename": filename})
             else:
-                self.send_to_dcs({"command": "startMission", "id": idx})
+                await self.send_to_dcs({"command": "startMission", "id": idx})
         except ValueError:
-            self.send_to_dcs({"command": "startMission", "filename": filename})
+            await self.send_to_dcs({"command": "startMission", "filename": filename})
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
         else:
-            self.send_to_dcs({"command": "start_server"})
+            await self.send_to_dcs({"command": "start_server"})
         # wait until we are running again
         await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
 

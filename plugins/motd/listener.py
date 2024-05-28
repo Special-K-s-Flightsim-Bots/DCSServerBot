@@ -1,3 +1,4 @@
+import asyncio
 import random
 
 from core import EventListener, utils, Server, Report, Player, event
@@ -64,7 +65,8 @@ class MOTDListener(EventListener):
         if config and 'on_join' in config:
             player: Player = server.get_player(ucid=data['ucid'])
             if player:
-                player.sendChatMessage(await self.on_join(config['on_join'], server, player))
+                # noinspection PyAsyncCall
+                asyncio.create_task(player.sendChatMessage(await self.on_join(config['on_join'], server, player)))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:

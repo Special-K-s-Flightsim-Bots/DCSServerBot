@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import discord
+
 from contextlib import closing
 from core import utils
 from core.data.dataobject import DataObject, DataObjectFactory
@@ -160,11 +162,11 @@ class Player(DataObject):
             side = Side.NEUTRAL
         else:
             side = Side.SPECTATOR
-        self.server.send_to_dcs({
+        self.bot.loop.create_task(self.server.send_to_dcs({
             "command": "setUserCoalition",
             "ucid": self.ucid,
             "coalition": side.value
-        })
+        }))
 
     @property
     def display_name(self) -> str:
@@ -215,23 +217,23 @@ class Player(DataObject):
             valid_roles.extend(self.bot.roles[role])
         return self.verified and self._member is not None and utils.check_roles(set(valid_roles), self._member)
 
-    def sendChatMessage(self, message: str, sender: str = None):
+    async def sendChatMessage(self, message: str, sender: str = None):
         for msg in message.split('\n'):
-            self.server.send_to_dcs({
+            await self.server.send_to_dcs({
                 "command": "sendChatMessage",
                 "to": self.id,
                 "from": sender,
                 "message": msg
             })
 
-    def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
-        [self.sendChatMessage(msg) for msg in message.splitlines()]
-        self.sendPopupMessage(message, timeout)
+    async def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
+        [await self.sendChatMessage(msg) for msg in message.splitlines()]
+        await self.sendPopupMessage(message, timeout)
 
-    def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
+    async def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
             timeout = self.server.locals.get('message_timeout', 10)
-        self.server.send_to_dcs({
+        await self.server.send_to_dcs({
                 "command": "sendPopupMessage",
                 "from": sender,
                 "to": "unit",
@@ -240,8 +242,8 @@ class Player(DataObject):
                 "time": timeout
         })
 
-    def playSound(self, sound: str):
-        self.server.send_to_dcs({
+    async def playSound(self, sound: str):
+        await self.server.send_to_dcs({
             "command": "playSound",
             "to": "unit",
             "id": self.unit_name,

@@ -26,4 +26,4 @@ class SampleEventListener(EventListener):
 
     @chat_command(name="sample", roles=['DCS Admin'], help="A sample command")
     async def sample(self, server: Server, player: Player, params: list[str]):
-        player.sendChatMessage("This is a sample command!")
+        await player.sendChatMessage("This is a sample command!")

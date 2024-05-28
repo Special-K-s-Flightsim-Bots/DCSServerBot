@@ -29,5 +29,5 @@ class Tempban(VotableItem):
             await self.server.bus.ban(self.player.ucid, banned_by='Other players', reason=f"Annoying people on the server",
                                       days=duration)
             message = f"Player {self.player.name} banned for {duration} days."
-        self.server.sendChatMessage(Coalition.ALL, message)
-        self.server.sendPopupMessage(Coalition.ALL, message)
+        await self.server.sendChatMessage(Coalition.ALL, message)
+        await self.server.sendPopupMessage(Coalition.ALL, message)

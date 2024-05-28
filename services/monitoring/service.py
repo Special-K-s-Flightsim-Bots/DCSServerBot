@@ -86,7 +86,7 @@ class MonitoringService(Service):
     async def warn_admins(self, server: Server, title: str, message: str) -> None:
         message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
-        self.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": BotService.__name__,
             "method": "alert",
@@ -199,7 +199,7 @@ class MonitoringService(Service):
                       sum(x.qsize() for x in bus.udp_server.message_queue.values())))
         last_wait_time = pstats.get('requests_wait_ms', 0)
 
-    def _pull_load_params(self, server: Server):
+    def _pull_load_params(self, server: Server) -> dict:
         cpu = server.process.cpu_percent()
         memory = server.process.memory_full_info()
         io_counters = server.process.io_counters()
@@ -216,7 +216,7 @@ class MonitoringService(Service):
             bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
             bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
         self.net_io_counters = net_io_counters
-        self.bus.send_to_node({
+        return {
             "command": "serverLoad",
             "cpu": cpu,
             "mem_total": memory.vms,
@@ -226,7 +226,7 @@ class MonitoringService(Service):
             "bytes_recv": bytes_recv,
             "bytes_sent": bytes_sent,
             "server_name": server.name
-        })
+        }
 
     async def serverload(self):
         for server in self.bus.servers.copy().values():
@@ -237,7 +237,7 @@ class MonitoringService(Service):
                                  f"server {server.name}, skipping server load gathering.")
                 continue
             try:
-                await asyncio.to_thread(self._pull_load_params, server)
+                await self.bus.send_to_node(await asyncio.to_thread(self._pull_load_params, server))
             except (psutil.AccessDenied, PermissionError):
                 self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
 

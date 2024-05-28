@@ -78,7 +78,7 @@ class Commands(Plugin):
                     return None
             else:
                 if server.status != Status.SHUTDOWN:
-                    server.send_to_dcs(config)
+                    await server.send_to_dcs(config)
                     await ctx.send(f'Event sent to {server.name}.')
                 else:
                     await ctx.send(f'Server {server.name} is {server.status.name}.')

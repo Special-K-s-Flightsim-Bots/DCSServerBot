@@ -25,8 +25,8 @@ class Mission(VotableItem):
         if winner == 'No Change':
             return
         message = f"The mission will change in 60s."
-        self.server.sendChatMessage(Coalition.ALL, message)
-        self.server.sendPopupMessage(Coalition.ALL, message)
+        await self.server.sendChatMessage(Coalition.ALL, message)
+        await self.server.sendPopupMessage(Coalition.ALL, message)
         await asyncio.sleep(60)
         for idx, mission in enumerate(await self.server.getMissionList()):
             if winner in mission:

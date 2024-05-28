@@ -152,7 +152,7 @@ class NodeImpl(Node):
         if self.master:
             await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server)
         else:
-            ServiceRegistry.get(ServiceBus).send_to_node({
+            await ServiceRegistry.get(ServiceBus).send_to_node({
                 "command": "rpc",
                 "service": BotService.__name__,
                 "method": "audit",
@@ -420,7 +420,7 @@ class NodeImpl(Node):
                 while shutdown_in > 0:
                     for warn_time in warn_times:
                         if warn_time == shutdown_in:
-                            server.sendPopupMessage(
+                            await server.sendPopupMessage(
                                 Coalition.ALL,
                                 _('Server is going down for a DCS update in {}!').format(utils.format_time(warn_time)))
                     await asyncio.sleep(1)
@@ -829,7 +829,7 @@ class NodeImpl(Node):
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
                 if rc == 0:
-                    ServiceRegistry.get(ServiceBus).send_to_node({
+                    await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
                         "method": "audit",
@@ -838,7 +838,7 @@ class NodeImpl(Node):
                         }
                     })
                 else:
-                    ServiceRegistry.get(ServiceBus).send_to_node({
+                    await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
                         "method": "alert",

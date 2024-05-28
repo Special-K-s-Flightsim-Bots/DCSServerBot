@@ -241,7 +241,7 @@ class InfoView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         # TODO: reason modal
-        self.server.kick(player=self.player)
+        await self.server.kick(player=self.player)
         await interaction.followup.send("User has been kicked.", ephemeral=self.ephemeral)
         self.stop()
 
@@ -250,7 +250,7 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.unlink()
-        self.bot.bus.send_to_node({
+        await self.bot.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",
@@ -278,7 +278,7 @@ class InfoView(View):
         await interaction.response.defer()
         member: discord.Member = self._member.member
         self._member.verified = True
-        self.bot.bus.send_to_node({
+        await self.bot.bus.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "propagate_event",

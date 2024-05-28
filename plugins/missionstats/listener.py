@@ -51,21 +51,23 @@ class MissionStatisticsEventListener(EventListener):
     async def getMissionSituation(self, server: Server, data: dict) -> None:
         self.bot.mission_stats[server.name] = data
 
-    def _toggle_mission_stats(self, server: Server):
+    async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
-            server.send_to_dcs({"command": "enableMissionStats"})
-            server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels.get(Channel.STATUS, -1)})
+            await server.send_to_dcs({"command": "enableMissionStats"})
+            await server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels.get(Channel.STATUS, -1)})
         else:
-            server.send_to_dcs({"command": "disableMissionStats"})
+            await server.send_to_dcs({"command": "disableMissionStats"})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync') and server.status in [Status.RUNNING, Status.PAUSED]:
-            self._toggle_mission_stats(server)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._toggle_mission_stats(server))
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
-        self._toggle_mission_stats(server)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self._toggle_mission_stats(server))
 
     async def _update_database(self, server: Server, config: dict, data: dict):
         def get_value(values: dict, index1, index2):

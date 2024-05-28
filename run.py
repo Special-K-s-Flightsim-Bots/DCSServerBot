@@ -85,10 +85,25 @@ class Main:
         logging.getLogger(name='psycopg.pool').setLevel(logging.WARNING)
         logging.getLogger(name='pykwalify').setLevel(logging.CRITICAL)
 
+        # Performance logging
+        perf_logger = logging.getLogger(name='performance_log')
+        perf_logger.setLevel(logging.DEBUG)
+        perf_logger.propagate = False
+        pfh = CloudRotatingFileHandler(os.path.join('logs', 'perf.log'), encoding='utf-8',
+                                       maxBytes=config.get('logrotate_size', 10485760),
+                                       backupCount=config.get('logrotate_count', 5))
+        pff = logging.Formatter('%(asctime)s\t%(levelname)s\t%(message)s')
+        pff.converter = time.gmtime
+        pfh.setFormatter(pff)
+        pfh.doRollover()
+        perf_logger.addHandler(pfh)
+
     @staticmethod
     def reveal_passwords():
         print("[yellow]These are your hidden secrets:[/]")
         for file in utils.list_all_files(os.path.join('config', '.secret')):
+            if not file.endswith('.pkl'):
+                continue
             key = file[:-4]
             print(f"{key}: {utils.get_password(key)}")
         print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
@@ -112,7 +127,7 @@ class Main:
                 await self.node.upgrade()
         elif self.node.master and await self.node.upgrade_pending():
             self.log.warning(
-                "New update for DCSServerBot available! Use /node upgrade or enable autoupdate to apply it.")
+                "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it.")
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
@@ -159,13 +174,24 @@ class Main:
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")
                                     self.log.info(f"  => {cls.__name__} NOT loaded.")
+                            else:
+                                service = registry.get(cls)
+                                if service:
+                                    # noinspection PyAsyncCall
+                                    asyncio.create_task(service.switch())
                     else:
                         self.log.info("Second Master found, stepping back to Agent configuration.")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
-                                await registry.get(cls).stop()
+                                # noinspection PyAsyncCall
+                                asyncio.create_task(registry.get(cls).stop())
+                            else:
+                                service = registry.get(cls)
+                                if service:
+                                    # noinspection PyAsyncCall
+                                    asyncio.create_task(service.switch())
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
@@ -222,7 +248,7 @@ if __name__ == "__main__":
     except PermissionError:
         # do not restart again
         log.error("There is a permission error.")
-        log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node} and try again.")
+        log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node}.pid and try again.")
         exit(-2)
     except PidFileError:
         log.error(f"[red]Process already running for node {args.node}![/]")
@@ -241,7 +267,7 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except psycopg.OperationalError as ex:
-        log.error(f"Database Error: {ex}")
+        log.error(f"Database Error: {ex}", exc_info=True)
         input("Press any key to continue ...")
         # do not restart again
         exit(-2)

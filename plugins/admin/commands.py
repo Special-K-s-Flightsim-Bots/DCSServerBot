@@ -653,6 +653,8 @@ class Admin(Plugin):
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         if not node:
             msg = _("Do you want to {} all nodes?").format(_(method))
         else:
@@ -663,7 +665,7 @@ class Admin(Plugin):
         if method != 'upgrade' or node:
             for n in await self.node.get_active_nodes():
                 if not node or n == node.name:
-                    self.bus.send_to_node({
+                    await self.bus.send_to_node({
                         "command": "rpc",
                         "object": "Node",
                         "method": method
@@ -827,7 +829,7 @@ class Admin(Plugin):
                     _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
         # for server in self.bus.servers.values():
         #    if server.status == Status.STOPPED:
-        #        server.send_to_dcs({"command": "reloadScripts"})
+        #        await server.send_to_dcs({"command": "reloadScripts"})
 
     @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()

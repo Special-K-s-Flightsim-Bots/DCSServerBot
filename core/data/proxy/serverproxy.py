@@ -66,9 +66,9 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=120)
         return data["return"]
 
-    def send_to_dcs(self, message: dict):
+    async def send_to_dcs(self, message: dict):
         message['server_name'] = self.name
-        self.bus.send_to_node(message, node=self.node.name)
+        await self.bus.send_to_node(message, node=self.node.name)
 
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.bus.send_to_node_sync({
@@ -114,6 +114,14 @@ class ServerProxy(Server):
             "command": "rpc",
             "object": "Server",
             "method": "init_extensions",
+            "server_name": self.name
+        }, node=self.node.name, timeout=180)
+
+    async def prepare_extensions(self):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "prepare_extensions",
             "server_name": self.name
         }, node=self.node.name, timeout=180)
 

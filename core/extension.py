@@ -18,6 +18,7 @@ class Extension(ABC):
         self.node = server.node
         self.log = logging.getLogger(__name__)
         self.pool = self.node.pool
+        self.loop = asyncio.get_event_loop()
         self.config: dict = config
         self.server: Server = server
         self.locals: dict = self.load_config()

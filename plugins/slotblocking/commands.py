@@ -78,7 +78,7 @@ class SlotBlocking(Plugin):
                     return
                 for role in set(before.roles) | set(after.roles):
                     if role in roles:
-                        server.send_to_dcs({
+                        await server.send_to_dcs({
                             'command': 'uploadUserRoles',
                             'ucid': ucid,
                             'roles': [x.id for x in after.roles]

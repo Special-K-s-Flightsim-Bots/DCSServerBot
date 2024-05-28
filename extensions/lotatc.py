@@ -82,19 +82,19 @@ class LotAtc(Extension, FileSystemEventHandler):
                 for coalition in ['blue', 'red']:
                     gcis[coalition] = [x['name'] for x in stats.get('clients', {}).get(coalition, [])]
                     for gci in set(self.gcis[coalition]) - set(gcis[coalition]):
-                        self.bus.send_to_node({
+                        self.loop.create_task(self.bus.send_to_node({
                             "command": "onGCILeave",
                             "server_name": self.server.name,
                             "coalition": coalition,
                             "name": gci
-                        })
+                        }))
                     for gci in set(gcis[coalition]) - set(self.gcis[coalition]):
-                        self.bus.send_to_node({
+                        self.loop.create_task(self.bus.send_to_node({
                             "command": "onGCIJoin",
                             "server_name": self.server.name,
                             "coalition": coalition,
                             "name": gci
-                        })
+                        }))
                 self.gcis = gcis
         except Exception:
             pass

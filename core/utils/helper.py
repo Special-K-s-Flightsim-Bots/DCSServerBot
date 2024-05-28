@@ -567,7 +567,7 @@ class RemoteSettingsDict(dict):
                 "value": value
             }
         }
-        self.server.send_to_dcs(msg)
+        asyncio.create_task(self.server.send_to_dcs(msg))
 
 
 def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
