@@ -1,7 +1,6 @@
 from __future__ import annotations
 import inspect
 
-from core.utils.performance import PerformanceLog
 from dataclasses import MISSING
 from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable
 
@@ -131,8 +130,7 @@ class EventListener(metaclass=EventListenerMeta):
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
-            with PerformanceLog(self.__class__.__name__ + '.' + name + '()'):
-                await self.__events__[name](self, server, data)
+            await self.__events__[name](self, server, data)
         except Exception as ex:
             self.log.exception(ex)
 
