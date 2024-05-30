@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import discord
 
 from contextlib import closing
@@ -100,11 +101,14 @@ class Player(DataObject):
     @member.setter
     def member(self, member: discord.Member) -> None:
         if member != self._member:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
-                                 (member.id if member else -1, self.ucid))
+            asyncio.create_task(self.update_member(member))
             self._member = member
+
+    async def update_member(self, member: discord.Member) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
+                                   (member.id if member else -1, self.ucid))
 
     @property
     def verified(self) -> bool:
@@ -114,16 +118,20 @@ class Player(DataObject):
     def verified(self, verified: bool) -> None:
         if verified == self._verified:
             return
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
+        asyncio.create_task(self.update_verified(verified))
+        self._verified = verified
+
+    async def update_verified(self, verified: bool) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
                 if verified:
                     # delete all old automated links (this will delete the token also)
-                    conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
-                    conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4", (self.member.id,))
-                    conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
-                                 (self.member.id,))
-        self._verified = verified
+                    await conn.execute("DELETE FROM players WHERE ucid = %s AND manual = FALSE", (self.ucid,))
+                    await conn.execute("DELETE FROM players WHERE discord_id = %s AND length(ucid) = 4",
+                                       (self.member.id,))
+                    await conn.execute("UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE",
+                                       (self.member.id,))
 
     @property
     def watchlist(self) -> bool:
@@ -131,10 +139,13 @@ class Player(DataObject):
 
     @watchlist.setter
     def watchlist(self, watchlist: bool):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE players SET watchlist = %s WHERE ucid = %s', (watchlist, self.ucid))
+        asyncio.create_task(self.update_watchlist(watchlist))
         self._watchlist = watchlist
+
+    async def update_watchlist(self, watchlist: bool) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE players SET watchlist = %s WHERE ucid = %s', (watchlist, self.ucid))
 
     @property
     def vip(self) -> bool:
@@ -142,10 +153,13 @@ class Player(DataObject):
 
     @vip.setter
     def vip(self, vip: bool):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
+        asyncio.create_task(self.update_vip(vip))
         self._vip = vip
+
+    async def update_vip(self, vip: bool) -> None:
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
 
     @property
     def coalition(self) -> Coalition:
@@ -172,9 +186,9 @@ class Player(DataObject):
     def display_name(self) -> str:
         return utils.escape_string(self.name)
 
-    def update(self, data: dict):
-        with self.pool.connection() as conn:
-            with conn.transaction():
+    async def update(self, data: dict):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 if 'id' in data:
                     # if the ID has changed (due to reconnect), we need to update the server list
                     if self.id != data['id']:
@@ -185,7 +199,7 @@ class Player(DataObject):
                     self.active = data['active']
                 if 'name' in data and self.name != data['name']:
                     self.name = data['name']
-                    conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
+                    await conn.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
                 if 'side' in data:
                     self.side = Side(data['side'])
                 if 'slot' in data:
@@ -206,7 +220,7 @@ class Player(DataObject):
                     self.group_id = data['group_id']
                 if 'unit_display_name' in data:
                     self.unit_display_name = data['unit_display_name']
-                conn.execute("""
+                await conn.execute("""
                     UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE ucid = %s
                 """, (self.ucid, ))

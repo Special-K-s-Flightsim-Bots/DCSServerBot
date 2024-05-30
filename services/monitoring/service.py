@@ -58,20 +58,6 @@ class MonitoringService(Service):
             except Exception as ex:
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
-    async def check_nodes(self):
-        active_nodes: list[str] = await self.node.get_active_nodes()
-        used_nodes: set[str] = set()
-        for server in [x for x in self.bus.servers.values() if x.is_remote]:
-            if server.node.name not in active_nodes:
-                self.log.warning(f"- Node {server.node.name} not responding, removing server {server.name}.")
-                self.bus.servers[server.name].status = Status.UNREGISTERED
-                del self.bus.servers[server.name]
-            else:
-                used_nodes.add(server.node.name)
-        # any new nodes detected?
-        for node in set(active_nodes) - used_nodes:
-            await self.bus.register_remote_node(node)
-
     @staticmethod
     async def check_affinity(server: Server, affinity: Union[list[int], str]):
         if isinstance(affinity, str):
@@ -244,8 +230,6 @@ class MonitoringService(Service):
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
-            if self.node.master:
-                await self.check_nodes()
             if sys.platform == 'win32':
                 await self.check_popups()
             await self.heartbeat()

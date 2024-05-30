@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from core import Instance, InstanceBusyError, Status, utils, DataObjectFactory
@@ -39,13 +40,16 @@ class InstanceImpl(Instance):
         server_name = settings.get('name', 'DCS Server') if settings else None
         if server_name and server_name == 'n/a':
             server_name = None
-        with self.pool.connection() as conn:
-            with conn.transaction():
+        asyncio.create_task(self.update_instance(server_name))
+
+    async def update_instance(self, server_name: Optional[str] = None):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 # clean up old server name entries to avoid conflicts
-                conn.execute("""
+                await conn.execute("""
                     DELETE FROM instances WHERE server_name = %s
                 """, (server_name, ))
-                conn.execute("""
+                await conn.execute("""
                     INSERT INTO instances (node, instance, port, server_name)
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (node, instance) DO UPDATE 
@@ -56,19 +60,22 @@ class InstanceImpl(Instance):
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
+    async def update_server(self, server: Optional["Server"] = None):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
+                    WHERE node = %s AND instance = %s
+                """, (server.name if server else None, self.node.name, self.name))
+
     def set_server(self, server: Optional["Server"]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server
         self.prepare()
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
-                    WHERE node = %s AND instance = %s
-                """, (server.name if server else None, self.node.name, self.name))
-                if server and server.name:
-                    server.instance = self
+        if server and server.name:
+            server.instance = self
+        asyncio.create_task(self.update_server(server))
 
     def prepare(self):
         if self.node.locals['DCS'].get('desanitize', True):

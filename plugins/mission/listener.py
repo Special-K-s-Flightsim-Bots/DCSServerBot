@@ -368,7 +368,7 @@ class MissionEventListener(EventListener):
                     group_name=p['group_name'])
                 server.add_player(player)
             else:
-                player.update(p)
+                await player.update(p)
             if player.member:
                 autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
                 if autorole:
@@ -471,7 +471,7 @@ class MissionEventListener(EventListener):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
-            player.update(data)
+            await player.update(data)
         # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             'command': 'uploadUserRoles',
@@ -516,7 +516,7 @@ class MissionEventListener(EventListener):
                 active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
-            player.update(data)
+            await player.update(data)
         # security check, if a banned player somehow managed to get here (should never happen)
         if player.is_banned():
             # noinspection PyAsyncCall
@@ -628,7 +628,7 @@ class MissionEventListener(EventListener):
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                           data['name']))
         finally:
-            player.update(data)
+            await player.update(data)
             self.display_player_embed(server)
 
     @event(name="onGameEvent")

@@ -19,10 +19,10 @@ __all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: "NodeImpl", name: str, public_ip: str, config_dir: Optional[str] = 'config'):
+    def __init__(self, local_node: "NodeImpl", name: str, public_ip: str):
         from services import ServiceBus
 
-        super().__init__(name, config_dir)
+        super().__init__(name, local_node.config_dir)
         self.local_node = local_node
         self.pool = self.local_node.pool
         self.apool = self.local_node.apool

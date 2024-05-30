@@ -167,10 +167,13 @@ class Server(DataObject):
                     "server_name": self.name
                 }, node=self.node.name))
             else:
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
-                                     (self._maintenance, self.name))
+                asyncio.create_task(self.update_maintenance())
+
+    async def update_maintenance(self):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                                   (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:

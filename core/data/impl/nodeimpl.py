@@ -72,11 +72,12 @@ class NodeImpl(Node):
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.dcs_branch = None
         self.dcs_version = None
-        self.all_nodes: Optional[dict[str, dict]] = None
-        self.instances: list[Instance] = list()
+        self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
+        self.suspect: dict[str, Node] = {}
+        self.instances: list[Instance] = []
         self.update_pending = False
-        self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
-        self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
+        self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
+        self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.locals = self.read_locals()
         if sys.platform == 'win32':
             from os import system
@@ -201,10 +202,13 @@ class NodeImpl(Node):
                     c.validate(raise_exception=True)
                 except SchemaError as ex:
                     self.log.warning(f'Error while parsing {config_file}:\n{ex}')
-                self.all_nodes: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+                data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
-            node: dict = self.all_nodes.get(self.name)
+            for node_name in data.keys():
+                if node_name not in self.all_nodes:
+                    self.all_nodes[node_name] = None
+            node: dict = data.get(self.name)
             if not node:
                 raise FatalException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
@@ -226,7 +230,7 @@ class NodeImpl(Node):
                 dirty = True
             if dirty:
                 with open(config_file, 'w', encoding='utf-8') as f:
-                    yaml.dump(self.all_nodes, f)
+                    yaml.dump(data, f)
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
 
@@ -282,7 +286,8 @@ class NodeImpl(Node):
             grouped[server_name].append(instance_name)
         duplicates = {server_name: instances for server_name, instances in grouped.items() if len(instances) > 1}
         for server_name, instances in duplicates.items():
-            self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(server_name, ', '.join(instances)))
+            self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(
+                server_name, ', '.join(instances)))
         for _name, _element in self.locals.pop('instances', {}).items():
             instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
@@ -614,6 +619,9 @@ class NodeImpl(Node):
                 self.autoupdate.cancel()
 
     async def heartbeat(self) -> bool:
+        def has_timeout(row: dict, timeout: int):
+            return (row['now'] - row['last_seen']).total_seconds() > timeout
+
         try:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -666,13 +674,39 @@ class NodeImpl(Node):
                                     if version.parse(cluster['version']) > version.parse(__version__):
                                         self.log.warning(
                                             f"Bot version downgraded from {cluster['version']} to {__version__}. "
-                                            f"This could lead to unexpected behavior if there have been database schema "
-                                            f"changes.")
+                                            f"This could lead to unexpected behavior if there have been database "
+                                            f"schema changes.")
                                     await cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
                                                          (__version__, self.guild_id))
+                                else:
+                                    from services import ServiceBus
+
+                                    # check all nodes
+                                    for row in all_nodes:
+                                        if row['node'] == self.name:
+                                            continue
+                                        elif self.all_nodes.get(row['node']) and has_timeout(
+                                                row, self.locals.get('heartbeat', 30)):
+                                            node = self.all_nodes[row['node']]
+                                            self.log.warning(f"No heartbeat detected for node {node.name}")
+                                            # we did not receive a heartbeat from another node
+                                            if node.name in self.suspect and has_timeout(
+                                                    row, self.locals.get('heartbeat', 30) * 2):
+                                                self.log.error(f"Node {node.name} not responding.")
+                                                await ServiceRegistry.get(ServiceBus).unregister_remote_node(node)
+                                            else:
+                                                self.suspect[node.name] = node
+                                        elif row['node'] in self.suspect and not has_timeout(
+                                                row, self.locals.get('heartbeat', 30) * 2):
+                                            node = self.suspect.pop(row['node'])
+                                            if not self.all_nodes.get(node.name):
+                                                self.log.info(
+                                                    f"- Node {row['node']} is alive again, asking for registration ...")
+                                                self.all_nodes[node.name] = node
+                                                await ServiceRegistry.get(ServiceBus).register_remote_servers(node)
                                 return True
                             # we are not the master, the update is pending, we will not take over
-                            if cluster['update_pending']:
+                            elif cluster['update_pending']:
                                 return False
                             # we have a version mismatch on the agent, a cloud sync might still be pending
                             if version.parse(__version__) < version.parse(cluster['version']):
@@ -689,8 +723,9 @@ class NodeImpl(Node):
                                 """, (self.guild_id, self.name, Json(data)))
                                 return False
                             elif version.parse(__version__) > version.parse(cluster['version']):
-                                self.log.warning(f"This node is running on version {__version__} where the master still "
-                                                 f"runs on {cluster['version']}. You need to upgrade your master node!")
+                                self.log.warning(
+                                    f"This node is running on version {__version__} where the master still runs on "
+                                    f"{cluster['version']}. You need to upgrade your master node!")
                             # we are not the master, but we are the preferred one, taking over
                             if self.locals.get('preferred_master', False):
                                 await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
@@ -701,7 +736,7 @@ class NodeImpl(Node):
                                 if row['node'] == self.name:
                                     continue
                                 if row['node'] == cluster['master']:
-                                    if (row['now'] - row['last_seen']).total_seconds() > self.locals.get('heartbeat', 30):
+                                    if has_timeout(row, self.locals.get('heartbeat', 30)):
                                         # the master is dead, long live the master
                                         await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
                                                              (self.name, self.guild_id))
