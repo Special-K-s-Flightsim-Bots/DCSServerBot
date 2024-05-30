@@ -74,16 +74,30 @@ class PubSub:
             await asyncio.sleep(1)
 
     async def get_connection(self):
-        return await psycopg.AsyncConnection.connect(conninfo=self.url, autocommit=True)
+        conn = None
+
+        max_attempts = self.node.config.get("database", self.node.locals.get('database')).get('max_retries', 10)
+        for attempt in range(max_attempts):
+            try:
+                conn = await psycopg.AsyncConnection.connect(conninfo=self.url, autocommit=True)
+                await conn.execute("SELECT 1")
+                break
+            except OperationalError:
+                if attempt == max_attempts:
+                    raise
+                self.log.warning("- Database not available, trying again in 5s ...")
+                await asyncio.sleep(5)
+
+        return conn
 
     async def close_connection(self, conn: psycopg.AsyncConnection):
         with suppress(psycopg.DatabaseError):
             await conn.close()
 
     async def publish(self, data: dict) -> None:
-        if self.pub_conn is None:
-            self.pub_conn = await self.get_connection()
         try:
+            if self.pub_conn is None:
+                self.pub_conn = await self.get_connection()
             await self.pub_conn.execute(f"""
                     INSERT INTO {self.name} (guild_id, node, data) 
                     VALUES (%(guild_id)s, %(node)s, %(data)s)

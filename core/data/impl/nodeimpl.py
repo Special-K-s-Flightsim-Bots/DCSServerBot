@@ -241,16 +241,15 @@ class NodeImpl(Node):
         except ValueError:
             pass
         # quick connection check
-        db_available = False
         max_attempts = self.config.get("database", self.locals.get('database')).get('max_retries', 10)
-        while not db_available:
+        for attempt in range(max_attempts):
             try:
-                with psycopg.connect(url):
+                aconn = await psycopg.AsyncConnection.connect(url)
+                async with aconn:
                     self.log.info("- Connection to database established.")
-                    db_available = True
+                    break
             except OperationalError:
-                max_attempts -= 1
-                if not max_attempts:
+                if attempt == max_attempts:
                     raise
                 self.log.warning("- Database not available, trying again in 5s ...")
                 await asyncio.sleep(5)
