@@ -51,6 +51,7 @@ class RealWeather(Extension):
             if name == 'files':
                 element['input-mission'] = filename
                 element['output-mission'] = tmpname
+                element['log'] = config.get('files', {}).get('log', 'logfile.log')
             elif name in config:
                 if isinstance(config[name], dict):
                     element |= config[name]
