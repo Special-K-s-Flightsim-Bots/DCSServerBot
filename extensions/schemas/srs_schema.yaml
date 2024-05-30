@@ -3,6 +3,7 @@ schema;node_srs_schema:
   mapping:
     installation: {type: str}
     autoupdate: {type: bool}
+    autostart: {type: bool}
 schema;instance_srs_schema:
   type: map
   mapping:

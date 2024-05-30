@@ -26,8 +26,11 @@ msgstr "Möchtest Du den Pretense-Fortschritt wirklich löschen?"
 msgid "Aborted."
 msgstr "Abgebrochen."
 
-msgid "Pretense progress reset."
+msgid "Pretense persistence reset."
 msgstr "Pretense-Fortschritt gelöscht."
+
+msgid "Pretense statistics reset."
+msgstr "Pretense-Statistiken gelöscht."
 
 # report
 msgid "Rankings as of <t:{}:f>:"
