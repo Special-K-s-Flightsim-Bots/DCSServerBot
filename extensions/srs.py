@@ -1,3 +1,4 @@
+import aiofiles
 import aiohttp
 import asyncio
 import certifi
@@ -38,7 +39,7 @@ class SRS(Extension, FileSystemEventHandler):
         else:
             return {}
 
-    def enable_autoconnect(self):
+    async def enable_autoconnect(self):
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
         autoconnect = os.path.join(self.server.instance.home,
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
@@ -46,23 +47,31 @@ class SRS(Extension, FileSystemEventHandler):
         port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-        with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua'), mode='r',
-                  encoding='utf-8') as infile:
-            with open(autoconnect, mode='w', encoding='utf-8') as outfile:
-                for line in infile.readlines():
-                    if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
-                        line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
-                               "SERVER_SRS_HOST for you! - Currently disabled\n"
-                    elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
-                        line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
-                    elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
-                        line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
-                               f'-- set to your PUBLIC ipv4 address\n'
-                    elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
-                        line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
-                    outfile.write(line)
+        else:
+            shutil.copy2(os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua'), autoconnect)
 
-    def disable_autoconnect(self):
+        # read the original file
+        async with aiofiles.open(autoconnect, mode='r', encoding='utf-8') as infile:
+            lines = await infile.readlines()
+
+        # write a modified one
+        async with aiofiles.open(autoconnect, mode='w', encoding='utf-8') as outfile:
+            for line in lines:
+                if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
+                    line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
+                           "SERVER_SRS_HOST for you! - Currently disabled\n"
+                elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
+                    line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
+                elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
+                    line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
+                           f'-- set to your PUBLIC ipv4 address\n'
+                elif line.startswith('SRSAuto.SRS_NUDGE_ENABLED') and self.config.get('srs_nudge_message'):
+                    line = 'SRSAuto.SRS_NUDGE_ENABLED = true -- set to true to enable the message below'
+                elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
+                    line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
+                await outfile.write(line)
+
+    async def disable_autoconnect(self):
         autoconnect = os.path.join(self.server.instance.home,
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
         if os.path.exists(autoconnect):
@@ -124,10 +133,11 @@ class SRS(Extension, FileSystemEventHandler):
         else:
             ports[port] = self.server.name
         if self.config.get('autoconnect', True):
-            self.enable_autoconnect()
+            await self.enable_autoconnect()
             self.log.info('  => SRS autoconnect is enabled for this server.')
         else:
             self.log.info('  => SRS autoconnect is NOT enabled for this server.')
+            await self.disable_autoconnect()
         return await super().prepare()
 
     async def startup(self) -> bool:
