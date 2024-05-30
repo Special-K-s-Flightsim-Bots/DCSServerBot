@@ -26,8 +26,11 @@ msgstr "¿Realmente desea reiniciar el progerso de Pretense?"
 msgid "Aborted."
 msgstr "Abortado."
 
-msgid "Pretense progress reset."
-msgstr "Reiniciado el progreso de Pretense."
+msgid "Pretense persistence reset."
+msgstr "Persistencia de Pretense reiniciada."
+
+msgid "Pretense statistics reset."
+msgstr "Estadísticas de Pretense reiniciadas."
 
 # Reports
 msgid "Rankings as of <t:{}:f>:"
