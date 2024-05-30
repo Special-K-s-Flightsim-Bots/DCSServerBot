@@ -59,6 +59,7 @@ class Node:
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])
+        self.slow_system: bool = False
 
     @property
     def master(self) -> bool:

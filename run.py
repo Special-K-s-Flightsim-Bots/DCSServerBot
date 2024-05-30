@@ -89,7 +89,7 @@ class Main:
         perf_logger = logging.getLogger(name='performance_log')
         perf_logger.setLevel(logging.DEBUG)
         perf_logger.propagate = False
-        pfh = CloudRotatingFileHandler(os.path.join('logs', 'perf.log'), encoding='utf-8',
+        pfh = CloudRotatingFileHandler(os.path.join('logs', f'perf-{node}.log'), encoding='utf-8',
                                        maxBytes=config.get('logrotate_size', 10485760),
                                        backupCount=config.get('logrotate_count', 5))
         pff = logging.Formatter('%(asctime)s\t%(levelname)s\t%(message)s')

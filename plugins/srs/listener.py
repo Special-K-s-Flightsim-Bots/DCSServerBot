@@ -29,7 +29,7 @@ class SRSEventListener(EventListener):
         self.srs_users[server.name][data['player_name']] = data
 
     def _del_srs_user(self, server: Server, data: dict) -> None:
-        if server.name in self.srs_users:
+        if server.name not in self.srs_users:
             return
         self.srs_users[server.name].pop(data['player_name'], None)
 

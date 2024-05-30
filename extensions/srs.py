@@ -227,7 +227,7 @@ class SRS(Extension, FileSystemEventHandler):
                     "player_name": client
                 }))
                 del self.clients[client]
-        except Exception as ex:
+        except Exception:
             pass
 
     def is_running(self) -> bool:

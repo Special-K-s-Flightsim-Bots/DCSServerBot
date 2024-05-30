@@ -34,14 +34,16 @@ class SRS(Plugin):
         embed.title = _("{} Players on SRS").format(coalition.title())
         names = ""
         radios = ""
-        for player in server.get_active_players(side=Side.BLUE if coalition == 'blue' else Side.RED):
-            names += player.display_name + "\n"
-            _radios = self.eventlistener.srs_users.get(server.name, {}).get(player.name, {}).get('radios', [])
+        for player in self.eventlistener.srs_users.get(server.name, {}).values():
+            if player['side'] != (1 if coalition == 'red' else 2):
+                continue
+            names += player['player_name'] + "\n"
+            _radios = player.get('radios', [])
             radios += ', '.join([utils.format_frequency(x, band=False) for x in _radios[:2]]) + "\n"
         if names:
-            embed.add_field(name=_("DCS-Name"), value=names)
+            embed.add_field(name=_("Name"), value=names)
             embed.add_field(name=_("Radios"), value=radios)
-            embed.set_footer(text=_("Only the first 2 radios are displayed."))
+            embed.set_footer(text=_("Only the first 2 radios are displayed per user."))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed)
         else:

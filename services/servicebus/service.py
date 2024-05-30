@@ -259,6 +259,7 @@ class ServiceBus(Service):
         for server in (x for x in self.servers.values() if x.is_remote and x.node == node):
             servers_to_remove.append(server.name)
         for server_name in servers_to_remove:
+            self.log.info(f"  => Remote DCS-server \"{server_name}\" unregistered.")
             self.servers[server_name].status = Status.UNREGISTERED
             del self.servers[server_name]
         self.node.all_nodes[node.name] = None
