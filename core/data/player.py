@@ -251,7 +251,11 @@ class Player(DataObject):
         if not self.member or not role:
             return
         try:
-            await self.member.add_roles(self.bot.get_role(role))
+            _role = self.bot.get_role(role)
+            if not _role:
+                self.log.error(f'Role {role} not found!')
+                return
+            await self.member.add_roles(_role)
         except discord.Forbidden:
             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
 
@@ -259,6 +263,10 @@ class Player(DataObject):
         if not self.member or not role:
             return
         try:
-            await self.member.remove_roles(self.bot.get_role(role))
+            _role = self.bot.get_role(role)
+            if not _role:
+                self.log.error(f'Role {role} not found!')
+                return
+            await self.member.remove_roles(_role)
         except discord.Forbidden:
             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
