@@ -653,8 +653,6 @@ class Admin(Plugin):
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer(ephemeral=ephemeral)
         if not node:
             msg = _("Do you want to {} all nodes?").format(_(method))
         else:
@@ -688,6 +686,9 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
                        node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "shutdown", node)
 
     @node_group.command(description=_('Restarts a specific node'))
@@ -695,6 +696,9 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "restart", node)
 
     @node_group.command(description=_('Shuts down all servers, enables maintenance'))
