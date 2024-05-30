@@ -15,7 +15,7 @@ schema;mizedit_schema:
     terrains:
       type: map
       mapping:
-        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|Marianas|Falklands|Kola):
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola):
           type: map
           mapping:
             settings:

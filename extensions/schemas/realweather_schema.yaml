@@ -12,8 +12,12 @@ schema;instance_realweather_schema:
     terrains:
       type: map
       mapping:
-        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|Marianas|Falklands|Kola):
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola):
           include: 'instance_realweather_schema'
+    files:
+      type: map
+      mapping:
+        log: { type: str }
     metar:
       type: map
       allowempty: true  # allow the author to change values
@@ -37,29 +41,29 @@ schema;instance_realweather_schema:
             maximum: {type: int}
             stability: {type: float}
             fixed-reference: {type: bool}
-            clouds:
-              type: map
-              allowempty: true
-              mapping:
-                disallowed-presets:
-                  type: seq
-                  sequence:
-                    - type: str
-                fallback-to-no-preset: {type: bool}
-                default-preset: {type: str}
-            fog:
-              type: map
-              allowempty: true
-              mapping:
-                enabled: {type: bool}
-                thickness-minimum: {type: int, range: {min: 0}}
-                thickness-maximum: {type: int, range: {max: 1000}}
-                visibility-minimum: {type: int, range: {min: 0}}
-                visibility-maximum: {type: int, range: {max: 6000}}
-            dust:
-              type: map
-              allowempty: true
-              mapping:
-                enabled: {type: bool}
-                visibility-minimum: {type: int, range: {min: 300}}
-                visibility-maximum: {type: int, range: {max: 3000}}
+        clouds:
+          type: map
+          allowempty: true
+          mapping:
+            disallowed-presets:
+              type: seq
+              sequence:
+                - type: str
+            fallback-to-no-preset: {type: bool}
+            default-preset: {type: str}
+        fog:
+          type: map
+          allowempty: true
+          mapping:
+            enabled: {type: bool}
+            thickness-minimum: {type: int, range: {min: 0}}
+            thickness-maximum: {type: int, range: {max: 1000}}
+            visibility-minimum: {type: int, range: {min: 0}}
+            visibility-maximum: {type: int, range: {max: 6000}}
+        dust:
+          type: map
+          allowempty: true
+          mapping:
+            enabled: {type: bool}
+            visibility-minimum: {type: int, range: {min: 300}}
+            visibility-maximum: {type: int, range: {max: 3000}}
