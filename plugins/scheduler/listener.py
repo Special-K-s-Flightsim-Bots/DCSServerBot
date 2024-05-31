@@ -139,7 +139,7 @@ class SchedulerListener(EventListener):
             restart = self.get_config(server).get('restart')
             if restart:
                 # do not print any chat message when the server is set to restart on populated = False
-                if not restart.get('populated', True):
+                if isinstance(restart, dict) and not restart.get('populated', True):
                     return
                 restart_in, _ = self.get_next_restart(server, restart)
                 restart_time = f"in {utils.format_time(restart_in)}"
