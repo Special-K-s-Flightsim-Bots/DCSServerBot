@@ -695,7 +695,7 @@ class ServiceBus(Service):
                                         return
                                     if not self.master:
                                         self.log.debug(f"Registering server {server.name} on Master node ...")
-                            elif server.status == Status.UNREGISTERED:
+                            elif server.status == Status.UNREGISTERED and command not in ['getWeatherInfo', 'getAirbases']:
                                 self.log.debug(
                                     f"Command {command} received for unregistered server {server.name}, ignoring.")
                                 continue

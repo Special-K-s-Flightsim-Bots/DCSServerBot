@@ -26,8 +26,11 @@ msgstr "Вы точно хотите выполнить сброс прогре�
 msgid "Aborted."
 msgstr "Отмена."
 
-msgid "Pretense progress reset."
-msgstr "Прогресс Pretense сброшен."
+msgid "Pretense persistence reset."
+msgstr "Сброс прогресса Pretense."
+
+msgid "Pretense statistics reset."
+msgstr "Сброс статистики Pretense."
 
 # Reports
 msgid "Rankings as of <t:{}:f>:"
