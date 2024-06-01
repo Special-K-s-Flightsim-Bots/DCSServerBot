@@ -1,7 +1,7 @@
 from __future__ import annotations
 from core import Server, Status, utils
 from core.data.node import UploadStatus
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Union
 
 
@@ -10,6 +10,7 @@ __all__ = ["ServerProxy"]
 
 @dataclass
 class ServerProxy(Server):
+    _extensions: Optional[list[dict]] = field(compare=False, default=None)
 
     async def reload(self):
         timeout = 60 if not self.node.slow_system else 120
@@ -92,6 +93,7 @@ class ServerProxy(Server):
             "method": "startup_extensions",
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
+        self._extensions = None
 
     async def shutdown_extensions(self) -> None:
         timeout = 60 if not self.node.slow_system else 120
@@ -101,6 +103,7 @@ class ServerProxy(Server):
             "method": "shutdown_extensions",
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
+        self._extensions = None
 
     async def shutdown(self, force: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
@@ -221,14 +224,16 @@ class ServerProxy(Server):
         self.name = new_name
 
     async def render_extensions(self) -> list:
-        timeout = 60 if not self.node.slow_system else 120
-        data = await self.bus.send_to_node_sync({
-            "command": "rpc",
-            "object": "Server",
-            "method": "render_extensions",
-            "server_name": self.name
-        }, timeout=timeout, node=self.node.name)
-        return data['return']
+        if not self._extensions:
+            timeout = 60 if not self.node.slow_system else 120
+            data = await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "object": "Server",
+                "method": "render_extensions",
+                "server_name": self.name
+            }, timeout=timeout, node=self.node.name)
+            self._extensions = data['return']
+        return self._extensions
 
     async def is_running(self) -> bool:
         timeout = 60 if not self.node.slow_system else 120
