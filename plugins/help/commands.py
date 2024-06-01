@@ -388,8 +388,8 @@ _ _
                 elif ext.name == 'LotAtc':
                     server_dict['LotAtc Port'] = ext.locals.get('port', 10310)
                 elif ext.name == 'DCS Olympus':
-                    server_dict['Olympus Client'] = ext.config.get('client', {}).get('port', 3000)
-                    server_dict['Olympus Server'] = ext.config.get('server', {}).get('port', 3001)
+                    server_dict['Olympus Client'] = ext.config.get(ext.frontend_tag, {}).get('port', 3000)
+                    server_dict['Olympus Server'] = ext.config.get(ext.backend_tag, {}).get('port', 3001)
                 elif ext.name == 'Sneaker':
                     port = ext.config['bind'].split(':')[1]
                     server_dict['Sneaker Port'] = port
