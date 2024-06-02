@@ -86,9 +86,11 @@ class EmbedElement(ReportElement):
     def add_field(self, *, name, value, inline=True):
         if len(self.embed.fields) >= 25:
             return
-        return self.embed.add_field(name=name[:256] or '_ _',
-                                    value=(value[:1024] if isinstance(value, str) else value) or '_ _',
-                                    inline=inline)
+        if len(name) > 256:
+            name = name[:252] + ' ...'
+        if isinstance(value, str) and len(value) > 1024:
+            value = value[:1020] + ' ...'
+        return self.embed.add_field(name=name or '_ _', value=value or '_ _', inline=inline)
 
     def set_image(self, *, url):
         return self.embed.set_image(url=url)
@@ -111,7 +113,6 @@ class Ruler(EmbedElement):
 
 class Field(EmbedElement):
     async def render(self, name: str, value: Any, inline: Optional[bool] = True, default: Optional[str] = '_ _'):
-
         self.add_field(name=utils.format_string(name, '_ _', **self.env.params),
                        value=utils.format_string(value, default, **self.env.params), inline=inline)
 

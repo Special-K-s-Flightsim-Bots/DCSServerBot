@@ -65,6 +65,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 def parse_time(time_str: str) -> datetime:
     fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
         if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
@@ -146,7 +147,7 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
 
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
-    except KeyError:
+    except (KeyError, TypeError):
         string_ = ""
     return string_
 

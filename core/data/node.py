@@ -100,7 +100,7 @@ class Node:
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     with open(file, 'w', encoding='utf-8') as f:
                         yaml.dump(config, f)
-                    print("Database password found, removing it from config.")
+                    self.log.info("Database password found, removing it from config.")
 
             # set defaults
             config['autoupdate'] = config.get('autoupdate', False)

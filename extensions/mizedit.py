@@ -61,7 +61,7 @@ class MizEdit(Extension):
             if preset not in self.presets:
                 self.log.error(f'Preset {preset} not found, ignored.')
                 continue
-            self.log.info(f"  - Applying preset {preset}")
+            self.log.info(f"  - Applying preset {preset} ...")
             value = self.presets[preset]
             if isinstance(value, list):
                 for inner_preset in value:
