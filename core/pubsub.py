@@ -2,23 +2,9 @@ import asyncio
 import psycopg
 
 from contextlib import suppress
-from typing import Callable, Optional
+from typing import Callable
 
 from core.data.impl.nodeimpl import NodeImpl
-
-
-class ConnectionManager:
-    def __init__(self, parent):
-        self.parent = parent
-        self.conn: Optional[psycopg.Connection] = None
-
-    async def __aenter__(self):
-        self.conn = await self.parent.get_connection()
-        return self.conn
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None and issubclass(exc_type, psycopg.DatabaseError):
-            await self.parent.close_connection(self.conn)
 
 
 class PubSub:
@@ -28,10 +14,29 @@ class PubSub:
         self.name = name
         self.log = node.log
         self.url = url
+        self.queue = asyncio.Queue()
         self._stop_event = asyncio.Event()
-        self.pub_conn: Optional[psycopg.AsyncConnection] = None
+        self._worker = asyncio.create_task(self._process_write())
 
-    async def _process(self, cursor: psycopg.AsyncCursor, handler: Callable):
+    async def _process_write(self):
+        await asyncio.sleep(1)  # Ensure the rest of __init__ has finished
+        while not self._stop_event.is_set():
+            with suppress(psycopg.OperationalError):
+                async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
+                    while not self._stop_event.is_set():
+                        message = await self.queue.get()
+                        if not message:
+                            return
+                        try:
+                            await conn.execute(f"""
+                                INSERT INTO {self.name} (guild_id, node, data) 
+                                VALUES (%(guild_id)s, %(node)s, %(data)s)
+                            """, message)
+                        finally:
+                            # Notify the queue that the message has been processed.
+                            self.queue.task_done()
+
+    async def _process_read(self, cursor: psycopg.AsyncCursor, handler: Callable):
         ids_to_delete = []
         await cursor.execute(f"""
             SELECT id, data 
@@ -55,13 +60,13 @@ class PubSub:
                                  (ids_to_delete,))
 
     async def subscribe(self, handler: Callable):
-        while True:
+        while not self._stop_event.is_set():
             with suppress(psycopg.OperationalError):
-                async with ConnectionManager(self) as conn:
+                async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
                     async with conn.cursor() as cursor:
                         # preprocess all rows that might be there
                         await cursor.execute(f"LISTEN {self.name}")
-                        await self._process(cursor, handler)
+                        await self._process_read(cursor, handler)
                         gen = conn.notifies()
                         async for n in gen:
                             if self._stop_event.is_set():
@@ -70,42 +75,12 @@ class PubSub:
                                 return
                             node = n.payload
                             if node == self.node.name or (self.node.master and node == 'Master'):
-                                await self._process(cursor, handler)
+                                await self._process_read(cursor, handler)
             await asyncio.sleep(1)
 
-    async def get_connection(self):
-        conn = None
-
-        max_attempts = self.node.config.get("database", self.node.locals.get('database')).get('max_retries', 10)
-        for attempt in range(max_attempts):
-            try:
-                conn = await psycopg.AsyncConnection.connect(conninfo=self.url, autocommit=True)
-                await conn.execute("SELECT 1")
-                break
-            except OperationalError:
-                if attempt == max_attempts:
-                    raise
-                self.log.warning("- Database not available, trying again in 5s ...")
-                await asyncio.sleep(5)
-
-        return conn
-
-    async def close_connection(self, conn: psycopg.AsyncConnection):
-        with suppress(psycopg.DatabaseError):
-            await conn.close()
-
     async def publish(self, data: dict) -> None:
-        try:
-            if self.pub_conn is None:
-                self.pub_conn = await self.get_connection()
-            await self.pub_conn.execute(f"""
-                    INSERT INTO {self.name} (guild_id, node, data) 
-                    VALUES (%(guild_id)s, %(node)s, %(data)s)
-                """, data)
-        except psycopg.DatabaseError:
-            await self.close_connection(self.pub_conn)
-            self.pub_conn = None
-            raise
+        """Add a message to the queue."""
+        self.queue.put_nowait(data)
 
     async def clear(self):
         async with self.node.apool.connection() as conn:
@@ -124,6 +99,6 @@ class PubSub:
                 await conn.set_autocommit(False)
 
     async def close(self):
-        if self.pub_conn:
-            await self.pub_conn.execute(f"NOTIFY {self.name}")
-            await self.close_connection(self.pub_conn)
+        self._stop_event.set()
+        self.queue.put_nowait(None)
+        await self._worker

@@ -94,7 +94,7 @@ You need one entry in the node section, pointing to your DCS-SRS installation an
 where you want to use SRS with. The next time the bot starts your server, it will auto-launch SRS and take care of it.
 
 __Optional__ parameters (will change server.cfg if necessary):</br>
-* **autoupdate** If true, SRS will check for updates and update itself. You need to run the bot as Admin to do so.
+* **autoupdate** If true, SRS will check for updates and update itself.
 * **host** The hostname or IP to be used in your DCS-SRS-AutoConnectGameGUI.lua. The bot will replace it in there.
 * **port** SRS port (default: 5002)
 * **awacs** AWACS mode
@@ -102,6 +102,8 @@ __Optional__ parameters (will change server.cfg if necessary):</br>
 * **red_password** AWACS mode, password red.
 * **autostart** If true, the SRS server will be auto-started (default).
 
+> ⚠️ **Attention!**<br>
+> You need to enable "Run as Administrator" on the SRS-AutoUpdater.exe to use autoupdate.
 
 ### Tacview
 Many servers run [Tacview](https://www.tacview.net/) to help people analyse their flight path, weapons employment and 

@@ -10,6 +10,9 @@ import subprocess
 import ssl
 import sys
 
+if sys.platform == 'win32':
+    import ctypes
+
 from configparser import RawConfigParser
 from core import Extension, utils, Server, ServiceRegistry, Autoexec
 from discord.ext import tasks
@@ -35,7 +38,10 @@ class SRS(Extension, FileSystemEventHandler):
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
             self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
-            return {s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)} for s in self.cfg.sections()}
+            return {
+                s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
+                for s in self.cfg.sections()
+            }
         else:
             return {}
 
@@ -90,6 +96,8 @@ class SRS(Extension, FileSystemEventHandler):
     async def prepare(self) -> bool:
         global ports
 
+        if self.config.get('autoupdate', False):
+            await self._check_for_updates()
         path = os.path.expandvars(self.config['config'])
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
@@ -308,10 +316,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
 
-    @tasks.loop(minutes=5)
-    async def schedule(self):
-        if not self.config.get('autoupdate', False):
-            return
+    async def _check_for_updates(self):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
@@ -321,8 +326,21 @@ class SRS(Extension, FileSystemEventHandler):
                         if version != self.version:
                             self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
                             cwd = self.get_inst_path()
-                            subprocess.run(executable=os.path.join(cwd, 'SRS-AutoUpdater.exe'),
-                                           args=['-server', '-autoupdate', f'-path=\"{cwd}\"'], cwd=cwd, shell=True)
+                            exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
+                            args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
+                            if sys.platform == 'win32':
+                                ctypes.windll.shell32.ShellExecuteW(None, "runas", exe_path, ' '.join(args), None, 1)
+                            else:
+                                subprocess.run(executable=exe_path, args=args, cwd=cwd, shell=True)
         except OSError as ex:
             if ex.winerror == 740:
                 self.log.error("You need to run DCSServerBot as Administrator to use the DCS-SRS AutoUpdater.")
+
+    @tasks.loop(minutes=5)
+    async def schedule(self):
+        if not self.config.get('autoupdate', False):
+            return
+        try:
+            await self._check_for_updates()
+        except Exception as ex:
+            self.log.exception(ex)
