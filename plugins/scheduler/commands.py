@@ -203,11 +203,13 @@ class Scheduler(Plugin):
             if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
-                self.log.debug("Scheduler: Setting on_empty trigger.")
+                    self.log.debug("Scheduler: Setting on_empty trigger.")
                 server.restart_pending = True
                 return
             server.restart_pending = True
             self.log.debug("Scheduler: Warning users ...")
+            if max_warn_time < 1:
+                max_warn_time = 1
             await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
