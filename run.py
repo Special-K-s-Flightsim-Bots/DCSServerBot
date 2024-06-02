@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import discord
+import faulthandler
 import logging
 import os
 import pathlib
@@ -208,6 +209,7 @@ async def run_node(name, config_dir=None, no_autoupdate=False):
 
 
 if __name__ == "__main__":
+    faulthandler.enable()
     console = Console()
 
     if sys.platform == 'win32':
