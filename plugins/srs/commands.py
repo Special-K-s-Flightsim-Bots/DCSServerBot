@@ -2,7 +2,7 @@ import discord
 
 from discord import app_commands
 from core import Plugin, PluginRequiredError, TEventListener, PluginInstallationError, Group, get_translation, utils, \
-    Server, Coalition, Status, Side
+    Server, Coalition, Status
 from services import DCSServerBot
 from typing import Type, Literal
 

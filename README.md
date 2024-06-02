@@ -489,7 +489,12 @@ To start the bot, use the packaged ```run.cmd``` command. This creates the neces
 launches the bot afterward.<br/>
 If you want to run the bot from autostart, press Win+R, enter `shell:startup` and press ENTER, create a shortcut to your
 `run.cmd` in there.
-
+---
+## Repairing the Bot
+If you have issues starting DCSServerBot, especially after an update, it might be that some 3rd party library got 
+corrupted. In rare cases, it can also happen, that an auto-update is not possible at all, because some file got changed 
+that was not supposed to be changed, or some other corruption has occurred.<br>
+In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
 ---
 ## How to do the more complex stuff?
 DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest 

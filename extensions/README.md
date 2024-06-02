@@ -103,7 +103,7 @@ __Optional__ parameters (will change server.cfg if necessary):</br>
 * **autostart** If true, the SRS server will be auto-started (default).
 
 > ⚠️ **Attention!**<br>
-> You need to enable "Run as Administrator" on the SRS-AutoUpdater.exe to use autoupdate.
+> You need to disable User-Access-Control (UAC) to use SRS-autoupdate.
 
 ### Tacview
 Many servers run [Tacview](https://www.tacview.net/) to help people analyse their flight path, weapons employment and 
