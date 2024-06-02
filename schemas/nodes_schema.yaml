@@ -44,5 +44,6 @@ mapping:
               server_user: {type: str}
               max_hung_minutes: {type: int, range: {min: 0}}
               affinity: {type: any}
+              priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime']}
               extensions:
                 include: 'instance_extensions_schema'

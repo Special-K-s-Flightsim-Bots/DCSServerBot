@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import asyncio
 import logging
 import os
 import psutil
 import sys
+
 if sys.platform == 'win32':
     import win32gui
     import win32process
@@ -11,9 +13,8 @@ if sys.platform == 'win32':
 
 from datetime import datetime, timezone
 from discord.ext import tasks
-from typing import Union
 
-from core import Status, utils, Server, ServerImpl, Autoexec
+from core import Status, Server, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
@@ -57,17 +58,6 @@ class MonitoringService(Service):
                                      'to avoid that.')
             except Exception as ex:
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
-
-    @staticmethod
-    async def check_affinity(server: Server, affinity: Union[list[int], str]):
-        if isinstance(affinity, str):
-            affinity = [int(x.strip()) for x in affinity.split(',')]
-        elif isinstance(affinity, int):
-            affinity = [affinity]
-        if not server.process:
-            server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
-        if server.process:
-            server.process.cpu_affinity(affinity)
 
     async def warn_admins(self, server: Server, title: str, message: str) -> None:
         message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
@@ -156,9 +146,6 @@ class MonitoringService(Service):
                     await self.kill_hung_server(server)
                     continue
                 if server.status in [Status.RUNNING, Status.PAUSED]:
-                    # check affinity
-                    if 'affinity' in server.instance.locals:
-                        await self.check_affinity(server, server.instance.locals['affinity'])
                     # check extension states
                     for ext in [x for x in server.extensions.values() if not await asyncio.to_thread(x.is_running)]:
                         try:

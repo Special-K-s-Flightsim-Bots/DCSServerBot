@@ -314,7 +314,8 @@ NODENAME:                       # this will usually be your hostname
       missions_dir: '%USERPROFILE%\Documents\Missions'        # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      affinity: 2,3             # Optional: set the CPU-affinity for this instance.
+      affinity: 2,3             # Optional: set the CPU-affinity for the DCS_Server.exe.
+      priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
           config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.

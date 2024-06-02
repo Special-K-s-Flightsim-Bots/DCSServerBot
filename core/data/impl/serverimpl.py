@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import psutil
 import shutil
 import socket
 import subprocess
@@ -395,6 +396,10 @@ class ServerImpl(Server):
                 [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
             )
             self.process = Process(p.pid)
+            if 'priority' in self.locals:
+                self.set_priority(self.locals.get('priority'))
+            if 'affinity' in self.locals:
+                self.set_affinity(self.locals.get('affinity'))
             self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
@@ -444,6 +449,32 @@ class ServerImpl(Server):
             if window_name.lower() in i[1].lower():
                 win32gui.ShowWindow(i[0], win32con.SW_MINIMIZE)
                 break
+
+    def set_priority(self, priority: str):
+        if priority == 'below_normal':
+            self.log.info("  => Setting process priority to BELOW NORMAL.")
+            p = psutil.BELOW_NORMAL_PRIORITY_CLASS
+        elif priority == 'above_normal':
+            self.log.info("  => Setting process priority to ABOVE NORMAL.")
+            p = psutil.ABOVE_NORMAL_PRIORITY_CLASS
+        elif priority == 'high':
+            self.log.info("  => Setting process priority to HIGH.")
+            p = psutil.HIGH_PRIORITY_CLASS
+        elif priority == 'realtime':
+            self.log.warning("  => Setting process priority to REALTIME. Handle with care!")
+            p = psutil.REALTIME_PRIORITY_CLASS
+        else:
+            p = psutil.NORMAL_PRIORITY_CLASS
+        self.process.nice(p)
+
+    def set_affinity(self, affinity: Union[list[int], str]):
+        if isinstance(affinity, str):
+            affinity = [int(x.strip()) for x in affinity.split(',')]
+        elif isinstance(affinity, int):
+            affinity = [affinity]
+        self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
+        self.process.cpu_affinity(affinity)
+
 
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
