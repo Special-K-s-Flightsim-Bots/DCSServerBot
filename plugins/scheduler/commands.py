@@ -208,8 +208,8 @@ class Scheduler(Plugin):
                 return
             server.restart_pending = True
             self.log.debug("Scheduler: Warning users ...")
-            if max_warn_time < 1:
-                max_warn_time = 1
+            if max_warn_time < 60:
+                max_warn_time = 60
             await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
