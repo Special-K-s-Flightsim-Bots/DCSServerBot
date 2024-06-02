@@ -54,7 +54,7 @@ class Sneaker(Extension):
 
     def _log_output(self, p: subprocess.Popen):
         for line in iter(p.stdout.readline, b''):
-            self.log.info(line.decode('utf-8').rstrip())
+            self.log.debug(line.decode('utf-8').rstrip())
 
     def _run_subprocess(self, config: str):
         cmd = os.path.basename(self.config['cmd'])

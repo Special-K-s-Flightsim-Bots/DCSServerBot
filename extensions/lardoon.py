@@ -133,7 +133,7 @@ class Lardoon(Extension):
                 if stderr:
                     self.log.error(stderr.decode('utf-8'))
             if self.config.get('debug', False) and stdout:
-                self.log.info(stdout.decode('utf-8'))
+                self.log.debug(stdout.decode('utf-8'))
 
         for tacview_dir, server_list in tacview_dirs.items():
             if server_list and self.server.name == list(server_list)[0]:
@@ -145,7 +145,6 @@ class Lardoon(Extension):
             self.schedule.change_interval(minutes=minutes)
         try:
             cmd = os.path.expandvars(self.config['cmd'])
-            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             async with lock:
                 self.log.debug("Lardoon: Scheduled import run ...")
                 await asyncio.to_thread(run_subprocess, ["import", "-p", tacview_dir])

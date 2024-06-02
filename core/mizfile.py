@@ -321,7 +321,7 @@ class MizFile:
         def process_elements(reference: dict, **kwargs):
             if 'select' in config:
                 if debug:
-                    self.log.info("Processing SELECT ...")
+                    self.log.debug("Processing SELECT ...")
                 if config['select'].startswith('/'):
                     elements = list(utils.for_each(self.mission, config['select'][1:].split('/'),
                                                    debug=debug, **kwargs))
@@ -338,13 +338,13 @@ class MizFile:
                 if not element:
                     if reference and 'insert' in config:
                         if debug:
-                            self.log.info(f"Inserting new value: {config['insert']}")
+                            self.log.debug(f"Inserting new value: {config['insert']}")
                         reference |= utils.evaluate(config['insert'], reference=reference, **kkwargs)
                 elif 'replace' in config:
                     sort = False
                     for _what, _with in config['replace'].items():
                         if debug:
-                            self.log.info(f"Replacing {_what} with {_with}")
+                            self.log.debug(f"Replacing {_what} with {_with}")
                         if isinstance(_what, int) and isinstance(element, (list, dict)):
                             if isinstance(element, list):
                                 try:
@@ -366,7 +366,7 @@ class MizFile:
                 elif 'merge' in config:
                     for _what, _with in config['merge'].items():
                         if debug:
-                            self.log.info(f"Merging {_what} with {_with}")
+                            self.log.debug(f"Merging {_what} with {_with}")
                         if isinstance(_with, dict):
                             element[_what] |= _with
                         else:
@@ -381,7 +381,7 @@ class MizFile:
                                 utils.tree_delete(reference, _with)
                 elif 'delete' in config:
                     if debug:
-                        self.log.info("Processing DELETE ...")
+                        self.log.debug("Processing DELETE ...")
                     if isinstance(element, list):
                         for _what in element.copy():
                             if utils.evaluate(config['delete'], **_what):
@@ -420,7 +420,7 @@ class MizFile:
         for reference in utils.for_each(self.mission, for_each.split('/'), debug=debug, **kwargs):
             if 'where' in config:
                 if debug:
-                    self.log.info("Processing WHERE ...")
+                    self.log.debug("Processing WHERE ...")
                 if check_where(reference, config['where'], debug=debug, **kwargs):
                     process_elements(reference, **kwargs)
             else:

@@ -127,7 +127,7 @@ MyNode:
         Tacview:
           show_passwords: false  # hide passwords in your server status embed (default: true)
           host: 127.0.0.1        # Tacview host (default)
-          log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log"
+          log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log" # Only needed, if you export tacview logs to a different file.
           tacviewRealTimeTelemetryPort: 42674  # default
           tacviewRealTimeTelemetryPassword: '' # default
           tacviewRemoteControlPort: 42675      # default

@@ -9,7 +9,6 @@ from core import utils, EventListener, PersistentReport, Plugin, Report, Status,
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
-from queue import Queue
 from services import ServiceBus
 from typing import TYPE_CHECKING, Callable, Coroutine
 
@@ -81,7 +80,7 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.queue: dict[int, Queue[str]] = {}
+        self.queue: dict[int, asyncio.Queue[str]] = {}
         self.player_embeds: dict[str, bool] = {}
         self.mission_embeds: dict[str, bool] = {}
         self.alert_fired: dict[str, bool] = {}
@@ -106,10 +105,11 @@ class MissionEventListener(EventListener):
                     return
             messages = message_old = ''
             while not self.queue[channel].empty():
-                message = self.queue[channel].get()
+                message = await self.queue[channel].get()
                 if message != message_old:
                     if len(messages + message) > 2000:
                         await _channel.send(messages)
+                        await asyncio.sleep(self.print_queue.seconds)
                         messages = message
                     else:
                         messages += message
@@ -209,8 +209,8 @@ class MissionEventListener(EventListener):
             events_channel = server.channels.get(Channel.EVENTS, -1)
         if int(events_channel) != -1:
             if events_channel not in self.queue:
-                self.queue[events_channel] = Queue()
-            self.queue[events_channel].put(message)
+                self.queue[events_channel] = asyncio.Queue()
+            self.queue[events_channel].put_nowait(message)
 
     def display_mission_embed(self, server: Server):
         self.mission_embeds[server.name] = True
