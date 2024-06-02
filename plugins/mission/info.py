@@ -47,7 +47,8 @@ class Header(report.EmbedElement):
                     # do we maybe have a permanent ban without a user?
                     if isinstance(member, str) and utils.is_ucid(member):
                         await cursor.execute("""
-                                                    SELECT 1 as banned, reason, banned_by, banned_until 
+                                                    SELECT 1 as banned, reason, banned_by, banned_until, 
+                                                           FALSE as watchlist, FALSE as vip 
                                                     FROM bans WHERE ucid = %s
                                                 """, (member,))
                         rows = await cursor.fetchall()
