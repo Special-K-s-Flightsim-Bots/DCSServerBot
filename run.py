@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import discord
-import faulthandler
 import logging
 import os
 import pathlib
@@ -196,7 +195,8 @@ class Main:
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
-            except Exception:
+            except Exception as ex:
+                self.log.exception(ex)
                 self.log.warning("Aborting the main loop.")
                 raise
             finally:
@@ -209,7 +209,6 @@ async def run_node(name, config_dir=None, no_autoupdate=False):
 
 
 if __name__ == "__main__":
-    faulthandler.enable()
     console = Console()
 
     if sys.platform == 'win32':

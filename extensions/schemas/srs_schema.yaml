@@ -13,6 +13,7 @@ schema;node_srs_schema:
     no_shutdown: {type: bool}
     srs_nudge_message: {type: str}
     autoconnect: {type: bool}
+    show_passwords: {type: bool}
 schema;instance_srs_schema:
   type: map
   mapping:
@@ -28,3 +29,4 @@ schema;instance_srs_schema:
     no_shutdown: {type: bool}
     srs_nudge_message: {type: str}
     autoconnect: {type: bool}
+    show_passwords: {type: bool}

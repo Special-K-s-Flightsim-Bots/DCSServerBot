@@ -2,6 +2,15 @@ schema;node_olympus_schema:
   type: map
   mapping:
     nodejs: {type: str, required: true, nullable: false}
+    debug: {type: bool}
+    show_passwords: {type: bool}
+    authentication:
+      type: map
+      required: true
+      mapping:
+        gameMasterPassword: {type: str, required: true}
+        blueCommanderPassword: {type: str, required: true}
+        redCommanderPassword: {type: str, required: true}
 schema;instance_olympus_schema:
   type: map
   mapping:
