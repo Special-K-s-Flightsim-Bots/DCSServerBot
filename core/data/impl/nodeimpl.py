@@ -109,6 +109,7 @@ class NodeImpl(Node):
         await self.close_db()
 
     async def post_init(self):
+        self.log.debug("> Node.post_init()")
         self.pool, self.apool = await self.init_db()
         try:
             async with self.apool.connection() as conn:
@@ -124,6 +125,7 @@ class NodeImpl(Node):
         if self._master:
             await self.update_db()
         self.init_instances()
+        self.log.debug("< Node.post_init()")
 
     @property
     def master(self) -> bool:
@@ -235,6 +237,7 @@ class NodeImpl(Node):
         raise FatalException(f"No {config_file} found. Exiting.")
 
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
+        self.log.debug("> Node.init_db()")
         url = self.config.get("database", self.locals.get('database'))['url']
         try:
             url = url.replace('SECRET', quote(utils.get_password('database')) or '')
@@ -265,6 +268,7 @@ class NodeImpl(Node):
         # we need to open the pools directly in here
         db_pool.open()
         await db_apool.open()
+        self.log.debug("< Node.init_db()")
         return db_pool, db_apool
 
     async def close_db(self):
@@ -292,6 +296,7 @@ class NodeImpl(Node):
             self.instances.append(instance)
 
     async def update_db(self):
+        self.log.debug("> Node.update_db()")
         # Initialize the database
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -324,6 +329,7 @@ class NodeImpl(Node):
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
                         self.log.info(f'Database upgraded from {old_version} to {self.db_version}.')
+        self.log.debug("< Node.update_db()")
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
@@ -622,6 +628,7 @@ class NodeImpl(Node):
             return (row['now'] - row['last_seen']).total_seconds() > timeout
 
         try:
+            self.log.debug("> Node.heartbeat()")
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
@@ -757,6 +764,8 @@ class NodeImpl(Node):
         except OperationalError as ex:
             self.log.error(ex)
             return self.master
+        finally:
+            self.log.debug("< Node.heartbeat()")
 
     async def get_active_nodes(self) -> list[str]:
         async with self.apool.connection() as conn:
