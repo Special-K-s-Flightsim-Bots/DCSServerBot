@@ -142,19 +142,19 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin UserStats
 
-| Command                | Parameter                                 | Channel | Role      | Description                                                                                          |
-|------------------------|-------------------------------------------|---------|-----------------|------------------------------------------------------------------------------------------------------|
-| .statistics/.stats     | [@member / DCS name] [day/week/month/all] | all     | DCS             | Display your own statistics or that of a specific member.                                            |
-| .statsme               | [day/week/month/all]                      | all     | DCS             | Send your own statistics in a DM instead of displaying them in public.                               |
-| .highscore/.hs         | [day/week/month/all]                      | all     | DCS             | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)    |
-| .link                  | @member ucid                              | all     | DCS Admin       | Sometimes users can't be linked automatically. That is a manual workaround.                          |
-| .unlink                | @member / ucid                            | all     | DCS Admin       | Unlink a member from a ucid / ucid from a user, if the automatic linking didn't work.                |
-| .info                  | @member / ucid / DCS name                 | all     | DCS Admin       | Displays information about that user and let you (un)ban, kick or unlink them.                       |
-| .linkcheck             |                                           | all     | DCS Admin       | Checks if a DCS user could be matched to a member.                                                   |
-| .mislinks / .mislinked |                                           | all     | DCS Admin       | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!).  |
-| .delete_statistics     | [@member]                                 | all     | DCS, DCS Admin  | Deletes the users statistics. DCS Admin can delete for other users.                                  |
-| .reset_statistics      |                                           | all     | Admin           | Resets the statistics for this server.                                                               |
-| .linkme                |                                           | all     | DCS             | Link a discord user to a DCS user (user self-service).                                               |
+| Command                | Parameter                                 | Channel | Role           | Description                                                                                           |
+|------------------------|-------------------------------------------|---------|----------------|-------------------------------------------------------------------------------------------------------|
+| .statistics/.stats     | [@member / DCS name] [day/week/month/all] | all     | DCS            | Display your own statistics or that of a specific member.                                             |
+| .statsme               | [day/week/month/all]                      | all     | DCS            | Send your own statistics in a DM instead of displaying them in public.                                |
+| .highscore/.hs         | [day/week/month/all]                      | all     | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)     |
+| .link                  | @member ucid                              | all     | DCS Admin      | Sometimes users can't be linked automatically. That is a manual workaround.                           |
+| .unlink                | @member / ucid                            | all     | DCS Admin      | Unlink a member from a ucid / ucid from a user, if the automatic linking didn't work.                 |
+| .info                  | @member / ucid / DCS name                 | all     | DCS Admin      | Displays information about that user and let you (un)ban, kick or unlink them.                        |
+| .linkcheck             |                                           | all     | DCS Admin      | Checks if a DCS user could be matched to a member.                                                    |
+| .mislinks / .mislinked |                                           | all     | DCS Admin      | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!).   |
+| .delete_statistics     | [@member]                                 | all     | DCS, DCS Admin | Deletes the users statistics. DCS Admin can delete for other users.                                   |
+| .reset_statistics      |                                           | all     | Admin          | Resets the statistics for this server.                                                                |
+| .linkme                |                                           | all     | DCS            | Link a discord user to a DCS user (user self-service).                                                |
 
 ## Changing Commands
 If you want to change the name, aliases or permissions of an existing command or you want to disable it, you can do that

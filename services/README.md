@@ -1,15 +1,15 @@
 # Services
 Similar to [plugins](../plugins/README.md), services are part of the modular system of DCSServerBot.<br>
-The reason to have plugins and services lies in the nature of the cluser [architecture](../ARCHITECTURE.md). If there
+The reason to have plugins and services lies in the nature of the cluster [architecture](../ARCHITECTURE.md). If there
 would only be one bot in your whole installation, there usually would not be the need for any service. But as 
 DCSServerBot supports large installations, the system itself has to be capable of doing so. That's why I had to 
 distinguish between plugins and services and that's why the development of enhancements might look a bit more complex
 that it needs to be.
 
-But lets see, it does not necessarily need to be like that.
+But let's see, it does not necessarily need to be like that.
 
 ## When Do I implement a Service, when a Plugin?
-For any common usecase, like if you want to add some Discord command or some in-game chat-command, a plugin will usually
+For any common use-case, like if you want to add some Discord command or some in-game chat-command, a plugin will usually
 do the job. The plugin only runs on the master node and has access to events from all DCS servers, the database and the
 majority of the configuration.<br>
 In case you need to run something on every node of the cluster, you will need to implement a service.
@@ -20,13 +20,13 @@ The MusicServices needs access to your SRS servers, that run on any node. And it
 that "might" be on every node (recommendation would be to have it in the cloud).
 
 #### BackupService
-The BackupService needs access to the file system of any node, as it should backup the data in there. It could be
+The BackupService needs access to the file system of any node, as it should back up the data in there. It could be
 implemented by using the NodeProxy (read_file(), write_file(), list_directory()) also, but I decided to have it as a 
 service, as read_file() would transfer any file over the database to the master node, which does not only not sound
 very efficient, it indeed isn't.
 
 #### OvGMEService
-This service has to unpack modpacks onto your DCS servers that are installed on the specific nodes.
+This service has to unpack mod-packs onto your DCS servers that are installed on the specific nodes.
 
 I think you get the idea - whenever you need to do something on a specific node, a service needs to be implemented.
 

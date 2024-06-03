@@ -35,7 +35,7 @@ DEFAULT:
 #  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.
 ```
 The online registration helps me to better understand which installations are out there. There is no personal
-information sent to the cloud and you can always see what is being sent (logs/dcssb-*.log) and disable it, if you feel
+information sent to the cloud, and you can always see what is being sent (logs/dcssb-*.log) and disable it, if you feel
 uncomfortable with it. I would appreciate, if you send me that little bit of data, as it helps me (and you) in
 maintaining the solutions that are out in the wild.
 

@@ -556,7 +556,7 @@ class MissionEventListener(EventListener):
                     if not player.member.voice:
                         # noinspection PyAsyncCall
                         asyncio.create_task(server.kick(player, reason=server.locals.get(
-                            'message_no_voice','You need to be in voice channel "{}" to use this server!'
+                            'message_no_voice', 'You need to be in voice channel "{}" to use this server!'
                         ).format(voice.name)))
                         return
                     else:

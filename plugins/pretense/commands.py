@@ -38,7 +38,7 @@ class Pretense(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def stats(self, interaction: discord.Interaction,
-                            server: app_commands.Transform[Server, utils.ServerTransformer]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         config = self.get_config(server) or {}

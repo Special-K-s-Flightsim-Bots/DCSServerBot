@@ -475,7 +475,6 @@ class ServerImpl(Server):
         self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
         self.process.cpu_affinity(affinity)
 
-
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         await self.init_extensions()
         await self.prepare_extensions()

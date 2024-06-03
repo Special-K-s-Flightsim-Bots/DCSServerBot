@@ -1,4 +1,4 @@
-guild_id: 112233445566  # Your Discord server ID. Right click on your server and select "Copy Server ID".
+guild_id: 112233445566  # Your Discord server ID. Right-click on your server and select "Copy Server ID".
 use_dashboard: true     # Use the dashboard display for your node. Default is true.
 chat_command_prefix: .  # The command prefix to be used for in-game chat commands. Default is "."
 database:

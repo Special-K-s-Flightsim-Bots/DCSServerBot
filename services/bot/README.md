@@ -40,5 +40,5 @@ roles:                                          # Roles mapping. The bot uses in
 ```
 
 > ⚠️ **Attention!**<br>
-> Never ever share your Discord TOKEN with anyone. If you plan to check-in your configuration to GitHub, don't do that
+> Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.

@@ -1,6 +1,7 @@
 import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import json
 import os
@@ -34,6 +35,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
         self.clients: dict[str, set[int]] = {}
+        atexit.register(self.stop_observer)
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
@@ -172,6 +174,8 @@ class SRS(Extension, FileSystemEventHandler):
             p = await asyncio.to_thread(run_subprocess)
             try:
                 self.process = psutil.Process(p.pid)
+                if not self.observer:
+                    self.start_observer()
             except psutil.NoSuchProcess:
                 self.log.error(f"Error during launch of {self.config['cmd']}!")
                 return False
@@ -197,7 +201,9 @@ class SRS(Extension, FileSystemEventHandler):
                 except Exception as ex:
                     self.log.error(f'Error during shutdown of SRS: {str(ex)}')
                     return False
-
+                finally:
+                    if self.observer:
+                        self.stop_observer()
             return True
 
     def on_modified(self, event: FileSystemEvent) -> None:
@@ -248,23 +254,29 @@ class SRS(Extension, FileSystemEventHandler):
         except Exception:
             pass
 
+    def start_observer(self):
+        path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
+        if os.path.exists(path):
+            self.process_export_file(path)
+            self.observer = Observer()
+            self.observer.schedule(self, path=os.path.dirname(path))
+            self.observer.start()
+
+    def stop_observer(self):
+        if self.observer:
+            self.observer.stop()
+            self.observer.join()
+            self.observer = None
+            self.clients.clear()
+
     def is_running(self) -> bool:
         server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
         running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+        # start the observer, if we were started to a running SRS server
         if running and not self.observer:
-            path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
-            if os.path.exists(path):
-                self.process_export_file(path)
-                self.observer = Observer()
-                self.observer.schedule(self, path=os.path.dirname(path))
-                self.observer.start()
-        elif not running and self.observer:
-            self.observer.stop()
-            self.observer.join()
-            self.observer = None
-            self.clients.clear()
+            self.start_observer()
         return running
 
     def get_inst_path(self) -> str:

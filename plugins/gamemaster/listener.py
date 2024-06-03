@@ -210,7 +210,7 @@ class GameMasterEventListener(EventListener):
                 if cursor.rowcount == 1:
                     if (await cursor.fetchone())[0] != coalition.casefold():
                         await player.sendChatMessage(_("You can't join the {coalition} coalition in-between {lock_time} of "
-                                                 "leaving a coalition.").format(
+                                                       "leaving a coalition.").format(
                             coalition=coalition, lock_time=server.locals['coalitions'].get('lock_time', '1 day')))
                         await self.bot.audit(
                             f"{player.display_name} tried to join a new coalition in-between the time limit.",

@@ -81,7 +81,7 @@ class Node:
     def extensions(self) -> dict:
         raise NotImplemented()
 
-    def read_config(self, file) -> dict:
+    def read_config(self, file: str) -> dict:
         try:
             c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8')
             try:

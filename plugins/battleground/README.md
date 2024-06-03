@@ -1,6 +1,6 @@
 # Plugin "Battlegound"
 The Battleground plugin adds commands for the [DCSBattleground](https://github.com/Frigondin/DCSBattleground/) tool.</br> 
-The plugin use the coalition feature for communication with the database so you need to set the "COALITION_BLUE_CHANNEL" 
+The plugin use the coalition feature for communication with the database, so you need to set the "COALITION_BLUE_CHANNEL" 
 and "COALITION_RED_CHANNEL" for your servers in dcsserverbot.ini
 
 ## DCSBattlegound's configuration

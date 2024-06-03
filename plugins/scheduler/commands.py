@@ -133,7 +133,7 @@ class Scheduler(Plugin):
                     warn_text = times[warn_time]
                 await server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                               when=utils.format_time(warn_time)),
-                                        server.locals.get('message_timeout', 10))
+                                              server.locals.get('message_timeout', 10))
                 if 'sound' in config['warn']:
                     await server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
                                                                               time=warn_time))

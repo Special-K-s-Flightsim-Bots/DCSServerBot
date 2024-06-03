@@ -1,6 +1,6 @@
 # Backup Service
-The backup service can be used to backup your bot configuration, the database and whatever you want to backup from your 
-servers. It runs on a configurable schedule or can be launched by commands from the [Backup plugin](../../plugins/backup/README.md).
+The backup service can be used to back up your bot configuration, the database and whatever you want to back up from 
+your servers. It runs on a configurable schedule or can be launched by commands from the [Backup plugin](../../plugins/backup/README.md).
 
 ## Configuration
 To activate the backup service, you need to add a line in your main.yaml like so:

@@ -163,7 +163,7 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
     ax.spines['left'].set_color(spinecolor)
 
     if pinfo['aircraft'] == 'AV-8B':
-        # top down view
+        # top-down view
         carrier01 = plt.imread('./plugins/greenieboard/img/boat03_2.png')
         ax.figure.figimage(carrier01, 910, 340, alpha=.75, zorder=1, clip_on=True)
         # side view for the glideslope plot

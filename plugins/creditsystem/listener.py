@@ -181,7 +181,7 @@ class CreditSystemListener(EventListener):
     @chat_command(name="donate", help=_("Donate credits to another player"))
     async def donate(self, server: Server, player: CreditPlayer, params: list[str]):
         if len(params) < 2:
-            await player.sendChatMessage(_("Usage: {}donate player points")).format(self.prefix)
+            await player.sendChatMessage(_("Usage: {}donate player points").format(self.prefix))
             return
         name = ' '.join(params[:-1])
         try:

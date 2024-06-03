@@ -180,8 +180,14 @@ class PlayerInfo(report.EmbedElement):
             self.add_field(name="Slot", value=player.unit_callsign)
 
             self.add_field(name="Module", value=player.unit_display_name)
-            if player.radios:
-                self.add_field(name="Radios", value='\n'.join([utils.format_frequency(x) for x in player.radios]))
+            srs_plugin = self.bot.cogs.get('SRS', None)
+            if srs_plugin:
+                srs_users = srs_plugin.eventlistener.srs_users.get(player.server.name, {})
+                if player.name in srs_users:
+                    radios = srs_users[player.name].get('radios', [])
+                    self.add_field(name="Radios", value='\n'.join([utils.format_frequency(x) for x in radios]))
+                else:
+                    self.add_field(name="Radios", value='n/a')
             else:
                 self.add_field(name='_ _', value='_ _')
             self.add_field(name='_ _', value='_ _')

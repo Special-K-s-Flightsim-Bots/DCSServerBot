@@ -2,7 +2,6 @@ import asyncio
 import cProfile
 import io
 import logging
-import os
 import pstats
 import time
 import traceback

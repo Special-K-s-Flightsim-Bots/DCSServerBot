@@ -1,3 +1,4 @@
+import atexit
 import json
 import luadata
 import os
@@ -21,6 +22,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             "blue": [],
             "red": []
         }
+        atexit.register(self.shutdown)
 
     def load_config(self) -> Optional[dict]:
         cfg = {}
@@ -143,10 +145,11 @@ class LotAtc(Extension, FileSystemEventHandler):
         return True
 
     def shutdown(self) -> bool:
-        super().shutdown()
-        self.observer.stop()
-        self.observer.join()
-        self.observer = None
+        if self.observer:
+            super().shutdown()
+            self.observer.stop()
+            self.observer.join()
+            self.observer = None
         return True
 
     def is_running(self) -> bool:

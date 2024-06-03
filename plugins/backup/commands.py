@@ -59,7 +59,6 @@ class Backup(Plugin):
             raise PluginInstallationError(reason=f"No config/services/{self.plugin_name}.yaml file found!",
                                           plugin=self.plugin_name)
 
-
     def read_locals(self) -> dict:
         if not os.path.exists('config/services/backup.yaml'):
             return {}

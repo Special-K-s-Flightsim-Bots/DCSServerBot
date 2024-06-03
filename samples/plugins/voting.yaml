@@ -1,5 +1,5 @@
 DEFAULT:
-  options:              # These are the voting options, players can chose from. It is up to you, to enable them or not!
+  options:              # These are the voting options, players can choose from. It is up to you, to enable them or not!
     preset:             # Selection of presets that need to be specified in your presets.yaml
       choices:
         - Summer        # If no preset section is specified, all available presets will be used (not recommended).

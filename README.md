@@ -73,11 +73,11 @@ from time to time, but you as a community member can also create your own plugin
 | Music        | Upload and play music over SRS.                                                 | yes      |                         | [README](./plugins/music/README.md)        |
 | OvGME        | Install or update mods into your DCS server.                                    | yes      |                         | [README](./plugins/ovgme/README.md)        |
 | Pretense     | Commands for Pretense missions.                                                 | yes      |                         | [README](./plugins/pretense/README.md)     |
-| Punishment   | Punish users for teamhits or teamkills.                                         | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
+| Punishment   | Punish users for team-hits or team-kills.                                       | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
 | RealWeather  | Apply real weather to your missions (also available as an extension).           | yes      |                         | [README](./plugins/realweather/README.md)  |
 | RestAPI      | Simple REST-API to query users and statistics (WIP).                            | yes      | Userstats, MissionStats | [README](./plugins/restapi/README.md)      |
 | ServerStats  | Server statistics for your DCS servers.                                         | yes      | Userstats               | [README](./plugins/serverstats/README.md)  |
-| SlotBlocking | Slotblocking either based on discord roles or credits.                          | yes      | Mission, CreditSystem   | [README](./plugins/slotblocking/README.md) |
+| SlotBlocking | Slot blocking either based on discord roles or credits.                         | yes      | Mission, CreditSystem   | [README](./plugins/slotblocking/README.md) |
 | SRS          | Display players activity on SRS, show active channels and enable slot blocking. | yes      | MissionStats            | [README](./plugins/srs/README.md)          |
 | Voting       | Simple voting system for players to be able to change missions, weather, etc.   | yes      |                         | [README](./plugins/voting/README.md)       |
 

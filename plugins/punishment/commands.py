@@ -106,7 +106,7 @@ class Punishment(Plugin):
 
         elif punishment['action'] == 'warn':
             await player.sendUserMessage(_("{name}, you have been punished for: {reason}!").format(name=player.name,
-                                                                                             reason=reason))
+                                                                                                   reason=reason))
             
         elif punishment['action'] == 'message':
             await player.sendUserMessage(_("{name}, check your fire: {reason}!").format(name=player.name,

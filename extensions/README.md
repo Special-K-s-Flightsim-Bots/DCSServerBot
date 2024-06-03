@@ -8,7 +8,7 @@ them in your server embed (LotAtc) to completely starting and stopping external 
 > about these solutions and I really appreciate that someone put a lot of time in to make them what they
 > are today.<br>
 > Nevertheless, I am not responsible for them. Neither for any bugs, nor for their proper functionality. The developers
-> usually either have their own Discord servers, where you can ask for support or they have the option to raise an 
+> usually either have their own Discord servers, where you can ask for support, or they have the option to raise an 
 > issue in their GitHubs.<br>
 > So please - if you see any issues in these solutions, contact the developers and ask for help.
 
@@ -21,7 +21,7 @@ example later.
 This is not really an external solution supported by DCSServerBot, but my own one, which allows you to change your 
 missions prior to the server startup.<br>
 You can change more or less anything in the mission itself, like weather, mission parameters and even amend units, if
-you like. The common usecase for people is to use it to change the weather on a timed or random basis.
+you like. The common use-case for people is to use it to change the weather on a timed or random basis.
 
 As MizEdit is a very powerful solution, I decided to donate it a separate doc page, which you can reach [here](./MizEdit.md).
 

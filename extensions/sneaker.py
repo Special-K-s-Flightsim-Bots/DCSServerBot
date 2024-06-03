@@ -62,8 +62,8 @@ class Sneaker(Extension):
         self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                        f"--config {config}")
         p = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", config],
-                                executable=os.path.expandvars(self.config['cmd']),
-                                stdout=out, stderr=subprocess.STDOUT)
+                             executable=os.path.expandvars(self.config['cmd']),
+                             stdout=out, stderr=subprocess.STDOUT)
         if self.config.get('debug', False):
             Thread(target=self._log_output, args=(p,)).start()
         return p
