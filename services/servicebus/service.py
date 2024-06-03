@@ -248,6 +248,7 @@ class ServiceBus(Service):
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip)
         self.node.all_nodes[node.name] = node
+        await self.bot.wait_until_ready()
         await self.register_remote_servers(node)
 
     async def unregister_remote_node(self, node: Node):
