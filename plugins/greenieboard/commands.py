@@ -106,9 +106,9 @@ class GreenieBoard(Plugin):
                             row['trapsheet'] = filename = None
                         await conn.execute("""
                             INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
-                                               wire, night, points, trapsheet)
+                                               wire, night, points, trapsheet, time)
                             VALUES (%(mission_id)s, %(player_ucid)s, %(unit_type)s, %(grade)s, %(comment)s, 
-                                    %(place)s, %(trapcase)s, %(wire)s, %(night)s, %(points)s, %(trapsheet)s)
+                                    %(place)s, %(trapcase)s, %(wire)s, %(night)s, %(points)s, %(trapsheet)s, %(time)s)
                         """, row)
                         if filename:
                             filenames.append(filename)
