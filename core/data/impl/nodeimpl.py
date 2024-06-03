@@ -189,7 +189,6 @@ class NodeImpl(Node):
     async def restart(self):
         self.log.info("Restarting ...")
         await ServiceRegistry.shutdown()
-        await self.close_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
     def read_locals(self) -> dict:
@@ -407,7 +406,6 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
-            await self.close_db()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
