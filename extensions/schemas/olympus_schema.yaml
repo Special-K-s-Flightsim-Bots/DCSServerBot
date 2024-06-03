@@ -6,7 +6,6 @@ schema;node_olympus_schema:
     show_passwords: {type: bool}
     authentication:
       type: map
-      required: true
       mapping:
         gameMasterPassword: {type: str, required: true}
         blueCommanderPassword: {type: str, required: true}
@@ -26,7 +25,6 @@ schema;instance_olympus_schema:
         port: {type: int, required: true, range: {min: 80, max: 65535}}
     authentication:
       type: map
-      required: true
       mapping:
         gameMasterPassword: {type: str, required: true}
         blueCommanderPassword: {type: str, required: true}
