@@ -130,30 +130,34 @@ If you want to use instant autoupdate from the master branch, you have to instal
 
 > ⚠️ **Attention!**<br>
 > DCSServerBot is not compatible with Python 3.12 yet. This is because of some 3rd party libraries and not the bot
-> itself.
+> itself.<br>
+> Some people run it without issues on 3.12, but you would do that at your own risk.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
-- Create a "New Application"
-- Add a Bot.
-- Select Bot from the left menu, give it a nice name and icon, press "Copy" below "Click to Reveal Token". 
+- Create a "New Application".
+- Select Bot from the left menu and give it a nice name, icon and maybe a banner.
+- Press "Reset Token" and then "Copy" to obtain your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
 - All "Privileged Gateway Intents" have to be enabled on that page.<br/>
-- To add the bot to your Discord guild, select "OAuth2" from the menu, then "URL Generator"
-- Select the "bot" checkbox, and then select the following permissions:
-
-  - Manage Channels
-  - Send Messages
-  - Manage Messages
-  - Embed Links
-  - Attach Files
-  - Read Message History
-  - Add Reactions
-  - Use Slash Commands
-
-- Press "Copy" on the generated URL, paste it into the browser of your choice
+- To add the bot to your Discord guild, select "OAuth2" from the left menu
+- Select the "bot" checkbox in "OAuth2 URL Generator"
+- Select the following "Bot Permissions":
+  - Left side:
+    - Manage Channels
+  - Center:
+    - Send Messages
+    - Manage Messages
+    - Embed Links
+    - Attach Files
+    - Read Message History
+    - Add Reactions
+    - Use Slash Commands
+- Press "Copy" on the generated URL and paste it into the browser of your choice
 - Select the guild the bot has to be added to - and you're done!
-- For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
+
+> ⚠️ **Attention!**<br>
+> For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
