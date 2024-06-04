@@ -10,8 +10,11 @@ from contextlib import ContextDecorator
 
 __all__ = [
     "PerformanceLog",
-    "performance_log"
+    "performance_log",
+    "log_call"
 ]
+
+logger = logging.getLogger(__name__)
 
 
 class PerformanceLog(ContextDecorator):
@@ -66,6 +69,28 @@ def performance_log(use_profiling: bool = False):
                 log_name = f'{func.__qualname__}()'
                 with PerformanceLog(log_name, use_profiling=use_profiling):
                     return func(*args, **kwargs)
+        return wrapped
+
+    return decorator
+
+
+def log_call():
+    def decorator(func):
+        if asyncio.iscoroutinefunction(func):
+            async def wrapped(*args, **kwargs):
+                logger.debug(f"> {func.__qualname__}")
+                try:
+                    return await func(*args, **kwargs)
+                finally:
+                    logger.debug(f"< {func.__qualname__}")
+        else:
+            def wrapped(*args, **kwargs):
+                logger.debug(f"> {func.__qualname__}")
+                try:
+                    return func(*args, **kwargs)
+                finally:
+                    logger.debug(f"< {func.__qualname__}")
+
         return wrapped
 
     return decorator
