@@ -628,7 +628,6 @@ class Admin(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
-        # TODO: there should be a list of nodes, with impls / proxies
         for name in self.node.all_nodes.keys():
             names = []
             instances = []

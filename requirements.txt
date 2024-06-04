@@ -5,7 +5,7 @@ aiofiles==23.2.1
 aiohttp==3.9.5
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2024.2.2
+certifi==2024.6.2
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==2.0.5
@@ -80,7 +80,7 @@ pypiwin32==223; sys_platform == 'win32'
 pywin32==306; sys_platform == 'win32'
 
 # Requests: Python HTTP library
-requests==2.31.0
+requests==2.32.3
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
 rich==13.7.1
@@ -95,7 +95,7 @@ seaborn==0.13.2
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.29.0
+uvicorn==0.30.1
 
 # Watchdog: API library and shell utilities to monitor file system events
-watchdog==4.0.0
+watchdog==4.0.1
