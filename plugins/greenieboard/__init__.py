@@ -5,7 +5,7 @@ from .version import __version__
 
 
 def get_element(comment: str, element: str) -> Optional[str]:
-    match = re.search(r'LSO: GRADE:(?P<grade>[^: ]+)(?P<details>.*)', comment)
+    match = re.search(r'LSO: GRADE:(?P<grade>[^: ]+):?(?P<details>.*)', comment)
 
     if element == 'grade':
         return match.group('grade').strip() if match else None
