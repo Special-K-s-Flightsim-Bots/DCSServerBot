@@ -51,6 +51,7 @@ class RealWeather(Extension):
             if name == 'files':
                 element['input-mission'] = filename
                 element['output-mission'] = tmpname
+                element['log'] = config.get('files', {}).get('log', 'logfile.log')
             elif name in config:
                 if isinstance(config[name], dict):
                     element |= config[name]
@@ -75,7 +76,7 @@ class RealWeather(Extension):
             if process.returncode != 0:
                 self.log.error(stderr.decode('utf-8'))
             if self.config.get('debug', False):
-                self.log.info(stdout.decode('utf-8'))
+                self.log.debug(stdout.decode('utf-8'))
 
         async with self.lock:
             await asyncio.to_thread(run_subprocess)

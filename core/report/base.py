@@ -4,6 +4,7 @@ import asyncio
 import discord
 import inspect
 import json
+import logging
 import os
 import psycopg
 import sys
@@ -168,6 +169,7 @@ class PaginationReport(Report):
     class PaginationReportView(View):
         def __init__(self, name, values, index, func, keep_image: bool, *args, **kwargs):
             super().__init__()
+            self.log = logging.getLogger(__name__)
             self.name = name
             self.values = values
             self.index = index
@@ -263,7 +265,7 @@ class PaginationReport(Report):
             self.stop()
 
         async def on_error(self, interaction: Interaction, error: Exception, item: Item[Any], /) -> None:
-            print(error)
+            self.log.exception(error)
             self.stop()
 
     async def render(self, *args, **kwargs) -> ReportEnv:

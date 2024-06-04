@@ -64,8 +64,7 @@ class FunkMan(Plugin):
         if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
             for x in ['strafe_board', 'strafe_channel', 'bomb_board', 'bomb_channel']:
-                if x in default:
-                    del default[x]
+                default.pop(x, None)
             self._config[server.node.name][server.instance.name] = default | specific
         return self._config[server.node.name][server.instance.name]
 

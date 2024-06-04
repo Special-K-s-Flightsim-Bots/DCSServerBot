@@ -4,3 +4,18 @@ schema;grpc_schema:
   mapping:
     enabled: {type: bool}
     port: {type: int, range: {min: 80, max: 65535}}
+    evalEnabled: {type: bool}
+    host: {type: str}
+    debug: {type: bool}
+    throughputLimit: {type: int}
+    integrityCheckDisabled: {type: bool}
+    tts.defaultProvider: {type: str}
+    tts.provider.azure.key: {type: str}
+    tts.provider.azure.region: {type: str}
+    tts.provider.azure.defaultVoice: {type: str}
+    tts.provider.aws.key: {type: str}
+    tts.provider.aws.region: {type: str}
+    tts.provider.aws.defaultVoice: {type: str}
+    tts.provider.gcloud.key: {type: str}
+    tts.provider.gcloud.defaultVoice: {type: str}
+    tts.provider.win.defaultVoice: {type: str}

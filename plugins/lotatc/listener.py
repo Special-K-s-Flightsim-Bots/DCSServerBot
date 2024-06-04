@@ -1,3 +1,4 @@
+import asyncio
 import discord
 
 from core import EventListener, event, Server, Plugin, Coalition, Player, get_translation, chat_command, ChatCommand, \
@@ -33,10 +34,10 @@ class LotAtcEventListener(EventListener):
         super().__init__(plugin)
         self.on_station: dict[str, dict[str, dict[str, GCI]]] = {}
 
-    def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+    async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if command.name in ['gci', 'gcis'] and player.side != Side.SPECTATOR:
             return True
-        return super().can_run(command, server, player)
+        return await super().can_run(command, server, player)
 
     def _generate_message(self, server: Server, coalition: Coalition) -> str:
         count = len(self.on_station.get(server.name, {}).get(coalition.value, {}))
@@ -59,7 +60,8 @@ class LotAtcEventListener(EventListener):
         message += self._generate_message(server, Coalition.BLUE)
         message += self._generate_message(server, Coalition.RED)
         if message:
-            player.sendChatMessage(message)
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.sendChatMessage(message))
 
     async def add_gci(self, server: Server, gci: GCI) -> GCI:
         if not self.on_station.get(server.name):
@@ -68,7 +70,7 @@ class LotAtcEventListener(EventListener):
                 "red": {}
             }
         self.on_station[server.name][gci.coalition][gci.name] = gci
-        server.sendPopupMessage(
+        await server.sendPopupMessage(
             Coalition(gci.coalition), _("{coalition} GCI \"{name}\" on station.").format(
                 coalition=gci.coalition.title(), name=gci.name))
         channel = self.bot.get_channel(server.channels[Channel.EVENTS])
@@ -78,7 +80,7 @@ class LotAtcEventListener(EventListener):
         return gci
 
     async def del_gci(self, server: Server, gci: GCI) -> None:
-        server.sendPopupMessage(Coalition(gci.coalition), _("{coalition} GCI \"{name}\" offline.").format(
+        await server.sendPopupMessage(Coalition(gci.coalition), _("{coalition} GCI \"{name}\" offline.").format(
             coalition=gci.coalition.title(), name=gci.name))
         channel = self.bot.get_channel(server.channels[Channel.EVENTS])
         if channel:
@@ -129,17 +131,18 @@ class LotAtcEventListener(EventListener):
             return
         gci.lotatc = False
         if not gci.radios:
-            await self.del_gci(server, gci)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.del_gci(server, gci))
 
     @chat_command(name="gcis", help=_("Shows active GCIs"))
     async def gcis(self, server: Server, player: Player, params: list[str]):
         coalition = self.COALITION[player.side]
         gcis = self.on_station.get(server.name, {}).get(coalition, {})
         if gcis:
-            player.sendUserMessage(_("The following GCIs are active on the {coalition} side:\n{gcis}").format(
+            await player.sendUserMessage(_("The following GCIs are active on the {coalition} side:\n{gcis}").format(
                 coalition=coalition, gcis='\n'.join([f"- {x}" for x in gcis.keys()])))
         else:
-            player.sendUserMessage(_("No GCIs are active on the {} side.").format(coalition))
+            await player.sendUserMessage(_("No GCIs are active on the {} side.").format(coalition))
 
     @staticmethod
     def create_gci_embed(gci: GCI) -> discord.Embed:
@@ -153,11 +156,11 @@ class LotAtcEventListener(EventListener):
     @chat_command(name="gci", help=_("Info about a GCI"))
     async def gci(self, server: Server, player: Player, params: list[str]):
         if not params:
-            player.sendChatMessage(_("Usage: {}gci <name>").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {}gci <name>").format(self.prefix))
             return
         name = ' '.join(params)
         gci = self.on_station.get(server.name, {}).get(self.COALITION[player.side], {}).get(name)
         if not gci:
-            player.sendChatMessage(_("GCI {} not found.").format(name))
+            await player.sendChatMessage(_("GCI {} not found.").format(name))
             return
-        player.sendPopupMessage(utils.embed_to_simpletext(self.create_gci_embed(gci)))
+        await player.sendPopupMessage(utils.embed_to_simpletext(self.create_gci_embed(gci)))

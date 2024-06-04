@@ -2,7 +2,7 @@
 This is a slot blocking plugin that can be used in several ways (more to come).
 Slots can be either blocked by Discord roles (specific planes blocked for Discord Members, other ones blocked for 
 Donators for instance), by credit points (see [CreditSystem](../creditsystem/README.md)) that people earn by kills or a specific VIP role
-assigned in this plugins configuration.
+assigned in this plugin's configuration.
 
 ## Configuration
 As SlotBlocking is an optional plugin, you need to activate it in main.yaml first like so:

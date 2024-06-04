@@ -59,6 +59,7 @@ class Node:
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])
+        self.slow_system: bool = False
 
     @property
     def master(self) -> bool:
@@ -80,7 +81,7 @@ class Node:
     def extensions(self) -> dict:
         raise NotImplemented()
 
-    def read_config(self, file) -> dict:
+    def read_config(self, file: str) -> dict:
         try:
             c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8')
             try:
@@ -99,7 +100,7 @@ class Node:
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     with open(file, 'w', encoding='utf-8') as f:
                         yaml.dump(config, f)
-                    print("Database password found, removing it from config.")
+                    self.log.info("Database password found, removing it from config.")
 
             # set defaults
             config['autoupdate'] = config.get('autoupdate', False)

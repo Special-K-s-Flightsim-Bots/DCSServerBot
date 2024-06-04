@@ -6,7 +6,7 @@ Slotblocking or Userstats.
 
 ## Campaigns
 A campaign is a fixed time period, where people on your server can gather specific stats, credits and achievements.
-It is a good way of getting some action on your server to have regular (e. g. quarterly) campaigns and maybe use the
+It is a good way of getting some action on your server to have regular (e.g. quarterly) campaigns and maybe use the
 persistent [highscore](../userstats/README.md) feature to display the top players of this specific campaign somewhere in 
 your Discord server.
 

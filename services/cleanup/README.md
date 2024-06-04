@@ -3,7 +3,7 @@ The cleanup service is your cleaning lady, that deletes all the unnecessary stuf
 
 ## Configuration
 The configuration is held in config/services/cleanup.yaml and is straight forward. You can add as many directories
-as you want to cleanup in here.
+as you want to clean up in here.
 
 ```yaml
 DEFAULT:

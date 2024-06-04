@@ -1,5 +1,5 @@
 # Plugin Help
-This is the help plugin. It provides interactive help in Discord an the in-game chat.
+This is the help plugin. It provides interactive help in Discord and the in-game chat.
 Only commands eligible to the caller are displayed.
 
 ## Discord Commands

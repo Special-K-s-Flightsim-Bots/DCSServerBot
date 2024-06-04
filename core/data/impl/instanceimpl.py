@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from core import Instance, InstanceBusyError, Status, utils, DataObjectFactory
@@ -24,22 +25,31 @@ class InstanceImpl(Instance):
         os.makedirs(self.missions_dir, exist_ok=True)
         os.makedirs(os.path.join(self.missions_dir, 'Scripts'), exist_ok=True)
         autoexec = Autoexec(instance=self)
-        self.locals['webgui_port'] = autoexec.webgui_port or 8088
+        if self.locals.get('webgui_port'):
+            autoexec.webgui_port = int(self.locals.get('webgui_port'))
+        else:
+            self.locals['webgui_port'] = autoexec.webgui_port or 8088
         settings = {}
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
-            self.locals['dcs_port'] = settings.get('port', 10308)
+            if self.locals.get('dcs_port'):
+                settings['port'] = int(self.locals['dcs_port'])
+            else:
+                self.locals['dcs_port'] = settings.get('port', 10308)
         server_name = settings.get('name', 'DCS Server') if settings else None
         if server_name and server_name == 'n/a':
             server_name = None
-        with self.pool.connection() as conn:
-            with conn.transaction():
+        asyncio.create_task(self.update_instance(server_name))
+
+    async def update_instance(self, server_name: Optional[str] = None):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
                 # clean up old server name entries to avoid conflicts
-                conn.execute("""
+                await conn.execute("""
                     DELETE FROM instances WHERE server_name = %s
                 """, (server_name, ))
-                conn.execute("""
+                await conn.execute("""
                     INSERT INTO instances (node, instance, port, server_name)
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (node, instance) DO UPDATE 
@@ -50,19 +60,22 @@ class InstanceImpl(Instance):
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
+    async def update_server(self, server: Optional["Server"] = None):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
+                    WHERE node = %s AND instance = %s
+                """, (server.name if server else None, self.node.name, self.name))
+
     def set_server(self, server: Optional["Server"]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server
         self.prepare()
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("""
-                    UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
-                    WHERE node = %s AND instance = %s
-                """, (server.name if server else None, self.node.name, self.name))
-                if server and server.name:
-                    server.instance = self
+        if server and server.name:
+            server.instance = self
+        asyncio.create_task(self.update_server(server))
 
     def prepare(self):
         if self.node.locals['DCS'].get('desanitize', True):

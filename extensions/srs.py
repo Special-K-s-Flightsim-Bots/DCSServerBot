@@ -1,5 +1,7 @@
+import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import json
 import os
@@ -8,6 +10,9 @@ import shutil
 import subprocess
 import ssl
 import sys
+
+if sys.platform == 'win32':
+    import ctypes
 
 from configparser import RawConfigParser
 from core import Extension, utils, Server, ServiceRegistry, Autoexec
@@ -30,15 +35,19 @@ class SRS(Extension, FileSystemEventHandler):
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
         self.clients: dict[str, set[int]] = {}
+        atexit.register(self.stop_observer)
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
             self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
-            return {s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)} for s in self.cfg.sections()}
+            return {
+                s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
+                for s in self.cfg.sections()
+            }
         else:
             return {}
 
-    def enable_autoconnect(self):
+    async def enable_autoconnect(self):
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
         autoconnect = os.path.join(self.server.instance.home,
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
@@ -46,23 +55,31 @@ class SRS(Extension, FileSystemEventHandler):
         port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-        with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua'), mode='r',
-                  encoding='utf-8') as infile:
-            with open(autoconnect, mode='w', encoding='utf-8') as outfile:
-                for line in infile.readlines():
-                    if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
-                        line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
-                               "SERVER_SRS_HOST for you! - Currently disabled\n"
-                    elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
-                        line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
-                    elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
-                        line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
-                               f'-- set to your PUBLIC ipv4 address\n'
-                    elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
-                        line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
-                    outfile.write(line)
+        else:
+            shutil.copy2(os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua'), autoconnect)
 
-    def disable_autoconnect(self):
+        # read the original file
+        async with aiofiles.open(autoconnect, mode='r', encoding='utf-8') as infile:
+            lines = await infile.readlines()
+
+        # write a modified one
+        async with aiofiles.open(autoconnect, mode='w', encoding='utf-8') as outfile:
+            for line in lines:
+                if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
+                    line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
+                           "SERVER_SRS_HOST for you! - Currently disabled\n"
+                elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
+                    line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
+                elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
+                    line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
+                           f'-- set to your PUBLIC ipv4 address\n'
+                elif line.startswith('SRSAuto.SRS_NUDGE_ENABLED') and self.config.get('srs_nudge_message'):
+                    line = 'SRSAuto.SRS_NUDGE_ENABLED = true -- set to true to enable the message below'
+                elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
+                    line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
+                await outfile.write(line)
+
+    async def disable_autoconnect(self):
         autoconnect = os.path.join(self.server.instance.home,
                                    os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
         if os.path.exists(autoconnect):
@@ -81,6 +98,8 @@ class SRS(Extension, FileSystemEventHandler):
     async def prepare(self) -> bool:
         global ports
 
+        if self.config.get('autoupdate', False):
+            await self._check_for_updates()
         path = os.path.expandvars(self.config['config'])
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
@@ -124,10 +143,11 @@ class SRS(Extension, FileSystemEventHandler):
         else:
             ports[port] = self.server.name
         if self.config.get('autoconnect', True):
-            self.enable_autoconnect()
+            await self.enable_autoconnect()
             self.log.info('  => SRS autoconnect is enabled for this server.')
         else:
             self.log.info('  => SRS autoconnect is NOT enabled for this server.')
+            await self.disable_autoconnect()
         return await super().prepare()
 
     async def startup(self) -> bool:
@@ -154,6 +174,8 @@ class SRS(Extension, FileSystemEventHandler):
             p = await asyncio.to_thread(run_subprocess)
             try:
                 self.process = psutil.Process(p.pid)
+                if not self.observer:
+                    self.start_observer()
             except psutil.NoSuchProcess:
                 self.log.error(f"Error during launch of {self.config['cmd']}!")
                 return False
@@ -179,7 +201,9 @@ class SRS(Extension, FileSystemEventHandler):
                 except Exception as ex:
                     self.log.error(f'Error during shutdown of SRS: {str(ex)}')
                     return False
-
+                finally:
+                    if self.observer:
+                        self.stop_observer()
             return True
 
     def on_modified(self, event: FileSystemEvent) -> None:
@@ -189,13 +213,13 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
-            for client in data['Clients']:
+            for client in data.get('Clients', {}):
                 if client['Name'] == '---':
                     continue
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
                 if client['Name'] not in self.clients:
                     self.clients[client['Name']] = target
-                    self.bus.send_to_node({
+                    self.loop.create_task(self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
                         "player_name": client['Name'],
@@ -203,12 +227,12 @@ class SRS(Extension, FileSystemEventHandler):
                         "unit": client['RadioInfo']['unit'],
                         "unit_id": client['RadioInfo']['unitId'],
                         "radios": list(self.clients[client['Name']])
-                    })
+                    }))
                 else:
                     actual = self.clients[client['Name']]
                     if actual != target:
                         self.clients[client['Name']] = target
-                        self.bus.send_to_node({
+                        self.loop.create_task(self.bus.send_to_node({
                             "command": "onSRSUpdate",
                             "server_name": self.server.name,
                             "player_name": client['Name'],
@@ -216,37 +240,43 @@ class SRS(Extension, FileSystemEventHandler):
                             "unit": client['RadioInfo']['unit'],
                             "unit_id": client['RadioInfo']['unitId'],
                             "radios": list(self.clients[client['Name']])
-                        })
+                        }))
             all_clients = set(self.clients.keys())
             active_clients = set([x['Name'] for x in data['Clients']])
             # any clients disconnected?
             for client in all_clients - active_clients:
-                self.bus.send_to_node({
+                self.loop.create_task(self.bus.send_to_node({
                     "command": "onSRSDisconnect",
                     "server_name": self.server.name,
                     "player_name": client
-                })
+                }))
                 del self.clients[client]
         except Exception:
             pass
+
+    def start_observer(self):
+        path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
+        if os.path.exists(path):
+            self.process_export_file(path)
+            self.observer = Observer()
+            self.observer.schedule(self, path=os.path.dirname(path))
+            self.observer.start()
+
+    def stop_observer(self):
+        if self.observer:
+            self.observer.stop()
+            self.observer.join()
+            self.observer = None
+            self.clients.clear()
 
     def is_running(self) -> bool:
         server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
         running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+        # start the observer, if we were started to a running SRS server
         if running and not self.observer:
-            path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
-            if os.path.exists(path):
-                self.process_export_file(path)
-                self.observer = Observer()
-                self.observer.schedule(self, path=os.path.dirname(path))
-                self.observer.start()
-        elif not running and self.observer:
-            self.observer.stop()
-            self.observer.join()
-            self.observer = None
-            self.clients.clear()
+            self.start_observer()
         return running
 
     def get_inst_path(self) -> str:
@@ -298,10 +328,7 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
 
-    @tasks.loop(minutes=5)
-    async def schedule(self):
-        if not self.config.get('autoupdate', False):
-            return
+    async def _check_for_updates(self):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
@@ -311,8 +338,21 @@ class SRS(Extension, FileSystemEventHandler):
                         if version != self.version:
                             self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
                             cwd = self.get_inst_path()
-                            subprocess.run(executable=os.path.join(cwd, 'SRS-AutoUpdater.exe'),
-                                           args=['-server', '-autoupdate', f'-path=\"{cwd}\"'], cwd=cwd, shell=True)
+                            exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
+                            args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
+                            if sys.platform == 'win32':
+                                ctypes.windll.shell32.ShellExecuteW(None, "runas", exe_path, ' '.join(args), None, 1)
+                            else:
+                                subprocess.run(executable=exe_path, args=args, cwd=cwd, shell=True)
         except OSError as ex:
             if ex.winerror == 740:
                 self.log.error("You need to run DCSServerBot as Administrator to use the DCS-SRS AutoUpdater.")
+
+    @tasks.loop(minutes=5)
+    async def schedule(self):
+        if not self.config.get('autoupdate', False):
+            return
+        try:
+            await self._check_for_updates()
+        except Exception as ex:
+            self.log.exception(ex)

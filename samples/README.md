@@ -1,8 +1,17 @@
 # Configuration Samples
 In the subfolder `./samples`, you'll find some configuration-file samples for the bot and the different available plugins.
 
-## main.yaml / nodes.yaml / servers.yaml
-See [README](../../README.md)
+## main.yaml
+See [README](../README.md#configmainyaml)
+
+## nodes.yaml
+See [README](../README.md#confignodesyaml)
+
+## servers.yaml
+See [README](../README.md#configserversyaml)
+
+## presets.yaml
+See [README](../README.md#configpresetsyaml)
 
 ## plugins/admin.yaml
 Default file to support the `/download` command. Here you can configure which files / patterns you want to support for
@@ -14,7 +23,7 @@ This file contains the default settings for the DCSServerBot cloud plugin. You c
 received from me, if you participate in the cloud statistics.
 
 ## plugins/commands.yaml
-This shows two examples of custom commands you can create with the commands plugin. One command starts a DCS server
+This shows two examples of custom commands you can create with the command's plugin. One command starts a DCS server
 and the 2nd command runs a `dir` command on your server and returns the output. 
 
 ## plugins/creditsystem.yaml
@@ -26,7 +35,7 @@ campaign configured.
 ## plugins/dbexporter.yaml
 Simple DB-Exporter sample, that exports two tables only (missions and statistics) on a regular basis (every hour).
 This plugin can be used to export data to another solution like a website, displaying achievement, etc., if that
-should not have access to the database directly for whatever reasons (being remote for instance).
+should not have access to the database directly for whatever reason (being remote for instance).
 
 ## plugins/funkman.yaml
 Sample and minimal configuration for the FunkMan plugin. You need at least to point to the place where FunkMan is

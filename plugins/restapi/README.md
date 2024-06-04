@@ -1,6 +1,6 @@
 # Plugin RestAPI
 This API provides a very simple RestAPI that you can call from your webserver to receive data from DCSServerBot.
-It is WIP and it will be enhanced in the future.
+It is WIP, and it will be enhanced in the future.
 
 ## Configuration
 As RestAPI is an optional plugin, you need to activate it in main.yaml first like so:

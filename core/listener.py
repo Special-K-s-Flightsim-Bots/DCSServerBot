@@ -1,5 +1,6 @@
 from __future__ import annotations
 import inspect
+
 from dataclasses import MISSING
 from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable
 
@@ -141,14 +142,14 @@ class EventListener(metaclass=EventListenerMeta):
     async def _onChatCommand(self, server: Server, data: dict) -> None:
         player: Player = server.get_player(id=data['from'], active=True)
         command = self.__all_commands__.get(data['subcommand'])
-        if not command or not player or not self.can_run(command, server, player):
+        if not command or not player or not await self.can_run(command, server, player):
             return
         await command(self, server, player, data.get('params'))
 
     async def shutdown(self) -> None:
         ...
 
-    def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+    async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if not command.enabled or (command.roles and not player.has_discord_roles(command.roles)):
             return False
         return True

@@ -97,7 +97,7 @@ To prevent actions to be executed against an initiator, victims can use the `.fo
 This will delete the punishments to this user that are not executed already and delete the events from this specific 
 occasion.
 
-### Weight per Flighthours
+### Weight per Flight-Hours
 Weight punishment by flight hours. This will be the sum of flight hours over all servers handled by this bot.
 
 ### Decay

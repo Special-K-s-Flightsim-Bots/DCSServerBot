@@ -73,11 +73,11 @@ from time to time, but you as a community member can also create your own plugin
 | Music        | Upload and play music over SRS.                                                 | yes      |                         | [README](./plugins/music/README.md)        |
 | OvGME        | Install or update mods into your DCS server.                                    | yes      |                         | [README](./plugins/ovgme/README.md)        |
 | Pretense     | Commands for Pretense missions.                                                 | yes      |                         | [README](./plugins/pretense/README.md)     |
-| Punishment   | Punish users for teamhits or teamkills.                                         | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
+| Punishment   | Punish users for team-hits or team-kills.                                       | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
 | RealWeather  | Apply real weather to your missions (also available as an extension).           | yes      |                         | [README](./plugins/realweather/README.md)  |
 | RestAPI      | Simple REST-API to query users and statistics (WIP).                            | yes      | Userstats, MissionStats | [README](./plugins/restapi/README.md)      |
 | ServerStats  | Server statistics for your DCS servers.                                         | yes      | Userstats               | [README](./plugins/serverstats/README.md)  |
-| SlotBlocking | Slotblocking either based on discord roles or credits.                          | yes      | Mission, CreditSystem   | [README](./plugins/slotblocking/README.md) |
+| SlotBlocking | Slot blocking either based on discord roles or credits.                         | yes      | Mission, CreditSystem   | [README](./plugins/slotblocking/README.md) |
 | SRS          | Display players activity on SRS, show active channels and enable slot blocking. | yes      | MissionStats            | [README](./plugins/srs/README.md)          |
 | Voting       | Simple voting system for players to be able to change missions, weather, etc.   | yes      |                         | [README](./plugins/voting/README.md)       |
 
@@ -130,30 +130,34 @@ If you want to use instant autoupdate from the master branch, you have to instal
 
 > ⚠️ **Attention!**<br>
 > DCSServerBot is not compatible with Python 3.12 yet. This is because of some 3rd party libraries and not the bot
-> itself.
+> itself.<br>
+> Some people run it without issues on 3.12, but you would do that at your own risk.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
-- Create a "New Application"
-- Add a Bot.
-- Select Bot from the left menu, give it a nice name and icon, press "Copy" below "Click to Reveal Token". 
+- Create a "New Application".
+- Select Bot from the left menu and give it a nice name, icon and maybe a banner.
+- Press "Reset Token" and then "Copy" to obtain your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
 - All "Privileged Gateway Intents" have to be enabled on that page.<br/>
-- To add the bot to your Discord guild, select "OAuth2" from the menu, then "URL Generator"
-- Select the "bot" checkbox, and then select the following permissions:
-
-  - Manage Channels
-  - Send Messages
-  - Manage Messages
-  - Embed Links
-  - Attach Files
-  - Read Message History
-  - Add Reactions
-  - Use Slash Commands
-
-- Press "Copy" on the generated URL, paste it into the browser of your choice
+- To add the bot to your Discord guild, select "OAuth2" from the left menu
+- Select the "bot" checkbox in "OAuth2 URL Generator"
+- Select the following "Bot Permissions":
+  - Left side:
+    - Manage Channels
+  - Center:
+    - Send Messages
+    - Manage Messages
+    - Embed Links
+    - Attach Files
+    - Read Message History
+    - Add Reactions
+    - Use Slash Commands
+- Press "Copy" on the generated URL and paste it into the browser of your choice
 - Select the guild the bot has to be added to - and you're done!
-- For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
+
+> ⚠️ **Attention!**<br>
+> For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
@@ -314,7 +318,8 @@ NODENAME:                       # this will usually be your hostname
       missions_dir: '%USERPROFILE%\Documents\Missions'        # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
-      affinity: 2,3             # Optional: set the CPU-affinity for this instance.
+      affinity: 2,3             # Optional: set the CPU-affinity for the DCS_Server.exe.
+      priority: normal          # Optional: set the process priority (low, normal, high, realtime) for the DCS_Server.exe
       extensions:               # See the extension documentation for more detailed information on what to set here.
         SRS:
           config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
@@ -488,7 +493,12 @@ To start the bot, use the packaged ```run.cmd``` command. This creates the neces
 launches the bot afterward.<br/>
 If you want to run the bot from autostart, press Win+R, enter `shell:startup` and press ENTER, create a shortcut to your
 `run.cmd` in there.
-
+---
+## Repairing the Bot
+If you have issues starting DCSServerBot, especially after an update, it might be that some 3rd party library got 
+corrupted. In rare cases, it can also happen, that an auto-update is not possible at all, because some file got changed 
+that was not supposed to be changed, or some other corruption has occurred.<br>
+In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
 ---
 ## How to do the more complex stuff?
 DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest 

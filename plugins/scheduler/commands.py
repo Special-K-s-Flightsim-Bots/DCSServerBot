@@ -72,9 +72,6 @@ class Scheduler(Plugin):
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
             await server.startup(modify_mission=modify_mission)
-            if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                self.log.info(f'  => DCS server "{server.name}" NOT started.')
-                return
             if not member:
                 self.log.info(f'  => DCS server "{server.name}" started by '
                               f'{self.plugin_name.title()}.')
@@ -134,12 +131,12 @@ class Scheduler(Plugin):
             if server.status == Status.RUNNING:
                 if isinstance(times, dict):
                     warn_text = times[warn_time]
-                server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
-                                                                        when=utils.format_time(warn_time)),
-                                        server.locals.get('message_timeout', 10))
+                await server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
+                                                                              when=utils.format_time(warn_time)),
+                                              server.locals.get('message_timeout', 10))
                 if 'sound' in config['warn']:
-                    server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
-                                                                        time=warn_time))
+                    await server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
+                                                                              time=warn_time))
             with suppress(Exception):
                 events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
                 if events_channel:
@@ -153,7 +150,7 @@ class Scheduler(Plugin):
         await asyncio.sleep(min(restart_in, min(warn_times)))
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
-        self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+        await self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
         if not member:
@@ -206,11 +203,13 @@ class Scheduler(Plugin):
             if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
-                self.log.debug("Scheduler: Setting on_empty trigger.")
+                    self.log.debug("Scheduler: Setting on_empty trigger.")
                 server.restart_pending = True
                 return
             server.restart_pending = True
             self.log.debug("Scheduler: Warning users ...")
+            if max_warn_time < 60:
+                max_warn_time = 60
             await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
@@ -386,7 +385,7 @@ class Scheduler(Plugin):
             server.maintenance = maintenance
             try:
                 if mission_id is not None:
-                    server.settings['listStartIndex'] = mission_id + 1
+                    await server.setStartIndex(mission_id + 1)
                 await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
                 if maintenance:
                     embed, file = utils.create_warning_embed(
@@ -565,7 +564,7 @@ class Scheduler(Plugin):
                 # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
                 if coalition:
-                    server.send_to_dcs({
+                    await server.send_to_dcs({
                         "command": "setCoalitionPassword",
                         ("redPassword" if coalition == 'red' else "bluePassword"): derived.password.value or ''
                     })

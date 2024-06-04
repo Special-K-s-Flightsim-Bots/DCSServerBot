@@ -36,7 +36,7 @@ DEFAULT:              # valid for all servers
     role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
   - credits: 50
     playtime: 25
-    role: Veteran
+    role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
   - credits: 100
     playtime: 50
     combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role

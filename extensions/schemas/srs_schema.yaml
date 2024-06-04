@@ -3,6 +3,17 @@ schema;node_srs_schema:
   mapping:
     installation: {type: str}
     autoupdate: {type: bool}
+    autostart: {type: bool}
+    host: {type: str}
+    minimized: {type: bool}
+    debug: {type: bool}
+    awacs: {type: bool}
+    blue_password: {type: str}
+    red_password: {type: str}
+    no_shutdown: {type: bool}
+    srs_nudge_message: {type: str}
+    autoconnect: {type: bool}
+    show_passwords: {type: bool}
 schema;instance_srs_schema:
   type: map
   mapping:
@@ -18,3 +29,4 @@ schema;instance_srs_schema:
     no_shutdown: {type: bool}
     srs_nudge_message: {type: str}
     autoconnect: {type: bool}
+    show_passwords: {type: bool}

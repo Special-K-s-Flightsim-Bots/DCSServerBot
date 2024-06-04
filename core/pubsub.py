@@ -14,9 +14,29 @@ class PubSub:
         self.name = name
         self.log = node.log
         self.url = url
+        self.queue = asyncio.Queue()
         self._stop_event = asyncio.Event()
+        self._worker = asyncio.create_task(self._process_write())
 
-    async def _process(self, cursor: psycopg.AsyncCursor, handler: Callable):
+    async def _process_write(self):
+        await asyncio.sleep(1)  # Ensure the rest of __init__ has finished
+        while not self._stop_event.is_set():
+            with suppress(psycopg.OperationalError):
+                async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
+                    while not self._stop_event.is_set():
+                        message = await self.queue.get()
+                        if not message:
+                            return
+                        try:
+                            await conn.execute(f"""
+                                INSERT INTO {self.name} (guild_id, node, data) 
+                                VALUES (%(guild_id)s, %(node)s, %(data)s)
+                            """, message)
+                        finally:
+                            # Notify the queue that the message has been processed.
+                            self.queue.task_done()
+
+    async def _process_read(self, cursor: psycopg.AsyncCursor, handler: Callable):
         ids_to_delete = []
         await cursor.execute(f"""
             SELECT id, data 
@@ -40,33 +60,27 @@ class PubSub:
                                  (ids_to_delete,))
 
     async def subscribe(self, handler: Callable):
-        while True:
+        while not self._stop_event.is_set():
             with suppress(psycopg.OperationalError):
-                async with self.node.apool.connection() as conn:
-                    try:
-                        await conn.set_autocommit(True)
-                        async with conn.cursor() as cursor:
-                            # preprocess all rows that might be there
-                            await cursor.execute(f"LISTEN {self.name}")
-                            await self._process(cursor, handler)
-                            gen = conn.notifies()
-                            async for n in gen:
-                                if self._stop_event.is_set():
-                                    self.log.debug(f'- {self.name.title()} stopped.')
-                                    await gen.aclose()
-                                    return
-                                node = n.payload
-                                if node == self.node.name or (self.node.master and node == 'Master'):
-                                    await self._process(cursor, handler)
-                    finally:
-                        await conn.set_autocommit(False)
+                async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
+                    async with conn.cursor() as cursor:
+                        # preprocess all rows that might be there
+                        await cursor.execute(f"LISTEN {self.name}")
+                        await self._process_read(cursor, handler)
+                        gen = conn.notifies()
+                        async for n in gen:
+                            if self._stop_event.is_set():
+                                self.log.debug(f'- {self.name.title()} stopped.')
+                                await gen.aclose()
+                                return
+                            node = n.payload
+                            if node == self.node.name or (self.node.master and node == 'Master'):
+                                await self._process_read(cursor, handler)
+            await asyncio.sleep(1)
 
-    # TODO: dirty, needs to be changed when we use AsyncPG in general
-    def publish(self, conn: psycopg.Connection, data: dict) -> None:
-        conn.execute(f"""
-                INSERT INTO {self.name} (guild_id, node, data) 
-                VALUES (%(guild_id)s, %(node)s, %(data)s)
-            """, data)
+    async def publish(self, data: dict) -> None:
+        """Add a message to the queue."""
+        self.queue.put_nowait(data)
 
     async def clear(self):
         async with self.node.apool.connection() as conn:
@@ -85,10 +99,6 @@ class PubSub:
                 await conn.set_autocommit(False)
 
     async def close(self):
-        async with self.node.apool.connection() as conn:
-            try:
-                await conn.set_autocommit(True)
-                self._stop_event.set()
-                await conn.execute(f"NOTIFY {self.name}")
-            finally:
-                await conn.set_autocommit(False)
+        self._stop_event.set()
+        self.queue.put_nowait(None)
+        await self._worker

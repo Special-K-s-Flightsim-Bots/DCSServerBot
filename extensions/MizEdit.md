@@ -19,7 +19,7 @@ So - why not do that on our own, without the need of the editor?
 Each mission change is represented in a small data-structure in yaml. I've called these "presets", as they usually will
 work as a fixed setting for any mission you have, like any weather preset you know already from the recent DCS versions.
 
-> If you want to lookup the presets used in DCS, you can take a look at 
+> If you want to look up the presets used in DCS, you can take a look at 
 > `C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua`.
 
 ### config/presets.yaml
@@ -83,7 +83,7 @@ With this method, you can change the following values in your mission (to be ext
 I highly recommend looking at a mission or options file inside your miz-file to see the structure of these settings.
 
 #### b) Attaching Files
-If you want to attach files to your mission (e. g. sounds but others like scripts, etc.), you can do it like this:
+If you want to attach files to your mission (e.g. sounds but others like scripts, etc.), you can do it like this:
 ```yaml
 Sounds:
   files:
@@ -104,14 +104,14 @@ AddFiles:
 ```
 
 #### c) Complex Modifications
-Sometimes, only changing the weather is not enough and you want to change some parts in the mission that are deeply 
+Sometimes, only changing the weather is not enough, and you want to change some parts in the mission that are deeply 
 nested or even dependent on another parts of your mission file. This is for instance true, if you want to change
 frequencies, TACAN codes or similar items.
 Therefore, I developed some SQL-like query language, where you can search and change values in your mission.
 
 To use the "modify"-Preset, you need to understand some of the concepts first. 
 As we need to "navigate" all around the mission file inside your miz file, we need some kind of path description first,
-that helps us to find the respective elements that we want to change:
+that helps us find the respective elements that we want to change:
 
 | Character | Description                                                                             |
 |-----------|-----------------------------------------------------------------------------------------|
@@ -129,7 +129,7 @@ MyFancyPreset:
   modify:
     for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
-This selects some carriers from your blue coalition. Now lets write the same thing a bit different:
+This selects some carriers from your blue coalition. Now let's write the same thing a bit different:
 ```yaml
 MyFancyPreset:
   modify:
@@ -169,8 +169,8 @@ MyFancyPreset:
 ```
 So this replaces the "modeChannel" parameter with "X". Then, we replace the channel using a built-in variable 
 "reference", which in our case points to one of each "group" returned by the for-each statement.
-Inside of this group, we select the units, the first one of them with [0], its type, which is one of CVN_71 .. 75.
-Then we cut out the last 2 characters from that type name, which is the carrier number (71 .. 75). Then we set this as
+Inside of this group, we select the units, the first one of them with [0], its type, which is one of CVN_71 ... 75.
+Then we cut out the last 2 characters from that type name, which is the carrier number (71 ... 75). Then we set this as
 our TACAN channel.
 Next we set the frequency. We are using one of the possible ways of doing it - a list of options, where only one is true
 at a time. In our case, we calculate the carrier number again (like above) and then match it with one of the possible 

@@ -8,7 +8,7 @@ them in your server embed (LotAtc) to completely starting and stopping external 
 > about these solutions and I really appreciate that someone put a lot of time in to make them what they
 > are today.<br>
 > Nevertheless, I am not responsible for them. Neither for any bugs, nor for their proper functionality. The developers
-> usually either have their own Discord servers, where you can ask for support or they have the option to raise an 
+> usually either have their own Discord servers, where you can ask for support, or they have the option to raise an 
 > issue in their GitHubs.<br>
 > So please - if you see any issues in these solutions, contact the developers and ask for help.
 
@@ -21,7 +21,7 @@ example later.
 This is not really an external solution supported by DCSServerBot, but my own one, which allows you to change your 
 missions prior to the server startup.<br>
 You can change more or less anything in the mission itself, like weather, mission parameters and even amend units, if
-you like. The common usecase for people is to use it to change the weather on a timed or random basis.
+you like. The common use-case for people is to use it to change the weather on a timed or random basis.
 
 As MizEdit is a very powerful solution, I decided to donate it a separate doc page, which you can reach [here](./MizEdit.md).
 
@@ -94,7 +94,7 @@ You need one entry in the node section, pointing to your DCS-SRS installation an
 where you want to use SRS with. The next time the bot starts your server, it will auto-launch SRS and take care of it.
 
 __Optional__ parameters (will change server.cfg if necessary):</br>
-* **autoupdate** If true, SRS will check for updates and update itself. You need to run the bot as Admin to do so.
+* **autoupdate** If true, SRS will check for updates and update itself.
 * **host** The hostname or IP to be used in your DCS-SRS-AutoConnectGameGUI.lua. The bot will replace it in there.
 * **port** SRS port (default: 5002)
 * **awacs** AWACS mode
@@ -102,6 +102,8 @@ __Optional__ parameters (will change server.cfg if necessary):</br>
 * **red_password** AWACS mode, password red.
 * **autostart** If true, the SRS server will be auto-started (default).
 
+> ⚠️ **Attention!**<br>
+> You need to disable User-Access-Control (UAC) to use SRS-autoupdate.
 
 ### Tacview
 Many servers run [Tacview](https://www.tacview.net/) to help people analyse their flight path, weapons employment and 
@@ -125,7 +127,7 @@ MyNode:
         Tacview:
           show_passwords: false  # hide passwords in your server status embed (default: true)
           host: 127.0.0.1        # Tacview host (default)
-          log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log"
+          log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log" # Only needed, if you export tacview logs to a different file.
           tacviewRealTimeTelemetryPort: 42674  # default
           tacviewRealTimeTelemetryPassword: '' # default
           tacviewRemoteControlPort: 42675      # default

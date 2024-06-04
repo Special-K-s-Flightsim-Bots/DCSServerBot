@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import asyncio
+
 from core import EventListener, chat_command, event
 from typing import TYPE_CHECKING
 
@@ -14,7 +17,8 @@ class HelpListener(EventListener):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            player.sendChatMessage(f"Use \"{self.prefix}help\" for commands.")
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.sendChatMessage(f"Use \"{self.prefix}help\" for commands."))
 
     @chat_command(name="help", help="The help command")
     async def help(self, server: Server, player: Player, params: list[str]):
@@ -23,7 +27,7 @@ class HelpListener(EventListener):
         ]
         for listener in self.bot.eventListeners:
             for command in listener.chat_commands:
-                if not listener.can_run(command, server, player):
+                if not await listener.can_run(command, server, player):
                     continue
                 cmd = f"{self.prefix}{command.name}"
                 if command.usage:
@@ -31,4 +35,4 @@ class HelpListener(EventListener):
                 if command.help:
                     cmd += '\u2000' * (20 - len(cmd)) + f"- {command.help}"
                 messages.append(cmd)
-        player.sendUserMessage('\n'.join(messages), 30)
+        await player.sendUserMessage('\n'.join(messages), 30)

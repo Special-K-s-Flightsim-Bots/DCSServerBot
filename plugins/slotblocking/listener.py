@@ -22,7 +22,7 @@ class SlotBlockingListener(EventListener):
         config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
             self._migrate_roles(config)
-            server.send_to_dcs({
+            await server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
@@ -50,12 +50,12 @@ class SlotBlockingListener(EventListener):
                             'roles': [x.id for x in member.roles]
                         })
                     if len(batch) >= 25:
-                        server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
+                        await server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
                         batch = []
 
                 # Send remaining users, if any
                 if batch:
-                    server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
+                    await server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -207,8 +207,9 @@ class SlotBlockingListener(EventListener):
             else:
                 player.deposit = 0
                 if player.points < self._get_costs(server, player):
-                    server.move_to_spectators(player,
-                                              reason="You do not have enough credits to use this slot anymore.")
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(server.move_to_spectators(
+                        player, reason="You do not have enough credits to use this slot anymore."))
         elif data['eventName'] == 'landing':
             # payback on landing
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
@@ -230,4 +231,6 @@ class SlotBlockingListener(EventListener):
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             player.deposit = 0
             if player.points < self._get_costs(server, player):
-                server.move_to_spectators(player, reason="You do not have enough credits to use this slot anymore.")
+                # noinspection PyAsyncCall
+                asyncio.create_task(server.move_to_spectators(
+                    player, reason="You do not have enough credits to use this slot anymore."))

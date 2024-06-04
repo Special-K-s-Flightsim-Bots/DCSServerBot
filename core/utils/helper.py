@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import builtins
 import importlib
 import json
+import logging
 import luadata
 import os
 import pkgutil
@@ -61,6 +63,8 @@ __all__ = [
     "for_each",
     "YAMLError"
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def parse_time(time_str: str) -> datetime:
@@ -144,7 +148,7 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
 
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
-    except KeyError:
+    except (KeyError, TypeError):
         string_ = ""
     return string_
 
@@ -565,7 +569,7 @@ class RemoteSettingsDict(dict):
                 "value": value
             }
         }
-        self.server.send_to_dcs(msg)
+        asyncio.create_task(self.server.send_to_dcs(msg))
 
 
 def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
@@ -586,7 +590,7 @@ def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
         return
 
     if debug:
-        print("  " * len(keys) + f"|_ Deleting {keys[-1]}")
+        logger.debug("  " * len(keys) + f"|_ Deleting {keys[-1]}")
 
     if isinstance(curr_element, dict):
         if isinstance(curr_element[keys[-1]], dict):
@@ -599,7 +603,7 @@ def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
         curr_element.pop(int(keys[-1]))
 
 
-def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, float, bool]:
+def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union[str, int, float, bool, list, dict]:
     """
     Evaluate the given value, replacing placeholders with keyword arguments if necessary.
 
@@ -608,9 +612,18 @@ def evaluate(value: Union[str, int, float, bool], **kwargs) -> Union[str, int, f
     :return: The evaluated value. Returns the input value if it is not a string or if it does not start with '$'.
              If the input value is a string starting with '$', it will be evaluated with placeholders replaced by keyword arguments.
     """
-    if isinstance(value, (int, float, bool)) or not value.startswith('$'):
-        return value
-    return eval(format_string(value[1:], **kwargs))
+    def _evaluate(value, **kwargs):
+        if isinstance(value, (int, float, bool)) or not value.startswith('$'):
+            return value
+        return eval(format_string(value[1:], **kwargs))
+
+    if isinstance(value, list):
+        for i in range(len(value)):
+            value[i] = _evaluate(value[i], **kwargs)
+    elif isinstance(value, dict):
+        return {_evaluate(k, **kwargs): _evaluate(v, **kwargs) for k, v in value.items()}
+    else:
+        return _evaluate(value, **kwargs)
 
 
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
@@ -648,20 +661,20 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
             for index in indexes:
                 if index <= 0 or len(data) < index:
                     if debug:
-                        print("  " * depth + f"|_ {index}. element not found")
+                        logger.debug("  " * depth + f"|_ {index}. element not found")
                     yield None
                 if debug:
-                    print("  " * depth + f"|_ Selecting {index}. element")
+                    logger.debug("  " * depth + f"|_ Selecting {index}. element")
                 yield from for_each(data[index - 1], search, depth + 1, debug=debug)
         elif isinstance(data, dict):
             indexes = [x.strip() for x in _next[1:-1].split(',')]
             for index in indexes:
                 if index not in data:
                     if debug:
-                        print("  " * depth + f"|_ {index}. element not found")
+                        logger.debug("  " * depth + f"|_ {index}. element not found")
                     yield None
                 if debug:
-                    print("  " * depth + f"|_ Selecting element {index}")
+                    logger.debug("  " * depth + f"|_ Selecting element {index}")
                 yield from for_each(data[index], search, depth + 1, debug=debug)
 
     def process_pattern(_next, data, search, depth, debug, **kwargs):
@@ -669,37 +682,37 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
             for idx, value in enumerate(data):
                 if evaluate(_next, **(kwargs | value)):
                     if debug:
-                        print("  " * depth + f"  - Element {idx + 1} matches.")
+                        logger.debug("  " * depth + f"  - Element {idx + 1} matches.")
                     yield from for_each(value, search, depth + 1, debug=debug)
         else:
             if evaluate(_next, **(kwargs | data)):
                 if debug:
-                    print("  " * depth + "  - Element matches.")
+                    logger.debug("  " * depth + "  - Element matches.")
                 yield from for_each(data, search, depth + 1, debug=debug)
 
     if not data or len(search) == depth:
         if debug:
-            print("  " * depth + ("|_ RESULT found => Processing ..." if data else "|_ NO result found, skipping."))
+            logger.debug("  " * depth + ("|_ RESULT found => Processing ..." if data else "|_ NO result found, skipping."))
         yield data
     else:
         _next = search[depth]
         if _next == '*':
             if debug:
-                print("  " * depth + f"|_ Iterating over {len(data)} {search[depth - 1]} elements")
+                logger.debug("  " * depth + f"|_ Iterating over {len(data)} {search[depth - 1]} elements")
             yield from process_iteration(_next, data, search, depth, debug)
         elif _next.startswith('['):
             yield from process_indexing(_next, data, search, depth, debug)
         elif _next.startswith('$'):
             if debug:
-                print("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth - 1]} elements")
+                logger.debug("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth - 1]} elements")
             yield from process_pattern(_next, data, search, depth, debug, **kwargs)
         elif _next in data:
             if debug:
-                print("  " * depth + f"|_ {_next} found.")
+                logger.debug("  " * depth + f"|_ {_next} found.")
             yield from for_each(data.get(_next), search, depth + 1, debug=debug)
         else:
             if debug:
-                print("  " * depth + f"|_ {_next} not found.")
+                logger.debug("  " * depth + f"|_ {_next} not found.")
             yield None
 
 

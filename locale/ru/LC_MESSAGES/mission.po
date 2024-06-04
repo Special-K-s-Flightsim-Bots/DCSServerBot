@@ -152,6 +152,9 @@ msgstr "Миссия \"{}\" была удалена с диска."
 msgid "Mission \"{}\" was already deleted."
 msgstr "Миссия \"{}\" уже была удалена."
 
+msgid "deleted mission {}"
+msgstr "удалил миссию {}"
+
 msgid "Timeout while deleting mission.\n"
 "Please reconfirm that the deletion was successful."
 msgstr "Истекло время удаления миссии.\n"

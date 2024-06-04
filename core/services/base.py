@@ -62,7 +62,7 @@ def proxy(original_function: Callable[..., Any]):
                 "service": self.__class__.__name__,
                 "method": original_function.__name__,
                 "params": {"server": server.name} | params
-            }, node=server.node.name)
+            }, node=server.node.name, timeout=60)
             return data.get('return')
         return await original_function(self, server, *args, **kwargs)
 
@@ -88,6 +88,9 @@ class Service(ABC):
     async def stop(self, *args, **kwargs):
         self.running = False
         self.log.info(f'  => Service {self.name} stopped.')
+
+    async def switch(self):
+        ...
 
     def is_running(self) -> bool:
         return self.running

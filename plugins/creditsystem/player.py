@@ -1,5 +1,4 @@
 from contextlib import closing
-
 from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
 from typing import cast
@@ -54,11 +53,11 @@ class CreditPlayer(Player):
         else:
             self.log.debug("No campaign active, player points will vanish after a bot restart.")
         # sending points to DCS
-        self.server.send_to_dcs({
+        self.bot.loop.create_task(self.server.send_to_dcs({
             'command': 'updateUserPoints',
             'ucid': self.ucid,
             'points': self._points
-        })
+        }))
 
     def audit(self, event: str, old_points: int, remark: str):
         if old_points == self.points:

@@ -4,7 +4,7 @@ With this plugin you can increase your PvP-fun and rank players and teams accord
 
 ## How does it work?
 In short - every player gets a rating, based on the ratings of the people they killed or died against. This means,
-that you get more points, if you kill someone with a higher rating or you lose more points, if you get killed by someone
+that you get more points, if you kill someone with a higher rating, or you lose more points, if you get killed by someone
 with a lower rating than yours.<br>
 Especially users that are using DCSServerBot since longer have gathered a lot of PvP kills already in their databases.
 On the initial installation of the Competitive plugin, DCSServerBot will read all that data and calculate a TrueSkill™️

@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import asyncio
 import logging
 import os
 import psutil
 import sys
+
 if sys.platform == 'win32':
     import win32gui
     import win32process
@@ -11,9 +13,8 @@ if sys.platform == 'win32':
 
 from datetime import datetime, timezone
 from discord.ext import tasks
-from typing import Union
 
-from core import Status, utils, Server, ServerImpl, Autoexec
+from core import Status, Server, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
@@ -58,35 +59,10 @@ class MonitoringService(Service):
             except Exception as ex:
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
-    async def check_nodes(self):
-        active_nodes: list[str] = await self.node.get_active_nodes()
-        used_nodes: set[str] = set()
-        for server in [x for x in self.bus.servers.values() if x.is_remote]:
-            if server.node.name not in active_nodes:
-                self.log.warning(f"- Node {server.node.name} not responding, removing server {server.name}.")
-                self.bus.servers[server.name].status = Status.UNREGISTERED
-                del self.bus.servers[server.name]
-            else:
-                used_nodes.add(server.node.name)
-        # any new nodes detected?
-        for node in set(active_nodes) - used_nodes:
-            await self.bus.register_remote_node(node)
-
-    @staticmethod
-    async def check_affinity(server: Server, affinity: Union[list[int], str]):
-        if isinstance(affinity, str):
-            affinity = [int(x.strip()) for x in affinity.split(',')]
-        elif isinstance(affinity, int):
-            affinity = [affinity]
-        if not server.process:
-            server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
-        if server.process:
-            server.process.cpu_affinity(affinity)
-
     async def warn_admins(self, server: Server, title: str, message: str) -> None:
         message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
                    f"If the scheduler is configured for this server, it will relaunch it automatically."
-        self.bus.send_to_node({
+        await self.bus.send_to_node({
             "command": "rpc",
             "service": BotService.__name__,
             "method": "alert",
@@ -170,9 +146,6 @@ class MonitoringService(Service):
                     await self.kill_hung_server(server)
                     continue
                 if server.status in [Status.RUNNING, Status.PAUSED]:
-                    # check affinity
-                    if 'affinity' in server.instance.locals:
-                        await self.check_affinity(server, server.instance.locals['affinity'])
                     # check extension states
                     for ext in [x for x in server.extensions.values() if not await asyncio.to_thread(x.is_running)]:
                         try:
@@ -199,7 +172,7 @@ class MonitoringService(Service):
                       sum(x.qsize() for x in bus.udp_server.message_queue.values())))
         last_wait_time = pstats.get('requests_wait_ms', 0)
 
-    def _pull_load_params(self, server: Server):
+    def _pull_load_params(self, server: Server) -> dict:
         cpu = server.process.cpu_percent()
         memory = server.process.memory_full_info()
         io_counters = server.process.io_counters()
@@ -216,7 +189,7 @@ class MonitoringService(Service):
             bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
             bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
         self.net_io_counters = net_io_counters
-        self.bus.send_to_node({
+        return {
             "command": "serverLoad",
             "cpu": cpu,
             "mem_total": memory.vms,
@@ -226,7 +199,7 @@ class MonitoringService(Service):
             "bytes_recv": bytes_recv,
             "bytes_sent": bytes_sent,
             "server_name": server.name
-        })
+        }
 
     async def serverload(self):
         for server in self.bus.servers.copy().values():
@@ -237,15 +210,13 @@ class MonitoringService(Service):
                                  f"server {server.name}, skipping server load gathering.")
                 continue
             try:
-                await asyncio.to_thread(self._pull_load_params, server)
+                await self.bus.send_to_node(await asyncio.to_thread(self._pull_load_params, server))
             except (psutil.AccessDenied, PermissionError):
                 self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
 
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
-            if self.node.master:
-                await self.check_nodes()
             if sys.platform == 'win32':
                 await self.check_popups()
             await self.heartbeat()

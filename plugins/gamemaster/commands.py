@@ -82,7 +82,7 @@ class GameMaster(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
-        server.send_to_dcs({
+        await server.send_to_dcs({
             "command": "sendChatMessage",
             "channel": interaction.channel.id,
             "message": message,
@@ -101,7 +101,7 @@ class GameMaster(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
-        server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
+        await server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
@@ -119,7 +119,7 @@ class GameMaster(Plugin):
                                                   ).format(server=server.display_name, status=server.status.name),
                                                 ephemeral=ephemeral)
                 continue
-            server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
+            await server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
             await interaction.followup.send(_('Message sent to server {}.').format(server.display_name),
                                             ephemeral=ephemeral)
 
@@ -135,7 +135,7 @@ class GameMaster(Plugin):
             return
         ephemeral = utils.get_ephemeral(interaction)
         if value is not None:
-            server.send_to_dcs({
+            await server.send_to_dcs({
                 "command": "setFlag",
                 "flag": flag,
                 "value": value
@@ -163,7 +163,7 @@ class GameMaster(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if value is not None:
-            server.send_to_dcs({
+            await server.send_to_dcs({
                 "command": "setVariable",
                 "name": name,
                 "value": value
@@ -213,7 +213,7 @@ class GameMaster(Plugin):
             await interaction.response.send_message(_("Server {} is not running.").format(server.name), ephemeral=True)
             return
         filename = os.path.join('Missions', 'Scripts', filename)
-        server.send_to_dcs({
+        await server.send_to_dcs({
             "command": "do_script_file",
             "file": filename.replace('\\', '/')
         })
@@ -376,7 +376,7 @@ class GameMaster(Plugin):
         for server in self.bot.servers.values():
             player: Player = server.get_player(discord_id=after.id)
             if player and player.verified:
-                server.send_to_dcs({
+                await server.send_to_dcs({
                     'command': 'uploadUserRoles',
                     'ucid': player.ucid,
                     'roles': [x.id for x in after.roles]
@@ -476,15 +476,15 @@ class GameMaster(Plugin):
                     sides = utils.get_sides(self.bot, message, server)
                     if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE_CHAT] == message.channel.id:
                         # TODO: ignore messages for now, as DCS does not understand the coalitions yet
-                        # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
+                        # await server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
                         pass
                     elif Coalition.RED in sides and server.channels[Channel.COALITION_RED_CHAT] == message.channel.id:
                         # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
-                        # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
+                        # await server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                         pass
                 if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
                     if message.content.startswith('/') is False:
-                        server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
+                        await server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

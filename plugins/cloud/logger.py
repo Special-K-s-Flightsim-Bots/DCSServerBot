@@ -57,4 +57,5 @@ class CloudLoggingHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord):
         if record.levelno in [logging.ERROR, logging.CRITICAL] and record.exc_info is not None:
-            asyncio.create_task(self.send_post(record))
+            with suppress(Exception):
+                asyncio.create_task(self.send_post(record))

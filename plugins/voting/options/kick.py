@@ -24,7 +24,7 @@ class Kick(VotableItem):
         if winner.startswith("Don't"):
             message = f"Player {self.player.name} not kicked."
         else:
-            self.server.kick(self.player, reason=f"Annoying people on the server")
+            await self.server.kick(self.player, reason=f"Annoying people on the server")
             message = f"Player {self.player.name} kicked."
-        self.server.sendChatMessage(Coalition.ALL, message)
-        self.server.sendPopupMessage(Coalition.ALL, message)
+        await self.server.sendChatMessage(Coalition.ALL, message)
+        await self.server.sendPopupMessage(Coalition.ALL, message)

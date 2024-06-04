@@ -54,7 +54,7 @@ class Sneaker(Extension):
 
     def _log_output(self, p: subprocess.Popen):
         for line in iter(p.stdout.readline, b''):
-            self.log.info(line.decode('utf-8').rstrip())
+            self.log.debug(line.decode('utf-8').rstrip())
 
     def _run_subprocess(self, config: str):
         cmd = os.path.basename(self.config['cmd'])
@@ -62,8 +62,8 @@ class Sneaker(Extension):
         self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                        f"--config {config}")
         p = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", config],
-                                executable=os.path.expandvars(self.config['cmd']),
-                                stdout=out, stderr=subprocess.STDOUT)
+                             executable=os.path.expandvars(self.config['cmd']),
+                             stdout=out, stderr=subprocess.STDOUT)
         if self.config.get('debug', False):
             Thread(target=self._log_output, args=(p,)).start()
         return p

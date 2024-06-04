@@ -112,10 +112,10 @@ class OvGMEService(Service):
     def parse_filename(filename: str) -> tuple[Optional[str], Optional[str]]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
-        exp = re.compile('(?P<package>.*)_v?(?P<version>.*)')
+        exp = re.compile(r'(?P<package>.*?)(?P<version>[0-9]+\.[A-Za-z0-9.-]*)$')
         match = exp.match(filename)
         if match:
-            return match.group('package'), match.group('version')
+            return match.group('package').rstrip('v').rstrip('_').rstrip('-'), match.group('version')
         else:
             return None, None
 

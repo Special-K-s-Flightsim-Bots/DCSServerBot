@@ -282,12 +282,18 @@ msgstr "Startet einen Knoten neu"
 msgid "Shuts down all servers, enables maintenance"
 msgstr "Wartungsmodus für alle Server an"
 
+msgid "Shuts all servers down (default: on)"
+msgstr "Fährt alle Server herunter (default: ein)"
+
 msgid "Node {} is now offline."
 msgstr "Knoten {} ist jetzt im Wartungsmodus."
 
 # /node online
 msgid "Clears the maintenance mode for all servers"
 msgstr "Wartungsmodus für alle Server aus"
+
+msgid "Start all your servers (default: off)"
+msgstr "Startet alle Server (default: aus)"
 
 msgid "Node {} is now online."
 msgstr "Knoten {} ist wieder online."
@@ -336,7 +342,7 @@ msgid "Add/create an instance\n"
 msgstr "Füge eine neue Instanz hinzu\n"
 
 msgid "Either select an existing instance or enter the name of a new one"
-msgstr "Wähle eine vorhanden Instanz aus oder gib den Namen für eine neue an."
+msgstr "Wähle eine unbenutzte Instanz aus oder gib einen Namen für eine neue"
 
 msgid "Take this instance configuration as a reference"
 msgstr "Nutze diese Instanz als Referenz"

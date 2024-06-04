@@ -3,10 +3,10 @@ This plugin adds credits to the bot. People can gain credits atm by killing stuf
 
 Other plugins make use of credits. Currently, [SlotBlocking](../slotblocking/README.md) can block slots by credits and
 take credits away, if people waste airplanes. Furthermore, [Punishment](../punishment/README.md) can take credit points
-away due to punishment points a player gets due to teamkills or the like.
+away due to punishment points a player gets due to team-kills or the like.
 
 ## Configuration
-The Creditsystem is configured with a file named config\plugins\creditsystem.yaml. You'll find a sample file in that directory:
+The CreditSystem is configured with a file named config\plugins\creditsystem.yaml. You'll find a sample file in that directory:
 ```yaml
 DEFAULT:              # valid for all servers
   initial_points: 10  # The initial points a player gets (default = 0).
@@ -36,7 +36,7 @@ DEFAULT:              # valid for all servers
     role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
   - credits: 50
     playtime: 25
-    role: Veteran
+    role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
   - credits: 100
     playtime: 50
     combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
@@ -88,9 +88,9 @@ of credits.
 ## Usage inside of Missions (Scripting API)
 If you want to change user points based on any mission achievements, you are good to go:
 ```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  -- [...]
-  dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative to take them away.
+  if dcsbot then
+    dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative to take them away.
+  end
 ```
 
 ## Tables

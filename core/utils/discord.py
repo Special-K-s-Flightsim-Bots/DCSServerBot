@@ -9,7 +9,7 @@ from core import Status, utils
 from datetime import datetime
 from discord import app_commands, Interaction, SelectOption
 from discord.ext import commands
-from discord.ui import Button, View, Select
+from discord.ui import Button, View, Select, Item
 from enum import Enum, auto
 from fuzzywuzzy import fuzz
 from io import BytesIO
@@ -265,6 +265,9 @@ class YNQuestionView(View):
         await interaction.response.defer()
         self.result = False
         self.stop()
+
+    async def on_error(self, interaction: Interaction, error: Exception, item: Item[Any], /) -> None:
+        interaction.client.log.exception(error)
 
 
 async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
@@ -952,7 +955,7 @@ class InstanceTransformer(app_commands.Transformer):
             if self.unused:
                 instances = [
                     instance for server_name, instance in await node.find_all_instances()
-                    if instance not in node.instances
+                    if not any(instance == x.name for x in node.instances)
                 ]
             else:
                 instances = [x.name for x in node.instances]

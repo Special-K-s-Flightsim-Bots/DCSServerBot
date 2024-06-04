@@ -29,22 +29,22 @@ class MOTD(Plugin):
         await super().cog_unload()
 
     @staticmethod
-    def send_message(message: str, server: Server, config: dict, player: Optional[Player] = None):
+    async def send_message(message: str, server: Server, config: dict, player: Optional[Player] = None):
         if config['display_type'].lower() == 'chat':
             if player:
-                player.sendChatMessage(message)
+                await player.sendChatMessage(message)
             else:
-                server.sendChatMessage(Coalition.ALL, message)
+                await server.sendChatMessage(Coalition.ALL, message)
         elif config['display_type'].lower() == 'popup':
             timeout = config.get('display_time', server.locals.get('message_timeout', 10))
             if player:
-                player.sendPopupMessage(message, timeout)
+                await player.sendPopupMessage(message, timeout)
                 if 'sound' in config:
-                    player.playSound(config['sound'])
+                    await player.playSound(config['sound'])
             else:
-                server.sendPopupMessage(Coalition.ALL, message, timeout)
+                await server.sendPopupMessage(Coalition.ALL, message, timeout)
                 if 'sound' in config:
-                    server.playSound(Coalition.ALL, config['sound'])
+                    await server.playSound(Coalition.ALL, config['sound'])
 
     @staticmethod
     async def get_recipients(server: Server, config: dict) -> AsyncGenerator[Player, None]:
@@ -114,9 +114,9 @@ class MOTD(Plugin):
         async def process_message(config: dict, message: str):
             if 'recipients' in config:
                 async for recp in self.get_recipients(server, config):
-                    self.send_message(message, server, config, recp)
+                    await self.send_message(message, server, config, recp)
             else:
-                self.send_message(message, server, config)
+                await self.send_message(message, server, config)
 
         async def process_nudge(server: Server, config: dict):
             async with self.lock:

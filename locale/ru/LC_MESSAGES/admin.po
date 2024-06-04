@@ -295,12 +295,18 @@ msgstr "Перезапуск конкретной ноды"
 msgid "Shuts down all servers, enables maintenance"
 msgstr "Выключает все сервера, включает режим обслуживания"
 
+msgid "Shuts all servers down (default: on)"
+msgstr "Отключает все сервера (по умолчанию: вкл.)"
+
 msgid "Node {} is now offline."
 msgstr "Нода {} переведена в режим оффлайн."
 
 # /node online
 msgid "Clears the maintenance mode for all servers"
 msgstr "Отключение режима обслуживания на всех серверах"
+
+msgid "Start all your servers (default: off)"
+msgstr "Запускает все сервера (по умолчанию: выкл.)"
 
 msgid "Node {} is now online."
 msgstr "Нода {} теперь онлайн."

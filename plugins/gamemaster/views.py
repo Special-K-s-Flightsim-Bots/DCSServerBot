@@ -47,7 +47,7 @@ class ScriptModal(Modal):
         self.ephemeral = ephemeral
 
     async def on_submit(self, interaction: discord.Interaction):
-        self.server.send_to_dcs({
+        await self.server.send_to_dcs({
             "command": "do_script",
             "script": self.script.value
         })

@@ -1,4 +1,6 @@
 import asyncio
+from functools import partial
+
 import discord
 import os
 import shutil
@@ -626,7 +628,6 @@ class Admin(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         embed = discord.Embed(title=_("DCSServerBot Cluster Overview"), color=discord.Color.blue())
-        # TODO: there should be a list of nodes, with impls / proxies
         for name in self.node.all_nodes.keys():
             names = []
             instances = []
@@ -663,7 +664,7 @@ class Admin(Plugin):
         if method != 'upgrade' or node:
             for n in await self.node.get_active_nodes():
                 if not node or n == node.name:
-                    self.bus.send_to_node({
+                    await self.bus.send_to_node({
                         "command": "rpc",
                         "object": "Node",
                         "method": method
@@ -686,6 +687,9 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def shutdown(self, interaction: discord.Interaction,
                        node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "shutdown", node)
 
     @node_group.command(description=_('Restarts a specific node'))
@@ -693,42 +697,71 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     async def restart(self, interaction: discord.Interaction,
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "restart", node)
 
     @node_group.command(description=_('Shuts down all servers, enables maintenance'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.describe(shutdown=_('Shuts all servers down (default: on)'))
     async def offline(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer]):
+                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
+                      shutdown: Optional[bool] = True):
+        async def _node_offline(node_name: str):
+            for server in self.bus.servers.values():
+                if server.node.name == node_name:
+                    server.maintenance = True
+                    if shutdown:
+                        # noinspection PyAsyncCall
+                        asyncio.create_task(server.shutdown())
+            await interaction.followup.send(_("Node {} is now offline.").format(node_name))
+            await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
+
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
-        for server in self.bus.servers.values():
-            if server.node.name == node.name:
-                server.maintenance = True
-                # noinspection PyAsyncCall
-                asyncio.create_task(server.shutdown())
-        await interaction.followup.send(_("Node {} is now offline.").format(node.name))
-        await self.bot.audit(f"took node {node.name} offline.", user=interaction.user)
+        if node:
+            await _node_offline(node.name)
+        else:
+            for node in await self.node.get_active_nodes():
+                await _node_offline(node)
+            await _node_offline(self.node.name)
 
     @node_group.command(description=_('Clears the maintenance mode for all servers'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.describe(startup=_('Start all your servers (default: off)'))
     async def online(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer]):
-        async def schedule_coroutine(delay, coro):
-            await asyncio.sleep(delay)
-            await coro
+                     node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
+                     startup: Optional[bool] = False):
+
+        async def _startup(server: Server):
+            await server.startup()
+            server.maintenance = False
+
+        async def _node_online(node_name: str):
+            next_startup = 0
+            for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
+                if startup:
+                    self.loop.call_later(delay=next_startup, callback=partial(asyncio.create_task, _startup(server)))
+                    next_startup += startup_delay
+                else:
+                    server.maintenance = False
+            await interaction.followup.send(_("Node {} is now online.").format(node_name))
+            await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
-        for idx, server in enumerate([x for x in self.bus.servers.values() if x.node.name == node.name]):
-            server.maintenance = False
-            asyncio.ensure_future(schedule_coroutine(idx * startup_delay, server.startup()))
-        await interaction.followup.send(_("Node {} is now online.").format(node.name))
-        await self.bot.audit(f"took node {node.name} online.", user=interaction.user)
+        if node:
+            await _node_online(node.name)
+        else:
+            for node in await self.node.get_active_nodes():
+                await _node_online(node)
+            await _node_online(self.node.name)
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
@@ -801,7 +834,7 @@ class Admin(Plugin):
                     _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
         # for server in self.bus.servers.values():
         #    if server.status == Status.STOPPED:
-        #        server.send_to_dcs({"command": "reloadScripts"})
+        #        await server.send_to_dcs({"command": "reloadScripts"})
 
     @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()
@@ -812,6 +845,9 @@ class Admin(Plugin):
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         instance = await node.add_instance(name, template=template)
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
@@ -821,8 +857,7 @@ class Admin(Plugin):
                                           "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())
             try:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(embed=embed, view=view)
+                await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
             except Exception as ex:
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
@@ -843,10 +878,11 @@ class Admin(Plugin):
                 server.status = Status.SHUTDOWN
                 await interaction.followup.send(
                     _("Server {server} assigned to instance {instance}.").format(server=server.name,
-                                                                                 instance=instance.name))
+                                                                                 instance=instance.name),
+                    ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    _("Instance {} created blank with no server assigned.").format(instance.name))
+                    _("Instance {} created blank with no server assigned.").format(instance.name), ephemeral=ephemeral)
             await interaction.followup.send(_("""
 Instance {instance} added to node {node}.
 Please make sure you forward the following ports:
@@ -854,13 +890,13 @@ Please make sure you forward the following ports:
 - DCS Port:    {dcs_port} (TCP/UDP)
 - WebGUI Port: {webgui_port} (TCP)
 ```
-            """).format(instance=name, node=node.name, dcs_port=instance.dcs_port, webgui_port=instance.webgui_port))
+            """).format(instance=name, node=node.name, dcs_port=instance.dcs_port, webgui_port=instance.webgui_port),
+                                            ephemeral=ephemeral)
         else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 _("Instance {instance} could not be added to node {node}, see log.").format(instance=name,
                                                                                             node=node.name),
-                ephemeral=True)
+                ephemeral=ephemeral)
 
     @node_group.command(description=_("Delete an instance\n"))
     @app_commands.guild_only()

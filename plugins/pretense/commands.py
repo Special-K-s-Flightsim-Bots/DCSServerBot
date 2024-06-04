@@ -1,8 +1,10 @@
+from typing import Literal
+
 import discord
 import json
 import os
 
-from core import Plugin, Status, PersistentReport, Channel, utils, command, Server, Report, get_translation, Group
+from core import Plugin, Status, PersistentReport, Channel, utils, Server, Report, get_translation, Group
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
@@ -36,7 +38,7 @@ class Pretense(Plugin):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def stats(self, interaction: discord.Interaction,
-                            server: app_commands.Transform[Server, utils.ServerTransformer]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         config = self.get_config(server) or {}
@@ -66,7 +68,7 @@ class Pretense(Plugin):
     @app_commands.guild_only()
     async def reset(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[
-                        Status.STOPPED, Status.SHUTDOWN])]):
+                        Status.STOPPED, Status.SHUTDOWN])], what: Literal['persistence', 'statistics', 'both']):
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
@@ -76,9 +78,14 @@ class Pretense(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction, _("Do you really want to reset the Pretense progress?")):
             await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
-        path = os.path.join(await server.get_missions_dir(), 'Saves', "pretense_*.json")
-        await server.node.remove_file(path)
-        await interaction.followup.send(_("Pretense progress reset."))
+        if what == 'persistence' or what == 'both':
+            path = os.path.join(await server.get_missions_dir(), 'Saves', "pretense_*.json")
+            await server.node.remove_file(path)
+            await interaction.followup.send(_("Pretense persistence reset."))
+        if what == 'statistics' or what == 'both':
+            path = os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json")
+            await server.node.remove_file(path)
+            await interaction.followup.send(_("Pretense statistics reset."))
 
     @tasks.loop(seconds=120)
     async def update_leaderboard(self):
