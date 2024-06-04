@@ -104,7 +104,7 @@ class Player(DataObject):
             self._member = member
 
     def update_member(self, member: discord.Member) -> None:
-        with self.apool.connection() as conn:
+        with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
                              (member.id if member else -1, self.ucid))
@@ -142,7 +142,7 @@ class Player(DataObject):
         self._watchlist = watchlist
 
     def update_watchlist(self, watchlist: bool) -> None:
-        with self.apool.connection() as conn:
+        with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET watchlist = %s WHERE ucid = %s', (watchlist, self.ucid))
 
@@ -156,7 +156,7 @@ class Player(DataObject):
         self._vip = vip
 
     def update_vip(self, vip: bool) -> None:
-        with self.apool.connection() as conn:
+        with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET vip = %s WHERE ucid = %s', (vip, self.ucid))
 
