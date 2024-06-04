@@ -81,4 +81,5 @@ class MOTDListener(EventListener):
             message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
                 # noinspection PyUnresolvedReferences
-                self.plugin.send_message(message, server, cfg, player)
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.plugin.send_message(message, server, cfg, player))
