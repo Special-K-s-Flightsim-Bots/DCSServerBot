@@ -403,7 +403,7 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
-            await self.close_db
+            await self.close_db()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
