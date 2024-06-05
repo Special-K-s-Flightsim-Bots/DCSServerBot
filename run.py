@@ -159,6 +159,8 @@ class Main:
                 while True:
                     # wait until the master changes
                     while self.node.master == await self.node.heartbeat():
+                        if self.node.is_shutdown.is_set():
+                            return
                         await asyncio.sleep(5)
                     # switch master
                     self.node.master = not self.node.master

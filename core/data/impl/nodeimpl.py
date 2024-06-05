@@ -71,6 +71,7 @@ class NodeImpl(Node):
         self._public_ip: Optional[str] = None
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
+        self.is_shutdown = asyncio.Event()
         self.dcs_branch = None
         self.dcs_version = None
         self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
@@ -179,16 +180,12 @@ class NodeImpl(Node):
             del self.after_update[name]
 
     async def shutdown(self):
-        await ServiceRegistry.shutdown()
-        tasks = [t for t in asyncio.all_tasks() if t is not
-                 asyncio.current_task()]
-        [task.cancel() for task in tasks]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        asyncio.get_event_loop().stop()
+        self.is_shutdown.set()
 
     async def restart(self):
         self.log.info("Restarting ...")
         await ServiceRegistry.shutdown()
+        await self.close_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
     @log_call()
@@ -270,13 +267,14 @@ class NodeImpl(Node):
         await db_apool.open()
         return db_pool, db_apool
 
+    @log_call()
     async def close_db(self):
-        if self.pool:
+        if not self.pool.closed:
             try:
                 self.pool.close()
             except Exception as ex:
                 self.log.exception(ex)
-        if self.apool:
+        if not self.apool.closed:
             try:
                 await self.apool.close()
             except Exception as ex:
@@ -405,6 +403,7 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
+            await self.close_db
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
@@ -622,7 +621,6 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    @log_call()
     async def heartbeat(self) -> bool:
         def has_timeout(row: dict, timeout: int):
             return (row['now'] - row['last_seen']).total_seconds() > timeout

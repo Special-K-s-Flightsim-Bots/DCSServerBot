@@ -667,11 +667,11 @@ class Admin(Plugin):
                         "object": "Node",
                         "method": method
                     }, node=n)
-                    await interaction.followup.send(_('Node {node} - {method} sent.').format(node=n, method=method),
+                    await interaction.followup.send(_('Node {node} - {method} sent.').format(node=n, method=_(method)),
                                                     ephemeral=ephemeral)
         if not node or node.name == self.node.name:
             await interaction.followup.send(
-                (_("All nodes are") if not node else _("Master is")) + _(' going to {} **NOW**.').format(method),
+                (_("All nodes are") if not node else _("Master is")) + _(' going to {} **NOW**.').format(_(method)),
                 ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
