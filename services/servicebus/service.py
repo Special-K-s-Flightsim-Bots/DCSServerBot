@@ -409,9 +409,9 @@ class ServiceBus(Service):
                 """, (ucid, ))
                 return await cursor.fetchone()
 
-    def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
-                           settings: dict, options: dict, node: Node, channels: dict, dcs_version: str,
-                           maintenance: bool) -> None:
+    async def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
+                                 settings: dict, options: dict, node: Node, channels: dict, dcs_version: str,
+                                 maintenance: bool) -> None:
         from core import InstanceProxy
 
         # init event for an unregistered remote node received, ignoring
@@ -442,6 +442,8 @@ class ServiceBus(Service):
                     self.executor.submit(self.udp_server.process, server.name)
                 self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
             server.status = Status(status)
+        except StopIteration:
+            self.log.error(f"No configuration found for instance {instance} in config\nodes.yaml")
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
 

@@ -191,7 +191,7 @@ class All(report.EmbedElement):
                 await asyncio.sleep(1)
             if server.status == Status.SHUTDOWN:
                 continue
-            name = f"{server.name} [{len(server.players) + 1}/{server.settings['maxPlayers']}]"
+            name = f"{server.name} [{len(server.players) + 1}/{server.settings.get('maxPlayers', 16)}]"
             value = f"IP/Port:  {server.node.public_ip}:{server.settings['port']}\n"
             if server.current_mission:
                 value += f"Mission:  {server.current_mission.name}\n"
