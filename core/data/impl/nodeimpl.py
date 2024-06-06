@@ -20,7 +20,6 @@ from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from core.translations import get_translation
-from core.utils.performance import log_call
 from discord.ext import tasks
 from packaging import version
 from pathlib import Path
@@ -110,7 +109,6 @@ class NodeImpl(Node):
     async def __aexit__(self, type, value, traceback):
         await self.close_db()
 
-    @log_call()
     async def post_init(self):
         self.pool, self.apool = await self.init_db()
         try:
@@ -188,7 +186,6 @@ class NodeImpl(Node):
         await self.close_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
-    @log_call()
     def read_locals(self) -> dict:
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
@@ -233,7 +230,6 @@ class NodeImpl(Node):
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
 
-    @log_call()
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         try:
@@ -267,7 +263,6 @@ class NodeImpl(Node):
         await db_apool.open()
         return db_pool, db_apool
 
-    @log_call()
     async def close_db(self):
         if not self.pool.closed:
             try:
@@ -292,7 +287,6 @@ class NodeImpl(Node):
             instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
 
-    @log_call()
     async def update_db(self):
         # Initialize the database
         async with self.apool.connection() as conn:
@@ -593,7 +587,6 @@ class NodeImpl(Node):
         else:
             return await _get_latest_version_auth()
 
-    @log_call()
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
@@ -612,7 +605,6 @@ class NodeImpl(Node):
             except Exception:
                 self.log.warning("Version check failed, possible auth-server outage.")
 
-    @log_call()
     async def unregister(self):
         async with self.apool.connection() as conn:
             async with conn.transaction():
