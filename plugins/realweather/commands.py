@@ -93,7 +93,7 @@ class RealWeather(Plugin):
             new_filename = await self.change_weather(server, filename, airbase)
             self.log.info(f"Realweather applied on server {server.name}.")
         except (FileNotFoundError, UnsupportedMizFileException):
-            await msg.edit(content='Could not apply weather due to an error in RealWeather.', ephemeral=ephemeral)
+            await msg.edit(content='Could not apply weather due to an error in RealWeather.')
             return
         message = 'Weather changed.'
         if new_filename != filename:

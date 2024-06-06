@@ -125,6 +125,7 @@ function dcsbot.getMissionUpdate(json)
 end
 
 function dcsbot.getAirbases(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getAirbases()')
     local msg = {
         command = 'getAirbases',
         airbases = {}

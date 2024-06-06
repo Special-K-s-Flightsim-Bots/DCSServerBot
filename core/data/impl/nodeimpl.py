@@ -20,7 +20,6 @@ from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
 from core.translations import get_translation
-from core.utils.performance import log_call
 from discord.ext import tasks
 from packaging import version
 from pathlib import Path
@@ -71,6 +70,7 @@ class NodeImpl(Node):
         self._public_ip: Optional[str] = None
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
+        self.is_shutdown = asyncio.Event()
         self.dcs_branch = None
         self.dcs_version = None
         self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
@@ -109,7 +109,6 @@ class NodeImpl(Node):
     async def __aexit__(self, type, value, traceback):
         await self.close_db()
 
-    @log_call()
     async def post_init(self):
         self.pool, self.apool = await self.init_db()
         try:
@@ -179,19 +178,14 @@ class NodeImpl(Node):
             del self.after_update[name]
 
     async def shutdown(self):
-        await ServiceRegistry.shutdown()
-        tasks = [t for t in asyncio.all_tasks() if t is not
-                 asyncio.current_task()]
-        [task.cancel() for task in tasks]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        asyncio.get_event_loop().stop()
+        self.is_shutdown.set()
 
     async def restart(self):
         self.log.info("Restarting ...")
         await ServiceRegistry.shutdown()
+        await self.close_db()
         os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
 
-    @log_call()
     def read_locals(self) -> dict:
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
@@ -236,7 +230,6 @@ class NodeImpl(Node):
             return node
         raise FatalException(f"No {config_file} found. Exiting.")
 
-    @log_call()
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         try:
@@ -271,12 +264,12 @@ class NodeImpl(Node):
         return db_pool, db_apool
 
     async def close_db(self):
-        if self.pool:
+        if not self.pool.closed:
             try:
                 self.pool.close()
             except Exception as ex:
                 self.log.exception(ex)
-        if self.apool:
+        if not self.apool.closed:
             try:
                 await self.apool.close()
             except Exception as ex:
@@ -294,7 +287,6 @@ class NodeImpl(Node):
             instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
 
-    @log_call()
     async def update_db(self):
         # Initialize the database
         async with self.apool.connection() as conn:
@@ -405,6 +397,7 @@ class NodeImpl(Node):
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
             await ServiceRegistry.shutdown()
+            await self.close_db()
             os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
@@ -594,7 +587,6 @@ class NodeImpl(Node):
         else:
             return await _get_latest_version_auth()
 
-    @log_call()
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
@@ -613,7 +605,6 @@ class NodeImpl(Node):
             except Exception:
                 self.log.warning("Version check failed, possible auth-server outage.")
 
-    @log_call()
     async def unregister(self):
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -622,7 +613,6 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 
-    @log_call()
     async def heartbeat(self) -> bool:
         def has_timeout(row: dict, timeout: int):
             return (row['now'] - row['last_seen']).total_seconds() > timeout

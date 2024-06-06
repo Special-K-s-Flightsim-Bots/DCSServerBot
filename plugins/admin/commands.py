@@ -650,10 +650,8 @@ class Admin(Plugin):
                 embed.add_field(name="▬" * 32, value=f"_[{name}]_", inline=False)
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
-    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
-        ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer(ephemeral=ephemeral)
+    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None,
+                           ephemeral: Optional[bool] = True):
         if not node:
             msg = _("Do you want to {} all nodes?").format(_(method))
         else:
@@ -669,11 +667,11 @@ class Admin(Plugin):
                         "object": "Node",
                         "method": method
                     }, node=n)
-                    await interaction.followup.send(_('Node {node} - {method} sent.').format(node=n, method=method),
+                    await interaction.followup.send(_('Node {node} - {method} sent.').format(node=n, method=_(method)),
                                                     ephemeral=ephemeral)
         if not node or node.name == self.node.name:
             await interaction.followup.send(
-                (_("All nodes are") if not node else _("Master is")) + _(' going to {} **NOW**.').format(method),
+                (_("All nodes are") if not node else _("Master is")) + _(' going to {} **NOW**.').format(_(method)),
                 ephemeral=ephemeral)
             if method == 'shutdown':
                 await self.node.shutdown()
@@ -690,7 +688,7 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        await self.run_on_nodes(interaction, "shutdown", node)
+        await self.run_on_nodes(interaction, "shutdown", node, ephemeral=ephemeral)
 
     @node_group.command(description=_('Restarts a specific node'))
     @app_commands.guild_only()
@@ -700,7 +698,7 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        await self.run_on_nodes(interaction, "restart", node)
+        await self.run_on_nodes(interaction, "restart", node, ephemeral=ephemeral)
 
     @node_group.command(description=_('Shuts down all servers, enables maintenance'))
     @app_commands.guild_only()
@@ -786,7 +784,7 @@ class Admin(Plugin):
                 ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
             return
-        await self.run_on_nodes(interaction, "upgrade", node if not cluster else None)
+        await self.run_on_nodes(interaction, "upgrade", node if not cluster else None, ephemeral=ephemeral)
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
