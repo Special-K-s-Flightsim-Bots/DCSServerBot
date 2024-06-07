@@ -46,7 +46,7 @@ __all__ = [
 
 def is_open(ip, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.settimeout(0.5)
+        s.settimeout(1.0)
         return s.connect_ex((ip, int(port))) == 0
 
 

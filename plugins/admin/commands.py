@@ -38,7 +38,7 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
     return choices[:25]
 
 
-async def watchlist_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def watchlist_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
@@ -46,7 +46,7 @@ async def watchlist_autocomplete(interaction: discord.Interaction, current: str)
         cursor = await conn.execute("""
                         SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
         """, ('%' + current + '%', '%' + current + '%'))
-        choices: list[app_commands.Choice[int]] = [
+        choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
             async for row in cursor
         ]
