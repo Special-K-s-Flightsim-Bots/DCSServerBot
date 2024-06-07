@@ -212,7 +212,7 @@ class ServiceBus(Service):
                     )
                 else:
                     server.status = Status.SHUTDOWN
-                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered.")
+                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (no process).")
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
             num = 0
             for i, name in enumerate(calls.keys()):
@@ -220,11 +220,11 @@ class ServiceBus(Service):
                 if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
                     self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                     server.status = Status.SHUTDOWN
-                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered.")
+                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (not responding).")
                 elif isinstance(ret[i], Exception):
                     self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
                 else:
-                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered.")
+                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as UP.")
                     num += 1
             if not self.servers:
                 self.log.warning('  => No local DCS servers configured!')
