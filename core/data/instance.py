@@ -29,6 +29,13 @@ class Instance(DataObject):
         raise NotImplementedError()
 
     @property
+    def dcs_host(self) -> str:
+        if self.server:
+            return self.server.settings.get('bind_address') or '127.0.0.1'
+        else:
+            return "127.0.0.1"
+
+    @property
     def dcs_port(self) -> int:
         if self.server:
             return int(self.server.settings['port'])
