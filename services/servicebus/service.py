@@ -232,15 +232,12 @@ class ServiceBus(Service):
                 self.log.info(f"- {len(self.servers)} local DCS servers registered.")
 
     async def register_remote_servers(self, node: Node):
-        try:
-            await self.send_to_node_sync({
-                "command": "rpc",
-                "service": "ServiceBus",
-                "method": "register_local_servers"
-            }, node=node.name, timeout=180)
-            self.log.info(f"- Remote node {node.name} registered.")
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"- Timeout while registering remote node {node.name}!")
+        await self.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "register_local_servers"
+        }, node=node.name)
+        self.log.info(f"- Remote node {node.name} registered.")
 
     async def register_remote_node(self, name: str, public_ip: str):
         from core import NodeProxy

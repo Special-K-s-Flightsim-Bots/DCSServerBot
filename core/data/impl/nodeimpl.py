@@ -112,12 +112,6 @@ class NodeImpl(Node):
     async def post_init(self):
         self.pool, self.apool = await self.init_db()
         try:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                    """, (self.guild_id, self.name))
             self._master = await self.heartbeat()
         except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):
             # some master tables have changed, so do the update first
@@ -618,7 +612,7 @@ class NodeImpl(Node):
             return (row['now'] - row['last_seen']).total_seconds() > timeout
 
         try:
-            async with self.apool.connection() as conn:
+            async with (self.apool.connection() as conn):
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
                         try:
@@ -648,7 +642,9 @@ class NodeImpl(Node):
                                 if cluster['update_pending']:
                                     if not await self.upgrade_pending():
                                         # we have just finished updating, so restart all other nodes (if there are any)
-                                        for node in await self.get_active_nodes():
+                                        for row in all_nodes:
+                                            if row['node'] == self.name or has_timeout(row, self.locals.get('heartbeat', 60)):
+                                                continue
                                             # TODO: we might not have bus access here yet, so be our own bus (dirty)
                                             data = {
                                                 "command": "rpc",
@@ -664,7 +660,9 @@ class NodeImpl(Node):
                                         """, (__version__, self.guild_id))
                                     else:
                                         # something went wrong, we need to upgrade again
-                                        await self.upgrade()
+                                        # noinspection PyAsyncCall
+                                        asyncio.create_task(self.upgrade())
+                                        return True
                                 elif version.parse(cluster['version']) != version.parse(__version__):
                                     if version.parse(cluster['version']) > version.parse(__version__):
                                         self.log.warning(
@@ -748,7 +746,8 @@ class NodeImpl(Node):
                             return self.master
                         finally:
                             await cursor.execute("""
-                                UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
+                                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                                ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
                             """, (self.guild_id, self.name))
         except OperationalError as ex:
             self.log.error(ex)

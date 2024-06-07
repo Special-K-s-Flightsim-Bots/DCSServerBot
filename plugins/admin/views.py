@@ -1,6 +1,6 @@
 import discord
 
-from discord.ui import View, Button, Select, TextInput, Modal
+from discord.ui import View, Button, Select
 
 
 class CleanupView(View):
@@ -44,10 +44,3 @@ class CleanupView(View):
         await interaction.response.defer()
         self.cmd = "cancel"
         self.stop()
-
-
-class ConfigModal(Modal):
-    name = TextInput(label="Name", max_length=80, required=True)
-    description = TextInput(label="Description", style=discord.TextStyle.long, max_length=2000, required=False)
-    password = TextInput(label="Password", placeholder="n/a", max_length=20, required=False)
-    max_player = TextInput(label="Max Players", max_length=3, required=True)
