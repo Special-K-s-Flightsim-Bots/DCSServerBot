@@ -653,7 +653,7 @@ class NodeImpl(Node):
                                             }
                                             await conn.execute("""
                                                 INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
-                                            """, (self.guild_id, node, Json(data)))
+                                            """, (self.guild_id, row['node'], Json(data)))
                                         # clear the update flag
                                         await cursor.execute("""
                                             UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s
