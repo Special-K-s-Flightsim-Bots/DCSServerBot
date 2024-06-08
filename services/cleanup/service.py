@@ -2,7 +2,7 @@ import asyncio
 import os
 import time
 
-from core import ServiceRegistry, Service, utils, DEFAULT_TAG, Instance
+from core import ServiceRegistry, Service, utils, Instance
 from discord.ext import tasks
 from pathlib import Path
 
@@ -20,13 +20,8 @@ class CleanupService(Service):
         self.schedule.cancel()
         await super().stop()
 
-    def get_cfg_by_instance(self, instance: Instance) -> dict:
-        if instance.name not in self._config:
-            self._config[instance.name] = (self.locals.get(DEFAULT_TAG, {}) | self.locals.get(instance.name, {}))
-        return self._config[instance.name]
-
     def do_cleanup(self, instance: Instance, now: time) -> None:
-        for name, config in self.get_cfg_by_instance(instance).items():
+        for name, config in self.get_config(instance.server).items():
             self.log.debug(f"- Running cleanup for {name} ...")
             directory = Path(os.path.expandvars(utils.format_string(config['directory'], node=self.node,
                                                                     instance=instance)))
