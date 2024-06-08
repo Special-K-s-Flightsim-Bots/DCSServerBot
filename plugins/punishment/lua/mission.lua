@@ -15,3 +15,11 @@ function dcsbot.punish(eventName, initiator, target)
     }
     dcsbot.sendBotTable(msg)
 end
+
+function dcsbot.disablePunishments()
+	local msg = {
+		command = 'disablePunishments'
+	}
+	dcsbot.sendBotTable(msg, channel)
+	env.info('Punishments disabled.')
+end

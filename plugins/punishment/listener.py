@@ -12,11 +12,24 @@ class PunishmentEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.lock = asyncio.Lock()
+        self.active_servers: set[str] = set()
+
+    async def processEvent(self, name: str, server: Server, data: dict) -> None:
+        try:
+            if name == 'registerDCSServer' or server.name in self.active_servers:
+                await super().processEvent(name, server, data)
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if command.name == 'forgive':
             return self.plugin.get_config(server).get('forgive') is not None
         return await super().can_run(command, server, player)
+
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, _: dict) -> None:
+        if self.get_config(server).get('enabled', True):
+            self.active_servers.add(server.name)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
@@ -166,6 +179,10 @@ class PunishmentEventListener(EventListener):
         if player:
             # noinspection PyAsyncCall
             asyncio.create_task(self._send_player_points(player))
+
+    @event(name="disablePunishments")
+    async def disablePunishments(self, server: Server, _: dict) -> None:
+        self.active_servers.discard(server.name)
 
     @chat_command(name="forgive", help=_("forgive another user for their infraction"))
     async def forgive(self, server: Server, target: Player, params: list[str]):

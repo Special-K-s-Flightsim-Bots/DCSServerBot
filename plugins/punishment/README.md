@@ -138,6 +138,16 @@ Following the example above, a possible call could be:
 [...]
 ```
 
+### How to disable punishments inside of missions
+Sometimes you don't want your mission to punish users at all, but you don't want to configure your server to 
+disable them forever. To do so, you can just disable the punishments from inside your mission:
+```lua
+if dcsbot then
+    dcsbot.disablePunishments()    
+end 
+```
+
+
 ## Tables
 ### pu_events
 | Column      | Type                             | Description                                                         |

@@ -1,6 +1,5 @@
-local base		= _G
-
-dcsbot 			= base.dcsbot
+local base	= _G
+dcsbot 		= base.dcsbot
 
 -- deprecated
 function dcsbot.sendPopupMessage(to, message, time)
@@ -92,4 +91,50 @@ function dcsbot.playSound2(to, id, sound)
             trigger.action.outSoundForGroup(group:getID(), sound)
 		end
 	end
+end
+
+function dcsbot.callback(msg, channel)
+	local newmsg = msg
+	newmsg.subcommand = msg.command
+	newmsg.command = 'callback'
+	dcsbot.sendBotTable(newmsg, channel)
+end
+
+function dcsbot.startMission(id)
+	local msg = {
+		command = 'startMission',
+		id = id
+	}
+	dcsbot.callback(msg)
+end
+
+function dcsbot.shutdown()
+	local msg = {
+		command = 'shutdown'
+	}
+	dcsbot.callback(msg)
+end
+
+function dcsbot.restartMission()
+	local msg = {
+		command = 'restartMission'
+	}
+	dcsbot.callback(msg)
+end
+
+function dcsbot.sendEmbed(title, description, img, fields, footer, channel)
+	dcsbot.updateEmbed(nil, title, description, img, fields, footer, channel)
+end
+
+function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel)
+	local msg = {
+		command = 'sendEmbed',
+		id = id,
+		title = title,
+		description = description,
+		img = img,
+		fields = fields,
+		footer = footer
+	}
+	dcsbot.sendBotTable(msg, channel)
 end
