@@ -607,6 +607,7 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
     """
     Evaluate the given value, replacing placeholders with keyword arguments if necessary.
 
+    :param debug: enable debug mode
     :param value: The value to evaluate. Can be a string, integer, float, or boolean.
     :param kwargs: Additional keyword arguments to replace placeholders in the value.
     :return: The evaluated value. Returns the input value if it is not a string or if it does not start with '$'.
@@ -615,7 +616,8 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
     def _evaluate(value, **kwargs):
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
-        return eval(format_string(value[1:], **kwargs))
+        value = format_string(value[1:], **kwargs)
+        return eval(value) if value else False
 
     if isinstance(value, list):
         for i in range(len(value)):
