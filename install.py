@@ -204,9 +204,12 @@ For a successful installation, you need to fulfill the following prerequisites:
         defaults = ["Admin", "DCS Admin", "@everyone"]
         roles = {}
         for role_name, default in zip(role_names, defaults):
-            roles[role_name] = Prompt.ask(
+            roles = Prompt.ask(
                 _("Which role(s) in your discord should hold the [bold]{}[/] role?").format(role_name),
                 default=default).split(',')
+            # Convert to integer where possible
+            roles = [int(item) if item.isdigit() else item for item in roles]
+            roles[role_name] = roles
 
         bot = {
             "owner": owner,
