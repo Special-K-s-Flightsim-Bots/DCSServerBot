@@ -148,6 +148,11 @@ class SRS(Extension, FileSystemEventHandler):
         else:
             self.log.info('  => SRS autoconnect is NOT enabled for this server.')
             await self.disable_autoconnect()
+        if self.config.get('always_on', False):
+            self.config['autostart'] = True
+            self.config['no_shutdown'] = True
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.startup())
         return await super().prepare()
 
     async def startup(self) -> bool:

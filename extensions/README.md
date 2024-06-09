@@ -85,6 +85,7 @@ MyNode:
           blue_password: blue
           red_password: red
           autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
+          always_on: true     # start SRS as soon as possible  (includes no_shutdown: true)
           no_shutdown: true   # optional: don't shut down SRS on mission end (default: false)
           srs_message_prefix: 'SRS Running @ '        # optional: overwrite the message prefix
           srs_nudge_message: 'Optional nudge message' # optional: overwrite the existing nudge message
