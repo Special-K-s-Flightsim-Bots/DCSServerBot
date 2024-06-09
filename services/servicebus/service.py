@@ -245,6 +245,9 @@ class ServiceBus(Service):
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip)
         self.node.all_nodes[node.name] = node
+        while not self.bot:
+            await asyncio.sleep(1)
+            self.bot = ServiceRegistry.get(BotService).bot
         await self.bot.wait_until_ready()
         await self.register_remote_servers(node)
 
