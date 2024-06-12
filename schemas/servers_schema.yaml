@@ -63,6 +63,8 @@ mapping:
       autoscan: {type: bool}
       autorole: {type: text}
       force_voice: {type: bool}
+      rules: {type: str}
+      accept_rules_on_join: {type: bool}
       serverSettings:
         include: 'settings_schema'
       discord:
