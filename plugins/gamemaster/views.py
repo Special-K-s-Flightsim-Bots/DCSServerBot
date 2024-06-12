@@ -1,9 +1,9 @@
 import discord
 
-from core import TEventListener, Server, get_translation
+from core import TEventListener, Server, get_translation, utils
 from datetime import datetime, timezone
-from discord.ui import Modal, TextInput
-from typing import Type
+from discord.ui import Modal, TextInput, View
+from typing import Type, Union, Optional
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -53,3 +53,89 @@ class ScriptModal(Modal):
         })
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Script sent.'), ephemeral=self.ephemeral)
+
+
+class MessageModal(Modal):
+    message = TextInput(label="Message", style=discord.TextStyle.long, required=True)
+
+    def __init__(self, message: Optional[str] = None):
+        super().__init__(title="User Message")
+        if message:
+            self.message.default = message
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+
+class MessageView(View):
+
+    def __init__(self, messages: list[dict], user: Union[str, discord.Member]):
+        super().__init__()
+        self.index = 0
+        self.messages = messages
+        self.user = user
+
+    async def render(self) -> discord.Embed:
+        embed = discord.Embed(color=discord.Color.blue())
+        embed.description = _("Message for user {}").format(
+            self.user.display_name if isinstance(self.user, discord.Member) else self.user)
+        embed.add_field(name="Msg. No", value=str(self.index + 1))
+        embed.add_field(name="Sender", value=self.messages[self.index]['sender'])
+        embed.add_field(name="Time", value=f"<t:{int(self.messages[self.index]['time'].timestamp())}:f>")
+        embed.add_field(name=utils.print_ruler(header=_("Message"), ruler_length=27),
+                        value=self.messages[self.index]['message'], inline=False)
+        return embed
+
+    @discord.ui.button(emoji='◀️', style=discord.ButtonStyle.primary)
+    async def on_left(self, interaction: discord.Interaction, _: discord.ui.Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        if self.index > 0:
+            self.index -= 1
+            await interaction.edit_original_response(embed=await self.render(), view=self)
+
+    @discord.ui.button(emoji='🗒️', style=discord.ButtonStyle.primary)
+    async def on_edit(self, interaction: discord.Interaction, _: discord.ui.Button):
+        modal = MessageModal(self.messages[self.index]['message'])
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if not await modal.wait():
+            async with interaction.client.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
+                        UPDATE messages SET message = %s WHERE id = %s
+                    """, (modal.message.value, self.messages[self.index]['id']))
+            self.messages[self.index]['message'] = modal.message.value
+            await interaction.edit_original_response(embed=await self.render(), view=self)
+
+    @discord.ui.button(emoji='🚮', style=discord.ButtonStyle.primary)
+    async def on_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        async with interaction.client.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM messages WHERE id = %s", (self.messages[self.index]['id'],))
+        self.messages.pop(self.index)
+        if not self.messages:
+            await interaction.followup.send(_("No messages left."))
+            self.stop()
+            return
+        if self.index > len(self.messages) - 1:
+            self.index -= 1
+        await interaction.edit_original_response(embed=await self.render(), view=self)
+
+    @discord.ui.button(emoji='▶️', style=discord.ButtonStyle.primary)
+    async def on_right(self, interaction: discord.Interaction, _: discord.ui.Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        if self.index < (len(self.messages) - 1):
+            self.index += 1
+            await interaction.edit_original_response(embed=await self.render(), view=self)
+
+    @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+    async def on_cancel(self, interaction: discord.Interaction, _: discord.ui.Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()

@@ -753,7 +753,7 @@ def escape_string(msg: str) -> str:
     return re.sub(r"([\\_*~`|>#+\-={}!.\[\]()])", r"\\\1", msg)
 
 
-def print_ruler(*, ruler_length: Optional[int] = 34, header: Optional[str] = None) -> str:
+def print_ruler(*, ruler_length: Optional[int] = 34, header: Optional[str] = '') -> str:
     if header:
         header = ' ' + header + ' '
     filler = int((ruler_length - len(header) / 2.5) / 2)

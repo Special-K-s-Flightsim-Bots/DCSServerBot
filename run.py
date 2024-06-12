@@ -254,7 +254,7 @@ if __name__ == "__main__":
         log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node}.pid and try again.")
         exit(-2)
     except PidFileError:
-        log.error(f"[red]Process already running for node {args.node}![/]")
+        log.error(f"Process already running for node {args.node}!")
         log.error(f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.")
         # do not restart again
         exit(-2)

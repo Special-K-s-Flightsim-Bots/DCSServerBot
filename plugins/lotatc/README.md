@@ -12,6 +12,14 @@ opt_plugins:
   - lotatc
 ```
 
+In the default case, you do not need any additional configuration. There is an exception though, if you want to block
+people from joining your server, if they are GCIs on station. This is to prevent cheating (if you have the password,
+you could open LotAtc and fly.) The configuration goes into config\plugins\lotatc.yaml:
+```yaml
+DEFAULT:
+  kick_gci: true # you must not play if you are a GCI (you will be moved to spectators). Default is false. 
+```
+
 ## Transponder File Upload
 You need to create a transponder JSON file according to the LotAtc [documentation](https://www.lotatc.com/documentation/client/transponder.html#add-transponder-table-to-automatically-fill-names-from-code).<br>
 To mark the coalition, use "blue" or "red" inside the name of your transponder file, e.g. `bluetransponders.json`, to 
@@ -37,5 +45,5 @@ The following Discord commands are available through the LotAtc plugin:
 ## In-Game Chat Commands
 | Command | Parameter | Role | Description                                                           |
 |---------|-----------|------|-----------------------------------------------------------------------|
-| .gcis   |           | all  | Lists all active GCIs for your coalition. Can only be used in a slot. |
-| .gci    | name      | all  | Shows information about this GCI incl. SRS frequencies, if available. |
+| -gcis   |           | all  | Lists all active GCIs for your coalition. Can only be used in a slot. |
+| -gci    | name      | all  | Shows information about this GCI incl. SRS frequencies, if available. |

@@ -2,6 +2,7 @@ import atexit
 import json
 import luadata
 import os
+import re
 
 from core import Extension, utils, Server, ServiceRegistry
 from services import ServiceBus
@@ -19,8 +20,8 @@ class LotAtc(Extension, FileSystemEventHandler):
         self.observer: Optional[Observer] = None
         self.bus = ServiceRegistry.get(ServiceBus)
         self.gcis = {
-            "blue": [],
-            "red": []
+            "blue": {},
+            "red": {}
         }
         atexit.register(self.shutdown)
 
@@ -78,27 +79,32 @@ class LotAtc(Extension, FileSystemEventHandler):
             with open(path, mode='r', encoding='utf-8') as stats:
                 stats = json.load(stats)
                 gcis = {
-                    "blue": [],
-                    "red": []
+                    "blue": {},
+                    "red": {}
                 }
                 for coalition in ['blue', 'red']:
-                    gcis[coalition] = [x['name'] for x in stats.get('clients', {}).get(coalition, [])]
-                    for gci in set(self.gcis[coalition]) - set(gcis[coalition]):
-                        self.loop.create_task(self.bus.send_to_node({
-                            "command": "onGCILeave",
-                            "server_name": self.server.name,
-                            "coalition": coalition,
-                            "name": gci
-                        }))
-                    for gci in set(gcis[coalition]) - set(self.gcis[coalition]):
+                    gcis[coalition] = {x['name']: x['ip'] for x in stats.get('clients', {}).get(coalition, [])}
+                    added = {k: v for k, v in gcis[coalition].items() if k not in self.gcis[coalition]}
+                    for name, ip in added.items():
+                        match = re.search(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', ip)
                         self.loop.create_task(self.bus.send_to_node({
                             "command": "onGCIJoin",
                             "server_name": self.server.name,
                             "coalition": coalition,
-                            "name": gci
+                            "name": name,
+                            "ipaddr": match.group()
+                        }))
+                    removed = {k: v for k, v in self.gcis[coalition].items() if k not in gcis[coalition]}
+                    for name in removed.keys():
+                        self.loop.create_task(self.bus.send_to_node({
+                            "command": "onGCILeave",
+                            "server_name": self.server.name,
+                            "coalition": coalition,
+                            "name": name
                         }))
                 self.gcis = gcis
-        except Exception:
+        except Exception as ex:
+            self.log.exception(ex)
             pass
 
     def on_moved(self, event: FileSystemEvent):

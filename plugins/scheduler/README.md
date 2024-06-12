@@ -133,3 +133,10 @@ The following environment variables can be used in the "run" command:
 > "maintenance" mode unless specified otherwise with the optional maintenance parameter. To clear this and give the 
 > control back to the scheduler, use `/server clear`.<br>
 > You can put a server into maintenance mode manually, by using `/server maintenance`.
+
+## In-Game Chat Commands
+| Command      | Parameter | Role      | Description                                  |
+|--------------|-----------|-----------|----------------------------------------------|
+| -maintenance |           | DCS Admin | Enables maintenance mode for this server.    |
+| -clear       |           | DCS Admin | Clears the maintenance mode for this server. |
+| -timeleft    |           | all       | Displays the time until the next restart.    |

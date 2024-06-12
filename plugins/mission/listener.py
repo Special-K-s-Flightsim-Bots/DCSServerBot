@@ -365,7 +365,7 @@ class MissionEventListener(EventListener):
                     side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                     unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
                     unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
-                    group_name=p['group_name'])
+                    group_name=p['group_name'], ipaddr=p.get('ipaddr'))
                 server.add_player(player)
             else:
                 await player.update(p)
@@ -468,7 +468,7 @@ class MissionEventListener(EventListener):
         if not player or player.id == 1:
             player = DataObjectFactory().new(
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
-                active=data['active'], side=Side(data['side']), ucid=data['ucid'])
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
             await player.update(data)
@@ -513,7 +513,7 @@ class MissionEventListener(EventListener):
         if not player:
             player = DataObjectFactory().new(
                 Player, node=server.node, server=server, id=data['id'], name=data['name'],
-                active=data['active'], side=Side(data['side']), ucid=data['ucid'])
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'], ipaddr=data.get('ipaddr'))
             server.add_player(player)
         else:
             await player.update(data)

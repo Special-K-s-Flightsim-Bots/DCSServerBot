@@ -77,7 +77,7 @@ Select the col and row of the element you replaced (I took the "Ships" in the ab
 ## In-Game Chat Commands
 | Command    | Parameter | Role      | Description                     |
 |------------|-----------|-----------|---------------------------------|
-| .trueskill |           | all       | Shows your TrueSkill™️ rating.  |
+| -trueskill |           | all       | Shows your TrueSkill™️ rating.  |
 
 ## Tables
 ### trueskill

@@ -26,6 +26,7 @@ schema;instance_realweather_schema:
         runway-elevation: {type: int, range: {min: 0}}
         remarks: {type: str}
         add-to-brief: {type: bool}
+        use-custom-data: {type: bool}
     options:
       type: map
       allowempty: true
@@ -39,6 +40,9 @@ schema;instance_realweather_schema:
           mapping:
             minimum: {type: int}
             maximum: {type: int}
+            gust-minimum: {type: int}
+            gust-maximum: {type: int}
+            open-meteo: {type: bool}
             stability: {type: float}
             fixed-reference: {type: bool}
         clouds:

@@ -205,6 +205,8 @@ class Server(DataObject):
                 return player
             if 'name' in kwargs and player.name == kwargs['name']:
                 return player
+            if 'ipaddr' in kwargs and player.ipaddr == kwargs['ipaddr']:
+                return player
         return None
 
     def get_active_players(self, *, side: Side = None) -> list[Player]:

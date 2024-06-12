@@ -1,4 +1,15 @@
+schema;master_schema:
+  type: map
+  mapping:
+    kick_gci: {type: bool}
+
 type: map
 mapping:
+  DEFAULT:
+    include: 'master_schema'
   commands:
     include: 'commands_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

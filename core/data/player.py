@@ -26,6 +26,7 @@ class Player(DataObject):
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
+    ipaddr: str
     banned: bool = field(compare=False, default=False, init=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
@@ -73,6 +74,15 @@ class Player(DataObject):
                             self.coalition = Coalition(row[3])
                         self._watchlist = row[4]
                         self._vip = row[5]
+                    else:
+                        rules = self.server.locals.get('rules')
+                        if rules:
+                            cursor.execute("""
+                                INSERT INTO messages (sender, player_ucid, message, ack) 
+                                VALUES (%s, %s, %s, %s)
+                            """, (self.server.locals.get('server_user', 'Admin'), self.ucid, rules,
+                                  self.server.locals.get('accept_rules_on_join', False)))
+
                     cursor.execute("""
                         INSERT INTO players (ucid, discord_id, name, last_seen) 
                         VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
@@ -219,6 +229,8 @@ class Player(DataObject):
                     self.group_id = data['group_id']
                 if 'unit_display_name' in data:
                     self.unit_display_name = data['unit_display_name']
+                if 'ipaddr' in data:
+                    self.ipaddr = data['ipaddr']
                 await conn.execute("""
                     UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE ucid = %s

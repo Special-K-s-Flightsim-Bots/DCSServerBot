@@ -4,18 +4,19 @@ import json
 import discord
 import os
 import psycopg
+from psycopg.rows import dict_row
 
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, UploadStatus, \
-    get_translation
+    get_translation, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
 from jsonschema import validate, ValidationError
 from services import DCSServerBot
-from typing import Optional, Literal
+from typing import Optional, Literal, Union
 
 from .listener import GameMasterEventListener
-from .views import CampaignModal, ScriptModal
+from .views import CampaignModal, ScriptModal, MessageModal, MessageView
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -35,6 +36,26 @@ async def scriptfile_autocomplete(interaction: discord.Interaction, current: str
             if not current or current.casefold() in x.casefold()
         ]
         return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
+async def recipient_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT DISTINCT p.name, p.ucid 
+                FROM players p, messages m
+                WHERE p.ucid = m.player_ucid
+                 AND (name ILIKE %s OR ucid ILIKE %s)
+            """, ('%' + current + '%', '%' + current + '%'))
+            choices: list[app_commands.Choice[int]] = [
+                app_commands.Choice(name=f"{row[0]} (ucid={row[1]})", value=row[1])
+                async for row in cursor
+            ]
+            return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
 
@@ -367,6 +388,59 @@ class GameMaster(Plugin):
             await interaction.followup.send(_("Campaign stopped."), ephemeral=ephemeral)
         else:
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+
+    # New command group "/message"
+    message = Group(name="message", description=_("Commands to manage user messages"))
+
+    @message.command(description=_('Sends a message to a user'))
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def send(self, interaction: discord.Interaction,
+                   to: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER)], acknowledge: Optional[bool] = True):
+        modal = MessageModal()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            return
+        if isinstance(to, str):
+            ucid = to
+        else:
+            ucid = await self.bot.get_ucid_by_member(to)
+            if not ucid:
+                await interaction.followup.send(_("User is not linked."), ephemeral=True)
+                return
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    INSERT INTO messages (sender, player_ucid, message, ack) 
+                    VALUES (%s, %s, %s, %s)
+                """, (interaction.user.display_name, ucid, modal.message.value, acknowledge))
+                await interaction.followup.send(_("Message will be displayed to the user."),
+                                                ephemeral=utils.get_ephemeral(interaction))
+
+    @message.command(description=_('Edit or delete a user-message'))
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.autocomplete(ucid=recipient_autocomplete)
+    async def edit(self, interaction: discord.Interaction, ucid: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT * FROM messages WHERE player_ucid = %s ORDER BY id", (ucid, ))
+                messages = await cursor.fetchall()
+        if not messages:
+            await interaction.followup.send(_("No messages found."), ephemeral=ephemeral)
+        user = await self.bot.get_member_or_name_by_ucid(ucid)
+        view = MessageView(messages, user)
+        embed = await view.render()
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+        try:
+            await view.wait()
+        finally:
+            await msg.delete()
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):

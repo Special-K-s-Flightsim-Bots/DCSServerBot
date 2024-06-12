@@ -729,7 +729,7 @@ class NodeImpl(Node):
                                 if row['node'] == self.name:
                                     continue
                                 if row['node'] == cluster['master']:
-                                    if has_timeout(row, self.locals.get('heartbeat', 30)):
+                                    if has_timeout(row, self.locals.get('heartbeat', 30) * 2):
                                         # the master is dead, long live the master
                                         await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
                                                              (self.name, self.guild_id))

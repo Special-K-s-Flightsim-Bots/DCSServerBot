@@ -5,6 +5,9 @@ import logging
 import os
 import psycopg
 
+from functools import partial
+from psycopg.rows import dict_row
+
 from core import EventListener, Side, Coalition, Channel, utils, event, chat_command, CloudRotatingFileHandler, \
     get_translation, ChatCommand
 from datetime import datetime
@@ -21,6 +24,7 @@ class GameMasterEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.chat_log = dict()
+        self.tasks: dict[str, asyncio.TimerHandle] = {}
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         if (command.name in ['join', 'leave', 'red', 'blue', 'coalition', 'password'] and
@@ -85,6 +89,35 @@ class GameMasterEventListener(EventListener):
             row = await cursor.fetchone()
             return row[0] if coalition == Coalition.BLUE else row[1]
 
+    async def send_player_message(self, player: Player):
+        async with (self.apool.connection() as conn):
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT * FROM messages WHERE player_ucid = %s ORDER BY id",
+                                     (player.ucid, ))
+                message = ""
+                ack = False
+                async for row in cursor:
+                    ack = ack or row['ack']
+                    if message:
+                        message += '\n---\n'
+                    message += row['message']
+                if message:
+                    if ack:
+                        message += _("\n\nYou need to send {}ack in the in-game chat to acknowledge.\n"
+                                     "If you do not do that in-between 30s, you'll get booted from this slot.").format(
+                            self.prefix)
+                        self.tasks[player.ucid] = self.loop.call_later(30, self.boot_player, player)
+                    await player.sendUserMessage(message, timeout=30)
+                    async with conn.transaction():
+                        await conn.execute("DELETE FROM messages WHERE player_ucid = %s AND ack IS FALSE",
+                                           (player.ucid, ))
+
+    def boot_player(self, player: Player):
+        task = self.tasks.pop(player.ucid, None)
+        if not task or task.cancelled():
+            return
+        asyncio.create_task(player.server.move_to_spectators(player, reason="You need to acknowledge the message."))
+
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or not server.locals.get('coalitions') or 'ucid' not in data:
@@ -112,6 +145,17 @@ class GameMasterEventListener(EventListener):
         if await self.get_coalition_password(server, player.coalition):
             # noinspection PyAsyncCall
             asyncio.create_task(self._password(server, player))
+
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
+        if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator']:
+            player: Player = server.get_player(name=data['initiator']['name'], active=True)
+            if not player:
+                # should never happen, just in case
+                return
+            # check for player messages and start to annoy them
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.send_player_message(player))
 
     async def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                        description: Optional[str] = None, start: Optional[datetime] = None,
@@ -361,3 +405,15 @@ class GameMasterEventListener(EventListener):
         else:
             response = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
             await player.sendChatMessage(_("Flag {flag} has value {value}.").format(flag=flag, value=response['value']))
+
+    @chat_command(name="ack", help=_("acknowledge a user message"))
+    async def ack(self, server: Server, player: Player, params: list[str]):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    DELETE FROM messages m WHERE m.player_ucid = %s 
+                """, (player.ucid, ))
+        task = self.tasks.pop(player.ucid)
+        if task:
+            task.cancel()
+        await player.sendChatMessage(_("Message(s) acknowledged."))

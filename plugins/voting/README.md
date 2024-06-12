@@ -57,13 +57,12 @@ DEFAULT:
 ```
 
 ## In-Game Commands
-
 | Command | Parameter          | Description                                      |
 |---------|--------------------|--------------------------------------------------|
-| .vote   | \<what\> \[param\] | Start a voting .                                 | 
-| .vote   | cancel             | Cancel a voting (only DCS Admin can do that).    |
-| .vote   | <num>              | Vote for one of the options.                     |
-| .vote   |                    | Display the current voting and the leading vote. |
+| -vote   | \<what\> \[param\] | Start a voting .                                 | 
+| -vote   | cancel             | Cancel a voting (only DCS Admin can do that).    |
+| -vote   | <num>              | Vote for one of the options.                     |
+| -vote   |                    | Display the current voting and the leading vote. |
 
 A voting will automatically end after `time` seconds and execute the result.
 
