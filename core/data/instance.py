@@ -38,7 +38,7 @@ class Instance(DataObject):
     @property
     def dcs_port(self) -> int:
         if self.server:
-            return int(self.server.settings['port'])
+            return int(self.server.settings.get('port', 10308))
         else:
             return int(self.locals.get('dcs_port', 10308))
 
