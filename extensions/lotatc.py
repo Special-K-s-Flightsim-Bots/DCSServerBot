@@ -173,7 +173,7 @@ class LotAtc(Extension, FileSystemEventHandler):
     def is_running(self) -> bool:
         return self.observer is not None
 
-    async def _check_for_updates(self):
+    async def check_for_updates(self) -> Optional[str]:
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
             async with session.get(f"https://tinyurl.com/{UPDATER_CODE}") as response:
@@ -186,23 +186,27 @@ class LotAtc(Extension, FileSystemEventHandler):
                             if version is not None:
                                 break
                     else:
-                        return
-                    if version.text == self.version:
-                        def do_update():
-                            cwd = self.get_inst_path()
-                            exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
-                            subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
-                                           stdout=subprocess.DEVNULL)
-
-                        self.log.info(f"A new LotAtc update is available. Updating to version {version.text} ...")
-                        await asyncio.to_thread(do_update)
-                        self.log.info("LotAtc updated.")
+                        return None
+                    if version.text != self.version:
+                        return version.text
+                    return None
 
     @tasks.loop(minutes=30)
     async def schedule(self):
         if not self.config.get('autoupdate', False):
             return
         try:
-            await self._check_for_updates()
+            version = await self.check_for_updates()
+            if version:
+                def do_update():
+                    cwd = self.get_inst_path()
+                    exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
+                    subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL)
+
+                self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
+                await asyncio.to_thread(do_update)
+                self.log.info("LotAtc updated.")
+
         except Exception as ex:
             self.log.exception(ex)

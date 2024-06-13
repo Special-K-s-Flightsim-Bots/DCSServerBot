@@ -334,38 +334,43 @@ class SRS(Extension, FileSystemEventHandler):
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
 
-    async def _check_for_updates(self):
-        try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(SRS_GITHUB_URL) as response:
-                    if response.status in [200, 302]:
-                        version = response.url.raw_parts[-1]
-                        if version != self.version:
-
-                            def do_update():
-                                cwd = self.get_inst_path()
-                                exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
-                                args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
-                                if sys.platform == 'win32':
-                                    ctypes.windll.shell32.ShellExecuteW(
-                                        None, "runas", exe_path, ' '.join(args), None, 1)
-                                else:
-                                    subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
-                                                   stdout=subprocess.DEVNULL)
-
-                            self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                            await asyncio.to_thread(do_update)
-
-        except OSError as ex:
-            if ex.winerror == 740:
-                self.log.error("You need to run DCSServerBot as Administrator to use the DCS-SRS AutoUpdater.")
+    async def check_for_updates(self) -> Optional[str]:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+            async with session.get(SRS_GITHUB_URL) as response:
+                if response.status in [200, 302]:
+                    version = response.url.raw_parts[-1]
+                    if version != self.version:
+                        return version
+                    else:
+                        return None
 
     @tasks.loop(minutes=30)
     async def schedule(self):
         if not self.config.get('autoupdate', False):
             return
         try:
-            await self._check_for_updates()
+            version = await self.check_for_updates()
+            if version:
+                try:
+
+                    def do_update():
+                        cwd = self.get_inst_path()
+                        exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
+                        args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
+                        if sys.platform == 'win32':
+                            ctypes.windll.shell32.ShellExecuteW(
+                                None, "runas", exe_path, ' '.join(args), None, 1)
+                        else:
+                            subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                                           stdout=subprocess.DEVNULL)
+
+                    self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
+                    await asyncio.to_thread(do_update)
+                except OSError as ex:
+                    if ex.winerror == 740:
+                        self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
+
+
         except Exception as ex:
             self.log.exception(ex)
