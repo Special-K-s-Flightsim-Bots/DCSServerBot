@@ -99,7 +99,7 @@ class SRS(Extension, FileSystemEventHandler):
         global ports
 
         if self.config.get('autoupdate', False):
-            await self._check_for_updates()
+            await self.check_for_updates()
         path = os.path.expandvars(self.config['config'])
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
@@ -302,7 +302,7 @@ class SRS(Extension, FileSystemEventHandler):
             host = self.config.get('host', self.node.public_ip)
             value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
             show_passwords = self.config.get('show_passwords', True)
-            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == True and \
+            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] and \
                     'External AWACS Mode Settings' in self.locals:
                 blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
                 red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
