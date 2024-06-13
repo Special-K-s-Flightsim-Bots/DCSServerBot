@@ -17,7 +17,12 @@ people from joining your server, if they are GCIs on station. This is to prevent
 you could open LotAtc and fly.) The configuration goes into config\plugins\lotatc.yaml:
 ```yaml
 DEFAULT:
-  kick_gci: true # you must not play if you are a GCI (you will be moved to spectators). Default is false. 
+  kick_gci: true  # you must not play if you are a GCI (you will be moved to spectators). Default is false. 
+  exemptions:     # as always, allow for exemptions...
+    discord:
+      - DCS Admin
+    ucid:
+      - '11223344556677'
 ```
 
 ## Transponder File Upload
