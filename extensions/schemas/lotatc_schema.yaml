@@ -6,3 +6,4 @@ schema;lotatc_schema:
     host: {type: str}
     port: {type: int, range: {min: 80, max: 65535}}
     show_passwords: {type: bool}
+    autoupdate: {type: bool}

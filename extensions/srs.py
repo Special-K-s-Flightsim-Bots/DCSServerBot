@@ -342,19 +342,26 @@ class SRS(Extension, FileSystemEventHandler):
                     if response.status in [200, 302]:
                         version = response.url.raw_parts[-1]
                         if version != self.version:
+
+                            def do_update():
+                                cwd = self.get_inst_path()
+                                exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
+                                args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
+                                if sys.platform == 'win32':
+                                    ctypes.windll.shell32.ShellExecuteW(
+                                        None, "runas", exe_path, ' '.join(args), None, 1)
+                                else:
+                                    subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                                                   stdout=subprocess.DEVNULL)
+
                             self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                            cwd = self.get_inst_path()
-                            exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
-                            args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
-                            if sys.platform == 'win32':
-                                ctypes.windll.shell32.ShellExecuteW(None, "runas", exe_path, ' '.join(args), None, 1)
-                            else:
-                                subprocess.run(executable=exe_path, args=args, cwd=cwd, shell=True)
+                            await asyncio.to_thread(do_update)
+
         except OSError as ex:
             if ex.winerror == 740:
                 self.log.error("You need to run DCSServerBot as Administrator to use the DCS-SRS AutoUpdater.")
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=30)
     async def schedule(self):
         if not self.config.get('autoupdate', False):
             return

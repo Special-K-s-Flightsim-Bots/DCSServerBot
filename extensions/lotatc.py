@@ -1,16 +1,24 @@
+import aiohttp
+import asyncio
 import atexit
+import certifi
 import json
 import luadata
 import os
 import re
+import ssl
+import subprocess
+import xml.etree.ElementTree as ET
 
 from core import Extension, utils, Server, ServiceRegistry
+from discord.ext import tasks
 from services import ServiceBus
 from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
 ports: dict[int, str] = dict()
+UPDATER_CODE = '4dctdtna'
 
 
 class LotAtc(Extension, FileSystemEventHandler):
@@ -36,6 +44,10 @@ class LotAtc(Extension, FileSystemEventHandler):
             except FileNotFoundError:
                 pass
         return cfg
+
+    def get_inst_path(self) -> str:
+        return os.path.join(
+            os.path.expandvars(self.config.get('installation', os.path.join('%ProgramFiles%', 'LotAtc'))))
 
     async def prepare(self) -> bool:
         global ports
@@ -160,3 +172,37 @@ class LotAtc(Extension, FileSystemEventHandler):
 
     def is_running(self) -> bool:
         return self.observer is not None
+
+    async def _check_for_updates(self):
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+            async with session.get(f"https://tinyurl.com/{UPDATER_CODE}") as response:
+                if response.status in [200, 302]:
+                    root = ET.fromstring(await response.text(encoding='utf-8'))
+                    for package in root.findall('.//PackageUpdate'):
+                        name = package.find('Name')
+                        if name is not None and name.text == 'com.lotatc.server':
+                            version = package.find('Version')
+                            if version is not None:
+                                break
+                    else:
+                        return
+                    if version.text == self.version:
+                        def do_update():
+                            cwd = self.get_inst_path()
+                            exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
+                            subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                                           stdout=subprocess.DEVNULL)
+
+                        self.log.info(f"A new LotAtc update is available. Updating to version {version.text} ...")
+                        await asyncio.to_thread(do_update)
+                        self.log.info("LotAtc updated.")
+
+    @tasks.loop(minutes=30)
+    async def schedule(self):
+        if not self.config.get('autoupdate', False):
+            return
+        try:
+            await self._check_for_updates()
+        except Exception as ex:
+            self.log.exception(ex)
