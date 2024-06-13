@@ -738,3 +738,21 @@ class ServerImpl(Server):
 
     async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
+
+    async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
+        ext = self.extensions.get(extension)
+        if not ext:
+            raise ValueError(f"Extension {extension} not found.")
+        # Check if the command exists in the extension object
+        if not hasattr(ext, method):
+            raise ValueError(f"Command {method} not found in extension {extension}.")
+
+        # Access the method
+        _method = getattr(ext, method)
+
+        # Check if it is a coroutine
+        if asyncio.iscoroutinefunction(_method):
+            result = await _method(**kwargs)
+        else:
+            result = _method(**kwargs)
+        return result

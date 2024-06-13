@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from psutil import Process
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, Any
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
@@ -425,4 +425,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def is_running(self) -> bool:
+        raise NotImplemented()
+
+    async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         raise NotImplemented()

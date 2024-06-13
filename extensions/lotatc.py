@@ -191,21 +191,21 @@ class LotAtc(Extension, FileSystemEventHandler):
                         return version.text
                     return None
 
+    def do_update(self):
+        cwd = self.get_inst_path()
+        exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
+        subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL)
+
     @tasks.loop(minutes=30)
     async def schedule(self):
-        def do_update():
-            cwd = self.get_inst_path()
-            exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
-            subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
-                           stdout=subprocess.DEVNULL)
-
         if not self.config.get('autoupdate', False):
             return
         try:
             version = await self.check_for_updates()
             if version:
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
-                await asyncio.to_thread(do_update)
+                await asyncio.to_thread(self.do_update)
                 self.log.info("LotAtc updated.")
         except Exception as ex:
             self.log.exception(ex)

@@ -331,3 +331,18 @@ class ServerProxy(Server):
                 "modify_mission": modify_mission
             }
         }, timeout=timeout, node=self.node.name)
+
+    async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
+        timeout = 180 if not self.node.slow_system else 300
+        params = {
+            "extension": extension,
+            "method": method
+        } | kwargs
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "run_on_extension",
+            "server_name": self.name,
+            "params": params
+        }, timeout=timeout, node=self.node.name)
+        return data['return']
