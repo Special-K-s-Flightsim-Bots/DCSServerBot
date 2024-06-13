@@ -347,27 +347,27 @@ class SRS(Extension, FileSystemEventHandler):
 
     @tasks.loop(minutes=30)
     async def schedule(self):
+        def do_update():
+            try:
+                cwd = self.get_inst_path()
+                exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
+                args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
+                if sys.platform == 'win32':
+                    ctypes.windll.shell32.ShellExecuteW(
+                        None, "runas", exe_path, ' '.join(args), None, 1)
+                else:
+                    subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL)
+            except OSError as ex:
+                if ex.winerror == 740:
+                    self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
+
         if not self.config.get('autoupdate', False):
             return
         try:
             version = await self.check_for_updates()
             if version:
-
-                    def do_update():
-                        cwd = self.get_inst_path()
-                        exe_path = os.path.join(cwd, 'SRS-AutoUpdater.exe')
-                        args = ['-server', '-autoupdate', f'-path=\"{cwd}\"']
-                        if sys.platform == 'win32':
-                            ctypes.windll.shell32.ShellExecuteW(
-                                None, "runas", exe_path, ' '.join(args), None, 1)
-                        else:
-                            subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
-                                           stdout=subprocess.DEVNULL)
-
-                    self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
-                    await asyncio.to_thread(do_update)
-        except OSError as ex:
-            if ex.winerror == 740:
-                self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
+                self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
+                await asyncio.to_thread(do_update)
         except Exception as ex:
             self.log.exception(ex)
