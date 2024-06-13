@@ -352,7 +352,6 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             version = await self.check_for_updates()
             if version:
-                try:
 
                     def do_update():
                         cwd = self.get_inst_path()
@@ -367,10 +366,8 @@ class SRS(Extension, FileSystemEventHandler):
 
                     self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
                     await asyncio.to_thread(do_update)
-                except OSError as ex:
-                    if ex.winerror == 740:
-                        self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
-
-
+        except OSError as ex:
+            if ex.winerror == 740:
+                self.log.error("You need to disable User Access Control (UAC) to use the DCS-SRS AutoUpdater.")
         except Exception as ex:
             self.log.exception(ex)
