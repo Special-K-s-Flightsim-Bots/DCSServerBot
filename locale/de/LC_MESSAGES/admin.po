@@ -115,8 +115,11 @@ msgid "Would you like to update from version {old_version}@{old_branch} to {new_
 msgstr "Möchtest Du von Version {old_version}@{old_branch} nach Version {new_version}@{new_branch} updaten?\n"
 "Alle laufenden DCS-Server werden dafür heruntergefahren!"
 
-msgid "Updating DCS to version {version}@{branch}, please wait ..."
-msgstr "Aktualisiere DCS auf Version {version}@{branch}, bitte warten ..."
+# msgid "Updating DCS to version {version}@{branch}, please wait ..."
+# msgstr "Aktualisiere DCS auf Version {version}@{branch}, bitte warten ..."
+
+msgid "Updating DCS World to the newest version, please wait ..."
+msgstr "Aktualisiere DCS World auf die aktuellste Version, bitte warten ..."
 
 msgid "DCS updated to version {version}@{branch} on node {name}."
 msgstr "DCS wurde auf Knoten {name} auf Version {version}@{branch} aktualisiert."

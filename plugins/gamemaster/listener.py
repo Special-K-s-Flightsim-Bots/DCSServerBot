@@ -100,7 +100,7 @@ class GameMasterEventListener(EventListener):
                     ack = ack or row['ack']
                     if message:
                         message += '\n---\n'
-                    message += row['message']
+                    message += utils.format_string(row['message'], player=player, server=player.server)
                 if message:
                     if ack:
                         message += _("\n\nYou need to send {}ack in the in-game chat to acknowledge.\n"
