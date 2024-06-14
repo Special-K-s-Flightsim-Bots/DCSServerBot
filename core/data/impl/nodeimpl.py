@@ -61,6 +61,19 @@ LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 # Internationalisation
 _ = get_translation('core')
 
+# Default Plugins
+DEFAULT_PLUGINS = [
+    "mission",
+    "scheduler",
+    "help",
+    "admin",
+    "userstats",
+    "missionstats",
+    "creditsystem",
+    "gamemaster",
+    "cloud"
+]
+
 
 class NodeImpl(Node):
 
@@ -86,9 +99,7 @@ class NodeImpl(Node):
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
-        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', [
-            "mission", "scheduler", "help", "admin", "userstats", "missionstats", "creditsystem", "gamemaster", "cloud"
-        ])]
+        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
         for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
             if plugin not in self.plugins:
                 self.plugins.append(plugin)
@@ -113,6 +124,7 @@ class NodeImpl(Node):
         self.pool, self.apool = await self.init_db()
         try:
             self._master = await self.heartbeat()
+            self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
         except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):
             # some master tables have changed, so do the update first
             self._master = True
@@ -247,6 +259,7 @@ class NodeImpl(Node):
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
+        self.log.debug("- Initializing database pools ...")
         db_pool = ConnectionPool(url, min_size=2, max_size=4, check=ConnectionPool.check_connection, max_idle=max_idle,
                                  timeout=timeout, open=False)
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
@@ -255,6 +268,7 @@ class NodeImpl(Node):
         # we need to open the pools directly in here
         db_pool.open()
         await db_apool.open()
+        self.log.debug("- Database pools initialized.")
         return db_pool, db_apool
 
     async def close_db(self):

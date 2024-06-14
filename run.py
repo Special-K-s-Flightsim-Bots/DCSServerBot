@@ -196,7 +196,7 @@ class Main:
                                     asyncio.create_task(service.switch())
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
-                    self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
+                    self.log.info(f"I am the {'Master' if self.node.master else 'Agent'} now.")
             except Exception as ex:
                 self.log.exception(ex)
                 self.log.warning("Aborting the main loop.")
