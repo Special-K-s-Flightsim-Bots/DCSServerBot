@@ -96,7 +96,7 @@ class ServerProxy(Server):
         self._extensions = None
 
     async def shutdown_extensions(self) -> None:
-        timeout = 60 if not self.node.slow_system else 120
+        timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
