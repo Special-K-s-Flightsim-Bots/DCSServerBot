@@ -205,7 +205,7 @@ class Tacview(Extension):
                         self.log.warning(f"Can't upload TACVIEW file {filename}, "
                                          f"channel {target[4:-1]} incorrect!")
                     except Exception as ex:
-                        self.log.warning(f"Can't upload, TACVIEW file {filename}: {ex}!")
+                        self.log.warning(f"Can't upload TACVIEW file {filename}: {ex}!")
                     return
                 else:
                     try:

@@ -9,7 +9,8 @@ from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog
+from core import (Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog,
+                  performance_log)
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from core.data.impl.serverimpl import ServerImpl
@@ -601,6 +602,7 @@ class ServiceBus(Service):
             server: Server = self.servers[server_name]
             await server.send_to_dcs(data)
 
+    @performance_log()
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
             func = attrgetter(data.get('method'))(obj)
@@ -621,9 +623,9 @@ class ServiceBus(Service):
                 if kwargs.get('node') and parameters.get('node').annotation != 'str':
                     kwargs['node'] = self.node.all_nodes.get(kwargs['node'])
             if asyncio.iscoroutinefunction(func):
-                rc = await func(**kwargs) if kwargs else await func()
+                rc = await func(**kwargs)
             else:
-                rc = func(**kwargs) if kwargs else func()
+                rc = asyncio.to_thread(func, **kwargs)
             return rc
         elif 'params' in data:
             for key, value in data['params'].items():
