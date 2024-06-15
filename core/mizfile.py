@@ -344,7 +344,7 @@ class MizFile:
                     kkwargs = element
                 else:
                     kkwargs = {}
-                if not element:
+                if element is None:
                     if reference and 'insert' in config:
                         if debug:
                             self.log.debug(f"Inserting new value: {config['insert']}")

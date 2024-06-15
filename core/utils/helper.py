@@ -717,8 +717,8 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
 
     if not data or len(search) == depth:
         if debug:
-            logger.debug("  " * depth + ("|_ RESULT found => Processing ..." if data else "|_ NO result found, skipping."))
-        yield data
+            logger.debug("  " * depth + ("|_ RESULT found => Processing ..." if len(search) == depth else "|_ NO result found, skipping."))
+        yield data if len(search) == depth else None
     else:
         _next = search[depth]
         if _next == '*':
