@@ -49,7 +49,7 @@ schema;master_schema:
         discord:
           type: seq
           sequence:
-            - type: str
+            - type: text
 
 type: map
 mapping:

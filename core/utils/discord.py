@@ -976,7 +976,7 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         return []
     try:
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
-        if not server:
+        if not server or not server.current_mission:
             return []
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=x['name'], value=idx)
