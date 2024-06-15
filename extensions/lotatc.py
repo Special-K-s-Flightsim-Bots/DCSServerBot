@@ -115,6 +115,8 @@ class LotAtc(Extension, FileSystemEventHandler):
                             "name": name
                         }))
                 self.gcis = gcis
+        except PermissionError:
+            pass
         except Exception as ex:
             self.log.exception(ex)
             pass

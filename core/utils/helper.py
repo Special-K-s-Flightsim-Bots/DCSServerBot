@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import builtins
+import hashlib
 import importlib
 import json
 import logging
@@ -9,6 +11,7 @@ import luadata
 import os
 import pkgutil
 import re
+import secrets
 import shutil
 import string
 import tempfile
@@ -59,6 +62,7 @@ __all__ = [
     "SettingsDict",
     "RemoteSettingsDict",
     "tree_delete",
+    "hash_password",
     "evaluate",
     "for_each",
     "YAMLError"
@@ -601,6 +605,25 @@ def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
             del curr_element[keys[-1]]
     else:  # if it's a list
         curr_element.pop(int(keys[-1]))
+
+
+def hash_password(password: str) -> str:
+    # Generate an 11 character alphanumeric string
+    key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(11))
+
+    # Create a 32 byte digest using the Blake2b hash algorithm
+    # with the password as the input and the key as the key
+    password_bytes = password.encode('utf-8')
+    key_bytes = key.encode('utf-8')
+    digest = hashlib.blake2b(password_bytes, key=key_bytes, digest_size=32).digest()
+
+    # Base64URL encode the resulting 32 byte digest
+    encoded_digest = base64.urlsafe_b64encode(digest).replace(b'=', b'').decode()
+
+    # Create a string with the salt and the Base64URL encoded digest separated by a ":"
+    hashed_password = key + ':' + encoded_digest
+
+    return hashed_password
 
 
 def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union[str, int, float, bool, list, dict]:

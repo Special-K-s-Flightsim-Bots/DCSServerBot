@@ -84,6 +84,7 @@ class MizFile:
             os.remove(tmpname)
         except PermissionError as ex:
             self.log.error(f"Can't write new mission file: {ex}")
+            raise
 
     def apply_preset(self, preset: Union[dict, list]):
         if isinstance(preset, list):
@@ -247,6 +248,14 @@ class MizFile:
         self.mission['requiredModules'] = values
 
     @property
+    def failures(self) -> dict:
+        return self.mission['failures']
+
+    @failures.setter
+    def failures(self, values: dict) -> None:
+        self.mission['failures'] = values
+
+    @property
     def accidental_failures(self) -> bool:
         return self.mission['forcedOptions']['accidental_failures'] if 'forcedOptions' in self.mission else False
 
@@ -260,7 +269,7 @@ class MizFile:
             }
         else:
             self.mission['forcedOptions']['accidental_failures'] = value
-        self.mission['failures'] = []
+        self.failures = {}
 
     @property
     def forcedOptions(self) -> dict:
