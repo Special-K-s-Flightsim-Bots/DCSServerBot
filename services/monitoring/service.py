@@ -160,17 +160,16 @@ class MonitoringService(Service):
 
         bus = ServiceRegistry.get(ServiceBus)
         pstats: dict = self.apool.get_stats()
-        wait_time = pstats.get('requests_wait_ms', 0) - last_wait_time
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO nodestats (node, pool_size, pool_available, requests_waiting, requests_wait_ms, 
-                                           workers, qsize)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (self.node.name, pstats.get('pool_size', 0), pstats.get('pool_available', 0),
-                      pstats.get('requests_waiting', 0), wait_time, len(bus.executor._threads),
-                      sum(x.qsize() for x in bus.udp_server.message_queue.values())))
-        last_wait_time = pstats.get('requests_wait_ms', 0)
+                    INSERT INTO nodestats (node, pool_available, requests_queued, requests_wait_ms, dcs_queue, 
+                    asyncio_queue)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (self.node.name, pstats.get('pool_available', 0), pstats.get('requests_queued', 0),
+                      pstats.get('requests_wait_ms', 0), sum(x.qsize() for x in bus.udp_server.message_queue.values()),
+                      len(asyncio.all_tasks(self.bus.loop))))
+        self.apool.pop_stats()
 
     def _pull_load_params(self, server: Server) -> dict:
         cpu = server.process.cpu_percent()

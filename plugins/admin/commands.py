@@ -1,19 +1,19 @@
 import asyncio
-from functools import partial
-
 import discord
 import os
+import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation
+    PaginationReport, get_translation, TEventListener
 from discord import app_commands
 from discord.app_commands import Range
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
+from functools import partial
 from io import BytesIO
 from services import DCSServerBot
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .views import CleanupView
@@ -167,6 +167,15 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
 
 
 class Admin(Plugin):
+
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+        super().__init__(bot, eventlistener)
+        self.cleanup.add_exception_type(psycopg.DatabaseError)
+        self.cleanup.start()
+
+    async def cog_unload(self):
+        self.cleanup.cancel()
+        await super().cog_unload()
 
     def read_locals(self) -> dict:
         config = super().read_locals()
@@ -1031,6 +1040,12 @@ Please make sure you forward the following ports:
         if ucid and self.bot.locals.get('autoban', False):
             self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
             await self.bus.ban(ucid, self.bot.member.display_name, 'Player left discord.')
+
+    @tasks.loop(hours=12.0)
+    async def cleanup(self):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
 
 async def setup(bot: DCSServerBot):

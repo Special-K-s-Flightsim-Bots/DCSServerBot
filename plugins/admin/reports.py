@@ -9,7 +9,8 @@ class NodeStats(report.MultiGraphElement):
 
     async def render(self, node: str, period: str):
         sql = """
-            SELECT date_trunc('minute', time) AS time, pool_size, requests_waiting, requests_wait_ms, workers, qsize
+            SELECT date_trunc('minute', time) AS time, pool_available, requests_queued, requests_wait_ms, 
+                   dcs_queue, asyncio_queue
             FROM nodestats 
             WHERE time > ((NOW() AT TIME ZONE 'UTC') - ('1 ' || %s)::interval)
             AND node = %s 
@@ -21,23 +22,24 @@ class NodeStats(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(await cursor.fetchall())
                     series.columns = [
-                        'time', 'DB Pool', 'Waiting (Req)', 'Waiting (ms)', 'Worker Threads', 'Queue Length'
+                        'time', 'Available', 'Queued Requests', 'Wait-time (ms)', 'DCS-Queue', 'asyncio-Queue'
                     ]
-                    series.plot(ax=self.axes[0], x='time', y=['DB Pool'], title='DB Pool Size', xticks=[], xlabel='')
+                    series.plot(ax=self.axes[0], x='time', y=['Available'], title='Pool Size', xticks=[],
+                                xlabel='')
                     self.axes[0].legend(loc='upper left')
-                    series.plot(ax=self.axes[1], x='time', y=['Waiting (Req)'], title='Waiting', xticks=[], xlabel='')
+                    self.axes[0].set_ylim(0, self.apool.max_size)
+                    series.plot(ax=self.axes[1], x='time', y=['Queued Requests'], title='Pool Performance', xticks=[],
+                                xlabel='')
                     self.axes[1].legend(loc='upper left')
                     ax3 = self.axes[1].twinx()
-                    series.plot(ax=ax3, x='time', y=['Waiting (ms)'], xticks=[], xlabel='', color='red')
-                    ax3.legend(['Waiting (ms)'], loc='upper right')
-                    series.plot(ax=self.axes[2], x='time', y=['Worker Threads'], title='Worker Threads', xlabel='',
+                    series.plot(ax=ax3, x='time', y=['Wait-time (ms)'], xticks=[], xlabel='', color='red')
+                    ax3.legend(['Wait-time (ms)'], loc='upper right')
+                    series.plot(ax=self.axes[2], x='time', y=['DCS-Queue'], title='Queues', xlabel='',
                                 ylabel='Threads')
                     self.axes[2].legend(loc='upper left')
-                    bus = ServiceRegistry.get(ServiceBus)
-                    self.axes[2].set_ylim(0, bus.executor._max_workers + 1)
                     ax4 = self.axes[2].twinx()
-                    series.plot(ax=ax4, x='time', y=['Queue Length'], xlabel='', color='red')
-                    ax4.legend(['Queue Length'], loc='upper right')
+                    series.plot(ax=ax4, x='time', y=['asyncio-Queue'], xlabel='', color='red')
+                    ax4.legend(['asyncio-Queue'], loc='upper right')
                 else:
                     for i in range(0, 2):
                         self.axes[i].bar([], [])
