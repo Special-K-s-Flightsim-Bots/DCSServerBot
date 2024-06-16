@@ -51,10 +51,10 @@ class ServiceBus(Service):
         db_pass = utils.get_password('database')
         # main.yaml database connection has priority for intercom
         url = self.node.config.get("database", self.node.locals.get('database'))['url'].replace('SECRET', db_pass)
-        self.intercom_channel = PubSub(self.node, 'intercom', url)
+        self.intercom_channel = PubSub(self.node, 'intercom', url, self.handle_rpc)
         # nodes.yaml database connection has priority for broadcasts
         url = self.node.locals.get("database", self.node.config.get('database'))['url'].replace('SECRET', db_pass)
-        self.broadcasts_channel = PubSub(self.node, 'broadcasts', url)
+        self.broadcasts_channel = PubSub(self.node, 'broadcasts', url, self.handle_broadcast_event)
         self._lock = asyncio.Lock()
 
     async def start(self):
@@ -77,9 +77,9 @@ class ServiceBus(Service):
 
             # subscribe to the intercom and broadcast channels
             # noinspection PyAsyncCall
-            asyncio.create_task(self.intercom_channel.subscribe(self.handle_rpc))
+            asyncio.create_task(self.intercom_channel.subscribe())
             # noinspection PyAsyncCall
-            asyncio.create_task(self.broadcasts_channel.subscribe(self.handle_broadcast_event))
+            asyncio.create_task(self.broadcasts_channel.subscribe())
 
             await self.init_servers()
             await self.switch()

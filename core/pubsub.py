@@ -9,12 +9,14 @@ from core.data.impl.nodeimpl import NodeImpl
 
 class PubSub:
 
-    def __init__(self, node: NodeImpl, name: str, url: str):
+    def __init__(self, node: NodeImpl, name: str, url: str, handler: Callable):
         self.node = node
         self.name = name
         self.log = node.log
         self.url = url
+        self.handler = handler
         self.queue = asyncio.Queue()
+        self.lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._worker = asyncio.create_task(self._process_write())
 
@@ -36,37 +38,38 @@ class PubSub:
                             # Notify the queue that the message has been processed.
                             self.queue.task_done()
 
-    async def _process_read(self, cursor: psycopg.AsyncCursor, handler: Callable):
-        ids_to_delete = []
-        await cursor.execute(f"""
-            SELECT id, data 
-            FROM {self.name} 
-            WHERE guild_id = %(guild_id)s AND node = %(node)s 
-            ORDER BY id
-        """, {
-            'guild_id': self.node.guild_id,
-            'node': "Master" if self.node.master else self.node.name
-        })
-        async for row in cursor:
-            try:
-                # noinspection PyAsyncCall
-                asyncio.create_task(handler(row[1]))
-            except Exception as ex:
-                self.log.exception(ex)
-            finally:
-                ids_to_delete.append(row[0])
-        if ids_to_delete:
-            await cursor.execute(f"DELETE FROM {self.name} WHERE id = ANY(%s::int[])",
-                                 (ids_to_delete,))
+    async def _process_read(self, cursor: psycopg.AsyncCursor):
+        async with self.lock:
+            ids_to_delete = []
+            await cursor.execute(f"""
+                SELECT id, data 
+                FROM {self.name} 
+                WHERE guild_id = %(guild_id)s AND node = %(node)s 
+                ORDER BY id
+            """, {
+                'guild_id': self.node.guild_id,
+                'node': "Master" if self.node.master else self.node.name
+            })
+            async for row in cursor:
+                try:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.handler(row[1]))
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    ids_to_delete.append(row[0])
+            if ids_to_delete:
+                await cursor.execute(f"DELETE FROM {self.name} WHERE id = ANY(%s::int[])",
+                                     (ids_to_delete,))
 
-    async def subscribe(self, handler: Callable):
+    async def subscribe(self):
         while not self._stop_event.is_set():
             with suppress(psycopg.OperationalError):
                 async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
                     async with conn.cursor() as cursor:
                         # preprocess all rows that might be there
                         await cursor.execute(f"LISTEN {self.name}")
-                        await self._process_read(cursor, handler)
+                        await self._process_read(cursor)
                         gen = conn.notifies()
                         async for n in gen:
                             if self._stop_event.is_set():
@@ -75,7 +78,8 @@ class PubSub:
                                 return
                             node = n.payload
                             if node == self.node.name or (self.node.master and node == 'Master'):
-                                await self._process_read(cursor, handler)
+                                # noinspection PyAsyncCall
+                                asyncio.create_task(self._process_read(cursor))
             await asyncio.sleep(1)
 
     async def publish(self, data: dict) -> None:
