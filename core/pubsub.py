@@ -64,7 +64,7 @@ class PubSub:
 
         await asyncio.sleep(1)  # Ensure the rest of __init__ has finished
         while not self._stop_event.is_set():
-            with suppress(psycopg.OperationalError):
+            try:
                 async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
                     while not self._stop_event.is_set():
                         try:
@@ -78,10 +78,12 @@ class PubSub:
                                 self.read_queue.task_done()
                         except TimeoutError:
                             await do_read()
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def subscribe(self):
         while not self._stop_event.is_set():
-            with suppress(psycopg.OperationalError):
+            try:
                 async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
                     async with conn.cursor() as cursor:
                         # preprocess all rows that might be there
@@ -95,6 +97,8 @@ class PubSub:
                             node = n.payload
                             if node == self.node.name or (self.node.master and node == 'Master'):
                                 self.read_queue.put_nowait(n.payload)
+            except Exception as ex:
+                self.log.exception(ex)
             await asyncio.sleep(1)
 
     async def publish(self, data: dict) -> None:
