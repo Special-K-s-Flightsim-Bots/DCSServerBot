@@ -1,8 +1,7 @@
-import atexit
-
 import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import discord
 import glob
@@ -642,9 +641,10 @@ class NodeImpl(Node):
                             """, (self.guild_id, ))
                             all_nodes = await cursor.fetchall()
                             await cursor.execute("""
-                                SELECT c.master, c.version, c.update_pending 
-                                FROM cluster c, nodes n 
-                                WHERE c.guild_id = %s AND c.guild_id = n.guild_id AND c.master = n.node
+                                SELECT c.master, c.version, c.update_pending, n.node 
+                                FROM cluster c LEFT OUTER JOIN nodes n
+                                ON c.guild_id = n.guild_id AND c.master = n.node
+                                WHERE c.guild_id = %s
                             """, (self.guild_id, ))
                             cluster = await cursor.fetchone()
                             # No master there? we take it!
@@ -720,7 +720,12 @@ class NodeImpl(Node):
                                 return True
                             # we are not the master, the update is pending, we will not take over
                             elif cluster['update_pending']:
+                                self.log.debug("A bot update is in progress. We will not take over the master node.")
                                 return False
+                            elif not cluster['node']:
+                                await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                     (self.name, self.guild_id))
+                                return True
                             # we have a version mismatch on the agent, a cloud sync might still be pending
                             if version.parse(__version__) < version.parse(cluster['version']):
                                 self.log.error(f"We are running version {__version__} where the master is on version "
