@@ -316,7 +316,7 @@ class MissionEventListener(EventListener):
             server.current_mission.weather = data.get('weather')
             server.current_mission.clouds = data.get('clouds')
             self.display_mission_embed(server)
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             self.log.error(f"Timeout during _load_weather_data(server={server.name})!")
 
     async def _load_airbases(self, server: Server):
@@ -327,7 +327,7 @@ class MissionEventListener(EventListener):
                 "command": "getAirbases"
             }, timeout=timeout)).get('airbases')
             self.log.debug(f"_load_airbases: recv for server {server.name}")
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             self.log.error(f"Timeout during _load_airbases(server={server.name})!")
 
     @event(name="registerDCSServer")

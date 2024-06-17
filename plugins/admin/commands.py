@@ -813,7 +813,7 @@ class Admin(Plugin):
             if not stdout and not stderr:
                 embed.description = _("```Command executed.```")
             await interaction.followup.send(embed=embed)
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(_("Timeout during shell command."))
 
     @command(description=_('Reloads a plugin'))
