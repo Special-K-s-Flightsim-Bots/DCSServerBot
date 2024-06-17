@@ -115,8 +115,8 @@ msgid "Would you like to update from version {old_version}@{old_branch} to {new_
 msgstr "Te gustaría actualizar de la versión {old_version}@{old_branch} a la versión {new_version}@{new_branch} updaten?\n"
 "¡Todos los servidores en funcionamiento se apagarán!"
 
-msgid "Updating DCS to version {version}@{branch}, please wait ..."
-msgstr "Actualizando a la versión {version}@{branch}, por favor espere ..."
+msgid "Updating DCS World to the newest version, please wait ..."
+msgstr "Actualizando DCS World a la última versión. Por favor, espere ..."
 
 msgid "DCS updated to version {version}@{branch} on node {name}."
 msgstr "Actualizado DCS a la versión {version}@{branch} en el nodo {name}."

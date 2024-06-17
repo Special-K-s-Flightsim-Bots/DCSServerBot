@@ -52,10 +52,9 @@ class PubSub:
             })
             async for row in cursor:
                 try:
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(self.handler(row[1]))
+                    await self.handler(row[1])
                 except Exception as ex:
-                    self.log.exception(ex)
+                    self.log.exception("Could not execute remote call!", exc_info=True)
                 finally:
                     ids_to_delete.append(row[0])
             if ids_to_delete:
