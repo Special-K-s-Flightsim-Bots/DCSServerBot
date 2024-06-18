@@ -377,7 +377,10 @@ class MizFile:
                         if debug:
                             self.log.debug(f"Merging {_what} with {_with}")
                         if isinstance(_with, dict):
-                            element[_what] |= _with
+                            if not element[_what]:
+                                element[_what] = _with
+                            else:
+                                element[_what] |= _with
                         else:
                             for value in utils.for_each(self.mission, _with[1:].split('/'), debug=debug, **kwargs):
                                 if isinstance(element[_what], dict):
