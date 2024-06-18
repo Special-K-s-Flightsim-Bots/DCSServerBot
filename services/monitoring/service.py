@@ -100,11 +100,14 @@ class MonitoringService(Service):
             filename = os.path.join(server.instance.home, 'Logs',
                                     f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
             if sys.platform == 'win32':
-                await asyncio.to_thread(create_dump, server.process.pid, filename,
-                                        MINIDUMP_TYPE.MiniDumpNormal, True)
-                root = logging.getLogger()
-                if root.handlers:
-                    root.removeHandler(root.handlers[0])
+                try:
+                    await asyncio.to_thread(create_dump, server.process.pid, filename,
+                                            MINIDUMP_TYPE.MiniDumpNormal, True)
+                    root = logging.getLogger()
+                    if root.handlers:
+                        root.removeHandler(root.handlers[0])
+                except OSError:
+                    self.log.debug("No minidump created due to an error (Linux?).")
             server.process.kill()
         else:
             await server.shutdown(True)

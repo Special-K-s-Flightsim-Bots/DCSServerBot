@@ -267,7 +267,7 @@ class Scheduler(Plugin):
                         max_mission_time = rconf['max_mission_time'] * 60
                     else:
                         max_mission_time = rconf['mission_time'] * 60
-                    if (server.current_mission.mission_time + warn_time) >= max_mission_time:
+                    if server.current_mission and (server.current_mission.mission_time + warn_time) >= max_mission_time:
                         restart_in = int(max_mission_time - server.current_mission.mission_time)
                         if restart_in < 0:
                             restart_in = 0
@@ -275,7 +275,7 @@ class Scheduler(Plugin):
                         return
                 elif 'real_time' in rconf:
                     real_time = rconf['real_time'] * 60
-                    if (server.current_mission.real_time + warn_time) >= real_time:
+                    if server.current_mission and (server.current_mission.real_time + warn_time) >= real_time:
                         restart_in = int(real_time - server.current_mission.real_time)
                         if restart_in < 0:
                             restart_in = 0
