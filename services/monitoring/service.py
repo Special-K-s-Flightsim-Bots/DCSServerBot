@@ -96,11 +96,11 @@ class MonitoringService(Service):
                    f"{int(server.instance.locals.get('max_hung_minutes', 3))} minutes. Killing ...")
         self.log.warning(message)
         if server.process and server.process.is_running():
-            now = datetime.now(timezone.utc)
-            filename = os.path.join(server.instance.home, 'Logs',
-                                    f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
             if sys.platform == 'win32':
                 try:
+                    now = datetime.now(timezone.utc)
+                    filename = os.path.join(server.instance.home, 'Logs',
+                                            f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
                     await asyncio.to_thread(create_dump, server.process.pid, filename,
                                             MINIDUMP_TYPE.MiniDumpNormal, True)
                     root = logging.getLogger()

@@ -391,13 +391,14 @@ class Admin(Plugin):
                     _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
                                                                                                    branch=branch),
                     ephemeral=ephemeral)
-            elif new_version and not await utils.yn_question(
-                    interaction, _('Would you like to update from version {old_version}@{old_branch} to '
-                                   '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!').format(
-                        old_version=old_version, old_branch=_branch, new_version=new_version, new_branch=branch),
-                    ephemeral=ephemeral):
-                await interaction.followup.send(_("Aborted."))
-                return
+            elif new_version:
+                if not await utils.yn_question(
+                        interaction, _('Would you like to update from version {old_version}@{old_branch} to '
+                                       '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
+                                       ).format(old_version=old_version, old_branch=_branch, new_version=new_version,
+                                                new_branch=branch), ephemeral=ephemeral):
+                    await interaction.followup.send(_("Aborted."))
+                    return
             else:
                 await interaction.followup.send(
                     _("Can't update branch {}. You might need to provide proper DCS credentials to do so.").format(branch),
