@@ -35,7 +35,7 @@ matplotlib==3.9.0
 minidump==0.0.23; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
-numpy==1.26.4
+numpy==2.0.0
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.2
@@ -44,7 +44,7 @@ openpyxl==3.1.2
 pandas==2.2.2
 
 # Packaging: A core package providing support for PEP 440 version identifiers
-packaging==24.0
+packaging==24.1
 
 # PID: Pidfile implementation by using a Unix PID file
 pid==3.0.4
@@ -59,7 +59,7 @@ psycopg[binary]==3.1.19
 psycopg-pool==3.2.2
 
 # PSUtil: Cross-platform library to access system details and process utilities
-psutil==5.9.8
+psutil==6.0.0
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
 pyarrow==16.1.0
