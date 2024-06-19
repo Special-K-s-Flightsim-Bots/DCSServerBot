@@ -69,39 +69,6 @@ msgstr "Кем забанен: {}"
 msgid "Exp.: {}"
 msgstr "Ист: {}"
 
-# /dcs watch
-msgid "Puts a player onto the watchlist"
-msgstr "Добавляет игрока в список отслеживания"
-
-msgid "Player {} was already on the watchlist."
-msgstr "Игрок {} уже народится в списке отслеживания."
-
-msgid "Player {} is now on the watchlist."
-msgstr "Игрок {} теперь в списке отслеживания."
-
-# /dcs unwatch
-msgid "Removes a player from the watchlist"
-msgstr "Удаляет игрока из списка отслеживания"
-
-msgid "Player {} removed from the watchlist."
-msgstr "Игрок {} удален из списка отслеживания."
-
-# /dcs watchlist
-msgid "Shows the watchlist"
-msgstr "Показывает список отслеживания"
-
-msgid "The watchlist is currently empty."
-msgstr "Список отслеживания пуст."
-
-msgid "These players are currently on the watchlist:"
-msgstr "Данные игроки находятся в списке отслеживания:"
-
-msgid "UCIDs"
-msgstr "UCIDы"
-
-msgid "Names"
-msgstr "Имена"
-
 # /dcs update
 msgid "Update your DCS installations"
 msgstr "Обновить вашу инсталляцию DCS"

@@ -885,35 +885,89 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
 
-    @player.command(description=_('Adds a player to the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def watch(self, interaction: discord.Interaction,
-                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True, watchlist=False)]):
-        if not player:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Player not found."), ephemeral=True)
-            return
-        player.watchlist = True
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} is now on the watchlist.").format(player.display_name),
-                                                ephemeral=utils.get_ephemeral(interaction))
+    watch = Group(name="watch", description="Commands to manage the watchlist")
 
-    @player.command(description=_('Removes a player from the watchlist'))
+    @watch.command(description=_('Puts a player onto the watchlist'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def unwatch(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
-                      player: app_commands.Transform[Player, utils.PlayerTransformer(active=True, watchlist=True)]):
-        if not player:
+    async def add(self, interaction: discord.Interaction,
+                  user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                      sel_type=PlayerType.PLAYER, watchlist=False)], reason: str):
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
+                return
+        else:
+            ucid = user
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
+                                       (ucid, reason, interaction.user.display_name))
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("Player not found."), ephemeral=True)
-            return
-        player.watchlist = False
+            await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
+                user.display_name if isinstance(user, discord.Member) else ucid),
+                ephemeral=utils.get_ephemeral(interaction))
+        except psycopg.errors.UniqueViolation:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Player {} was already on the watchlist.").format(
+                    user.display_name if isinstance(user, discord.Member) else ucid),
+                ephemeral=utils.get_ephemeral(interaction))
+
+    @watch.command(description=_('Removes a player from the watchlist'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def delete(self, interaction: discord.Interaction,
+                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                         sel_type=PlayerType.PLAYER, watchlist=True)]):
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                # we should never be here
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
+                return
+        else:
+            ucid = user
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid, ))
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} removed from watchlist.").format(player.display_name),
-                                                ephemeral=utils.get_ephemeral(interaction))
+        await interaction.response.send_message(
+            _("Player {} removed from the watchlist.").format(
+                user.display_name if isinstance(user, discord.Member) else user),
+            ephemeral=utils.get_ephemeral(interaction))
+
+    @watch.command(description=_('Shows the watchlist'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def list(self, interaction: discord.Interaction):
+        ephemeral = utils.get_ephemeral(interaction)
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT p.ucid, p.name, w.reason, w.created_by, w.created_at 
+                FROM players p JOIN watchlist w ON (p.ucid = w.player_ucid)
+            """)
+            watches = await cursor.fetchall()
+        if not watches:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
+            return
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.description = _("These players are currently on the watchlist:")
+        names = created_by = ucids = ""
+        for row in watches:
+            names += utils.escape_string(row[1]) + '\n'
+            ucids += row[0] + '\n'
+            created_by += row[3] + '\n'
+        embed.add_field(name=_("Name"), value=names)
+        embed.add_field(name=_('UCID'), value=ucids)
+        embed.add_field(name=_("Created by"), value=created_by)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed)
 
     # New command group "/group"
     group = Group(name="group", description="Commands to manage DCS groups")

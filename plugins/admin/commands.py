@@ -38,21 +38,6 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
     return choices[:25]
 
 
-async def watchlist_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("""
-                        SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
-        """, ('%' + current + '%', '%' + current + '%'))
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
-            async for row in cursor
-        ]
-        return choices[:25]
-
-
 async def available_modules_autocomplete(interaction: discord.Interaction,
                                          current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
@@ -282,87 +267,6 @@ class Admin(Plugin):
         embed.add_field(name=_('Reason'), value=ban['reason'])
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
-
-    @dcs.command(description=_('Puts a player onto the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def watch(self, interaction: discord.Interaction,
-                    user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                        sel_type=PlayerType.PLAYER)]]):
-        if isinstance(user, discord.Member):
-            ucid = await self.bot.get_ucid_by_member(user)
-            if not ucid:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
-                return
-        else:
-            ucid = user
-        for server in self.bus.servers.values():
-            player = server.get_player(ucid=ucid)
-            if player:
-                if player.watchlist:
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _("Player {} was already on the watchlist.").format(player.display_name),
-                        ephemeral=utils.get_ephemeral(interaction))
-                else:
-                    player.watchlist = True
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _("Player {} is now on the watchlist.").format(player.display_name),
-                        ephemeral=utils.get_ephemeral(interaction))
-                return
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
-            user.display_name if isinstance(user, discord.Member) else ucid),
-            ephemeral=utils.get_ephemeral(interaction))
-
-    @dcs.command(description=_('Removes a player from the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(user=watchlist_autocomplete)
-    async def unwatch(self, interaction: discord.Interaction, user: str):
-        for server in self.bus.servers.values():
-            player = server.get_player(ucid=user)
-            if player:
-                player.watchlist = False
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(
-                    _("Player {} removed from the watchlist.").format(player.display_name),
-                    ephemeral=utils.get_ephemeral(interaction))
-                return
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} removed from the watchlist.").format(user),
-                                                ephemeral=utils.get_ephemeral(interaction))
-
-    @dcs.command(description=_('Shows the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def watchlist(self, interaction: discord.Interaction):
-        ephemeral = utils.get_ephemeral(interaction)
-        async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE")
-            watches = await cursor.fetchall()
-        if not watches:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
-            return
-        embed = discord.Embed(colour=discord.Colour.blue())
-        embed.description = _("These players are currently on the watchlist:")
-        names = ucids = ""
-        for row in watches:
-            ucids = row[0] + "\n"
-            names += utils.escape_string(row[1]) + "\n"
-        embed.add_field(name=_("UCIDs"), value=ucids)
-        embed.add_field(name=_("Names"), value=names)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
 
     @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()

@@ -70,8 +70,9 @@ Missions folder of your DCS-server (for instance via a Google Drive) will be aut
 | /player inactive      | period number       | admin-channel         | DCS Admin             | Show users that are inactive for a specific amount of time.                                                                                |
 | /player chat          | player message      | admin-channel         | DCS Admin, GameMaster | Sends a in-game chat message to the respective player.                                                                                     |
 | /player popup         | player message      | admin-channel         | DCS Admin, GameMaster | Sends a popup message to the respective player.                                                                                            |
-| /player watch         | player              | admin-channel         | DCS Admin             | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                                     |
-| /player unwatch       | player              | admin-channel         | DCS Admin             | Removes a user from the watchlist.                                                                                                         |
+| /watch add            | player reason       | admin-channel         | DCS Admin             | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                                     |
+| /watch delete         | player              | admin-channel         | DCS Admin             | Removes a user from the watchlist.                                                                                                         |
+| /watch list           |                     | admin-channel         | DCS Admin             | Lists all active watches.                                                                                                                  |
 
 ## In-Game Chat Commands
 | Command  | Parameter     | Role      | Description                                                                      |

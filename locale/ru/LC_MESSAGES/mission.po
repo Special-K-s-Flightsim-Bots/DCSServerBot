@@ -335,19 +335,41 @@ msgstr "Сообщение отправлено."
 msgid "Sends a chat message to a player\n"
 msgstr "Отправляет chat сообщение игроку\n"
 
-# /player watch
-msgid "Adds a player to the watchlist"
+# /watch add
+msgid "Puts a player onto the watchlist"
 msgstr "Добавляет игрока в список отслеживания"
+
+msgid "Member {} is not linked!"
+msgstr "Игрок {} не слинкован!"
+
+msgid "Player {} was already on the watchlist."
+msgstr "Игрок {} уже народится в списке отслеживания."
 
 msgid "Player {} is now on the watchlist."
 msgstr "Игрок {} теперь в списке отслеживания."
 
-# /player unwatch
+# /watch delete
 msgid "Removes a player from the watchlist"
 msgstr "Удаляет игрока из списка отслеживания"
 
-msgid "Player {} removed from watchlist."
+msgid "Player {} removed from the watchlist."
 msgstr "Игрок {} удален из списка отслеживания."
+
+# /watch list
+msgid "Shows the watchlist"
+msgstr "Показывает список отслеживания"
+
+msgid "The watchlist is currently empty."
+msgstr "Список отслеживания пуст."
+
+msgid "These players are currently on the watchlist:"
+msgstr "Данные игроки находятся в списке отслеживания:"
+
+msgid "UCID"
+msgstr "UCID"
+
+# msgid "Created by"
+# msgstr "Erzeugt von"
 
 # / group
 msgid "Commands to manage DCS groups"

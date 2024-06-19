@@ -1055,10 +1055,12 @@ class UserTransformer(app_commands.Transformer):
     - sel_type: The type of user to select. Default is PlayerType.ALL.
     - linked: Optional boolean value to specify whether to select only linked users. Default is None.
     """
-    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None):
+    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None,
+                 watchlist: Optional[bool] = None):
         super().__init__()
         self.sel_type = sel_type
         self.linked = linked
+        self.watchlist = watchlist
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Optional[Union[discord.Member, str]]:
         if value:
@@ -1082,7 +1084,7 @@ class UserTransformer(app_commands.Transformer):
             ret.extend([
                 app_commands.Choice(name='✈ ' + name + (' (' + ucid + ')' if show_ucid else ''),
                                     value=ucid)
-                for ucid, name in get_all_players(interaction.client, self.linked)
+                for ucid, name in get_all_players(interaction.client, self.linked, self.watchlist)
                 if not current or current.casefold() in name.casefold() or current.casefold() in ucid
             ])
         if (self.linked is None or self.linked) and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:

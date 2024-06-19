@@ -213,7 +213,7 @@ class InfoView(View):
 
     async def is_watchlist(self) -> bool:
         async with self.bot.apool.connection() as conn:
-            cursor = await conn.execute("SELECT watchlist FROM players WHERE ucid = %s", (self.ucid,))
+            cursor = await conn.execute("SELECT True FROM watchlist WHERE player_ucid = %s", (self.ucid,))
             row = await cursor.fetchone()
         return row[0] if row else False
 
@@ -306,7 +306,8 @@ class InfoView(View):
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (self.ucid, ))
+                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
+                                   (self.ucid, 'n/a', interaction.user.display_name))
         await interaction.followup.send("User is now on the watchlist.", ephemeral=self.ephemeral)
         self.stop()
 
@@ -315,6 +316,6 @@ class InfoView(View):
         await interaction.response.defer()
         async with self.bot.apool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (self.ucid, ))
+                await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
         await interaction.followup.send("User removed from the watchlist.", ephemeral=self.ephemeral)
         self.stop()

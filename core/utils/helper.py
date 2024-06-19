@@ -336,16 +336,20 @@ def get_all_players(self, linked: Optional[bool] = None, watchlist: Optional[boo
     :return: A list of tuples containing the UCID and name of players from the database.
 
     """
-    sql = "SELECT ucid, name FROM players WHERE length(ucid) = 32"
+    sql = "SELECT p.ucid, p.name FROM players p{} WHERE length(p.ucid) = 32"
+    sub_sql = ""
     if watchlist:
-        sql += " AND watchlist IS NOT FALSE"
+        sub_sql = " JOIN watchlist w ON p.ucid = w.player_ucid"
+    elif watchlist is False:
+        sql += " AND p.ucid NOT IN (SELECT player_ucid FROM watchlist)"
     if vip:
-        sql += " AND vip IS NOT FALSE"
+        sql += " AND p.vip IS NOT FALSE"
     if linked is not None:
         if linked:
-            sql += " AND discord_id != -1 AND manual IS TRUE"
+            sql += " AND p.discord_id != -1 AND p.manual IS TRUE"
         else:
-            sql += " AND manual IS FALSE"
+            sql += " AND p.manual IS FALSE"
+    sql = sql.format(sub_sql)
     with self.pool.connection() as conn:
         return [(row[0], row[1]) for row in conn.execute(sql)]
 
