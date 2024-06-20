@@ -565,31 +565,18 @@ class Scheduler(Plugin):
                 # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
                 if coalition:
-                    await server.send_to_dcs({
-                        "command": "setCoalitionPassword",
-                        ("redPassword" if coalition == 'red' else "bluePassword"): derived.password.value or ''
-                    })
-                    async with self.apool.connection() as conn:
-                        async with conn.transaction():
-                            await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
-                                'blue_password' if coalition == 'blue' else 'red_password'),
-                                (self.password, server.name))
+                    await server.setCoalitionPassword(Coalition(coalition), derived.password.value)
                     await self.bot.audit(f"changed password for coalition {coalition}",
                                          user=interaction.user, server=server)
                 else:
-                    server.settings['password'] = derived.password.value or ''
+                    await server.setPassword(derived.password.value)
                     await self.bot.audit(f"changed password", user=interaction.user, server=server)
                 await interaction.followup.send("Password changed.", ephemeral=ephemeral)
 
-        if not coalition and server.status in [Status.PAUSED, Status.RUNNING]:
+        if server.status in [Status.PAUSED, Status.RUNNING]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f'Server "{server.display_name}" has to be stopped or shut down '
                                                     f'to change the password.', ephemeral=True)
-            return
-        elif coalition and server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f'Server "{server.display_name}" must not be shut down to change '
-                                                    f'coalition passwords.', ephemeral=True)
             return
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(PasswordModal())

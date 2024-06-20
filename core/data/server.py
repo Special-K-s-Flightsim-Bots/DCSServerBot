@@ -342,6 +342,12 @@ class Server(DataObject):
     async def setStartIndex(self, mission_id: int) -> None:
         raise NotImplemented()
 
+    async def setPassword(self, password: str):
+        raise NotImplemented()
+
+    async def setCoalitionPassword(self, coalition: Coalition, password: str):
+        raise NotImplemented()
+
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         raise NotImplemented()
 

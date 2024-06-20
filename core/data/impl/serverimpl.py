@@ -19,7 +19,7 @@ from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
 from core.data.dataobject import DataObjectFactory
-from core.data.const import Status, Channel
+from core.data.const import Status, Channel, Coalition
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
@@ -671,6 +671,22 @@ class ServerImpl(Server):
             await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
         else:
             self.settings['listStartIndex'] = mission_id
+
+    async def setPassword(self, password: str):
+        self.settings['password'] = password or ''
+
+    async def setCoalitionPassword(self, coalition: Coalition, password: str):
+        advanced = self.settings['advanced']
+        if coalition == Coalition.BLUE:
+            advanced['bluePasswordHash'] = utils.hash_password(password)
+        else:
+            advanced['redPasswordHash'] = utils.hash_password(password)
+        self.settings['advanced'] = advanced
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                    'blue_password' if coalition == Coalition.BLUE else 'red_password'),
+                    (password, self.name))
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)

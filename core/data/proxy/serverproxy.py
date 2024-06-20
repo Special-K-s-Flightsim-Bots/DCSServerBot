@@ -1,5 +1,5 @@
 from __future__ import annotations
-from core import Server, Status, utils
+from core import Server, Status, utils, Coalition
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from typing import Optional, Union
@@ -266,6 +266,31 @@ class ServerProxy(Server):
             "server_name": self.name,
             "params": {
                 "mission_id": mission_id
+            }
+        }, timeout=timeout, node=self.node.name)
+
+    async def setPassword(self, password: str):
+        timeout = 60 if not self.node.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setPassword",
+            "server_name": self.name,
+            "params": {
+                "password": password
+            }
+        }, timeout=timeout, node=self.node.name)
+
+    async def setCoalitionPassword(self, coalition: Coalition, password: str):
+        timeout = 60 if not self.node.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setCoalitionPassword",
+            "server_name": self.name,
+            "params": {
+                "coalition": coalition.value,
+                "password": password
             }
         }, timeout=timeout, node=self.node.name)
 
