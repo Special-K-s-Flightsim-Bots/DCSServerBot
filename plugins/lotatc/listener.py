@@ -101,17 +101,6 @@ class LotAtcEventListener(EventListener):
                 self.EVENT_TEXTS['on_gci_leave'].format(gci.name)))
         del self.on_station[server.name][gci.coalition][gci.name]
 
-    def check_exemption(self, server: Server, player: Player) -> bool:
-        exemptions = self.get_config(server).get('exemptions', {})
-        return self._check_exemption_ucid(player, exemptions) or self._check_exemption_discord(player, exemptions)
-
-    def _check_exemption_ucid(self, player: Player, exemptions: dict) -> bool:
-        return player.ucid in exemptions.get('ucid', [])
-
-    def _check_exemption_discord(self, player: Player, exemptions: dict) -> bool:
-        member = self.bot.get_member_by_ucid(player.ucid, verified=True)
-        return member is not None and utils.check_roles(exemptions.get('discord', []), member)
-
     @event(name="onSRSConnect")
     async def onSRSConnect(self, server: Server, data: dict) -> None:
         if data['unit'] != 'EAM':
@@ -150,13 +139,14 @@ class LotAtcEventListener(EventListener):
         gci.ipaddr = data['ipaddr']
         gci.lotatc = True
         player = server.get_player(ipaddr=gci.ipaddr)
-        if player and self.get_config(server).get('kick_gci', False) and not self.check_exemption(server, player):
-            # noinspection PyAsyncCall
-            asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.bot.get_admin_channel(server).send(
-                _("GCI {} tried to join as player {}!").format(gci.name, player.name)))
+        if (not player or not self.get_config(server).get('kick_gci', False) or
+                player.check_exemptions(self.get_config(server).get('exemptions', {}))):
             return
+        # noinspection PyAsyncCall
+        asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.bot.get_admin_channel(server).send(
+            _("GCI {} tried to join as player {}!").format(gci.name, player.name)))
 
     @event(name="onGCILeave")
     async def onGCILeave(self, server: Server, data: dict) -> None:

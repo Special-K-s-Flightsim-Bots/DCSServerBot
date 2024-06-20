@@ -290,3 +290,31 @@ class Player(DataObject):
             await self.member.remove_roles(_role)
         except discord.Forbidden:
             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+
+    def check_exemptions(self, exemptions: Union[dict, list]) -> bool:
+        def _check_exemption(exemption: dict) -> bool:
+            if 'ucid' in exemption:
+                if not isinstance(exemption['ucid'], list):
+                    ucids = [exemption['ucid']]
+                else:
+                    ucids = exemption['ucid']
+                if self.ucid in ucids:
+                    return True
+            if 'discord' in exemption:
+                if not self.member:
+                    return False
+                if not isinstance(exemption['discord'], list):
+                    roles = [exemption['discord']]
+                else:
+                    roles = exemption['discord']
+                if utils.check_roles(roles, self.member):
+                    return True
+            return False
+
+        if isinstance(exemptions, list):
+            ret = False
+            for exemption in exemptions:
+                ret = _check_exemption(exemption) | ret
+        else:
+            ret = _check_exemption(exemptions)
+        return ret

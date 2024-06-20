@@ -59,26 +59,8 @@ class PunishmentEventListener(EventListener):
             if penalty:
                 initiator = server.get_player(name=data['initiator'])
                 # check if there is an exemption for this user
-                for exemption in config.get('exemptions', []):
-                    if 'ucid' in exemption:
-                        if not isinstance(exemption['ucid'], list):
-                            ucids = [exemption['ucid']]
-                        else:
-                            ucids = exemption['ucid']
-                        if initiator.ucid in ucids:
-                            self.log.debug(f"User {initiator.name} not penalized due to exemption.")
-                            return
-                    if 'discord' in exemption:
-                        member = self.bot.get_member_by_ucid(initiator.ucid)
-                        if not member:
-                            continue
-                        if not isinstance(exemption['discord'], list):
-                            roles = [exemption['discord']]
-                        else:
-                            roles = exemption['discord']
-                        if utils.check_roles(roles, member):
-                            self.log.debug(f"Member {member.name} not penalized due to exemption.")
-                            return
+                if initiator.check_exemptions(config.get('exemptions', {})):
+                    self.log.debug(f"User {initiator.name} not penalized due to exemption.")
                 if 'default' in penalty:
                     points = penalty['default']
                 else:

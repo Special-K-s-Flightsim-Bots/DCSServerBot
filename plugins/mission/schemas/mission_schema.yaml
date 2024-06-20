@@ -13,9 +13,16 @@ schema;master_schema:
           sequence:
             - type: text
     afk_exemptions:
-      type: seq
-      sequence:
-        - type: str
+      type: map
+      mapping:
+        ucid:
+          type: seq
+          sequence:
+            - type: str
+        discord:
+          type: seq
+          sequence:
+            - type: text
     usage_alarm:
       type: map
       mapping:

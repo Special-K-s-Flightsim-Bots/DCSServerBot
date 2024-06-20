@@ -295,6 +295,7 @@ class Admin(Plugin):
                     _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
                                                                                                    branch=branch),
                     ephemeral=ephemeral)
+                return
             elif new_version:
                 if not await utils.yn_question(
                         interaction, _('Would you like to update from version {old_version}@{old_branch} to '

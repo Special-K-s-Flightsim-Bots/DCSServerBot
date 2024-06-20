@@ -20,12 +20,15 @@ You can configure the behaviour of the mission plugin with an optional config/pl
 DEFAULT:
   greeting_message_members: "{player.name}, welcome back to {server.name}!"
   greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
-  uploads:          # Configure how mission uploads are handled
-    enabled: true   # Here you can disable the feature at all (default: true = enabled)
+  uploads:              # Configure how mission uploads are handled
+    enabled: true       # Here you can disable the feature at all (default: true = enabled)
     discord:
-      - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
-  afk_exemptions:   # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
-    - aabbccddeeff1122334455
+      - DCS Admin       # Define which roles are allowed to upload missions (default: DCS Admin)
+  afk_exemptions:       # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
+    ucid:
+      - aabbccddeeff1122334455
+    discord:
+      - Donators        # DCS Admin and GameMaster are automatically exempted from AFK kicks
   usage_alarm:
     min_threshold: 30   # send a message, if less than 30 people fly on your server
     max_threshold: 10   # send a message, if more than 10 people fly on your server

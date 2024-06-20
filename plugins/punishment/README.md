@@ -63,12 +63,12 @@ DEFAULT:
     weight: 0
 DCS.release_server:
   exemptions:
-  - ucid:
-    - 'aabbccddee'          # Do not punish the users with these UCIDs
-    - 'eeggffjjjs'
-  - discord: 
-    - '@everyone'           # Do not punish members of your Discord (that are linked) on this server
-    - 'Moderators'          # Do not punish your own moderators (Discord role, not bot role!) on this server
+    ucid:
+      - 'aabbccddee'          # Do not punish the users with these UCIDs
+      - 'eeggffjjjs'
+    discord: 
+      - '@everyone'           # Do not punish members of your Discord (that are linked) on this server
+      - 'Moderators'          # Do not punish your own moderators (Discord role, not bot role!) on this server
 ```
 ### Penalties
 The number of penalty points that a player "earns", is configured here. Collisions are hits where the players aircraft is being used as a weapon.

@@ -102,46 +102,73 @@ class Mission(Plugin):
         self.update_channel_name.cancel()
         await super().cog_unload()
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        if new_version == '3.6':
-            filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
-            if not os.path.exists(filename):
-                return
-            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+    def _migrate_3_6(self):
+        filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
+        if not os.path.exists(filename):
+            return
+        data = yaml.load(Path(filename).read_text(encoding='utf-8'))
 
-            def migrate_instance(cfg: dict) -> dict:
-                ret = {}
-                for name, instance in cfg.items():
-                    if 'greeting_message_members' in instance:
-                        if name not in ret:
-                            ret[name] = {}
-                        ret[name]['greeting_message_members'] = instance['greeting_message_members']
-                    if 'greeting_message_unmatched' in instance:
-                        if name not in ret:
-                            ret[name] = {}
-                        ret[name]['greeting_message_unmatched'] = instance['greeting_message_unmatched']
-                return ret
+        def migrate_instance(cfg: dict) -> dict:
+            ret = {}
+            for name, instance in cfg.items():
+                if 'greeting_message_members' in instance:
+                    if name not in ret:
+                        ret[name] = {}
+                    ret[name]['greeting_message_members'] = instance['greeting_message_members']
+                if 'greeting_message_unmatched' in instance:
+                    if name not in ret:
+                        ret[name] = {}
+                    ret[name]['greeting_message_unmatched'] = instance['greeting_message_unmatched']
+            return ret
 
-            dirty = False
-            if self.node.name in data:
-                for node_name, node in data.items():
-                    result = migrate_instance(node)
-                    if result:
-                        dirty = True
-                        if node_name not in self.locals:
-                            self.locals[node_name] = result
-                        else:
-                            self.locals[node_name] |= result
-            else:
-                result = migrate_instance(data)
+        dirty = False
+        if self.node.name in data:
+            for node_name, node in data.items():
+                result = migrate_instance(node)
                 if result:
                     dirty = True
-                    self.locals |= result
-            if dirty:
-                path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-                with open(path, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(self.locals, outfile)
-                self.log.warning(f"New file {path} written, please check for possible errors.")
+                    if node_name not in self.locals:
+                        self.locals[node_name] = result
+                    else:
+                        self.locals[node_name] |= result
+        else:
+            result = migrate_instance(data)
+            if result:
+                dirty = True
+                self.locals |= result
+        if dirty:
+            path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+            with open(path, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(self.locals, outfile)
+            self.log.warning(f"New file {path} written, please check for possible errors.")
+
+    def _migrate_3_10(self):
+        def _change_instance(instance: dict):
+            if instance.get('afk_exemptions') and isinstance(instance['afk_exemptions'], list):
+                instance['afk_exemptions'] = {
+                    "ucid": instance['afk_exemptions']
+                }
+
+        path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
+        data = yaml.load(Path(path).read_text(encoding='utf-8'))
+        if self.node.name in data.keys():
+            for name, node in data.items():
+                if name == DEFAULT_TAG:
+                    _change_instance(node)
+                    continue
+                for instance in node.values():
+                    _change_instance(instance)
+        else:
+            for instance in data.values():
+                _change_instance(instance)
+        with open(path, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
+
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+        if new_version == '3.6':
+            self._migrate_3_6()
+        elif new_version == '3.10':
+            self._migrate_3_10()
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -1483,8 +1510,10 @@ class Mission(Plugin):
                     continue
                 for ucid, dt in server.afk.items():
                     player = server.get_player(ucid=ucid, active=True)
-                    if (not player or player.has_discord_roles(['DCS Admin', 'GameMaster']) or
-                            player.ucid in self.get_config(server).get('afk_exemptions', [])):
+                    exemptions = self.get_config(server).get('afk_exemptions', {})
+                    if 'discord' in exemptions:
+                        exemptions['discord'] = list(set(exemptions['discord']) | {"DCS Admin", "GameMaster"})
+                    if not player or player.check_exemptions(exemptions):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
                         msg = server.locals.get(
