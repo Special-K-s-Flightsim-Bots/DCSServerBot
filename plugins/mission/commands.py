@@ -148,8 +148,10 @@ class Mission(Plugin):
                 instance['afk_exemptions'] = {
                     "ucid": instance['afk_exemptions']
                 }
-
+    
         path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
+        if not os.path.exists(path):
+            return
         data = yaml.load(Path(path).read_text(encoding='utf-8'))
         if self.node.name in data.keys():
             for name, node in data.items():
@@ -1505,6 +1507,8 @@ class Mission(Plugin):
     async def afk_check(self):
         try:
             for server in self.bot.servers.copy().values():
+                if server.status != Status.RUNNING:
+                    continue
                 max_time = server.locals.get('afk_time', -1)
                 if max_time == -1:
                     continue
