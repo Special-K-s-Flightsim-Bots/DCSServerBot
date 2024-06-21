@@ -50,7 +50,7 @@ packaging==24.1
 pid==3.0.4
 
 # PIP: The Python package manager
-pip==24.0
+pip==24.1
 
 # Psycopg: PostgreSQL database adapter for Python
 psycopg[binary]==3.1.19
