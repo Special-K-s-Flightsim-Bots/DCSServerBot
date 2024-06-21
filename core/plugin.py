@@ -271,16 +271,22 @@ class Plugin(commands.Cog):
                     if isinstance(params, list):
                         for param in params:
                             self.change_commands(param, group_commands)
-                    else:
+                    elif params:
                         self.change_commands(params, group_commands)
+                    else:
+                        self.log.warning(f"{self.__cog_name__} command {name} has no params!")
                     break
                 elif cmd_name == name and isinstance(cmd, Command):
+                    if not params:
+                        self.log.warning(
+                            f"{self.__cog_name__}: Command overwrite of /{cmd.qualified_name} with no parameters!")
+                        break
                     if cmd.parent:
                         cmd.parent.remove_command(cmd.name)
                     if not params.get('enabled', True):
                         if not cmd.parent:
                             self.__cog_app_commands__.remove(cmd)
-                        continue
+                        break
                     if 'name' in params:
                         cmd.name = params['name']
                     if 'description' in params:
@@ -294,6 +300,8 @@ class Plugin(commands.Cog):
                     if cmd.parent:
                         cmd.parent.add_command(cmd)
                     break
+            else:
+                self.log.warning(f"{self.__cog_name__}: Command {name} not found!")
 
     async def install(self) -> bool:
         if await self._init_db():
