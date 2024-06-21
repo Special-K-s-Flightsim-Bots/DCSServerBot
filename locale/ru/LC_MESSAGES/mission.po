@@ -368,8 +368,8 @@ msgstr "Данные игроки находятся в списке отсле�
 msgid "UCID"
 msgstr "UCID"
 
-# msgid "Created by"
-# msgstr "Erzeugt von"
+msgid "Created by"
+msgstr "Создал"
 
 # / group
 msgid "Commands to manage DCS groups"

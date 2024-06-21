@@ -368,8 +368,8 @@ msgstr "Los siguientes jugadores están en la lista de observación:"
 msgid "UCID"
 msgstr "UCID"
 
-# msgid "Created by"
-# msgstr "Erzeugt von"
+msgid "Created by"
+msgstr "Creado por"
 
 # / group
 msgid "Commands to manage DCS groups"
