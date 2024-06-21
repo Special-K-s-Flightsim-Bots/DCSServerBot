@@ -446,7 +446,11 @@ def cmd_has_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
         valid_roles = []
         for role in roles:
-            valid_roles.extend(interaction.client.roles[role])
+            mappings = interaction.client.roles.get(role)
+            if mappings:
+                valid_roles.extend(mappings)
+            else:
+                valid_roles.append(role)
         return check_roles(set(valid_roles), interaction.user)
 
     @functools.wraps(predicate)
