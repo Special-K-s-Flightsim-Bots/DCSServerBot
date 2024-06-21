@@ -51,10 +51,10 @@ class ServiceBus(Service):
         db_pass = utils.get_password('database')
         # main.yaml database connection has priority for intercom
         url = self.node.config.get("database", self.node.locals.get('database'))['url'].replace('SECRET', db_pass)
-        self.intercom_channel = PubSub(self.node, 'intercom', url)
+        self.intercom_channel = PubSub(self.node, 'intercom', url, self.handle_rpc)
         # nodes.yaml database connection has priority for broadcasts
         url = self.node.locals.get("database", self.node.config.get('database'))['url'].replace('SECRET', db_pass)
-        self.broadcasts_channel = PubSub(self.node, 'broadcasts', url)
+        self.broadcasts_channel = PubSub(self.node, 'broadcasts', url, self.handle_broadcast_event)
         self._lock = asyncio.Lock()
 
     async def start(self):
@@ -77,9 +77,9 @@ class ServiceBus(Service):
 
             # subscribe to the intercom and broadcast channels
             # noinspection PyAsyncCall
-            asyncio.create_task(self.intercom_channel.subscribe(self.handle_rpc))
+            asyncio.create_task(self.intercom_channel.subscribe())
             # noinspection PyAsyncCall
-            asyncio.create_task(self.broadcasts_channel.subscribe(self.handle_broadcast_event))
+            asyncio.create_task(self.broadcasts_channel.subscribe())
 
             await self.init_servers()
             await self.switch()
@@ -232,15 +232,12 @@ class ServiceBus(Service):
                 self.log.info(f"- {len(self.servers)} local DCS servers registered.")
 
     async def register_remote_servers(self, node: Node):
-        try:
-            await self.send_to_node_sync({
-                "command": "rpc",
-                "service": "ServiceBus",
-                "method": "register_local_servers"
-            }, node=node.name, timeout=180)
-            self.log.info(f"- Remote node {node.name} registered.")
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"- Timeout while registering remote node {node.name}!")
+        await self.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "register_local_servers"
+        }, node=node.name)
+        self.log.info(f"- Remote node {node.name} registered.")
 
     async def register_remote_node(self, name: str, public_ip: str):
         from core import NodeProxy
@@ -248,6 +245,9 @@ class ServiceBus(Service):
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip)
         self.node.all_nodes[node.name] = node
+        while not self.bot:
+            await asyncio.sleep(1)
+            self.bot = ServiceRegistry.get(BotService).bot
         await self.bot.wait_until_ready()
         await self.register_remote_servers(node)
 
@@ -620,11 +620,12 @@ class ServiceBus(Service):
                     kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
                 if kwargs.get('node') and parameters.get('node').annotation != 'str':
                     kwargs['node'] = self.node.all_nodes.get(kwargs['node'])
-            if asyncio.iscoroutinefunction(func):
-                rc = await func(**kwargs) if kwargs else await func()
-            else:
-                rc = func(**kwargs) if kwargs else func()
-            return rc
+            with PerformanceLog(f"RPC: {obj.__class__.__name__}.{data['method']}()"):
+                if asyncio.iscoroutinefunction(func):
+                    rc = await func(**kwargs)
+                else:
+                    rc = asyncio.to_thread(func, **kwargs)
+                return rc
         elif 'params' in data:
             for key, value in data['params'].items():
                 setattr(obj, key, value)

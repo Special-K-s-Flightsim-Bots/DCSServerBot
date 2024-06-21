@@ -1,4 +1,26 @@
+schema;master_schema:
+  type: map
+  mapping:
+    kick_gci: {type: bool}
+    exemptions:
+      type: map
+      mapping:
+        ucid:
+          type: seq
+          sequence:
+            - type: str
+        discord:
+          type: seq
+          sequence:
+            - type: str
+
 type: map
 mapping:
+  DEFAULT:
+    include: 'master_schema'
   commands:
     include: 'commands_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

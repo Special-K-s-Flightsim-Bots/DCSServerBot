@@ -64,6 +64,7 @@ function dcsbot.registerDCSServer(json)
         plist = net.get_player_list()
         for i = 1, table.getn(plist) do
             msg.players[i] = net.get_player_info(plist[i])
+            msg.players[i].ipaddr = utils.getIP(msg.players[i].ipaddr)
             msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
             msg.players[i].unit_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_NAME)
             msg.players[i].unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.players[i].slot), "DisplayName")

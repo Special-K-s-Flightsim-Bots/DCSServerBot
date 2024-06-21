@@ -64,39 +64,6 @@ msgstr "Gesperrt von: {}"
 msgid "Exp.: {}"
 msgstr "Bis: {}"
 
-# /dcs watch
-msgid "Puts a player onto the watchlist"
-msgstr "Fügt Spieler zur Watchliste hinzu"
-
-msgid "Player {} was already on the watchlist."
-msgstr "Spieler {} war bereits auf der Watchliste."
-
-msgid "Player {} is now on the watchlist."
-msgstr "Spieler {} ist jetzt auf der Watchliste."
-
-# /dcs unwatch
-msgid "Removes a player from the watchlist"
-msgstr "Löscht Spieler von der Watchliste"
-
-msgid "Player {} removed from the watchlist."
-msgstr "Spieler {} von der Watchliste gelöscht."
-
-# /dcs watchlist
-msgid "Shows the watchlist"
-msgstr "Zeigt die Watchliste an"
-
-msgid "The watchlist is currently empty."
-msgstr "Die Watchliste ist leer."
-
-msgid "These players are currently on the watchlist:"
-msgstr "Diese Spieler sind zurzeit auf der Watchliste:"
-
-msgid "UCIDs"
-msgstr "UCIDs"
-
-msgid "Names"
-msgstr "Namen"
-
 # /dcs update
 msgid "Update your DCS installations"
 msgstr "Aktualisiere die DCS-Installation"
@@ -115,8 +82,8 @@ msgid "Would you like to update from version {old_version}@{old_branch} to {new_
 msgstr "Möchtest Du von Version {old_version}@{old_branch} nach Version {new_version}@{new_branch} updaten?\n"
 "Alle laufenden DCS-Server werden dafür heruntergefahren!"
 
-msgid "Updating DCS to version {version}@{branch}, please wait ..."
-msgstr "Aktualisiere DCS auf Version {version}@{branch}, bitte warten ..."
+msgid "Updating DCS World to the newest version, please wait ..."
+msgstr "Aktualisiere DCS World auf die aktuellste Version, bitte warten ..."
 
 msgid "DCS updated to version {version}@{branch} on node {name}."
 msgstr "DCS wurde auf Knoten {name} auf Version {version}@{branch} aktualisiert."

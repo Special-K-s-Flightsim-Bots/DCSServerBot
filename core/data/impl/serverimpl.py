@@ -19,7 +19,7 @@ from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
 from core.data.dataobject import DataObjectFactory
-from core.data.const import Status, Channel
+from core.data.const import Status, Channel, Coalition
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
@@ -672,6 +672,22 @@ class ServerImpl(Server):
         else:
             self.settings['listStartIndex'] = mission_id
 
+    async def setPassword(self, password: str):
+        self.settings['password'] = password or ''
+
+    async def setCoalitionPassword(self, coalition: Coalition, password: str):
+        advanced = self.settings['advanced']
+        if coalition == Coalition.BLUE:
+            advanced['bluePasswordHash'] = utils.hash_password(password)
+        else:
+            advanced['redPasswordHash'] = utils.hash_password(password)
+        self.settings['advanced'] = advanced
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                    'blue_password' if coalition == Coalition.BLUE else 'red_password'),
+                    (password, self.name))
+
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
         if '.dcssb' in path:
@@ -738,3 +754,21 @@ class ServerImpl(Server):
 
     async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
         await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
+
+    async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
+        ext = self.extensions.get(extension)
+        if not ext:
+            raise ValueError(f"Extension {extension} not found.")
+        # Check if the command exists in the extension object
+        if not hasattr(ext, method):
+            raise ValueError(f"Command {method} not found in extension {extension}.")
+
+        # Access the method
+        _method = getattr(ext, method)
+
+        # Check if it is a coroutine
+        if asyncio.iscoroutinefunction(_method):
+            result = await _method(**kwargs)
+        else:
+            result = _method(**kwargs)
+        return result

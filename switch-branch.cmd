@@ -21,7 +21,7 @@ if "%branch%" == "master" (
         goto :eof
     )
     git checkout development
-    call update.cmd
+    call update.cmd >NUL 2>&1
 ) else if "%branch%" == "development" (
     choice /c yn /n /m "Switch to master branch? [Y/N] "
     if ERRORLEVEL 2 (
@@ -29,7 +29,7 @@ if "%branch%" == "master" (
         goto :eof
     )
     git checkout master
-    call update.cmd
+    call update.cmd >NUL 2>&1
 ) else (
     echo Unknown branch: %branch%
 )

@@ -11,36 +11,37 @@ persistent [highscore](../userstats/README.md) feature to display the top player
 your Discord server.
 
 ## Discord Commands
-
-| Command              | Parameter                             | Channel       | Roles                 | Description                                                                                      |
-|----------------------|---------------------------------------|---------------|-----------------------|--------------------------------------------------------------------------------------------------|
-| /chat                | message                               | admin-channel | DCS Admin             | Sends a message to the DCS in-game-chat.                                                         |
-| /popup               | red/blue/all/player message [timeout] | admin-channel | DCS Admin, GameMaster | Sends a popup to the dedicated coalition or player* in game with an optional timeout.            |
-| /broadcast           | red/blue/all                          | admin-channel | DCS Admin, GameMaster | Like /popup but to all running servers.                                                          |
-| /flag                | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or clears) a flag inside the running mission or returns the current value.                 |
-| /variable            | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or gets) a mission variable.                                                               |
-| /do_script           | lua code                              | admin-channel | DCS Admin, GameMaster | Runs specific lua code inside the running mission.                                               |
-| /do_script_file      | file                                  | admin-channel | DCS Admin, GameMaster | Loads a script from Missions\Scripts into the running mission.                                   |
-| /reset_coalitions    |                                       | all           | DCS Admin             | Resets all user-coalition-bindings on all servers.                                               |
-| /campaign list       | [active]                              | admin-channel | DCS Admin, GameMaster | Lists all available campaigns. If "active" is provided, only active campaigns will be displayed. |
-| /campaign info       | campaign                              | admin-channel | DCS Admin, GameMaster | Displays information about a campaign like name, description, start, stop and involved servers.  |
-| /campaign add        |                                       | admin-channel | DCS Admin, GameMaster | Create a new campaign.                                                                           |
-| /campaign add_server | campaign server                       | admin-channel | DCS Admin, GameMaster | Add a server to an existing campaign.                                                            |
-| /campaign start      | campaign                              | admin-channel | DCS Admin, GameMaster | Starts a new campaign with the provided name, if none is running.                                |
-| /campaign stop       | campaign                              | admin-channel | DCS Admin, GameMaster | Stops the given campaign.                                                                        |
-| /campaign delete     | [campaign]                            | admin-channel | DCS Admin, GameMaster | Deletes a campaign out of the list. If no name is provided the current campaign will be deleted. |
+| Command              | Parameter                             | Channel       | Roles                 | Description                                                                                                    |
+|----------------------|---------------------------------------|---------------|-----------------------|----------------------------------------------------------------------------------------------------------------|
+| /chat                | message                               | admin-channel | DCS Admin             | Sends a message to the DCS in-game-chat.                                                                       |
+| /popup               | red/blue/all/player message [timeout] | admin-channel | DCS Admin, GameMaster | Sends a popup to the dedicated coalition or player* in game with an optional timeout.                          |
+| /broadcast           | red/blue/all                          | admin-channel | DCS Admin, GameMaster | Like /popup but to all running servers.                                                                        |
+| /flag                | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or clears) a flag inside the running mission or returns the current value.                               |
+| /variable            | name [value]                          | admin-channel | DCS Admin, GameMaster | Sets (or gets) a mission variable.                                                                             |
+| /do_script           | lua code                              | admin-channel | DCS Admin, GameMaster | Runs specific lua code inside the running mission.                                                             |
+| /do_script_file      | file                                  | admin-channel | DCS Admin, GameMaster | Loads a script from Missions\Scripts into the running mission.                                                 |
+| /reset_coalitions    |                                       | all           | DCS Admin             | Resets all user-coalition-bindings on all servers.                                                             |
+| /campaign list       | [active]                              | admin-channel | DCS Admin, GameMaster | Lists all available campaigns. If "active" is provided, only active campaigns will be displayed.               |
+| /campaign info       | campaign                              | admin-channel | DCS Admin, GameMaster | Displays information about a campaign like name, description, start, stop and involved servers.                |
+| /campaign add        |                                       | admin-channel | DCS Admin, GameMaster | Create a new campaign.                                                                                         |
+| /campaign add_server | campaign server                       | admin-channel | DCS Admin, GameMaster | Add a server to an existing campaign.                                                                          |
+| /campaign start      | campaign                              | admin-channel | DCS Admin, GameMaster | Starts a new campaign with the provided name, if none is running.                                              |
+| /campaign stop       | campaign                              | admin-channel | DCS Admin, GameMaster | Stops the given campaign.                                                                                      |
+| /campaign delete     | [campaign]                            | admin-channel | DCS Admin, GameMaster | Deletes a campaign out of the list. If no name is provided the current campaign will be deleted.               |
+| /message send        | <user> [ack]                          | admin-channel | DCS Admin, GameMaster | Sends a (delayed) message to a user. If ack is set (default: true), the user has to acknowledge the reception. |
+| /message edit        | <user>                                | admin-channel | DCS Admin, GameMaster | Edit or delete a user message.                                                                                 |
 
 ## In-Game Chat Commands
-
-| Command    | Parameter     | Role                  | Description                    |
-|------------|---------------|-----------------------|--------------------------------|
-| .join      | \<coalition\> | all                   | Join a coalition.              |
-| .leave     |               | all                   | Leave a coalition.             |
-| .red       |               | all                   | Join the red coalition.        |
-| .blue      |               | all                   | Join the blue coalition.       |
-| .coalition |               | all                   | Shows your current coalition.  |
-| .password  |               | all                   | Shows your coalition password. |
-| .flag      | flag [value]  | DCS Admin, GameMaster | Reads or sets a flag.          |
+| Command    | Parameter     | Role                  | Description                                              |
+|------------|---------------|-----------------------|----------------------------------------------------------|
+| -join      | \<coalition\> | all                   | Join a coalition.                                        |
+| -leave     |               | all                   | Leave a coalition.                                       |
+| -red       |               | all                   | Join the red coalition.                                  |
+| -blue      |               | all                   | Join the blue coalition.                                 |
+| -coalition |               | all                   | Shows your current coalition.                            |
+| -password  |               | all                   | Shows your coalition password.                           |
+| -flag      | flag [value]  | DCS Admin, GameMaster | Reads or sets a flag.                                    |
+| -ack       |               | all                   | Acknowledge the reception of a message, if there is any. |
 
 ## Usage inside of Missions (Scripting API)
 You can enable, disable (= delete) and reset (= delete + start) campaigns inside of missions, too. If you want to use 
@@ -123,7 +124,6 @@ This means, you can use something like this:
 | #campaign_id | TEXT NOT NULL | The campaign name. |
 | #server_name | TEXT NOT NULL | The server name.   |
 
-
 ### COALITIONS
 | Column          | Type                    | Description                                     |
 |-----------------|-------------------------|-------------------------------------------------|
@@ -131,3 +131,13 @@ This means, you can use something like this:
 | #player_ucid    | TEXT NOT NULL           | The players UCID.                               |
 | coalition       | TEXT                    | "red", "blue" or empty.                         |
 | coalition_leave | TIMESTAMP               | Time when the last coalition was left.          |
+
+### MESSAGES
+| Column      | Type                           | Description                                        |
+|-------------|--------------------------------|----------------------------------------------------|
+| #id         | SERIAL                         | Auto-incrementing unique ID of this message.       |
+| sender      | TEXT NOT NULL                  | Who sent the message.                              |
+| player_ucid | TEXT NOT NULL                  | The receiver of the message.                       |
+| message     | TEXT NOT NULL                  | The message itself.                                |
+| afk         | BOOLEAN NOT NULL DEFAULT TRUE  | If the message has to be acknowledged by the user. |
+| time        | TIMESTAMP DEFAULT NOW (in UTC) | Time of the message.                               |

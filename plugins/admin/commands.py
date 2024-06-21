@@ -1,19 +1,19 @@
 import asyncio
-from functools import partial
-
 import discord
 import os
+import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation
+    PaginationReport, get_translation, TEventListener
 from discord import app_commands
 from discord.app_commands import Range
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
+from functools import partial
 from io import BytesIO
 from services import DCSServerBot
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .views import CleanupView
@@ -36,21 +36,6 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
         if not current or (x['name'] and current.casefold() in x['name'].casefold()) or current.casefold() in x['ucid']
     ]
     return choices[:25]
-
-
-async def watchlist_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    show_ucid = utils.check_roles(interaction.client.roles['DCS Admin'], interaction.user)
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("""
-                        SELECT name, ucid FROM players WHERE watchlist IS TRUE AND (name ILIKE %s OR ucid ILIKE %s)
-        """, ('%' + current + '%', '%' + current + '%'))
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=row[0] + (' (' + row[1] + ')' if show_ucid else ''), value=row[1])
-            async for row in cursor
-        ]
-        return choices[:25]
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction,
@@ -168,6 +153,15 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
 
 class Admin(Plugin):
 
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+        super().__init__(bot, eventlistener)
+        self.cleanup.add_exception_type(psycopg.DatabaseError)
+        self.cleanup.start()
+
+    async def cog_unload(self):
+        self.cleanup.cancel()
+        await super().cog_unload()
+
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
@@ -274,87 +268,6 @@ class Admin(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
-    @dcs.command(description=_('Puts a player onto the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def watch(self, interaction: discord.Interaction,
-                    user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
-                        sel_type=PlayerType.PLAYER)]]):
-        if isinstance(user, discord.Member):
-            ucid = await self.bot.get_ucid_by_member(user)
-            if not ucid:
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(_("Member {} is not linked!").format(user.display_name))
-                return
-        else:
-            ucid = user
-        for server in self.bus.servers.values():
-            player = server.get_player(ucid=ucid)
-            if player:
-                if player.watchlist:
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _("Player {} was already on the watchlist.").format(player.display_name),
-                        ephemeral=utils.get_ephemeral(interaction))
-                else:
-                    player.watchlist = True
-                    # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(
-                        _("Player {} is now on the watchlist.").format(player.display_name),
-                        ephemeral=utils.get_ephemeral(interaction))
-                return
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE players SET watchlist = TRUE WHERE ucid = %s", (ucid, ))
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} is now on the watchlist.").format(
-            user.display_name if isinstance(user, discord.Member) else ucid),
-            ephemeral=utils.get_ephemeral(interaction))
-
-    @dcs.command(description=_('Removes a player from the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(user=watchlist_autocomplete)
-    async def unwatch(self, interaction: discord.Interaction, user: str):
-        for server in self.bus.servers.values():
-            player = server.get_player(ucid=user)
-            if player:
-                player.watchlist = False
-                # noinspection PyUnresolvedReferences
-                await interaction.response.send_message(
-                    _("Player {} removed from the watchlist.").format(player.display_name),
-                    ephemeral=utils.get_ephemeral(interaction))
-                return
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE players SET watchlist = FALSE WHERE ucid = %s", (user, ))
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Player {} removed from the watchlist.").format(user),
-                                                ephemeral=utils.get_ephemeral(interaction))
-
-    @dcs.command(description=_('Shows the watchlist'))
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def watchlist(self, interaction: discord.Interaction):
-        ephemeral = utils.get_ephemeral(interaction)
-        async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT ucid, name FROM players WHERE watchlist IS TRUE")
-            watches = await cursor.fetchall()
-        if not watches:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("The watchlist is currently empty."), ephemeral=ephemeral)
-            return
-        embed = discord.Embed(colour=discord.Colour.blue())
-        embed.description = _("These players are currently on the watchlist:")
-        names = ucids = ""
-        for row in watches:
-            ucids = row[0] + "\n"
-            names += utils.escape_string(row[1]) + "\n"
-        embed.add_field(name=_("UCIDs"), value=ucids)
-        embed.add_field(name=_("Names"), value=names)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed)
-
     @dcs.command(description=_('Update your DCS installations'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
@@ -362,58 +275,58 @@ class Admin(Plugin):
     @app_commands.autocomplete(branch=get_branches)
     async def update(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60,
-                     branch: Optional[str] = None):
+                     branch: Optional[str] = None, force: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
-        try:
-            _branch, old_version = await node.get_dcs_branch_and_version()
-            if not branch:
-                branch = _branch
-            new_version = await node.get_latest_version(branch)
-        except Exception:
-            await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
-                                            ephemeral=True)
-            return
-        if old_version == new_version and branch == _branch:
-            await interaction.followup.send(
-                _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
-                                                                                               branch=branch),
-                ephemeral=ephemeral)
-        elif new_version:
-            if not await utils.yn_question(interaction,
-                                           _('Would you like to update from version {old_version}@{old_branch} to '
-                                             '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
-                                             ).format(old_version=old_version, old_branch=_branch,
-                                                      new_version=new_version, new_branch=branch),
-                                           ephemeral=ephemeral):
-                await interaction.followup.send(_("Aborted."))
-                return
-            await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",
-                                 user=interaction.user)
-            msg = await interaction.followup.send(
-                _("Updating DCS to version {version}@{branch}, please wait ...").format(version=new_version,
-                                                                                        branch=branch),
-                ephemeral=ephemeral)
+        _branch, old_version = await node.get_dcs_branch_and_version()
+        if not branch:
+            branch = _branch
+
+        if not force:
             try:
-                rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch)
-                if rc == 0:
-                    await msg.edit(
-                        content=_("DCS updated to version {version}@{branch} on node {name}."
-                                  ).format(version=new_version, branch=branch, name=node.name))
-                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
-                                         user=interaction.user)
-                else:
-                    await msg.edit(
-                        content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name,
-                                                                                               rc=rc))
-            except (TimeoutError, asyncio.TimeoutError):
-                await msg.edit(content=_("The update takes longer than 10 minutes, please check back regularly, "
-                                         "if it has finished."))
-        else:
-            await interaction.followup.send(
-                _("Can't update branch {}. You might need to provide proper DCS credentials to do so.").format(branch),
-                ephemeral=ephemeral)
+                new_version = await node.get_latest_version(branch)
+            except Exception:
+                await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
+                                                ephemeral=True)
+                return
+            if old_version == new_version and branch == _branch:
+                await interaction.followup.send(
+                    _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
+                                                                                                   branch=branch),
+                    ephemeral=ephemeral)
+                return
+            elif new_version:
+                if not await utils.yn_question(
+                        interaction, _('Would you like to update from version {old_version}@{old_branch} to '
+                                       '{new_version}@{new_branch}?\nAll running DCS servers will be shut down!'
+                                       ).format(old_version=old_version, old_branch=_branch, new_version=new_version,
+                                                new_branch=branch), ephemeral=ephemeral):
+                    await interaction.followup.send(_("Aborted."))
+                    return
+            else:
+                await interaction.followup.send(
+                    _("Can't update branch {}. You might need to provide proper DCS credentials to do so.").format(branch),
+                    ephemeral=ephemeral)
+                return
+
+        await self.bot.audit(f"started an update of all DCS servers on node {node.name}.", user=interaction.user)
+        msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
+                                              ephemeral=ephemeral)
+        try:
+            rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch)
+            if rc == 0:
+                branch, new_version = await node.get_dcs_branch_and_version()
+                await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."
+                                         ).format(version=new_version, branch=branch, name=node.name))
+                await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
+                                     user=interaction.user)
+            else:
+                await msg.edit(
+                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc))
+        except (TimeoutError, asyncio.TimeoutError):
+            await msg.edit(content=_("The update takes longer than 10 minutes, please check back regularly, "
+                                     "if it has finished."))
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
@@ -806,7 +719,7 @@ class Admin(Plugin):
             if not stdout and not stderr:
                 embed.description = _("```Command executed.```")
             await interaction.followup.send(embed=embed)
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(_("Timeout during shell command."))
 
     @command(description=_('Reloads a plugin'))
@@ -1033,6 +946,12 @@ Please make sure you forward the following ports:
         if ucid and self.bot.locals.get('autoban', False):
             self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
             await self.bus.ban(ucid, self.bot.member.display_name, 'Player left discord.')
+
+    @tasks.loop(hours=12.0)
+    async def cleanup(self):
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM nodestats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
 
 async def setup(bot: DCSServerBot):

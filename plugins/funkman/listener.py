@@ -213,4 +213,4 @@ class FunkManEventListener(EventListener):
                 asyncio.create_task(channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
                                                  delete_after=self.config.get('delete_after')))
         except (ValueError, TypeError):
-            self.log.error("No trapsheet data received from DCS!")
+            self.log.warning("No trapsheet data received from DCS!")

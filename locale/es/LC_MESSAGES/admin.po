@@ -64,39 +64,6 @@ msgstr "Baneado por: {}"
 msgid "Exp.: {}"
 msgstr "Hasta: {}"
 
-# /dcs watch
-msgid "Puts a player onto the watchlist"
-msgstr "Añade a un jugador a la lista de observación"
-
-msgid "Player {} was already on the watchlist."
-msgstr "Jugador {} ya está en la lista de observación."
-
-msgid "Player {} is now on the watchlist."
-msgstr "Jugador {} ha sido añadido a la lista de observación."
-
-# /dcs unwatch
-msgid "Removes a player from the watchlist"
-msgstr "Elimina a un jugador de la lista de observación"
-
-msgid "Player {} removed from the watchlist."
-msgstr "Jugador {} ha sido eliminado de la lista de observación."
-
-# /dcs watchlist
-msgid "Shows the watchlist"
-msgstr "Muestra la lista de observación"
-
-msgid "The watchlist is currently empty."
-msgstr "La lista de observación está vacía."
-
-msgid "These players are currently on the watchlist:"
-msgstr "Los siguientes jugadores están en la lista de observación:"
-
-msgid "UCIDs"
-msgstr "UCIDs"
-
-msgid "Names"
-msgstr "Nombres"
-
 # /dcs update
 msgid "Update your DCS installations"
 msgstr "Actualiza tus instancias de DCS"
@@ -115,8 +82,8 @@ msgid "Would you like to update from version {old_version}@{old_branch} to {new_
 msgstr "Te gustaría actualizar de la versión {old_version}@{old_branch} a la versión {new_version}@{new_branch} updaten?\n"
 "¡Todos los servidores en funcionamiento se apagarán!"
 
-msgid "Updating DCS to version {version}@{branch}, please wait ..."
-msgstr "Actualizando a la versión {version}@{branch}, por favor espere ..."
+msgid "Updating DCS World to the newest version, please wait ..."
+msgstr "Actualizando DCS World a la última versión. Por favor, espere ..."
 
 msgid "DCS updated to version {version}@{branch} on node {name}."
 msgstr "Actualizado DCS a la versión {version}@{branch} en el nodo {name}."

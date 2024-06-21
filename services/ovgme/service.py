@@ -299,6 +299,7 @@ class OvGMEService(Service):
                         os.makedirs(os.path.join(target, _name), exist_ok=True)
                     else:
                         with zfile.open(name) as infile:
+                            self.log.debug(f"Extracting file {name} to {target}/{_name}")
                             with open(os.path.join(target, _name), mode='wb') as outfile:
                                 outfile.write(infile.read())
             return log_entries
@@ -357,7 +358,11 @@ class OvGMEService(Service):
                 await self.download_from_repo(repo, folder, package_name=package_name, version=version)
                 return await self.install_package(server, folder, package_name, version)
             return False
-        return await self.do_install(server, folder, package_name, version, path, filename)
+        try:
+            return await self.do_install(server, folder, package_name, version, path, filename)
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
 
     async def do_uninstall(self, server: Server, folder: str, package_name: str, version: str, ovgme_path: str) -> bool:
         target = self.node.installation if folder == 'RootFolder' else server.instance.home

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from psutil import Process
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, Any
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
@@ -205,6 +205,8 @@ class Server(DataObject):
                 return player
             if 'name' in kwargs and player.name == kwargs['name']:
                 return player
+            if 'ipaddr' in kwargs and player.ipaddr == kwargs['ipaddr']:
+                return player
         return None
 
     def get_active_players(self, *, side: Side = None) -> list[Player]:
@@ -340,6 +342,12 @@ class Server(DataObject):
     async def setStartIndex(self, mission_id: int) -> None:
         raise NotImplemented()
 
+    async def setPassword(self, password: str):
+        raise NotImplemented()
+
+    async def setCoalitionPassword(self, coalition: Coalition, password: str):
+        raise NotImplemented()
+
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         raise NotImplemented()
 
@@ -423,4 +431,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def is_running(self) -> bool:
+        raise NotImplemented()
+
+    async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         raise NotImplemented()

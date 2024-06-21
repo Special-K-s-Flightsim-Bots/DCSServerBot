@@ -85,6 +85,7 @@ MyNode:
           blue_password: blue
           red_password: red
           autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
+          always_on: true     # start SRS as soon as possible  (includes no_shutdown: true)
           no_shutdown: true   # optional: don't shut down SRS on mission end (default: false)
           srs_message_prefix: 'SRS Running @ '        # optional: overwrite the message prefix
           srs_nudge_message: 'Optional nudge message' # optional: overwrite the existing nudge message
@@ -243,12 +244,16 @@ MyNode:
           debug: true     # see outputs of RealWeather, default: false
           metar:
             icao: URMM
+            runway-elevation: 50
+            add-to-brief: true
           options:
             update-time: true
             update-weather: true
             wind:
-              minimum: -1
-              maximum: -1
+              minimum: 0
+              maximum: 5
+              gust-minimum: 0
+              gust-maximum: 10
               stability: 0.143
             clouds:
               disallowed-presets:
@@ -256,8 +261,16 @@ MyNode:
                 - RainyPreset1
                 - RainyPreset2
                 - RainyPreset3
-            fog-allowed: true
-            dust-allowed: true
+            fog:
+              enabled: true
+              thickness-minimum: 0
+              thickness-maximum: 100
+              visibility-minimum: 1000
+              visibility-maximum: 4000
+            dust:
+              enabled: true
+              visibility-minimum: 300
+              visibility-maximum: 2000
 ```
 You can find a list of supported parameters in the config.json provided by DCS-real-weather.<br>
 > ⚠️ **Attention!**<br>

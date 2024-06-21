@@ -344,7 +344,3 @@ class UserStatisticsEventListener(EventListener):
                     """, (data['ucid'], ))
         except Exception as ex:
             self.log.exception(ex)
-
-    @chat_command(name="highscore", help="displays the current mission highscore")
-    async def highscore(self, server: Server, player: Player, params: list[str]):
-        ...

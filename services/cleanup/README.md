@@ -7,10 +7,10 @@ as you want to clean up in here.
 
 ```yaml
 DEFAULT:
-  dcs.log:
-    directory: "{instance.home}/Logs"
-    pattern: "*.*"
-    delete_after: 30
+  dcs.log:                                # Name (can be anything but needs to be unique)
+    directory: "{instance.home}/Logs"     # The directory to clean up
+    pattern: "*.*"                        # The pattern of the files to be cleaned up
+    delete_after: 30                      # The min age of the files to be deleted
   trackfiles:
     directory: "{instance.home}/Tracks/Multiplayer"
     pattern: "*.trk"
@@ -25,6 +25,7 @@ DCS.release_server:
   tacview:
     directory: "%USERPROFILE%/Documents/Tacview"
     pattern: "*.acmi"
+    recursive: true                       # If true, subdirectories will be included
     delete_after: 30
 ```
 These are just examples, feel free to add your own directories.

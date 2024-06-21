@@ -19,10 +19,13 @@ class Header(report.EmbedElement):
     async def render(self, member: Union[discord.Member, str]):
         sql = """
             SELECT p.first_seen, p.last_seen, 
-                   CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_until,
-                   p.watchlist, p.vip
+                   CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, b.reason as ban_reason, b.banned_by, 
+                   b.banned_until,
+                   CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlist, w.reason as watch_reason, 
+                   w.created_by, w.created_at, p.vip
             FROM players p 
             LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
+            LEFT OUTER JOIN watchlist w ON (w.player_ucid = p.ucid)
             WHERE p.discord_id = 
         """
         if isinstance(member, str):
@@ -47,46 +50,54 @@ class Header(report.EmbedElement):
                     # do we maybe have a permanent ban without a user?
                     if isinstance(member, str) and utils.is_ucid(member):
                         await cursor.execute("""
-                                                    SELECT 1 as banned, reason, banned_by, banned_until, 
-                                                           FALSE as watchlist, FALSE as vip 
-                                                    FROM bans WHERE ucid = %s
-                                                """, (member,))
+                            SELECT TRUE as banned, b.reason AS ban_reason, b.banned_by, b.banned_until, 
+                                   CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlist, 
+                                   w.reason as watch_reason, w.created_by, w.created_at, FALSE as vip 
+                            FROM bans b LEFT OUTER JOIN watchlist w
+                            ON b.ucid = w.player_ucid 
+                            WHERE ucid = %s
+                        """, (member,))
                         rows = await cursor.fetchall()
                         if not rows:
                             return
         self.embed.description = f'Information about '
         if isinstance(member, discord.Member):
             self.embed.description += 'member **{}**:'.format(utils.escape_string(member.display_name))
-            self.add_field(name='Discord ID:', value=member.id)
+            self.add_field(name='Discord', value=f"{member.mention}\nID: {member.id}")
         else:
             self.embed.description += 'a non-member user:'
         first_seen = datetime(2999, 12, 31)
         last_seen = datetime(1970, 1, 1)
-        banned = False
-        for row in rows:
-            if row.get('first_seen') and row['first_seen'] < first_seen:
-                first_seen = row['first_seen']
-            if row.get('last_seen') and row['last_seen'] > last_seen:
-                last_seen = row['last_seen']
-            if row['banned'] == 1:
-                banned = True
-        else:
+        banned = watchlist = False
+        if not rows:
             first_seen = last_seen = None
+        else:
+            for row in rows:
+                if row.get('first_seen') and row['first_seen'] < first_seen:
+                    first_seen = row['first_seen']
+                if row.get('last_seen') and row['last_seen'] > last_seen:
+                    last_seen = row['last_seen']
+                banned = row['banned'] or banned
+                watchlist = row['watchlist'] or watchlist
         if first_seen and last_seen:
             self.add_datetime_field('Last seen', last_seen.replace(tzinfo=timezone.utc))
             self.add_datetime_field('First seen', first_seen.replace(tzinfo=timezone.utc))
         if rows:
-            if rows[0]['watchlist']:
-                self.add_field(name='Watchlist', value="🔍")
             if rows[0]['vip']:
                 self.add_field(name="VIP", value="⭐")
-            if banned:
-                banned_until = rows[0]['banned_until']
-                if banned_until.year != 9999:
-                    banned_until = banned_until
-                self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
-                self.add_field(name='Banned by', value=rows[0]['banned_by'])
-                self.add_field(name='Reason', value=rows[0]['reason'])
+            if banned or watchlist:
+                self.add_field(name='▬' * 13 + ' Bans & Watches ' + '▬' * 13, value='_ _', inline=False)
+                if banned:
+                    banned_until = rows[0]['banned_until']
+                    if banned_until.year != 9999:
+                        banned_until = banned_until
+                    self.add_field(name='Reason', value=rows[0]['ban_reason'])
+                    self.add_field(name='Banned by', value=rows[0]['banned_by'])
+                    self.add_datetime_field('Ban expires', banned_until.replace(tzinfo=timezone.utc))
+                if watchlist:
+                    self.add_field(name='Reason', value=rows[0]['watch_reason'])
+                    self.add_field(name='Watched by', value=rows[0]['created_by'])
+                    self.add_datetime_field('Watched at', rows[0]['created_at'].replace(tzinfo=timezone.utc))
         else:
             self.add_field(name="Link status", value="Unlinked")
 
@@ -133,7 +144,6 @@ class History(report.EmbedElement):
                 f'{row["time"].replace(tzinfo=timezone.utc).strftime("%y-%m-%d %H:%Mz")} / '
                 f'<t:{int(row["time"].replace(tzinfo=timezone.utc).timestamp())}:R>' for row in rows
             ]))
-            self.add_field(name='_ _', value='_ _')
 
 
 class ServerInfo(report.EmbedElement):
@@ -147,6 +157,7 @@ class ServerInfo(report.EmbedElement):
 
 class Footer(report.EmbedElement):
     async def render(self, member: Union[discord.Member, str], banned: bool, watchlist: bool, player: Optional[Player]):
+        self.add_field(name='▬' * 33, value='_ _', inline=False)
         footer = ''
         if isinstance(member, discord.Member):
             _member = DataObjectFactory().new(Member, name=member.name, node=self.node, member=member)

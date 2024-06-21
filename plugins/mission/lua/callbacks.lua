@@ -44,6 +44,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         return false, config.MESSAGE_PLAYER_DEFAULT_USERNAME
     end
     local name2 = name:gsub("[\r\n%z]", "")
+    -- local name2 = name:gsub("[%c]", "")
     if name ~= name2 then
         return false, config.MESSAGE_PLAYER_USERNAME
     end
@@ -158,6 +159,7 @@ function mission.onPlayerStart(id)
         id = id,
         ucid = net.get_player_info(id, 'ucid'),
         name = net.get_player_info(id, 'name'),
+        ipaddr = utils.getIP(net.get_player_info(id, 'ipaddr')),
         side = 0,
         slot = -1,
         sub_slot = -1

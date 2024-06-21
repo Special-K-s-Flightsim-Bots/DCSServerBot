@@ -196,7 +196,7 @@ class Main:
                                     asyncio.create_task(service.switch())
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
-                    self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
+                    self.log.info(f"I am the {'Master' if self.node.master else 'Agent'} now.")
             except Exception as ex:
                 self.log.exception(ex)
                 self.log.warning("Aborting the main loop.")
@@ -254,7 +254,7 @@ if __name__ == "__main__":
         log.error(f"Did you run DCSServerBot as Admin before? If yes, delete dcssb_{args.node}.pid and try again.")
         exit(-2)
     except PidFileError:
-        log.error(f"[red]Process already running for node {args.node}![/]")
+        log.error(f"Process already running for node {args.node}!")
         log.error(f"If you are sure there is no 2nd process running, delete dcssb_{args.node}.pid and try again.")
         # do not restart again
         exit(-2)

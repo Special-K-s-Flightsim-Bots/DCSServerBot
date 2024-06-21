@@ -59,6 +59,36 @@ class LotAtc(Plugin):
             self.log.exception(ex)
             return None
 
+    # New command group "/lotatc"
+    lotatc = Group(name="lotatc", description=_("Commands to manage LotAtc"))
+
+    @lotatc.command(description=_('Update LotAtc'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def update(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        try:
+            version = await server.run_on_extension(extension='LotAtc', method='check_for_updates')
+        except ValueError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Extension LotAtc is not loaded on server {}").format(
+                server.display_name), ephemeral=True)
+            return
+        if version:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer(ephemeral=ephemeral)
+            await interaction.followup.send(_("LotAtc update to version {} available!").format(version))
+            if not utils.yn_question(interaction, _("Do you want to update LotAtc now?")):
+                await interaction.followup.send(_("Aborted."))
+                return
+            await server.run_on_extension(extension='LotAtc', method='do_update')
+            await interaction.followup.send(_("LotAtc updated to version {}.").format(version))
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("No update for LotAtc available."))
+
     # New command group "/gci"
     gci = Group(name="gci", description=_("Commands to manage GCIs"))
 

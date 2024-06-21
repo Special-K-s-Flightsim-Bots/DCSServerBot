@@ -87,8 +87,9 @@ All templates can be amended if copied into /reports/userstats.
 Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to 
 disable them forever. To do so, you can just disable the statistics gathering from inside your mission:
 ```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  dcsbot.disableUserStats()
+if dcsbot then
+    dcsbot.disableUserStats()
+end 
 ```
 
 ## Tables

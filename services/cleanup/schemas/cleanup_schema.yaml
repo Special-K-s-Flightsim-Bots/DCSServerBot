@@ -1,13 +1,14 @@
 schema;master_schema:
   type: map
-  allowempty: true
   mapping:
     regex;(.+):
       type: map
+      allowempty: true
       mapping:
-        directory: {type: str, required: true}
-        pattern: {type: any, required: true}
-        delete_after: {type: int, required: true}
+        directory: {type: str}
+        pattern: {type: any}
+        recursive: {type: bool}
+        delete_after: {type: int, range: {min: 1}}
 
 type: map
 mapping:

@@ -9,14 +9,17 @@ from core.data.impl.nodeimpl import NodeImpl
 
 class PubSub:
 
-    def __init__(self, node: NodeImpl, name: str, url: str):
+    def __init__(self, node: NodeImpl, name: str, url: str, handler: Callable):
         self.node = node
         self.name = name
         self.log = node.log
         self.url = url
-        self.queue = asyncio.Queue()
+        self.handler = handler
+        self.read_queue = asyncio.Queue()
+        self.write_queue = asyncio.Queue()
         self._stop_event = asyncio.Event()
-        self._worker = asyncio.create_task(self._process_write())
+        self.read_worker = asyncio.create_task(self._process_read())
+        self.write_worker = asyncio.create_task(self._process_write())
 
     async def _process_write(self):
         await asyncio.sleep(1)  # Ensure the rest of __init__ has finished
@@ -24,7 +27,7 @@ class PubSub:
             with suppress(psycopg.OperationalError):
                 async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
                     while not self._stop_event.is_set():
-                        message = await self.queue.get()
+                        message = await self.write_queue.get()
                         if not message:
                             return
                         try:
@@ -34,39 +37,55 @@ class PubSub:
                             """, message)
                         finally:
                             # Notify the queue that the message has been processed.
-                            self.queue.task_done()
+                            self.write_queue.task_done()
 
-    async def _process_read(self, cursor: psycopg.AsyncCursor, handler: Callable):
-        ids_to_delete = []
-        await cursor.execute(f"""
-            SELECT id, data 
-            FROM {self.name} 
-            WHERE guild_id = %(guild_id)s AND node = %(node)s 
-            ORDER BY id
-        """, {
-            'guild_id': self.node.guild_id,
-            'node': "Master" if self.node.master else self.node.name
-        })
-        async for row in cursor:
-            try:
-                # noinspection PyAsyncCall
-                asyncio.create_task(handler(row[1]))
-            except Exception as ex:
-                self.log.exception(ex)
-            finally:
-                ids_to_delete.append(row[0])
-        if ids_to_delete:
-            await cursor.execute(f"DELETE FROM {self.name} WHERE id = ANY(%s::int[])",
-                                 (ids_to_delete,))
+    async def _process_read(self):
+        async def do_read():
+            ids_to_delete = []
+            cursor = await conn.execute(f"""
+                SELECT id, data 
+                FROM {self.name} 
+                WHERE guild_id = %(guild_id)s AND node = %(node)s 
+                ORDER BY id
+            """, {
+                'guild_id': self.node.guild_id,
+                'node': "Master" if self.node.master else self.node.name
+            })
+            async for row in cursor:
+                try:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(self.handler(row[1]))
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    ids_to_delete.append(row[0])
+            if ids_to_delete:
+                await conn.execute(f"DELETE FROM {self.name} WHERE id = ANY(%s::int[])", (ids_to_delete,))
 
-    async def subscribe(self, handler: Callable):
+        await asyncio.sleep(1)  # Ensure the rest of __init__ has finished
+        while not self._stop_event.is_set():
+            with suppress(psycopg.OperationalError):
+                async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
+                    while not self._stop_event.is_set():
+                        try:
+                            # we will read every 5s independent if there is data in the queue or not
+                            if not await asyncio.wait_for(self.read_queue.get(), timeout=5.0):
+                                return
+                            try:
+                                await do_read()
+                            finally:
+                                # Notify the queue that the message has been processed.
+                                self.read_queue.task_done()
+                        except (TimeoutError, asyncio.TimeoutError):
+                            await do_read()
+
+    async def subscribe(self):
         while not self._stop_event.is_set():
             with suppress(psycopg.OperationalError):
                 async with await psycopg.AsyncConnection.connect(self.url, autocommit=True) as conn:
                     async with conn.cursor() as cursor:
                         # preprocess all rows that might be there
                         await cursor.execute(f"LISTEN {self.name}")
-                        await self._process_read(cursor, handler)
                         gen = conn.notifies()
                         async for n in gen:
                             if self._stop_event.is_set():
@@ -75,12 +94,12 @@ class PubSub:
                                 return
                             node = n.payload
                             if node == self.node.name or (self.node.master and node == 'Master'):
-                                await self._process_read(cursor, handler)
+                                self.read_queue.put_nowait(n.payload)
             await asyncio.sleep(1)
 
     async def publish(self, data: dict) -> None:
         """Add a message to the queue."""
-        self.queue.put_nowait(data)
+        self.write_queue.put_nowait(data)
 
     async def clear(self):
         async with self.node.apool.connection() as conn:
@@ -100,5 +119,7 @@ class PubSub:
 
     async def close(self):
         self._stop_event.set()
-        self.queue.put_nowait(None)
-        await self._worker
+        self.write_queue.put_nowait(None)
+        await self.write_worker
+        self.read_queue.put_nowait(None)
+        await self.read_worker

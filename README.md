@@ -251,12 +251,12 @@ for the sake of documentation.
 This file holds the main information about DCSServerBot. You can configure which plugins are loaded here for instance.
 
 ```yaml
-guild_id: 112233445566  # Your Discord server ID. Right click on your server and select "Copy Server ID".
-autoupdate: true        # use the bots autoupdate functionality, default is false
-use_dashboard: true     # Use the dashboard display for your node. Default is true.
-chat_command_prefix: .  # The command prefix to be used for in-game chat commands. Default is "."
-mission_rewrite: false  # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
-language: de            # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
+guild_id: 112233445566    # Your Discord server ID. Right click on your server and select "Copy Server ID".
+autoupdate: true          # use the bots autoupdate functionality, default is false
+use_dashboard: true       # Use the dashboard display for your node. Default is true.
+chat_command_prefix: '-'  # The command prefix to be used for in-game chat commands. Default is "-"
+mission_rewrite: false    # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
+language: de              # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
 database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
   pool_min: 5           # min size of the DB pool, default is 5
@@ -266,6 +266,7 @@ logging:
   loglevel: DEBUG           # loglevel, default is DEBUG
   logrotate_count: 5        # Number of logfiles to keep after rotation. Default is 5.    
   logrotate_size: 10485760  # max size of a logfile, default is 10 MB
+  utc: true                 # log in UTC (default: true), use local time otherwise
 messages:
   player_username: Your player name contains invalid characters. Please change your # Default message for players with invalid usernames
     name to join our server.
@@ -348,6 +349,13 @@ DEFAULT:
   message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
+  rules: |                      # Optional: Rules to be displayed for new users (needs MissionStats enabled!)
+    These are the rules to play on this server:
+    1) Do not team-kill
+    2) Do not harass people
+    3) Be a decent human being
+    4) ...
+  accept_rules_on_join: true    # True, if rules have to be acknowledged (players will be moved to spectators otherwise, default: false)
 My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
   afk_time: 300                 # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled

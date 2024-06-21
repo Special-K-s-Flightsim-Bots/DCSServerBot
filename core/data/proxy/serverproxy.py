@@ -1,5 +1,5 @@
 from __future__ import annotations
-from core import Server, Status, utils
+from core import Server, Status, utils, Coalition
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from typing import Optional, Union
@@ -96,7 +96,7 @@ class ServerProxy(Server):
         self._extensions = None
 
     async def shutdown_extensions(self) -> None:
-        timeout = 60 if not self.node.slow_system else 120
+        timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
@@ -269,6 +269,31 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
+    async def setPassword(self, password: str):
+        timeout = 60 if not self.node.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setPassword",
+            "server_name": self.name,
+            "params": {
+                "password": password
+            }
+        }, timeout=timeout, node=self.node.name)
+
+    async def setCoalitionPassword(self, coalition: Coalition, password: str):
+        timeout = 60 if not self.node.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setCoalitionPassword",
+            "server_name": self.name,
+            "params": {
+                "coalition": coalition.value,
+                "password": password
+            }
+        }, timeout=timeout, node=self.node.name)
+
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
@@ -331,3 +356,18 @@ class ServerProxy(Server):
                 "modify_mission": modify_mission
             }
         }, timeout=timeout, node=self.node.name)
+
+    async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
+        timeout = 180 if not self.node.slow_system else 300
+        params = {
+            "extension": extension,
+            "method": method
+        } | kwargs
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "run_on_extension",
+            "server_name": self.name,
+            "params": params
+        }, timeout=timeout, node=self.node.name)
+        return data['return']

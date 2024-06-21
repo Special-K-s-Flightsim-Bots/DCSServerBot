@@ -1,6 +1,7 @@
 import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import discord
 import glob
@@ -61,6 +62,19 @@ LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 # Internationalisation
 _ = get_translation('core')
 
+# Default Plugins
+DEFAULT_PLUGINS = [
+    "mission",
+    "scheduler",
+    "help",
+    "admin",
+    "userstats",
+    "missionstats",
+    "creditsystem",
+    "gamemaster",
+    "cloud"
+]
+
 
 class NodeImpl(Node):
 
@@ -86,9 +100,7 @@ class NodeImpl(Node):
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
-        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', [
-            "mission", "scheduler", "help", "admin", "userstats", "missionstats", "creditsystem", "gamemaster", "cloud"
-        ])]
+        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
         for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
             if plugin not in self.plugins:
                 self.plugins.append(plugin)
@@ -112,13 +124,8 @@ class NodeImpl(Node):
     async def post_init(self):
         self.pool, self.apool = await self.init_db()
         try:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                        ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                    """, (self.guild_id, self.name))
             self._master = await self.heartbeat()
+            self.log.info("- Starting as {} ...".format("Single / Master" if self._master else "Agent"))
         except (UndefinedTable, NotNullViolation, InFailedSqlTransaction):
             # some master tables have changed, so do the update first
             self._master = True
@@ -181,10 +188,11 @@ class NodeImpl(Node):
         self.is_shutdown.set()
 
     async def restart(self):
-        self.log.info("Restarting ...")
-        await ServiceRegistry.shutdown()
-        await self.close_db()
-        os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
+        def _restart():
+            self.log.info("Restarting ...")
+            os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
+        atexit.register(_restart)
+        await self.shutdown()
 
     def read_locals(self) -> dict:
         _locals = dict()
@@ -253,6 +261,7 @@ class NodeImpl(Node):
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
+        self.log.debug("- Initializing database pools ...")
         db_pool = ConnectionPool(url, min_size=2, max_size=4, check=ConnectionPool.check_connection, max_idle=max_idle,
                                  timeout=timeout, open=False)
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
@@ -261,6 +270,7 @@ class NodeImpl(Node):
         # we need to open the pools directly in here
         db_pool.open()
         await db_apool.open()
+        self.log.debug("- Database pools initialized.")
         return db_pool, db_apool
 
     async def close_db(self):
@@ -386,6 +396,10 @@ class NodeImpl(Node):
         return rc
 
     async def upgrade(self):
+        def _upgrade():
+            self.log.info("Starting the updater ...")
+            os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
+
         # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
         if not self.master and self.locals.get('cloud_drive', True):
             await self.restart()
@@ -396,9 +410,8 @@ class NodeImpl(Node):
                     async with conn.transaction():
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
-            await ServiceRegistry.shutdown()
-            await self.close_db()
-            os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
+            atexit.register(_upgrade)
+            await self.shutdown()
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
@@ -618,7 +631,7 @@ class NodeImpl(Node):
             return (row['now'] - row['last_seen']).total_seconds() > timeout
 
         try:
-            async with self.apool.connection() as conn:
+            async with (self.apool.connection() as conn):
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
                         try:
@@ -628,9 +641,10 @@ class NodeImpl(Node):
                             """, (self.guild_id, ))
                             all_nodes = await cursor.fetchall()
                             await cursor.execute("""
-                                SELECT c.master, c.version, c.update_pending 
-                                FROM cluster c, nodes n 
-                                WHERE c.guild_id = %s AND c.guild_id = n.guild_id AND c.master = n.node
+                                SELECT c.master, c.version, c.update_pending, n.node 
+                                FROM cluster c LEFT OUTER JOIN nodes n
+                                ON c.guild_id = n.guild_id AND c.master = n.node
+                                WHERE c.guild_id = %s
                             """, (self.guild_id, ))
                             cluster = await cursor.fetchone()
                             # No master there? we take it!
@@ -648,7 +662,9 @@ class NodeImpl(Node):
                                 if cluster['update_pending']:
                                     if not await self.upgrade_pending():
                                         # we have just finished updating, so restart all other nodes (if there are any)
-                                        for node in await self.get_active_nodes():
+                                        for row in all_nodes:
+                                            if row['node'] == self.name or has_timeout(row, self.locals.get('heartbeat', 60)):
+                                                continue
                                             # TODO: we might not have bus access here yet, so be our own bus (dirty)
                                             data = {
                                                 "command": "rpc",
@@ -657,14 +673,16 @@ class NodeImpl(Node):
                                             }
                                             await conn.execute("""
                                                 INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
-                                            """, (self.guild_id, node, Json(data)))
+                                            """, (self.guild_id, row['node'], Json(data)))
                                         # clear the update flag
                                         await cursor.execute("""
                                             UPDATE cluster SET update_pending = FALSE, version = %s WHERE guild_id = %s
                                         """, (__version__, self.guild_id))
                                     else:
                                         # something went wrong, we need to upgrade again
-                                        await self.upgrade()
+                                        # noinspection PyAsyncCall
+                                        asyncio.create_task(self.upgrade())
+                                        return True
                                 elif version.parse(cluster['version']) != version.parse(__version__):
                                     if version.parse(cluster['version']) > version.parse(__version__):
                                         self.log.warning(
@@ -702,7 +720,12 @@ class NodeImpl(Node):
                                 return True
                             # we are not the master, the update is pending, we will not take over
                             elif cluster['update_pending']:
+                                self.log.debug("A bot update is in progress. We will not take over the master node.")
                                 return False
+                            elif not cluster['node']:
+                                await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
+                                                     (self.name, self.guild_id))
+                                return True
                             # we have a version mismatch on the agent, a cloud sync might still be pending
                             if version.parse(__version__) < version.parse(cluster['version']):
                                 self.log.error(f"We are running version {__version__} where the master is on version "
@@ -731,7 +754,7 @@ class NodeImpl(Node):
                                 if row['node'] == self.name:
                                     continue
                                 if row['node'] == cluster['master']:
-                                    if has_timeout(row, self.locals.get('heartbeat', 30)):
+                                    if has_timeout(row, self.locals.get('heartbeat', 30) * 2):
                                         # the master is dead, long live the master
                                         await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
                                                              (self.name, self.guild_id))
@@ -748,7 +771,8 @@ class NodeImpl(Node):
                             return self.master
                         finally:
                             await cursor.execute("""
-                                UPDATE nodes SET last_seen = NOW() AT TIME ZONE 'UTC' WHERE guild_id = %s AND node = %s
+                                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
+                                ON CONFLICT (guild_id, node) DO UPDATE SET last_seen = (NOW() AT TIME ZONE 'UTC')
                             """, (self.guild_id, self.name))
         except OperationalError as ex:
             self.log.error(ex)

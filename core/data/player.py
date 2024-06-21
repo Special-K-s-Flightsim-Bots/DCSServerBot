@@ -26,6 +26,7 @@ class Player(DataObject):
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
+    ipaddr: str
     banned: bool = field(compare=False, default=False, init=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
@@ -56,9 +57,11 @@ class Player(DataObject):
                 with closing(conn.cursor()) as cursor:
                     cursor.execute("""
                         SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
-                               p.manual, c.coalition, p.watchlist, p.vip 
+                               p.manual, c.coalition, 
+                               CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                         LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
+                        LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
                         WHERE p.ucid = %s 
                         AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
                     """, (self.ucid, ))
@@ -73,6 +76,15 @@ class Player(DataObject):
                             self.coalition = Coalition(row[3])
                         self._watchlist = row[4]
                         self._vip = row[5]
+                    else:
+                        rules = self.server.locals.get('rules')
+                        if rules:
+                            cursor.execute("""
+                                INSERT INTO messages (sender, player_ucid, message, ack) 
+                                VALUES (%s, %s, %s, %s)
+                            """, (self.server.locals.get('server_user', 'Admin'), self.ucid, rules,
+                                  self.server.locals.get('accept_rules_on_join', False)))
+
                     cursor.execute("""
                         INSERT INTO players (ucid, discord_id, name, last_seen) 
                         VALUES (%s, -1, %s, (now() AT TIME ZONE 'utc')) 
@@ -135,16 +147,6 @@ class Player(DataObject):
     @property
     def watchlist(self) -> bool:
         return self._watchlist
-
-    @watchlist.setter
-    def watchlist(self, watchlist: bool):
-        self.update_watchlist(watchlist)
-        self._watchlist = watchlist
-
-    def update_watchlist(self, watchlist: bool) -> None:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE players SET watchlist = %s WHERE ucid = %s', (watchlist, self.ucid))
 
     @property
     def vip(self) -> bool:
@@ -219,6 +221,8 @@ class Player(DataObject):
                     self.group_id = data['group_id']
                 if 'unit_display_name' in data:
                     self.unit_display_name = data['unit_display_name']
+                if 'ipaddr' in data:
+                    self.ipaddr = data['ipaddr']
                 await conn.execute("""
                     UPDATE players SET last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE ucid = %s
@@ -286,3 +290,31 @@ class Player(DataObject):
             await self.member.remove_roles(_role)
         except discord.Forbidden:
             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+
+    def check_exemptions(self, exemptions: Union[dict, list]) -> bool:
+        def _check_exemption(exemption: dict) -> bool:
+            if 'ucid' in exemption:
+                if not isinstance(exemption['ucid'], list):
+                    ucids = [exemption['ucid']]
+                else:
+                    ucids = exemption['ucid']
+                if self.ucid in ucids:
+                    return True
+            if 'discord' in exemption:
+                if not self.member:
+                    return False
+                if not isinstance(exemption['discord'], list):
+                    roles = [exemption['discord']]
+                else:
+                    roles = exemption['discord']
+                if utils.check_roles(roles, self.member):
+                    return True
+            return False
+
+        if isinstance(exemptions, list):
+            ret = False
+            for exemption in exemptions:
+                ret = _check_exemption(exemption) | ret
+        else:
+            ret = _check_exemption(exemptions)
+        return ret

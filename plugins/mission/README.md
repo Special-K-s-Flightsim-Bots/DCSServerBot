@@ -20,12 +20,15 @@ You can configure the behaviour of the mission plugin with an optional config/pl
 DEFAULT:
   greeting_message_members: "{player.name}, welcome back to {server.name}!"
   greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
-  uploads:          # Configure how mission uploads are handled
-    enabled: true   # Here you can disable the feature at all (default: true = enabled)
+  uploads:              # Configure how mission uploads are handled
+    enabled: true       # Here you can disable the feature at all (default: true = enabled)
     discord:
-      - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
-  afk_exemptions:   # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
-    - aabbccddeeff1122334455
+      - DCS Admin       # Define which roles are allowed to upload missions (default: DCS Admin)
+  afk_exemptions:       # List of UCIDs that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
+    ucid:
+      - aabbccddeeff1122334455
+    discord:
+      - Donators        # DCS Admin and GameMaster are automatically exempted from AFK kicks
   usage_alarm:
     min_threshold: 30   # send a message, if less than 30 people fly on your server
     max_threshold: 10   # send a message, if more than 10 people fly on your server
@@ -38,7 +41,6 @@ If you set `autoscan: true` in your server configuration of your servers.yaml, a
 Missions folder of your DCS-server (for instance via a Google Drive) will be auto-added to your mission list.
 
 ## Discord Commands
-
 | Command               | Parameter           | Channel               | Role                  | Description                                                                                                                                |
 |-----------------------|---------------------|-----------------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
 | /linkme               |                     | all                   | DCS                   | Link a discord user to a DCS user (user self-service).                                                                                     |
@@ -71,23 +73,23 @@ Missions folder of your DCS-server (for instance via a Google Drive) will be aut
 | /player inactive      | period number       | admin-channel         | DCS Admin             | Show users that are inactive for a specific amount of time.                                                                                |
 | /player chat          | player message      | admin-channel         | DCS Admin, GameMaster | Sends a in-game chat message to the respective player.                                                                                     |
 | /player popup         | player message      | admin-channel         | DCS Admin, GameMaster | Sends a popup message to the respective player.                                                                                            |
-| /player watch         | player              | admin-channel         | DCS Admin             | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                                     |
-| /player unwatch       | player              | admin-channel         | DCS Admin             | Removes a user from the watchlist.                                                                                                         |
+| /watch add            | player reason       | admin-channel         | DCS Admin             | Puts a player on the watchlist. Everytime they join, it will be reported to DCS Admin.                                                     |
+| /watch delete         | player              | admin-channel         | DCS Admin             | Removes a user from the watchlist.                                                                                                         |
+| /watch list           |                     | admin-channel         | DCS Admin             | Lists all active watches.                                                                                                                  |
 
 ## In-Game Chat Commands
-
 | Command  | Parameter     | Role      | Description                                                                      |
 |----------|---------------|-----------|----------------------------------------------------------------------------------|
-| .linkme  | token         | all       | Links your DCS user to a Discord user (/linkme in Discord has to be used first). |
-| .911     | message       | all       | Send a message to the DCS Admin role.                                            |
-| .atis    | airport       | all       | Shows the respective airports ATIS information.                                  |
-| .restart | time          | DCS Admin | Restarts the current mission after [time] seconds.                               |
-| .list    |               | DCS Admin | Lists missions available to .load                                                |
-| .load    | num           | DCS Admin | Loads the mission number `num` from the mission `.list`                          |
-| .ban     | name [reason] | DCS Admin | Ban player `name` with reason [reason] from **all** DCS servers.                 |
-| .kick    | name [reason] | DCS Admin | Kicks player `name` with reason [reason].                                        |
-| .spec    | name [reason] | DCS Admin | Moves player `name` back to spectators.                                          |
-| .preset  | [preset id]   | DCS Admin | List or loads the respective preset.                                             |
+| -linkme  | token         | all       | Links your DCS user to a Discord user (/linkme in Discord has to be used first). |
+| -911     | message       | all       | Send a message to the DCS Admin role.                                            |
+| -atis    | airport       | all       | Shows the respective airports ATIS information.                                  |
+| -restart | time          | DCS Admin | Restarts the current mission after [time] seconds.                               |
+| -list    |               | DCS Admin | Lists missions available to .load                                                |
+| -load    | num           | DCS Admin | Loads the mission number `num` from the mission `.list`                          |
+| -ban     | name [reason] | DCS Admin | Ban player `name` with reason [reason] from **all** DCS servers.                 |
+| -kick    | name [reason] | DCS Admin | Kicks player `name` with reason [reason].                                        |
+| -spec    | name [reason] | DCS Admin | Moves player `name` back to spectators.                                          |
+| -preset  | [preset id]   | DCS Admin | List or loads the respective preset.                                             |
 
 ## Tables
 ### Players

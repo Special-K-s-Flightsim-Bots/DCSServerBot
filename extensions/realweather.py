@@ -43,8 +43,11 @@ class RealWeather(Extension):
         rw_home = os.path.expandvars(self.config['installation'])
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
-        with open(os.path.join(rw_home, 'config.json'), mode='r', encoding='utf-8') as infile:
-            cfg = json.load(infile)
+        try:
+            with open(os.path.join(rw_home, 'config.json'), mode='r', encoding='utf-8') as infile:
+                cfg = json.load(infile)
+        except json.JSONDecodeError as ex:
+            raise RealWeatherException(f"Error while reading {os.path.join(rw_home, 'config.json')}: {ex}")
         config = self.get_config(filename)
         # create proper configuration
         for name, element in cfg.items():

@@ -335,19 +335,41 @@ msgstr "Nachricht gesendet."
 msgid "Sends a chat message to a player\n"
 msgstr "Sendet einem Spieler eine Nachricht\n"
 
-# /player watch
-msgid "Adds a player to the watchlist"
-msgstr "Fügt Spieler der Watchliste hinzu"
+# /watch add
+msgid "Puts a player onto the watchlist"
+msgstr "Fügt Spieler zur Watchliste hinzu"
+
+msgid "Member {} is not linked!"
+msgstr "Spieler {} hat seine Accounts nicht verknüpft!"
+
+msgid "Player {} was already on the watchlist."
+msgstr "Spieler {} war bereits auf der Watchliste."
 
 msgid "Player {} is now on the watchlist."
 msgstr "Spieler {} ist jetzt auf der Watchliste."
 
-# /player unwatch
+# /watch delete
 msgid "Removes a player from the watchlist"
-msgstr "Entfernt Spieler von der Watchliste"
+msgstr "Löscht Spieler von der Watchliste"
 
-msgid "Player {} removed from watchlist."
-msgstr "Spieler {} von der Watchliste entfernt."
+msgid "Player {} removed from the watchlist."
+msgstr "Spieler {} von der Watchliste gelöscht."
+
+# /watch list
+msgid "Shows the watchlist"
+msgstr "Zeigt die Watchliste an"
+
+msgid "The watchlist is currently empty."
+msgstr "Die Watchliste ist leer."
+
+msgid "These players are currently on the watchlist:"
+msgstr "Diese Spieler sind zurzeit auf der Watchliste:"
+
+msgid "UCID"
+msgstr "UCID"
+
+msgid "Created by"
+msgstr "Erzeugt von"
 
 # / group
 msgid "Commands to manage DCS groups"

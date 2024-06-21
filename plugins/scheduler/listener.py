@@ -135,21 +135,22 @@ class SchedulerListener(EventListener):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
-        if server.restart_pending:
-            restart = self.get_config(server).get('restart')
-            if restart:
-                restart_in, rconf = self.get_next_restart(server, restart)
-                # do not print any chat message when the server is set to restart on populated = False
-                if not rconf.get('populated', True):
-                    return
-                restart_time = f"in {utils.format_time(restart_in)}"
-            else:
-                restart_time = 'soon'
-            player: Player = server.get_player(ucid=data['ucid'])
-            if player:
-                # noinspection PyAsyncCall
-                asyncio.create_task(player.sendChatMessage(
-                    "*** Mission is about to be restarted {}! ***".format(restart_time)))
+        restart = self.get_config(server).get('restart')
+        if restart:
+            restart_in, rconf = self.get_next_restart(server, restart)
+            # do not print any chat message when the server is set to restart on populated = False
+            if not rconf.get('populated', True):
+                return
+            restart_time = f"in {utils.format_time(restart_in)}"
+        elif server.restart_pending:
+            restart_time = 'soon!'
+        else:
+            return
+        player: Player = server.get_player(ucid=data['ucid'])
+        if player:
+            # noinspection PyAsyncCall
+            asyncio.create_task(player.sendChatMessage(
+                "Server will restart {}".format(restart_time)))
 
     @event(name="onSimulationPause")
     async def onSimulationPause(self, server: Server, _: dict) -> None:

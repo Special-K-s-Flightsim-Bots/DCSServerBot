@@ -45,9 +45,10 @@ class PerformanceLog(ContextDecorator):
             self.logger.info('Function {} profiling results:\n{}'.format(self.func_name, profiling_results))
 
         if exc_type is not None:
+            self.logger.error('> {:.2f}s\t{}'.format(execution_time, self.func_name))
             tb_lines = traceback.format_exception(exc_type, exc_val, exc_tb)
             self.logger.error('An error occurred in {}: {}\n{}'.format(self.func_name, exc_val, ''.join(tb_lines)))
-        elif execution_time > 1:
+        elif execution_time > 30:
             self.logger.warning('{:.2f}s\t{}'.format(execution_time, self.func_name))
         elif execution_time != 0:
             self.logger.info('{:.2f}s\t{}'.format(execution_time, self.func_name))

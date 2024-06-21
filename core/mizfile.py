@@ -84,6 +84,7 @@ class MizFile:
             os.remove(tmpname)
         except PermissionError as ex:
             self.log.error(f"Can't write new mission file: {ex}")
+            raise
 
     def apply_preset(self, preset: Union[dict, list]):
         if isinstance(preset, list):
@@ -247,6 +248,14 @@ class MizFile:
         self.mission['requiredModules'] = values
 
     @property
+    def failures(self) -> dict:
+        return self.mission['failures']
+
+    @failures.setter
+    def failures(self, values: dict) -> None:
+        self.mission['failures'] = values
+
+    @property
     def accidental_failures(self) -> bool:
         return self.mission['forcedOptions']['accidental_failures'] if 'forcedOptions' in self.mission else False
 
@@ -260,7 +269,7 @@ class MizFile:
             }
         else:
             self.mission['forcedOptions']['accidental_failures'] = value
-        self.mission['failures'] = []
+        self.failures = {}
 
     @property
     def forcedOptions(self) -> dict:
@@ -335,7 +344,7 @@ class MizFile:
                     kkwargs = element
                 else:
                     kkwargs = {}
-                if not element:
+                if element is None:
                     if reference and 'insert' in config:
                         if debug:
                             self.log.debug(f"Inserting new value: {config['insert']}")
@@ -368,7 +377,10 @@ class MizFile:
                         if debug:
                             self.log.debug(f"Merging {_what} with {_with}")
                         if isinstance(_with, dict):
-                            element[_what] |= _with
+                            if not element[_what]:
+                                element[_what] = _with
+                            else:
+                                element[_what] |= _with
                         else:
                             for value in utils.for_each(self.mission, _with[1:].split('/'), debug=debug, **kwargs):
                                 if isinstance(element[_what], dict):

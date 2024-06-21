@@ -39,6 +39,17 @@ schema;master_schema:
           mapping:
             days: {type: int, range: {min: 0}, required: true}
             weight: {type: float}
+    exemptions:
+      type: map
+      mapping:
+        ucid:
+          type: seq
+          sequence:
+            - type: str
+        discord:
+          type: seq
+          sequence:
+            - type: text
 
 type: map
 mapping:

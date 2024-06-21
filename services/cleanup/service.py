@@ -2,7 +2,7 @@ import asyncio
 import os
 import time
 
-from core import ServiceRegistry, Service, utils, DEFAULT_TAG, Instance
+from core import ServiceRegistry, Service, utils, Instance
 from discord.ext import tasks
 from pathlib import Path
 
@@ -20,23 +20,20 @@ class CleanupService(Service):
         self.schedule.cancel()
         await super().stop()
 
-    def get_cfg_by_instance(self, instance: Instance) -> dict:
-        if instance.name not in self._config:
-            self._config[instance.name] = (self.locals.get(DEFAULT_TAG, {}) | self.locals.get(instance.name, {}))
-        return self._config[instance.name]
-
     def do_cleanup(self, instance: Instance, now: time) -> None:
-        for name, config in self.get_cfg_by_instance(instance).items():
+        for name, config in self.get_config(instance.server).items():
             self.log.debug(f"- Running cleanup for {name} ...")
-            directory = Path(os.path.expandvars(utils.format_string(config['directory'], node=self.node,
-                                                                    instance=instance)))
+            directory = Path(
+                os.path.expandvars(utils.format_string(config['directory'], node=self.node, instance=instance)))
             delete_after = int(config.get('delete_after', 30))
             threshold_time = now - delete_after * 86400
             patterns = config['pattern']
+            recursive = config.get('recursive', False)
             if not isinstance(patterns, list):
                 patterns = [patterns]
             for pattern in patterns:
-                for file_path in directory.glob(pattern):
+                search_pattern = f"**/{pattern}" if recursive else pattern
+                for file_path in directory.glob(search_pattern):
                     if os.path.getctime(file_path) < threshold_time:
                         self.log.debug(f"  => {file_path.name} is older then {delete_after} days, deleting ...")
                         utils.safe_rmtree(file_path)
