@@ -26,7 +26,7 @@ schema;master_schema:
         mission_time: {type: int, range: {min: 1}}
         max_mission_time: {type: int, range: {min: 1}}
         real_time: {type: int, range: {min: 1}}
-        method: {type: str, enum: ['restart', 'rotate', 'restart_with_shutdown']}
+        method: {type: str, enum: ['restart', 'rotate', 'shutdown', 'restart_with_shutdown']}
         populated: {type: bool}
         mission_end: {type: bool}
         onMissionStart: {type: str}
