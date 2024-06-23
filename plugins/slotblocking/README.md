@@ -37,6 +37,10 @@ DEFAULT:            # Default section - true for all your servers.
   - unit_type: observer
     discord: '@everyone'  # Only the "everyone" role needs the @ at the beginning, all other roles don't.
     message: This slot is reserved for members of http://invite.link!
+  balancing:              # Optional: Allows balancing for your server (blue vs red)
+    blue_vs_red: 0.5      # 50% balance blue vs red
+    threshold: 0.1        # 10% threshold until slots are blocked
+    message: You need to take a slot of the opposite coalition to keep the balance!
 DCS.release_server:
   restricted:             # in this example we restrict by credit points
   - group_name: Rookie    # this tag has to be in the group name of the respective units (best is to prepend it)

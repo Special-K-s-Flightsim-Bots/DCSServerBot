@@ -11,7 +11,7 @@ certifi==2024.6.2
 croniter==2.0.5
 
 # discord.py: The python interface for the Discord API
-discord.py==2.3.2
+discord.py==2.4.0
 
 # eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
 eyeD3==0.9.7

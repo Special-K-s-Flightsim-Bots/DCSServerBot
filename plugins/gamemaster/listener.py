@@ -144,7 +144,7 @@ class GameMasterEventListener(EventListener):
         asyncio.create_task(self._coalition(server, player))
         if await self.get_coalition_password(server, player.coalition):
             # noinspection PyAsyncCall
-            asyncio.create_task(self._password(server, player))
+            asyncio.create_task(self._password(server, player, True))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
@@ -370,11 +370,12 @@ class GameMasterEventListener(EventListener):
         # noinspection PyAsyncCall
         asyncio.create_task(self._coalition(server, player))
 
-    async def _password(self, server: Server, player: Player):
+    async def _password(self, server: Server, player: Player, init: Optional[bool] = False):
         coalition = await self.get_coalition(server, player)
         if not coalition:
-            await player.sendChatMessage(
-                _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
+            if not init:
+                await player.sendChatMessage(
+                    _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
             return
         password = await self.get_coalition_password(server, player.coalition)
         if password:
@@ -385,7 +386,7 @@ class GameMasterEventListener(EventListener):
     @chat_command(name="password", aliases=["passwd"], help=_("displays the coalition password"))
     async def password(self, server: Server, player: Player, params: list[str]):
         # noinspection PyAsyncCall
-        asyncio.create_task(self._password(server, player))
+        asyncio.create_task(self._password(server, player, False))
 
     @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage=_("<flag> [value]"),
                   help=_("reads or sets a flag"))
