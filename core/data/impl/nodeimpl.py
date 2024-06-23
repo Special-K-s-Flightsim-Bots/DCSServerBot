@@ -552,6 +552,7 @@ class NodeImpl(Node):
             "FALKLANDS_terrain",
             "SINAIMAP_terrain",
             "KOLA_terrain",
+            "Afghanistan_terrain",
             "WWII-ARMOUR",
             "SUPERCARRIER"
         }

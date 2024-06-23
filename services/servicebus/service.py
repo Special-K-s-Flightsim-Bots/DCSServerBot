@@ -202,17 +202,20 @@ class ServiceBus(Service):
                 return
             calls: dict[str, Any] = dict()
             for server in local_servers:
-                if not self.master:
-                    await self.send_init(server)
-                if server.maintenance:
-                    self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
-                if utils.is_open(server.instance.dcs_host, server.instance.dcs_port):
-                    calls[server.name] = asyncio.create_task(
-                        server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
-                    )
-                else:
-                    server.status = Status.SHUTDOWN
-                    self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (no process).")
+                try:
+                    if not self.master:
+                        await self.send_init(server)
+                    if server.maintenance:
+                        self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
+                    if utils.is_open(server.instance.dcs_host, server.instance.dcs_port):
+                        calls[server.name] = asyncio.create_task(
+                            server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
+                        )
+                    else:
+                        server.status = Status.SHUTDOWN
+                        self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (no process).")
+                except Exception as ex:
+                    self.log.error(f"Error while registering DCS-Server \"{server.name}\": {ex}")
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
             num = 0
             for i, name in enumerate(calls.keys()):
@@ -229,7 +232,8 @@ class ServiceBus(Service):
             if not self.servers:
                 self.log.warning('  => No local DCS servers configured!')
             else:
-                self.log.info(f"- {len(self.servers)} local DCS servers registered.")
+                self.log.info(f"- {len([x for x in self.servers.values() if x.status != Status.UNREGISTERED])} local "
+                              f"DCS servers registered.")
 
     async def register_remote_servers(self, node: Node):
         await self.send_to_node({
