@@ -226,7 +226,7 @@ function onEvent(event)
 			msg.place.id = event.place.id_
 			msg.place.name = event.place:getName()
 		end
-		if event.weapon then
+		if event.weapon and event.weapon:isExist() then
 			msg.weapon = {}
 			msg.weapon.name = event.weapon:getTypeName()
 			msg.weapon.category = event.weapon:getDesc().category
