@@ -678,9 +678,15 @@ class ServerImpl(Server):
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
         advanced = self.settings['advanced']
         if coalition == Coalition.BLUE:
-            advanced['bluePasswordHash'] = utils.hash_password(password)
+            if password:
+                advanced['bluePasswordHash'] = utils.hash_password(password)
+            else:
+                del advanced['bluePasswordHash']
         else:
-            advanced['redPasswordHash'] = utils.hash_password(password)
+            if password:
+                advanced['redPasswordHash'] = utils.hash_password(password)
+            else:
+                del advanced['redPasswordHash']
         self.settings['advanced'] = advanced
         async with self.apool.connection() as conn:
             async with conn.transaction():
