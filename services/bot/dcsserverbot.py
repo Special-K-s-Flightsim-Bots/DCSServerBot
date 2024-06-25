@@ -217,8 +217,8 @@ class DCSServerBot(commands.Bot):
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
                         roles.clear()
-                        roles |= set([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
-                        roles |= set([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
+                        roles.add(server.locals['coalitions']['blue_role'])
+                        roles.add(server.locals['coalitions']['red_role'])
                         self.check_roles(roles)
                     try:
                         await self.check_channels(server)
