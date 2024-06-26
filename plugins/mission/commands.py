@@ -1057,7 +1057,12 @@ class Mission(Plugin):
         autorole = self.bot.locals.get('autorole', {}).get('linked')
         if autorole:
             try:
-                await member.add_roles(self.bot.get_role(autorole))
+                _role = self.bot.get_role(autorole)
+                if not _role:
+                    self.log.error(f'Role {autorole} not found!')
+                    await interaction.followup.send(_("Role {} not found!").format(autorole), ephemeral=True)
+                    return
+                await member.add_roles(_role)
             except discord.Forbidden:
                 await self.bot.audit(_('permission "Manage Roles" missing.'), user=self.bot.member)
         # Generate the onMemberLinked event
