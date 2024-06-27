@@ -69,7 +69,7 @@ MyNode:
   extensions:
     SRS:
       installation: '%ProgramFiles%\DCS-SimpleRadio-Standalone'
-      autoupdate: true
+      autoupdate: true      # auto update your DCS-SRS installation, if a new version is available online (default: false)
   # [...]
   instances:
     DCS.release_server:
@@ -119,6 +119,7 @@ MyNode:
   # [...]
   extensions:
     Tacview:
+      installation: '%ProgramFiles(x86)%\Tacview'
       tacviewExportPath: '%USERPROFILE%\Documents\Tacview'
   # [...]
   instances:
@@ -126,15 +127,16 @@ MyNode:
       # [...]
       extensions:
         Tacview:
-          show_passwords: false  # hide passwords in your server status embed (default: true)
-          host: 127.0.0.1        # Tacview host (default)
+          autoupdate: true                      # if true, the bot will auto-update the tacview mod, if the version of Tacview was updated on your server (default: false)
+          show_passwords: false                 # hide passwords in your server status embed (default: true)
+          host: 127.0.0.1                       # Tacview host (default)
           log: "%USERPROFILE%\\Saved Games\\DCS.release_server\\Logs\tacview.log" # Only needed, if you export tacview logs to a different file.
-          tacviewRealTimeTelemetryPort: 42674  # default
-          tacviewRealTimeTelemetryPassword: '' # default
-          tacviewRemoteControlPort: 42675      # default
-          tacviewRemoteControlPassword: ''     # default
-          tacviewPlaybackDelay: 600            # default 0, should be 600 for performance reasons
-          target: '<id:112233445566778899>'    # optional: channel id or directory
+          tacviewRealTimeTelemetryPort: 42674   # default
+          tacviewRealTimeTelemetryPassword: ''  # default
+          tacviewRemoteControlPort: 42675       # default
+          tacviewRemoteControlPassword: ''      # default
+          tacviewPlaybackDelay: 600             # default 0, should be 600 for performance reasons
+          target: '<id:112233445566778899>'     # optional: channel id or directory
 ```
 __Optional__ parameters (will change options.lua if necessary):</br>
 * **tacviewExportPath** Sets this as the Tacview export path.
@@ -163,6 +165,7 @@ MyNode:
       # [...]
       extensions:
         LotAtc:
+          autoupdate: true          # auto update LotAtc, if a new version is available online (default: false)
           show_passwords: false     # show passwords in the server status embed (default = true)
           host: "myfancyhost.com"   # Show a different hostname instead of your servers external IP
           port: 10310               # you can specify any parameter from LotAtc's config.lua in here to overwrite it
