@@ -1,0 +1,1 @@
+ALTER TABLE serverstats ADD COLUMN IF NOT EXISTS mission_time INTEGER;
