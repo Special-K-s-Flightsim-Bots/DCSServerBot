@@ -254,9 +254,10 @@ class GameMasterEventListener(EventListener):
                 """, (server.name, player.ucid))
                 if cursor.rowcount == 1:
                     if (await cursor.fetchone())[0] != coalition.casefold():
-                        await player.sendChatMessage(_("You can't join the {coalition} coalition in-between {lock_time} of "
-                                                       "leaving a coalition.").format(
-                            coalition=coalition, lock_time=server.locals['coalitions'].get('lock_time', '1 day')))
+                        await player.sendChatMessage(
+                            _("You can't join the {coalition} coalition in-between {lock_time} of leaving a "
+                              "coalition.").format(coalition=coalition,
+                                                   lock_time=server.locals['coalitions'].get('lock_time', '1 day')))
                         await self.bot.audit(
                             f"{player.display_name} tried to join a new coalition in-between the time limit.",
                             user=player.ucid)
@@ -375,8 +376,8 @@ class GameMasterEventListener(EventListener):
         coalition = await self.get_coalition(server, player)
         if not coalition:
             if not init:
-                await player.sendChatMessage(
-                    _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
+                await player.sendChatMessage(_("You are not a member of any coalition. "
+                                               "You can join one with {}join blue|red.").format(self.prefix))
             return
         password = await self.get_coalition_password(server, player.coalition)
         if password:
