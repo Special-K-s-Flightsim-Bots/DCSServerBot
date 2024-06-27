@@ -27,8 +27,10 @@ class GameMasterEventListener(EventListener):
         self.tasks: dict[str, asyncio.TimerHandle] = {}
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
-        if (command.name in ['join', 'leave', 'red', 'blue', 'coalition', 'password'] and
-                not await self.get_coalition(server, player)):
+        coalition = await self.get_coalition(server, player)
+        if coalition and command.name in ['join', 'red', 'blue']:
+            return False
+        elif not coalition and command.name in ['leave', 'password', 'coalition']:
             return False
         return await super().can_run(command, server, player)
 
