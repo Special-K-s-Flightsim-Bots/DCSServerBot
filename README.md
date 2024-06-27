@@ -79,6 +79,7 @@ from time to time, but you as a community member can also create your own plugin
 | ServerStats  | Server statistics for your DCS servers.                                         | yes      | Userstats               | [README](./plugins/serverstats/README.md)  |
 | SlotBlocking | Slot blocking either based on discord roles or credits.                         | yes      | Mission, CreditSystem   | [README](./plugins/slotblocking/README.md) |
 | SRS          | Display players activity on SRS, show active channels and enable slot blocking. | yes      | MissionStats            | [README](./plugins/srs/README.md)          |
+| Tacview      | Install or uninstall Tacview from your server(s) and do a basic configuration.  | yes      |                         | [README](./plugins/tacview/README.md)      |
 | Voting       | Simple voting system for players to be able to change missions, weather, etc.   | yes      |                         | [README](./plugins/voting/README.md)       |
 
 

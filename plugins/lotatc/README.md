@@ -37,10 +37,14 @@ according to the coalition where this transponder is relevant for.
 ## Discord Commands
 The following Discord commands are available through the LotAtc plugin:
 
-| Command   | Parameter            | Channel | Role | Description                                                            |
-|-----------|----------------------|---------|------|------------------------------------------------------------------------|
-| /gci list | server blue\|red     | all     | DCS  | List all active GCIs for that coalition.                               |
-| /gci info | server blue\|red gci | all     | DCS  | Shows information about this GCI incl. SRS frequencies, if available.  |
+| Command           | Parameter            | Channel | Role      | Description                                                            |
+|-------------------|----------------------|---------|-----------|------------------------------------------------------------------------|
+| /lotatc update    | server               | all     | DCS Admin | Update LotAtc and install the latest version in the respective server. |
+| /lotatc install   | server               | all     | DCS Admin | Install LotAtc into this server (needs to be available on the node).   |
+| /lotatc uninstall | server               | all     | DCS Admin | Uninstall LotAtc from this server.                                     |
+| /lotatc configure | server               | all     | DCS Admin | Change the LotAtc configuration on this server.                        |
+| /gci list         | server blue\|red     | all     | DCS       | List all active GCIs for that coalition.                               |
+| /gci info         | server blue\|red gci | all     | DCS       | Shows information about this GCI incl. SRS frequencies, if available.  |
 
 > ⚠️ **Attention!**<br> 
 > If [Coalitions](../../COALITIONS.md) are enabled in this server, you can only display information about GCIs of your 

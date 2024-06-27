@@ -9,11 +9,29 @@ from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from core import Server
 
-__all__ = ["Extension"]
+__all__ = [
+    "Extension",
+    "ExtensionException",
+    "InstallException",
+    "UninstallException"
+]
+
+
+class ExtensionException(Exception):
+    ...
+
+
+class InstallException(ExtensionException):
+    ...
+
+
+class UninstallException(ExtensionException):
+    ...
 
 
 class Extension(ABC):
     started_schedulers = set()
+    CONFIG_DICT = {}
 
     def __init__(self, server: Server, config: dict):
         self.node = server.node
@@ -70,4 +88,10 @@ class Extension(ABC):
         raise NotImplementedError()
 
     def is_installed(self) -> bool:
+        return self.config.get('enabled', True)
+
+    async def install(self):
+        ...
+
+    async def uninstall(self):
         ...

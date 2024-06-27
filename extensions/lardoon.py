@@ -102,8 +102,7 @@ class Lardoon(Extension):
         return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
-        # check if Lardoon is enabled
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         # check if Lardoon is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):

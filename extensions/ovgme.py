@@ -9,9 +9,6 @@ class OvGME(Extension):
         super().__init__(server, config)
         self.modules: dict[str, list[str]] = {}
 
-    def is_installed(self) -> bool:
-        return self.config.get('enabled', True)
-
     async def startup(self) -> bool:
         await super().startup()
         mission = await asyncio.to_thread(MizFile, await self.server.get_current_mission_file())

@@ -77,9 +77,6 @@ class MizEdit(Extension):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         return await self.server.modifyMission(filename, await self.get_presets(self.config)), True
 
-    def is_installed(self) -> bool:
-        return True
-
     def is_running(self) -> bool:
         return True
 

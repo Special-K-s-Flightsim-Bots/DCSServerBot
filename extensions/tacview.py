@@ -3,11 +3,14 @@ import asyncio
 import os
 import re
 import shutil
+import sys
 
-from core import Extension, utils, ServiceRegistry, Server
+from core import Extension, utils, ServiceRegistry, Server, get_translation
 from discord.ext import tasks
 from services import ServiceBus, BotService
 from typing import Optional, Any
+
+_ = get_translation(__name__.split('.')[1])
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 rtt_ports: dict[int, str] = dict()
@@ -16,11 +19,44 @@ rcp_ports: dict[int, str] = dict()
 
 class Tacview(Extension):
 
+    CONFIG_DICT = {
+      "tacviewRealTimeTelemetryPort": {
+          "type": int,
+          "label": _("Tacview Port"),
+          "placeholder": _("Unique port number for Tacview"),
+          "required": True
+      },
+      "tacviewRealTimeTelemetryPassword": {
+          "type": str,
+          "label": _("Tacview Password"),
+          "placeholder": _("Password for Tacview"),
+      },
+      "tacviewRemoteControlPort": {
+          "type": int,
+          "label": _("Remote Control Port"),
+          "placeholder": _("Unique port number for remote control"),
+      },
+      "tacviewRemoteControlPassword": {
+          "type": str,
+          "label": _("Remote Control Password"),
+          "placeholder": _("Password for remote control"),
+      },
+      "tacviewPlaybackDelay": {
+          "type": int,
+          "label": _("Playback Delay"),
+          "placeholder": _("Playback delay time"),
+          "required": True
+      }
+    }
+
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
         self.exp = re.compile(r'Successfully saved \[(?P<filename>.*?)\]')
+        self._inst_path = None
+
+
 
     async def startup(self) -> bool:
         await super().startup()
@@ -64,6 +100,7 @@ class Tacview(Extension):
     async def prepare(self) -> bool:
         global rtt_ports, rcp_ports
 
+        await self.update_instance(False)
         options = self.server.options['plugins']
         dirty = False
         for name, value in self.config.items():
@@ -103,6 +140,25 @@ class Tacview(Extension):
     def version(self) -> str:
         return utils.get_windows_version(os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll'))
 
+    def get_inst_path(self) -> str:
+        if not self._inst_path:
+            inst_path = os.path.join(
+                os.path.expandvars(self.config.get('installation', os.path.join('%ProgramFiles(x86)%', 'Tacview'))))
+            # is the installation path configured, or is it the standard windows one?
+            if os.path.exists(inst_path):
+                self._inst_path = inst_path
+            # no, we are probably on Win32/steam
+            elif sys.platform == 'win32':
+                import winreg
+
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
+                path = winreg.QueryValueEx(key, 'SteamPath')[0]
+                inst_path = os.path.join(path, 'steamapps', 'Tacview')
+                if os.path.exists(inst_path):
+                    self._inst_path = inst_path
+
+        return self._inst_path
+
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
             return {}
@@ -132,6 +188,9 @@ class Tacview(Extension):
         }
 
     def is_installed(self) -> bool:
+        if not super().is_installed():
+            return False
+
         base_dir = self.server.instance.home
         dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
         exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
@@ -217,3 +276,43 @@ class Tacview(Extension):
         else:
             self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
             return
+
+    def get_inst_version(self) -> str:
+        path = os.path.join(self.get_inst_path(), 'DCS', 'Mods', 'tech', 'Tacview', 'bin')
+        return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
+
+    async def install(self):
+        from_path = os.path.join(self.get_inst_path(), 'DCS')
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
+
+    async def uninstall(self):
+        version = self.version
+        from_path = os.path.join(self.get_inst_path(), 'DCS')
+        for root, dirs, files in os.walk(from_path, topdown=False):
+            for name in files:
+                file_x = os.path.join(root, name)
+                file_y = file_x.replace(from_path, self.server.instance.home)
+                if os.path.exists(file_y):
+                    os.remove(file_y)
+            for name in dirs:
+                dir_x = os.path.join(root, name)
+                dir_y = dir_x.replace(from_path, self.server.instance.home)
+                if os.path.exists(dir_y):
+                    try:
+                        os.rmdir(dir_y)  # only removes empty directories
+                    except OSError:
+                        pass  # directory not empty
+        self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
+
+    async def update_instance(self, force: bool) -> bool:
+        version = self.get_inst_version()
+        if version != self.version:
+            if force or self.config.get('autoupdate', False):
+                await self.uninstall()
+                await self.install()
+                return True
+            else:
+                self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "
+                              f"{self.version}, where {version} is available!")
+        return False

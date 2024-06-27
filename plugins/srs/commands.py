@@ -1,10 +1,11 @@
 import discord
+import extensions
 
-from discord import app_commands
 from core import Plugin, PluginRequiredError, TEventListener, PluginInstallationError, Group, get_translation, utils, \
     Server, Coalition, Status
+from discord import app_commands
 from services import DCSServerBot
-from typing import Type, Literal
+from typing import Type, Literal, Optional
 
 from .listener import SRSEventListener
 
@@ -77,6 +78,49 @@ class SRS(Plugin):
         else:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No update for DCS-SRS available."))
+
+    async def _configure(self, interaction: discord.Interaction,
+                         server: Server,
+                         enabled: bool = None,
+                         autoconnect: bool = None) -> Optional[dict]:
+        config = server.instance.locals.get('extensions', {}).get('SRS', {})
+        modal = utils.ConfigModal(title=_("SRS Configuration"),
+                                  config=extensions.SRS.CONFIG_DICT,
+                                  default=config)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            return None
+        return {
+            "enabled": enabled or config.get('enabled', True),
+            "autoconnect": autoconnect or config.get('autoconnect', True),
+            "port": int(modal.value.get('port')),
+            "blue_password": modal.value.get('blue_password'),
+            "red_password": modal.value.get('red_password')
+        }
+
+    @srs.command(description=_('Configure SRS'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def configure(self, interaction: discord.Interaction,
+                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
+                        enabled: Optional[bool] = None, autoconnect: Optional[bool] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if 'SRS' not in await server.init_extensions():
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("SRS not installed on server {}").format(server.display_name), ephemeral=ephemeral)
+            return
+        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
+            config = await self._configure(interaction, server, enabled, autoconnect)
+            await server.config_extension("SRS", config)
+            await interaction.followup.send(
+                _("SRS configuration changed on server {}.").format(server.display_name), ephemeral=ephemeral)
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("Server {} needs to be shut down to configure SRS.").format(server.display_name),
+                ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

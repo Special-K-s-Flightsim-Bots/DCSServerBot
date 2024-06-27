@@ -18,6 +18,7 @@ schema;node_srs_schema:
 schema;instance_srs_schema:
   type: map
   mapping:
+    enabled: {type: bool}
     config: {type: str, required: true}
     host: {type: str}
     port: {type: int, range: {min: 80, max: 65535}}

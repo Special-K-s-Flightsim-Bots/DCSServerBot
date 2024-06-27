@@ -106,7 +106,7 @@ class RealWeather(Extension):
         }
 
     def is_installed(self) -> bool:
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         installation = self.config.get('installation')
         if not installation:

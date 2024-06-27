@@ -71,10 +71,6 @@ class Instance(DataObject):
         return self.locals.get('extensions') or {}
 
     @property
-    def configured_server(self) -> Optional[str]:
-        return self.locals.get('server')
-
-    @property
     def server_user(self) -> str:
         return self.locals.get('server_user', 'Admin')
 

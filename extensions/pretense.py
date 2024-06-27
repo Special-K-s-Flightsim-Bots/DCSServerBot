@@ -39,9 +39,6 @@ class Pretense(Extension):
             self._version = _version[0] if _version else None
         return self._version
 
-    def is_installed(self) -> bool:
-        return True
-
     async def render(self, param: Optional[dict] = None) -> dict:
         return {
             "name": self.__class__.__name__,

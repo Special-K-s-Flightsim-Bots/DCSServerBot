@@ -7,6 +7,8 @@ schema;instance_tacview_schema:
   type: map
   allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
   mapping:
+    enabled: {type: bool}
+    autoupdate: {type: bool}
     host: {type: str}
     log: {type: str}
     tacviewExportPath: {type: str}

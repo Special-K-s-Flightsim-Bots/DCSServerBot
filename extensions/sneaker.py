@@ -138,8 +138,7 @@ class Sneaker(Extension):
         return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
-        # check if Sneaker is enabled
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         # check if Sneaker is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):

@@ -418,7 +418,7 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.STOPPED, Status.SHUTDOWN], timeout)
         self.current_mission = None
 
-    async def init_extensions(self):
+    async def init_extensions(self) -> list[str]:
         raise NotImplemented()
 
     async def prepare_extensions(self):
@@ -434,4 +434,13 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
+        raise NotImplemented()
+
+    async def config_extension(self, name: str, config: dict) -> None:
+        raise NotImplemented()
+
+    async def install_extension(self, name: str, config: dict) -> None:
+        raise NotImplemented()
+
+    async def uninstall_extension(self, name: str) -> None:
         raise NotImplemented()

@@ -150,10 +150,6 @@ class NodeImpl(Node):
     def installation(self) -> str:
         return os.path.expandvars(self.locals['DCS']['installation'])
 
-    @property
-    def extensions(self) -> dict:
-        return self.locals.get('extensions', {})
-
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):
         from services import BotService, ServiceBus

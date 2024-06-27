@@ -15,18 +15,40 @@ if sys.platform == 'win32':
     import ctypes
 
 from configparser import RawConfigParser
-from core import Extension, utils, Server, ServiceRegistry, Autoexec
+from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation
 from discord.ext import tasks
 from services import ServiceBus
 from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
+_ = get_translation(__name__.split('.')[1])
+
 ports: dict[int, str] = dict()
 SRS_GITHUB_URL = "https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest"
 
 
 class SRS(Extension, FileSystemEventHandler):
+
+    CONFIG_DICT = {
+        "port": {
+            "type": int,
+            "label": _("SRS Port"),
+            "placeholder": _("Unique port number for SRS"),
+            "required": True
+        },
+        "blue_password": {
+            "type": str,
+            "label": _("Blue Password"),
+            "placeholder": _("Password for blue GCI"),
+          },
+        "red_password": {
+            "type": str,
+            "label": _("Red Password"),
+            "placeholder": _("Password for red GCI"),
+        }
+    }
+
     def __init__(self, server: Server, config: dict):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
@@ -315,6 +337,8 @@ class SRS(Extension, FileSystemEventHandler):
             }
 
     def is_installed(self) -> bool:
+        if not super().is_installed():
+            return False
         # check if SRS is installed
         exe_path = self.get_exe_path()
         if not os.path.exists(exe_path):
