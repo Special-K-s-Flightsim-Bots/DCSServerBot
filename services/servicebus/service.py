@@ -95,6 +95,12 @@ class ServiceBus(Service):
                 self.bot = ServiceRegistry.get(BotService).bot
             await self.bot.wait_until_ready()
             await self.register_local_servers()
+            for node in await self.node.get_active_nodes():
+                await self.send_to_node({
+                    "command": "rpc",
+                    "service": "ServiceBus",
+                    "method": "switch"
+                }, node=node)
         else:
             await self.send_to_node({
                 "command": "rpc",
