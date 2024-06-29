@@ -62,7 +62,8 @@ class LotAtcEventListener(EventListener):
                     break
             if gci:
                 break
-        if gci and self.get_config(server).get('kick_gci', False) and not self.check_exemption(server, player):
+        if (gci and self.get_config(server).get('kick_gci', False) and
+                not player.check_exemptions(self.get_config(server).get('exemptions', {}))):
             # noinspection PyAsyncCall
             asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
             # noinspection PyAsyncCall

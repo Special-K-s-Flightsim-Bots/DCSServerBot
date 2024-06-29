@@ -61,6 +61,7 @@ class PunishmentEventListener(EventListener):
                 # check if there is an exemption for this user
                 if initiator.check_exemptions(config.get('exemptions', {})):
                     self.log.debug(f"User {initiator.name} not penalized due to exemption.")
+                    return
                 if 'default' in penalty:
                     points = penalty['default']
                 else:

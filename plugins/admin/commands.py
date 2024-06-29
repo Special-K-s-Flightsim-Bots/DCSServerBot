@@ -208,7 +208,8 @@ class Admin(Plugin):
                         name = ucid
                 else:
                     # noinspection PyUnresolvedReferences
-                    await interaction.response.send_message(_("{} is not a valid UCID!"), ephemeral=ephemeral)
+                    await interaction.response.send_message(_("{} is not a valid UCID!").format(user), 
+                                                            ephemeral=ephemeral)
                     return
                 await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 # noinspection PyUnresolvedReferences
