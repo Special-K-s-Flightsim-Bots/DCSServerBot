@@ -374,7 +374,7 @@ class OvGMEService(Service):
                 if lines[i].startswith('w'):
                     if os.path.isfile(file):
                         os.remove(file)
-                    elif os.path.isdir(file):
+                    elif os.path.isdir(file) and not os.listdir(file):
                         with suppress(Exception):
                             os.removedirs(file)
                 elif lines[i].startswith('x'):
