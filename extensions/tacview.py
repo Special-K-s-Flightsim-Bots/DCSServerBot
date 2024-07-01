@@ -20,33 +20,33 @@ rcp_ports: dict[int, str] = dict()
 class Tacview(Extension):
 
     CONFIG_DICT = {
-      "tacviewRealTimeTelemetryPort": {
-          "type": int,
-          "label": _("Tacview Port"),
-          "placeholder": _("Unique port number for Tacview"),
-          "required": True
-      },
-      "tacviewRealTimeTelemetryPassword": {
-          "type": str,
-          "label": _("Tacview Password"),
-          "placeholder": _("Password for Tacview"),
-      },
-      "tacviewRemoteControlPort": {
-          "type": int,
-          "label": _("Remote Control Port"),
-          "placeholder": _("Unique port number for remote control"),
-      },
-      "tacviewRemoteControlPassword": {
-          "type": str,
-          "label": _("Remote Control Password"),
-          "placeholder": _("Password for remote control"),
-      },
-      "tacviewPlaybackDelay": {
-          "type": int,
-          "label": _("Playback Delay"),
-          "placeholder": _("Playback delay time"),
-          "required": True
-      }
+        "tacviewRealTimeTelemetryPort": {
+            "type": int,
+            "label": _("Tacview Port"),
+            "placeholder": _("Unique port number for Tacview"),
+            "required": True
+        },
+        "tacviewRealTimeTelemetryPassword": {
+            "type": str,
+            "label": _("Tacview Password"),
+            "placeholder": _("Password for Tacview"),
+        },
+        "tacviewRemoteControlPort": {
+            "type": int,
+            "label": _("Remote Control Port"),
+            "placeholder": _("Unique port number for remote control"),
+        },
+        "tacviewRemoteControlPassword": {
+            "type": str,
+            "label": _("Remote Control Password"),
+            "placeholder": _("Password for remote control"),
+        },
+        "tacviewPlaybackDelay": {
+            "type": int,
+            "label": _("Playback Delay"),
+            "placeholder": _("Playback delay time"),
+            "required": True
+        }
     }
 
     def __init__(self, server: Server, config: dict):

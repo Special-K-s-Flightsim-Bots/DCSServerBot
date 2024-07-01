@@ -8,15 +8,44 @@ import stat
 import subprocess
 import sys
 
-from core import Extension, utils, Server
+from core import Extension, utils, Server, get_translation
 from threading import Thread
 from typing import Optional
+
+_ = get_translation(__name__.split('.')[1])
 
 server_ports: dict[int, str] = dict()
 client_ports: dict[int, str] = dict()
 
 
 class Olympus(Extension):
+
+    CONFIG_DICT = {
+        "backend_port": {
+            "type": int,
+            "label": _("Backend Port"),
+            "placeholder": _("Backend Port"),
+            "required": True
+        },
+        "gameMasterPassword": {
+            type: str,
+            "label": _("Game Master Password")
+        },
+        "blueCommanderPassword": {
+            type: str,
+            "label": _("Blue Commander Password")
+        },
+        "redCommanderPassword": {
+            type: str,
+            "label": _("Red Commander Password")
+        },
+        "frontend_port": {
+            "type": int,
+            "label": _("Frontend Port"),
+            "placeholder": _("Frontend Port"),
+            "required": True
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')

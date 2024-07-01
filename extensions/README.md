@@ -294,9 +294,9 @@ MyNode:
   extensions:
     Lardoon:
       cmd: '%USERPROFILE%\Documents\GitHub\lardoon\lardoon.exe'
-      minutes: 5                    # Number of minutes the Lardoon database is updated
       bind: 0.0.0.0:3113            # IP and port the Lardoon server is listening to
       url: https://myfancyhost.com  # Alternate hostname to be displayed in your status embed 
+      minutes: 5                    # Number of minutes the Lardoon database is updated
   # [...]
   instances:
     DCS.release_server:

@@ -1,13 +1,23 @@
 import os
 import re
 
-from core import Extension, Server
+from core import Extension, Server, get_translation
 from typing import Optional, Any, TextIO
+
+_ = get_translation(__name__.split('.')[1])
 
 ports: dict[int, str] = dict()
 
 
 class gRPC(Extension):
+
+    CONFIG_DICT = {
+        "port": {
+            "type": int,
+            "label": _("Port"),
+            "required": True
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'tech', 'DCS-gRPC')

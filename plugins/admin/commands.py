@@ -818,20 +818,15 @@ Please make sure you forward the following ports:
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         if instance.server:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("The instance is in use by server \"{}\".\n"
-                  "Please migrate this server to another node first.").format(instance.server.name),
-                ephemeral=ephemeral)
+            message = _("The instance is in use by server \"{}\".\nDo you really want to delete it?").format(
+                instance.server.name)
+        else:
+            message = _("Do you really want to delete instance {}?").format(instance.name)
+        if not utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send(_("Aborted."))
             return
-        elif not await utils.yn_question(interaction,
-                                         _("Do you really want to delete instance {}?").format(instance.name),
-                                         ephemeral=ephemeral):
-            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
-            return
-        remove_files = await utils.yn_question(interaction,
-                                               _("Do you want to remove the directory {}?").format(instance.home),
-                                               ephemeral=ephemeral)
+        remove_files = await utils.yn_question(
+            interaction, _("Do you want to remove the directory {}?").format(instance.home), ephemeral=ephemeral)
         await node.delete_instance(instance, remove_files)
         await interaction.followup.send(
             _("Instance {instance} removed from node {node}.").format(instance=instance.name,

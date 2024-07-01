@@ -7,10 +7,12 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Status, ServiceRegistry, Server, utils
+from core import Extension, Status, ServiceRegistry, Server, utils, get_translation
 from services import ServiceBus
 from threading import Thread
 from typing import Optional
+
+_ = get_translation(__name__.split('.')[1])
 
 process: Optional[psutil.Process] = None
 servers: set[str] = set()
@@ -18,6 +20,19 @@ lock = asyncio.Lock()
 
 
 class Sneaker(Extension):
+
+    CONFIG_DICT = {
+        "bind": {
+            "type": str,
+            "label": _("Bind Address"),
+            "placeholder": "ip:port",
+            "required": True
+        },
+        "url": {
+            "type": str,
+            "label": _("URL")
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
