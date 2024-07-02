@@ -792,18 +792,18 @@ class Admin(Plugin):
                     _("Server {server} assigned to instance {instance}.").format(server=server.name,
                                                                                  instance=instance.name),
                     ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(
-                    _("Instance {} created blank with no server assigned.").format(instance.name), ephemeral=ephemeral)
-            await interaction.followup.send(_("""
+                await interaction.followup.send(_("""
 Instance {instance} added to node {node}.
 Please make sure you forward the following ports:
 ```
 - DCS Port:    {dcs_port} (TCP/UDP)
 - WebGUI Port: {webgui_port} (TCP)
 ```
-            """).format(instance=name, node=node.name, dcs_port=instance.dcs_port, webgui_port=instance.webgui_port),
-                                            ephemeral=ephemeral)
+                """).format(instance=name, node=node.name, dcs_port=instance.dcs_port,
+                            webgui_port=instance.webgui_port), ephemeral=ephemeral)
+            else:
+                await interaction.followup.send(
+                    _("Instance {} created blank with no server assigned.").format(instance.name), ephemeral=ephemeral)
         else:
             await interaction.followup.send(
                 _("Instance {instance} could not be added to node {node}, see log.").format(instance=name,
@@ -822,16 +822,23 @@ Please make sure you forward the following ports:
                 instance.server.name)
         else:
             message = _("Do you really want to delete instance {}?").format(instance.name)
-        if not utils.yn_question(interaction, message, ephemeral=ephemeral):
-            await interaction.followup.send(_("Aborted."))
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
             return
+        if instance.server and instance.server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+            await instance.server.shutdown(force=True)
         remove_files = await utils.yn_question(
             interaction, _("Do you want to remove the directory {}?").format(instance.home), ephemeral=ephemeral)
-        await node.delete_instance(instance, remove_files)
-        await interaction.followup.send(
-            _("Instance {instance} removed from node {node}.").format(instance=instance.name,
-                                                                      node=node.name), ephemeral=ephemeral)
-        await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
+        try:
+            await node.delete_instance(instance, remove_files)
+            await interaction.followup.send(
+                _("Instance {instance} removed from node {node}.").format(instance=instance.name,
+                                                                          node=node.name), ephemeral=ephemeral)
+            await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
+        except PermissionError:
+            await interaction.followup.send(
+                _("Instance {} could not be deleted, because the directory is in use.").format(instance.name),
+                ephemeral=ephemeral)
 
     @node_group.command(description=_("Rename an instance\n"))
     @app_commands.guild_only()
@@ -840,7 +847,7 @@ Please make sure you forward the following ports:
                               node: app_commands.Transform[Node, utils.NodeTransformer],
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
         ephemeral = utils.get_ephemeral(interaction)
-        if instance.server and instance.server.status != Status.SHUTDOWN:
+        if instance.server and instance.server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {} has to be shut down before renaming the instance!").format(instance.server.name),
@@ -852,11 +859,16 @@ Please make sure you forward the following ports:
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         old_name = instance.name
-        await node.rename_instance(instance, new_name)
-        await interaction.followup.send(
-            _("Instance {old_name} renamed to {new_name}.").format(old_name=old_name, new_name=instance.name),
-            ephemeral=ephemeral)
-        await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
+        try:
+            await node.rename_instance(instance, new_name)
+            await interaction.followup.send(
+                _("Instance {old_name} renamed to {new_name}.").format(old_name=old_name, new_name=instance.name),
+                ephemeral=ephemeral)
+            await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
+        except PermissionError:
+            await interaction.followup.send(
+                _("Instance {} could not be renamed, because the directory is in use.").format(old_name),
+                ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
