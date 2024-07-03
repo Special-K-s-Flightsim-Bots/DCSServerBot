@@ -212,6 +212,7 @@ class UsersPerMissionTime(report.GraphElement):
         self.axes.set_title('Users per Mission-Time | past 14 days', color='white', fontsize=25)
         self.axes.set_xticks(range(24))
 
+
 class ServerLoadHeader(EmbedElement):
     async def render(self, node: str, server_name: Optional[str] = None):
         self.env.embed.description = \
@@ -265,16 +266,58 @@ class ServerLoad(report.MultiGraphElement):
             'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
         ]:
             series[column] = series[column].astype(float)
-        series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
-        self.axes[0].legend(loc='upper left')
+
+        # plot CPU and Users
+        series.plot(ax=self.axes[0], x='time', y=['Users'], title='CPU / User', xticks=[], xlabel='', color='blue')
         ax2 = self.axes[0].twinx()
-        series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-        ax2.legend(['Users'], loc='upper right')
-        series.plot(ax=self.axes[1], x='time', y=['FPS'], title='FPS / User', xticks=[], xlabel='')
-        self.axes[1].legend(loc='upper left')
+        series.plot(ax=ax2, x='time', y=['CPU'], xticks=[], xlabel='', color='yellow')
+
+        # plot FPS and Users
+        series.plot(ax=self.axes[1], x='time', y=['Users'], title='FPS / User', xticks=[], xlabel='', color='blue')
         ax3 = self.axes[1].twinx()
-        series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-        ax3.legend(['Users'], loc='upper right')
+        series.plot(ax=ax3, x='time', y=['FPS'], xticks=[], xlabel='', color='lightgreen')
+
+        users_avg = series['Users'].mean()
+        cpu_avg = series['CPU'].mean()
+        fps_avg = series['FPS'].mean()
+
+        labels_ax0 = ['Users']
+        values_ax0 = [users_avg]
+
+        labels_ax2 = ['CPU']
+        values_ax2 = [cpu_avg]
+
+        labels_ax3 = ['FPS']
+        values_ax3 = [fps_avg]
+
+        leg = self.axes[0].legend(labels_ax0, loc='upper right')
+        for line, text in zip(leg.get_lines(), leg.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax0[labels_ax0.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f})')
+
+        leg_ax2 = ax2.legend(labels_ax2, loc='upper left')
+        for line, text in zip(leg_ax2.get_lines(), leg_ax2.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax2[labels_ax2.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f}%)')
+
+        leg_ax1 = self.axes[1].legend(labels_ax0, loc='upper right')
+        for line, text in zip(leg_ax1.get_lines(), leg_ax1.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax0[labels_ax0.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f})')
+
+        leg_ax3 = ax3.legend(labels_ax3, loc='upper left')
+        for line, text in zip(leg_ax3.get_lines(), leg_ax3.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax3[labels_ax3.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f})')
+
         series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory',
                     xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
         self.axes[2].legend(loc='upper left')
