@@ -351,6 +351,9 @@ msgstr "Desea eliminar el directorio {}?"
 msgid "Instance {instance} removed from node {node}."
 msgstr "Instance {instance} eliminada del nodo {node}."
 
+msgid "Instance {} could not be deleted, because the directory is in use."
+msgstr "La instancia {} no pudo ser eliminada. El directorio se encuentra en uso."
+
 # /node rename_instance
 msgid "Rename an instance\n"
 msgstr "Cambie el nombre de una instancia um\n"

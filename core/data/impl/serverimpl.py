@@ -265,6 +265,8 @@ class ServerImpl(Server):
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
+                    if 'advanced' not in self.settings:
+                        self.settings['advanced'] = {}
                     self.settings['advanced'] = self.settings['advanced'] | value
                 else:
                     self.settings[key] = value

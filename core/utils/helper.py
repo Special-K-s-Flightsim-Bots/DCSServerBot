@@ -486,9 +486,6 @@ class SettingsDict(dict):
 
     def read_file(self):
         if not os.path.exists(self.path):
-            self.log.error(f"- File {self.path} does not exist! Creating an empty file.")
-            with open(self.path, mode='w', encoding='utf-8') as f:
-                f.write(f"{self.root} = {{}}")
             return
         self.mtime = os.path.getmtime(self.path)
         if self.path.lower().endswith('.lua'):
@@ -520,11 +517,13 @@ class SettingsDict(dict):
         elif self.path.lower().endswith('.json'):
             with open(tmpname, mode="w", encoding='utf-8') as outfile:
                 yaml.dump(self, outfile)
+        if not os.path.exists(self.path):
+            self.log.info(f"- Creating {self.path} as it did not exist yet.")
         shutil.copy2(tmpname, self.path)
         self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):
-        if self.mtime < os.path.getmtime(self.path):
+        if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
         super().__setitem__(key, value)
@@ -534,7 +533,7 @@ class SettingsDict(dict):
             self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
 
     def __getitem__(self, item):
-        if self.mtime < os.path.getmtime(self.path):
+        if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
         return super().__getitem__(item)

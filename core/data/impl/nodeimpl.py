@@ -285,7 +285,11 @@ class NodeImpl(Node):
         grouped = defaultdict(list)
         for server_name, instance_name in utils.findDCSInstances():
             grouped[server_name].append(instance_name)
-        duplicates = {server_name: instances for server_name, instances in grouped.items() if len(instances) > 1}
+        duplicates = {
+            server_name: instances
+            for server_name, instances in grouped.items()
+            if server_name != 'n/a' and len(instances) > 1
+        }
         for server_name, instances in duplicates.items():
             self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(
                 server_name, ', '.join(instances)))
@@ -971,6 +975,8 @@ class NodeImpl(Node):
         del config[self.name]['instances'][instance.name]
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
+        if instance.server:
+            await self.unregister_server(instance.server)
         self.instances.remove(instance)
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -984,7 +990,7 @@ class NodeImpl(Node):
             config = yaml.load(infile)
         new_home = os.path.join(os.path.dirname(instance.home), new_name)
         os.rename(instance.home, new_home)
-        config[self.name]['instances'][new_name] = config[self.name]['instances'][instance.name].copy()
+        config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
         config[self.name]['instances'][new_name]['home'] = new_home
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -992,11 +998,28 @@ class NodeImpl(Node):
                     UPDATE instances SET instance = %s 
                     WHERE node = %s AND instance = %s
                 """, (new_name, instance.node.name, instance.name, ))
+
+        def change_instance_in_config(data: dict):
+            if self.node.name in data and instance.name in data[self.node.name]:
+                data[self.node.name][new_name] = data[self.node.name].pop(instance.name)
+            elif instance.name in data:
+                data[new_name] = data.pop(instance.name)
+
+        # rename plugin configs
+        for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
+            data = yaml.load(plugin.read_text(encoding='utf-8'))
+            change_instance_in_config(data)
+            yaml.dump(data, plugin)
+        # rename service configs
+        for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
+            data = yaml.load(service.read_text(encoding='utf-8'))
+            change_instance_in_config(data)
+            yaml.dump(data, service)
         instance.name = new_name
         instance.locals['home'] = new_home
-        del config[self.name]['instances'][instance.name]
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
+
 
     async def find_all_instances(self) -> list[tuple[str, str]]:
         return utils.findDCSInstances()
@@ -1006,22 +1029,15 @@ class NodeImpl(Node):
 
         await server.node.unregister_server(server)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name)
-        server.status = Status.SHUTDOWN
-        ServiceRegistry.get(ServiceBus).servers[server.name] = server
         instance.server = server
-        config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
-        config[self.name]['instances'][instance.name]['server'] = server.name
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+        ServiceRegistry.get(ServiceBus).servers[server.name] = server
+        if not self.master:
+            await ServiceRegistry.get(ServiceBus).send_init(server)
+        server.status = Status.SHUTDOWN
 
     async def unregister_server(self, server: Server) -> None:
-        config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        from services import ServiceBus
+
         instance = server.instance
         instance.server = None
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
-        del config[self.name]['instances'][instance.name]['server']
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+        ServiceRegistry.get(ServiceBus).servers.pop(server.name)
