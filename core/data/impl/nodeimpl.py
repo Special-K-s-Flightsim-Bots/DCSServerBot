@@ -1020,7 +1020,6 @@ class NodeImpl(Node):
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
 
-
     async def find_all_instances(self) -> list[tuple[str, str]]:
         return utils.findDCSInstances()
 

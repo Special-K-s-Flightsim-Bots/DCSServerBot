@@ -2,8 +2,7 @@ from __future__ import annotations
 from core import Server, Status, utils, Coalition
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
-from typing import Optional, Union
-
+from typing import Optional, Union, Any
 
 __all__ = ["ServerProxy"]
 
@@ -127,7 +126,7 @@ class ServerProxy(Server):
             "object": "Server",
             "method": "init_extensions",
             "server_name": self.name
-        }, node=self.node.name, timeout=timeout)#
+        }, node=self.node.name, timeout=timeout)
         return data['return']
 
     async def prepare_extensions(self):

@@ -1,7 +1,7 @@
 import asyncio
 import psycopg
 
-from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command
+from core import EventListener, Plugin, Status, Server, Side, Player, event
 from psycopg import Connection
 from typing import Union
 
