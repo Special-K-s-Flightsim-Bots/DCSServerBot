@@ -17,7 +17,7 @@ if errorlevel 1 (
     rem Git executable not found, couldn't reset the repository
 ) else (
     echo Resetting the GIT repository ...
-    git config --global --add safe.directory %cd% >NUL 2>&1
+    git config --global --add safe.directory "%cd%" >NUL 2>&1
     git reset --hard >NUL 2>&1
     echo Repository reset.
 )
