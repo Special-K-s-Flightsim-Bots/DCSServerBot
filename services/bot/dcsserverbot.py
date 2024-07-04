@@ -32,7 +32,6 @@ class DCSServerBot(commands.Bot):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.eventListeners: list[EventListener] = self.bus.eventListeners
         self.audit_channel = None
-        self.mission_stats = None
         self.member: Optional[discord.Member] = None
         self.lock: asyncio.Lock = asyncio.Lock()
         self.synced: bool = False

@@ -121,7 +121,9 @@ class CreditSystemListener(EventListener):
 
         campaign_id, _ = utils.get_running_campaign(self.bot, server)
         playtime = (await self.get_flighttime(player.ucid, campaign_id)) / 3600.0
-        sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
+        sorted_achievements = sorted(config['achievements'],
+                                     key=lambda x: x['credits'] if 'credits' in x else x['playtime'],
+                                     reverse=True)
         given = False
         for achievement in sorted_achievements:
             if given:
