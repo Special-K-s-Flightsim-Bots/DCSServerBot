@@ -5,6 +5,7 @@ schema;settings_schema:
 schema;mizedit_schema:
   type: map
   mapping:
+    enabled: {type: bool}
     presets:
       type: seq
       sequence:

@@ -18,13 +18,61 @@ or outages.
 
 If you want to run your DCSServerBot over multiple locations, you need to prepare your setup:
 
-### Cloud Drive Setup
+## Cloud-Drive Setup (default)
 You need to make sure, that every node in your cluster is aware of the full configuration. The best way to achieve this
 is to have the bot or at least the bots configuration installed on a cloud drive, like OneDrive or Google Drive. 
 I personally prefer OneDrive, as its technology is superior to Google Drive. But any cloud drive should work.
-> You can also use a sync tool to make sure that your configuration is in sync.
 
-### PostgreSQL Setup
+Add these lines to your configuration:
+
+a) main.yaml:
+```yaml
+autoupdate: true
+```
+
+b) nodes.yaml
+```yaml
+Node1:  # this is the name of your first node. will be different for you
+  cloud_drive: true # this is the default, so no need to specify it in here, just for reference    
+  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+  preferred_master: true  # if your database is installed on Node1, make it your preferred master node
+  database:
+    url: postgres://dcsserverbot:SECRET@127.0.0.1:5432/dcsserverbot?sslmode=prefer  # if your database is installed on Node1
+# ... anything else like extensions, instances, ... for Node1
+Node2:  # this is the name of your second node. will be different for you
+  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+  database:
+    url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
+# ... anything else like extensions, instances, ... for Node2
+Node3:  # this is the name of your third node. will be different for you
+  heartbeat: 60     # sometimes a larger heartbeat makes the connection between the nodes more stable. I recommend using 60 here (default = 30)
+  database:
+    url: postgres://dcsserverbot:SECRET@xxx.xxx.xxx.xxx:5432/dcsserverbot?sslmode=prefer  # replace xxx.xxx.xxx.xxx with the IP of Node1
+# ... anything else like extensions, instances, ... for Node3
+```
+
+## Config-Sync Setup
+If you decide to only sync the configuration, your bots will behave differently on auto-update.
+
+a) main.yaml:
+```yaml
+autoupdate: true
+```
+
+b) nodes.yaml
+```yaml
+Node1:  # this is the name of your first node. will be different for you
+  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
+# ... same as before
+Node2:  # this is the name of your second node. will be different for you
+  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
+# ... same as before
+Node3:  # this is the name of your third node. will be different for you
+  cloud_drive: false  # tell the bot that you are NOT installed on a cloud drive    
+# ... same as before
+```
+
+## PostgreSQL Setup
 A standard PostgreSQL installation does not allow remote access to the database. To change it, follow [this guide](https://blog.devart.com/configure-postgresql-to-allow-remote-connection.html).
 In addition, you would need to allow external access to your database by forwarding the database port (default: 5432)
 from your router to the PC running the database. You can also get a cloud database. There are many providers out there
@@ -79,11 +127,7 @@ that are named DCS.release_server on any of your nodes. This can be what you wan
 I would always recommend to create the node-specific version (ex: "Multi-Node-Config" above) to avoid confusion. That's 
 what the bot will create during a default installation also.
 
-## TODO
-Each node can be a master. You can define nodes as preferred master nodes, which you usually want to do with nodes that
-are close to your database server (see below).
-
-### Moving a Server from one Location to Another
+### Moving a Server from one Node / Instance to another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
 the `/server migrate` command. Please keep in mind that - unless you use a central missions directory - the necessary
 missions (or scripts) for this server might not be available on the other node and the migration will end up in a state

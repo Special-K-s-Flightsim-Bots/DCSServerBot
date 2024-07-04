@@ -206,6 +206,7 @@ class ServiceBus(Service):
                 self.log.info('- Searching for local DCS servers (this might take a bit) ...')
             else:
                 return
+            num = 0
             calls: dict[str, Any] = dict()
             for server in local_servers:
                 try:
@@ -220,16 +221,17 @@ class ServiceBus(Service):
                     else:
                         server.status = Status.SHUTDOWN
                         self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (no process).")
+                        num += 1
                 except Exception as ex:
                     self.log.error(f"Error while registering DCS-Server \"{server.name}\": {ex}")
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
-            num = 0
             for i, name in enumerate(calls.keys()):
                 server = self.servers[name]
                 if isinstance(ret[i], TimeoutError) or isinstance(ret[i], asyncio.TimeoutError):
                     self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                     server.status = Status.SHUTDOWN
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (not responding).")
+                    num += 1
                 elif isinstance(ret[i], Exception):
                     self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
                 else:
@@ -238,8 +240,7 @@ class ServiceBus(Service):
             if not self.servers:
                 self.log.warning('  => No local DCS servers configured!')
             else:
-                self.log.info(f"- {len([x for x in self.servers.values() if x.status != Status.UNREGISTERED])} local "
-                              f"DCS servers registered.")
+                self.log.info(f"- {num} local DCS servers registered.")
 
     async def register_remote_servers(self, node: Node):
         await self.send_to_node({

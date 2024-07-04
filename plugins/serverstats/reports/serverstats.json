@@ -40,10 +40,10 @@
       "type": "Graph",
       "params":
       {
-        "width": 20,
-        "height": 15,
+        "width": 35,
+        "height": 25,
         "cols": 1,
-        "rows": 2,
+        "rows": 3,
         "elements":
          [
             {
@@ -53,6 +53,10 @@
             {
               "class": "plugins.serverstats.serverstats.UsersPerDayTime",
               "params": { "col": 0, "row": 1 }
+            },
+            {
+              "class": "plugins.serverstats.serverstats.UsersPerMissionTime",
+              "params": { "col": 0, "row": 2 }
             }
          ]
       }

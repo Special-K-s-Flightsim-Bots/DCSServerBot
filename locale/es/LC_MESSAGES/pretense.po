@@ -34,7 +34,7 @@ msgstr "Estadísticas de Pretense reiniciadas."
 
 # Reports
 msgid "Rankings as of <t:{}:f>:"
-msgstr "Rangliste von <t:{}:f>:"
+msgstr "Clasificación desde <t:{}:f>:"
 
 msgid "Name"
 msgstr "Name"

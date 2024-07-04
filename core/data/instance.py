@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core import DataObject
+from core.data.node import FatalException
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
@@ -38,25 +39,36 @@ class Instance(DataObject):
     @property
     def dcs_port(self) -> int:
         if self.server:
-            return int(self.server.settings.get('port', 10308))
+            port = int(self.server.settings.get('port', 10308))
         else:
-            return int(self.locals.get('dcs_port', 10308))
+            port = int(self.locals.get('dcs_port', 10308))
+        if port < 1024:
+            self.log.warning(f"The DCS port of instance {self.name} is < 1024. "
+                             f"You need to run this server as Administrator!")
+        elif port > 65535:
+            raise FatalException(f"The DCS port of instance {self.name} is > 65535!")
+        return port
 
     @property
     def webgui_port(self) -> int:
-        return int(self.locals.get('webgui_port', 8088))
+        webgui_port = int(self.locals.get('webgui_port', 8088))
+        if webgui_port < 1024:
+            self.log.warning(f"The WebGUI-port of instance {self.name} is < 1024. "
+                             f"You need to run this server as Administrator!")
+        elif webgui_port > 65535:
+            raise FatalException(f"The WebGUI-port of instance {self.name} is > 65535!")
+        return webgui_port
 
     @property
     def bot_port(self) -> int:
-        return int(self.locals.get('bot_port', 6666))
+        bot_port = int(self.locals.get('bot_port', 6666))
+        if bot_port < 1024 or bot_port > 65535:
+            raise FatalException(f"The bot-port of instance {self.name} needs to be between 1024 and 65535!")
+        return bot_port
 
     @property
     def extensions(self) -> dict:
         return self.locals.get('extensions') or {}
-
-    @property
-    def configured_server(self) -> Optional[str]:
-        return self.locals.get('server')
 
     @property
     def server_user(self) -> str:

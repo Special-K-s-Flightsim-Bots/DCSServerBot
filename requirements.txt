@@ -1,5 +1,5 @@
 # AIOFiles: File support for python's asyncio
-aiofiles==23.2.1
+aiofiles==24.1.0
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
 aiohttp==3.9.5
@@ -11,7 +11,7 @@ certifi==2024.6.2
 croniter==2.0.5
 
 # discord.py: The python interface for the Discord API
-discord.py==2.3.2
+discord.py==2.4.0
 
 # eyeD3: Python module and program for processing ID3 tags (metadata) in MP3 files
 eyeD3==0.9.7
@@ -50,7 +50,7 @@ packaging==24.1
 pid==3.0.4
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.1.19
+psycopg[binary]==3.2.1
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.2.2
@@ -69,9 +69,6 @@ python-Levenshtein==0.25.1
 
 # python-multipart: A library for parsing multipart/form-data input requests
 python-multipart==0.0.9
-
-# pywin32: Set of python extensions for Windows provided by Microsoft
-pypiwin32==223; sys_platform == 'win32'
 
 # Pywin32: Set of Python extensions for MS Windows
 pywin32==306; sys_platform == 'win32'

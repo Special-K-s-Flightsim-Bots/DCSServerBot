@@ -79,7 +79,7 @@ class Node:
 
     @property
     def extensions(self) -> dict:
-        raise NotImplemented()
+        return self.locals.get('extensions', {})
 
     def read_config(self, file: str) -> dict:
         try:

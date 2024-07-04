@@ -6,10 +6,11 @@ schema;settings_schema:
     isPublic: {type: bool}
     listLoop: {type: bool}
     listShuffle: {type: bool}
-    maxPlayers: {type: int, range: {min: 2}}
+    maxPlayers: {type: text}
     name: {type: str}
     password: {type: str}
-    port: {type: int, range: {min: 1025, max: 65535}}
+    port: {type: text}
+    mode: {type: text}
     require_pure_clients: {type: bool}
     require_pure_models: {type: bool}
     require_pure_scripts: {type: bool}
@@ -21,13 +22,13 @@ schema;settings_schema:
     advanced:
       type: map
       mapping:
-        client_outbound_limit: {type: int}
-        client_inbound_limit: {type: int}
+        client_outbound_limit: {type: text}
+        client_inbound_limit: {type: text}
         disable_events: {type: bool}
-        maxPing: {type: int}
+        maxPing: {type: text}
         pause_on_load: {type: bool}
         pause_without_clients: {type: bool}
-        resume_mode: {type: int, enum: [0, 1, 2]}
+        resume_mode: {type: text}
         server_can_screenshot: {type: bool}
         voice_chat_server: {type: bool}
         allow_change_skin: {type: bool}
@@ -44,6 +45,8 @@ schema;settings_schema:
         event_Kill: {type: bool}
         event_Role: {type: bool}
         event_Takeoff: {type: bool}
+        bluePasswordHash: {type: str}
+        redPasswordHash: {type: str}
 
 type: map
 mapping:

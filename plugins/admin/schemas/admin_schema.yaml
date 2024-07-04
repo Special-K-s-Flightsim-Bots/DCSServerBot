@@ -1,29 +1,36 @@
+schema;master_schema:
+  type: map
+  mapping:
+    downloads:
+      type: seq
+      sequence:
+        - type: map
+          mapping:
+            label: {type: str, required: true}
+            directory: {type: str, required: true}
+            pattern: {type: str, required: true}
+            target: {type: str}
+            discord:
+              type: seq
+              sequence:
+                - type: text
+            audit: {type: bool}
+    uploads:
+      type: map
+      mapping:
+        enabled: {type: bool}
+        discord:
+          type: seq
+          sequence:
+            - type: text
+
 type: map
 mapping:
-  DEFAULT: # we only support a DEFAULT mapping atm
-    type: map
-    mapping:
-      downloads:
-        type: seq
-        sequence:
-          - type: map
-            mapping:
-              label: {type: str, required: true}
-              directory: {type: str, required: true}
-              pattern: {type: str, required: true}
-              target: {type: str}
-              discord:
-                type: seq
-                sequence:
-                  - type: text
-              audit: {type: bool}
-      uploads:
-        type: map
-        mapping:
-          enabled: {type: bool}
-          discord:
-            type: seq
-            sequence:
-              - type: text
+  DEFAULT:
+    include: 'master_schema'
   commands:
     include: 'commands_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

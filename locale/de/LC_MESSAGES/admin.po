@@ -344,18 +344,21 @@ msgid "Delete an instance\n"
 msgstr "Lösche eine Instanz\n"
 
 msgid "The instance is in use by server \"{}\".\n"
-"Please migrate this server to another node first."
+"Do you really want to delete it?"
 msgstr "Die Instanz wird zurzeit vom Server \"{}\" genutzt.\n"
-"Bitte migriere den Server zuerst auf einen anderen Knoten."
+"Möchtest Du sie wirklich löschen?"
 
 msgid "Do you really want to delete instance {}?"
-msgstr "Möchtest Du Instanz {} wiklich löschen?"
+msgstr "Möchtest Du Instanz {} wirklich löschen?"
 
 msgid "Do you want to remove the directory {}?"
 msgstr "Möchtest Du das Verzeichnis {} auch löschen?"
 
 msgid "Instance {instance} removed from node {node}."
 msgstr "Instanz {instance} wurde vom Knoten {node} gelöscht."
+
+msgid "Instance {} could not be deleted, because the directory is in use."
+msgstr "Instanz {} konnte nicht gelöscht werden, da das Verzeichnis in Benutzung ist."
 
 # /node rename_instance
 msgid "Rename an instance\n"
@@ -369,6 +372,9 @@ msgstr "Möchtest Du Instanz {} wirklich umbenennen?"
 
 msgid "Instance {old_name} renamed to {new_name}."
 msgstr "Instanz {old_name} umbenannt zu {new_name}."
+
+msgid "Instance {} could not be renamed, because the directory is in use."
+msgstr "Instanz {} konnte nicht umbenannt werden, da das Verzeichnis in Benutzung ist."
 
 # Config upload
 msgid "To which server do you want to upload this configuration to?"

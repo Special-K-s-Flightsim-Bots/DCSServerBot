@@ -34,7 +34,7 @@ class ServerUsage(report.EmbedElement):
                 servers = playtimes = players = members = ''
                 await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
-                    servers += row['server_name'] + '\n'
+                    servers += row['server_name'][:30] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f}\n'.format(row['players'])
                     members += '{:.0f}\n'.format(row['members'])
@@ -73,7 +73,7 @@ class TopMissionPerServer(report.EmbedElement):
                 await cursor.execute(sql_left + sql_inner + sql_right.format(
                     '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name})
                 async for row in cursor:
-                    servers += row['server_name'] + '\n'
+                    servers += row['server_name'][:30] + '\n'
                     missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
 
@@ -140,7 +140,7 @@ class UniquePast14(report.GraphElement):
                     values.append(row['players'])
 
         sns.barplot(x=labels, y=values, color='dodgerblue', ax=self.axes)
-        self.axes.set_title('Unique Players past 14 Days', fontsize=25)
+        self.axes.set_title('Unique Players | past 14 days', fontsize=25)
         self.axes.spines['top'].set_visible(False)
         self.axes.spines['right'].set_visible(False)
         self.axes.spines['bottom'].set_visible(False)
@@ -160,7 +160,8 @@ class UsersPerDayTime(report.GraphElement):
             SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
                    COUNT(DISTINCT s.player_ucid) AS players 
             FROM statistics s, missions m, generate_series(current_date, current_date + 1, INTERVAL '1 hour') h 
-            WHERE date_part('hour', h.time) BETWEEN date_part('hour', s.hop_on) AND date_part('hour', s.hop_off) 
+            WHERE date_part('hour', h.time) BETWEEN date_part('hour', s.hop_on) AND date_part('hour', s.hop_off)
+            AND s.hop_on > (NOW() at time zone 'UTC') - interval '2 weeks' 
             AND s.mission_id = m.id
         """
         if server_name:
@@ -181,7 +182,35 @@ class UsersPerDayTime(report.GraphElement):
                         ax=self.axes)
             self.axes.invert_yaxis()
             self.axes.set_yticklabels(self.axes.get_yticklabels(), rotation=0)
-            self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
+            self.axes.set_title('Users per Day/Time (UTC) | past 14 days', color='white', fontsize=25)
+
+
+class UsersPerMissionTime(report.GraphElement):
+
+    async def render(self, server_name: Optional[str]):
+
+        inner_sql = """
+            SELECT mission_time / 3600 AS time, users 
+            FROM serverstats
+            WHERE mission_time IS NOT NULL
+            AND time > (now() at time zone 'UTC') - interval '2 weeks'
+        """
+        if server_name:
+            inner_sql += "AND server_name = %(server_name)s"
+        sql = f"""
+            SELECT time::INTEGER, avg(users)::DECIMAL AS users FROM (
+                {inner_sql}
+            ) s
+            GROUP BY 1 ORDER BY 1
+        """
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"server_name": server_name})
+                df = pd.DataFrame.from_dict(await cursor.fetchall())
+        sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
+        self.axes.set_title('Users per Mission-Time | past 14 days', color='white', fontsize=25)
+        self.axes.set_xticks(range(24))
 
 
 class ServerLoadHeader(EmbedElement):
@@ -237,16 +266,58 @@ class ServerLoad(report.MultiGraphElement):
             'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
         ]:
             series[column] = series[column].astype(float)
-        series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
-        self.axes[0].legend(loc='upper left')
+
+        # plot CPU and Users
+        series.plot(ax=self.axes[0], x='time', y=['Users'], title='CPU / User', xticks=[], xlabel='', color='blue')
         ax2 = self.axes[0].twinx()
-        series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-        ax2.legend(['Users'], loc='upper right')
-        series.plot(ax=self.axes[1], x='time', y=['FPS'], title='FPS / User', xticks=[], xlabel='')
-        self.axes[1].legend(loc='upper left')
+        series.plot(ax=ax2, x='time', y=['CPU'], xticks=[], xlabel='', color='yellow')
+
+        # plot FPS and Users
+        series.plot(ax=self.axes[1], x='time', y=['Users'], title='FPS / User', xticks=[], xlabel='', color='blue')
         ax3 = self.axes[1].twinx()
-        series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-        ax3.legend(['Users'], loc='upper right')
+        series.plot(ax=ax3, x='time', y=['FPS'], xticks=[], xlabel='', color='lightgreen')
+
+        users_avg = series['Users'].mean()
+        cpu_avg = series['CPU'].mean()
+        fps_avg = series['FPS'].mean()
+
+        labels_ax0 = ['Users']
+        values_ax0 = [users_avg]
+
+        labels_ax2 = ['CPU']
+        values_ax2 = [cpu_avg]
+
+        labels_ax3 = ['FPS']
+        values_ax3 = [fps_avg]
+
+        leg = self.axes[0].legend(labels_ax0, loc='upper right')
+        for line, text in zip(leg.get_lines(), leg.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax0[labels_ax0.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f})')
+
+        leg_ax2 = ax2.legend(labels_ax2, loc='upper left')
+        for line, text in zip(leg_ax2.get_lines(), leg_ax2.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax2[labels_ax2.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f}%)')
+
+        leg_ax1 = self.axes[1].legend(labels_ax0, loc='upper right')
+        for line, text in zip(leg_ax1.get_lines(), leg_ax1.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax0[labels_ax0.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f})')
+
+        leg_ax3 = ax3.legend(labels_ax3, loc='upper left')
+        for line, text in zip(leg_ax3.get_lines(), leg_ax3.get_texts()):
+            text.set_color("white")
+            label = text.get_text()
+            avg = values_ax3[labels_ax3.index(label)]
+            text.set_text(f'{label}\n(Avg: {avg:.2f})')
+
         series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory',
                     xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
         self.axes[2].legend(loc='upper left')

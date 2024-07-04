@@ -6,22 +6,36 @@ import json
 import luadata
 import os
 import re
+import shutil
 import ssl
 import subprocess
 import xml.etree.ElementTree as ET
 
-from core import Extension, utils, Server, ServiceRegistry
+from core import Extension, utils, Server, ServiceRegistry, get_translation
 from discord.ext import tasks
 from services import ServiceBus
+from packaging import version as ver
 from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
+
+_ = get_translation(__name__.split('.')[1])
 
 ports: dict[int, str] = dict()
 UPDATER_CODE = '4dctdtna'
 
 
 class LotAtc(Extension, FileSystemEventHandler):
+
+    CONFIG_DICT = {
+        "port": {
+            "type": int,
+            "label": _("LotAtc Port"),
+            "placeholder": _("Unique port number for LotAtc"),
+            "required": True
+        }
+    }
+
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'LotAtc')
         super().__init__(server, config)
@@ -52,6 +66,7 @@ class LotAtc(Extension, FileSystemEventHandler):
     async def prepare(self) -> bool:
         global ports
 
+        await self.update_instance(False)
         config = self.config.copy()
         if 'enabled' in config:
             del config['enabled']
@@ -146,7 +161,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             return {}
 
     def is_installed(self) -> bool:
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         if (not os.path.exists(os.path.join(self.home, 'bin', 'lotatc.dll')) or
                 not os.path.exists(os.path.join(self.home, 'config.lua'))):
@@ -175,6 +190,14 @@ class LotAtc(Extension, FileSystemEventHandler):
     def is_running(self) -> bool:
         return self.observer is not None
 
+    def get_inst_version(self) -> tuple[str, str]:
+        path = os.path.join(self.get_inst_path(), 'server')
+        versions = os.listdir(path)
+        major_version = max(versions, key=ver.parse)
+        path = os.path.join(path, major_version, 'Mods', 'services', 'LotAtc', 'bin')
+        version = utils.get_windows_version(os.path.join(path, 'LotAtc.dll'))
+        return major_version, version
+
     async def check_for_updates(self) -> Optional[str]:
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
@@ -189,7 +212,8 @@ class LotAtc(Extension, FileSystemEventHandler):
                                 break
                     else:
                         return None
-                    if version.text != self.version:
+                    _, inst_version = self.get_inst_version()
+                    if version.text != inst_version:
                         return version.text
                     return None
 
@@ -198,6 +222,44 @@ class LotAtc(Extension, FileSystemEventHandler):
         exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
         subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
                        stdout=subprocess.DEVNULL)
+
+    async def update_instance(self, force: bool) -> bool:
+        major_version, version = self.get_inst_version()
+        if version != self.version:
+            if force or self.config.get('autoupdate', False):
+                await self.uninstall()
+                await self.install()
+                return True
+            else:
+                self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "
+                              f"{self.version}, where {version} is available!")
+        return False
+
+    async def install(self):
+        major_version, _ = self.get_inst_version()
+        from_path = os.path.join(self.get_inst_path(), 'server', major_version)
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
+
+    async def uninstall(self):
+        major_version, _ = self.get_inst_version()
+        version = self.version
+        from_path = os.path.join(self.get_inst_path(), 'server', major_version)
+        for root, dirs, files in os.walk(from_path, topdown=False):
+            for name in files:
+                file_x = os.path.join(root, name)
+                file_y = file_x.replace(from_path, self.server.instance.home)
+                if os.path.exists(file_y):
+                    os.remove(file_y)
+            for name in dirs:
+                dir_x = os.path.join(root, name)
+                dir_y = dir_x.replace(from_path, self.server.instance.home)
+                if os.path.exists(dir_y):
+                    try:
+                        os.rmdir(dir_y)  # only removes empty directories
+                    except OSError:
+                        pass  # directory not empty
+        self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
 
     @tasks.loop(minutes=30)
     async def schedule(self):

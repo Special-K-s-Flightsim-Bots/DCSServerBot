@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
 import os
 import psutil
@@ -20,6 +21,7 @@ from copy import deepcopy
 from core import utils, Server
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
+from core.extension import InstallException, UninstallException
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
@@ -102,6 +104,7 @@ class ServerImpl(Server):
             row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
             if row:
                 self._maintenance = row[0]
+        atexit.register(self._stop_observer)
 
     async def reload(self):
         self.locals = self.read_locals()
@@ -156,44 +159,64 @@ class ServerImpl(Server):
         if self.name != 'n/a':
             self.prepare()
 
+    def _start_observer(self):
+        self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
+        self.observer = Observer()
+        self._enable_autoscan()
+        self.observer.start()
+
+    def _stop_observer(self):
+        if self.observer:
+            self.observer.stop()
+            self.observer.join()
+            self.observer = None
+
+    def _enable_autoscan(self):
+        if not self.observer.emitters:
+            self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=True)
+            self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
+
+    def _disable_autoscan(self):
+        if self.observer.emitters:
+            self.observer.unschedule_all()
+            self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
+
+    def _init_mission_list(self):
+        # make sure all missions in the directory are in the mission list ...
+        directory = Path(self.instance.missions_dir)
+        missions = self.settings['missionList']
+        i: int = 0
+        for file in directory.glob('*.miz'):
+            secondary = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
+            if str(file) not in missions and secondary not in missions:
+                missions.append(str(file))
+                i += 1
+        # make sure the list is written to serverSettings.lua
+        self.settings['missionList'] = missions
+        if i:
+            self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
+
+    def _make_missions_unique(self):
+        # make sure, mission names are unique
+        current_mission = self._get_current_mission_file()
+        if current_mission:
+            self._settings['missionList'] = list(
+                OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
+            )
+            try:
+                new_start = self._settings['missionList'].index(current_mission)
+            except ValueError:
+                new_start = 0
+            self._settings['listStartIndex'] = new_start + 1
+
     def set_status(self, status: Union[Status, str]):
         if status != self._status:
-            if self.locals.get('autoscan', False):
-                if (self._status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN]
-                        and status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]):
-                    if not self.observer.emitters:
-                        self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=True)
-                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
-                elif status == Status.SHUTDOWN:
-                    if self._status == Status.UNREGISTERED:
-                        # make sure all missions in the directory are in the mission list ...
-                        directory = Path(self.instance.missions_dir)
-                        missions = self.settings['missionList']
-                        i: int = 0
-                        for file in directory.glob('*.miz'):
-                            secondary = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
-                            if str(file) not in missions and secondary not in missions:
-                                missions.append(str(file))
-                                i += 1
-                        # make sure the list is written to serverSettings.lua
-                        self.settings['missionList'] = missions
-                        if i:
-                            self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
-                    elif self.observer.emitters:
-                        self.observer.unschedule_all()
-                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
-            elif self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
-                # make sure, mission names are unique
-                current_mission = self._get_current_mission_file()
-                if current_mission:
-                    self._settings['missionList'] = list(
-                        OrderedDict.fromkeys(os.path.normpath(x) for x in self._settings['missionList']).keys()
-                    )
-                    try:
-                        new_start = self._settings['missionList'].index(current_mission)
-                    except ValueError:
-                        new_start = 0
-                    self._settings['listStartIndex'] = new_start + 1
+            # make sure the mission list is tidy on the first start
+            if self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
+                if self.locals.get('autoscan', False):
+                    self._init_mission_list()
+                else:
+                    self._make_missions_unique()
             super().set_status(status)
 
     def _install_luas(self):
@@ -242,15 +265,15 @@ class ServerImpl(Server):
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
+                    if 'advanced' not in self.settings:
+                        self.settings['advanced'] = {}
                     self.settings['advanced'] = self.settings['advanced'] | value
                 else:
                     self.settings[key] = value
         self._install_luas()
         # enable autoscan for missions changes
         if self.locals.get('autoscan', False):
-            self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
-            self.observer = Observer()
-            self.observer.start()
+            self._start_observer()
 
     def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
@@ -405,27 +428,33 @@ class ServerImpl(Server):
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
-    async def init_extensions(self):
+    def _load_extension(self, name: str) -> Optional[Extension]:
+        if '.' not in name:
+            _extension = 'extensions.' + name
+        else:
+            _extension = name
+        _ext = utils.str_to_class(_extension)
+        if not _ext:
+            self.log.error(f"Extension {name} could not be found!")
+            return None
+        return _ext(
+            self,
+            self.node.locals.get('extensions', {}).get(name, {}) | self.locals['extensions'][name]
+        )
+
+    async def init_extensions(self) -> list[str]:
         for extension in self.locals.get('extensions', {}):
             try:
                 ext: Extension = self.extensions.get(extension)
                 if not ext:
-                    if '.' not in extension:
-                        _extension = 'extensions.' + extension
-                    else:
-                        _extension = extension
-                    _ext = utils.str_to_class(_extension)
-                    if not _ext:
-                        self.log.error(f"Extension {extension} could not be found!")
-                        return
-                    ext = _ext(
-                        self,
-                        self.node.locals.get('extensions', {}).get(extension, {}) | self.locals['extensions'][extension]
-                    )
+                    ext = self._load_extension(extension)
+                    if not ext:
+                        continue
                     if ext.is_installed():
                         self.extensions[extension] = ext
             except Exception as ex:
                 self.log.exception(ex)
+        return list(self.extensions.keys())
 
     async def prepare_extensions(self):
         for ext in self.extensions.values():
@@ -545,9 +574,8 @@ class ServerImpl(Server):
     @performance_log()
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         # disable autoscan
-        autoscan = self.locals.get('autoscan', False)
-        if autoscan:
-            self.locals['autoscan'] = False
+        if self.locals.get('autoscan', False):
+            self._disable_autoscan()
         if not filename:
             filename = await self.get_current_mission_file()
             if not filename:
@@ -585,8 +613,8 @@ class ServerImpl(Server):
             return filename
         finally:
             # enable autoscan
-            if autoscan:
-                self.locals['autoscan'] = True
+            if self.locals.get('autoscan', False):
+                self._enable_autoscan()
 
     async def keep_alive(self):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
@@ -778,3 +806,34 @@ class ServerImpl(Server):
         else:
             result = _method(**kwargs)
         return result
+
+    async def config_extension(self, name: str, config: dict) -> None:
+        config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
+        data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+        node_config = data.get(self.node.name, {})
+        if not node_config['instances'][self.instance.name].get('extensions'):
+            node_config['instances'][self.instance.name]['extensions'] = {}
+        if name not in node_config['instances'][self.instance.name]['extensions']:
+            node_config['instances'][self.instance.name]['extensions'][name] = config
+        else:
+            node_config['instances'][self.instance.name]['extensions'][name] |= config
+        with open(config_file, 'w', encoding='utf-8') as f:
+            yaml.dump(data, f)
+        # re-read config
+        self.node.locals = self.node.read_locals()
+
+    async def install_extension(self, name: str, config: dict) -> None:
+        if name in self.extensions:
+            raise InstallException(f"Extension {name} is already installed!")
+        await self.config_extension(name, config)
+        ext = self._load_extension(name)
+        await ext.install()
+        self.extensions[name] = ext
+
+    async def uninstall_extension(self, name: str) -> None:
+        ext = self.extensions[name]
+        if not ext:
+            raise UninstallException(f"Extension {name} is not installed!")
+        await ext.uninstall()
+        del self.extensions[name]
+        await self.config_extension(name, {"enabled": False})

@@ -1,4 +1,5 @@
 schema;instance_pretense_schema:
   type: map
   mapping:
+    enabled: {type: bool}
     randomize: {type: bool}

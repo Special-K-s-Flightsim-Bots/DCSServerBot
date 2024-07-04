@@ -52,10 +52,6 @@ class NodeProxy(Node):
     def installation(self) -> str:
         raise NotImplemented()
 
-    @property
-    def extensions(self) -> dict:
-        raise NotImplemented()
-
     def read_locals(self) -> dict:
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')

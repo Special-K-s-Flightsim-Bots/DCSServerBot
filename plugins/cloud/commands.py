@@ -298,6 +298,7 @@ class Cloud(Plugin):
             # noinspection PyUnresolvedReferences
             bot = {
                 "guild_id": self.bot.guilds[0].id,
+                "guild_name": self.bot.guilds[0].name,
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
                 "variant": "DCSServerBot",
                 "dcs_version": dcs_version,

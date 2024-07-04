@@ -39,22 +39,23 @@ class MissionStatisticsEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        if not self.bot.mission_stats:
-            self.bot.mission_stats = dict()
-        self.update: dict[str, bool] = dict()
+        self.mission_stats = {}
+        self.update: dict[str, bool] = {}
         self.do_update.start()
 
     async def shutdown(self):
         self.do_update.cancel()
+        self.mission_stats.clear()
 
     @event(name="getMissionSituation")
     async def getMissionSituation(self, server: Server, data: dict) -> None:
-        self.bot.mission_stats[server.name] = data
+        self.mission_stats[server.name] = data
 
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
             await server.send_to_dcs({"command": "enableMissionStats"})
-            await server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels.get(Channel.STATUS, -1)})
+            await server.send_to_dcs({"command": "getMissionSituation",
+                                      "channel": server.channels.get(Channel.STATUS, -1)})
         else:
             await server.send_to_dcs({"command": "disableMissionStats"})
 
@@ -119,9 +120,9 @@ class MissionStatisticsEventListener(EventListener):
         if config.get('persistence', True):
             # noinspection PyAsyncCall
             asyncio.create_task(self._update_database(server, config, data))
-        if not data['server_name'] in self.bot.mission_stats or not data.get('initiator'):
+        if not data['server_name'] in self.mission_stats or not data.get('initiator'):
             return
-        stats = self.bot.mission_stats[data['server_name']]
+        stats = self.mission_stats[data['server_name']]
         update = False
         if data['eventName'] == 'S_EVENT_BIRTH':
             initiator = data['initiator']
@@ -223,7 +224,7 @@ class MissionStatisticsEventListener(EventListener):
             config = self.get_config(server)
             if 'mission_end' in config:
                 title = config['mission_end'].get('title', 'Mission Result')
-                stats = self.bot.mission_stats.get(server.name)
+                stats = self.mission_stats.get(server.name)
                 if not stats:
                     return
                 if config['mission_end'].get('persistent', False):
@@ -250,7 +251,7 @@ class MissionStatisticsEventListener(EventListener):
             # Hide the mission statistics embed, if coalitions are enabled
             if self.plugin.get_config(server).get('display', True) and \
                     not server.locals.get('coalitions'):
-                stats = self.bot.mission_stats[server_name]
+                stats = self.mission_stats[server_name]
                 if 'coalitions' in stats:
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed', server=server)

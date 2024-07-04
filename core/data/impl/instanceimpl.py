@@ -29,7 +29,7 @@ class InstanceImpl(Instance):
             autoexec.webgui_port = int(self.locals.get('webgui_port'))
         else:
             self.locals['webgui_port'] = autoexec.webgui_port or 8088
-        settings = {}
+        server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
@@ -37,9 +37,9 @@ class InstanceImpl(Instance):
                 settings['port'] = int(self.locals['dcs_port'])
             else:
                 self.locals['dcs_port'] = settings.get('port', 10308)
-        server_name = settings.get('name', 'DCS Server') if settings else None
-        if server_name and server_name == 'n/a':
-            server_name = None
+            server_name = settings.get('name', 'DCS Server') if settings else None
+            if server_name == 'n/a':
+                server_name = None
         asyncio.create_task(self.update_instance(server_name))
 
     async def update_instance(self, server_name: Optional[str] = None):
@@ -60,10 +60,10 @@ class InstanceImpl(Instance):
     def home(self) -> str:
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
-    async def update_server(self, server: Optional["Server"] = None):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
+    def update_server(self, server: Optional["Server"] = None):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
                     UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE node = %s AND instance = %s
                 """, (server.name if server else None, self.node.name, self.name))
@@ -72,10 +72,15 @@ class InstanceImpl(Instance):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server
+        # delete the serverSettings.lua to unlink the current server
+        if not server:
+            settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
+            if os.path.exists(settings_path):
+                os.remove(settings_path)
         self.prepare()
         if server and server.name:
             server.instance = self
-        asyncio.create_task(self.update_server(server))
+        self.update_server(server)
 
     def prepare(self):
         if self.node.locals['DCS'].get('desanitize', True):

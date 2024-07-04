@@ -98,7 +98,7 @@ class DSMC(Extension):
         }
 
     def is_installed(self) -> bool:
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         dcs_home = self.server.instance.home
         if not os.path.exists(os.path.join(dcs_home, 'DSMC')) or \

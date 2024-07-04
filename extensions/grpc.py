@@ -1,13 +1,23 @@
 import os
 import re
 
-from core import Extension, Server
+from core import Extension, Server, get_translation
 from typing import Optional, Any, TextIO
+
+_ = get_translation(__name__.split('.')[1])
 
 ports: dict[int, str] = dict()
 
 
 class gRPC(Extension):
+
+    CONFIG_DICT = {
+        "port": {
+            "type": int,
+            "label": _("Port"),
+            "required": True
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'tech', 'DCS-gRPC')
@@ -100,7 +110,7 @@ class gRPC(Extension):
         return await super().prepare()
 
     def is_installed(self) -> bool:
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         if not os.path.exists(os.path.join(self.home, 'dcs_grpc.dll')):
             self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")

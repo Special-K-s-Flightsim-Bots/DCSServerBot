@@ -4,12 +4,14 @@ import os
 import psutil
 import subprocess
 
-from core import Extension, Server, utils
+from core import Extension, Server, utils, get_translation
 from discord.ext import tasks
 from threading import Thread
 from typing import Optional
 
 from .tacview import TACVIEW_DEFAULT_DIR
+
+_ = get_translation(__name__.split('.')[1])
 
 # Globals
 process: Optional[psutil.Process] = None
@@ -20,6 +22,23 @@ lock = asyncio.Lock()
 
 
 class Lardoon(Extension):
+
+    CONFIG_DICT = {
+        "bind": {
+            "type": str,
+            "label": _("Bind Address"),
+            "placeholder": "ip:port",
+            "required": True
+        },
+        "url": {
+            "type": str,
+            "label": _("URL")
+        },
+        "minutes": {
+            "type": int,
+            "label": _("Scan (min)")
+        }
+    }
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
@@ -102,8 +121,7 @@ class Lardoon(Extension):
         return utils.get_windows_version(self.config['cmd'])
 
     def is_installed(self) -> bool:
-        # check if Lardoon is enabled
-        if not self.config.get('enabled', True):
+        if not super().is_installed():
             return False
         # check if Lardoon is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
