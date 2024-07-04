@@ -1,8 +1,7 @@
 import pandas as pd
 
-from core import report, ServiceRegistry
+from core import report
 from psycopg.rows import dict_row
-from services import ServiceBus
 
 
 class NodeStats(report.MultiGraphElement):

@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, Plugin, Server, Player, Status, event, chat_command, utils, get_translation, ChatCommand
+from core import EventListener, Plugin, Server, Player, Status, event, chat_command, get_translation, ChatCommand
 from plugins.competitive.commands import Competitive
 from typing import Optional
 
