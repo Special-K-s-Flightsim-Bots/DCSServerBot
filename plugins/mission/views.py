@@ -229,7 +229,7 @@ class InfoView(View):
         await self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
         await interaction.followup.send("User has been banned.", ephemeral=self.ephemeral)
         name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
-        message = f'banned player {name} '
+        message = f'banned user {name} '
         if not utils.is_ucid(name):
             message += '(ucid={self.ucid}) '
         message += 'permanently'
