@@ -172,6 +172,14 @@ class CreditSystemListener(EventListener):
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.process_achievements(server, player))
 
+    @event(name="onCampaignReset")
+    async def onCampaignReset(self, server: Server, data: dict) -> None:
+        if server.status != Status.RUNNING:
+            return
+        config = self.plugin.get_config(server)
+        for player in server.get_active_players():  # type: CreditPlayer
+            player.points = self.get_initial_points(player, config)
+
     @chat_command(name="credits", help=_("Shows your current credits"))
     async def credits(self, server: Server, player: CreditPlayer, params: list[str]):
         message = _("You currently have {} credit points").format(player.points)
