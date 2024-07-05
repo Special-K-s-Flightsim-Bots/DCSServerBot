@@ -167,7 +167,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     -- check slot restrictions by role and points
     if dcsbot.params['slotblocking']['restricted'] then
         if restrict_slots(playerID, side, slotID) == false then
-            return False
+            return false
         end
     end
     -- check slot restrictions by balance
