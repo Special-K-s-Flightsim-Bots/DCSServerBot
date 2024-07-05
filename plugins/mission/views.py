@@ -2,7 +2,7 @@ import asyncio
 import discord
 import os
 from contextlib import suppress
-from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory
+from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils
 from discord import SelectOption
 from discord.ui import View, Select, Button
 from typing import cast, Optional, Union
@@ -228,6 +228,12 @@ class InfoView(View):
         # TODO: reason modal
         await self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
         await interaction.followup.send("User has been banned.", ephemeral=self.ephemeral)
+        name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
+        message = f'banned player {name} '
+        if not utils.is_ucid(name):
+            message += '(ucid={self.ucid}) '
+        message += 'permanently'
+        await self.bot.audit(message, user=interaction.user)
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
@@ -235,6 +241,7 @@ class InfoView(View):
         await interaction.response.defer()
         await self.bot.bus.unban(self.ucid)
         await interaction.followup.send("User has been unbanned.", ephemeral=self.ephemeral)
+        await self.bot.audit(f'unbanned user {self.ucid}.', user=interaction.user)
         self.stop()
 
     async def on_kick(self, interaction: discord.Interaction):
@@ -243,6 +250,7 @@ class InfoView(View):
         # TODO: reason modal
         await self.server.kick(player=self.player)
         await interaction.followup.send("User has been kicked.", ephemeral=self.ephemeral)
+        await self.bot.audit(f'kicked player {self.player.name} (ucid={self.player.ucid}).', user=interaction.user)
         self.stop()
 
     async def on_unlink(self, interaction: discord.Interaction):
@@ -271,6 +279,7 @@ class InfoView(View):
                 await member.remove_roles(self.bot.get_role(autorole))
             except discord.Forbidden:
                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+        await self.bot.audit(f'unlinked member {member.display_name} from UCID {self.ucid}.', user=interaction.user)
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):
@@ -299,6 +308,7 @@ class InfoView(View):
                 await member.add_roles(self.bot.get_role(autorole))
             except discord.Forbidden:
                 await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+        await self.bot.audit(f'linked member {member.display_name} to UCID {self.ucid}.', user=interaction.user)
         self.stop()
 
     async def on_watch(self, interaction: discord.Interaction):
@@ -318,4 +328,10 @@ class InfoView(View):
             async with conn.transaction():
                 await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
         await interaction.followup.send("User removed from the watchlist.", ephemeral=self.ephemeral)
+        name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
+        message = f'removed player {name} '
+        if not utils.is_ucid(name):
+            message += '(ucid={self.ucid}) '
+        message += 'from the watchlist'
+        await self.bot.audit(message, user=interaction.user)
         self.stop()

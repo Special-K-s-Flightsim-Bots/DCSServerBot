@@ -1,21 +1,22 @@
 from __future__ import annotations
+
 import asyncio
 import discord
 import logging
 import os
 import psycopg
 
-from psycopg.rows import dict_row
-
 from core import EventListener, Side, Coalition, Channel, utils, event, chat_command, CloudRotatingFileHandler, \
     get_translation, ChatCommand
 from datetime import datetime
+from psycopg.rows import dict_row
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Player, Server, Plugin
 
 _ = get_translation(__name__.split('.')[1])
+INTERNAL_CAMPAIGN = '_internal_'
 
 
 class GameMasterEventListener(EventListener):
@@ -206,7 +207,7 @@ class GameMasterEventListener(EventListener):
 
     @event(name="startCampaign")
     async def startCampaign(self, server: Server, data: dict) -> None:
-        name = data['name'] or '_internal_'
+        name = data.get('name') or INTERNAL_CAMPAIGN
         try:
             # noinspection PyAsyncCall
             asyncio.create_task(self.campaign('start', servers=[server], name=name))
@@ -226,8 +227,20 @@ class GameMasterEventListener(EventListener):
         if name:
             await self.campaign('delete', name=name)
         else:
-            name = '_internal_'
+            name = INTERNAL_CAMPAIGN
         await self.campaign('start', servers=[server], name=name)
+        await self.bot.bus.send_to_node({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "propagate_event",
+            "params": {
+                "command": "onCampaignReset",
+                "server": server.name if server else None,
+                "data": {
+                    "name": name
+                }
+            }
+        })
 
     @event(name="resetCampaign")
     async def resetCampaign(self, server: Server, _: dict) -> None:
