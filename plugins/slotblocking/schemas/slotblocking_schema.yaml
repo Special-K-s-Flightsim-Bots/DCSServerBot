@@ -23,6 +23,7 @@ schema;master_schema:
             costs: {type: int}
             crew: {type: int}
             VIP: {type: bool}
+            side: {type: int}
     payback: {type: bool}
 
 type: map
