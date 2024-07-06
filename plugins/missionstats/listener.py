@@ -50,6 +50,7 @@ class MissionStatisticsEventListener(EventListener):
     @event(name="getMissionSituation")
     async def getMissionSituation(self, server: Server, data: dict) -> None:
         self.mission_stats[server.name] = data
+        self.update[server.name] = True
 
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
