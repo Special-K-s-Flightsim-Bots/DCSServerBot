@@ -5,7 +5,7 @@ aiofiles==24.1.0
 aiohttp==3.9.5
 
 # Certifi: Python package for providing Mozilla's CA Bundle
-certifi==2024.6.2
+certifi==2024.7.4
 
 # Croniter: Python iterator implementing a cron schedule format
 croniter==2.0.5
@@ -29,7 +29,7 @@ GitPython==3.1.43
 jsonschema==4.22.0
 
 # Matplotlib: Python 2D plotting library
-matplotlib==3.9.0
+matplotlib==3.9.1
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.23; sys_platform == 'win32'
