@@ -50,8 +50,7 @@ class Main:
     @staticmethod
     def setup_logging(node: str):
         def time_formatter(time: datetime, _: str = None) -> Text:
-            log_time = time.astimezone(timezone.utc)
-            return Text(log_time.strftime('%H:%M:%S'))
+            return Text(time.strftime('%H:%M:%S'))
 
         # Setup console logger
         ch = RichHandler(rich_tracebacks=True, tracebacks_suppress=[discord], log_time_format=time_formatter)

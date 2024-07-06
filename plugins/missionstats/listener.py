@@ -248,15 +248,12 @@ class MissionStatisticsEventListener(EventListener):
             if not update:
                 continue
             server: Server = self.bot.servers[server_name]
-            # Hide the mission statistics embed, if coalitions are enabled
-            if self.plugin.get_config(server).get('display', True) and \
-                    not server.locals.get('coalitions'):
+            if self.plugin.get_config(server).get('display', True):
                 stats = self.mission_stats[server_name]
                 if 'coalitions' in stats:
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed', server=server)
                     # noinspection PyAsyncCall
-                    asyncio.create_task(report.render(
-                        stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED],
-                        title='Mission Statistics'))
+                    asyncio.create_task(report.render(stats=stats, mission_id=server.mission_id,
+                                                      title='Mission Statistics'))
             self.update[server_name] = False
