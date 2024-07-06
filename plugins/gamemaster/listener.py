@@ -429,7 +429,7 @@ class GameMasterEventListener(EventListener):
                 await conn.execute("""
                     DELETE FROM messages m WHERE m.player_ucid = %s 
                 """, (player.ucid, ))
-        task = self.tasks.pop(player.ucid)
+        task = self.tasks.pop(player.ucid, None)
         if task:
             task.cancel()
         await player.sendChatMessage(_("Message(s) acknowledged."))
