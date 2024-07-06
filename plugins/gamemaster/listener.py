@@ -28,9 +28,14 @@ class GameMasterEventListener(EventListener):
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
         coalition = await self.get_coalition(server, player)
+        # disable -join, -red and -blue, if people are in a coalition already
         if coalition and command.name in ['join', 'red', 'blue']:
             return False
+        # disable -leave, -password and -coalition, if people have not joined a coalition yet
         elif not coalition and command.name in ['leave', 'password', 'coalition']:
+            return False
+        # disable ack, if people do not have a message to acknowledge
+        elif command.name == 'ack' and player.ucid not in self.tasks:
             return False
         return await super().can_run(command, server, player)
 
