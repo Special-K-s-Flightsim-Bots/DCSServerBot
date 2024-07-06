@@ -760,7 +760,7 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        instance = await node.add_instance(name, template=template)
+        instance = await node.add_instance(name, template=template.name if template else "")
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server

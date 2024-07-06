@@ -918,7 +918,7 @@ class NodeImpl(Node):
                 break
             await asyncio.sleep(1)
 
-    async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
+    async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         max_bot_port = max_dcs_port = max_webgui_port = -1
         for instance in self.instances:
             if instance.bot_port > max_bot_port:
@@ -936,16 +936,17 @@ class NodeImpl(Node):
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
         # should we copy from a template
         if template:
-            shutil.copy2(os.path.join(template.home, 'Config', 'autoexec.cfg'),
+            _template = next(x for x in self.node.instances if x.name == template)
+            shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
                          os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(template.home, 'Config', 'serverSettings.lua'),
+            shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
                          os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(template.home, 'Config', 'options.lua'),
+            shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
                          os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(template.home, 'Config', 'network.vault'),
+            shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
                          os.path.join(instance.home, 'Config'))
-            if template.extensions and template.extensions.get('SRS'):
-                shutil.copy2(os.path.expandvars(template.extensions['SRS']['config']),
+            if _template.extensions and _template.extensions.get('SRS'):
+                shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"

@@ -252,7 +252,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
-    async def add_instance(self, name: str, *, template: Optional["Instance"] = None) -> "Instance":
+    async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -260,7 +260,7 @@ class NodeProxy(Node):
             "method": "add_instance",
             "params": {
                 "name": name,
-                "template": template.name
+                "template": template
             }
         }, node=self.name, timeout=timeout)
         return InstanceProxy(name=data['return'], node=self)

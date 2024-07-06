@@ -98,7 +98,7 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f'  - {ex.original}')
             else:
                 exc = ex.original if ex.original else ex
-                self.log.error(f'  - Plugin "{plugin.title()} not loaded! {exc.name}: {exc}', exc_info=True)
+                self.log.error(f'  - Plugin "{plugin.title()} not loaded! {ex.name}: {exc}', exc_info=True)
         except Exception as ex:
             self.log.exception(ex)
         return False
