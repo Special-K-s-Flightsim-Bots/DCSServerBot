@@ -168,7 +168,7 @@ class ServerImpl(Server):
     def _stop_observer(self):
         if self.observer:
             self.observer.stop()
-            self.observer.join()
+            self.observer.join(timeout=10)
             self.observer = None
 
     def _enable_autoscan(self):

@@ -9,7 +9,8 @@ from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog
+from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog, \
+    ThreadSafeDict
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from core.data.impl.serverimpl import ServerImpl
@@ -41,7 +42,7 @@ class ServiceBus(Service):
         self.version = self.node.bot_version
         self.listeners: dict[str, asyncio.Future] = dict()
         self.eventListeners: list[EventListener] = []
-        self.servers: dict[str, Server] = dict()
+        self.servers: dict[str, Server] = ThreadSafeDict()
         self.udp_server = None
         self.executor = None
         if self.node.locals['DCS'].get('desanitize', True):

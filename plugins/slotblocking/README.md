@@ -35,6 +35,7 @@ DEFAULT:            # Default section - true for all your servers.
     discord: Donators
     message: This slot is reserved for Donators!
   - unit_type: observer
+    side: 2               # side 1 = red, 2 = blue, not given - both sides
     discord: '@everyone'  # Only the "everyone" role needs the @ at the beginning, all other roles don't.
     message: This slot is reserved for members of http://invite.link!
   balancing:              # Optional: Allows balancing for your server (blue vs red)

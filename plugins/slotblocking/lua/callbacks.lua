@@ -75,8 +75,9 @@ function restrict_slots(playerID, side, slotID)
         local is_unit_type_match = unit['unit_type'] and unit['unit_type'] == unit_type
         local is_unit_name_match = unit['unit_name'] and string.match(unit_name, unit['unit_name'])
         local is_group_name_match = unit['group_name'] and string.match(group_name, unit['group_name'])
+        local is_side = (tonumber(unit['side']) or side) == side
 
-        if is_unit_type_match or is_unit_name_match or is_group_name_match then
+        if is_side and (is_unit_type_match or is_unit_name_match or is_group_name_match) then
             -- blocking slots by points // check multicrew
             if tonumber(slotID) then
                 points = tonumber(unit['points'])

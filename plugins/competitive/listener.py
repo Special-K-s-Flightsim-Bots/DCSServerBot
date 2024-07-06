@@ -240,7 +240,7 @@ class CompetitiveListener(EventListener):
 
     @tasks.loop(seconds=5)
     async def check_matches(self):
-        for server in self.bot.servers.copy().values():
+        for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
                 continue
             finished: list[Match] = []

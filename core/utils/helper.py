@@ -15,6 +15,7 @@ import secrets
 import shutil
 import string
 import tempfile
+import threading
 import time
 import unicodedata
 
@@ -59,6 +60,7 @@ __all__ = [
     "is_github_repo",
     "matches_cron",
     "dynamic_import",
+    "ThreadSafeDict",
     "SettingsDict",
     "RemoteSettingsDict",
     "tree_delete",
@@ -464,6 +466,49 @@ def dynamic_import(package_name: str):
             globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
 
 
+class ThreadSafeDict(dict):
+    def __init__(self, *args, **kwargs):
+        self.lock = threading.Lock()
+        super(ThreadSafeDict, self).__init__(*args, **kwargs)
+
+    def __getitem__(self, key):
+        with self.lock:
+            return super(ThreadSafeDict, self).__getitem__(key)
+
+    def __setitem__(self, key, value):
+        with self.lock:
+            return super(ThreadSafeDict, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        with self.lock:
+            return super(ThreadSafeDict, self).__delitem__(key)
+
+    def __iter__(self):
+        with self.lock:
+            for key in dict.keys(self):
+                yield key, dict.__getitem__(self, key)
+
+    def values(self):
+        with self.lock:
+            return list(super().values())
+
+    def keys(self):
+        with self.lock:
+            return list(super().keys())
+
+    def get(self, key, default=None):
+        with self.lock:
+            return super().get(key, default)
+
+    def pop(self, key, *default):
+        with self.lock:
+            return super().pop(key, *default)
+
+    def update(self, *args, **kwargs):
+        with self.lock:
+            return super().update(*args, **kwargs)
+
+
 class SettingsDict(dict):
     """
     A dictionary subclass that represents settings stored in a file.
@@ -537,6 +582,37 @@ class SettingsDict(dict):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
         return super().__getitem__(item)
+
+    def __delitem__(self, key):
+        if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
+            self.log.debug(f'{self.path} changed, re-reading from disk.')
+            self.read_file()
+        super().__delitem__(key)
+        if len(self):
+            self.write_file()
+        else:
+            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
+
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except KeyError:
+            return default
+
+    def pop(self, key, *default):
+        try:
+            value = self.__getitem__(key)
+            self.__delitem__(key)
+        except KeyError:
+            if default:
+                return default[0]
+            else:
+                raise
+        return value
+
+    def update(self, *args, **kwargs):
+        for k, v in dict(*args, **kwargs).items():
+            self.__setitem__(k, v)
 
 
 class RemoteSettingsDict(dict):

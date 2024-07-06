@@ -24,7 +24,7 @@ class MOTD(Plugin):
 
     async def cog_unload(self):
         self.nudge.cancel()
-        for server in self.bot.servers.copy().values():
+        for server in self.bot.servers.values():
             await self._cancel_handles(server)
         await super().cog_unload()
 
@@ -142,7 +142,7 @@ class MOTD(Plugin):
                 self.nudge_active[server.name][delay] = t
 
         try:
-            for server_name, server in self.bot.servers.copy().items():
+            for server_name, server in self.bot.servers.items():
                 config = self.get_config(server)
                 if not config or 'nudge' not in config:
                     continue

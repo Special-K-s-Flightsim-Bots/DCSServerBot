@@ -183,7 +183,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         if self.observer:
             super().shutdown()
             self.observer.stop()
-            self.observer.join()
+            self.observer.join(timeout=10)
             self.observer = None
         return True
 

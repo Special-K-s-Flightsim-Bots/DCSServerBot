@@ -5,7 +5,7 @@ import os
 import shlex
 
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command, ServiceRegistry
+    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
@@ -93,6 +93,12 @@ class MissionEventListener(EventListener):
         await self.work_queue()
         self.update_player_embed.cancel()
         self.update_mission_embed.cancel()
+
+    async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+        # linkme is only available, if the player is not linked
+        if command.name == 'linkme' and player.verified:
+            return False
+        return await super().can_run(command, server, player)
 
     async def work_queue(self):
         for channel in list(self.queue.keys()):
