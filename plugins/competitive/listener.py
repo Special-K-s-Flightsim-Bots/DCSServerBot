@@ -1,7 +1,7 @@
 import asyncio
 import trueskill
 
-from core import EventListener, event, Server, Status, Player, chat_command, Plugin, Side, get_translation
+from core import EventListener, event, Server, Status, Player, chat_command, Plugin, Side, get_translation, ChatCommand
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from discord.ext import tasks
@@ -54,11 +54,22 @@ class CompetitiveListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.matches: dict[str, dict[str, Match]] = dict()
-        self.in_match: dict[str, dict[str, Match]] = dict()
+        self.matches: dict[str, dict[str, Match]] = {}
+        self.in_match: dict[str, dict[str, Match]] = {}
+        self.active_servers: set[str] = set()
 
-    @staticmethod
-    async def inform_players(match: Match, message: str, time: Optional[int] = 10):
+    async def processEvent(self, name: str, server: Server, data: dict) -> None:
+        try:
+            if name == 'registerDCSServer' or server.name in self.active_servers:
+                await super().processEvent(name, server, data)
+        except Exception as ex:
+            self.log.exception(ex)
+
+    async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
+        if server.name not in self.active_servers:
+            return False
+
+    async def inform_players(self, match: Match, message: str, time: Optional[int] = 10):
         all_players = match.teams
         for player in ([p for p in all_players[Side.BLUE]] + [p for p in all_players[Side.RED]]):
             await player.sendPopupMessage(message, timeout=time)
@@ -75,20 +86,26 @@ class CompetitiveListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _: dict) -> None:
+        config = self.get_config(server)
+        if config.get('enabled', True):
+            self.active_servers.add(server.name)
+        else:
+            self.active_servers.discard(server.name)
+            return
         if server.name not in self.in_match:
-            self.in_match[server.name] = dict()
+            self.in_match[server.name] = {}
         if server.name not in self.matches:
-            self.matches[server.name] = dict()
+            self.matches[server.name] = {}
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
-        self.matches[server.name] = dict()
-        self.in_match[server.name] = dict()
+        self.matches[server.name] = {}
+        self.in_match[server.name] = {}
 
     @event(name="onSimulationStop")
-    async def onSimulationStart(self, server: Server, _: dict) -> None:
-        self.matches[server.name] = dict()
-        self.in_match[server.name] = dict()
+    async def onSimulationStop(self, server: Server, _: dict) -> None:
+        self.matches[server.name].clear()
+        self.in_match[server.name].clear()
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -96,8 +113,8 @@ class CompetitiveListener(EventListener):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            await player.sendChatMessage(
-                _("Your TrueSkill rating is: {}").format(self.calculate_rating(await self.get_rating(player))))
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._print_trueskill(player))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
@@ -188,10 +205,12 @@ class CompetitiveListener(EventListener):
                             what=_('killed') if data['arg3'] != data['arg4'] else _('team-killed'),
                             victim=print_crew(victims), victim_module=data['arg5'], weapon=data['arg7'] or 'Guns')))
                     match.player_dead(player)
-                    del self.in_match[server.name][player.ucid]
+                    self.in_match[server.name].pop(player.ucid, None)
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
                 await self.rank_teams(killers, victims)
+                if self.get_config(server).get('silent', False):
+                    return
                 for player in killers:
                     await player.sendChatMessage(_("You won against {loser}! Your new rating is {rating}").format(
                         loser=print_crew(victims), rating=self.calculate_rating(await self.get_rating(player))))
@@ -209,7 +228,7 @@ class CompetitiveListener(EventListener):
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 for player in players:
                     match.player_dead(player)
-                    del self.in_match[server.name][player.ucid]
+                    self.in_match[server.name].pop(player.ucid, None)
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
             if not player:
@@ -226,17 +245,22 @@ class CompetitiveListener(EventListener):
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 for player in players:
                     match.player_dead(player)
-                    del self.in_match[server.name][player.ucid]
+                    self.in_match[server.name].pop(player.ucid, None)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         # noinspection PyAsyncCall
         asyncio.create_task(self._onGameEvent(server, data))
 
+    async def _print_trueskill(self, player: Player):
+        if not self.get_config(player.server).get('silent', False):
+            await player.sendChatMessage(_("Your TrueSkill rating is: {}").format(
+                self.calculate_rating(await self.get_rating(player))))
+
     @chat_command(name="skill", help=_("Display your rating"))
     async def skill(self, server: Server, player: Player, params: list[str]):
-        await player.sendChatMessage(_("Your TrueSkill rating is: {}").format(
-            self.calculate_rating(await self.get_rating(player))))
+        # noinspection PyAsyncCall
+        asyncio.create_task(self._print_trueskill(player))
 
     @tasks.loop(seconds=5)
     async def check_matches(self):
