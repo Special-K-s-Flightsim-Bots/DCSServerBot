@@ -430,7 +430,7 @@ class MissionEventListener(EventListener):
 
     async def _smooth_pause(self, server: Server, seconds: int):
         if server.current_mission:
-            self.log.debug(f"Smooth pausing server {server.name} after 5s")
+            self.log.debug(f"Smooth pausing server {server.name} after {seconds}s")
             await server.current_mission.unpause()
             await asyncio.sleep(seconds)
             if not server.get_active_players():
