@@ -428,9 +428,24 @@ class MissionEventListener(EventListener):
         asyncio.create_task(self._update_bans(server))
         self.display_mission_embed(server)
 
+    async def _smooth_pause(self, server: Server, seconds: int):
+        if server.current_mission:
+            self.log.debug(f"Smooth pausing server {server.name} after 5s")
+            await server.current_mission.unpause()
+            await asyncio.sleep(seconds)
+            if not server.get_active_players():
+                await server.current_mission.pause()
+
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         server.status = Status.PAUSED
+        # If the server is PAUSED and smooth_pause is configured, start it for some seconds and pause it again,
+        # to let all scripts load properly.
+        if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
+            smooth_pause = self.get_config(server).get('smooth_pause', 0)
+            if smooth_pause > 0:
+                # noinspection PyAsyncCall
+                asyncio.create_task(self._smooth_pause(server, smooth_pause))
         self.display_mission_embed(server)
 
     @event(name="getMissionUpdate")

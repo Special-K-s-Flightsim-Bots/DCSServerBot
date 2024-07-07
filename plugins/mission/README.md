@@ -20,6 +20,7 @@ You can configure the behaviour of the mission plugin with an optional config/pl
 DEFAULT:
   greeting_message_members: "{player.name}, welcome back to {server.name}!"
   greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
+  smooth_pause: 5       # Servers that are configured to PAUSE on startup will run for this amount of seconds until they are paused again (default 0 = off)
   uploads:              # Configure how mission uploads are handled
     enabled: true       # Here you can disable the feature at all (default: true = enabled)
     discord:
