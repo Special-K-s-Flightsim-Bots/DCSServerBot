@@ -14,7 +14,7 @@ from core import (
     NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
     CloudRotatingFileHandler
 )
-from datetime import datetime, timezone
+from datetime import datetime
 from install import Install
 from migrate import migrate
 from pid import PidFile, PidFileError

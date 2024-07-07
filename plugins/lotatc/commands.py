@@ -40,7 +40,8 @@ async def gci_autocomplete(interaction: discord.Interaction, current: str) -> li
 
 class LotAtc(Plugin):
 
-    def lotatc_server_filter(self, server: Server) -> bool:
+    @staticmethod
+    def lotatc_server_filter(server: Server) -> bool:
         extensions = server.instance.locals.get('extensions')
         return 'LotAtc' in extensions if extensions is not None else False
 

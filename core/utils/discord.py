@@ -1235,7 +1235,8 @@ class ConfigModal(Modal):
                                     min_length=v.get('min_length'),
                                     max_length=v.get('max_length')))
 
-    def unmap(self, value: str, t: str = None) -> Any:
+    @staticmethod
+    def unmap(value: str, t: str = None) -> Any:
         if not t:
             return value
         elif t == int:
