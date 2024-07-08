@@ -287,7 +287,7 @@ def migrate(node: str):
 
         if 'PUBLIC_IP' in cfg['BOT']:
             nodes[node]['public_ip'] = cfg['BOT']['PUBLIC_IP']
-        nodes[node]['listen_address'] = '0.0.0.0' if cfg['BOT']['HOST'] == '127.0.0.1' else cfg['BOT']['HOST']
+        nodes[node]['listen_address'] = cfg['BOT']['HOST']
         nodes[node]['listen_port'] = int(cfg['BOT']['PORT'])
         nodes[node]['slow_system'] = cfg['BOT'].getboolean('SLOW_SYSTEM')
         nodes[node]['DCS'] = {

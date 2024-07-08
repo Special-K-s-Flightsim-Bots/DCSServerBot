@@ -299,13 +299,13 @@ For a cluster installation, you want to describe all your nodes and instances on
 
 ```yaml
 NODENAME:                       # this will usually be your hostname
-  listen_address: 0.0.0.0       # On which interface should the bot listen? Default is 0.0.0.0
   listen_port: 10042            # On which port should the bot listen? Default is 10042
-  slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
+  listen_address: 0.0.0.0       # Optional: On which interface should the bot listen? Default is 127.0.0.1.
+  slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
-  nodestats: true               # Enable node statistics (database pool and event queue sizes), default: true
+  nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.

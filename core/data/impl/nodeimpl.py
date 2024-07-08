@@ -113,6 +113,9 @@ class NodeImpl(Node):
         self.apool: Optional[AsyncConnectionPool] = None
         self._master = None
         self.listen_address = self.locals.get('listen_address', '127.0.0.1')
+        if self.listen_address != '127.0.0.1':
+            self.log.warning(
+                'Please consider changing the listen_address in your nodes.yaml to 127.0.0.1 for security reasons!')
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def __aenter__(self):
