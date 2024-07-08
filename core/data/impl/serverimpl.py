@@ -821,7 +821,7 @@ class ServerImpl(Server):
             yaml.dump(data, f)
         # re-read config
         self.node.locals = self.node.read_locals()
-        self.locals |= self.node.locals.get(self.instance.name)
+        self.locals |= self.node.locals['instances'][self.instance.name]
 
     async def install_extension(self, name: str, config: dict) -> None:
         if name in self.extensions:
