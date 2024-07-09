@@ -312,7 +312,7 @@ class NodeImpl(Node):
                 # initial setup
                 if len(tables) == 0:
                     self.log.info('Creating Database ...')
-                    with open('sql/tables.sql', mode='r') as tables_sql:
+                    with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
                         for query in tables_sql.readlines():
                             self.log.debug(query.rstrip())
                             await cursor.execute(query.rstrip())
@@ -326,7 +326,7 @@ class NodeImpl(Node):
                     self.db_version = (await cursor.fetchone())[0]
                     while os.path.exists(f'sql/update_{self.db_version}.sql'):
                         old_version = self.db_version
-                        with open(f'sql/update_{self.db_version}.sql', mode='r') as tables_sql:
+                        with open(os.path.join('sql', f'update_{self.db_version}.sql'), mode='r') as tables_sql:
                             for query in tables_sql.readlines():
                                 self.log.debug(query.rstrip())
                                 await conn.execute(query.rstrip())

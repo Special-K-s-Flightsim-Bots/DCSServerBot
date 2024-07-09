@@ -194,7 +194,7 @@ class Tacview(Extension):
         exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
                              os.path.exists(os.path.join(base_dir, r'Scripts\Export.lua')))
         if exports_installed:
-            with open(os.path.join(base_dir, r'Scripts\Export.lua'), mode='r', encoding='utf-8') as file:
+            with open(os.path.join(base_dir, 'Scripts', 'Export.lua'), mode='r', encoding='utf-8') as file:
                 for line in file.readlines():
                     # best case we find the default line Tacview put in the Export.lua
                     if line.strip() == "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir().." \

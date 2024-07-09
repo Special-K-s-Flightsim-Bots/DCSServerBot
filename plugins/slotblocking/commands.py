@@ -29,6 +29,8 @@ class SlotBlocking(Plugin):
                 del instance['use_reservations']
 
         if new_version == '3.1':
+            if not self.locals:
+                return
             path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
             data = yaml.load(Path(path).read_text(encoding='utf-8'))
             if self.node.name in data.keys():

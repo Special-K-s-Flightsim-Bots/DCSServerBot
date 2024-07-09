@@ -23,8 +23,6 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.text import Text
 
-from services import Dashboard
-
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
@@ -132,26 +130,18 @@ class Main:
         async with ServiceRegistry(node=self.node) as registry:
             if registry.services():
                 self.log.info("- Loading Services ...")
-            for cls in registry.services().keys():
-                if not registry.can_run(cls):
-                    continue
-                if cls == Dashboard:
-                    if self.node.config.get('use_dashboard', True):
-                        self.log.info("  => Dashboard started.")
-                        dashboard = registry.new(Dashboard)
-                        # noinspection PyAsyncCall
-                        asyncio.create_task(dashboard.start())
-                    continue
+            services = [registry.new(cls).start() for cls in registry.services().keys() if registry.can_run(cls)]
+            ret = await asyncio.gather(*services, return_exceptions=True)
+            for idx in range(0, len(ret)):
+                if isinstance(ret[idx], ServiceInstallationError):
+                    self.log.error(f"  - {ret[idx].__str__()}")
+                    self.log.info(f"  => {services[idx]} NOT loaded.")
+                elif isinstance(ret[idx], FatalException):
+                    self.log.error(f"  - {ret[idx].__str__()}")
+                    self.log.info(f"  => {services[idx]} NOT loaded.")
+                    return
                 else:
-                    try:
-                        # noinspection PyAsyncCall
-                        asyncio.create_task(registry.new(cls).start())
-                        self.log.debug(f"  => {cls.__name__} loaded.")
-                    except ServiceInstallationError as ex:
-                        self.log.error(f"  - {ex.__str__()}")
-                        self.log.info(f"  => {cls.__name__} NOT loaded.")
-                    except Exception as ex:
-                        self.log.exception(ex)
+                    self.log.debug(f"  => {services[idx].__name__} loaded.")
             if not self.node.master:
                 self.log.info("DCSServerBot AGENT started.")
             try:
@@ -165,36 +155,26 @@ class Main:
                     self.node.master = not self.node.master
                     if self.node.master:
                         self.log.info("Taking over the Master node ...")
-                        if self.node.config.get('use_dashboard', True):
-                            await dashboard.stop()
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
                                 try:
-                                    # noinspection PyAsyncCall
-                                    asyncio.create_task(registry.new(cls).start())
+                                    await registry.new(cls).start()
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")
                                     self.log.info(f"  => {cls.__name__} NOT loaded.")
                             else:
                                 service = registry.get(cls)
                                 if service:
-                                    # noinspection PyAsyncCall
-                                    asyncio.create_task(service.switch())
+                                    await service.switch()
                     else:
                         self.log.info("Second Master found, stepping back to Agent configuration.")
-                        if self.node.config.get('use_dashboard', True):
-                            await dashboard.stop()
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
-                                # noinspection PyAsyncCall
-                                asyncio.create_task(registry.get(cls).stop())
+                                await registry.get(cls).stop()
                             else:
                                 service = registry.get(cls)
                                 if service:
-                                    # noinspection PyAsyncCall
-                                    asyncio.create_task(service.switch())
-                    if self.node.config.get('use_dashboard', True):
-                        await dashboard.start()
+                                    await service.switch()
                     self.log.info(f"I am the {'Master' if self.node.master else 'Agent'} now.")
             except Exception as ex:
                 self.log.exception(ex)

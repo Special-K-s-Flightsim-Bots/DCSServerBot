@@ -736,7 +736,7 @@ def create_warning_embed(title: str, text: Optional[str] = None,
     embed = discord.Embed(title=title, color=discord.Color.yellow())
     if text:
         embed.description = text
-    with open("images/warning.png", mode="rb") as img:
+    with open(os.path.join('images', 'warning.png'), mode="rb") as img:
         img_bytes = img.read()
     buffer = BytesIO(img_bytes)
     file = discord.File(fp=buffer, filename="warning.png")

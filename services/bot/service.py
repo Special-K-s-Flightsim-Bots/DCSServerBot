@@ -5,7 +5,7 @@ import discord
 import os
 import zipfile
 
-from core import utils
+from core import utils, FatalException
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import commands
@@ -13,6 +13,7 @@ from discord.utils import MISSING
 from io import BytesIO
 from matplotlib import font_manager
 from pathlib import Path
+from ssl import SSLCertVerificationError
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
@@ -95,17 +96,17 @@ class BotService(Service):
                 await asyncio.sleep(1)
             self.bot = self.init_bot()
             await self.install_fonts()
-            async with self.bot:
-                await self.bot.start(self.token, reconnect=reconnect)
+            await self.bot.login(self.token)
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.bot.connect(reconnect=reconnect))
         except PermissionError as ex:
             self.log.error("Please check the permissions for " + str(ex))
             raise
         except discord.HTTPException:
-            self.log.error("Error while logging in your Discord bot. Check you token!")
-            raise
-        except Exception as ex:
-            self.log.exception(ex)
-            raise
+            raise FatalException("Error while logging in your Discord bot. Check you token!")
+        except SSLCertVerificationError:
+            raise FatalException("The Discord certificate is invalid. You need to import it manually. "
+                                 "Check the known issues section in my Discord for help.")
 
     async def stop(self):
         if self.bot:

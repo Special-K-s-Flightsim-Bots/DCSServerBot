@@ -37,6 +37,7 @@ class Scheduler(Plugin):
             config = {self.node.name: {}}
             for instance in self.bus.node.instances:
                 config[self.node.name][instance.name] = {}
+            os.makedirs(os.path.join(self.node.config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
                       encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
