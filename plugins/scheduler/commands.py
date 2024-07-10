@@ -416,6 +416,9 @@ class Scheduler(Plugin):
                         )
                     )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+            except Exception as ex:
+                self.log.error(ex)
+                await interaction.followup.send(ex, ephemeral=ephemeral)
             finally:
                 try:
                     await msg.delete()

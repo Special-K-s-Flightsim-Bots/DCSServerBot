@@ -6,6 +6,7 @@ import stat
 
 from contextlib import suppress
 from core.const import SAVED_GAMES
+from core.data.node import Node
 from core.utils.helper import alternate_parse_settings
 from typing import Optional
 
@@ -13,6 +14,7 @@ __all__ = [
     "ParseError",
     "findDCSInstances",
     "desanitize",
+    "is_desanitized",
     "dd_to_dms",
     "get_active_runways",
     "create_writable_mission",
@@ -101,6 +103,21 @@ def desanitize(self, _filename: str = None) -> None:
     except (OSError, IOError) as e:
         self.log.error(f"Can't access {filename}. Make sure, {self.node.installation} is writable.")
         raise e
+
+
+def is_desanitized(node: Node) -> bool:
+    filename = os.path.join(node.installation, 'Scripts', 'MissionScripting.lua')
+    with open(filename, mode='r', encoding='utf-8') as infile:
+        for line in infile.readlines():
+            if line.lstrip().startswith('--'):
+                continue
+            if "sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line:
+                return False
+            elif "_G['require'] = nil" in line or "_G['package'] = nil" in line:
+                return False
+            elif "require = nil" in line:
+                return False
+    return True
 
 
 def dd_to_dms(dd):

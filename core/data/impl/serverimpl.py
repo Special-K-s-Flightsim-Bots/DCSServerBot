@@ -505,6 +505,11 @@ class ServerImpl(Server):
         self.process.cpu_affinity(affinity)
 
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
+        if not utils.is_desanitized(self.node):
+            if not self.node.locals['DCS'].get('desanitize', True):
+                raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
+            else:
+                utils.desanitize(self)
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
