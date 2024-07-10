@@ -647,13 +647,30 @@ class RemoteSettingsDict(dict):
             "command": "rpc",
             "object": "Server",
             "server_name": self.server.name,
-            "method": "_settings.__setitem__",
+            "method": f"{self.obj}.__setitem__",
             "params": {
                 "key": key,
                 "value": value
             }
         }
         asyncio.create_task(self.server.send_to_dcs(msg))
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        msg = {
+            "command": "rpc",
+            "object": "Server",
+            "server_name": self.server.name,
+            "method": f"{self.obj}.__delitem__",
+            "params": {
+                "key": key
+            }
+        }
+        asyncio.create_task(self.server.send_to_dcs(msg))
+
+    def update(self, *args, **kwargs):
+        for k, v in dict(*args, **kwargs).items():
+            self.__setitem__(k, v)
 
 
 def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
