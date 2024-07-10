@@ -624,7 +624,7 @@ class ServiceBus(Service):
             if kwargs.get('server') and parameters.get('server').annotation != 'str':
                 kwargs['server'] = self.servers.get(kwargs['server'])
             if kwargs.get('instance') and parameters.get('instance').annotation != 'str':
-                kwargs['instance'] = next(x for x in self.node.instances if x.name == kwargs['instance'])
+                kwargs['instance'] = next((x for x in self.node.instances if x.name == kwargs['instance']), None)
             if self.master:
                 if kwargs.get('member'):
                     kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))

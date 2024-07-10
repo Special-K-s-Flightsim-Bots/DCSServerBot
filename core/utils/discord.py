@@ -911,7 +911,7 @@ class NodeTransformer(app_commands.Transformer):
     """
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Node:
         if value:
-            return next(x.node for x in interaction.client.servers.values() if x.node.name == value)
+            return next((x.node for x in interaction.client.servers.values() if x.node.name == value), None)
         else:
             return interaction.client.node
 
@@ -944,7 +944,7 @@ class InstanceTransformer(app_commands.Transformer):
             node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
             if not node:
                 return None
-            return next(x for x in node.instances if x.name == value)
+            return next((x for x in node.instances if x.name == value), None)
         elif len(interaction.client.node.instances) == 1:
             return interaction.client.node.instances[0]
         else:
