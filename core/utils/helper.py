@@ -616,23 +616,18 @@ class SettingsDict(dict):
 
 
 class RemoteSettingsDict(dict):
-    """
-    A dictionary subclass that allows remote access to settings on a server.
+    """A dictionary-like class for managing remote settings.
+
+    This class inherits from the built-in dict class and provides additional functionality for managing settings on a remote server.
 
     Args:
-        server (ServerProxy): The server proxy object used to communicate with the server.
-        obj (str): The name of the object containing the settings.
-        data (dict, optional): The initial data to populate the dictionary with. Defaults to None.
+        server (ServerProxy): The server proxy object that handles communication with the remote server.
+        obj (str): The name of the object on the remote server that the settings belong to.
+        data (Optional[dict]): Optional initial data for the settings dictionary.
 
     Attributes:
-        server (ServerProxy): The server proxy object used to communicate with the server.
-        obj (str): The name of the object containing the settings.
-
-    Raises:
-        None
-
-    Returns:
-        None
+        server (ServerProxy): The server proxy object that handles communication with the remote server.
+        obj (str): The name of the object on the remote server that the settings belong to.
 
     """
     def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
@@ -736,7 +731,7 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
         value = format_string(value[1:], **kwargs)
-        return eval(value) if value else False
+        return eval(value, {}, kwargs) if value else False
 
     if isinstance(value, list):
         for i in range(len(value)):
