@@ -644,7 +644,7 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
         value = format_string(value[1:], **kwargs)
-        return eval(value) if value else False
+        return eval(value, {}, kwargs) if value else False
 
     if isinstance(value, list):
         for i in range(len(value)):
