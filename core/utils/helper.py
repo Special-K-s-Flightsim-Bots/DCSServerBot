@@ -488,6 +488,10 @@ class ThreadSafeDict(dict):
             for key in dict.keys(self):
                 yield key, dict.__getitem__(self, key)
 
+    def items(self):
+        with self.lock:
+            return list(super().items())
+
     def values(self):
         with self.lock:
             return list(super().values())
@@ -507,6 +511,10 @@ class ThreadSafeDict(dict):
     def update(self, *args, **kwargs):
         with self.lock:
             return super().update(*args, **kwargs)
+
+    def clear(self):
+        with self.lock:
+            super().clear()
 
 
 class SettingsDict(dict):

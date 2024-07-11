@@ -650,8 +650,11 @@ class Admin(Plugin):
                      startup: Optional[bool] = False):
 
         async def _startup(server: Server):
-            await server.startup()
-            server.maintenance = False
+            try:
+                await server.startup()
+                server.maintenance = False
+            except (TimeoutError, asyncio.TimeoutError):
+                await interaction.followup.send(_("Timeout while starting server {}!").format(server.name))
 
         async def _node_online(node_name: str):
             next_startup = 0
