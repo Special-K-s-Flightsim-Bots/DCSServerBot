@@ -186,10 +186,6 @@ class InfoView(View):
                 button = Button(emoji="⛔")
                 button.callback = self.on_ban
                 self.add_item(button)
-            if self.player:
-                button = Button(emoji="⏏️")
-                button.callback = self.on_kick
-                self.add_item(button)
             watchlist = await self.is_watchlist()
             if watchlist:
                 button = Button(emoji="🆓")
@@ -198,6 +194,10 @@ class InfoView(View):
             else:
                 button = Button(emoji="🔍")
                 button.callback = self.on_watch
+                self.add_item(button)
+            if self.player:
+                button = Button(emoji="⏏️")
+                button.callback = self.on_kick
                 self.add_item(button)
         else:
             banned = watchlist = False
