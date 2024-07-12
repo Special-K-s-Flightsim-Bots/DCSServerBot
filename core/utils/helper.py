@@ -739,7 +739,8 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
         value = format_string(value[1:], **kwargs)
-        return eval(value, {}, kwargs) if value else False
+        namespace = {k: v for k, v in globals().items() if not k.startswith("__")}
+        return eval(value, namespace, kwargs) if value else False
 
     if isinstance(value, list):
         for i in range(len(value)):
