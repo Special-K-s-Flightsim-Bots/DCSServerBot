@@ -9,7 +9,7 @@ xmltodict==0.13.0
 psutil==5.9.8
 pypiwin32==223
 watchdog==4.0.0
-aiohttp==3.9.3
+aiohttp==3.9.4
 aiofiles==23.2.1
 rich==13.7.1
 eyeD3==0.9.7
