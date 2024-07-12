@@ -42,6 +42,9 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
     if name ~= name2 then
         return false, config.MESSAGE_PLAYER_USERNAME
     end
+    if name:find(']', 1, true) or name:find('[', 1, true) or name:find('\\', 1, true) then
+        return false, 'Please change your username to latin characters only, as there is a temporary issue with dynamic spawns'
+    end
 	if isBanned(ucid) then
         msg.command = 'sendMessage'
         msg.message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
