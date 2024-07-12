@@ -40,7 +40,7 @@ class ServerProxy(Server):
 
     @settings.setter
     def settings(self, s: dict):
-        self._settings = utils.RemoteSettingsDict(self, "settings", s)
+        self._settings = utils.RemoteSettingsDict(self, "_settings", s)
 
     @property
     def options(self) -> dict:
@@ -48,7 +48,7 @@ class ServerProxy(Server):
 
     @options.setter
     def options(self, o: dict):
-        self._options = utils.RemoteSettingsDict(self, "options", o)
+        self._options = utils.RemoteSettingsDict(self, "_options", o)
 
     async def get_current_mission_file(self) -> Optional[str]:
         timeout = 60 if not self.node.slow_system else 120

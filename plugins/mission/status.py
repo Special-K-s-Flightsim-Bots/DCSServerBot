@@ -176,7 +176,7 @@ class Footer(report.EmbedElement):
         for listener in self.bot.eventListeners:
             # noinspection PyUnresolvedReferences
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
-                    (server.name in listener.statistics):
+                    (server.name in listener.active_servers):
                 text += '\n\nUser statistics are enabled for this server.'
                 break
         text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'

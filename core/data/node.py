@@ -182,7 +182,7 @@ class Node:
     async def rename_server(self, server: "Server", new_name: str):
         raise NotImplemented()
 
-    async def add_instance(self, name: str, *, template: Optional["Instance"] = None) -> "Instance":
+    async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         raise NotImplemented()
 
     async def delete_instance(self, instance: "Instance", remove_files: bool) -> None:

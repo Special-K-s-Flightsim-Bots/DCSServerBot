@@ -658,7 +658,7 @@ class Mission(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
         miz = await asyncio.to_thread(MizFile, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
-            with open('config/presets.yaml', mode='r', encoding='utf-8') as infile:
+            with open(os.path.join('config', 'presets.yaml'), mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         else:
             presets = dict()
@@ -681,7 +681,7 @@ class Mission(Plugin):
             "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
             "halo": miz.halo
         }
-        with open(f'config/presets.yaml', mode='w', encoding='utf-8') as outfile:
+        with open(os.path.join('config', 'presets.yaml'), mode='w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)
         # noinspection PyUnresolvedReferences
         await interaction.followup.send(_('Preset "{}" added.').format(name), ephemeral=ephemeral)
@@ -1472,7 +1472,7 @@ class Mission(Plugin):
         # might happen during a restart
         if not self.bot.member:
             return
-        for server_name, server in self.bot.servers.copy().items():
+        for server_name, server in self.bot.servers.items():
             if server.status == Status.UNREGISTERED:
                 continue
             try:
@@ -1511,7 +1511,7 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def afk_check(self):
         try:
-            for server in self.bot.servers.copy().values():
+            for server in self.bot.servers.values():
                 if server.status != Status.RUNNING:
                     continue
                 max_time = server.locals.get('afk_time', -1)
@@ -1544,7 +1544,7 @@ class Mission(Plugin):
         role = self.bot.get_role(self.bot.locals.get('autorole', {}).get('online'))
         if role:
             online_members: set[discord.Member] = set()
-            for server in self.bot.servers.copy().values():
+            for server in self.bot.servers.values():
                 for player in server.get_active_players():
                     if player.member:
                         online_members.add(player.member)

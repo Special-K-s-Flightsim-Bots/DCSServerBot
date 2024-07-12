@@ -650,8 +650,11 @@ class Admin(Plugin):
                      startup: Optional[bool] = False):
 
         async def _startup(server: Server):
-            await server.startup()
-            server.maintenance = False
+            try:
+                await server.startup()
+                server.maintenance = False
+            except (TimeoutError, asyncio.TimeoutError):
+                await interaction.followup.send(_("Timeout while starting server {}!").format(server.name))
 
         async def _node_online(node_name: str):
             next_startup = 0
@@ -760,7 +763,7 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        instance = await node.add_instance(name, template=template)
+        instance = await node.add_instance(name, template=template.name if template else "")
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server

@@ -57,9 +57,6 @@ Heavy Storm:
     atGround:
       speed: 3
       dir: 290
-Halo:
-  halo:
-    preset: auto
 HardcoreMode:
   forcedOptions:
     fuel: false
@@ -92,20 +89,26 @@ Sounds:
   - sounds/morse.ogg
   - sounds/notify.ogg
   - sounds/page.ogg
-My Preset:
-- Winter
-- Nighttime
-- Rainy
-- Sounds
-Modify Test:
+NoMods:
+  requiredModules: []
+NoFailures:
+  failures: []
+CleanMiz:
+  - NoMods
+  - NoFailures
+AllowAirbossAndLSO:
   modify:
-  - for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}'
-      == 'ActivateBeacon'/params
-    replace:
-      modeChannel: X
-      channel: $'{where[type]}'[-2:]
-      frequency:
-        $'{where[type]}'[-2:] == '72': 1158000000
-        $'{where[type]}'[-2:] == '73': 1160000000
+    - for-each: coalition/blue/country/*/ship/group/*/units/$re.match(r'CVN_7[1-5]', '{type}') is not None
+      debug: true
+      replace:
+        allowLso: true
+        passwordLso: '$hash_password("blue")'
+        allowAirboss: true
+        passwordAirboss: '$hash_password("blue")'
+    - for-each: coalition/red/country/*/ship/group/*/units/$re.match(r'CVN_7[1-5]', '{type}') is not None
+      debug: true
+      replace:
+        allowLso: true
+        passwordLso: '$hash_password("red")'
+        allowAirboss: true
+        passwordAirboss: '$hash_password("red")'

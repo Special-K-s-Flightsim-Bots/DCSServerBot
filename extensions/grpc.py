@@ -107,6 +107,10 @@ class gRPC(Extension):
             return False
         else:
             ports[port] = self.server.name
+        host = self.locals.get('host', '127.0.0.1')
+        if host != '127.0.0.1':
+            self.log.warning(
+                'Please consider changing the host in your dcs-grpc.lua to 127.0.0.1 for security reasons!')
         return await super().prepare()
 
     def is_installed(self) -> bool:

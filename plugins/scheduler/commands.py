@@ -37,6 +37,7 @@ class Scheduler(Plugin):
             config = {self.node.name: {}}
             for instance in self.bus.node.instances:
                 config[self.node.name][instance.name] = {}
+            os.makedirs(os.path.join(self.node.config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
                       encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
@@ -294,7 +295,7 @@ class Scheduler(Plugin):
     async def check_state(self):
         next_startup = 0
         startup_delay = self.get_config().get('startup_delay', 10)
-        for server_name, server in self.bot.servers.copy().items():
+        for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
             if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
                 continue
@@ -414,6 +415,9 @@ class Scheduler(Plugin):
                         )
                     )
                     await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+            except Exception as ex:
+                self.log.error(ex)
+                await interaction.followup.send(ex, ephemeral=ephemeral)
             finally:
                 try:
                     await msg.delete()

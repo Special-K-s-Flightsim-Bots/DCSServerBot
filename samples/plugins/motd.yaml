@@ -6,7 +6,7 @@ DEFAULT:
     display_time: 20          # .. which lasts for 20 seconds
   nudge:
     delay: 3600               # the following message will be displayed every 3600 seconds (1h)
-    message: "This awesome server is presented to you by http://discord.gg/myfancylink.\n
+    message: "This awesome server is presented to you by https://discord.gg/myfancylink.\n
       Come and join us!"
     recipients: '!@everyone'  # the message only goes to specific recipients (unlinked people in this case)
     display_type: chat        # the message will be displayed in the in-game chat

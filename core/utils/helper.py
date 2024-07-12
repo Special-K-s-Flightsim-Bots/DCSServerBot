@@ -15,6 +15,7 @@ import secrets
 import shutil
 import string
 import tempfile
+import threading
 import time
 import unicodedata
 
@@ -59,6 +60,7 @@ __all__ = [
     "is_github_repo",
     "matches_cron",
     "dynamic_import",
+    "ThreadSafeDict",
     "SettingsDict",
     "RemoteSettingsDict",
     "tree_delete",
@@ -464,6 +466,57 @@ def dynamic_import(package_name: str):
             globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
 
 
+class ThreadSafeDict(dict):
+    def __init__(self, *args, **kwargs):
+        self.lock = threading.Lock()
+        super(ThreadSafeDict, self).__init__(*args, **kwargs)
+
+    def __getitem__(self, key):
+        with self.lock:
+            return super(ThreadSafeDict, self).__getitem__(key)
+
+    def __setitem__(self, key, value):
+        with self.lock:
+            return super(ThreadSafeDict, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        with self.lock:
+            return super(ThreadSafeDict, self).__delitem__(key)
+
+    def __iter__(self):
+        with self.lock:
+            for key in dict.keys(self):
+                yield key, dict.__getitem__(self, key)
+
+    def items(self):
+        with self.lock:
+            return list(super().items())
+
+    def values(self):
+        with self.lock:
+            return list(super().values())
+
+    def keys(self):
+        with self.lock:
+            return list(super().keys())
+
+    def get(self, key, default=None):
+        with self.lock:
+            return super().get(key, default)
+
+    def pop(self, key, *default):
+        with self.lock:
+            return super().pop(key, *default)
+
+    def update(self, *args, **kwargs):
+        with self.lock:
+            return super().update(*args, **kwargs)
+
+    def clear(self):
+        with self.lock:
+            super().clear()
+
+
 class SettingsDict(dict):
     """
     A dictionary subclass that represents settings stored in a file.
@@ -538,25 +591,51 @@ class SettingsDict(dict):
             self.read_file()
         return super().__getitem__(item)
 
+    def __delitem__(self, key):
+        if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
+            self.log.debug(f'{self.path} changed, re-reading from disk.')
+            self.read_file()
+        super().__delitem__(key)
+        if len(self):
+            self.write_file()
+        else:
+            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
+
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except KeyError:
+            return default
+
+    def pop(self, key, *default):
+        try:
+            value = self.__getitem__(key)
+            self.__delitem__(key)
+        except KeyError:
+            if default:
+                return default[0]
+            else:
+                raise
+        return value
+
+    def update(self, *args, **kwargs):
+        for k, v in dict(*args, **kwargs).items():
+            self.__setitem__(k, v)
+
 
 class RemoteSettingsDict(dict):
-    """
-    A dictionary subclass that allows remote access to settings on a server.
+    """A dictionary-like class for managing remote settings.
+
+    This class inherits from the built-in dict class and provides additional functionality for managing settings on a remote server.
 
     Args:
-        server (ServerProxy): The server proxy object used to communicate with the server.
-        obj (str): The name of the object containing the settings.
-        data (dict, optional): The initial data to populate the dictionary with. Defaults to None.
+        server (ServerProxy): The server proxy object that handles communication with the remote server.
+        obj (str): The name of the object on the remote server that the settings belong to.
+        data (Optional[dict]): Optional initial data for the settings dictionary.
 
     Attributes:
-        server (ServerProxy): The server proxy object used to communicate with the server.
-        obj (str): The name of the object containing the settings.
-
-    Raises:
-        None
-
-    Returns:
-        None
+        server (ServerProxy): The server proxy object that handles communication with the remote server.
+        obj (str): The name of the object on the remote server that the settings belong to.
 
     """
     def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
@@ -571,13 +650,30 @@ class RemoteSettingsDict(dict):
             "command": "rpc",
             "object": "Server",
             "server_name": self.server.name,
-            "method": "_settings.__setitem__",
+            "method": f"{self.obj}.__setitem__",
             "params": {
                 "key": key,
                 "value": value
             }
         }
         asyncio.create_task(self.server.send_to_dcs(msg))
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        msg = {
+            "command": "rpc",
+            "object": "Server",
+            "server_name": self.server.name,
+            "method": f"{self.obj}.__delitem__",
+            "params": {
+                "key": key
+            }
+        }
+        asyncio.create_task(self.server.send_to_dcs(msg))
+
+    def update(self, *args, **kwargs):
+        for k, v in dict(*args, **kwargs).items():
+            self.__setitem__(k, v)
 
 
 def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
@@ -634,7 +730,6 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
     """
     Evaluate the given value, replacing placeholders with keyword arguments if necessary.
 
-    :param debug: enable debug mode
     :param value: The value to evaluate. Can be a string, integer, float, or boolean.
     :param kwargs: Additional keyword arguments to replace placeholders in the value.
     :return: The evaluated value. Returns the input value if it is not a string or if it does not start with '$'.
@@ -644,7 +739,8 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
         if isinstance(value, (int, float, bool)) or not value.startswith('$'):
             return value
         value = format_string(value[1:], **kwargs)
-        return eval(value, {}, kwargs) if value else False
+        namespace = {k: v for k, v in globals().items() if not k.startswith("__")}
+        return eval(value, namespace, kwargs) if value else False
 
     if isinstance(value, list):
         for i in range(len(value)):

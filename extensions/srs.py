@@ -293,7 +293,7 @@ class SRS(Extension, FileSystemEventHandler):
     def stop_observer(self):
         if self.observer:
             self.observer.stop()
-            self.observer.join()
+            self.observer.join(timeout=10)
             self.observer = None
             self.clients.clear()
 

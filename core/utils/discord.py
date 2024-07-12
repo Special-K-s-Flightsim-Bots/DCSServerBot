@@ -736,7 +736,7 @@ def create_warning_embed(title: str, text: Optional[str] = None,
     embed = discord.Embed(title=title, color=discord.Color.yellow())
     if text:
         embed.description = text
-    with open("images/warning.png", mode="rb") as img:
+    with open(os.path.join('images', 'warning.png'), mode="rb") as img:
         img_bytes = img.read()
     buffer = BytesIO(img_bytes)
     file = discord.File(fp=buffer, filename="warning.png")
@@ -911,7 +911,7 @@ class NodeTransformer(app_commands.Transformer):
     """
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Node:
         if value:
-            return next(x.node for x in interaction.client.servers.values() if x.node.name == value)
+            return next((x.node for x in interaction.client.servers.values() if x.node.name == value), None)
         else:
             return interaction.client.node
 
@@ -944,7 +944,7 @@ class InstanceTransformer(app_commands.Transformer):
             node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
             if not node:
                 return None
-            return next(x for x in node.instances if x.name == value)
+            return next((x for x in node.instances if x.name == value), None)
         elif len(interaction.client.node.instances) == 1:
             return interaction.client.node.instances[0]
         else:
@@ -1235,7 +1235,8 @@ class ConfigModal(Modal):
                                     min_length=v.get('min_length'),
                                     max_length=v.get('max_length')))
 
-    def unmap(self, value: str, t: str = None) -> Any:
+    @staticmethod
+    def unmap(value: str, t: str = None) -> Any:
         if not t:
             return value
         elif t == int:

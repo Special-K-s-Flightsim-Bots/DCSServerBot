@@ -56,8 +56,17 @@ As Competitive is an optional plugin, you need to activate it in main.yaml first
 opt_plugins:
   - competitive
 ```
+If you want to disable the plugin for one or more servers, you can do it by creating a config/plugins/competitive.yaml:
+```yaml
+DCS.server:
+  enabled: false    # optional: disable the plugin (default: false)
+  silent: false     # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)
+```
+> ⚠️ **Attention!**<br/>
+> Silent mode can only be used on simple 1vs1 engagements, not on team engagements.
 
-There is no yaml-configuration for now. You can integrate the TrueSkill™️-rating into your highscores though.<br>
+
+You can integrate the TrueSkill™️-rating into your highscores though.<br>
 To do that, you copy your /plugins/userstats/reports/highscore.json to /reports/userstats. Then replace one of the
 "Graph" elements with this: 
 ```json

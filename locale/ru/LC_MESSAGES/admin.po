@@ -354,12 +354,10 @@ msgstr ""
 msgid "Delete an instance\n"
 msgstr "Удаление инстанса\n"
 
-msgid ""
-"The instance is in use by server \"{}\".\n"
-"Please migrate this server to another node first."
-msgstr ""
-"Инстанс используется другим сервером \"{}\".\n"
-"Пожалуйста, сначала выполните миграцию сервера на другую ноду."
+msgid "The instance is in use by server \"{}\".\n"
+"Do you really want to delete it?"
+msgstr "Этот инстанс используется на сервере \"{}\".\n"
+"Вы действительно хотите удалить его?"
 
 msgid "Do you really want to delete instance {}?"
 msgstr "Вы действительно хотите удалить инстанс {}?"
@@ -369,6 +367,9 @@ msgstr "Вы хотите удалить директорию {}?"
 
 msgid "Instance {instance} removed from node {node}."
 msgstr "Инстанс {instance} удален с ноды {node}."
+
+msgid "Instance {} could not be deleted, because the directory is in use."
+msgstr "Инстанс {} не может быть удален, так как директория уже используется."
 
 # /node rename_instance
 msgid "Rename an instance\n"
@@ -382,6 +383,9 @@ msgstr "Вы действительно хотите переименовать 
 
 msgid "Instance {old_name} renamed to {new_name}."
 msgstr "Инстанс {old_name} переименован в {new_name}."
+
+msgid "Instance {} could not be renamed, because the directory is in use."
+msgstr "Инстанс {} не может быть переименован, так как директория уже используется."
 
 # Config upload
 msgid "To which server do you want to upload this configuration to?"

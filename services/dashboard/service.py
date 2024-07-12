@@ -224,6 +224,8 @@ class Dashboard(Service):
         self.log.root.addHandler(self.old_handler)
 
     async def start(self):
+        if not self.node.config.get('use_dashboard', True):
+            return
         await super().start()
         self.bus = ServiceRegistry.get(ServiceBus)
         self.hook_logging()
@@ -233,12 +235,18 @@ class Dashboard(Service):
         self.update_task = asyncio.create_task(self.update())
 
     async def stop(self):
+        if not self.node.config.get('use_dashboard', True):
+            return
         self.stop_event.set()
         if self.update_task:
             await self.update_task
         self.unhook_logging()
         self.console.clear()
         await super().stop()
+
+    async def switch(self):
+        await self.stop()
+        await self.start()
 
     async def update(self):
         try:

@@ -113,6 +113,9 @@ class NodeImpl(Node):
         self.apool: Optional[AsyncConnectionPool] = None
         self._master = None
         self.listen_address = self.locals.get('listen_address', '127.0.0.1')
+        if self.listen_address != '127.0.0.1':
+            self.log.warning(
+                'Please consider changing the listen_address in your nodes.yaml to 127.0.0.1 for security reasons!')
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def __aenter__(self):
@@ -309,7 +312,7 @@ class NodeImpl(Node):
                 # initial setup
                 if len(tables) == 0:
                     self.log.info('Creating Database ...')
-                    with open('sql/tables.sql', mode='r') as tables_sql:
+                    with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
                         for query in tables_sql.readlines():
                             self.log.debug(query.rstrip())
                             await cursor.execute(query.rstrip())
@@ -323,7 +326,7 @@ class NodeImpl(Node):
                     self.db_version = (await cursor.fetchone())[0]
                     while os.path.exists(f'sql/update_{self.db_version}.sql'):
                         old_version = self.db_version
-                        with open(f'sql/update_{self.db_version}.sql', mode='r') as tables_sql:
+                        with open(os.path.join('sql', f'update_{self.db_version}.sql'), mode='r') as tables_sql:
                             for query in tables_sql.readlines():
                                 self.log.debug(query.rstrip())
                                 await conn.execute(query.rstrip())
@@ -918,7 +921,7 @@ class NodeImpl(Node):
                 break
             await asyncio.sleep(1)
 
-    async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
+    async def add_instance(self, name: str, *, template: str = "") -> "Instance":
         max_bot_port = max_dcs_port = max_webgui_port = -1
         for instance in self.instances:
             if instance.bot_port > max_bot_port:
@@ -936,16 +939,17 @@ class NodeImpl(Node):
         os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
         # should we copy from a template
         if template:
-            shutil.copy2(os.path.join(template.home, 'Config', 'autoexec.cfg'),
+            _template = next(x for x in self.node.instances if x.name == template)
+            shutil.copy2(os.path.join(_template.home, 'Config', 'autoexec.cfg'),
                          os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(template.home, 'Config', 'serverSettings.lua'),
+            shutil.copy2(os.path.join(_template.home, 'Config', 'serverSettings.lua'),
                          os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(template.home, 'Config', 'options.lua'),
+            shutil.copy2(os.path.join(_template.home, 'Config', 'options.lua'),
                          os.path.join(instance.home, 'Config'))
-            shutil.copy2(os.path.join(template.home, 'Config', 'network.vault'),
+            shutil.copy2(os.path.join(_template.home, 'Config', 'network.vault'),
                          os.path.join(instance.home, 'Config'))
-            if template.extensions and template.extensions.get('SRS'):
-                shutil.copy2(os.path.expandvars(template.extensions['SRS']['config']),
+            if _template.extensions and _template.extensions.get('SRS'):
+                shutil.copy2(os.path.expandvars(_template.extensions['SRS']['config']),
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"

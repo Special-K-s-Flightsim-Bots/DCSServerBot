@@ -105,9 +105,9 @@ class Tacview(Extension):
             if not name.startswith('tacview'):
                 continue
             if name == 'tacviewExportPath':
-                path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
+                path = os.path.normpath(os.path.expandvars(self.config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)))
                 os.makedirs(path, exist_ok=True)
-                dirty = self.set_option(options, name, path, TACVIEW_DEFAULT_DIR) or dirty
+                dirty = self.set_option(options, name, path) or dirty
             # Unbelievable but true. Tacview can only work with strings as ports.
             elif name in ['tacviewRealTimeTelemetryPort', 'tacviewRemoteControlPort']:
                 dirty = self.set_option(options, name, str(value)) or dirty
@@ -194,7 +194,7 @@ class Tacview(Extension):
         exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
                              os.path.exists(os.path.join(base_dir, r'Scripts\Export.lua')))
         if exports_installed:
-            with open(os.path.join(base_dir, r'Scripts\Export.lua'), mode='r', encoding='utf-8') as file:
+            with open(os.path.join(base_dir, 'Scripts', 'Export.lua'), mode='r', encoding='utf-8') as file:
                 for line in file.readlines():
                     # best case we find the default line Tacview put in the Export.lua
                     if line.strip() == "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir().." \

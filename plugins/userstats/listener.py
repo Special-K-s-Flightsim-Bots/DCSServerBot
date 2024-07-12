@@ -44,11 +44,13 @@ class UserStatisticsEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.statistics = set()
+        self.active_servers: set[str] = set()
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
-            if name in ['registerDCSServer', 'onMemberLinked', 'onMemberUnlinked'] or server.name in self.statistics:
+            if name in [
+                'registerDCSServer', 'onMemberLinked', 'onMemberUnlinked'
+            ] or server.name in self.active_servers:
                 await super().processEvent(name, server, data)
         except Exception as ex:
             self.log.exception(ex)
@@ -97,8 +99,9 @@ class UserStatisticsEventListener(EventListener):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if self.get_config(server).get('enabled', True):
-            self.statistics.add(server.name)
+            self.active_servers.add(server.name)
         else:
+            self.active_servers.discard(server.name)
             return
         if server.status == Status.STOPPED or not data['channel'].startswith('sync-') or 'current_mission' not in data:
             return
@@ -194,7 +197,7 @@ class UserStatisticsEventListener(EventListener):
 
     @event(name="disableUserStats")
     async def disableUserStats(self, server: Server, _: dict) -> None:
-        self.statistics.discard(server.name)
+        self.active_servers.discard(server.name)
         self.close_mission_stats(server)
 
     def _handle_disconnect_event(self, conn: Connection, server: Server, data: dict) -> None:

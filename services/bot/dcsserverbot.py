@@ -79,7 +79,7 @@ class DCSServerBot(commands.Bot):
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
         # cleanup remote servers (if any)
-        for key, value in self.bus.servers.copy().items():
+        for key, value in self.bus.servers.items():
             if value.is_remote:
                 del self.bus.servers[key]
 
@@ -98,7 +98,7 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f'  - {ex.original}')
             else:
                 exc = ex.original if ex.original else ex
-                self.log.error(f'  - Plugin "{plugin.title()} not loaded! {exc.name}: {exc}', exc_info=True)
+                self.log.error(f'  - Plugin "{plugin.title()} not loaded! {ex.name}: {exc}', exc_info=True)
         except Exception as ex:
             self.log.exception(ex)
         return False
