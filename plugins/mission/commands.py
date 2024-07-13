@@ -866,21 +866,23 @@ class Mission(Plugin):
         if DEFAULT_TAG not in self.locals:
             self.locals[DEFAULT_TAG] = {}
         if 'afk_exemptions' not in self.locals[DEFAULT_TAG]:
-            self.locals[DEFAULT_TAG]['afk_exemptions'] = []
-        if ucid not in self.locals[DEFAULT_TAG]['afk_exemptions']:
+            self.locals[DEFAULT_TAG]['afk_exemptions'] = {}
+        if 'ucid' not in self.locals[DEFAULT_TAG]['afk_exemptions']:
+            self.locals[DEFAULT_TAG]['afk_exemptions']['ucid'] = []
+        if ucid not in self.locals[DEFAULT_TAG]['afk_exemptions']['ucid']:
             if not await utils.yn_question(interaction,
                                            _("Do you want to permanently add this user to the AFK exemption list?"),
                                            ephemeral=ephemeral):
                 await interaction.followup.send("Aborted.", ephemeral=ephemeral)
                 return
-            self.locals[DEFAULT_TAG]['afk_exemptions'].append(ucid)
+            self.locals[DEFAULT_TAG]['afk_exemptions']['ucid'].append(ucid)
             await interaction.followup.send(_("User added to the exemption list."), ephemeral=ephemeral)
         else:
             if not await utils.yn_question(interaction,
                                            _("Player is on the list already. Do you want to remove them?")):
                 await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
                 return
-            self.locals[DEFAULT_TAG]['afk_exemptions'].remove(ucid)
+            self.locals[DEFAULT_TAG]['afk_exemptions']['ucid'].remove(ucid)
             await interaction.followup.send(_("User removed from the exemption list."), ephemeral=ephemeral)
         with open(config_file, 'w', encoding='utf-8') as outfile:
             yaml.dump(self.locals, outfile)
