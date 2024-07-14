@@ -567,13 +567,18 @@ class SettingsDict(dict):
             with open(tmpname, mode='wb') as outfile:
                 outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t',
                                                                      indent_level=0)).encode('utf-8'))
-        elif self.path.lower().endswith('.json'):
+        elif self.path.lower().endswith('.yaml'):
             with open(tmpname, mode="w", encoding='utf-8') as outfile:
                 yaml.dump(self, outfile)
         if not os.path.exists(self.path):
             self.log.info(f"- Creating {self.path} as it did not exist yet.")
-        shutil.copy2(tmpname, self.path)
-        self.mtime = os.path.getmtime(self.path)
+        try:
+            shutil.copy2(tmpname, self.path)
+            self.mtime = os.path.getmtime(self.path)
+        except Exception as ex:
+            self.log.exception(ex)
+        finally:
+            os.remove(tmpname)
 
     def __setitem__(self, key, value):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
@@ -617,10 +622,6 @@ class SettingsDict(dict):
             else:
                 raise
         return value
-
-    def update(self, *args, **kwargs):
-        for k, v in dict(*args, **kwargs).items():
-            self.__setitem__(k, v)
 
 
 class RemoteSettingsDict(dict):
@@ -670,10 +671,6 @@ class RemoteSettingsDict(dict):
             }
         }
         asyncio.create_task(self.server.send_to_dcs(msg))
-
-    def update(self, *args, **kwargs):
-        for k, v in dict(*args, **kwargs).items():
-            self.__setitem__(k, v)
 
 
 def tree_delete(d: dict, key: str, debug: Optional[bool] = False):

@@ -25,7 +25,7 @@ class Init(report.EmbedElement):
     async def render(self, server: Server):
         num_players = len(server.get_active_players()) + 1
         self.embed.set_author(
-            name=f"{server.name} [{num_players}/{server.settings['maxPlayers']}]",
+            name=f"{server.name} [{num_players}/{server.settings.get('maxPlayers', 16)}]",
             icon_url=STATUS_IMG[server.status])
         if server.status in [Status.PAUSED, Status.RUNNING] and server.current_mission:
             self.embed.description = f"Mission: \"{server.current_mission.display_name}\""

@@ -68,7 +68,7 @@ class ServersWidget:
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
             mission_name = re.sub(self.bus.filter['mission_name'], '',
                                   server.current_mission.name).strip() if server.current_mission else "n/a"
-            num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}" \
+            num_players = f"{len(server.get_active_players()) + 1}/{server.settings.get('maxPlayers', 16)}" \
                 if server.current_mission else "n/a"
             if self.service.node.master and self.service.is_multinode():
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
