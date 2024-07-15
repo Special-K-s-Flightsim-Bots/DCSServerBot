@@ -1,4 +1,5 @@
 import asyncio
+import psycopg_pool
 
 from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report, \
     get_translation
@@ -104,16 +105,19 @@ class MissionStatisticsEventListener(EventListener):
                 'place': get_value(data, 'place', 'name'),
                 'comment': data['comment'] if 'comment' in data else ''
             }
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    await conn.execute("""
-                        INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
-                                                  target_id, target_side, target_type, target_cat, weapon, place, 
-                                                  comment) 
-                        VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
-                                %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
-                                %(place)s, %(comment)s)
-                    """, dataset)
+            try:
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
+                            INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
+                                                      target_id, target_side, target_type, target_cat, weapon, place, 
+                                                      comment) 
+                            VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
+                                    %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
+                                    %(place)s, %(comment)s)
+                        """, dataset)
+            except psycopg_pool.PoolTimeout as ex:
+                self.log.warning(ex + ' / ignoring event')
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
