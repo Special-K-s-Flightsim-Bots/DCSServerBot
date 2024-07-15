@@ -117,7 +117,7 @@ class MissionStatisticsEventListener(EventListener):
                                     %(place)s, %(comment)s)
                         """, dataset)
             except psycopg_pool.PoolTimeout as ex:
-                self.log.warning(ex + ' / ignoring event')
+                self.log.warning(str(ex) + ' / ignoring event')
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
