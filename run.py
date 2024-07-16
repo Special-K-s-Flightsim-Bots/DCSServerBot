@@ -132,15 +132,15 @@ class Main:
                 self.log.info("- Loading Services ...")
             services = [registry.new(cls).start() for cls in registry.services().keys() if registry.can_run(cls)]
             ret = await asyncio.gather(*services, return_exceptions=True)
-            for idx in range(0, len(ret)):
-                name = registry.get(list(registry.services())[idx]).name
-                if isinstance(ret[idx], (ServiceInstallationError, FatalException)):
-                    self.log.error(f"  - {ret[idx].__str__()}")
-                    self.log.error(f"  => Service {name} NOT started.")
-                    if isinstance(ret[idx], FatalException):
-                        return
-                else:
-                    self.log.debug(f"  => Service {name} started.")
+#            for idx in range(0, len(ret)):
+#                name = registry.get(list(registry.services())[idx]).name
+#                if isinstance(ret[idx], (ServiceInstallationError, FatalException)):
+#                    self.log.error(f"  - {ret[idx].__str__()}")
+#                    self.log.error(f"  => Service {name} NOT started.")
+#                    if isinstance(ret[idx], FatalException):
+#                        return
+#                else:
+#                    self.log.debug(f"  => Service {name} started.")
             if not self.node.master:
                 self.log.info("DCSServerBot AGENT started.")
             try:
