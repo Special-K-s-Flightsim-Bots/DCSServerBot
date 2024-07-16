@@ -1,7 +1,8 @@
-import pickle
 import aiohttp
 import ipaddress
+import logging
 import os
+import pickle
 import psutil
 import socket
 import stat
@@ -42,6 +43,8 @@ __all__ = [
     "delete_password",
     "CloudRotatingFileHandler"
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def is_open(ip, port):
@@ -205,5 +208,6 @@ class CloudRotatingFileHandler(RotatingFileHandler):
         if self.maxBytes > 0:  # are we rolling over?
             log_file_size = os.path.getsize(self.baseFilename)
             if log_file_size >= self.maxBytes:
+                logging.debug(f"CloudRotatingFileHandler: Rollover: {log_file_size} / {self.maxBytes}")
                 return 1
         return 0
