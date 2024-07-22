@@ -84,6 +84,8 @@ MyNode:
           awacs: true
           blue_password: blue
           red_password: red
+          radio_effect_override: false                # optional: disable radio effects (LOS, etc)
+          global_lobby_frequencies: 248.22,30.0,127.0 # optional: set your music channels in here
           autostart: true     # optional: if you manage your SRS servers outside of DCSSB, set that to false
           always_on: true     # start SRS as soon as possible  (includes no_shutdown: true)
           no_shutdown: true   # optional: don't shut down SRS on mission end (default: false)

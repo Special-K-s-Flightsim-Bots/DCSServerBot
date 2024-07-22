@@ -13,6 +13,7 @@ from typing import Optional, Any
 _ = get_translation(__name__.split('.')[1])
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
+TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')\n"
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()
 
@@ -197,8 +198,7 @@ class Tacview(Extension):
             with open(os.path.join(base_dir, 'Scripts', 'Export.lua'), mode='r', encoding='utf-8') as file:
                 for line in file.readlines():
                     # best case we find the default line Tacview put in the Export.lua
-                    if line.strip() == "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir().." \
-                                       "'Scripts/TacviewGameExport.lua')":
+                    if line == TACVIEW_EXPORT_LINE:
                         break
                     # at least we found it, might still be wrong
                     elif not line.strip().startswith('--') and 'TacviewGameExport.lua'.casefold() in line.casefold():
@@ -213,8 +213,9 @@ class Tacview(Extension):
     @tasks.loop(seconds=1)
     async def check_log(self):
         try:
-            logfile = os.path.expandvars(self.config.get('log',
-                                                         os.path.join(self.server.instance.home, 'Logs', 'dcs.log')))
+            logfile = os.path.expandvars(
+                self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
+            )
             if not os.path.exists(logfile):
                 self.log_pos = 0
                 return
@@ -282,6 +283,13 @@ class Tacview(Extension):
     async def install(self):
         from_path = os.path.join(self.get_inst_path(), 'DCS')
         shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        export_file = os.path.join(self.server.instance.home, 'Scripts', 'Export.lua')
+        async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
+            lines = await infile.readlines()
+        if TACVIEW_EXPORT_LINE not in lines:
+            lines.append(TACVIEW_EXPORT_LINE)
+            async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
+                await outfile.writelines(lines)
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
 
     async def uninstall(self):
