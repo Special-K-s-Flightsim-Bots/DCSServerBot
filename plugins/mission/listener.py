@@ -28,7 +28,7 @@ class MissionEventListener(EventListener):
             'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;34m{} player {} occupied {} {}```',
-            'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected```'
+            'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected from server {}```'
         },
         Side.RED: {
             'takeoff': '```ansi\n\u001b[0;31mRED player {} took off from {}.```',
@@ -40,7 +40,7 @@ class MissionEventListener(EventListener):
             'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}```',
-            'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected```'
+            'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected from server {}```'
         },
         Side.NEUTRAL: {
             'takeoff': '```ansi\n\u001b[0;32mNEUTRAL player {} took off from {}.```',
@@ -52,11 +52,11 @@ class MissionEventListener(EventListener):
             'friendly_fire': '```ansi\n\u001b[1;33mNEUTRAL {} FRIENDLY FIRE onto {} with {}.```',
             'self_kill': '```ansi\n\u001b[0;32mNEUTRAL player {} killed themselves - Ooopsie!```',
             'change_slot': '```ansi\n\u001b[0;32m{} player {} occupied {} {}```',
-            'disconnect': '```ansi\n\u001b[0;32mNEUTRAL player {} disconnected```'
+            'disconnect': '```ansi\n\u001b[0;32mNEUTRAL player {} disconnected from server {}```'
         },
         Side.SPECTATOR: {
-            'connect': '```\nPlayer {} connected to server```',
-            'disconnect': '```\nPlayer {} disconnected```',
+            'connect': '```\nPlayer {} connected to server {}```',
+            'disconnect': '```\nPlayer {} disconnected from server {}```',
             'spectators': '```\n{} player {} returned to Spectators```',
             'takeoff': '```\nPlayer {} took off from {}.```',
             'landing': '```\nPlayer {} landed at {}.```',
@@ -484,7 +484,8 @@ class MissionEventListener(EventListener):
     async def onPlayerConnect(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
+        self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(
+            data['name'], server.display_name))
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player = DataObjectFactory().new(
@@ -621,7 +622,8 @@ class MissionEventListener(EventListener):
             return
         try:
             self.send_dcs_event(server, player.side,
-                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
+                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.display_name,
+                                                                                   server.display_name))
         finally:
             await self._stop_player(server, player)
 
