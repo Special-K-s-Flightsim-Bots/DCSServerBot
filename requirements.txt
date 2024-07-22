@@ -8,7 +8,7 @@ aiohttp==3.9.5
 certifi==2024.7.4
 
 # Croniter: Python iterator implementing a cron schedule format
-croniter==2.0.5
+croniter==2.0.7
 
 # discord.py: The python interface for the Discord API
 discord.py==2.4.0
@@ -17,7 +17,7 @@ discord.py==2.4.0
 eyeD3==0.9.7
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.111.0
+fastapi==0.111.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -35,7 +35,7 @@ matplotlib==3.9.1
 minidump==0.0.23; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
-numpy==2.0.0
+numpy==2.0.1
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.2
@@ -59,7 +59,7 @@ psycopg-pool==3.2.2
 psutil==6.0.0
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-pyarrow==16.1.0
+pyarrow==17.0.0
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
@@ -89,7 +89,7 @@ seaborn==0.13.2
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.30.1
+uvicorn==0.30.3
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==4.0.1

@@ -135,6 +135,12 @@ class SRS(Extension, FileSystemEventHandler):
         self.config['spectators_audio_disabled'] = False
         dirty = self._maybe_update_config('General Settings', 'SPECTATORS_AUDIO_DISABLED',
                                           'spectators_audio_disabled') or dirty
+        # disable effects (for music plugin)
+        # TODO: better alignment with the music plugin!
+        dirty = self._maybe_update_config('General Settings', 'RADIO_EFFECT_OVERRIDE',
+                                          'radio_effect_override') or dirty
+        dirty = self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
+                                          'global_lobby_frequencies') or dirty
         if 'LotAtc' in self.server.extensions:
             self.config['lotatc'] = True
             dirty = self._maybe_update_config('General Settings',
