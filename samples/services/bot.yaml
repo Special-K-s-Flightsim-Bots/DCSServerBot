@@ -26,4 +26,4 @@ roles:                                          # Roles mapping. The bot uses in
   GameMaster:                                   # Map the GameMaster role to anybody with the Staff role in your Discord.
   - Staff
   DCS:                                          # Map the bots DCS role to everyone in your discord. Only everyone needs the leading @!
-  - @everyone
+  - '@everyone'
