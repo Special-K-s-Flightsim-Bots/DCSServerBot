@@ -243,7 +243,7 @@ class Scheduler(Plugin):
                 await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                      f"{server.current_mission.display_name}", server=server)
         except Exception as ex:
-            self.log.error(f"Error with method {method} on server {server.name}: {ex}")
+            self.log.error(f"Error with method {method} on server {server.name}: {ex}", exc_info=True)
             server.restart_pending = False
 
     async def check_mission_state(self, server: Server, config: dict):
