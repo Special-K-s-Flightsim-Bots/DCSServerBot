@@ -152,7 +152,7 @@ class Tacview(Extension):
 
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
                 path = winreg.QueryValueEx(key, 'SteamPath')[0]
-                inst_path = os.path.join(path, 'steamapps', 'Tacview')
+                inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
                 if os.path.exists(inst_path):
                     self._inst_path = inst_path
 
