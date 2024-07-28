@@ -1,6 +1,6 @@
-local base 		= _G
+local base 	= _G
 local Terrain   = base.require('terrain')
-local UC   		= base.require("utils_common")
+local UC   	= base.require("utils_common")
 local Weather   = base.require('Weather')
 local dcsbot	= base.dcsbot
 local config	= base.require("DCSServerBotConfig")
@@ -43,22 +43,28 @@ function dcsbot.registerDCSServer(json)
         -- weather
         msg.weather = {}
         -- slots
-		num_slots_red = 0
-		dcsbot.red_slots = {}
-		for k,v in pairs(DCS.getAvailableSlots("red")) do
-			dcsbot.red_slots[v.unitId] = v
-			num_slots_red = num_slots_red + 1
-		end
+        num_slots_red = 0
+        local availableSlots = DCS.getAvailableSlots("red")
+        dcsbot.red_slots = {}
+        if availableSlots ~= nil then
+            for k,v in pairs(availableSlots) do
+                dcsbot.red_slots[v.unitId] = v
+                num_slots_red = num_slots_red + 1
+            end
+        end
 
-		num_slots_blue = 0
-		dcsbot.blue_slots = {}
-		for k,v in pairs(DCS.getAvailableSlots("blue")) do
-			dcsbot.blue_slots[v.unitId] = v
-			num_slots_blue = num_slots_blue + 1
-		end
+        num_slots_blue = 0
+        availableSlots = DCS.getAvailableSlots("blue")
+        dcsbot.blue_slots = {}
+        if availableSlots ~= nil then
+            for k,v in pairs(availableSlots) do
+                dcsbot.blue_slots[v.unitId] = v
+                num_slots_blue = num_slots_blue + 1
+            end
+        end
 
-		msg.num_slots_blue = num_slots_blue
-		msg.num_slots_red = num_slots_red
+        msg.num_slots_blue = num_slots_blue
+        msg.num_slots_red = num_slots_red
         -- players
         msg.players = {}
         plist = net.get_player_list()
