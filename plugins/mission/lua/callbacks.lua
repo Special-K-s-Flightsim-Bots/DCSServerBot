@@ -101,17 +101,23 @@ function mission.onMissionLoadEnd()
     }
 
     num_slots_red = 0
+    local availableSlots = DCS.getAvailableSlots("red")
     dcsbot.red_slots = {}
-    for k,v in pairs(DCS.getAvailableSlots("red")) do
-        dcsbot.red_slots[v.unitId] = v
-        num_slots_red = num_slots_red + 1
+    if availableSlots ~= nil then
+        for k,v in pairs(availableSlots) do
+            dcsbot.red_slots[v.unitId] = v
+            num_slots_red = num_slots_red + 1
+        end
     end
 
     num_slots_blue = 0
+    availableSlots = DCS.getAvailableSlots("blue")
     dcsbot.blue_slots = {}
-    for k,v in pairs(DCS.getAvailableSlots("blue")) do
-        dcsbot.blue_slots[v.unitId] = v
-        num_slots_blue = num_slots_blue + 1
+    if availableSlots ~= nil then
+        for k,v in pairs(availableSlots) do
+            dcsbot.blue_slots[v.unitId] = v
+            num_slots_blue = num_slots_blue + 1
+        end
     end
 
     msg.num_slots_blue = num_slots_blue
@@ -307,7 +313,7 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         end
     end
 
-    local msg = {
+	local msg = {
         command = 'onGameEvent',
         eventName = eventName,
         arg1 = arg1,
