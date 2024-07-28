@@ -7,8 +7,14 @@ crashes of the respective DCS.exe or DCS_server.exe process. A heartbeat will be
 number of heartbeats a server can miss can be configured in your instance configuration in nodes.yaml
 
 ## Configuration
-There is no specific configuration file for this service atm. The main configuration takes place in your nodes.yaml
-and servers.yaml files:
+The (optional) configuration file for this service has to be placed into config\services\monitoring.yaml:
+```yaml
+DEFAULT:
+  time_sync: true           # sync the PC time with a time server every 12 hrs, default: false
+  time_server: pool.ntp.org # and use this non-default time server for it, default: Windows default
+```
+
+To configure the DCS server monitoring, you can change these values in your nodes.yaml and servers.yaml:
 
 ### nodes.yaml
 ```yaml
