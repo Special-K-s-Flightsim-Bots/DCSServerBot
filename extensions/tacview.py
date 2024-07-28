@@ -5,7 +5,7 @@ import re
 import shutil
 import sys
 
-from core import Extension, utils, ServiceRegistry, Server, get_translation
+from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException
 from discord.ext import tasks
 from services import ServiceBus, BotService
 from typing import Optional, Any
@@ -62,6 +62,11 @@ class Tacview(Extension):
         if self.config.get('target') and not self.check_log.is_running():
             self.check_log.start()
         return True
+
+    def shutdown(self) -> bool:
+        if self.check_log.is_running():
+            self.check_log.cancel()
+        return super().shutdown()
 
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
@@ -152,9 +157,15 @@ class Tacview(Extension):
 
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
                 path = winreg.QueryValueEx(key, 'SteamPath')[0]
-                inst_path = os.path.join(path, 'steamapps', 'Tacview')
+                inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
                 if os.path.exists(inst_path):
                     self._inst_path = inst_path
+                else:
+                    raise InstallException(f"Can't find the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
+            else:
+                raise InstallException(f"Can't find the {self.name} installation dir, "
+                                       "please specify it manually in your nodes.yaml!")
 
         return self._inst_path
 
@@ -220,21 +231,25 @@ class Tacview(Extension):
                 self.log_pos = 0
                 return
             async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
+                max_pos = await file.tell()
                 # if we were started with an existing logfile, seek to the file end, else seek to the last position
                 if self.log_pos == -1:
                     await file.seek(0, 2)
                 else:
+                    # if the log was rotated, reset the pointer to 0
+                    if max_pos < self.log_pos:
+                        self.log_pos = 0
                     await file.seek(self.log_pos, 0)
                 lines = await file.readlines()
                 for line in lines:
-                    if 'End of flight data recorder.' in line:
+                    if 'End of flight data recorder.' in line or '=== Log closed.' in line:
                         self.check_log.cancel()
                         self.log_pos = -1
                         return
                     match = self.exp.search(line)
                     if match:
                         await self.send_tacview_file(match.group('filename'))
-                self.log_pos = await file.tell()
+                self.log_pos = max_pos
         except Exception as ex:
             self.log.exception(ex)
 
@@ -276,7 +291,7 @@ class Tacview(Extension):
             self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
             return
 
-    def get_inst_version(self) -> str:
+    def get_inst_version(self) -> Optional[str]:
         path = os.path.join(self.get_inst_path(), 'DCS', 'Mods', 'tech', 'Tacview', 'bin')
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 

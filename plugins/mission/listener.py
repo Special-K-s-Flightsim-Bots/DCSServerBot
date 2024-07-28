@@ -485,7 +485,7 @@ class MissionEventListener(EventListener):
         if data['id'] == 1:
             return
         self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(
-            data['name'], server.display_name))
+            data['name'], server.name))
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player = DataObjectFactory().new(
@@ -622,8 +622,7 @@ class MissionEventListener(EventListener):
             return
         try:
             self.send_dcs_event(server, player.side,
-                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.display_name,
-                                                                                   server.display_name))
+                                self.EVENT_TEXTS[player.side]['disconnect'].format(player.name, server.name))
         finally:
             await self._stop_player(server, player)
 

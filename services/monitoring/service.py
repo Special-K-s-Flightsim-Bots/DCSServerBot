@@ -166,8 +166,9 @@ class MonitoringService(Service):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO nodestats (node, pool_available, requests_queued, requests_wait_ms, dcs_queue, 
-                    asyncio_queue)
+                    INSERT INTO nodestats (
+                        node, pool_available, requests_queued, requests_wait_ms, dcs_queue, asyncio_queue
+                    )
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (self.node.name, pstats.get('pool_available', 0), pstats.get('requests_queued', 0),
                       pstats.get('requests_wait_ms', 0), sum(x.qsize() for x in bus.udp_server.message_queue.values()),
