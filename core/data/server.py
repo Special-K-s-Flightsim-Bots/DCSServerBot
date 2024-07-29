@@ -93,6 +93,8 @@ class Server(DataObject):
                 _locals['message_ban'] = _('You are banned from this server. Reason: {}')
             if 'message_server_full' not in _locals:
                 _locals['message_server_full'] = _('The server is full, please try again later.')
+            if 'message_slot_spamming' not in _locals:
+                _locals['message_slot_spamming'] = _('You have been kicked for slot spamming!')
             return _locals
         return {}
 
