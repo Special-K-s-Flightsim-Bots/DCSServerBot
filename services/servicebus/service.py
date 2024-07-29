@@ -372,7 +372,9 @@ class ServiceBus(Service):
                 await conn.execute("""
                     INSERT INTO bans (ucid, banned_by, reason, banned_until) 
                     VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT DO NOTHING
+                    ON CONFLICT (ucid) DO UPDATE 
+                    SET banned_by = excluded.banned_by, reason = excluded.reason, 
+                        banned_at = excluded.banned_at, banned_until = excluded.banned_until
                 """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
