@@ -262,6 +262,12 @@ class Scheduler(Plugin):
                         if utils.is_in_timeframe(restart_time, t):
                             asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
                             return
+                elif 'utc_times' in rconf:
+                    restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=warn_time)
+                    for t in rconf['utc_times']:
+                        if utils.is_in_timeframe(restart_time, t, tz=timezone.utc):
+                            asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
+                            return
                 elif 'mission_time' in rconf:
                     # check the maximum time the mission is allowed to run
                     if 'max_mission_time' in rconf and server.is_populated() and not rconf.get('populated', True):
@@ -753,7 +759,7 @@ class Scheduler(Plugin):
         else:
             item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
-        if 'local_times' in rconf or 'real_time' in rconf or _server.status == Status.RUNNING:
+        if 'local_times' in rconf or 'utc_times' in rconf or 'real_time' in rconf or _server.status == Status.RUNNING:
             if _server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"
             else:
