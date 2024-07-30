@@ -343,6 +343,10 @@ class MissionEventListener(EventListener):
             return
         self._update_mission(server, data)
         if data['channel'].startswith('sync-'):
+            if not data.get('players'):
+                server.players.clear()
+                server.status = Status.STOPPED
+                return
             # noinspection PyAsyncCall
             asyncio.create_task(self._update_bans(server))
             # get the weather async (if not filled already)
@@ -353,10 +357,6 @@ class MissionEventListener(EventListener):
             if not data.get('airbases'):
                 # noinspection PyAsyncCall
                 asyncio.create_task(self._load_airbases(server))
-        if not data.get('players'):
-            server.players.clear()
-            data['players'] = []
-            server.status = Status.STOPPED
         server.afk.clear()
         # all players are inactive for now
         for p in server.players.values():

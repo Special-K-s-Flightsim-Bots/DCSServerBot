@@ -6,14 +6,16 @@ import shutil
 import sys
 
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException
-from discord.ext import tasks
+from extensions.loganalyser import LogAnalyser
 from services import ServiceBus, BotService
-from typing import Optional, Any
+from typing import Optional, Any, cast
 
 _ = get_translation(__name__.split('.')[1])
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')\n"
+TACVIEW_PATTERN_MATCH = r'Successfully saved \[(?P<filename>.*?)\]'
+
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()
 
@@ -54,19 +56,23 @@ class Tacview(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
-        self.exp = re.compile(r'Successfully saved \[(?P<filename>.*?)\]')
+        self.exp = None
         self._inst_path = None
 
     async def startup(self) -> bool:
         await super().startup()
-        if self.config.get('target') and not self.check_log.is_running():
-            self.check_log.start()
+        if self.config.get('target'):
+            log_analyser: LogAnalyser = cast(LogAnalyser, self.server.extensions.get('LogAnalyser'))
+            if log_analyser:
+                self.exp = log_analyser.register_callback(TACVIEW_PATTERN_MATCH, self.send_tacview_file)
         return True
 
-    def shutdown(self) -> bool:
-        if self.check_log.is_running():
-            self.check_log.cancel()
-        return super().shutdown()
+#    def shutdown(self) -> bool:
+#        if self.config.get('target'):
+#            log_analyser: LogAnalyser = cast(LogAnalyser, self.server.extensions.get('LogAnalyser'))
+#            if log_analyser:
+#                log_analyser.unregister_callback(self.exp)
+#        return super().shutdown()
 
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
@@ -221,40 +227,9 @@ class Tacview(Extension):
             return False
         return True
 
-    @tasks.loop(seconds=1)
-    async def check_log(self):
-        try:
-            logfile = os.path.expandvars(
-                self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
-            )
-            if not os.path.exists(logfile):
-                self.log_pos = 0
-                return
-            async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
-                max_pos = await file.tell()
-                # if we were started with an existing logfile, seek to the file end, else seek to the last position
-                if self.log_pos == -1:
-                    await file.seek(0, 2)
-                else:
-                    # if the log was rotated, reset the pointer to 0
-                    if max_pos < self.log_pos:
-                        self.log_pos = 0
-                    await file.seek(self.log_pos, 0)
-                lines = await file.readlines()
-                for line in lines:
-                    if 'End of flight data recorder.' in line or '=== Log closed.' in line:
-                        self.check_log.cancel()
-                        self.log_pos = -1
-                        return
-                    match = self.exp.search(line)
-                    if match:
-                        await self.send_tacview_file(match.group('filename'))
-                self.log_pos = max_pos
-        except Exception as ex:
-            self.log.exception(ex)
-
-    async def send_tacview_file(self, filename: str):
+    async def send_tacview_file(self, index: int, line: str, match: re.Match):
         # wait 60s for the file to appear
+        filename = match.group('filename')
         for i in range(0, 60):
             if os.path.exists(filename):
                 target = self.config['target']

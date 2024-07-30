@@ -16,7 +16,7 @@ class MusicEventListener(EventListener):
         except (TimeoutError, asyncio.TimeoutError):
             return
         # if we've just started, we need to start the radios
-        if data['channel'].startswith('sync-'):
+        if data['channel'].startswith('sync-') and data.get('players'):
             await self.service.start_radios(server=server)
 
     @event(name="registerDCSServer")

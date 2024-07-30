@@ -130,20 +130,26 @@ class SchedulerListener(EventListener):
                 await server.start()
         server.restart_pending = False
 
-    async def _init_extensions(self, server: Server, data: dict) -> None:
+    async def _init_extensions(self, server: Server) -> None:
         try:
-            # init and start extensions if necessary
-            if data['channel'].startswith('sync-'):
-                await server.init_extensions()
+            await server.init_extensions()
+        except (TimeoutError, asyncio.TimeoutError):
+            self.log.error(f"Timeout while initializing extensions for server {server.name}!")
+
+    async def _startup_extensions(self, server: Server) -> None:
+        try:
             await server.startup_extensions()
         except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"Timeout while loading extensions for server {server.name}!")
+            self.log.error(f"Timeout while starting extensions for server {server.name}!")
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # noinspection PyAsyncCall
-        asyncio.create_task(self._init_extensions(server, data))
         if data['channel'].startswith('sync-'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._init_extensions(server))
+            if data.get('players'):
+                # noinspection PyAsyncCall
+                asyncio.create_task(self._startup_extensions(server))
             self.set_restart_time(server)
 
     @event(name="onPlayerStart")
@@ -194,6 +200,8 @@ class SchedulerListener(EventListener):
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
+        # noinspection PyAsyncCall
+        asyncio.create_task(self._startup_extensions(server))
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
             # noinspection PyAsyncCall

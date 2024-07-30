@@ -90,6 +90,8 @@ def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) 
     :type time: datetime
     :param timeframe: The timeframe to check against. Format: 'HH:MM-HH:MM' or 'HH:MM'.
     :type timeframe: str
+    :param tz: timezone to be used
+    :type tz: datetime.tzinfo
     :return: True if the time falls within the timeframe, False otherwise.
     :rtype: bool
     """

@@ -497,7 +497,7 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def start(self, interaction: discord.Interaction,
-                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.STOPPED])]):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.STOPPED:
             # noinspection PyUnresolvedReferences

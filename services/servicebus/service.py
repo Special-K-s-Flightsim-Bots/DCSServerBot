@@ -215,7 +215,8 @@ class ServiceBus(Service):
                         await self.send_init(server)
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
-                    if utils.is_open(server.instance.dcs_host, server.instance.dcs_port):
+                    if (utils.is_open(server.instance.dcs_host, server.instance.dcs_port) or
+                            utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
                         )
@@ -234,7 +235,7 @@ class ServiceBus(Service):
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (not responding).")
                     num += 1
                 elif isinstance(ret[i], Exception):
-                    self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
+                    self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=ret[i])
                 else:
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as UP.")
                     num += 1

@@ -63,7 +63,7 @@ class MissionStatisticsEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if data['channel'].startswith('sync') and server.status in [Status.RUNNING, Status.PAUSED]:
+        if data['channel'].startswith('sync') and data.get('players'):
             # noinspection PyAsyncCall
             asyncio.create_task(self._toggle_mission_stats(server))
 
