@@ -11,6 +11,7 @@ dcsbot.blue_slots = dcsbot.blue_slots or {}
 local mission = mission or {}
 mission.last_to_landing = {}
 mission.last_change_slot = {}
+mission.num_change_slots = {}
 mission.last_collision = {}
 mission.last_victim = {}
 
@@ -152,6 +153,7 @@ function mission.onPlayerConnect(id)
     dcsbot.userInfo[msg.ucid] = dcsbot.userInfo[msg.ucid] or {}
     dcsbot.userInfo[msg.ucid].points = nil
     dcsbot.userInfo[msg.ucid].coalition = nil
+    mission.num_change_slots[id] = 0
 	utils.sendBotTable(msg)
 end
 
@@ -189,6 +191,32 @@ function mission.onPlayerStop(id)
         active = false
     }
     utils.sendBotTable(msg)
+end
+
+function mission.onPlayerTryChangeSlot(id, side, slot)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryChangeSlot()')
+    if mission.num_change_slots[id] == -1 then
+        return false
+    end
+	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - 5) then
+		mission.num_change_slots[id] = mission.num_change_slots[id] + 1
+		if mission.num_change_slots[id] > 5 then
+            mission.num_change_slots[id] = -1
+			net.kick(id, config.MESSAGE_SLOT_SPAMMING)
+            ucid = net.get_player_info(id, 'ucid')
+            name = net.get_player_info(id, 'name')
+            local msg = {
+                command = 'sendMessage',
+                message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') kicked for slot spamming!',
+                mention = 'DCS Admin'
+            }
+            utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+			return false
+        end
+	else
+		mission.last_change_slot[id] = os.clock()
+    	mission.num_change_slots[id] = 0
+	end
 end
 
 function mission.onPlayerChangeSlot(id)
@@ -334,7 +362,7 @@ end
 function mission.onPlayerTrySendChat(from, message, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
     if from == SERVER_USER_ID then
-        return message
+        return
     end
     if string.sub(message, 1, 1) == config.CHAT_COMMAND_PREFIX then
         local elements = utils.split(message, ' ')
@@ -348,7 +376,6 @@ function mission.onPlayerTrySendChat(from, message, to)
         utils.sendBotTable(msg)
         return ''
     end
-    return message
 end
 
 function mission.onChatMessage(message, from, to)
