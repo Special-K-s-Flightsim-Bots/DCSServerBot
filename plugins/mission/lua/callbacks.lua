@@ -362,7 +362,7 @@ end
 function mission.onPlayerTrySendChat(from, message, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
     if from == SERVER_USER_ID then
-        return message
+        return
     end
     if string.sub(message, 1, 1) == config.CHAT_COMMAND_PREFIX then
         local elements = utils.split(message, ' ')
@@ -376,7 +376,6 @@ function mission.onPlayerTrySendChat(from, message, to)
         utils.sendBotTable(msg)
         return ''
     end
-    return message
 end
 
 function mission.onChatMessage(message, from, to)

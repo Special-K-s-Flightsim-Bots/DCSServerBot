@@ -3,9 +3,14 @@ import asyncio
 import os
 import re
 
-from core import Extension, Server, ServiceRegistry
+from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation
 from services import ServiceBus
 from typing import Callable
+
+_ = get_translation(__name__.split('.')[1])
+
+ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
+ERROR_SCRIPT = r'Mission script error: \[string "(.*)"\]:(\d+): (.*)'
 
 
 class LogAnalyser(Extension):
@@ -17,6 +22,7 @@ class LogAnalyser(Extension):
         self.pattern: dict[re.Pattern, Callable] = {}
         self.stop_event = asyncio.Event()
         self.stopped = asyncio.Event()
+        self.errors: set[tuple[str, int]] = set()
 
     def register_callback(self, pattern: str, callback: Callable) -> re.Pattern:
         _pattern = re.compile(pattern)
@@ -29,6 +35,9 @@ class LogAnalyser(Extension):
     async def startup(self) -> bool:
         self.stop_event.clear()
         self.stopped.clear()
+        self.errors.clear()
+        self.register_callback(ERROR_UNLISTED, self.unlisted)
+        self.register_callback(ERROR_SCRIPT, self.script_error)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
         return await super().startup()
@@ -85,3 +94,47 @@ class LogAnalyser(Extension):
             self.log.exception(ex)
         finally:
             self.stopped.set()
+
+    async def _send_warning(self, server: Server, warn_time: int):
+        await asyncio.sleep(warn_time)
+        await server.sendPopupMessage(
+            Coalition.ALL,
+            _('Server is going to restart in {}!').format(utils.format_time(warn_time)))
+
+    async def unlisted(self, idx: int, line: str, match: re.Match):
+        self.log.error(f"Server {self.server.name} got unlisted from the ED server list. Restarting ...")
+        if self.server.status == Status.RUNNING:
+            self.log.info("- Warning users before ...")
+            warn_times = [120 - t for t in [120, 60, 10]]
+            warn_tasks = [self._send_warning(self.server, t) for t in warn_times if t > 0]
+            # Gather tasks then wait
+            await asyncio.gather(*warn_tasks)
+        await self.node.audit("restart due to unlisting from the ED server list", server=self.server)
+        await self.server.restart()
+
+    async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context=5):
+        if not os.path.exists(filename):
+            return
+        async with aiofiles.open(filename, 'r') as file:
+            lines = await file.readlines()
+
+        print_lines = lines[target_line - context - 1: target_line + context]
+        marked_lines = []
+        starting_line_number = target_line - context
+        for i, line in enumerate(print_lines, starting_line_number):
+            if i == target_line:
+                marked_lines.append(f"-- Line {target_line}: {error_message}")
+                marked_lines.append(f"{i}: {line.rstrip()}")
+            else:
+                marked_lines.append(f"{i}: {line.rstrip()}")
+        code_content = "\n".join(marked_lines)
+        await self.node.audit("A LUA error occurred!", server=self.server, file=filename,
+                              code=f"```lua\n{code_content}\n```")
+
+    async def script_error(self, idx: int, line: str, match: re.Match):
+        filename, line_number, error_message = match.groups()
+        if (filename, int(line_number)) in self.errors:
+            return
+        self.log.error(f"Script error in {filename}:{line_number}: {error_message}")
+        await self._send_audit_msg(filename, int(line_number), error_message)
+        self.errors.add((filename, int(line_number)))

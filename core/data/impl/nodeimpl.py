@@ -154,21 +154,22 @@ class NodeImpl(Node):
         return os.path.expandvars(self.locals['DCS']['installation'])
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional[Server] = None):
+                    server: Optional[Server] = None, **kwargs):
         from services import BotService, ServiceBus
 
         if self.master:
-            await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server)
+            await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server, **kwargs)
         else:
+            params = {
+                "message": message,
+                "user": f"<@{user.id}>" if isinstance(user, discord.Member) else user,
+                "server": server.name if server else ""
+            } | kwargs
             await ServiceRegistry.get(ServiceBus).send_to_node({
                 "command": "rpc",
                 "service": BotService.__name__,
                 "method": "audit",
-                "params": {
-                    "message": message,
-                    "user": f"<@{user.id}>" if isinstance(user, discord.Member) else user,
-                    "server": server.name if server else ""
-                }
+                "params": params
             })
 
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):

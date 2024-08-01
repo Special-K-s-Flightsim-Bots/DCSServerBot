@@ -300,7 +300,7 @@ class DCSServerBot(commands.Bot):
             return rc
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional["Server"] = None):
+                    server: Optional["Server"] = None, **kwargs):
         if not self.audit_channel:
             if 'audit_channel' in self.locals:
                 self.audit_channel = self.get_channel(int(self.locals['audit_channel']))
@@ -315,13 +315,19 @@ class DCSServerBot(commands.Bot):
             if member:
                 embed.set_author(name=member.name, icon_url=member.avatar)
                 embed.set_thumbnail(url=member.avatar)
-                embed.description = f'<@{member.id}> ' + message
+                if member != self.member:
+                    embed.description = f'<@{member.id}> ' + message
+                else:
+                    embed.description = message
             else:
                 embed.description = message
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
             if server:
                 embed.add_field(name='Server', value=server.display_name)
+            if kwargs:
+                for name, value in kwargs.items():
+                    embed.add_field(name=name.title(), value=value, inline=False)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
         async with self.apool.connection() as conn:

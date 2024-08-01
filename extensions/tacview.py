@@ -227,7 +227,7 @@ class Tacview(Extension):
             return False
         return True
 
-    async def send_tacview_file(self, index: int, line: str, match: re.Match):
+    async def send_tacview_file(self, idx: int, line: str, match: re.Match):
         # wait 60s for the file to appear
         filename = match.group('filename')
         for i in range(0, 60):
