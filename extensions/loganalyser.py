@@ -123,18 +123,16 @@ class LogAnalyser(Extension):
         starting_line_number = target_line - context
         for i, line in enumerate(print_lines, starting_line_number):
             if i == target_line:
-                marked_lines.append(f"-- Line {target_line}: {error_message}")
-                marked_lines.append(f"{i}: {line.rstrip()}")
+                marked_lines.append(f"> {i}: {line.rstrip()}")
             else:
                 marked_lines.append(f"{i}: {line.rstrip()}")
         code_content = "\n".join(marked_lines)
         await self.node.audit("A LUA error occurred!", server=self.server, file=filename,
-                              code=f"```lua\n{code_content}\n```")
+                              error=f"Line {target_line}: {error_message}", code=f"```lua\n{code_content}\n```")
 
     async def script_error(self, idx: int, line: str, match: re.Match):
         filename, line_number, error_message = match.groups()
         if (filename, int(line_number)) in self.errors:
             return
-        self.log.error(f"Script error in {filename}:{line_number}: {error_message}")
         await self._send_audit_msg(filename, int(line_number), error_message)
         self.errors.add((filename, int(line_number)))
