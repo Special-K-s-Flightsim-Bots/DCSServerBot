@@ -88,7 +88,7 @@ class LogAnalyser(Extension):
                                     # noinspection PyAsyncCall
                                     asyncio.create_task(callback(self.log_pos + idx, line, match))
                                 else:
-                                    callback(self.log_pos + idx, line, match)
+                                    self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
                     self.log_pos = max_pos
         except Exception as ex:
             self.log.exception(ex)
