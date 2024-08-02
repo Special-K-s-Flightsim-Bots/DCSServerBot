@@ -115,7 +115,7 @@ class LogAnalyser(Extension):
     async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context=5):
         if not os.path.exists(filename):
             return
-        async with aiofiles.open(filename, 'r') as file:
+        async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
             lines = await file.readlines()
 
         print_lines = lines[target_line - context - 1: target_line + context]
