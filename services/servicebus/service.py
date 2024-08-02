@@ -639,7 +639,9 @@ class ServiceBus(Service):
                 if asyncio.iscoroutinefunction(func):
                     rc = await func(**kwargs)
                 else:
-                    rc = await asyncio.to_thread(func, **kwargs)
+                    async def _aux_func():
+                        return func(**kwargs)
+                    rc = await asyncio.to_thread(_aux_func)
                 return rc
         elif 'params' in data:
             for key, value in data['params'].items():

@@ -820,7 +820,9 @@ class ServerImpl(Server):
         if asyncio.iscoroutinefunction(_method):
             result = await _method(**kwargs)
         else:
-            result = await asyncio.to_thread(_method, **kwargs)
+            async def _aux_func():
+                return _method(**kwargs)
+            result = await asyncio.to_thread(_aux_func)
         return result
 
     async def config_extension(self, name: str, config: dict) -> None:
