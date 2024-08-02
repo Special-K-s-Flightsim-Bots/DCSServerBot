@@ -43,6 +43,10 @@ if TYPE_CHECKING:
     from services import DCSServerBot
     from watchdog.events import FileSystemEvent, FileSystemMovedEvent
 
+DEFAULT_EXTENSIONS = {
+    "LogAnalyser": {}
+}
+
 __all__ = ["ServerImpl"]
 
 
@@ -100,7 +104,8 @@ class ServerImpl(Server):
         self.lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT DO NOTHING", (self.name, ))
+                conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT (server_name) DO NOTHING",
+                             (self.name, ))
             row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
             if row:
                 self._maintenance = row[0]
@@ -439,11 +444,12 @@ class ServerImpl(Server):
             return None
         return _ext(
             self,
-            self.node.locals.get('extensions', {}).get(name, {}) | self.locals['extensions'][name]
+            self.node.locals.get('extensions', {}).get(name, {}) | (DEFAULT_EXTENSIONS | self.locals['extensions'])[name]
         )
 
     async def init_extensions(self) -> list[str]:
-        for extension in self.locals.get('extensions', {}):
+        extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
+        for extension in extensions:
             try:
                 ext: Extension = self.extensions.get(extension)
                 if not ext:
@@ -554,7 +560,7 @@ class ServerImpl(Server):
 
         for res in results:
             if isinstance(res, Exception):
-                self.log.error(f"Error during shutdown_extension()", exc_info=True)
+                self.log.error(f"Error during shutdown_extension()", exc_info=res)
 
     async def shutdown(self, force: bool = False) -> None:
         if await self.is_running():
@@ -588,7 +594,7 @@ class ServerImpl(Server):
                 return filename
         new_filename = filename
         try:
-            # make a backup
+            # make an initial backup, if there is none
             if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
                 shutil.copy2(filename, filename + '.orig')
             # process all mission modifications
@@ -604,8 +610,13 @@ class ServerImpl(Server):
             # check if the original mission can be written
             if filename != new_filename:
                 missions: list[str] = self.settings['missionList']
-                index = missions.index(filename) + 1
-                await self.replaceMission(index, new_filename)
+                try:
+                    index = missions.index(filename) + 1
+                    await self.replaceMission(index, new_filename)
+                except ValueError:
+                    # we should not be here, but just in case
+                    if new_filename not in missions:
+                        await self.addMission(new_filename)
             return new_filename
         except Exception as ex:
             if isinstance(ex, UnsupportedMizFileException):
@@ -809,7 +820,9 @@ class ServerImpl(Server):
         if asyncio.iscoroutinefunction(_method):
             result = await _method(**kwargs)
         else:
-            result = _method(**kwargs)
+            async def _aux_func():
+                return _method(**kwargs)
+            result = await asyncio.to_thread(_aux_func)
         return result
 
     async def config_extension(self, name: str, config: dict) -> None:

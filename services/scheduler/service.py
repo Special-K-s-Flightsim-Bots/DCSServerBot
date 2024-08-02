@@ -48,7 +48,9 @@ class SchedulerService(Service):
             if asyncio.iscoroutinefunction(func):
                 await func(**kwargs)
             else:
-                func(**kwargs)
+                async def _aux_func():
+                    return func(**kwargs)
+                await asyncio.to_thread(_aux_func)
         except Exception as ex:
             self.log.error(f"Scheduler: error while processing action {action}", exc_info=ex)
 

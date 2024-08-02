@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ctypes
 import logging
 import os
 import psutil
@@ -40,8 +41,34 @@ class MonitoringService(Service):
         await super().start()
         self.check_autoexec()
         self.monitoring.start()
+        if self.get_config().get('time_sync', False):
+            time_server = self.get_config().get('time_server', None)
+            if time_server:
+                if sys.platform == 'win32':
+                    try:
+                        retval = ctypes.windll.shell32.ShellExecuteW(
+                            None,
+                            "runas", 'w32tm', f'/config /manualpeerlist:{time_server} /syncfromflags:MANUAL',
+                            None, 1
+                        )
+                        if retval > 31:
+                            self.log.info(f"- Time server configured as {time_server}.")
+                        else:
+                            self.log.info(f"- Could not configure time server, errorcode: {retval}")
+                    except OSError as ex:
+                        if ex.winerror == 740:
+                            self.log.error("You need to disable User Access Control (UAC), "
+                                           "to use the automated time sync.")
+                        raise
+                else:
+                    # not implemented for UNIX
+                    pass
+
+            self.time_sync.start()
 
     async def stop(self):
+        if self.get_config().get('time_sync', False):
+            self.time_sync.cancel()
         self.monitoring.cancel()
         await super().stop()
 
@@ -166,8 +193,9 @@ class MonitoringService(Service):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO nodestats (node, pool_available, requests_queued, requests_wait_ms, dcs_queue, 
-                    asyncio_queue)
+                    INSERT INTO nodestats (
+                        node, pool_available, requests_queued, requests_wait_ms, dcs_queue, asyncio_queue
+                    )
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (self.node.name, pstats.get('pool_available', 0), pstats.get('requests_queued', 0),
                       pstats.get('requests_wait_ms', 0), sum(x.qsize() for x in bus.udp_server.message_queue.values()),
@@ -234,3 +262,21 @@ class MonitoringService(Service):
         if self.node.master:
             bot = ServiceRegistry.get(BotService).bot
             await bot.wait_until_ready()
+
+    @tasks.loop(hours=12)
+    async def time_sync(self):
+            if sys.platform == 'win32':
+                try:
+                    retval = ctypes.windll.shell32.ShellExecuteW(None, "runas", 'w32tm', '/resync', None, 1)
+                    if retval > 31:
+                        self.log.info("- Windows time synced.")
+                    else:
+                        self.log.info(f"- Windows time NOT synced, errorcode: {retval}")
+                except OSError as ex:
+                    if ex.winerror == 740:
+                        self.log.error("You need to disable User Access Control (UAC), "
+                                       "to use the automated time sync.")
+                    raise
+            else:
+                # not implemented for UNIX
+                pass

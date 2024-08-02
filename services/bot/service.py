@@ -163,8 +163,8 @@ class BotService(Service):
         await _channel.send(content=content, file=file, embed=_embed)
 
     async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional[Server] = None):
-        await self.bot.audit(message, user=user, server=server)
+                    server: Optional[Server] = None, **kwargs):
+        await self.bot.audit(message, user=user, server=server, **kwargs)
 
     async def rename_server(self, server: Server, new_name: str):
         async with self.apool.connection() as conn:

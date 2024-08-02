@@ -1383,7 +1383,7 @@ class Mission(Plugin):
         async def send_token(token: str):
             await interaction.followup.send(
                 _("**Your secure TOKEN is: {token}**\n"
-                  "To link your user, type in the following into the DCS chat of one of our servers:"
+                  "To link your user, type in the following into the in-game chat of one of our DCS servers:"
                   "```{prefix}linkme {token}```\n\n"
                   "**The TOKEN will expire in 2 days!**").format(token=token, prefix=self.eventlistener.prefix),
                 ephemeral=True)

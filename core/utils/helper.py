@@ -73,13 +73,16 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def parse_time(time_str: str) -> datetime:
+def parse_time(time_str: str, tz: datetime.tzinfo = None) -> datetime:
     fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
         if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
-    return datetime.strptime(time_str, fmt)
+    ret = datetime.strptime(time_str, fmt)
+    if tz is not None:
+        ret = ret.replace(tzinfo=tz)
+    return ret
 
 
-def is_in_timeframe(time: datetime, timeframe: str) -> bool:
+def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) -> bool:
     """
     Check if a given time falls within a specified timeframe.
 
@@ -87,17 +90,19 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     :type time: datetime
     :param timeframe: The timeframe to check against. Format: 'HH:MM-HH:MM' or 'HH:MM'.
     :type timeframe: str
+    :param tz: timezone to be used
+    :type tz: datetime.tzinfo
     :return: True if the time falls within the timeframe, False otherwise.
     :rtype: bool
     """
     pos = timeframe.find('-')
     if pos != -1:
-        start_time = parse_time(timeframe[:pos])
-        end_time = parse_time(timeframe[pos + 1:])
+        start_time = parse_time(timeframe[:pos], tz)
+        end_time = parse_time(timeframe[pos + 1:], tz)
         if end_time <= start_time:
             end_time += timedelta(days=1)
     else:
-        start_time = end_time = parse_time(timeframe)
+        start_time = end_time = parse_time(timeframe, tz)
     check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
     return start_time <= check_time <= end_time
 

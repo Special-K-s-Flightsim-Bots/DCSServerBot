@@ -343,6 +343,7 @@ DEFAULT:
   message_server_full: The server is full, please try again later!  # default message, if the server is considered full (see SlotBlocking plugin)
   message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
   message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
+  message_slot_spamming: You have been kicked for slot spamming! # default message for slot spamming (changing more than 5 slots in-between 5 seconds)
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
   rules: |                      # Optional: Rules to be displayed for new users (needs MissionStats enabled!)

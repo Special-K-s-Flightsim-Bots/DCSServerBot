@@ -11,3 +11,4 @@ from .sneaker import *
 from .srs import *
 from .tacview import *
 from .voicechat import *
+from .loganalyser import *

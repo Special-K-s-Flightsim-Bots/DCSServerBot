@@ -290,28 +290,28 @@ class ServerLoad(report.MultiGraphElement):
         labels_ax3 = ['FPS']
         values_ax3 = [fps_avg]
 
-        leg = self.axes[0].legend(labels_ax0, loc='upper right')
+        leg = self.axes[0].legend(labels_ax0, loc='upper left')
         for line, text in zip(leg.get_lines(), leg.get_texts()):
             text.set_color("white")
             label = text.get_text()
             avg = values_ax0[labels_ax0.index(label)]
             text.set_text(f'{label}\n(Avg: {avg:.2f})')
 
-        leg_ax2 = ax2.legend(labels_ax2, loc='upper left')
+        leg_ax2 = ax2.legend(labels_ax2, loc='upper right')
         for line, text in zip(leg_ax2.get_lines(), leg_ax2.get_texts()):
             text.set_color("white")
             label = text.get_text()
             avg = values_ax2[labels_ax2.index(label)]
             text.set_text(f'{label}\n(Avg: {avg:.2f}%)')
 
-        leg_ax1 = self.axes[1].legend(labels_ax0, loc='upper right')
+        leg_ax1 = self.axes[1].legend(labels_ax0, loc='upper left')
         for line, text in zip(leg_ax1.get_lines(), leg_ax1.get_texts()):
             text.set_color("white")
             label = text.get_text()
             avg = values_ax0[labels_ax0.index(label)]
             text.set_text(f'{label}\n(Avg: {avg:.2f})')
 
-        leg_ax3 = ax3.legend(labels_ax3, loc='upper left')
+        leg_ax3 = ax3.legend(labels_ax3, loc='upper right')
         for line, text in zip(leg_ax3.get_lines(), leg_ax3.get_texts()):
             text.set_color("white")
             label = text.get_text()

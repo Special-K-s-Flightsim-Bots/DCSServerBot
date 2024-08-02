@@ -1,0 +1,3 @@
+DEFAULT:
+  time_sync: true           # sync the PC time with a time server every 12 hrs
+  time_server: pool.ntp.org # and use this non-default time server for it

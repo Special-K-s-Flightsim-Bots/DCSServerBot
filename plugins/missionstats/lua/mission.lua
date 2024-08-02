@@ -273,10 +273,12 @@ function fillCoalitionsData(color)
     end
 
     coalitionColor.statics = {}
+--[[
     for _, static in pairs(coalition.getStaticObjects(coalition.side[color])) do
-        table.insert(coalitionColor.statics, static:getName())
+        table.insert(coalitionColor.statics, static:getName() or 'n/a')
+		env.info("Adding " .. color .. " static " .. static:getName() or 'n/a')
     end
-
+]]
 	return coalitionColor
 end
 

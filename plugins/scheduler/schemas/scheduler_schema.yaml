@@ -23,6 +23,11 @@ schema;master_schema:
           sequence:
             - type: str
               pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
+        utc_times:
+          type: seq
+          sequence:
+            - type: str
+              pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
         mission_time: {type: int, range: {min: 1}}
         max_mission_time: {type: int, range: {min: 1}}
         real_time: {type: int, range: {min: 1}}

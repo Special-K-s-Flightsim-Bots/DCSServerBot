@@ -11,7 +11,7 @@ import ssl
 import subprocess
 import xml.etree.ElementTree as ET
 
-from core import Extension, utils, Server, ServiceRegistry, get_translation
+from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException
 from discord.ext import tasks
 from services import ServiceBus
 from packaging import version as ver
@@ -60,8 +60,13 @@ class LotAtc(Extension, FileSystemEventHandler):
         return cfg
 
     def get_inst_path(self) -> str:
-        return os.path.join(
+        inst_path = os.path.join(
             os.path.expandvars(self.config.get('installation', os.path.join('%ProgramFiles%', 'LotAtc'))))
+        if os.path.exists(inst_path):
+            return inst_path
+        else:
+            raise InstallException(f"Can't find the {self.name} installation dir, "
+                                   "please specify it manually in your nodes.yaml!")
 
     async def prepare(self) -> bool:
         global ports

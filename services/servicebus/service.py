@@ -215,7 +215,8 @@ class ServiceBus(Service):
                         await self.send_init(server)
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
-                    if utils.is_open(server.instance.dcs_host, server.instance.dcs_port):
+                    if (utils.is_open(server.instance.dcs_host, server.instance.dcs_port) or
+                            utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
                         )
@@ -234,7 +235,7 @@ class ServiceBus(Service):
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (not responding).")
                     num += 1
                 elif isinstance(ret[i], Exception):
-                    self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=True)
+                    self.log.error("  => Exception during registering: " + str(ret[i]), exc_info=ret[i])
                 else:
                     self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as UP.")
                     num += 1
@@ -372,7 +373,9 @@ class ServiceBus(Service):
                 await conn.execute("""
                     INSERT INTO bans (ucid, banned_by, reason, banned_until) 
                     VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT DO NOTHING
+                    ON CONFLICT (ucid) DO UPDATE 
+                    SET banned_by = excluded.banned_by, reason = excluded.reason, 
+                        banned_at = excluded.banned_at, banned_until = excluded.banned_until
                 """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
         for server in self.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
@@ -636,7 +639,9 @@ class ServiceBus(Service):
                 if asyncio.iscoroutinefunction(func):
                     rc = await func(**kwargs)
                 else:
-                    rc = await asyncio.to_thread(func, **kwargs)
+                    async def _aux_func():
+                        return func(**kwargs)
+                    rc = await asyncio.to_thread(_aux_func)
                 return rc
         elif 'params' in data:
             for key, value in data['params'].items():
