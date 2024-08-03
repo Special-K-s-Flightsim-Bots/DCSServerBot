@@ -17,6 +17,25 @@ If you have looked around a bit, you might have seen already that I try to creat
 what is there. That said - there is a list of Extensions that I added already, but you can write our own. I'll give an
 example later.
 
+### LogAnalyser
+This is a default extension that is loaded in any case. It will scan your dcs.log for errors and react in several ways
+according to what happened.
+Currently these actions are implemented:
+- Restart the mission on server unlisting.
+- Print script errors to the audit channel (if configured).
+
+Per default, the extension does not need any configuration. But you can disable the auto-restart on unlisting like so:
+```yaml
+MyNode:
+  # [...]
+  instances:
+    DCS.release_server:
+      # [...]
+      extensions:
+        LogAnalyser:
+          restart_on_unlist: false  # disables the auto-restart on server unlisting from the ED server list
+```
+
 ### MizEdit
 This is not really an external solution supported by DCSServerBot, but my own one, which allows you to change your 
 missions prior to the server startup.<br>
