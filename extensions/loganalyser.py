@@ -102,6 +102,8 @@ class LogAnalyser(Extension):
             _('Server is going to restart in {}!').format(utils.format_time(warn_time)))
 
     async def unlisted(self, idx: int, line: str, match: re.Match):
+        if not self.config.get('restart_on_unlist', True):
+            return
         self.log.error(f"Server {self.server.name} got unlisted from the ED server list. Restarting ...")
         if self.server.status == Status.RUNNING:
             self.log.info("- Warning users before ...")
@@ -110,7 +112,7 @@ class LogAnalyser(Extension):
             # Gather tasks then wait
             await asyncio.gather(*warn_tasks)
         await self.node.audit("restart due to unlisting from the ED server list", server=self.server)
-        await self.server.restart()
+        await self.server.restart(modify_mission=False)
 
     async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context=5):
         if not os.path.exists(filename):
