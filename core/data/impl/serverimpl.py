@@ -444,7 +444,7 @@ class ServerImpl(Server):
             return None
         return _ext(
             self,
-            self.node.locals.get('extensions', {}).get(name, {}) | (DEFAULT_EXTENSIONS | self.locals['extensions'])[name]
+            self.node.locals.get('extensions', {}).get(name, {}) | (DEFAULT_EXTENSIONS | self.locals.get('extensions', {}))[name]
         )
 
     async def init_extensions(self) -> list[str]:
