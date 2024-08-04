@@ -98,7 +98,7 @@ class Main:
     @staticmethod
     def reveal_passwords(config_dir: str):
         print("[yellow]These are your hidden secrets:[/]")
-        for file in utils.list_all_files(os.path.join('config', '.secret')):
+        for file in utils.list_all_files(os.path.join(config_dir, '.secret')):
             if not file.endswith('.pkl'):
                 continue
             key = file[:-4]
