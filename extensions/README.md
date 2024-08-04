@@ -34,6 +34,11 @@ MyNode:
       extensions:
         LogAnalyser:
           restart_on_unlist: false  # disables the auto-restart on server unlisting from the ED server list
+          message_unlist: 'Server is going to restart in {}!' # message to display to users on restarts
+          warn_times: # times when to send the restart messages
+            - 120
+            - 60
+            - 10 
 ```
 
 ### MizEdit
