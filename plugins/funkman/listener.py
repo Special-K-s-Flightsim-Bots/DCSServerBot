@@ -115,27 +115,33 @@ class FunkManEventListener(EventListener):
         return filename, buffer
 
     async def send_fig(self, fig: matplotlib.figure.Figure, channel: discord.TextChannel):
-        filename, buffer = self.save_fig(fig)
-        with buffer:
-            await channel.send(file=discord.File(fp=buffer, filename=filename),
-                               delete_after=self.config.get('delete_after'))
+        try:
+            filename, buffer = self.save_fig(fig)
+            with buffer:
+                await channel.send(file=discord.File(fp=buffer, filename=filename),
+                                   delete_after=self.config.get('delete_after'))
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def update_rangeboard(self, server: Server, what: Literal['strafe', 'bomb']):
-        # update the server specific board
-        config = self.plugin.get_config(server)
-        if config.get(f'{what}_board', False):
-            channel_id = int(config.get(f'{what}_channel', server.channels[Channel.STATUS]))
-            num_rows = config.get('num_rows', 10)
-            report = PersistentReport(self.bot, self.plugin_name, f'{what}board.json',
-                                      embed_name=f'{what}board', server=server, channel_id=channel_id)
-            await report.render(server_name=server.name, num_rows=num_rows)
-        # update the global board
-        config = self.get_config()
-        if f'{what}_channel' in config and config.get(f'{what}_board', False):
-            num_rows = config.get('num_rows', 10)
-            report = PersistentReport(self.bot, self.plugin_name, f'{what}board.json', embed_name=f'{what}board',
-                                      channel_id=int(config[f'{what}_channel']))
-            await report.render(server_name=None, num_rows=num_rows)
+        try:
+            # update the server specific board
+            config = self.plugin.get_config(server)
+            if config.get(f'{what}_board', False):
+                channel_id = int(config.get(f'{what}_channel', server.channels[Channel.STATUS]))
+                num_rows = config.get('num_rows', 10)
+                report = PersistentReport(self.bot, self.plugin_name, f'{what}board.json',
+                                          embed_name=f'{what}board', server=server, channel_id=channel_id)
+                await report.render(server_name=server.name, num_rows=num_rows)
+            # update the global board
+            config = self.get_config()
+            if f'{what}_channel' in config and config.get(f'{what}_board', False):
+                num_rows = config.get('num_rows', 10)
+                report = PersistentReport(self.bot, self.plugin_name, f'{what}board.json', embed_name=f'{what}board',
+                                          channel_id=int(config[f'{what}_channel']))
+                await report.render(server_name=None, num_rows=num_rows)
+        except Exception as ex:
+            self.log.exception(ex)
 
     @event(name="moose_text")
     async def moose_text(self, server: Server, data: dict) -> None:

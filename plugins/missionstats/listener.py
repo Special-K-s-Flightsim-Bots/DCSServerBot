@@ -223,29 +223,35 @@ class MissionStatisticsEventListener(EventListener):
         if update:
             self.update[server.name] = True
 
+    async def _process_event(self, server: Server) -> None:
+        try:
+            config = self.get_config(server)
+            if 'mission_end' not in config:
+                return
+            title = config['mission_end'].get('title', 'Mission Result')
+            stats = self.mission_stats.get(server.name)
+            if not stats:
+                return
+            if config['mission_end'].get('persistent', False):
+                report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
+                                          embed_name='stats_embed_me', server=server,
+                                          channel_id=int(config['mission_end'].get('channel')))
+                await report.render(stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED],
+                                    title=title)
+            else:
+                channel = self.bot.get_channel(config['mission_end'].get('channel'))
+                report = Report(self.bot, self.plugin_name, 'missionstats.json')
+                env = await report.render(stats=stats, mission_id=server.mission_id,
+                                          sides=[Coalition.BLUE, Coalition.RED], title=title)
+                await channel.send(embed=env.embed)
+        except Exception as ex:
+            self.log.exception(ex)
+
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'mission_end':
-            config = self.get_config(server)
-            if 'mission_end' in config:
-                title = config['mission_end'].get('title', 'Mission Result')
-                stats = self.mission_stats.get(server.name)
-                if not stats:
-                    return
-                if config['mission_end'].get('persistent', False):
-                    report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
-                                              embed_name='stats_embed_me', server=server,
-                                              channel_id=int(config['mission_end'].get('channel')))
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(report.render(stats=stats, mission_id=server.mission_id,
-                                                      sides=[Coalition.BLUE, Coalition.RED], title=title))
-                else:
-                    channel = self.bot.get_channel(config['mission_end'].get('channel'))
-                    report = Report(self.bot, self.plugin_name, 'missionstats.json')
-                    env = await report.render(stats=stats, mission_id=server.mission_id,
-                                              sides=[Coalition.BLUE, Coalition.RED], title=title)
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(channel.send(embed=env.embed))
+            # noinspection PyAsyncCall
+            asyncio.create_task(self._process_event(server))
 
     @tasks.loop(seconds=30)
     async def do_update(self):
@@ -258,7 +264,5 @@ class MissionStatisticsEventListener(EventListener):
                 if 'coalitions' in stats:
                     report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
                                               embed_name='stats_embed', server=server)
-                    # noinspection PyAsyncCall
-                    asyncio.create_task(report.render(stats=stats, mission_id=server.mission_id,
-                                                      title='Mission Statistics'))
+                    await report.render(stats=stats, mission_id=server.mission_id, title='Mission Statistics')
             self.update[server_name] = False
