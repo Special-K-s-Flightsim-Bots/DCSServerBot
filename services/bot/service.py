@@ -51,7 +51,7 @@ class BotService(Service):
         if not token:
             return False
         self.log.info("Discord TOKEN found, removing it from yaml ...")
-        utils.set_password('token', token)
+        utils.set_password('token', token, self.node.config_dir)
         return True
 
     def __init__(self, node):
@@ -65,7 +65,7 @@ class BotService(Service):
 
     @property
     def token(self) -> str:
-        return utils.get_password('token')
+        return utils.get_password('token', self.node.config_dir)
 
     def init_bot(self):
         def get_prefix(client, message):

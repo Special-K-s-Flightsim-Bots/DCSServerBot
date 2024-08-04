@@ -169,8 +169,8 @@ def quick_edit_mode(turn_on=None):
     return is_on if turn_on is None else turn_on
 
 
-def create_secret_dir():
-    path = os.path.join('config', '.secret')
+def create_secret_dir(config_dir='config'):
+    path = os.path.join(config_dir, '.secret')
     if not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
         if sys.platform == 'win32':
@@ -178,23 +178,23 @@ def create_secret_dir():
             ctypes.windll.kernel32.SetFileAttributesW(path, 2)
 
 
-def set_password(key: str, password: str):
+def set_password(key: str, password: str, config_dir='config'):
     create_secret_dir()
-    with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='wb') as f:
+    with open(os.path.join(config_dir, '.secret', f'{key}.pkl'), mode='wb') as f:
         pickle.dump(password, f)
 
 
-def get_password(key: str) -> str:
+def get_password(key: str, config_dir='config') -> str:
     try:
-        with open(os.path.join('config', '.secret', f'{key}.pkl'), mode='rb') as f:
+        with open(os.path.join(config_dir, '.secret', f'{key}.pkl'), mode='rb') as f:
             return pickle.load(f)
     except FileNotFoundError:
         raise ValueError(key)
 
 
-def delete_password(key: str):
+def delete_password(key: str, config_dir='config'):
     try:
-        os.remove(os.path.join('config', '.secret', f'{key}.pkl'))
+        os.remove(os.path.join(config_dir, '.secret', f'{key}.pkl'))
     except FileNotFoundError:
         raise ValueError(key)
 
