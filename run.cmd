@@ -18,7 +18,7 @@ if not exist "%VENV%" (
     echo Creating the Python Virtual Environment. This may take some time...
     python -m pip install --upgrade pip
     python -m venv "%VENV%"
-    "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir -r requirements.txt
+    "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir --prefer-binary -r requirements.txt
 )
 :loop
 "%VENV%\Scripts\python" run.py %*
