@@ -265,18 +265,18 @@ class MonitoringService(Service):
 
     @tasks.loop(hours=12)
     async def time_sync(self):
-            if sys.platform == 'win32':
-                try:
-                    retval = ctypes.windll.shell32.ShellExecuteW(None, "runas", 'w32tm', '/resync', None, 1)
-                    if retval > 31:
-                        self.log.info("- Windows time synced.")
-                    else:
-                        self.log.info(f"- Windows time NOT synced, errorcode: {retval}")
-                except OSError as ex:
-                    if ex.winerror == 740:
-                        self.log.error("You need to disable User Access Control (UAC), "
-                                       "to use the automated time sync.")
-                    raise
-            else:
-                # not implemented for UNIX
-                pass
+        if sys.platform == 'win32':
+            try:
+                retval = ctypes.windll.shell32.ShellExecuteW(None, "runas", 'w32tm', '/resync', None, 1)
+                if retval > 31:
+                    self.log.info("- Windows time synced.")
+                else:
+                    self.log.info(f"- Windows time NOT synced, errorcode: {retval}")
+            except OSError as ex:
+                if ex.winerror == 740:
+                    self.log.error("You need to disable User Access Control (UAC), "
+                                   "to use the automated time sync.")
+                raise
+        else:
+            # not implemented for UNIX
+            pass

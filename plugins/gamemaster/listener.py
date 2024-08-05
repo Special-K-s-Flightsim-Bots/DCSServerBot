@@ -380,7 +380,7 @@ class GameMasterEventListener(EventListener):
     async def _coalition(self, server: Server, player: Player):
         coalition = await self.get_coalition(server, player)
         if coalition:
-            await player.sendChatMessage(_("You are a member of the {} coalition."))
+            await player.sendChatMessage(_("You are a member of the {} coalition.").format(coalition))
         else:
             await player.sendChatMessage(
                 _("You are not a member of any coalition. You can join one with {}join blue|red.").format(self.prefix))
