@@ -207,8 +207,7 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
             name = net.get_player_info(id, 'name')
             local msg = {
                 command = 'sendMessage',
-                message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') kicked for slot spamming!',
-                mention = 'DCS Admin'
+                message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') kicked for slot spamming!'
             }
             utils.sendBotTable(msg, config.ADMIN_CHANNEL)
 			return false
