@@ -117,7 +117,7 @@ class PunishmentEventListener(EventListener):
             competitive: Optional[Competitive] = self.bot.cogs.get('Competitive')
             if competitive:
                 player: Player = server.get_player(id=data['arg1'])
-                if not player or competitive.eventlistener.in_match[server.name].get(player.ucid):
+                if not player or competitive.eventlistener.in_match.get(server.name, {}).get(player.ucid):
                     return
         if self.plugin.get_config(server) and server.status == Status.RUNNING:
             if data['eventName'] == 'friendly_fire':
