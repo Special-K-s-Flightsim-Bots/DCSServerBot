@@ -176,7 +176,7 @@ class MissionEventListener(EventListener):
     async def sendMessage(self, server: Server, data: dict) -> None:
         channel_id = int(data['channel'])
         if channel_id == -1:
-            channel_id = server.channels[Channel.EVENTS]
+            channel_id = server.channels.get(Channel.EVENTS, -1)
         channel = self.bot.get_channel(channel_id)
         if channel:
             message = "```" + data['message'] + "```"

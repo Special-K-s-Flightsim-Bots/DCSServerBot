@@ -17,6 +17,7 @@ from ssl import SSLCertVerificationError
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
+from .dummybot import DummyBot
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -73,19 +74,25 @@ class BotService(Service):
             # Allow users to @mention the bot instead of using a prefix
             return commands.when_mentioned_or(*prefixes)(client, message)
 
-        # Create the Bot
-        return DCSServerBot(version=self.node.bot_version,
+        if self.locals.get('no_discord', False):
+            return DummyBot(version=self.node.bot_version,
                             sub_version=self.node.sub_version,
-                            command_prefix=get_prefix,
-                            description='Interact with DCS World servers',
-                            owner_id=self.locals['owner'],
-                            case_insensitive=True,
-                            intents=discord.Intents.all(),
                             node=self.node,
-                            locals=self.locals,
-                            help_command=None,
-                            heartbeat_timeout=120,
-                            assume_unsync_clock=True)
+                            locals=self.locals)
+        else:
+            # Create the Bot
+            return DCSServerBot(version=self.node.bot_version,
+                                sub_version=self.node.sub_version,
+                                command_prefix=get_prefix,
+                                description='Interact with DCS World servers',
+                                owner_id=self.locals['owner'],
+                                case_insensitive=True,
+                                intents=discord.Intents.all(),
+                                node=self.node,
+                                locals=self.locals,
+                                help_command=None,
+                                heartbeat_timeout=120,
+                                assume_unsync_clock=True)
 
     async def start(self, *, reconnect: bool = True) -> None:
         from services import ServiceBus

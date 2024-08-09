@@ -48,7 +48,8 @@ class MOTDListener(EventListener):
                 message = utils.format_string(config['message'], server=server, player=player)
             elif 'report' in config:
                 report = Report(self.bot, self.plugin_name, config['report'])
-                env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
+                env = await report.render(server=server, player=player,
+                                          guild=self.bot.guilds[0] if self.bot.guilds else None)
                 message = utils.embed_to_simpletext(env.embed)
             return message, config
 
