@@ -48,6 +48,8 @@ DEFAULT:
   - days: 60                # after 60 days, the penalty points get wiped completely
     weight: 0
 DCS.release_server:
-  exemptions:
-  - discord: '@everyone'    # Do not punish members of your Discord (that are linked) on this server
-  - discord: 'Moderators'   # Do not punish your own moderators (Discord role, not bot role!) on this server
+  exemptions:     # as always, allow for exemptions...
+    discord:
+      - DCS Admin
+    ucid:
+      - '11223344556677'

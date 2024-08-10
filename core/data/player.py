@@ -68,9 +68,13 @@ class Player(DataObject):
                     # existing member found?
                     if cursor.rowcount == 1:
                         row = cursor.fetchone()
-                        if row[0] != -1:
-                            self._member = self.bot.guilds[0].get_member(row[0])
-                            self._verified = row[2]
+                        self._member = self.bot.get_member_by_ucid(self.ucid)
+                        if self._member:
+                            # special handling for discord-less bots
+                            if isinstance(self._member, discord.Member):
+                                self._verified = row[2]
+                            else:
+                                self._verified = True
                         self.banned = row[1]
                         if row[3]:
                             self.coalition = Coalition(row[3])

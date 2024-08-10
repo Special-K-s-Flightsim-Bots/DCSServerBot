@@ -5,6 +5,8 @@ import importlib.util
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Plugin
 from typing import Union, Optional, Any
 
+from services.bot.dummy import DummyGuild, DummyMember, DummyRole
+
 
 class DummyBot:
 
@@ -27,19 +29,26 @@ class DummyBot:
         self.setup = asyncio.Event()
         asyncio.create_task(self.start())
         self.cogs: dict[str, Plugin] = {}
-        self.guilds = []
+        self.guilds = [DummyGuild()]
+        self.owner_id = -1
         self.latency = 0
 
     async def start(self):
-        self.log.warning("Running NO Discord Bot!")
+        self.log.warning("This installation does not use a Discord bot!")
         self.setup.clear()
-        await self.setup_hook()
-        self.setup.set()
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.setup_hook())
 
     async def stop(self):
         for plugin in self.cogs.values():
             await plugin.cog_unload()
         await self.close()
+
+    async def login(self, token: str) -> None:
+        ...
+
+    async def connect(self, **kwargs) -> None:
+        ...
 
     async def wait_until_ready(self) -> None:
         await self.setup.wait()
@@ -52,17 +61,13 @@ class DummyBot:
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
-        if not self._roles:
-            self._roles = {
-                "Admin": ["Admin"],
-                "DCS Admin": ["DCS Admin"],
-                "DCS": ["DCS"]
-            } | self.locals.get('roles', {})
-            if 'GameMaster' not in self._roles:
-                self._roles['GameMaster'] = self._roles['DCS Admin']
-            if 'Alert' not in self._roles:
-                self._roles['Alert'] = self._roles['DCS Admin']
-        return self._roles
+        _roles = {
+            "Admin": ["Admin"],
+            "DCS Admin": ["DCS Admin"]
+        } | {name: [name] for name in self.guilds[0]._roles.keys()}
+        if 'GameMaster' not in _roles:
+            _roles['GameMaster'] = ['DCS Admin']
+        return _roles
 
     @property
     def filter(self) -> dict:
@@ -94,6 +99,7 @@ class DummyBot:
         for key, value in self.bus.servers.items():
             if value.is_remote:
                 del self.bus.servers[key]
+        self.setup.set()
 
     async def audit(self, message, *, user: Any = None, server: Optional[Server] = None, **kwargs):
         ...
@@ -115,14 +121,14 @@ class DummyBot:
             else:
                 return None, None
 
-    async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> None:
-        ...
+    async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[DummyMember]:
+        return self.get_member_by_ucid(ucid, verified)
 
-    async def get_ucid_by_member(self, member: Any, verified: Optional[bool] = False) -> None:
-        ...
+    async def get_ucid_by_member(self, member: DummyMember, verified: Optional[bool] = False) -> str:
+        return member.id
 
-    def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> None:
-        ...
+    def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[DummyMember]:
+        return self.guilds[0].get_member(ucid)
 
     def match_user(self, data: dict, rematch=False) -> None:
         ...
@@ -133,8 +139,8 @@ class DummyBot:
     async def setEmbed(self, *, embed_name: str, embed: Any, channel_id: Any, file: Any, server: Any):
         ...
 
-    def get_role(self, role: Union[str, int]) -> None:
-        ...
+    def get_role(self, role: Union[str, int]) -> Optional[DummyRole]:
+        return self.guilds[0]._roles[role]
 
     def get_channel(self, channel_id: int) -> None:
         ...

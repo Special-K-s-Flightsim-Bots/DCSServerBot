@@ -17,7 +17,7 @@ from ssl import SSLCertVerificationError
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
-from .dummybot import DummyBot
+from .dummy import DummyBot
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -106,6 +106,8 @@ class BotService(Service):
             await self.bot.login(self.token)
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.connect(reconnect=reconnect))
+        except Exception as ex:
+            self.log.exception(ex)
         except PermissionError as ex:
             self.log.error("Please check the permissions for " + str(ex))
             raise

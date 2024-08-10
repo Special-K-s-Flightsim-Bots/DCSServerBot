@@ -396,10 +396,11 @@ class MissionEventListener(EventListener):
         # remove roles
         if server.locals.get('autorole'):
             role = self.bot.get_role(server.locals.get('autorole'))
-            all_members = set(x.member for x in server.players.values() if x.member)
-            for member in (set(role.members) - all_members):
-                # noinspection PyAsyncCall
-                asyncio.create_task(member.remove_roles(role))
+            if role:
+                all_members = set(x.member for x in server.players.values() if x.member)
+                for member in (set(role.members) - all_members):
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(member.remove_roles(role))
         # Set the status at the latest possible place
         if data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
