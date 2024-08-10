@@ -228,7 +228,11 @@ class GreenieBoard(EmbedElement):
                 })
                 rows = await cursor.fetchall()
                 for row in rows:
-                    pilots += utils.escape_string(row['name']) + '\n'
+                    member = self.bot.get_member_by_ucid(row['player_ucid'])
+                    if member:
+                        pilots += member.display_name + '\n'
+                    else:
+                        pilots += utils.escape_string(row['name']) + '\n'
                     points += f"{row['points']:.2f}\n"
                     await cursor.execute(sql2, {
                         "player_ucid": row['player_ucid'],

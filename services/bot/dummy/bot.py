@@ -144,3 +144,6 @@ class DummyBot:
 
     def get_channel(self, channel_id: int) -> None:
         ...
+
+    async def fetch_user(self, ucid: str) -> Optional[DummyMember]:
+        return await self.guilds[0].fetch_member(ucid)

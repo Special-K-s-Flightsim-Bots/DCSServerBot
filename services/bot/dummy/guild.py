@@ -1,6 +1,5 @@
 import os
-from typing import Optional
-
+from typing import Optional, AsyncIterator
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -50,3 +49,7 @@ class DummyGuild:
 
     async def fetch_member(self, ucid: str) -> Optional[DummyMember]:
         return self.get_member(ucid)
+
+    async def bans(self) -> AsyncIterator[DummyMember]:
+        if False:
+            yield
