@@ -12,6 +12,8 @@ from psycopg.rows import dict_row
 from services import ServiceBus
 from typing import TYPE_CHECKING, Callable, Coroutine
 
+from services.bot.dummy import DummyBot
+
 if TYPE_CHECKING:
     from core import Server
 
@@ -95,9 +97,10 @@ class MissionEventListener(EventListener):
         self.update_mission_embed.cancel()
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
-        # linkme is only available, if the player is not linked
-        if command.name == 'linkme' and player.verified:
-            return False
+        # linkme is only available, if the player is not linked and if a Discord bot is available
+        if command.name == 'linkme':
+            if player.verified or isinstance(self.bot, DummyBot):
+                return False
         return await super().can_run(command, server, player)
 
     async def work_queue(self):
