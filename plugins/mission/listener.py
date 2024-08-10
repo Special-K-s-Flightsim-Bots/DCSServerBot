@@ -10,9 +10,9 @@ from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
 from services import ServiceBus
+from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 
-from services.bot.dummy import DummyBot
 
 if TYPE_CHECKING:
     from core import Server
@@ -556,11 +556,12 @@ class MissionEventListener(EventListener):
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.get_admin_channel(server).send(
                     f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
-            # noinspection PyAsyncCall
-            asyncio.create_task(player.sendChatMessage(config.get(
-                'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
-                                              'if you want to see your user stats!').format(server=server,
-                                                                                            player=player)))
+            if not isinstance(self.bot, DummyBot):
+                # noinspection PyAsyncCall
+                asyncio.create_task(player.sendChatMessage(config.get(
+                    'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
+                                                  'if you want to see your user stats!').format(server=server,
+                                                                                                player=player)))
         else:
             # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(config.get(

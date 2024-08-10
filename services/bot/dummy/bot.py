@@ -21,7 +21,7 @@ class DummyBot:
         self.pool = node.pool
         self.apool = node.apool
         self.plugins = self.node.plugins
-        self.locals = locals
+        self.locals = locals | {'automatch': False}
         self.bus = ServiceRegistry.get(ServiceBus)
         self.eventListeners: list[EventListener] = self.bus.eventListeners
         self.loop = self.bus.loop
