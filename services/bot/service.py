@@ -5,7 +5,7 @@ import discord
 import os
 import zipfile
 
-from core import utils, FatalException
+from core import utils, FatalException, Node
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import commands
@@ -123,12 +123,12 @@ class BotService(Service):
         await super().stop()
 
     async def alert(self, title: str, message: str, server: Optional[Server] = None,
-                    node: Optional[str] = None) -> None:
+                    node: Optional[Node] = None) -> None:
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert']])
         embed, file = utils.create_warning_embed(title=title, text=utils.escape_string(message))
         if not server and node:
             try:
-                server = next(server for server in self.bot.servers.values() if server.node.name == node)
+                server = next(server for server in self.bot.servers.values() if server.node.name == node.name)
             except StopIteration:
                 server = None
         if server:

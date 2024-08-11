@@ -1,3 +1,5 @@
+import platform
+
 import aiohttp
 import ipaddress
 import logging
@@ -9,6 +11,7 @@ import stat
 import subprocess
 import sys
 if sys.platform == 'win32':
+    import ctypes
     import pywintypes
     import win32api
     import win32console
@@ -32,6 +35,7 @@ __all__ = [
     "find_process",
     "is_process_running",
     "get_windows_version",
+    "get_drive_space",
     "list_all_files",
     "make_unix_filename",
     "safe_rmtree",
@@ -98,6 +102,22 @@ def get_windows_version(cmd: str) -> Optional[str]:
     except pywintypes.error:
         version = None
     return version
+
+
+def get_drive_space(directory) -> tuple[int, int]:
+    if platform.system() == 'Windows':
+        free_bytes = ctypes.c_ulonglong(0)
+        total_bytes = ctypes.c_ulonglong(0)
+
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(directory),
+                                                   ctypes.pointer(free_bytes),
+                                                   ctypes.pointer(total_bytes),
+                                                   None)
+        return total_bytes.value, free_bytes.value
+    else:
+        st = os.statvfs(directory)
+        total, free = st.f_blocks * st.f_frsize, st.f_bavail * st.f_frsize
+        return total, free
 
 
 def list_all_files(path: str) -> list[str]:

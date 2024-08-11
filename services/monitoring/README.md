@@ -12,6 +12,8 @@ The (optional) configuration file for this service has to be placed into config\
 DEFAULT:
   time_sync: true           # sync the PC time with a time server every 12 hrs, default: false
   time_server: pool.ntp.org # and use this non-default time server for it, default: Windows default
+  drive_warn_threshold: 10  # Warn, if your drive where DCS is installed (or your C: drive), gets below 10%
+  drive_alert_threshold: 5  # Send an alert and ping admins, if your DCS drive (or your C: drive) gets below 5%
 ```
 
 To configure the DCS server monitoring, you can change these values in your nodes.yaml and servers.yaml:

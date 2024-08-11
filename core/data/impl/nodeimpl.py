@@ -463,21 +463,22 @@ class NodeImpl(Node):
                     process = subprocess.run(
                         cmd, startupinfo=startupinfo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                     )
-                    if branch and process.returncode == 0:
-                        # check if the branch has been changed
-                        config = os.path.join(self.installation, 'autoupdate.cfg')
-                        with open(config, mode='r') as infile:
-                            data = json.load(infile)
-                        if data['branch'] != branch:
-                            data['branch'] = branch
-                            with open(config, mode='w') as outfile:
-                                json.dump(data, outfile, indent=2)
                     return process.returncode
                 except Exception as ex:
                     self.log.exception(ex)
                     return -1
 
-            return await asyncio.to_thread(run_subprocess)
+            rc = await asyncio.to_thread(run_subprocess)
+            if branch and rc == 0:
+                # check if the branch has been changed
+                config = os.path.join(self.installation, 'autoupdate.cfg')
+                with open(config, mode='r') as infile:
+                    data = json.load(infile)
+                if data['branch'] != branch:
+                    data['branch'] = branch
+                    with open(config, mode='w') as outfile:
+                        json.dump(data, outfile, indent=2)
+            return rc
 
         self.update_pending = True
         to_start = []
