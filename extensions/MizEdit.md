@@ -305,11 +305,11 @@ DeleteAllHornets:
 ```yaml
 EnableDynamicCargo:
   modify:
-      file: warehouses
-      debug: true
-      for-each: airports/*/$'{coalition}' == 'BLUE'
-      replace:
-        dynamicCargo: true
+    file: warehouses
+    debug: true
+    for-each: airports/*/$'{coalition}' == 'BLUE'
+    replace:
+      dynamicCargo: true
 ```
 
 ## Usage
