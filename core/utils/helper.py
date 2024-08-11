@@ -16,7 +16,6 @@ import shutil
 import string
 import tempfile
 import threading
-import time
 import unicodedata
 
 # for eval
@@ -24,7 +23,7 @@ import random
 import math
 
 from croniter import croniter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable
@@ -48,7 +47,6 @@ __all__ = [
     "sanitize_string",
     "convert_time",
     "format_time",
-    "get_utc_offset",
     "format_period",
     "slugify",
     "alternate_parse_settings",
@@ -97,14 +95,16 @@ def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) 
     """
     pos = timeframe.find('-')
     if pos != -1:
-        start_time = parse_time(timeframe[:pos], tz)
-        end_time = parse_time(timeframe[pos + 1:], tz)
+        start_time = parse_time(timeframe[:pos], tz).replace(year=time.year, month=time.month, day=time.day,
+                                                             second=0, microsecond=0)
+        end_time = parse_time(timeframe[pos + 1:], tz).replace(year=time.year, month=time.month, day=time.day,
+                                                               second=0, microsecond=0)
         if end_time <= start_time:
             end_time += timedelta(days=1)
     else:
-        start_time = end_time = parse_time(timeframe, tz)
-    check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
-    return start_time <= check_time <= end_time
+        start_time = end_time = parse_time(timeframe, tz).replace(year=time.year, month=time.month, day=time.day,
+                                                                  second=0, microsecond=0)
+    return start_time <= time <= end_time
 
 
 def is_match_daystate(time: datetime, daystate: str) -> bool:
@@ -235,34 +235,6 @@ def format_time(seconds: int):
     :return: The formatted time string in HH:MM:SS format.
     """
     return convert_time_and_format(int(seconds), False)
-
-
-def get_utc_offset() -> str:
-    """
-    Return the UTC offset of the current local time in the format HH:MM.
-
-    :return: The UTC offset in the format HH:MM.
-    :rtype: str
-    """
-    # Get the struct_time objects for the current local time and UTC time
-    current_time = time.time()
-    localtime = time.localtime(current_time)
-    gmtime = time.gmtime(current_time)
-
-    # Convert these to datetime objects
-    local_dt = datetime(*localtime[:6], tzinfo=timezone.utc)
-    utc_dt = datetime(*gmtime[:6], tzinfo=timezone.utc)
-
-    # Compute the UTC offset
-    offset = local_dt - utc_dt
-
-    # Express the offset in hours:minutes
-    offset_minutes = int(offset.total_seconds() / 60)
-    offset_hours = offset_minutes // 60
-    offset_minutes %= 60
-    if offset.total_seconds() == 0:
-        return ""
-    return f"{offset_hours:+03d}:{offset_minutes:02d}"
 
 
 def format_period(period: str) -> str:

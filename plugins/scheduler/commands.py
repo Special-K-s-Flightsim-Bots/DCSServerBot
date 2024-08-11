@@ -12,6 +12,7 @@ from discord.ui import Modal, TextInput
 from functools import partial
 from services import DCSServerBot
 from typing import Type, Optional, Literal, Union
+from zoneinfo import ZoneInfo
 
 from .listener import SchedulerListener
 from .views import ConfigView
@@ -49,22 +50,28 @@ class Scheduler(Plugin):
             warn_times: list[int] = Scheduler.get_warn_times(config) if server.is_populated() else [0]
             restart_in: int = max(warn_times)
             now: datetime = datetime.now()
+            tz = now.astimezone().tzinfo
+            now = now.replace(tzinfo=tz)
             weekday = (now + timedelta(seconds=restart_in)).weekday()
-            for period, daystate in config['schedule'].items():  # type: str, dict
+            for period, daystate in config['schedule'].items():  # type: str, str
+                if period == 'timezone':
+                    tz = ZoneInfo(daystate)
+                    continue
                 if len(daystate) != 7:
                     server.log.error(f"Error in scheduler.yaml: {daystate} has to be 7 characters long!")
                 state = daystate[weekday]
                 # check, if the server should be running
-                if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server.status == Status.SHUTDOWN:
+                if (utils.is_in_timeframe(now, period, tz) and state.upper() == 'Y' and
+                        server.status == Status.SHUTDOWN):
                     return Status.RUNNING
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and \
-                        server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not server.is_populated():
+                elif (utils.is_in_timeframe(now, period, tz) and state.upper() == 'P' and
+                      server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not server.is_populated()):
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and \
-                        server.status == Status.RUNNING:
+                elif (utils.is_in_timeframe(now + timedelta(seconds=restart_in), period, tz) and
+                      state.upper() == 'N' and server.status == Status.RUNNING):
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and \
-                        server.status in [Status.PAUSED, Status.STOPPED]:
+                elif (utils.is_in_timeframe(now, period, tz) and state.upper() == 'N' and
+                      server.status in [Status.PAUSED, Status.STOPPED]):
                     return Status.SHUTDOWN
         return server.status
 

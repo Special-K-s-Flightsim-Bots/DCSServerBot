@@ -1,4 +1,5 @@
 import asyncio
+from zoneinfo import ZoneInfo
 
 from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side
 from datetime import datetime, timedelta, timezone
@@ -151,11 +152,14 @@ class ScheduleInfo(report.EmbedElement):
             config = scheduler.get_config(server)
             if 'schedule' in config:
                 await report.Ruler(self.env).render(text="This server runs on the following schedule:")
-                utc_diff = utils.get_utc_offset()
-                self.add_field(name=f'Time (UTC{utc_diff})', value='\n'.join(config['schedule'].keys()))
                 value = ''
-                for schedule in config['schedule'].values():
-                    for c in schedule:
+                now = datetime.now()
+                tz = now.astimezone().tzinfo
+                for period, daystate in config['schedule'].items():
+                    if period == 'timezone':
+                        tz = ZoneInfo(daystate)
+                        continue
+                    for c in daystate:
                         if c == 'Y':
                             value += '✅|'
                         elif c == 'N':
@@ -163,6 +167,15 @@ class ScheduleInfo(report.EmbedElement):
                         elif c == 'P':
                             value += '☑️|'
                     value += '\n'
+                now = now.replace(tzinfo=tz)
+                hours, rem = divmod(tz.utcoffset(now).total_seconds(), 3600)
+                minutes, _ = divmod(rem, 60)
+                if hours > 0 or minutes > 0:
+                    sign = '+' if hours >= 0 else '-'
+                    name = f'Time (UTC{sign}{int(abs(hours)):02d}:{int(minutes):02d})'
+                else:
+                    name = 'Time (UTC)'
+                self.add_field(name=name, value='\n'.join([x for x in config['schedule'].keys() if x != 'timezone']))
                 self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
                 self.add_field(name='_ _', value='✅ = Server running\n'
                                                  '❌ = Server not running\n'

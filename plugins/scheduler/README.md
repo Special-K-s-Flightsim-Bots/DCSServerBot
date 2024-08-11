@@ -1,6 +1,7 @@
 # Plugin Scheduler
 With this plugin you can decide when to run your DCS servers, when to run which mission and how long a specific mission 
-shall run, either in local time or in mission time. Tasks that can be achieved with this solution are below others:
+shall run, either in local time, real time or in mission time. Tasks that can be achieved with this solution are below 
+others:
 * Have a server rotate a mission every 4 hrs.
 * Restart the mission before it gets dark.
 * Have two servers run alternately, maybe one with password, one public
@@ -24,7 +25,8 @@ DCS.release_server:
   schedule:                                       # Server "DCS.release_server" will run 24x7
     00-24: YYYYYYY
 instance2:
-  schedule:                                       # Server "instance2" will run every day from 0h-12h local time (LT)
+  schedule:                                       # Server "instance2" will run every day from 0h-12h in the specified time zone
+    timezone: Europe/Berlin                       # optional: timezone (default: local time)
     00-12: YYYYYYY
     12-24: NNNNNNN
   restart:                                        # at 04:00 and 08:00 LT ..
