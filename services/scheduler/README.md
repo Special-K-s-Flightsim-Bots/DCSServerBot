@@ -24,9 +24,9 @@ DEFAULT:
         persistent: true              # is it a persistent report? (default = true)
   - cron: '0 3 * * 1'                 # reboot the server once a week
     action:
-      type: cmd                       # run a shell cmd command
+      type: restart                   # reboot the server each monday night at 03:00
       params:
-        cmd: 'shutdown /r'
+        reboot: true
 DCS.release_server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs
@@ -36,5 +36,4 @@ DCS.release_server:
           shutdown: false             # do not shutdown during the restart (default = false)
           rotate: false               # do not rotate the mission (default = false)
           run_extensions: true        # run the extensions (default = true)
-          reboot: true                # reboot your PC (shutdown /r)
 ```
