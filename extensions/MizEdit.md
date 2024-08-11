@@ -11,8 +11,10 @@ Sounds like magic? Well, it kinda is.
 The whole concept behind MizEdit is, that your mission consists out of several files that are bundled together in a 
 zipped file that ED decided to give the ".miz" extension. One of these files, the `mission`-file is a large lua table
 that holds the main information about your mission, like the theatre, the date and time, the weather, all units, 
-triggers, the majority of settings and whatnot.<br>
-The Mission Editor writes and changes this file to represent any change that you made to your mission.
+triggers, the majority of settings and whatnot. Another one is `options`, which holds parts of the configuration of
+your mission and last but not least there is `warehouses`, that holds information about the dedicated airports and their
+warehouses.<br>
+The Mission Editor writes and changes these files to represent any change that you made to your mission.
 So - why not do that on our own, without the need of the editor?
 
 ## Presets
@@ -127,12 +129,14 @@ Let me show you an example:
 ```yaml
 MyFancyPreset:
   modify:
+    file: mission  # default, can be any of "mission", "options" or "warehouses"
     for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
 This selects some carriers from your blue coalition. Now let's write the same thing a bit different:
 ```yaml
 MyFancyPreset:
   modify:
+    file: mission
     for-each: coalition/blue/country/*/ship/group/*
     where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 ```
@@ -144,6 +148,7 @@ Now lets see, why we might need that difference:
 ```yaml
 MyFancyPreset:
   modify:
+    file: mission
     for-each: coalition/blue/country/*/ship/group/*
     where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
@@ -157,6 +162,7 @@ And now, we can work on these task parameters like so:
 ```yaml
 MyFancyPreset:
   modify:
+    file: mission
     for-each: coalition/blue/country/*/ship/group/*
     where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
@@ -204,9 +210,6 @@ MyFancyPreset:
 ```
 You can work with these variables then later on, to for instance create some randomness in your mission.
 
-
-
-
 #### Example 1: Search all CVN carriers in your mission:
 > coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
 
@@ -235,6 +238,7 @@ will walk the mission tree like so:
 ```yaml
 MyFancyPreset:
   modify:
+    file: mission
     for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     replace:
       frequency: 
@@ -249,7 +253,8 @@ MyFancyPreset:
 ```yaml
 MyFancyPreset:
   modify:
-  - for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+    file: mission  
+    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     replace: 
       frequency: $int('3' + '{type}'[-2:] + '000000')
 ```
@@ -260,7 +265,8 @@ structure in the mission file.
 ```yaml
 MyFancyPreset:
   modify:
-  - for-each: coalition/blue/country/*/ship/group/*
+    file: mission
+    for-each: coalition/blue/country/*/ship/group/*
     where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
     select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
     replace:
@@ -275,7 +281,8 @@ MyFancyPreset:
 ```yaml
 ChangeRadios:
   modify:
-  - for-each: coalition/blue/country/*/plane/group/*/units/$'{type}' in ['F-14B']
+    file: mission
+    for-each: coalition/blue/country/*/plane/group/*/units/$'{type}' in ['F-14B']
     select: Radio/[1]/channels
     replace:
       1: 243
@@ -289,8 +296,20 @@ ChangeRadios:
 ```yaml
 DeleteAllHornets:
   modify:
+    file: mission
     for-each: coalition/[blue,red]/country/*/plane/group/*/units
     delete: $'{type}' == 'FA-18C_hornet'
+```
+
+#### Example 6: Change all blue warehouses to dynamic cargo
+```yaml
+EnableDynamicCargo:
+  modify:
+      file: warehouses
+      debug: true
+      for-each: airports/*/$'{coalition}' == 'BLUE'
+      replace:
+        dynamicCargo: true
 ```
 
 ## Usage
