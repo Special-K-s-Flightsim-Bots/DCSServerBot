@@ -36,4 +36,5 @@ DCS.release_server:
           shutdown: false             # do not shutdown during the restart (default = false)
           rotate: false               # do not rotate the mission (default = false)
           run_extensions: true        # run the extensions (default = true)
+          reboot: true                # reboot your PC (shutdown /r)
 ```

@@ -1,4 +1,5 @@
 import asyncio
+import atexit
 import os
 
 from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status
@@ -25,19 +26,26 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
 
 
 async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, rotate: Optional[bool] = False,
-                  run_extensions: Optional[bool] = True):
+                  run_extensions: Optional[bool] = True, reboot: Optional[bool] = False):
+    def _reboot():
+        os.system("shutdown /r /t 1")
+
     if not server or server.status in [Status.SHUTDOWN, Status.UNREGISTERED]:
         return
     server.maintenance = True
-    if shutdown:
+    if shutdown or reboot:
         await ServiceRegistry.get(ServiceBus).send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
-        await server.startup()
+        if not reboot:
+            await server.startup()
     elif rotate:
         await server.loadNextMission(modify_mission=run_extensions)
     else:
         await server.restart(modify_mission=run_extensions)
+    if reboot:
+        atexit.register(_reboot)
+        await node.shutdown()
 
 
 async def cmd(node: Node, cmd: str):
