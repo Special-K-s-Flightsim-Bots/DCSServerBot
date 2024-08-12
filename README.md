@@ -1,6 +1,7 @@
 # Welcome to DCSServerBot!
-You've found a comprehensive solution that lets you administrate your DCS instances via Discord slash-commands, has 
-built in per-server and per-user statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support and much more! 
+You've found a comprehensive solution that helps you administrate your DCS World servers. It has a Discord integration 
+(now optional!) with slash-commands, built in per-server and per-user statistics, optional cloud-based statistics, 
+[Coalitions](./COALITIONS.md)-support and much more! 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.
 
@@ -33,17 +34,17 @@ normal client installation of DCS World to run a server, but the [Dedicated Serv
 A service is a component that runs on each node. Services can be combined with plugins, if they provide additional
 Discord commands, like the Music service. Some services only run on the master node, like the Bot service for instance.
 
-| Service    | Scope                                                                        | Plugin      | Documentation                             |
-|------------|------------------------------------------------------------------------------|-------------|-------------------------------------------|
-| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.        | Backup      | [README](./services/backup/README.md)     |
-| Bot        | The Discord bot handling all discord commands.                               |             | [README](./services/bot/README.md)        |
-| Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                           |             | [README](./services/cleanup/README.md)    |
-| Dashboard  | Nice console graphics display to show the status of your bot / servers.      |             | [README](./services/dashboard/README.md)  |
-| Monitoring | Availability- and performance-monitoring of your DCS servers.                | ServerStats | [README](./services/monitoring/README.md) |
-| Music      | Play music over different SRS-radios on your servers.                        | Music       | [README](./services/music/README.md)      |
-| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.        | OvGME       | [README](./services/ovgme/README.md)      |
-| Scheduler  | Schedule tasks based on a cron-like configuration.                           | Scheduler   | [README](./services/scheduler/README.md)  |
-| ServiceBus | Communication hub between every node of the bot cluster and all DCS-servers. |             | [README](./services/servicebus/README.md) |
+| Service    | Scope                                                                                                     | Plugin      | Documentation                             |
+|------------|-----------------------------------------------------------------------------------------------------------|-------------|-------------------------------------------|
+| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.                                     | Backup      | [README](./services/backup/README.md)     |
+| Bot        | The Discord bot handling all discord commands. There is a Discord-free variant available also (see blow)! |             | [README](./services/bot/README.md)        |
+| Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                                                        |             | [README](./services/cleanup/README.md)    |
+| Dashboard  | Nice console graphics display to show the status of your bot / servers.                                   |             | [README](./services/dashboard/README.md)  |
+| Monitoring | Availability- and performance-monitoring of your DCS servers.                                             | ServerStats | [README](./services/monitoring/README.md) |
+| Music      | Play music over different SRS-radios on your servers.                                                     | Music       | [README](./services/music/README.md)      |
+| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.                                     | OvGME       | [README](./services/ovgme/README.md)      |
+| Scheduler  | Schedule tasks based on a cron-like configuration.                                                        | Scheduler   | [README](./services/scheduler/README.md)  |
+| ServiceBus | Communication hub between every node of the bot cluster and all DCS-servers.                              |             | [README](./services/servicebus/README.md) |
 
 ### Plugins
 A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
@@ -129,7 +130,7 @@ You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [
 
 If you want to use instant autoupdate from the master branch, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
 
-### Discord Token
+### Discord Setup
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
 - Create a "New Application".
 - Select Bot from the left menu and give it a nice name, icon and maybe a banner.
@@ -155,6 +156,15 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 > ⚠️ **Attention!**<br>
 > For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
+### 🆕 Setup without using Discord
+If you do not want to use Discord, or if you maybe are not allowed to do so due to limitations of your Country, etc.
+you can now install DCSServerBot without the need to use Discord. Just select the respective option during the 
+installation, and you will install a variant that works without.
+> ⚠️ **Attention!**<br>
+> Please keep in mind that DCSServerBot was originally made for Discord and that there are some functionalities that
+> can only work, if you use it, like static graphs, greenieboards, and others.<br>
+> But you can still use a lot and there are in-game chat-commands also that you can use, without any need of Discord.
+
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
 the newest fixes, independent of and release version. Otherwise, download the latest release version as ZIP and extract 
@@ -172,7 +182,7 @@ available PostgreSQL version from the above-mentioned website.<br>
 > ⚠️ **Attention!**<br>
 > If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
 
-### DCSServerBot Installation
+### DCSServerBot Installation (Discord)
 Run the provided `install.cmd` script or just `run.cmd`.<br>
 It will ask you for your Guild ID (right-click on your Discord server icon and select "Copy Server ID") and the bots 
 user ID (right-click on the bot user and select "Copy User ID"). Then it will search for existing DCS installations, 
@@ -180,9 +190,20 @@ create the database user, password and database and asks whether you want to add
 configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
+### DCSServerBot Installation (non-Discord)
+Run the provided `install.cmd` script or just `run.cmd`.<br>
+It will ask you for your DCS group name and a role mapping, where you can give specific DCS users roles that are needed
+to make the in-game commands work. You need the UCIDs of the users here. Then it will search for existing DCS 
+installations, create the database user, password and database and asks whether you want to add existing DCS servers 
+to the configuration.<br>
+When finished, the bot should launch successfully and maybe even start your servers already, if configured.
+
 > ⚠️ **Attention!**<br> 
 > You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
-> the servers Scripts directory.
+> the servers Scripts directory.<br>
+> Please keep also in mind, that a lot of configuration parameters which you find below are not needed for a 
+> non-Discord setup. If you have no idea what to put in a specific parameter, that is usually a good sign to just
+> skip it.
 
 You can start the installer with these parameters:
 ```
@@ -247,7 +268,8 @@ for the sake of documentation.
 This file holds the main information about DCSServerBot. You can configure which plugins are loaded here for instance.
 
 ```yaml
-guild_id: 112233445566    # Your Discord server ID. Right click on your server and select "Copy Server ID".
+guild_id: 112233445566    # Your Discord server ID. Right-click on your server and select "Copy Server ID". On non-discord installations this number is filled for you.
+guild_name: My Group      # Non-Discord only: your DCS group name
 autoupdate: true          # use the bots autoupdate functionality, default is false
 use_dashboard: true       # Use the dashboard display for your node. Default is true.
 chat_command_prefix: '-'  # The command prefix to be used for in-game chat commands. Default is "-"
@@ -363,7 +385,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   discord:                      # Optional: specify discord roles that are allowed to use this server
     - '@everyone'               # Attention: people can not self-link on these servers and have to be liked properly already!
   channels:
-    status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right click on your channel and select "Copy Channel ID". You can disable it with -1
+    status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right-click on your channel and select "Copy Channel ID". You can disable it with -1
     chat: 8877665544332211      # The Discord channel for the in-game chat replication. You can disable it with setting it to -1.
     admin: 1188227733664455     # The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server specific ones. See bot.yaml for more.
     voice: 1827364518273645     # The voice channel, where people need to connect to (if force_voice is true). 
@@ -450,9 +472,11 @@ your Discord guild. If you like that feature, set `autoban: true` in services/bo
 However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from 
 all your configured DCS servers independent of that setting. You can prevent this by setting `no_dcs_autoban: true`.
 
-#### Discord Roles
+#### Roles (Discord and non-Discord)
 The bot uses the following **internal** roles to apply specific permissions to commands.<br>
-You can map your Discord roles to these internal roles like described in the example above.
+You can map your Discord roles to these internal roles like described in the example above or for the non-Discord
+variant, you just add your UCIDs as a list below each group.<br>
+Non-Discord installations usually only need the Admin and DCS Admin roles.
 
 | Role           | Description                                                                                                                                         |
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -463,14 +487,15 @@ You can map your Discord roles to these internal roles like described in the exa
 
 See [Coalitions](./COALITIONS.md) for coalition roles.
 
-### Discord TOKEN & Passwords
-DCSServerBot stores the secret Discord TOKEN and your database and (optional) DCS password in separate files. If ever you 
-have added these to your config files like mentioned above, the bot will take them and move them away. This is a 
+### Handling of Passwords and other Secrets
+DCSServerBot stores the secret Discord TOKEN and your database and (optional) DCS password in separate files. If ever 
+you have added these to your config files like mentioned above, the bot will take them and move them away. This is a 
 security feature. If you somehow forgot the values, you can always reveal them by starting the bot with the -s option
 like so: `run.cmd -s`.
 
 ### DCS/Hook Configuration
-The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
+The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by 
+the bot.
 
 ### Sample Configuration
 To view some sample configurations for the bot or for each configurable plugin, look [here](samples/README.md).

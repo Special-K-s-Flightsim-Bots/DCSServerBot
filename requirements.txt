@@ -29,7 +29,7 @@ GitPython==3.1.43
 jsonschema==4.23.0
 
 # Matplotlib: Python 2D plotting library
-matplotlib==3.9.0
+matplotlib==3.9.1.post1
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.23; sys_platform == 'win32'
@@ -89,7 +89,7 @@ seaborn==0.13.2
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.30.4
+uvicorn==0.30.5
 
 # Watchdog: API library and shell utilities to monitor file system events
-watchdog==4.0.1
+watchdog==4.0.2

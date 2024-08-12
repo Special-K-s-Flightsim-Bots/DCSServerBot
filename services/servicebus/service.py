@@ -49,7 +49,7 @@ class ServiceBus(Service):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
-        db_pass = utils.get_password('database')
+        db_pass = utils.get_password('database', self.node.config_dir)
         # main.yaml database connection has priority for intercom
         url = self.node.config.get("database", self.node.locals.get('database'))['url'].replace('SECRET', db_pass)
         self.intercom_channel = PubSub(self.node, 'intercom', url, self.handle_rpc)

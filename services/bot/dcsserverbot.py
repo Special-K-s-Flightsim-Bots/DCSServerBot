@@ -437,7 +437,10 @@ class DCSServerBot(commands.Bot):
                 channel_id = int(channel_id)
             channel = self.get_channel(channel_id)
             if not channel:
-                channel = await self.fetch_channel(channel_id)
+                try:
+                    channel = await self.fetch_channel(channel_id)
+                except discord.Forbidden:
+                    self.log.error("No permission to fetch channels!")
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return

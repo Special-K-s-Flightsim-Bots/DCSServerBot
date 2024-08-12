@@ -33,14 +33,14 @@ msgstr "Hast Du diese Voraussetzungen erfüllt?"
 msgid "Aborted: missing requirements."
 msgstr "Abgebrochen. Voraussetzungen nicht erfüllt."
 
-msgid "\n1. General Setup"
-msgstr "\n1. Allgemeine Konfiguration"
+msgid "\n1. [u]General Setup[/]"
+msgstr "\n1. [u]Allgemeine Konfiguration[/]"
 
 msgid "Do you want your DCSServerBot being auto-updated?"
 msgstr "Möchtest Du Deinen Bot automatisch updaten lassen?"
 
-msgid "\n2. Discord Setup"
-msgstr "\n2. Discord-Konfiguration"
+msgid "\n2. [u]Discord Setup[/]"
+msgstr "\n2. [u]Discord-Konfiguration[/]"
 
 msgid "Please enter your Discord Guild ID (right click on your Discord server, \"Copy Server ID\")"
 msgstr "Bitte gebe Deine \"Guild ID\" ein (rechts-klick auf den Discord-Server, \"Copy Server ID\")"
@@ -64,24 +64,55 @@ msgstr "Benutzer können bspw. alle Daten löschen, den Bot verändern oder soga
 msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
 msgstr "Benutzer können bspw. Missionen hochladen, DCS-Server starten und stoppen sowie Nutzer kicken und bannen."
 
+# No Discord
+msgid "\n2. [u]Bot Setup[/]"
+msgstr "\n2. [u]Bot Konfiguration[/]"
+
+msgid "Please enter the name of your DCS group"
+msgstr "Bitte gebe den Namen Deiner DCS-Gruppe ein"
+
+msgid "You now need to setup your users.\nDCSServerBot uses the following internal roles:"
+msgstr "Nun musst Du Deine Benutzer anlegen.\nDCSServerBot benutzt diese internen Rollen:"
+
+msgid "Which user(s) should get the [bold]{}[/] role?\n"
+"Please enter a comma-separated list of UCIDs"
+msgstr "Welche(r) Benutzer soll die [bold]{}[/]-Rolle bekommen?\n"
+"Bitte gib eine Komma-separierte Liste von UCIDs ein"
+
+msgid "[i]You can skip the Discord TOKEN, if you decide to do a non-Discord-installation.[/]"
+msgstr "[i]Wenn Du den Bot ohne Discord-Unterstützung installieren möchtest, benötigst Du keinen TOKEN.[/]"
+
+msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
+msgstr "Möchtest Du DCSServerBot mit Discord-Unterstützung installieren (empfohlen)?"
+
+msgid "Users can delete data and change the bot"
+msgstr "Benutzer können bspw. alle Daten löschen und den Bot verändern"
+
+msgid "Users can restart missions, kick/ban users, etc."
+msgstr "Benutzer können bspw. Missionen neu starten sowie Nutzer kicken und bannen."
+
 # DCS
+# NEW
+msgid "Searching for existing DCS server configurations ..."
+msgstr "Suche nach existierenden DCS-Server-Konfigurationen ..."
+
 msgid "Please enter the path to your DCS World installation"
 msgstr "Bitte gebe den Pfad zu Deiner DCS World Installation an"
 
 msgid "Directory not found. Please try again."
 msgstr "Verzeichnis nicht gefunden. Bitte versuche es noch einmal."
 
-msgid "\nSearching for DCS installations ..."
-msgstr "\nSuche DCS-World Installationen ..."
-
-msgid "I've found multiple installations of DCS World on this PC:"
-msgstr "Ich habe mehrere DCS-Installationen auf diesem PC gefunden:"
+msgid "Searching for DCS installations ..."
+msgstr "Suche DCS-World Installationen ..."
 
 msgid "Other"
 msgstr "Andere"
 
-msgid "Please specify, which installation you want the bot to use"
-msgstr "Bitte gebe an, welche Installation Du für den Bot nutzen möchtest"
+# NEW
+msgid "Please specify, which installation you want the bot to use.\n"
+"Chose \"Other\", if it is not in the list"
+msgstr "Bitte gebe an, welche Installation Du für den Bot nutzen möchtest.\n"
+"Wähle \"Andere\", wenn Du sie nicht in der Liste findest"
 
 msgid "Normal user, can pull statistics, ATIS, etc."
 msgstr "Normale Benutzerrolle, kann Statistiken aufrufen, ATIS, etc."
@@ -115,8 +146,8 @@ msgid "[yellow]Configuration found, adding another node...[/]"
 msgstr "[yellow]Konfiguration vorhanden, füge einen weiteren Knoten hinzu...[/]"
 
 # Database Configuration
-msgid "\n{}. Database Setup"
-msgstr "\n{}. Datenbank-Konfiguration"
+msgid "\n{}. [u]Database Setup[/]"
+msgstr "\n{}. [u]Datenbank-Konfiguration[/]"
 
 msgid "[red]No PostgreSQL-database found on {host}:{port}![/]"
 msgstr "[red]Keine PostgreSQL-Datenbank auf {host}:{port} gefunden![/]"
@@ -139,8 +170,12 @@ msgstr "Erinnerst Du Dich an das Passwort von {}?"
 msgid "Please enter your password for user {}"
 msgstr "Bitte gebe des Passwort für den Benutzer {} ein"
 
-msgid "[red]Wrong password! Try again.[/]"
-msgstr "[red]Falsches Passwort! Bitte probiere es erneut.[/]"
+msgid "[red]Wrong password! Try again ({}/3).[/]"
+msgstr "[red]Falsches Passwort! Bitte probiere es erneut ({}/3).[/]"
+
+# NEW !!!
+msgid "[yellow]You have entered 3x a wrong password. I have reset it.[/]'"
+msgstr "[yellow]Du hast 3x ein falsches Passwort eingegeben. Ich habe es nun ersetzt.[/]'"
 
 msgid "[green]- Database user and database created.[/]"
 msgstr "[green]- Datenbank-Benutzer und Datenbank erzeugt.[/]"
@@ -151,8 +186,8 @@ msgstr "[red]Falsches Passwort für den Benutzer \"postgres\". Bitte versuche es
 msgid "Aborted: No valid Database URL provided."
 msgstr "Abgebrochen. Keine gültige Datenbank-URL angegeben."
 
-msgid "\n{}. Node Setup"
-msgstr "\n{}. Knoten-Konfiguration"
+msgid "\n{}. [u]Node Setup[/]"
+msgstr "\n{}. [u]Knoten-Konfiguration[/]"
 
 # DCS Configuration
 msgid "Aborted: No DCS installation found."
@@ -174,15 +209,15 @@ msgid "DCS-SRS not configured."
 msgstr "DCS-SRS wurde nicht konfiguriert."
 
 # DCS Server Configuration
-msgid "\n{}. DCS Server Setup"
-msgstr "\n{}. DCS-Server-Konfiguration"
+msgid "\n{}. [u]DCS Server Setup[/]"
+msgstr "\n{}. [u]DCS-Server-Konfiguration[/]"
 
 msgid "No configured DCS servers found."
 msgstr "Keine konfigurierten DCS-Server gefunden."
 
-msgid "\nDCS server \"{}\" found.\n"
+msgid "\n[i]DCS server \"{}\" found.[/i]\n"
 "Would you like to manage this server through DCSServerBot?"
-msgstr "\nDCS-Server \"{}\" gefunden.\n"
+msgstr "\n[i]DCS-Server \"{}\" gefunden.[/]\n"
 "Möchtest Du diesen Server zukünftig über DCSServerBot verwalten?"
 
 msgid "Adding instance {instance} with server {name} ..."

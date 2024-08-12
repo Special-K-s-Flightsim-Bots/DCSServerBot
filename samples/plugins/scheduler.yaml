@@ -11,7 +11,8 @@ DCS.release_server:
   schedule:                                       # Server "DCS.release_server" will run 24x7
     00-24: YYYYYYY
 instance2:
-  schedule:                                       # Server "instance2" will run every day from 0h-12h local time (LT)
+  schedule:                                       # Server "instance2" will run every day from 0h-12h in the specified time zone
+    timezone: Europe/Berlin                       # optional: timezone (default: local time)
     00-12: YYYYYYY
     12-24: NNNNNNN
   restart:                                        # at 04:00 and 08:00 LT ..

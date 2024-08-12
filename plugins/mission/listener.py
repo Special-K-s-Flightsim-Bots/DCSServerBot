@@ -10,7 +10,9 @@ from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
 from services import ServiceBus
+from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
+
 
 if TYPE_CHECKING:
     from core import Server
@@ -95,9 +97,10 @@ class MissionEventListener(EventListener):
         self.update_mission_embed.cancel()
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
-        # linkme is only available, if the player is not linked
-        if command.name == 'linkme' and player.verified:
-            return False
+        # linkme is only available, if the player is not linked and if a Discord bot is available
+        if command.name == 'linkme':
+            if player.verified or isinstance(self.bot, DummyBot):
+                return False
         return await super().can_run(command, server, player)
 
     async def work_queue(self):
@@ -176,7 +179,7 @@ class MissionEventListener(EventListener):
     async def sendMessage(self, server: Server, data: dict) -> None:
         channel_id = int(data['channel'])
         if channel_id == -1:
-            channel_id = server.channels[Channel.EVENTS]
+            channel_id = server.channels.get(Channel.EVENTS, -1)
         channel = self.bot.get_channel(channel_id)
         if channel:
             message = "```" + data['message'] + "```"
@@ -392,10 +395,11 @@ class MissionEventListener(EventListener):
         # remove roles
         if server.locals.get('autorole'):
             role = self.bot.get_role(server.locals.get('autorole'))
-            all_members = set(x.member for x in server.players.values() if x.member)
-            for member in (set(role.members) - all_members):
-                # noinspection PyAsyncCall
-                asyncio.create_task(member.remove_roles(role))
+            if role:
+                all_members = set(x.member for x in server.players.values() if x.member)
+                for member in (set(role.members) - all_members):
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(member.remove_roles(role))
         # Set the status at the latest possible place
         if data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
@@ -548,11 +552,12 @@ class MissionEventListener(EventListener):
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.get_admin_channel(server).send(
                     f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
-            # noinspection PyAsyncCall
-            asyncio.create_task(player.sendChatMessage(config.get(
-                'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
-                                              'if you want to see your user stats!').format(server=server,
-                                                                                            player=player)))
+            if not isinstance(self.bot, DummyBot):
+                # noinspection PyAsyncCall
+                asyncio.create_task(player.sendChatMessage(config.get(
+                    'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
+                                                  'if you want to see your user stats!').format(server=server,
+                                                                                                player=player)))
         else:
             # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(config.get(

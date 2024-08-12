@@ -657,8 +657,9 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         miz = await asyncio.to_thread(MizFile, server.current_mission.filename)
-        if os.path.exists('config/presets.yaml'):
-            with open(os.path.join('config', 'presets.yaml'), mode='r', encoding='utf-8') as infile:
+        config_file = os.path.join(self.node.config_dir, 'presets.yaml')
+        if os.path.exists(config_file):
+            with open(config_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         else:
             presets = dict()
@@ -681,7 +682,7 @@ class Mission(Plugin):
             "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
             "halo": miz.halo
         }
-        with open(os.path.join('config', 'presets.yaml'), mode='w', encoding='utf-8') as outfile:
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)
         # noinspection PyUnresolvedReferences
         await interaction.followup.send(_('Preset "{}" added.').format(name), ephemeral=ephemeral)
@@ -862,7 +863,7 @@ class Mission(Plugin):
             ucid = await self.bot.get_ucid_by_member(user)
         else:
             ucid = user
-        config_file = os.path.join('config', 'plugins', self.plugin_name + '.yaml')
+        config_file = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
         if DEFAULT_TAG not in self.locals:
             self.locals[DEFAULT_TAG] = {}
         if 'afk_exemptions' not in self.locals[DEFAULT_TAG]:

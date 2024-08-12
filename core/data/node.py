@@ -94,7 +94,7 @@ class Node:
             if database_url:
                 url = urlparse(database_url)
                 if url.password != 'SECRET':
-                    utils.set_password('database', url.password)
+                    utils.set_password('database', url.password, self.config_dir)
                     port = url.port or 5432
                     config['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"

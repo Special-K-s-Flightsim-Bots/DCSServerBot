@@ -27,12 +27,12 @@ class SlotBlockingListener(EventListener):
                 'plugin': self.plugin_name,
                 'params': config
             })
-            guild = self.bot.guilds[0]
             roles = []
             for role in config.get('VIP', {}).get('discord', []):
                 roles.append(self.bot.get_role(role))
             if not roles:
                 return
+            guild = self.bot.guilds[0]
             # get all linked members
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("""

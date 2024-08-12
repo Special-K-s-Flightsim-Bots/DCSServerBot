@@ -23,8 +23,9 @@ class MizFile:
     def __init__(self, filename: str):
         self.log = logging.getLogger(__name__)
         self.filename = filename
-        self.mission = dict()
-        self.options = dict()
+        self.mission: dict = {}
+        self.options: dict = {}
+        self.warehouses: dict = {}
         self._load()
         self._files: list[dict] = []
 
@@ -36,6 +37,12 @@ class MizFile:
                 try:
                     with miz.open('options') as options:
                         self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
+                except FileNotFoundError:
+                    pass
+                try:
+                    with miz.open('warehouses') as warehouses:
+                        self.warehouses = luadata.unserialize(io.TextIOWrapper(warehouses, encoding='utf-8').read(),
+                                                              'utf-8')
                 except FileNotFoundError:
                     pass
         except Exception:
@@ -59,6 +66,9 @@ class MizFile:
                     elif item.filename == 'options':
                         zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
                                                                              indent_level=0))
+                    elif item.filename == 'warehouses':
+                        zout.writestr(item, "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
+                                                                                indent_level=0))
                     elif item.filename not in filenames:
                         zout.writestr(item, zin.read(item.filename))
                 for item in self._files:
@@ -332,7 +342,7 @@ class MizFile:
                 if debug:
                     self.log.debug("Processing SELECT ...")
                 if config['select'].startswith('/'):
-                    elements = list(utils.for_each(self.mission, config['select'][1:].split('/'),
+                    elements = list(utils.for_each(source, config['select'][1:].split('/'),
                                                    debug=debug, **kwargs))
                 else:
                     elements = list(utils.for_each(reference, config['select'].split('/'), debug=debug, **kwargs))
@@ -382,13 +392,13 @@ class MizFile:
                             else:
                                 element[_what] |= _with
                         else:
-                            for value in utils.for_each(self.mission, _with[1:].split('/'), debug=debug, **kwargs):
+                            for value in utils.for_each(source, _with[1:].split('/'), debug=debug, **kwargs):
                                 if isinstance(element[_what], dict):
                                     element[_what] |= value
                                 else:
                                     element[_what] += value
                             if _with.startswith('/'):
-                                utils.tree_delete(self.mission, _with[1:])
+                                utils.tree_delete(source, _with[1:])
                             else:
                                 utils.tree_delete(reference, _with)
                 elif 'delete' in config:
@@ -417,19 +427,29 @@ class MizFile:
                 self.modify(cfg)
             return
         debug = config.get('debug', False)
+        file = config.get('file', 'mission')
+        if file == 'mission':
+            source = self.mission
+        elif file == 'options':
+            source = self.options
+        elif file == 'warehouses':
+            source = self.warehouses
+        else:
+            self.log.error(f"File {file} can not be changed.")
+            return
         kwargs = {}
         if 'variables' in config:
             for name, value in config['variables'].items():
                 if value.startswith('$'):
                     kwargs[name] = utils.evaluate(value, **kwargs)
                 else:
-                    kwargs[name] = next(utils.for_each(self.mission, value.split('/'), debug=debug, **kwargs))
+                    kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
         try:
             for_each = config['for-each'].lstrip('/')
         except KeyError:
             self.log.error("MizEdit: for-each missing in modify preset, skipping!")
             return
-        for reference in utils.for_each(self.mission, for_each.split('/'), debug=debug, **kwargs):
+        for reference in utils.for_each(source, for_each.split('/'), debug=debug, **kwargs):
             if 'where' in config:
                 if debug:
                     self.log.debug("Processing WHERE ...")

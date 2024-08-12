@@ -1,6 +1,6 @@
 # Bot Service
 This is the Discord bot implementation, the one that's providing all the commands and embeds that are displayed in your
-Discord server.
+Discord server (for the Discord-less implementation, see below).
 
 ## Configuration
 The configuration is quite basic, please check out the installation guide in the main [README](../../README.md).
@@ -42,3 +42,29 @@ roles:                                          # Roles mapping. The bot uses in
 > ⚠️ **Attention!**<br>
 > Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
+
+## Non-Discord Installations
+DCSServerBot is made for Discord and I highly recommend using it with that. Nevertheless, there are people that do not
+want to use Discord or are not allowed to do so. Thus, I have implemented a version that can run without it.
+
+As your only interface to DCSServerBot-commands is the in-game chat then and as only approved / verified people can run
+them, you need to provide some kind of role-mapping.
+
+### Configuration
+Your bot.yaml might look like this:
+```yaml
+no_discord: true
+roles:
+  Admin:
+    - aabbccddeeffgghhiijjkkll11223344  # UCID(s) of the players, that should get the Admin role
+  DCS Admin:
+    - aabbccddeeffgghhiijjkkll11223344
+    - 998877665544332211aabbccddeeffgg  # UCID(s) of the players, that should get the DCS Admin role
+```
+The bot will then start without any Discord integration and allow the players listed in your bot.yaml to run the 
+respective commands that are allowed for this role.
+
+> ⚠️ **Attention!**<br>
+> You might get some warnings and errors because of missing information like channels etc. in your bot.
+> And you are limited with many plugins, meaning, you can not use any plugin that is meant to post information into
+> channels only like FunkMan or Greenieboard.

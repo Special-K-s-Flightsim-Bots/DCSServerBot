@@ -221,7 +221,7 @@ class NodeImpl(Node):
             if database_url:
                 url = urlparse(database_url)
                 if url.password and url.password != 'SECRET':
-                    utils.set_password('database', url.password)
+                    utils.set_password('database', url.password, self.config_dir)
                     port = url.port or 5432
                     node['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
@@ -230,7 +230,7 @@ class NodeImpl(Node):
             password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
             if password:
                 node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
-                utils.set_password('DCS', password)
+                utils.set_password('DCS', password, self.config_dir)
                 dirty = True
             if dirty:
                 with open(config_file, 'w', encoding='utf-8') as f:
@@ -241,7 +241,7 @@ class NodeImpl(Node):
     async def init_db(self) -> tuple[ConnectionPool, AsyncConnectionPool]:
         url = self.config.get("database", self.locals.get('database'))['url']
         try:
-            url = url.replace('SECRET', quote(utils.get_password('database')) or '')
+            url = url.replace('SECRET', quote(utils.get_password('database', self.config_dir)) or '')
         except ValueError:
             pass
         # quick connection check
@@ -463,21 +463,22 @@ class NodeImpl(Node):
                     process = subprocess.run(
                         cmd, startupinfo=startupinfo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                     )
-                    if branch and process.returncode == 0:
-                        # check if the branch has been changed
-                        config = os.path.join(self.installation, 'autoupdate.cfg')
-                        with open(config, mode='r') as infile:
-                            data = json.load(infile)
-                        if data['branch'] != branch:
-                            data['branch'] = branch
-                            with open(config, mode='w') as outfile:
-                                json.dump(data, outfile, indent=2)
                     return process.returncode
                 except Exception as ex:
                     self.log.exception(ex)
                     return -1
 
-            return await asyncio.to_thread(run_subprocess)
+            rc = await asyncio.to_thread(run_subprocess)
+            if branch and rc == 0:
+                # check if the branch has been changed
+                config = os.path.join(self.installation, 'autoupdate.cfg')
+                with open(config, mode='r') as infile:
+                    data = json.load(infile)
+                if data['branch'] != branch:
+                    data['branch'] = branch
+                    with open(config, mode='w') as outfile:
+                        json.dump(data, outfile, indent=2)
+            return rc
 
         self.update_pending = True
         to_start = []
@@ -563,7 +564,7 @@ class NodeImpl(Node):
         user = self.locals['DCS'].get('user')
         if not user:
             return list(licenses)
-        password = utils.get_password('DCS')
+        password = utils.get_password('DCS', self.config_dir)
         headers = {
             'User-Agent': 'DCS_Updater/'
         }
@@ -589,7 +590,7 @@ class NodeImpl(Node):
 
         async def _get_latest_version_auth():
             user = self.locals['DCS'].get('user')
-            password = utils.get_password('DCS')
+            password = utils.get_password('DCS', self.config_dir)
             headers = {
                 'User-Agent': 'DCS_Updater/'
             }

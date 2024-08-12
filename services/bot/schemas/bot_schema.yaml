@@ -1,7 +1,8 @@
 type: map
 mapping:
+  no_discord: {type: bool}
   token: {type: str}
-  owner: {type: int, required: true}
+  owner: {type: int}
   automatch: {type: bool}
   autoban: {type: bool}
   autorole:

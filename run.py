@@ -96,13 +96,13 @@ class Main:
         perf_logger.addHandler(pfh)
 
     @staticmethod
-    def reveal_passwords():
+    def reveal_passwords(config_dir: str):
         print("[yellow]These are your hidden secrets:[/]")
-        for file in utils.list_all_files(os.path.join('config', '.secret')):
+        for file in utils.list_all_files(os.path.join(config_dir, '.secret')):
             if not file.endswith('.pkl'):
                 continue
             key = file[:-4]
-            print(f"{key}: {utils.get_password(key)}")
+            print(f"{key}: {utils.get_password(key, config_dir)}")
         print("\n[red]DO NOT SHARE THESE SECRET KEYS![/]")
 
     async def run(self):
@@ -204,9 +204,9 @@ if __name__ == "__main__":
     Main.setup_logging(args.node)
     log = logging.getLogger("dcsserverbot")
     # check if we should reveal the passwords
-    utils.create_secret_dir()
+    utils.create_secret_dir(args.config)
     if args.secret:
-        Main.reveal_passwords()
+        Main.reveal_passwords(args.config)
         exit(-2)
 
     # Check versions
@@ -225,7 +225,7 @@ if __name__ == "__main__":
                 asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                asyncio.run(run_node(name=args.node, no_autoupdate=args.noupdate))
+                asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError:
         # do not restart again
         log.error("There is a permission error.")

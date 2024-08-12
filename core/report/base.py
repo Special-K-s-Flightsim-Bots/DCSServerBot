@@ -342,7 +342,10 @@ class PersistentReport(Report):
                                     file=file, server=self.server)
             return env
         except Exception:
-            self.log.error(f"Exception while processing report {self.filename}!")
+            msg = f"Exception while processing report {self.filename}!"
+            if self.server:
+                msg += f' for server {self.server.name}'
+            self.log.error(msg)
             raise
         finally:
             if env and env.filename:

@@ -5,7 +5,7 @@ import discord
 import os
 import zipfile
 
-from core import utils, FatalException
+from core import utils, FatalException, Node
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import commands
@@ -17,6 +17,7 @@ from ssl import SSLCertVerificationError
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
+from .dummy import DummyBot
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -51,7 +52,7 @@ class BotService(Service):
         if not token:
             return False
         self.log.info("Discord TOKEN found, removing it from yaml ...")
-        utils.set_password('token', token)
+        utils.set_password('token', token, self.node.config_dir)
         return True
 
     def __init__(self, node):
@@ -64,8 +65,11 @@ class BotService(Service):
             self.save_config()
 
     @property
-    def token(self) -> str:
-        return utils.get_password('token')
+    def token(self) -> Optional[str]:
+        try:
+            return utils.get_password('token', self.node.config_dir)
+        except ValueError:
+            return None
 
     def init_bot(self):
         def get_prefix(client, message):
@@ -73,19 +77,25 @@ class BotService(Service):
             # Allow users to @mention the bot instead of using a prefix
             return commands.when_mentioned_or(*prefixes)(client, message)
 
-        # Create the Bot
-        return DCSServerBot(version=self.node.bot_version,
+        if self.locals.get('no_discord', False):
+            return DummyBot(version=self.node.bot_version,
                             sub_version=self.node.sub_version,
-                            command_prefix=get_prefix,
-                            description='Interact with DCS World servers',
-                            owner_id=self.locals['owner'],
-                            case_insensitive=True,
-                            intents=discord.Intents.all(),
                             node=self.node,
-                            locals=self.locals,
-                            help_command=None,
-                            heartbeat_timeout=120,
-                            assume_unsync_clock=True)
+                            locals=self.locals)
+        else:
+            # Create the Bot
+            return DCSServerBot(version=self.node.bot_version,
+                                sub_version=self.node.sub_version,
+                                command_prefix=get_prefix,
+                                description='Interact with DCS World servers',
+                                owner_id=self.locals['owner'],
+                                case_insensitive=True,
+                                intents=discord.Intents.all(),
+                                node=self.node,
+                                locals=self.locals,
+                                help_command=None,
+                                heartbeat_timeout=120,
+                                assume_unsync_clock=True)
 
     async def start(self, *, reconnect: bool = True) -> None:
         from services import ServiceBus
@@ -99,6 +109,8 @@ class BotService(Service):
             await self.bot.login(self.token)
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.connect(reconnect=reconnect))
+        except Exception as ex:
+            self.log.exception(ex)
         except PermissionError as ex:
             self.log.error("Please check the permissions for " + str(ex))
             raise
@@ -114,12 +126,12 @@ class BotService(Service):
         await super().stop()
 
     async def alert(self, title: str, message: str, server: Optional[Server] = None,
-                    node: Optional[str] = None) -> None:
+                    node: Optional[Node] = None) -> None:
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert']])
         embed, file = utils.create_warning_embed(title=title, text=utils.escape_string(message))
         if not server and node:
             try:
-                server = next(server for server in self.bot.servers.values() if server.node.name == node)
+                server = next(server for server in self.bot.servers.values() if server.node.name == node.name)
             except StopIteration:
                 server = None
         if server:
