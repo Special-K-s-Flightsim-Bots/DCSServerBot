@@ -43,7 +43,7 @@ roles:                                          # Roles mapping. The bot uses in
 > Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
 
-## Discord-less "Bot"
+## Non-Discord Installations
 DCSServerBot is made for Discord and I highly recommend using it with that. Nevertheless, there are people that do not
 want to use Discord or are not allowed to do so. Thus, I have implemented a version that can run without it.
 
@@ -51,7 +51,7 @@ As your only interface to DCSServerBot-commands is the in-game chat then and as 
 them, you need to provide some kind of role-mapping.
 
 ### Configuration
-Your bot.yaml might look like this then:
+Your bot.yaml might look like this:
 ```yaml
 no_discord: true
 roles:
