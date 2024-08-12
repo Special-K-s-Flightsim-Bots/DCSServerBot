@@ -186,8 +186,8 @@ msgstr "[red]Falsches Passwort für den Benutzer \"postgres\". Bitte versuche es
 msgid "Aborted: No valid Database URL provided."
 msgstr "Abgebrochen. Keine gültige Datenbank-URL angegeben."
 
-msgid "\n{}. [i]Node Setup[/]"
-msgstr "\n{}. [i]Knoten-Konfiguration[/]"
+msgid "\n{}. [u]Node Setup[/]"
+msgstr "\n{}. [u]Knoten-Konfiguration[/]"
 
 # DCS Configuration
 msgid "Aborted: No DCS installation found."
