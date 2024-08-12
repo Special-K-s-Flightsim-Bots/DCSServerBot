@@ -65,8 +65,11 @@ class BotService(Service):
             self.save_config()
 
     @property
-    def token(self) -> str:
-        return utils.get_password('token', self.node.config_dir)
+    def token(self) -> Optional[str]:
+        try:
+            return utils.get_password('token', self.node.config_dir)
+        except ValueError:
+            return None
 
     def init_bot(self):
         def get_prefix(client, message):

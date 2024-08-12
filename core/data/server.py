@@ -86,7 +86,7 @@ class Server(DataObject):
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
-            if not data.get(self.name) and self.name != 'n/a':
+            if data.get(self.name) is None and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
             if 'message_ban' not in _locals:

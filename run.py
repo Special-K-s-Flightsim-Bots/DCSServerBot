@@ -225,7 +225,7 @@ if __name__ == "__main__":
                 asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                asyncio.run(run_node(name=args.node, no_autoupdate=args.noupdate))
+                asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError:
         # do not restart again
         log.error("There is a permission error.")
