@@ -67,6 +67,8 @@ class DummyBot:
         } | {name: [name] for name in self.guilds[0]._roles.keys()}
         if 'GameMaster' not in _roles:
             _roles['GameMaster'] = ['DCS Admin']
+        if 'Alert' not in _roles:
+            _roles['Alert'] = ['DCS Admin']
         return _roles
 
     @property
