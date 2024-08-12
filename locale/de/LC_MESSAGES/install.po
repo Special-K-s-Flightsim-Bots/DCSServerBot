@@ -68,6 +68,9 @@ msgstr "Benutzer können bspw. Missionen hochladen, DCS-Server starten und stopp
 msgid "\n2. [u]Bot Setup[/]"
 msgstr "\n2. [u]Bot Konfiguration[/]"
 
+msgid "Please enter the name of your DCS group"
+msgstr "Bitte gebe den Namen Deiner DCS-Gruppe ein"
+
 msgid "You now need to setup your users.\nDCSServerBot uses the following internal roles:"
 msgstr "Nun musst Du Deine Benutzer anlegen.\nDCSServerBot benutzt diese internen Rollen:"
 

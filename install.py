@@ -205,8 +205,10 @@ class Install:
 
         def configure_no_discord() -> tuple[dict, dict]:
             print(_("\n2. [u]Bot Setup[/]"))
+            guild_name = Prompt.ask(_("Please enter the name of your DCS group"))
             main = {
                 "guild_id": random.randint(111111111111111111, 999999999999999999),
+                "guild_name": guild_name,
                 "autoupdate": autoupdate
             }
             print(_("You now need to setup your users.\nDCSServerBot uses the following internal roles:"))
