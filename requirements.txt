@@ -92,4 +92,4 @@ trueskill==0.4.5
 uvicorn==0.30.5
 
 # Watchdog: API library and shell utilities to monitor file system events
-watchdog==4.0.1
+watchdog==4.0.2
