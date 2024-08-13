@@ -277,7 +277,8 @@ class MonitoringService(Service):
                 if (free < total * alert_pct) and not self.space_alert_sent[drive]:
                     message = f"Your freespace on {drive} is below {alert_pct * 100}%!"
                     self.log.error(message)
-                    await self.send_alert(title="Your DCS drive is running out of space!", message=message)
+                    await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
+                                          message=message)
                     self.space_alert_sent[drive] = True
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()

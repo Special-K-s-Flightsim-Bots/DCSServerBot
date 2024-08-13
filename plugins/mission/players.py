@@ -17,7 +17,13 @@ class Main(report.EmbedElement):
             srs_users = {}
         for player in players:
             sides[player.side]['names'].append(player.display_name)
-            sides[player.side]['units'].append(player.unit_type if player.side != Side.SPECTATOR else '')
+            if player.side != Side.SPECTATOR:
+                unit = player.unit_type
+                if player.sub_slot > 0:
+                    unit += ' (crew)'
+                sides[player.side]['units'].append(unit)
+            else:
+                sides[player.side]['units'].append('')
             if srs_users:
                 sides[player.side]['SRS'].append(':green_circle:' if player.name in srs_users else ':red_circle:')
         for side in [Side.BLUE, Side.RED, Side.NEUTRAL, Side.SPECTATOR]:

@@ -132,23 +132,36 @@ end
 
 function balance_slots(playerID, side, slotID)
     local config = dcsbot.params['slotblocking']['balancing']
-    local blue_vs_red = config['blue_vs_red']
-    local threshold = config['threshold']
+    local blue_vs_red = config['blue_vs_red'] or 0.5
+    local threshold = config['threshold'] or 0.1
+    local activation_threshold = tonumber(config['activation_threshold'] or 0)
     local message = config['message'] or 'You need to take a slot of the opposite coalition to keep the balance!'
     local players = net.get_player_list()
     local numPlayersBlue = 0
     local numPlayersRed = 0
 
-    for k, playerId in base.pairs(players) do
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: balance_slots()')
+    if #players < activation_threshold then
+        log.write('DCSServerBot', log.DEBUG, 'Slotblocking: activation_threshold not reached')
+        return
+    end
+
+    for _, playerId in base.pairs(players) do
         local player_info = net.get_player_info(playerId)
-        if player_info.side == 2 then
-            numPlayersBlue = numPlayersBlue + 1
-        end
-        if player_info.side == 1 then
-            numPlayersRed = numPlayersRed + 1
+        local _, slot, sub_slot = utils.getMulticrewAllParameters(playerId)
+
+        -- only count real seats
+        if sub_slot == 0 and slot ~= -1 then
+            if player_info.side == 2 then
+                numPlayersBlue = numPlayersBlue + 1
+            end
+            if player_info.side == 1 then
+                numPlayersRed = numPlayersRed + 1
+            end
         end
     end
     local balance = calculate_balance(numPlayersBlue, numPlayersRed, blue_vs_red)
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: balance: ' .. tostring(balance))
     if (side == 2 and balance > blue_vs_red + threshold) or (side == 1 and balance < blue_vs_red - threshold) then
         net.send_chat_to(message, playerID)
         return false

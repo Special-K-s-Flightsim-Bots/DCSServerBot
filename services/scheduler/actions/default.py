@@ -25,8 +25,9 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
         await bot.get_channel(channel).send(embed=env.embed)
 
 
-async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, rotate: Optional[bool] = False,
-                  run_extensions: Optional[bool] = True, reboot: Optional[bool] = False):
+async def restart(node: Node, server: Optional[Server] = None, shutdown: Optional[bool] = False,
+                  rotate: Optional[bool] = False, run_extensions: Optional[bool] = True,
+                  reboot: Optional[bool] = False):
     def _reboot():
         os.system("shutdown /r /t 1")
 
@@ -43,7 +44,7 @@ async def restart(node: Node, server: Server, shutdown: Optional[bool] = False, 
             await server.restart(modify_mission=run_extensions)
     elif reboot:
         bus = ServiceRegistry.get(ServiceBus)
-        for server in bus.servers.values():
+        for server in [x for x in bus.servers.values() if x.status not in [Status.SHUTDOWN, Status.UNREGISTERED]]:
             if not server.is_remote:
                 await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
                 await asyncio.sleep(1)
