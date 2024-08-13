@@ -104,7 +104,7 @@ def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) 
     else:
         start_time = end_time = parse_time(timeframe, tz).replace(year=time.year, month=time.month, day=time.day,
                                                                   second=0, microsecond=0)
-    check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
+    check_time = time.replace(second=0, microsecond=0)
     return start_time <= check_time <= end_time
 
 
