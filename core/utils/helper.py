@@ -104,7 +104,8 @@ def is_in_timeframe(time: datetime, timeframe: str, tz: datetime.tzinfo = None) 
     else:
         start_time = end_time = parse_time(timeframe, tz).replace(year=time.year, month=time.month, day=time.day,
                                                                   second=0, microsecond=0)
-    return start_time <= time <= end_time
+    check_time = time.replace(second=0, microsecond=0)
+    return start_time <= check_time <= end_time
 
 
 def is_match_daystate(time: datetime, daystate: str) -> bool:
