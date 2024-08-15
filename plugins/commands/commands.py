@@ -35,7 +35,7 @@ class Commands(Plugin):
         if config.get('shell', False):
             try:
                 def run_cmd():
-                    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+                    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, shell=True)
                     return result.stdout, result.stderr
 
                 stdout, stderr = await asyncio.to_thread(run_cmd)
