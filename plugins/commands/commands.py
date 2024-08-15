@@ -141,7 +141,7 @@ class Commands(Plugin):
                 return
             report = Report(self.bot, self.plugin_name, config['report'])
             env = await report.render(**kwargs)
-            await ctx.send(embed=env.embed)
+            await ctx.send(env.mention, embed=env.embed)
         elif data:
             if len(data) > 1:
                 embed = discord.Embed(color=discord.Color.blue())
