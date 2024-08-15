@@ -19,7 +19,6 @@ class MOTD(Plugin):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
         self.nudge_active: dict[str, dict[int, asyncio.TimerHandle]] = {}
-        self.lock = asyncio.Lock()
         self.nudge.start()
 
     async def cog_unload(self):
@@ -103,43 +102,40 @@ class MOTD(Plugin):
             await interaction.response.send_message(f"```{message}```")
 
     async def _cancel_handles(self, server: Server):
-        async with self.lock:
-            # cancel open timers
-            for handle in self.nudge_active.get(server.name, {}).values():
-                handle.cancel()
-            self.nudge_active[server.name] = {}
+        # cancel open timers
+        for handle in self.nudge_active.get(server.name, {}).values():
+            handle.cancel()
+        self.nudge_active[server.name] = {}
 
     @tasks.loop(minutes=1.0)
     async def nudge(self):
-        async def process_message(config: dict, message: str):
+        async def process_message(server: Server, config: dict, message: str):
             if 'recipients' in config:
                 async for recp in self.get_recipients(server, config):
                     await self.send_message(message, server, config, recp)
             else:
                 await self.send_message(message, server, config)
 
-        async def process_nudge(server: Server, config: dict):
-            async with self.lock:
-                delay = config['delay']
-                if server.status != Status.RUNNING:
-                    self.nudge_active[server.name].pop(delay, None)
-                    return
-                if 'message' in config:
-                    message = utils.format_string(config['message'], server=server)
-                    await process_message(config, message)
-                elif 'messages' in config:
-                    if config.get('random', False):
-                        cfg = random.choice(config['messages'])
+        def process_nudge(server: Server, config: dict):
+            delay = config['delay']
+            if server.status != Status.RUNNING:
+                self.nudge_active[server.name].pop(delay, None)
+                return
+            if 'message' in config:
+                message = utils.format_string(config['message'], server=server)
+                asyncio.create_task(process_message(server, config, message))
+            elif 'messages' in config:
+                if config.get('random', False):
+                    cfg = random.choice(config['messages'])
+                    message = utils.format_string(cfg['message'], server=server)
+                    asyncio.create_task(process_message(server, cfg, message))
+                else:
+                    for cfg in config['messages']:
                         message = utils.format_string(cfg['message'], server=server)
-                        await process_message(cfg, message)
-                    else:
-                        for cfg in config['messages']:
-                            message = utils.format_string(cfg['message'], server=server)
-                            await process_message(cfg, message)
-                # schedule next run
-                t = self.loop.call_later(
-                    delay=delay, callback=partial(asyncio.create_task, process_nudge(server, config)))
-                self.nudge_active[server.name][delay] = t
+                        asyncio.create_task(process_message(server, cfg, message))
+            # schedule next run
+            t = self.loop.call_later(delay, partial(process_nudge, server, config))
+            self.nudge_active[server.name][delay] = t
 
         try:
             for server_name, server in self.bot.servers.items():
@@ -157,12 +153,10 @@ class MOTD(Plugin):
                 self.nudge_active[server_name] = {}
                 if isinstance(config, list):
                     for c in config:
-                        t = self.loop.call_later(
-                            delay=c['delay'], callback=partial(asyncio.create_task, process_nudge(server, c)))
+                        t = self.loop.call_later(c['delay'], partial(process_nudge, server, c))
                         self.nudge_active[server_name][c['delay']] = t
                 else:
-                    t = self.loop.call_later(
-                        delay=config['delay'], callback=partial(asyncio.create_task, process_nudge(server, config)))
+                    t = self.loop.call_later(config['delay'], partial(process_nudge, server, config))
                     self.nudge_active[server_name][config['delay']] = t
         except Exception as ex:
             self.log.exception(ex)

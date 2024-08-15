@@ -119,3 +119,17 @@ initial_points: 1   # you get one initial credit point (your "lifes")
 points_per_kill:
   - default: 0      # you don't get new lifes by kills
 ```
+
+### Balancing
+If you have a PvP server and want to enable balancing, this is how you can set it up.
+```yaml
+DEFAULT:
+  balancing:                  # Optional: Allows balancing for your server (blue vs red)
+    blue_vs_red: 0.5          # 50% balance blue vs red
+    threshold: 0.1            # 10% threshold until slots are blocked
+    activation_threshold: 10  # do not balance, if the number of players is below this threshold
+    message: You need to take a slot of the opposite coalition to keep the balance!
+``` 
+Balancing will **not** be checked
+- if a user selects another slot on the same side (if you are on blue, you can stay on blue)
+- if a user jumps in a CA (Artillery Commander, etc) or carrier slot (LSO, Airboss)

@@ -2,7 +2,7 @@ from __future__ import annotations
 import inspect
 
 from dataclasses import MISSING
-from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable
+from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable, Union
 
 if TYPE_CHECKING:
     from core import Plugin, Server, Player
@@ -55,7 +55,7 @@ class ChatCommand:
     def __init__(self, func, **kwargs):
         self.name: str = kwargs.get('name', func.__name__)
         self.help: str = inspect.cleandoc(kwargs.get('help', ''))
-        self.roles: list[str] = kwargs.get('roles', [])
+        self.roles: list[[Union[str, int]]] = kwargs.get('roles', [])
         self.usage: str = kwargs.get('usage')
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func
@@ -116,6 +116,8 @@ class EventListener(metaclass=EventListenerMeta):
         self.locals: dict = plugin.locals
         self.loop = plugin.loop
         self.prefix = self.node.config.get('chat_command_prefix', '-')
+        if 'chat_commands' in self.locals:
+            self.change_commands(self.locals['chat_commands'])
 
     @property
     def events(self) -> Iterable[Event]:
@@ -137,6 +139,34 @@ class EventListener(metaclass=EventListenerMeta):
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:
         return self.plugin.get_config(server, plugin_name=plugin_name, use_cache=use_cache)
+
+    def change_commands(self, config: dict) -> None:
+        for name, params in config.items():
+            cmd = self.__chat_commands__.get(str(name))
+            if not cmd:
+                self.log.warning(f"Chat command {name} not found!")
+                continue
+            if 'enabled' in params:
+                cmd.enabled = params['enabled']
+            else:
+                if 'name' in params:
+                    cmd.name = params['name']
+                    self.__all_commands__.pop(name, None)
+                    self.__all_commands__[cmd.name] = cmd
+                if 'aliases' in params:
+                    # remove old aliases
+                    for alias in cmd.aliases:
+                        self.__all_commands__.pop(alias, None)
+                    cmd.aliases = params['aliases']
+                    # re-add new aliases
+                    for alias in cmd.aliases:
+                        self.__all_commands__[alias] = cmd
+                if 'roles' in params:
+                    cmd.roles = params['roles']
+                if 'usage' in params:
+                    cmd.usage = params['usage']
+                if 'help' in params:
+                    cmd.help = params['help']
 
     @event(name="onChatCommand")
     async def _onChatCommand(self, server: Server, data: dict) -> None:

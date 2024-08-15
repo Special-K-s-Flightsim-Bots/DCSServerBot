@@ -232,7 +232,7 @@ class Player(DataObject):
                     WHERE ucid = %s
                 """, (self.ucid, ))
 
-    def has_discord_roles(self, roles: list[str]) -> bool:
+    def has_discord_roles(self, roles: list[Union[str, int]]) -> bool:
         valid_roles = []
         for role in roles:
             valid_roles.extend(self.bot.roles[role])

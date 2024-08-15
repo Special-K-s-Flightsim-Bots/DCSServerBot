@@ -4,8 +4,9 @@ mapping:
   autoupdate: {type: bool}
   use_dashboard: {type: bool}
   chat_command_prefix: {type: str, range: {min: 1, max: 1}}
+  chat_filter: {type: bool}
   mission_rewrite: {type: bool}
-  language: {type: str, enum: ['de', 'es', 'ru']}
+  language: {type: str, enum: ['en', 'de', 'es', 'ru']}
   database:
     type: map
     mapping:

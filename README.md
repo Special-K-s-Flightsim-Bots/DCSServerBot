@@ -273,6 +273,7 @@ guild_name: My Group      # Non-Discord only: your DCS group name
 autoupdate: true          # use the bots autoupdate functionality, default is false
 use_dashboard: true       # Use the dashboard display for your node. Default is true.
 chat_command_prefix: '-'  # The command prefix to be used for in-game chat commands. Default is "-"
+chat_filter: true         # Use the profanity filter for the in-game chat.
 mission_rewrite: false    # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
 language: de              # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
 database:
@@ -580,6 +581,33 @@ can do that, by giving is a name like "myEmbed" in this example. The name has to
 ```
 If no embed named "myEmbed" is already there, the updateEmbed() call will generate it for you. Otherwise, it will be 
 replaced with this one.
+
+### How to overwrite DCSServerBot's default permissions?
+You can change any command either in discord or the in-game chat. You can select a different name, different roles, etc.,
+or even disable the command at all.
+For Discord, you need to keep the command structure in mind, meaning, if you have a group command (like /server startup)
+or a single one (like /help). If you want to change any of the commands, go to your respective plugin configuration and
+add a top-level section like so:
+```yaml
+commands:
+  dcs:
+    bans:
+      roles:
+      - Admin
+      name: prohibiciones
+      brief: lista de prohibiciones
+      description: mostrar una lista de todas las prohibiciones en sus servidores
+```
+If you add this to your admin.yaml, it will rename the command `/dcs bans` to `/dcs prohibiciones`, change the 
+documentation of it and make it only available for people that own the Admin role.
+
+If you want to change in-game chat commands, you can do it like so:
+```yaml
+chat_commands:
+  911:
+    enabled: false
+```
+If you add these lines to your mission.yaml, you disable the -911 command on your servers.
 
 ---
 ## Contact / Support

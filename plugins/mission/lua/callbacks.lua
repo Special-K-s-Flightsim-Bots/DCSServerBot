@@ -3,6 +3,8 @@ local base      = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
+local Censorship= base.require('censorship')
+
 
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
@@ -374,6 +376,11 @@ function mission.onPlayerTrySendChat(from, message, to)
         }
         utils.sendBotTable(msg)
         return ''
+    end
+    new_msg = Censorship.censor(message)
+    if new_msg ~= message then
+        net.send_chat_to('Message was censored.', from)
+        return new_msg
     end
 end
 
