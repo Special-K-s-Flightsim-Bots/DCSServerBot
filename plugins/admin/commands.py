@@ -391,6 +391,7 @@ class Admin(Plugin):
             with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:
                 zip_file.writestr(filename, file)
             file = zip_buffer.getvalue()
+            filename += '.zip'
         if not target:
             dm_channel = await interaction.user.create_dm()
             for channel in [dm_channel, interaction.channel]:

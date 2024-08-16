@@ -51,6 +51,7 @@ instance2:
 | /squadron delete   | <name>            | all           | DCS Admin      | Deletes a squadron and removes all players from that squadron mapping.                            |
 | /squadron join     | <name>            | all           | DCS            | Join a squadron (and get the optional auto role).                                                 |
 | /squadron leave    | <name>            | all           | DCS            | Leave a squadron (and remove the optional auto role).                                             |
+| /squadron list     | <name>            | all           | DCS            | Lists the members of a squadron.                                                                  |
 
 ### Periods
 Periods can be used to specify, if you only want to see statistics for a specific time-period.
