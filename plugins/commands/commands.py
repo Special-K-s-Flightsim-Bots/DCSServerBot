@@ -154,7 +154,10 @@ class Commands(Plugin):
                 await ctx.send(data[0]['value'])
 
     def register_commands(self):
-        for cmd in self.locals.get('commands', []):
+        if 'commands' not in self.locals:
+            self.log.warning(f"No commands defined in {self.plugin_name}.yaml!")
+            return
+        for cmd in self.locals['commands']:
             try:
                 checks = []
                 if 'roles' in cmd:
