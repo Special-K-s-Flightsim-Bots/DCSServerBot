@@ -9,7 +9,7 @@ from discord.ext import tasks
 from threading import Thread
 from typing import Optional
 
-from .tacview import TACVIEW_DEFAULT_DIR
+from extensions.tacview import TACVIEW_DEFAULT_DIR
 
 _ = get_translation(__name__.split('.')[1])
 
