@@ -7,7 +7,7 @@ from discord import SelectOption
 from discord.ui import View, Select, Button
 from typing import cast, Optional, Union
 
-from services import DCSServerBot
+from services.bot import DCSServerBot
 
 
 class ServerView(View):

@@ -8,7 +8,7 @@ from core import Plugin, utils, Server, get_translation, Group, Coalition, Statu
 from discord import app_commands
 from discord.ext import commands
 from jsonschema import validate, ValidationError
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Literal
 
 from .listener import LotAtcEventListener

@@ -8,7 +8,7 @@ from core import Plugin, DEFAULT_TAG
 from datetime import datetime
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional
 from uvicorn import Config
 

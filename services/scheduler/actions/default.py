@@ -3,7 +3,8 @@ import atexit
 import os
 
 from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status
-from services import BotService, ServiceBus
+from services.bot import BotService
+from services.servicebus import ServiceBus
 from typing import Optional
 
 

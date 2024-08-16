@@ -2,7 +2,7 @@ from typing import Type
 
 from core import Plugin, TEventListener, PluginInstallationError
 from plugins.voting.listener import VotingListener
-from services import DCSServerBot
+from services.bot import DCSServerBot
 
 
 class Voting(Plugin):

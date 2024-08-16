@@ -12,7 +12,7 @@ from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
 from jsonschema import validate, ValidationError
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Literal, Union
 
 from .listener import GameMasterEventListener

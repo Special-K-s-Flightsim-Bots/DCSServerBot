@@ -35,7 +35,7 @@ yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Server
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 BACKUP_FOLDER = 'config/backup/{}'
 
@@ -126,7 +126,7 @@ class Command(app_commands.Command):
         auto_locale_strings: bool = True,
         extras: Dict[Any, Any] = MISSING,
     ):
-        from services import BotService
+        from services.bot import BotService
 
         super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
                          guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
@@ -230,7 +230,7 @@ class Group(app_commands.Group):
 class Plugin(commands.Cog):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         super().__init__()
         self.plugin_name = type(self).__module__.split('.')[-2]
@@ -422,7 +422,7 @@ class Plugin(commands.Cog):
             path = f'./plugins/{self.plugin_name}/schemas'
             if os.path.exists(path):
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                schema_files.append('./schemas/commands_schema.yaml')
+                schema_files.append('schemas/commands_schema.yaml')
                 c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
                 try:
                     c.validate(raise_exception=True)

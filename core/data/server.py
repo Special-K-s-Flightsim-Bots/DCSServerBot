@@ -28,7 +28,7 @@ yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Extension, Instance, Mission, UploadStatus, Player
-    from services import ServiceBus
+    from services.servicebus import ServiceBus
 
 __all__ = ["Server"]
 
@@ -63,7 +63,7 @@ class Server(DataObject):
     restart_time: datetime = field(compare=False, default=None)
 
     def __post_init__(self):
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         super().__post_init__()
         self.bus = ServiceRegistry.get(ServiceBus)

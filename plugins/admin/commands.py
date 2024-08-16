@@ -12,7 +12,7 @@ from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 

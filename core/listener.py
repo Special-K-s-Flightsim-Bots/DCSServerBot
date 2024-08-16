@@ -6,7 +6,7 @@ from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callab
 
 if TYPE_CHECKING:
     from core import Plugin, Server, Player
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 __all__ = [
     "Event",

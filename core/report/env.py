@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from discord import Embed
     from discord.ui import View
     from matplotlib.figure import Figure
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 __all__ = ["ReportEnv"]
 

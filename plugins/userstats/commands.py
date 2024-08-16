@@ -10,7 +10,7 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Union, Optional
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter

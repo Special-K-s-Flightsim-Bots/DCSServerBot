@@ -100,7 +100,7 @@ class BotService(Service):
                                 assume_unsync_clock=True)
 
     async def start(self, *, reconnect: bool = True) -> None:
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         await super().start()
         try:

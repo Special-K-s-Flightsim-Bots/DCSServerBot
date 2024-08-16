@@ -25,7 +25,7 @@ from .__utils import parse_params
 
 
 if TYPE_CHECKING:
-    from services import DCSServerBot
+    from services.servicebus import DCSServerBot
 
 __all__ = [
     "ReportElement",

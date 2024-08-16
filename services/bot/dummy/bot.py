@@ -11,7 +11,7 @@ from services.bot.dummy import DummyGuild, DummyMember, DummyRole
 class DummyBot:
 
     def __init__(self, version: int, sub_version: int, node: NodeImpl, locals: dict):
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         self.closed = False
         self.version = version

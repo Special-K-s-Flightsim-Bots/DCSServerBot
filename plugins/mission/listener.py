@@ -9,7 +9,7 @@ from core import utils, EventListener, PersistentReport, Plugin, Report, Status,
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
-from services import ServiceBus
+from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 

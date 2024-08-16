@@ -40,7 +40,7 @@ yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Extension, Instance
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
     from watchdog.events import FileSystemEvent, FileSystemMovedEvent
 
 DEFAULT_EXTENSIONS = {
@@ -435,7 +435,7 @@ class ServerImpl(Server):
 
     def _load_extension(self, name: str) -> Optional[Extension]:
         if '.' not in name:
-            _extension = 'extensions.' + name
+            _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
             _extension = name
         _ext = utils.str_to_class(_extension)

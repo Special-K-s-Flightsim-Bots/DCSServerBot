@@ -8,7 +8,7 @@ from configparser import ConfigParser
 from contextlib import suppress
 from copy import deepcopy
 from core import utils, DEFAULT_TAG, BACKUP_FOLDER
-from extensions import TACVIEW_DEFAULT_DIR
+from extensions.tacview import TACVIEW_DEFAULT_DIR
 from pathlib import Path
 from typing import Union
 from rich import print

@@ -8,7 +8,7 @@ import tempfile
 
 from core import Plugin, command, utils, Status, Server, PluginInstallationError, MizFile, UnsupportedMizFileException
 from discord import app_commands
-from services import DCSServerBot
+from services.bot import DCSServerBot
 
 
 class RealWeather(Plugin):

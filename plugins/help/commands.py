@@ -7,7 +7,7 @@ from discord import app_commands, Interaction
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from functools import cache
 from io import BytesIO
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import cast, Optional, Literal, Any
 
 from .listener import HelpListener

@@ -83,7 +83,6 @@ from time to time, but you as a community member can also create your own plugin
 | Tacview      | Install or uninstall Tacview from your server(s) and do a basic configuration.  | yes      |                         | [README](./plugins/tacview/README.md)      |
 | Voting       | Simple voting system for players to be able to change missions, weather, etc.   | yes      |                         | [README](./plugins/voting/README.md)       |
 
-
 *) These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
 &nbsp;&nbsp;&nbsp;&nbsp;If you do not want to load any of them, define a list of `plugins` in your main.yaml and only<br>
 &nbsp;&nbsp;&nbsp;&nbsp;list the plugins you want to load.
@@ -94,32 +93,34 @@ download this zipfile and place it directly into the /plugins directory. DCSServ
 plugin for you, when DCSServerBot restarts. Keep in mind that some of these plugins might need configurations. Please 
 refer to the respective plugin-documentation for more.
 
-#### In case you want to write your own Plugin ...
-You can find a sample in the plugins/sample subdirectory and a guide [here](./plugins/README.md). These will guide you 
-through the steps needed to build your own plugin. Do you want your plugin to be added as an optional plugin to the 
-DCSServerBot? Contact me via the contact details listed below.
-
 ### Extensions
 Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, LotAtc, etc.</br>
 DCSServerBot supports some of them already and can add a bit of quality of life.
 
-| Extension        | Scope                                                                                                             | 
-|------------------|-------------------------------------------------------------------------------------------------------------------|
-| MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up [here](./extensions/MizEdit.md)! |
-| DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                                 |
-| DCS-SRS          | Market leader in DCS VOIP integration.                                                                            |
-| Tacview          | Well known flight data capture and analysis tool.                                                                 |
-| LotAtc           | GCI- and ATC-extension for DCS World. Simple display only extension.                                              |
-| DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                       |
-| DCS Olympus      | Real-time control of your DCS missions through a map interface.                                                   |
-| Lardoon          | Webgui for Tacview with search options.                                                                           |
-| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option!        |
-| DCS Real Weather | Real weather for your missions.                                                                                   |
-| OvGME            | Use mods within your DCS World servers.                                                                           |
-| gRPC             | Support gRPC, a communication framework with DCS World.                                                           |
-| Pretense         | Dynamic campaign framework by Dzsek.                                                                              |
+| Extension        | Scope                                                                                                             | Documentation |
+|------------------|-------------------------------------------------------------------------------------------------------------------|---------------|
+| MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up [here](./extensions/MizEdit.md)! | [README](./extensions/mizedit/README.md) |
+| DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                                 | [README](./extensions/voicechat/README.md) |
+| DCS-SRS          | Market leader in DCS VOIP integration.                                                                            | [README](./extensions/srs/README.md) |
+| Tacview          | Well known flight data capture and analysis tool.                                                                 | [README](./extensions/tacview/README.md) |
+| LotAtc           | GCI- and ATC-extension for DCS World. Simple display only extension.                                              | [README](./extensions/lotatc/README.md) |
+| DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                       | [README](./extensions/dsmc/README.md) |
+| DCS Olympus      | Real-time control of your DCS missions through a map interface.                                                   | [README](./extensions/olympus/README.md) |
+| Lardoon          | Webgui for Tacview with search options.                                                                           | [README](./extensions/lardoon/README.md) |
+| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option!        | [README](./extensions/sneaker/README.md) |
+| DCS Real Weather | Real weather for your missions.                                                                                   | [README](./extensions/realweather/README.md) |
+| OvGME            | Use mods within your DCS World servers.                                                                           | [README](./extensions/ovgme/README.md) |
+| gRPC             | Support gRPC, a communication framework with DCS World.                                                           | [README](./extensions/grpc/README.md) |
+| Pretense         | Dynamic campaign framework by Dzsek.                                                                              | [README](./extensions/pretense/README.md) |
 
-Check out [Extensions](./extensions/README.md) for more info on how to use them.
+> ⚠️ **Attention!**<br>
+> Besides LogAnalyser and MizEdit, which are my own solutions, all other extensions are made by fellow community members. 
+> I am very happy about these solutions and I really appreciate that someone put a lot of time in to make them what they
+> are today.<br>
+> Nevertheless, I am not responsible for them. Neither for any bugs, nor for their proper functionality. The developers
+> usually either have their own Discord servers, where you can ask for support, or they have the option to raise an 
+> issue in their GitHubs.<br>
+> So please - if you see any issues in these solutions, contact the developers and ask for help.
 
 ---
 ## Installation
@@ -531,10 +532,12 @@ corrupted. In rare cases, it can also happen, that an auto-update is not possibl
 that was not supposed to be changed, or some other corruption has occurred.<br>
 In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
 ---
-## How to do the more complex stuff?
+## How to set up a Multi-Node-System?
 DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest 
 communities. The installation and maintenance of such a use-case is just a bit more complex than a single server 
 installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
+---
+## How to use DCSServerBot in Missions?
 
 ### How to talk to the Bot from inside Missions
 If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
@@ -581,8 +584,10 @@ can do that, by giving is a name like "myEmbed" in this example. The name has to
 ```
 If no embed named "myEmbed" is already there, the updateEmbed() call will generate it for you. Otherwise, it will be 
 replaced with this one.
+---
+## How to enhance DCSServerBot?
 
-### How to overwrite DCSServerBot's default permissions?
+### How to overwrite DCSServerBot's default commands?
 You can change any command either in discord or the in-game chat. You can select a different name, different roles, etc.,
 or even disable the command at all.
 For Discord, you need to keep the command structure in mind, meaning, if you have a group command (like /server startup)
@@ -608,6 +613,22 @@ chat_commands:
     enabled: false
 ```
 If you add these lines to your mission.yaml, you disable the -911 command on your servers.
+
+### How to develop your own Services / Extensions, Plugins and Reports?
+DCSServerBot has an extensible architecture. You can more or less overwrite, enhance, change anything you like.
+The easiest way to start developing for DCSServerBot would be to read up the concepts and to look at some examples.
+I have created some READMEs for you that you can start with:
+
+| Component | Description                                                                                                                        | Documentation                    |
+|-----------|------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|
+| Plugin    | A plugin provides Discord or in-game commands. It handles events from DCS and runs on the master node only.                        | [README](./plugins/README.md)    |
+| Service   | A service runs once onto each node of your cluster. Some services are master bound.                                                | [README](./services/README.md)   |
+| Extension | An extension runs for each supported server, but on the node the server is running on. It can access all resources of that server. | [README](./extensions/README.md) |                             
+| Reports   | The reporting framework allows you to create your own customized reports for DCSServerBot or overwrite existing ones.              | [README](./reports/README.md)    |
+
+> If you decide to develop something that might be of interest for other community members, I highly encourage you to 
+> share it. You can either ask me to incorporate it in the solution (some requirements might need to be met), or you 
+> just provide it in the format and way you prefer.
 
 ---
 ## Contact / Support

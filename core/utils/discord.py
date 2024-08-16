@@ -20,7 +20,8 @@ from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
     from core import Server, Player, Node, Instance, Plugin, Command
-    from services import DCSServerBot, ServiceBus
+    from services.bot import DCSServerBot
+    from services.servicebus import ServiceBus
 
 
 __all__ = [

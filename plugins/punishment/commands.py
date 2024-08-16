@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Type, Union, cast, Optional
 
 from .listener import PunishmentEventListener

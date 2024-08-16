@@ -18,7 +18,7 @@ __all__ = ["BackupService"]
 @ServiceRegistry.register(plugin="backup")
 class BackupService(Service):
     def __init__(self, node):
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         super().__init__(node=node, name="Backup")
         if not self.locals:

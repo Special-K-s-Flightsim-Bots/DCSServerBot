@@ -10,7 +10,7 @@ from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
 from functools import partial
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Type, Optional, Literal, Union
 from zoneinfo import ZoneInfo
 

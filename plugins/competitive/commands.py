@@ -5,7 +5,7 @@ from core import Plugin, command, utils, get_translation
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from trueskill import Rating
 from typing import Optional, Union
 

@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
 from pathlib import Path
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Union, Literal
 
 from .listener import MissionEventListener

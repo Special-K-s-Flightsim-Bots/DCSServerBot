@@ -3,7 +3,7 @@ import extensions
 
 from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
 from discord import app_commands
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])

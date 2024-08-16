@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from core import Server
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 __all__ = [
     "get_sides"

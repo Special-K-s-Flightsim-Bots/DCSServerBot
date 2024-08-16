@@ -15,7 +15,7 @@ from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT
 from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from services.bot.dummy import DummyBot
 from typing import Type, Any, Optional, Union
 

@@ -7,7 +7,7 @@ from psycopg.rows import dict_row
 
 if TYPE_CHECKING:
     from core import Server
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 __all__ = [
     "get_running_campaign",

@@ -7,7 +7,7 @@ from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListe
 from discord import app_commands
 from discord.ext import tasks
 from functools import partial
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Type, Literal, AsyncGenerator
 from .listener import MOTDListener
 

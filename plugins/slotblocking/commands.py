@@ -5,7 +5,7 @@ import psycopg
 from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands
 from pathlib import Path
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Type
 
 from .listener import SlotBlockingListener

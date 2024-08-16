@@ -1,9 +1,0 @@
-schema;lotatc_schema:
-  type: map
-  allowempty: true  # we might get other LotAtc options in here
-  mapping:
-    enabled: {type: bool}
-    host: {type: str}
-    port: {type: int, range: {min: 80, max: 65535}}
-    show_passwords: {type: bool}
-    autoupdate: {type: bool}

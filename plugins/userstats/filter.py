@@ -3,7 +3,7 @@ import discord
 from abc import ABC, abstractmethod
 from core import utils, Pagination, ReportEnv, const
 from discord import app_commands
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Any, Optional, Type
 
 

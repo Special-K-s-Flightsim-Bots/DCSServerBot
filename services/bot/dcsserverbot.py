@@ -18,7 +18,7 @@ __all__ = ["DCSServerBot"]
 class DCSServerBot(commands.Bot):
 
     def __init__(self, *args, **kwargs):
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         super().__init__(*args, **kwargs)
         self.version: str = kwargs['version']

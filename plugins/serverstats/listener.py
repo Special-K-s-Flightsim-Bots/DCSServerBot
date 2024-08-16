@@ -2,7 +2,7 @@ import asyncio
 import math
 
 from core import EventListener, Plugin, event, Server, utils, ServiceRegistry
-from services import BotService
+from services.bot import BotService
 
 
 class ServerStatsListener(EventListener):

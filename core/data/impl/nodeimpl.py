@@ -155,7 +155,8 @@ class NodeImpl(Node):
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None, **kwargs):
-        from services import BotService, ServiceBus
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
 
         if self.master:
             await ServiceRegistry.get(BotService).bot.audit(message, user=user, server=server, **kwargs)
@@ -199,8 +200,8 @@ class NodeImpl(Node):
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         if os.path.exists(config_file):
             try:
-                schema_files = ['./schemas/nodes_schema.yaml']
-                schema_files.extend([str(x) for x in Path('./extensions/schemas').glob('*.yaml')])
+                schema_files = ['schemas/nodes_schema.yaml']
+                schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
                 c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8')
                 try:
                     c.validate(raise_exception=True)
@@ -430,7 +431,7 @@ class NodeImpl(Node):
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         async def shutdown_with_warning(server: Server):
             if server.is_populated():
@@ -699,7 +700,7 @@ class NodeImpl(Node):
                                     await cursor.execute("UPDATE cluster SET version = %s WHERE guild_id = %s",
                                                          (__version__, self.guild_id))
                                 else:
-                                    from services import ServiceBus
+                                    from services.servicebus import ServiceBus
 
                                     # check all nodes
                                     for row in all_nodes:
@@ -858,7 +859,8 @@ class NodeImpl(Node):
         shutil.move(old_name, new_name, copy_function=shutil.copy2 if force else None)
 
     async def rename_server(self, server: Server, new_name: str):
-        from services import BotService, ServiceBus
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
 
         if not self.master:
             self.log.error(
@@ -874,7 +876,8 @@ class NodeImpl(Node):
 
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
-        from services import BotService, ServiceBus
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
 
         # don't run, if an update is currently running
         if self.update_pending:
@@ -915,7 +918,7 @@ class NodeImpl(Node):
 
     @autoupdate.before_loop
     async def before_autoupdate(self):
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         # wait for all servers to be in a proper state
         while True:
@@ -1031,7 +1034,7 @@ class NodeImpl(Node):
         return utils.findDCSInstances()
 
     async def migrate_server(self, server: Server, instance: Instance) -> None:
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         await server.node.unregister_server(server)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name)
@@ -1042,7 +1045,7 @@ class NodeImpl(Node):
         server.status = Status.SHUTDOWN
 
     async def unregister_server(self, server: Server) -> None:
-        from services import ServiceBus
+        from services.servicebus import ServiceBus
 
         instance = server.instance
         instance.server = None

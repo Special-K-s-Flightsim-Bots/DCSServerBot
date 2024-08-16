@@ -2,8 +2,7 @@ import discord
 
 from core import Server
 from discord.ui import Modal, TextInput, View, Button
-
-from services import DCSServerBot
+from services.bot import DCSServerBot
 
 
 class ConfigView(View):
