@@ -125,7 +125,7 @@ class DCSServerBot(commands.Bot):
             if not self.get_role(role):
                 self.log.error(f"  => Role {role} not found in your Discord!")
 
-    async def check_channel(self, channel_id: int) -> bool:
+    def check_channel(self, channel_id: int) -> bool:
         channel = self.get_channel(channel_id)
         if not channel:
             self.log.error(f'No channel with ID {channel_id} found!')
@@ -179,7 +179,7 @@ class DCSServerBot(commands.Bot):
         else:
             return None
 
-    async def check_channels(self, server: "Server"):
+    def check_channels(self, server: "Server"):
         channels = ['status', 'chat']
         if not self.locals.get('admin_channel'):
             channels.append('admin')
@@ -188,7 +188,7 @@ class DCSServerBot(commands.Bot):
         for c in channels:
             channel_id = int(server.channels[Channel(c)])
             if channel_id != -1:
-                await self.check_channel(channel_id)
+                self.check_channel(channel_id)
 
     async def on_ready(self):
         try:
@@ -203,7 +203,7 @@ class DCSServerBot(commands.Bot):
                     raise FatalException()
                 elif not self.guilds:
                     raise FatalException("You need to invite your bot to a Discord server.")
-                self.member = await self.guilds[0].fetch_member(self.user.id)
+                self.member = self.guilds[0].get_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
                 self.log.debug('- Checking Roles & Channels ...')
@@ -212,7 +212,7 @@ class DCSServerBot(commands.Bot):
                     roles |= set(self.roles[role])
                 self.check_roles(roles)
                 if self.locals.get('admin_channel'):
-                    await self.check_channel(int(self.locals['admin_channel']))
+                    self.check_channel(int(self.locals['admin_channel']))
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
                         roles.clear()
@@ -220,7 +220,7 @@ class DCSServerBot(commands.Bot):
                         roles.add(server.locals['coalitions']['red_role'])
                         self.check_roles(roles)
                     try:
-                        await self.check_channels(server)
+                        self.check_channels(server)
                     except KeyError:
                         self.log.error(f"Mandatory channel(s) missing for server {server.name} in servers.yaml!")
 
@@ -240,8 +240,6 @@ class DCSServerBot(commands.Bot):
 
                 self.synced = True
                 self.log.info('- Discord Commands registered.')
-                if 'discord_status' in self.locals:
-                    await self.change_presence(activity=discord.Game(name=self.locals['discord_status']))
                 self.log.info('DCSServerBot MASTER started, accepting commands.')
                 await self.audit(message="Discord Bot started.")
             else:
@@ -428,6 +426,9 @@ class DCSServerBot(commands.Bot):
     async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Union[Channel, int] = Channel.STATUS,
                        file: Optional[discord.File] = None, server: Optional["Server"] = None):
         async with self.lock:
+            # do not update any embed, if the session is closed already
+            if self.is_closed():
+                return
             if server and isinstance(channel_id, Channel):
                 channel_id = int(server.channels.get(channel_id, -1))
                 # we should not write to this channel
@@ -441,6 +442,8 @@ class DCSServerBot(commands.Bot):
                     channel = await self.fetch_channel(channel_id)
                 except discord.Forbidden:
                     self.log.error("No permission to fetch channels!")
+                except Exception as ex:
+                    self.log.exception(ex)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return
@@ -465,6 +468,9 @@ class DCSServerBot(commands.Bot):
                     message = None
                 except discord.errors.DiscordException as ex:
                     self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
+                    return
+                except Exception as ex:
+                    self.log.exception(ex)
                     return
             if not row or not message:
                 message = await channel.send(embed=embed, file=file)

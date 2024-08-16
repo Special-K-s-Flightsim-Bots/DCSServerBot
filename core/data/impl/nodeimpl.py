@@ -389,9 +389,10 @@ class NodeImpl(Node):
     async def upgrade_pending(self) -> bool:
         self.log.debug('- Checking for updates...')
         try:
-            rc = await self._upgrade_pending_git()
-        except ImportError:
-            rc = await self._upgrade_pending_non_git()
+            try:
+                rc = await self._upgrade_pending_git()
+            except ImportError:
+                rc = await self._upgrade_pending_non_git()
         except Exception as ex:
             self.log.exception(ex)
             raise

@@ -94,6 +94,8 @@ class BotService(Service):
                                 node=self.node,
                                 locals=self.locals,
                                 help_command=None,
+                                activity=discord.Game(
+                                    name=self.locals['discord_status']) if 'discord_status' in self.locals else None,
                                 heartbeat_timeout=120,
                                 assume_unsync_clock=True)
 
