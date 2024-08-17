@@ -212,6 +212,13 @@ def migrate(node: str):
         if node not in all_missionstats:
             all_missionstats[node] = {}
         missionstats = all_missionstats[node]
+        if os.path.exists('config/plugins/slotblocking.yaml'):
+            all_slotblocking = yaml.load(Path('config/plugins/slotblocking.yaml').read_text(encoding='utf-8'))
+        else:
+            all_slotblocking = {}
+        if node not in all_slotblocking:
+            all_slotblocking[node] = {}
+        slotblocking = all_slotblocking[node]
         # If we are not the first node to be migrated
         if os.path.exists('config/nodes.yaml'):
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
@@ -225,8 +232,15 @@ def migrate(node: str):
         else:
             servers = {
                 DEFAULT_TAG: {
-                    "message_afk": cfg['DCS']['MESSAGE_AFK'],
-                    "message_ban": cfg['DCS']['MESSAGE_BAN'],
+                    "messages": {
+                        "greeting_message_members": cfg['DCS']['GREETING_MESSAGE_MEMBERS'].replace(
+                            '{}', '{player.name}', 1).replace('{}', '{server.name}'),
+                        "greeting_message_unmatched": cfg['DCS']['GREETING_MESSAGE_UNMATCHED'].replace(
+                            '{name}', '{player.name}'),
+                        "message_player_username": cfg['DCS']['MESSAGE_PLAYER_USERNAME'],
+                        "message_player_default_username": cfg['DCS']['MESSAGE_PLAYER_DEFAULT_USERNAME'],
+                        "message_ban": cfg['DCS']['MESSAGE_BAN']
+                    },
                     'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
                     'message_server_full': cfg['DCS']['MESSAGE_SERVER_FULL']
                 }
@@ -242,10 +256,6 @@ def migrate(node: str):
                     "loglevel": cfg['LOGGING']['LOGLEVEL'],
                     "logrotate_count": int(cfg['LOGGING']['LOGROTATE_COUNT']),
                     "logrotate_size": int(cfg['LOGGING']['LOGROTATE_SIZE'])
-                },
-                "messages": {
-                    "player_username": cfg['DCS']['MESSAGE_PLAYER_USERNAME'],
-                    "player_default_username": cfg['DCS']['MESSAGE_PLAYER_DEFAULT_USERNAME']
                 },
                 "filter": {
                     "server_name": cfg['FILTER']['SERVER_FILTER'],
@@ -307,9 +317,6 @@ def migrate(node: str):
         if DEFAULT_TAG not in all_userstats:
             all_userstats[DEFAULT_TAG] = {}
         u = all_userstats[DEFAULT_TAG]
-        u['greeting_message_members'] = cfg['DCS']['GREETING_MESSAGE_MEMBERS'].replace(
-            '{}', '{player.name}', 1).replace('{}', '{server.name}')
-        u['greeting_message_unmatched'] = cfg['DCS']['GREETING_MESSAGE_UNMATCHED'].replace('{name}', '{player.name}')
         u['wipe_stats_on_leave'] = cfg['BOT'].getboolean('WIPE_STATS_ON_LEAVE')
 
         nodes[node]['instances'] = {}
@@ -356,15 +363,23 @@ def migrate(node: str):
                 m['display'] = cfg[instance].getboolean('DISPLAY_MISSION_STATISTICS')
                 m['persistence'] = cfg[instance].getboolean('PERSIST_MISSION_STATISTICS')
                 m['persist_ai_statistics'] = cfg[instance].getboolean('PERSIST_AI_STATISTICS')
+                # fill slotblocking
+                if instance in slotblocking:
+                    sb = slotblocking[instance]
+                    if 'VIP' in sb:
+                        sb['VIP']['message_server_full'] = cfg['DCS']['MESSAGE_SERVER_FULL']
                 # create server config
                 servers[server_name] = {
                     "server_user": cfg['DCS']['SERVER_USER'],
-                    "afk_time": int(cfg['DCS']['AFK_TIME']),
                     "ping_admin_on_crash": cfg[instance].getboolean('PING_ADMIN_ON_CRASH'),
                     "autoscan": cfg[instance].getboolean('AUTOSCAN'),
                     "channels": {
                         "status": int(cfg[instance]['STATUS_CHANNEL']),
                         "chat": int(cfg[instance]['CHAT_CHANNEL'])
+                    },
+                    "afk": {
+                        "message_afk": cfg['DCS']['MESSAGE_AFK'],
+                        "afk_time": int(cfg['DCS']['AFK_TIME'])
                     }
                 }
                 if not single_admin:
@@ -410,6 +425,9 @@ def migrate(node: str):
                         presets |= json.load(pin)
                     shutil.move(schedule['presets'], BACKUP_FOLDER.format(node))
                 del schedule['presets']
+        # check DEFAULT_TAG in slotblocking
+        if slotblocking.get(DEFAULT_TAG, {}).get('VIP'):
+            slotblocking[DEFAULT_TAG]['VIP']['message_server_full'] = cfg['DCS']['MESSAGE_SERVER_FULL']
 
         # Now we need to figure if tacview has a delete_after configured...
         delete_after = nodes[node].get('extensions', {}).get('Tacview', {}).get('delete_after', 0)
@@ -470,6 +488,10 @@ def migrate(node: str):
             with open('config/plugins/missionstats.yaml', mode='w', encoding='utf-8') as out:
                 yaml.dump(all_missionstats, out)
             print("- Created / updated config/plugins/missionstats.yaml")
+        if slotblocking:
+            with open('config/plugins/slotblocking.yaml', mode='w', encoding='utf-8') as out:
+                yaml.dump(all_slotblocking, out)
+            print("- Created / updated config/plugins/slotblocking.yaml")
         # shutil.move('config/default.ini', BACKUP_FOLDER)
         shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER.format(node))
         print("\n[green]Migration to DCSServerBot 3.0 successful![/]\n\n")
