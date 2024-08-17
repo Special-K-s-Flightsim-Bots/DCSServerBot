@@ -41,8 +41,8 @@ mapping:
               missions_dir: {type: str}
               autoscan: {type: bool}
               bot_port: {type: int, range: {min: 1025, max: 65535}, required: true}
-              webgui_port: {type: int, range: {min: 1025, max: 65535}, required: true}
-              dcs_port: {type: int, range: {min: 1025, max: 65535}, required: true}
+              webgui_port: {type: int, range: {min: 1025, max: 65535}}
+              dcs_port: {type: int, range: {min: 1025, max: 65535}}
               server_user: {type: str}
               max_hung_minutes: {type: int, range: {min: 0}}
               affinity: {type: any}
