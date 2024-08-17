@@ -18,12 +18,13 @@ DEFAULT:            # Default section - true for all your servers.
   VIP:              # define a VIP group
     audit: true     # you want to be informed, if someone of that group enters your server
     discord:        # you can define VIPs by a specific discord role
-    - Admin
-    - DCS Admin
+      - Admin
+      - DCS Admin
     ucid:           # and a list of UCIDs (can be a single one also)
       - aabbccddeeffgghh
       - 11aa22bb33dd44ee
     slots: 2        # Optional: These number of slots are locked for VIPs only 
+    message_server_full: The server is full, please try again later!  # default message, if the server is considered full
   restricted:       # These slots are restricted in any way. Here we restrict CA slots for Donators or members or the Discord.
   - unit_type: artillery_commander
     discord: Donators

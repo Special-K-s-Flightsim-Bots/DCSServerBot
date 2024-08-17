@@ -89,12 +89,13 @@ class Server(DataObject):
             if data.get(self.name) is None and self.name != 'n/a':
                 self.log.warning(f'No configuration found for server "{self.name}" in servers.yaml!')
             _locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
-            if 'message_ban' not in _locals:
-                _locals['message_ban'] = _('You are banned from this server. Reason: {}')
-            if 'message_server_full' not in _locals:
-                _locals['message_server_full'] = _('The server is full, please try again later.')
-            if 'message_slot_spamming' not in _locals:
-                _locals['message_slot_spamming'] = _('You have been kicked for slot spamming!')
+            _locals['messages'] = {
+                "greeting_message_members": "{player.name}, welcome back to {server.name}!",
+                "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
+                "message_ban": "You are banned from this server. Reason: {}",
+                "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",
+                "message_no_voice": 'You need to be in voice channel "{}" to use this server!'
+            } | _locals.get('messages', {})
             return _locals
         return {}
 

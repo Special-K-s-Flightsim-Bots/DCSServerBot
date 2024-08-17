@@ -274,7 +274,6 @@ guild_name: My Group      # Non-Discord only: your DCS group name
 autoupdate: true          # use the bots autoupdate functionality, default is false
 use_dashboard: true       # Use the dashboard display for your node. Default is true.
 chat_command_prefix: '-'  # The command prefix to be used for in-game chat commands. Default is "-"
-chat_filter: true         # Use the profanity filter for the in-game chat.
 mission_rewrite: false    # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
 language: de              # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
 database:
@@ -287,12 +286,6 @@ logging:
   logrotate_count: 5        # Number of logfiles to keep after rotation. Default is 5.    
   logrotate_size: 10485760  # max size of a logfile, default is 10 MB
   utc: true                 # log in UTC (default: true), use local time otherwise
-messages:
-  player_username: Your player name contains invalid characters. Please change your # Default message for players with invalid usernames
-    name to join our server.
-  player_default_username: Please change your default player name at the top right  # Default message for players with default usernames
-    of the multiplayer selection list to an individual one!
-  player_banned: 'You are banned from this server. Reason: {}'                      # Default message for banned players.
 filter:
   server_name: ^Special K -           # Filter to shorten your server names on many bot displays. Default is none. 
   mission_name: ^Operation|_|\(.*\)   # Filter to shorten your mission names on many bot displays. Default is none.
@@ -362,13 +355,18 @@ will learn to love it, especially when you decide to move a server from one inst
 another. This is much easier with a non-coupled approach like that.
 ```yaml
 DEFAULT:
-  message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
-  message_afk: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
-  message_server_full: The server is full, please try again later!  # default message, if the server is considered full (see SlotBlocking plugin)
-  message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
-  message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
-  message_slot_spamming: You have been kicked for slot spamming! # default message for slot spamming (changing more than 5 slots in-between 5 seconds)
+  messages:                     # General messages for servers. You can overwrite any in any server.
+    greeting_message_members: "{player.name}, welcome back to {server.name}!"
+    greeting_message_unmatched: '{player.name}, please use /linkme in our Discord, if you want to see your user stats!'
+    message_player_username: Your player name contains invalid characters. # Default message for players with invalid usernames
+      Please change your name to join our server.
+    message_player_default_username: Please change your default player name at the top right  # Default message for players with default usernames
+      of the multiplayer selection list to an individual one!
+    message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
+    message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
+    message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
+  profanity_filter: true        # Use the profanity filter for the in-game chat (default: false).
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)
   rules: |                      # Optional: Rules to be displayed for new users (needs MissionStats enabled!)
     These are the rules to play on this server:
@@ -379,7 +377,7 @@ DEFAULT:
   accept_rules_on_join: true    # True, if rules have to be acknowledged (players will be moved to spectators otherwise, default: false)
 My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
-  afk_time: 300                 # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled
+  smooth_pause: 5               # Servers that are configured to PAUSE on startup will run for this amount of seconds until they are paused again (default 0 = off)
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
   autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).
@@ -395,6 +393,23 @@ My Fancy Server:                # Your server name, as displayed in the server l
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 
   no_coalition_chat: true       # Do not replicate red and blue chats to the Discord chat replication (default: false)
+  afk:                          # Optional: AFK check
+    message: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
+    afk_time: 300               # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled
+    exemptions:                 # List of UCIDs or discord roles that are exempted from AFK kicks (besides the users that have the DCS Admin or GameMaster role)
+      ucid:
+        - aabbccddeeff1122334455
+      discord:
+        - Donators              # DCS Admin and GameMaster are automatically exempted from AFK kicks
+  usage_alarm:          # Optional: usage alarms for your server
+    min_threshold: 30   # send a message, if less than 30 people fly on your server
+    max_threshold: 10   # send a message, if more than 10 people fly on your server
+    role: DCS Admin     # the role that should be pinged
+    channel: 1122334455 # the channel to send the ping in (default: admin channel)
+  slot_spamming:        # Optional: allow for max x slot changes per y seconds (5 in 5 in the example)
+    message: You have been kicked for slot spamming! # default message for slot spamming
+    check_time: 5       # number of seconds to test
+    slot_changes: 5     # number of slot changes in these number of seconds that are allowed
   serverSettings:               # Overwrite the serverSettings.lua with these values
     port: 10308
     advanced:

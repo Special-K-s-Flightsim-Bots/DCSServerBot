@@ -95,7 +95,7 @@ class InstanceImpl(Instance):
                     utils.desanitize(self, filename)
                     break
         # Profanity filter
-        if self.node.config.get('chat_filter', False):
+        if self.server.locals.get('profanity_filter', False):
             language = self.node.config.get('language', 'en')
             wordlist = os.path.join(self.node.config_dir, 'profanity.txt')
             if not os.path.exists(wordlist):

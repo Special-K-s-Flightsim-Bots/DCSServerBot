@@ -15,8 +15,6 @@ VERSION = '{node.bot_version}'
 BOT_HOST = '127.0.0.1'
 BOT_PORT = {node.listen_port}
 CHAT_COMMAND_PREFIX = '{node.config[chat_command_prefix]}'
-MESSAGE_PLAYER_USERNAME = '{node.config[messages][player_username]}'
-MESSAGE_PLAYER_DEFAULT_USERNAME = '{node.config[messages][player_default_username]}'
 
 -- Instance Values
 INSTANCE_NAME = '{instance.name}'
@@ -27,9 +25,6 @@ COALITIONS = {server.coalitions}                     -- true = enable coalitions
 CHAT_CHANNEL = '{server.locals[channels][chat]}'   -- In-game chat will be replicated here
 STATUS_CHANNEL = '{server.locals[channels][status]}' -- a persistent server and players status will be presented here
 ADMIN_CHANNEL = '{admin_channel}' -- channel for admin messages and commands
-MESSAGE_SERVER_FULL = '{server.locals[message_server_full]}'
-MESSAGE_BAN = '{server.locals[message_ban]}'
-MESSAGE_SLOT_SPAMMING = '{server.locals[message_slot_spamming]}'
 
 -- Specific Values from Extensions
 SRS_PORT = {instance.extensions[SRS][port]}
