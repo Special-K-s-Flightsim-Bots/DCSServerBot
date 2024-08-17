@@ -179,7 +179,7 @@ class Mission(Plugin):
         server_config = os.path.join(self.node.config_dir, 'servers.yaml')
         server_data = yaml.load(Path(server_config).read_text(encoding='utf-8'))
         # make sure we have a default tag
-        default = server_data[DEFAULT_TAG]
+        default = server_data.get(DEFAULT_TAG)
         if not default:
             default = server_data[DEFAULT_TAG] = {
                 "messages": {

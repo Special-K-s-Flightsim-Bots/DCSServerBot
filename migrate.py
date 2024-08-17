@@ -241,8 +241,7 @@ def migrate(node: str):
                         "message_player_default_username": cfg['DCS']['MESSAGE_PLAYER_DEFAULT_USERNAME'],
                         "message_ban": cfg['DCS']['MESSAGE_BAN']
                     },
-                    'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
-                    'message_server_full': cfg['DCS']['MESSAGE_SERVER_FULL']
+                    'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT'])
                 }
             }
 
