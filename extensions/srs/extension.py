@@ -1,3 +1,5 @@
+import tempfile
+
 import aiofiles
 import aiohttp
 import asyncio
@@ -86,26 +88,34 @@ class SRS(Extension, FileSystemEventHandler):
         else:
             shutil.copy2(os.path.join(self.get_inst_path(), 'Scripts', 'DCS-SRS-AutoConnectGameGUI.lua'), autoconnect)
 
-        # read the original file
-        async with aiofiles.open(autoconnect, mode='r', encoding='utf-8') as infile:
-            lines = await infile.readlines()
+        tempfile_name = ""
+        try:
+            with tempfile.NamedTemporaryFile(delete=False) as tempfile_:
+                tempfile_name = tempfile_.name
+                async with aiofiles.open(autoconnect, mode='r', encoding='utf-8') as infile, \
+                        aiofiles.open(tempfile_name, mode='w', encoding='utf-8') as outfile:
 
-        # write a modified one
-        async with aiofiles.open(autoconnect, mode='w', encoding='utf-8') as outfile:
-            for line in lines:
-                if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
-                    line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
-                           "SERVER_SRS_HOST for you! - Currently disabled\n"
-                elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
-                    line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
-                elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
-                    line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
-                           f'-- set to your PUBLIC ipv4 address\n'
-                elif line.startswith('SRSAuto.SRS_NUDGE_ENABLED') and self.config.get('srs_nudge_message'):
-                    line = 'SRSAuto.SRS_NUDGE_ENABLED = true -- set to true to enable the message below'
-                elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
-                    line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
-                await outfile.write(line)
+                    lines = await infile.readlines()
+                    for line in lines:
+                        if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
+                            line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
+                                   "SERVER_SRS_HOST for you! - Currently disabled\n"
+                        elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
+                            line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
+                        elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
+                            line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
+                                   f'-- set to your PUBLIC ipv4 address\n'
+                        elif line.startswith('SRSAuto.SRS_NUDGE_ENABLED') and self.config.get('srs_nudge_message'):
+                            line = 'SRSAuto.SRS_NUDGE_ENABLED = true -- set to true to enable the message below'
+                        elif line.startswith('SRSAuto.SRS_NUDGE_MESSAGE = ') and self.config.get('srs_nudge_message'):
+                            line = f"SRSAuto.SRS_NUDGE_MESSAGE = \"{self.config.get('srs_nudge_message')}\"\n"
+
+                        await outfile.write(line)
+
+            shutil.move(tempfile_name, autoconnect)
+        finally:
+            if os.path.exists(tempfile_name):
+                os.remove(tempfile_name)
 
     async def disable_autoconnect(self):
         autoconnect = os.path.join(self.server.instance.home,
