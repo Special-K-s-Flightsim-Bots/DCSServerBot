@@ -2,7 +2,7 @@ schema;node_srs_schema:
   type: map
   mapping:
     installation: {type: str}
-    autoupdate: {type: Any}
+    autoupdate: {type: any}
     autostart: {type: bool}
     host: {type: str}
     minimized: {type: bool}
