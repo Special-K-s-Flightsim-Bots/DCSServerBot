@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import atexit
 import certifi
+import discord
 import json
 import luadata
 import os
@@ -13,9 +14,11 @@ import xml.etree.ElementTree as ET
 
 from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException
 from discord.ext import tasks
+from extensions.srs import SRS
 from packaging import version as ver
+from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional
+from typing import Optional, cast
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
 
@@ -86,7 +89,7 @@ class LotAtc(Extension, FileSystemEventHandler):
         # create the default config
         config['dedicated_mode'] = True
         config['dump_json_stats'] = True
-        extension = self.server.extensions.get('SRS')
+        extension = cast(SRS, self.server.extensions.get('SRS'))
         if extension:
             # set SRS config
             config['srs_path'] = extension.get_inst_path()
@@ -280,5 +283,45 @@ class LotAtc(Extension, FileSystemEventHandler):
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
                 self.log.info("LotAtc updated.")
+                bus = ServiceRegistry.get(ServiceBus)
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
+                    }
+                })
+                if isinstance(self.config.get('autoupdate'), dict):
+                    config = self.config.get('autoupdate')
+                    servers = []
+                    for instance in self.node.instances:
+                        if (instance.locals.get('extensions', {}).get(self.name) and
+                                instance.locals['extensions'][self.name].get('autoupdate', True)):
+                            servers.append(instance.server.display_name)
+                    embed = discord.Embed(
+                        colour=discord.Colour.blue(),
+                        title=config.get(
+                            'title', 'LotAtc has been updated to version {}!').format(version),
+                        url="https://www.lotatc.com/changelog.html#{}".format(version.replace('.', '')))
+                    embed.set_thumbnail(url="https://www.lotatc.com/signature.png")
+                    embed.description = config.get('description',
+                                                   'The following servers will be updated on the next restart:')
+                    embed.add_field(name=_('Server'),
+                                    value='\n'.join([f'- {x}' for x in servers]), inline=False)
+                    embed.set_footer(
+                        text=config.get('footer', 'Please make sure you update your LotAtc client also!'))
+                    params = {
+                        "channel": config['channel'],
+                        "embed": embed.to_dict()
+                    }
+                    if 'mention' in config:
+                        params['mention'] = config['mention']
+                    await bus.send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "send_message",
+                        "params": params
+                    })
         except Exception as ex:
             self.log.exception(ex)

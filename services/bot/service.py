@@ -159,21 +159,24 @@ class BotService(Service):
             font_manager.fontManager.addfont(f)
 
     async def send_message(self, channel: int, content: Optional[str] = None, server: Optional[Server] = None,
-                           filename: Optional[str] = None, embed: Optional[dict] = None):
+                           filename: Optional[str] = None, embed: Optional[dict] = None,
+                           mention: Optional[list] = None):
         _channel = self.bot.get_channel(channel)
         if not _channel:
             if channel != -1:
                 raise ValueError(f"Channel {channel} not found!")
             return
-        if embed:
-            _embed = discord.Embed.from_dict(embed)
-        else:
-            _embed = MISSING
+        _embed = discord.Embed.from_dict(embed) if embed else MISSING
         if filename:
             data = await server.node.read_file(filename)
             file = discord.File(BytesIO(data), filename=os.path.basename(filename))
         else:
             file = MISSING
+        if mention:
+            _mention = ""
+            for role in mention:
+                _mention += self.bot.get_role(role).mention
+            content = _mention + (content or '')
         await _channel.send(content=content, file=file, embed=_embed)
 
     async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,

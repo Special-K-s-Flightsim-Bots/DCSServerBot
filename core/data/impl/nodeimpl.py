@@ -893,7 +893,8 @@ class NodeImpl(Node):
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
                 if rc == 0:
-                    await ServiceRegistry.get(ServiceBus).send_to_node({
+                    bus = ServiceRegistry.get(ServiceBus)
+                    await bus.send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
                         "method": "audit",
@@ -901,6 +902,34 @@ class NodeImpl(Node):
                             "message": f"DCS World updated to version {new_version} on node {self.node.name}."
                         }
                     })
+                    if isinstance(self.locals['DCS'].get('autoupdate'), dict):
+                        config = self.locals['DCS'].get('autoupdate')
+                        embed = discord.Embed(
+                            colour=discord.Colour.blue(),
+                            title=config.get(
+                                'title', 'DCS has been updated to version {}!').format(new_version),
+                            url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{new_version}/")
+                        embed.description = config.get('description', 'The following servers have been updated:')
+                        embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
+                                                "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
+                        embed.add_field(name=_('Server'),
+                                        value='\n'.join([
+                                            f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
+                                        ]), inline=False)
+                        embed.set_footer(
+                            text=config.get('footer', 'Please make sure you update your DCS client to join!'))
+                        params = {
+                            "channel": config['channel'],
+                            "embed": embed.to_dict()
+                        }
+                        if 'mention' in config:
+                            params['mention'] = config['mention']
+                        await bus.send_to_node({
+                            "command": "rpc",
+                            "service": BotService.__name__,
+                            "method": "send_message",
+                            "params": params
+                        })
                 else:
                     await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",

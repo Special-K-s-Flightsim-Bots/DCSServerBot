@@ -24,7 +24,7 @@ mapping:
         type: map
         mapping:
           installation: {type: str, required: true}
-          autoupdate: {type: bool}
+          autoupdate: {type: Any}
           desanitize: {type: bool}
           minimized: {type: bool}
           user: {type: str}

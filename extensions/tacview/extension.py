@@ -313,6 +313,14 @@ class Tacview(Extension):
             if force or self.config.get('autoupdate', False):
                 await self.uninstall()
                 await self.install()
+                await ServiceRegistry.get(ServiceBus).send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": f"{self.name} updated to version {version} on instance {self.server.instance.name}."
+                    }
+                })
                 return True
             else:
                 self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "

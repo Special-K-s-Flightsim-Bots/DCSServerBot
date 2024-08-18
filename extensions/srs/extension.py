@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import atexit
 import certifi
+import discord
 import json
 import os
 import psutil
@@ -17,6 +18,7 @@ if sys.platform == 'win32':
 from configparser import RawConfigParser
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation
 from discord.ext import tasks
+from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
@@ -403,5 +405,45 @@ class SRS(Extension, FileSystemEventHandler):
             if version:
                 self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
+                self.log.info("DCS-SRS updated.")
+                bus = ServiceRegistry.get(ServiceBus)
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
+                    }
+                })
+                if isinstance(self.config.get('autoupdate'), dict):
+                    config = self.config.get('autoupdate')
+                    servers = []
+                    for instance in self.node.instances:
+                        if instance.locals.get('extensions', {}).get(self.name) and instance.locals['extensions'][self.name].get('enabled', True):
+                            servers.append(instance.server.display_name)
+                    embed = discord.Embed(
+                        colour=discord.Colour.blue(),
+                        title=config.get(
+                            'title', 'DCS-SRS has been updated to version {}!').format(version),
+                        url=f"https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/{version}")
+                    embed.set_thumbnail(url="https://github.com/ciribob/DCS-SimpleRadioStandalone/blob/master/Scripts/DCS-SRS/Theme/icon.png")
+                    embed.description = config.get('description', 'The following servers have been updated:')
+                    embed.add_field(name=_('Server'),
+                                    value='\n'.join([f'- {x}' for x in servers]), inline=False)
+                    embed.set_footer(
+                        text=config.get('footer', 'Please make sure you update your DCS-SRS client also!'))
+                    params = {
+                        "channel": config['channel'],
+                        "embed": embed.to_dict()
+                    }
+                    if 'mention' in config:
+                        params['mention'] = config['mention']
+                    await bus.send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "send_message",
+                        "params": params
+                    })
+
         except Exception as ex:
             self.log.exception(ex)

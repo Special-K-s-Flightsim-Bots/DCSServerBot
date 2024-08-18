@@ -16,6 +16,12 @@ MyNode:
     SRS:
       installation: '%ProgramFiles%\DCS-SimpleRadio-Standalone'
       autoupdate: true      # auto update your DCS-SRS installation, if a new version is available online (default: false)
+#      autoupdate:           # alternative configuration with a message being posted to Discord after every update
+#        title: DCS-SRS has been updated to version {}!
+#        description: 'The following servers have been updated:'
+#        footer: Please make sure you update your DCS-SRS client also!
+#        mention:            # Optional mentioning
+#          - DCS
   # [...]
   instances:
     DCS.release_server:

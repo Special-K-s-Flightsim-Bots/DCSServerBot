@@ -174,6 +174,9 @@ class Mission(Plugin):
             instance.pop('smooth_pause', None)
             instance.pop('afk_exemptions', None)
             instance.pop('usage_alarm', None)
+            # remove message_server_full if Slotblocking is not used
+            if 'slotblocking' not in self.node.plugins:
+                instance.pop('message_server_full', None)
 
         # first of all, reorganise the messages in servers.yaml
         server_config = os.path.join(self.node.config_dir, 'servers.yaml')
