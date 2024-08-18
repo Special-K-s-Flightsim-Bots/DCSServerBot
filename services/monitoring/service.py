@@ -153,7 +153,7 @@ class MonitoringService(Service):
                 except OSError:
                     self.log.debug("No minidump created due to an error (Linux?).")
             shutil.copy2(os.path.join(server.instance.home, 'Logs', 'dcs.log'),
-                         os.path.join(server.instance.home, 'Logs', f"dcs-{now.strftime('dcs-%Y%m%d-%H%M%S')}.log"))
+                         os.path.join(server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"))
             server.process.kill()
         else:
             await server.shutdown(True)
