@@ -199,8 +199,11 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryChangeSlot()')
     local config = dcsbot.params['mission']
     local slot_spamming = config['slot_spamming']
-    if not slot_spamming or mission.num_change_slots[id] == -1 or not tonumber(slot) then
+    if mission.num_change_slots[id] == -1 then
         return false
+    end
+    if not slot_spamming or not tonumber(slot) then
+        return
     end
 	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - (slot_spamming['check_time'] or 5)) then
 		mission.num_change_slots[id] = mission.num_change_slots[id] + 1
