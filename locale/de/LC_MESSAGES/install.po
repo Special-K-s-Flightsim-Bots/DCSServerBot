@@ -92,7 +92,6 @@ msgid "Users can restart missions, kick/ban users, etc."
 msgstr "Benutzer können bspw. Missionen neu starten sowie Nutzer kicken und bannen."
 
 # DCS
-# NEW
 msgid "Searching for existing DCS server configurations ..."
 msgstr "Suche nach existierenden DCS-Server-Konfigurationen ..."
 
@@ -108,7 +107,6 @@ msgstr "Suche DCS-World Installationen ..."
 msgid "Other"
 msgstr "Andere"
 
-# NEW
 msgid "Please specify, which installation you want the bot to use.\n"
 "Chose \"Other\", if it is not in the list"
 msgstr "Bitte gebe an, welche Installation Du für den Bot nutzen möchtest.\n"
@@ -173,7 +171,6 @@ msgstr "Bitte gebe des Passwort für den Benutzer {} ein"
 msgid "[red]Wrong password! Try again ({}/3).[/]"
 msgstr "[red]Falsches Passwort! Bitte probiere es erneut ({}/3).[/]"
 
-# NEW !!!
 msgid "[yellow]You have entered 3x a wrong password. I have reset it.[/]'"
 msgstr "[yellow]Du hast 3x ein falsches Passwort eingegeben. Ich habe es nun ersetzt.[/]'"
 
