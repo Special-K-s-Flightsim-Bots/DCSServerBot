@@ -639,7 +639,7 @@ class ServiceBus(Service):
                 if asyncio.iscoroutinefunction(func):
                     rc = await func(**kwargs)
                 else:
-                    async def _aux_func():
+                    def _aux_func():
                         return func(**kwargs)
                     rc = await asyncio.to_thread(_aux_func)
                 return rc
