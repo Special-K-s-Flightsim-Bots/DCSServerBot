@@ -36,7 +36,7 @@ class LogAnalyser(Extension):
     def unregister_callback(self, pattern: re.Pattern):
         self.pattern.pop(pattern, None)
 
-    async def startup(self) -> bool:
+    async def do_startup(self):
         self.stop_event.clear()
         self.stopped.clear()
         self.errors.clear()
@@ -44,6 +44,14 @@ class LogAnalyser(Extension):
         self.register_callback(ERROR_SCRIPT, self.script_error)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
+
+    async def prepare(self) -> bool:
+        await self.do_startup()
+        self.running = True
+        return await super().startup()
+
+    async def startup(self) -> bool:
+        await self.do_startup()
         return await super().startup()
 
     async def _shutdown(self):
