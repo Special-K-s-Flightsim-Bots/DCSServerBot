@@ -257,9 +257,9 @@ class SRS(Extension, FileSystemEventHandler):
             return True
 
     def on_modified(self, event: FileSystemEvent) -> None:
-        self.process_export_file(event.src_path)
+        asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
 
-    def process_export_file(self, path: str):
+    async def process_export_file(self, path: str):
         try:
             with open(path, mode='r', encoding='utf-8') as infile:
                 data = json.load(infile)
@@ -269,7 +269,7 @@ class SRS(Extension, FileSystemEventHandler):
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
                 if client['Name'] not in self.clients:
                     self.clients[client['Name']] = target
-                    self.loop.create_task(self.bus.send_to_node({
+                    await self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
                         "player_name": client['Name'],
@@ -277,12 +277,12 @@ class SRS(Extension, FileSystemEventHandler):
                         "unit": client['RadioInfo']['unit'],
                         "unit_id": client['RadioInfo']['unitId'],
                         "radios": list(self.clients[client['Name']])
-                    }))
+                    })
                 else:
                     actual = self.clients[client['Name']]
                     if actual != target:
                         self.clients[client['Name']] = target
-                        self.loop.create_task(self.bus.send_to_node({
+                        await self.bus.send_to_node({
                             "command": "onSRSUpdate",
                             "server_name": self.server.name,
                             "player_name": client['Name'],
@@ -290,16 +290,16 @@ class SRS(Extension, FileSystemEventHandler):
                             "unit": client['RadioInfo']['unit'],
                             "unit_id": client['RadioInfo']['unitId'],
                             "radios": list(self.clients[client['Name']])
-                        }))
+                        })
             all_clients = set(self.clients.keys())
             active_clients = set([x['Name'] for x in data['Clients']])
             # any clients disconnected?
             for client in all_clients - active_clients:
-                self.loop.create_task(self.bus.send_to_node({
+                await self.bus.send_to_node({
                     "command": "onSRSDisconnect",
                     "server_name": self.server.name,
                     "player_name": client
-                }))
+                })
                 del self.clients[client]
         except Exception:
             pass
@@ -307,7 +307,7 @@ class SRS(Extension, FileSystemEventHandler):
     def start_observer(self):
         path = self.locals['Server Settings']['CLIENT_EXPORT_FILE_PATH']
         if os.path.exists(path):
-            self.process_export_file(path)
+            asyncio.run_coroutine_threadsafe(self.process_export_file(path), self.loop)
             self.observer = Observer()
             self.observer.schedule(self, path=os.path.dirname(path))
             self.observer.start()

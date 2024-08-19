@@ -740,7 +740,7 @@ class ServiceBus(Service):
                                         self.log.debug(f"Not processed: {listeners[pos].plugin_name}")
                                         future.cancel()
                             else:
-                                self.loop.create_task(self.send_to_node(data))
+                                asyncio.run_coroutine_threadsafe(self.send_to_node(data), self.loop)
                         except Exception as ex:
                             self.log.exception(ex)
                         finally:

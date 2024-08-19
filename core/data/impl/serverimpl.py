@@ -61,7 +61,8 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if not path.endswith('.miz'):
             return
         if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.loop.create_task(self.server.send_to_dcs({"command": "addMission", "path": path}))
+            asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "addMission", "path": path}),
+                                             self.loop)
         else:
             missions = self.server.settings['missionList']
             missions.append(path)
@@ -83,7 +84,8 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
                     self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
                     return
                 else:
-                    self.loop.create_task(self.server.send_to_dcs({"command": "deleteMission", "id": idx}))
+                    asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "deleteMission", "id": idx}),
+                                                     self.loop)
             else:
                 missions.remove(path)
                 self.server.settings['missionList'] = missions

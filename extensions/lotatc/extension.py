@@ -126,21 +126,21 @@ class LotAtc(Extension, FileSystemEventHandler):
                     added = {k: v for k, v in gcis[coalition].items() if k not in self.gcis[coalition]}
                     for name, ip in added.items():
                         match = re.search(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', ip)
-                        self.loop.create_task(self.bus.send_to_node({
+                        asyncio.run_coroutine_threadsafe(self.bus.send_to_node({
                             "command": "onGCIJoin",
                             "server_name": self.server.name,
                             "coalition": coalition,
                             "name": name,
                             "ipaddr": match.group()
-                        }))
+                        }), self.loop)
                     removed = {k: v for k, v in self.gcis[coalition].items() if k not in gcis[coalition]}
                     for name in removed.keys():
-                        self.loop.create_task(self.bus.send_to_node({
+                        asyncio.run_coroutine_threadsafe(self.bus.send_to_node({
                             "command": "onGCILeave",
                             "server_name": self.server.name,
                             "coalition": coalition,
                             "name": name
-                        }))
+                        }), self.loop)
                 self.gcis = gcis
         except PermissionError:
             pass

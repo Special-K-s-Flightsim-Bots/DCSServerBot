@@ -258,3 +258,7 @@ if __name__ == "__main__":
         console.print_exception(show_locals=True, max_frames=1)
         # restart on unknown errors
         exit(-1)
+    finally:
+        pidfile = f"dcssb_{args.node}.pid"
+#        if os.path.exists(pidfile):
+#            os.remove(pidfile)
