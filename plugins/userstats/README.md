@@ -16,7 +16,9 @@ The plugin can be configured via yaml in config/plugins/userstats.yaml. If such 
 DEFAULT:
   wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
   squadrons:
-    self_join: true   # enable self-join for squadrons (default: true, otherwise you need to get the associated role)
+    self_join: true         # enable self-join for squadrons (default: true, otherwise you need to get the associated role)
+    persist_list: true      # Show a persistent list in the squadron channel that updates with any join / leave
+    persist_highscore: true # Show a persistent highscore in the squadron channel
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:

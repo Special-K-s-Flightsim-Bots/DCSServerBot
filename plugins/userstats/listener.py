@@ -332,6 +332,9 @@ class UserStatisticsEventListener(EventListener):
                                 INSERT INTO squadron_members VALUES (%s, %s) 
                                 ON CONFLICT (squadron_id, player_ucid) DO NOTHING
                             """, (row[0], data['ucid']))
+                        if self.get_config().get('squadrons', {}).get('persist_list', False):
+                            # noinspection PyUnresolvedReferences
+                            await self.plugin.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)
 
@@ -340,10 +343,16 @@ class UserStatisticsEventListener(EventListener):
         try:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    await conn.execute("""
-                        DELETE FROM squadron_members WHERE player_ucid = %s AND squadron_id IN (
-                            SELECT id FROM squadrons WHERE role IS NOT NULL
-                        ) 
-                    """, (data['ucid'], ))
+                    async for row in await conn.execute("""
+                        SELECT DISTINCT s.id FROM squadrons s, squadron_members sm 
+                        WHERE s.id = sm.squadron_id
+                        AND sm.player_ucid = %s
+                    """, (data['ucid'], )):
+                        await conn.execute("""
+                            DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s 
+                        """, (row[0], data['ucid']))
+                        if self.get_config().get('squadrons', {}).get('persist_list', False):
+                            # noinspection PyUnresolvedReferences
+                            await self.plugin.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)

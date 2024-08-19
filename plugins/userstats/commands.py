@@ -279,16 +279,18 @@ class UserStatistics(Plugin):
     @squadron.command(description='Create a squadron')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def create(self, interaction: discord.Interaction, name: str, role: Optional[discord.Role] = None):
+    async def create(self, interaction: discord.Interaction, name: str, role: Optional[discord.Role] = None,
+                     channel: Optional[discord.TextChannel] = None):
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(SquadronModal(name, role))
+        await interaction.response.send_modal(SquadronModal(name, role=role, channel=channel))
 
     @squadron.command(description='Edit a squadron')
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @utils.app_has_role('DCS Admin')
-    async def edit(self, interaction: discord.Interaction, squadron_id: int, role: Optional[discord.Role] = None):
+    async def edit(self, interaction: discord.Interaction, squadron_id: int, role: Optional[discord.Role] = None,
+                   channel: Optional[discord.TextChannel] = None):
         async with interaction.client.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("SELECT name, role, description FROM squadrons WHERE id = %s", (squadron_id, ))
@@ -298,7 +300,7 @@ class UserStatistics(Plugin):
                 name = row['name']
                 description = row['description']
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(SquadronModal(name, role, description))
+        await interaction.response.send_modal(SquadronModal(name, role=role, channel=channel, description=description))
 
     @squadron.command(description='Add a user to a squadron')
     @app_commands.guild_only()
@@ -354,8 +356,9 @@ class UserStatistics(Plugin):
                 try:
                     await conn.execute("INSERT INTO squadron_members (squadron_id, player_ucid) VALUES (%s, %s)",
                                        (squadron_id, ucid))
-
                     await interaction.followup.send(f"{prefix} added to the squadron.", ephemeral=ephemeral)
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.persist_squadron_list(squadron_id)
                 except UniqueViolation:
                     await interaction.followup.send(f"{prefix} is a member of this squadron already!", ephemeral=True)
 
@@ -392,6 +395,9 @@ class UserStatistics(Plugin):
                                 await member.remove_roles(role)
                             except discord.Forbidden:
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+                            await interaction.followup.send(f'User removed from squadron, role {role.name} removed',
+                                                            ephemeral=ephemeral)
+                            return
                     else:
                         await conn.execute("DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s",
                                            (squadron_id, row[0]))
@@ -399,9 +405,9 @@ class UserStatistics(Plugin):
                     await conn.execute("DELETE FROM squadrons WHERE id = %s", (squadron_id, ))
                     await interaction.followup.send('Squadron deleted.', ephemeral=ephemeral)
                 else:
-                    await interaction.followup.send('User removed from squadron. '
-                                                    'If a role was configured, it was removed also.',
-                                                    ephemeral=ephemeral)
+                    await interaction.followup.send('User removed from squadron. ', ephemeral=ephemeral)
+                if self.get_config().get('squadrons', {}).get('persist_list', False):
+                    await self.persist_squadron_list(squadron_id)
 
     @squadron.command(description='Join a squadron')
     @app_commands.guild_only()
@@ -433,6 +439,8 @@ class UserStatistics(Plugin):
                                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                         # noinspection PyUnresolvedReferences
                         await interaction.response.send_message(message, ephemeral=True)
+                        if self.get_config().get('squadrons', {}).get('persist_list', False):
+                            await self.persist_squadron_list(squadron_id)
                     else:
                         # noinspection PyUnresolvedReferences
                         await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
@@ -469,6 +477,8 @@ class UserStatistics(Plugin):
                             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message(message, ephemeral=True)
+                    if self.get_config().get('squadrons', {}).get('persist_list', False):
+                        await self.persist_squadron_list(squadron_id)
                 else:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message("This squadron does not exist.", ephemeral=True)
@@ -481,37 +491,7 @@ class UserStatistics(Plugin):
     async def _list(self, interaction: discord.Interaction, squadron_id: int):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        embed = discord.Embed(color=discord.Color.blue())
-        discord_ids = dcs_names = ""
-        async with interaction.client.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
-                                     (squadron_id, ))
-                row = await cursor.fetchone()
-                embed.title = f"Members of Squadron \"{row['name']}\""
-                embed.description = row['description'] or MISSING
-                embed.set_thumbnail(url=row['image_url'])
-                async for row in await cursor.execute("""
-                    SELECT DISTINCT p.discord_id, p.name
-                    FROM players p JOIN squadron_members m
-                    ON p.ucid = m.player_ucid
-                    AND m.squadron_id = %s
-                """, (squadron_id, )):
-                    new_discord_id = f"<@{row['discord_id']}>\n" if row['discord_id'] != -1 else 'not linked\n'
-                    new_dcs_name = row['name'] + '\n'
-                    if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
-                        embed.add_field(name="Member", value=discord_ids)
-                        embed.add_field(name="DCS Name", value=dcs_names)
-                        embed.add_field(name='_ _', value='_ _')
-                        discord_ids = new_discord_id
-                        dcs_names = new_dcs_name
-                    else:
-                        discord_ids += new_discord_id
-                        dcs_names += new_dcs_name
-        if discord_ids.strip():
-            embed.add_field(name="Member", value=discord_ids)
-            embed.add_field(name="DCS Name", value=dcs_names)
-            embed.add_field(name='_ _', value='_ _')
+        embed = await self.render_squadron_list(squadron_id)
         await interaction.followup.send(embed=embed)
 
     async def render_highscore(self, highscore: Union[dict, list], server: Optional[Server] = None,
@@ -556,6 +536,65 @@ class UserStatistics(Plugin):
             finally:
                 if env.buffer:
                     env.buffer.close()
+
+    async def render_squadron_list(self, squadron_id: int):
+        embed = discord.Embed(color=discord.Color.blue())
+        discord_ids = dcs_names = ""
+        async with self.node.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT name, description, image_url FROM squadrons WHERE id = %s",
+                                     (squadron_id, ))
+                row = await cursor.fetchone()
+                embed.title = f"Members of Squadron \"{row['name']}\""
+                embed.description = row['description'] or MISSING
+                embed.set_thumbnail(url=row['image_url'])
+                async for row in await cursor.execute("""
+                    SELECT DISTINCT p.discord_id, p.name
+                    FROM players p JOIN squadron_members m
+                    ON p.ucid = m.player_ucid
+                    AND m.squadron_id = %s
+                """, (squadron_id, )):
+                    new_discord_id = f"<@{row['discord_id']}>\n" if row['discord_id'] != -1 else 'not linked\n'
+                    new_dcs_name = row['name'] + '\n'
+                    if len(discord_ids + new_discord_id) > 1024 or len(dcs_names + new_dcs_name) > 1024:
+                        embed.add_field(name="Member", value=discord_ids)
+                        embed.add_field(name="DCS Name", value=dcs_names)
+                        embed.add_field(name='_ _', value='_ _')
+                        discord_ids = new_discord_id
+                        dcs_names = new_dcs_name
+                    else:
+                        discord_ids += new_discord_id
+                        dcs_names += new_dcs_name
+        if discord_ids.strip():
+            embed.add_field(name="Member", value=discord_ids)
+            embed.add_field(name="DCS Name", value=dcs_names)
+            embed.add_field(name='_ _', value='_ _')
+        return embed
+
+    async def persist_squadron_list(self, squadron_id: int):
+        async with self.node.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT name, channel FROM squadrons WHERE id = %s",
+                                     (squadron_id, ))
+                row = await cursor.fetchone()
+                channel = row.get('channel')
+                if channel:
+                    embed = await self.render_squadron_list(squadron_id)
+                    if embed.fields:
+                        await self.bot.setEmbed(embed_name=f'squadron_{squadron_id}_embed', embed=embed,
+                                                channel_id=channel)
+                    else:
+                        await cursor.execute("SELECT embed FROM message_persistence WHERE embed_name = %s",
+                                             (f"squadron_{squadron_id}_embed", ))
+                        row2 = await cursor.fetchone()
+                        if row2:
+                            try:
+                                ch: discord.TextChannel = self.bot.get_channel(channel)
+                                message = await ch.fetch_message(row2['embed'])
+                                if message:
+                                    await message.delete()
+                            except Exception:
+                                self.log.debug(f"Can't remove persistent embed for squadron {row['name']}.")
 
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
@@ -613,6 +652,8 @@ class UserStatistics(Plugin):
                             await conn.execute("""
                                 DELETE FROM squadron_members WHERE squadron_id = %s and player_ucid = %s
                             """, (row[0], ucid))
+            if self.get_config().get('squadrons', {}).get('persist_list', False):
+                await self.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)
 
