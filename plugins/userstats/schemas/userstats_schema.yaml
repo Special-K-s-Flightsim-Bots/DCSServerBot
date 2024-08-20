@@ -9,7 +9,13 @@ schema;master_schema:
       mapping:
         self_join: {type: bool}
         persist_list: {type: bool}
-        persist_highscore: {type: bool}
+        highscore:
+          type: map
+          mapping:
+            params:
+              type: map
+              mapping:
+                limit: {type: int}
     highscore:
       type: any
       # todo

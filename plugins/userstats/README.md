@@ -18,7 +18,9 @@ DEFAULT:
   squadrons:
     self_join: true         # enable self-join for squadrons (default: true, otherwise you need to get the associated role)
     persist_list: true      # Show a persistent list in the squadron channel that updates with any join / leave
-    persist_highscore: true # Show a persistent highscore in the squadron channel
+    highscore:
+      params:
+        limit: 10
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:

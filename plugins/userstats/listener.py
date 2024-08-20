@@ -315,7 +315,7 @@ class UserStatisticsEventListener(EventListener):
             if 'highscore' in config:
                 # noinspection PyAsyncCall
                 # noinspection PyUnresolvedReferences
-                asyncio.create_task(self.plugin.render_highscore(config['highscore'], server, True))
+                asyncio.create_task(self.plugin.render_highscore(config['highscore'], server=server, mission_end=True))
 
     @event(name="onMemberLinked")
     async def onMemberLinked(self, server: Server, data: dict) -> None:

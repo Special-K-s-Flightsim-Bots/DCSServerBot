@@ -282,7 +282,7 @@ class UserStatistics(Plugin):
     async def create(self, interaction: discord.Interaction, name: str, role: Optional[discord.Role] = None,
                      channel: Optional[discord.TextChannel] = None):
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(SquadronModal(name, role=role, channel=channel))
+        await interaction.response.send_modal(SquadronModal(self, name, role=role, channel=channel))
 
     @squadron.command(description='Edit a squadron')
     @app_commands.guild_only()
@@ -300,7 +300,8 @@ class UserStatistics(Plugin):
                 name = row['name']
                 description = row['description']
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(SquadronModal(name, role=role, channel=channel, description=description))
+        await interaction.response.send_modal(SquadronModal(self, name, role=role, channel=channel, 
+                                                            description=description))
 
     @squadron.command(description='Add a user to a squadron')
     @app_commands.guild_only()
@@ -494,11 +495,11 @@ class UserStatistics(Plugin):
         embed = await self.render_squadron_list(squadron_id)
         await interaction.followup.send(embed=embed)
 
-    async def render_highscore(self, highscore: Union[dict, list], server: Optional[Server] = None,
+    async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
                                mission_end: Optional[bool] = False):
         if isinstance(highscore, list):
             for h in highscore:
-                await self.render_highscore(h, server, mission_end)
+                await self.render_highscore(h, server=server, mission_end=mission_end)
             return
         kwargs = deepcopy(highscore.get('params', {}))
         if ((not mission_end and kwargs.get('mission_end', False)) or
@@ -600,13 +601,26 @@ class UserStatistics(Plugin):
     async def persistent_highscore(self):
         try:
             # global highscore
-            if self.locals.get(DEFAULT_TAG) and self.locals[DEFAULT_TAG].get('highscore'):
-                await self.render_highscore(self.locals[DEFAULT_TAG]['highscore'], None)
+            if self.locals.get(DEFAULT_TAG):
+                if self.locals[DEFAULT_TAG].get('highscore'):
+                    await self.render_highscore(self.locals[DEFAULT_TAG]['highscore'])
+                if self.locals[DEFAULT_TAG].get('squadrons', {}).get('highscore'):
+                    async with self.node.apool.connection() as conn:
+                        async for row in await conn.execute("""
+                            SELECT name, channel FROM squadrons WHERE channel IS NOT NULL
+                        """):
+                            config = deepcopy(self.locals[DEFAULT_TAG]['squadrons']['highscore'])
+                            config['channel'] = row[1]
+                            config['params'] = {
+                                "period": f"squadron:{row[0]}"
+                            } | config.get('params', {})
+                            config['channel'] = row[1]
+                            await self.render_highscore(config)
             for server in list(self.bus.servers.values()):
                 config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if not config or not config.get('highscore'):
                     continue
-                await self.render_highscore(config['highscore'], server)
+                await self.render_highscore(config['highscore'], server=server)
         except Exception as ex:
             self.log.exception(ex)
 
