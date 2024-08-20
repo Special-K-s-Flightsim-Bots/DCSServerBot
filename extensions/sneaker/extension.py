@@ -131,9 +131,6 @@ class Sneaker(Extension):
         elif 'config' not in self.config:
             if terminate():
                 self.create_config()
-                cmd = os.path.basename(self.config['cmd'])
-                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
-                               f"--config config/sneaker.json")
                 try:
                     p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
                     process = psutil.Process(p.pid)
