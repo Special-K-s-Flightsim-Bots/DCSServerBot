@@ -64,6 +64,8 @@ class LotAtc(Extension, FileSystemEventHandler):
                 cfg |= luadata.unserialize(content)
             except FileNotFoundError:
                 pass
+            except Exception:
+                self.log.error(f"Error while parsing {path}!", exc_info=True)
         return cfg
 
     def get_inst_path(self) -> str:
