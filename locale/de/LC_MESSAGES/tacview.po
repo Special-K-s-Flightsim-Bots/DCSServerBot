@@ -1,0 +1,64 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+# Plugin
+# /tacview
+msgid "Commands to manage Tacview"
+msgstr "Befehle zur Verwaltung von Tacview"
+
+# /tacview configure
+msgid "Configure Tacview"
+msgstr "Konfiguriere Tacview"
+
+msgid "Tacview not installed on server {}!"
+msgstr "Tacview ist nicht auf Server {} installiert!"
+
+msgid "Tacview configuration changed on server {}."
+msgstr "Die Tacview-Konfiguration auf Server {} wurde aktualisiert."
+
+msgid "Server {} needs to be shut down to configure Tacview."
+msgstr "Server {} muss zur Konfiguration von Tacview heruntergefahren werden."
+
+# /tacview install
+msgid "Install Tacview"
+msgstr "Installiere Tacview"
+
+msgid "Tacview already installed on server {}!"
+msgstr "Tacview is bereits auf Server {} installiert!"
+
+msgid "Tacview is not configured on node {}!"
+msgstr "Tacview ist auf Knoten nicht {} konfiguriert!"
+
+msgid "Tacview installed on server {}."
+msgstr "Tacview wurde auf Server {} installiert."
+
+msgid "Tacview could not be installed on server {}!"
+msgstr "Tacview konnte auf Server {} nicht installiert werden!"
+
+msgid "Server {} needs to be shut down to install Tacview."
+msgstr "Server {} muss zur Installation von Tacview heruntergefahren werden."
+
+# /tacview uninstall
+msgid "Uninstall Tacview"
+msgstr "De-installiere Tacview"
+
+msgid "Tacview uninstalled on server {}."
+msgstr "Tacview auf Server {} de-installiert."
+
+msgid "Tacview could not be uninstalled on server {}!"
+msgstr "Tacview konnte auf Server {} nicht deinstalliert werden!"
+
+msgid "Server {} needs to be shut down to uninstall Tacview."
+msgstr "Server {} muss zur De-Installation von Tacview heruntergefahren werden."
+
+# Extension
+msgid "Tacview file for server {}"
+msgstr "Tacview-Datei für Server {}"
+
+msgid "Tacview updated to version {version} on instance {instance}."
+msgstr "Tacview wurde auf Instanz {instance} auf Version {version} aktualisiert."

@@ -6,10 +6,9 @@ import shutil
 import sys
 
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException
-from extensions.loganalyser import LogAnalyser
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Optional, Any, cast
+from typing import Optional, Any
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -62,23 +61,26 @@ class Tacview(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.log_pos = -1
-        self.exp = None
+        self.exp = re.compile(TACVIEW_PATTERN_MATCH)
         self._inst_path = None
+        self.stop_event = asyncio.Event()
+        self.stopped = asyncio.Event()
 
     async def startup(self) -> bool:
-        await super().startup()
-        if self.config.get('target'):
-            log_analyser: LogAnalyser = cast(LogAnalyser, self.server.extensions.get('LogAnalyser'))
-            if log_analyser:
-                self.exp = log_analyser.register_callback(TACVIEW_PATTERN_MATCH, self.send_tacview_file)
-        return True
+        self.stop_event.clear()
+        self.stopped.clear()
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.check_log())
+        return await super().startup()
 
-#    def shutdown(self) -> bool:
-#        if self.config.get('target'):
-#            log_analyser: LogAnalyser = cast(LogAnalyser, self.server.extensions.get('LogAnalyser'))
-#            if log_analyser:
-#                log_analyser.unregister_callback(self.exp)
-#        return super().shutdown()
+    async def _shutdown(self):
+        await self.stopped.wait()
+        super().shutdown()
+
+    def shutdown(self) -> bool:
+        self.loop.create_task(self._shutdown())
+        self.stop_event.set()
+        return True
 
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
@@ -233,9 +235,48 @@ class Tacview(Extension):
             return False
         return True
 
-    async def send_tacview_file(self, idx: int, line: str, match: re.Match):
+    async def check_log(self):
+        try:
+            logfile = os.path.expandvars(
+                self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
+            )
+            while not self.stop_event.is_set():
+                if not os.path.exists(logfile):
+                    self.log_pos = 0
+                    await asyncio.sleep(1)
+                    continue
+                async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
+                    max_pos = os.fstat(file.fileno()).st_size
+                    # no new data has been added to the log, so continue
+                    if max_pos == self.log_pos:
+                        await asyncio.sleep(1)
+                        continue
+                    # if we were started with an existing logfile, seek to the file end, else seek to the last position
+                    if self.log_pos == -1:
+                        await file.seek(0, 2)
+                        self.log_pos = max_pos
+                    else:
+                        # if the log was rotated, reset the pointer to 0
+                        if max_pos < self.log_pos:
+                            self.log_pos = 0
+                        await file.seek(self.log_pos, 0)
+                    lines = await file.readlines()
+                    for line in lines:
+                        if 'End of flight data recorder.' in line or '=== Log closed.' in line:
+                            self.log_pos = -1
+                            return
+                        match = self.exp.search(line)
+                        if match:
+                            # noinspection PyAsyncCall
+                            asyncio.create_task(self.send_tacview_file(match.group('filename')))
+                    self.log_pos = max_pos
+        except Exception as ex:
+            self.log.exception(ex)
+        finally:
+            self.stopped.set()
+
+    async def send_tacview_file(self, filename: str):
         # wait 60s for the file to appear
-        filename = match.group('filename')
         for i in range(0, 60):
             if os.path.exists(filename):
                 target = self.config['target']
@@ -250,7 +291,7 @@ class Tacview(Extension):
                             "method": "send_message",
                             "params": {
                                 "channel": int(target[4:-1]),
-                                "content": f"Tacview file for server {self.server.name}",
+                                "content": _("Tacview file for server {}").format(self.server.name),
                                 "server": self.server.name,
                                 "filename": filename
                             }
@@ -318,7 +359,8 @@ class Tacview(Extension):
                     "service": BotService.__name__,
                     "method": "audit",
                     "params": {
-                        "message": f"{self.name} updated to version {version} on instance {self.server.instance.name}."
+                        "message": _("Tacview updated to version {version} on instance {instance}.").format(
+                            ersion=version, instance=self.server.instance.name)
                     }
                 })
                 return True
