@@ -1,0 +1,64 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+# Plugin
+# /tacview
+msgid "Commands to manage Tacview"
+msgstr "Comandos para manejar Tacview"
+
+# /tacview configure
+msgid "Configure Tacview"
+msgstr "Configurar Tacview"
+
+msgid "Tacview not installed on server {}!"
+msgstr "Tacview no está instalado en el servidor {}!"
+
+msgid "Tacview configuration changed on server {}."
+msgstr "La configuración de Tacview ha sido cambiada en el servidor {}."
+
+msgid "Server {} needs to be shut down to configure Tacview."
+msgstr "Es necesario apagar el servidor {} para configurar Tacview."
+
+# /tacview install
+msgid "Install Tacview"
+msgstr "Instalar Tacview"
+
+msgid "Tacview already installed on server {}!"
+msgstr "Tacview ya ha sido instalado en el servidor {}!"
+
+msgid "Tacview is not configured on node {}!"
+msgstr "Tacview no está configurado en el nodo {}!"
+
+msgid "Tacview installed on server {}."
+msgstr "Tacview instalado en el servidor {}."
+
+msgid "Tacview could not be installed on server {}!"
+msgstr "Tacview no ha podido ser instalado en el servidor {}!"
+
+msgid "Server {} needs to be shut down to install Tacview."
+msgstr "El servidor {} ha de ser apagado para instalar Tacview."
+
+# /tacview uninstall
+msgid "Uninstall Tacview"
+msgstr "Desinstalar Tacview"
+
+msgid "Tacview uninstalled on server {}."
+msgstr "Desinstalado Tacview del servidor {}."
+
+msgid "Tacview could not be uninstalled on server {}!"
+msgstr "Tacview no pudo ser desinstalado del servidor {}!"
+
+msgid "Server {} needs to be shut down to uninstall Tacview."
+msgstr "El servidor {} ha de ser apagado para desinstalar Tacview."
+
+# Extension
+msgid "Tacview file for server {}"
+msgstr "Archivo de Tacview para el servidor {}"
+
+msgid "Tacview updated to version {version} on instance {instance}."
+msgstr "Actualizado Tacview a la versión {version} en la instancia {instance}."
