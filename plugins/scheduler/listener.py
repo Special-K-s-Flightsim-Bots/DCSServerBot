@@ -279,9 +279,9 @@ class SchedulerListener(EventListener):
 
     @chat_command(name="timeleft", help="Time to the next restart")
     async def timeleft(self, server: Server, player: Player, params: list[str]):
-        restart = self.get_config(server).get('restart')
-        if not restart:
-            await player.sendChatMessage("No restart configured for this server.")
+        action = self.get_config(server).get('action')
+        if not action:
+            await player.sendChatMessage("No action configured for this server.")
             return
         elif server.maintenance:
             await player.sendChatMessage("Maintenance mode active, mission will not restart.")
@@ -289,7 +289,7 @@ class SchedulerListener(EventListener):
         elif not server.restart_time:
             await player.sendChatMessage("Please try again in a minute.")
             return
-        restart_in, rconf = self.get_next_restart(server, restart)
+        restart_in, rconf = self.get_next_restart(server, action)
         message = f"The mission will restart in {utils.format_time(restart_in)}"
         if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
             message += ", if all players have left"
