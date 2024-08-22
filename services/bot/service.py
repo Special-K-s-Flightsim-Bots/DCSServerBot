@@ -104,13 +104,10 @@ class BotService(Service):
 
         await super().start()
         try:
-            self.log.debug("- Waiting for ServiceBus...")
             while not ServiceRegistry.get(ServiceBus):
                 await asyncio.sleep(1)
             self.bot = self.init_bot()
-            self.log.debug("- Installing fonts...")
             await self.install_fonts()
-            self.log.debug("- Login...")
             await self.bot.login(self.token)
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.connect(reconnect=reconnect))
