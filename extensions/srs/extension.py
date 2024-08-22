@@ -257,7 +257,8 @@ class SRS(Extension, FileSystemEventHandler):
             return True
 
     def on_modified(self, event: FileSystemEvent) -> None:
-        asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
+        if self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.process_export_file(event.src_path), self.loop)
 
     async def process_export_file(self, path: str):
         try:
