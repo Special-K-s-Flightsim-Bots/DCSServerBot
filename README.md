@@ -514,6 +514,12 @@ Non-Discord installations usually only need the Admin and DCS Admin roles.
 
 See [Coalitions](./COALITIONS.md) for coalition roles.
 
+#### Profanity Filter
+DCSServerBot support profanity filtering of your in-game chat. Per default, that is not enabled, but you can just set 
+`profanity_filter: true` in your servers.yaml to activate it. It will then copy one of the prepared lists from 
+samples/wordlists to config/profanity.txt, which you then can amend to your needs on your own. The language is 
+determined by which language you set in your main.yaml (default=en).
+
 ### Handling of Passwords and other Secrets
 DCSServerBot stores the secret Discord TOKEN and your database and (optional) DCS password in separate files. If ever 
 you have added these to your config files like mentioned above, the bot will take them and move them away. This is a 
