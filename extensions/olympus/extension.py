@@ -215,7 +215,7 @@ class Olympus(Extension):
             except psutil.NoSuchProcess:
                 self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
                 return False
-            atexit.register(self.shutdown)
+            #atexit.register(self.shutdown)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
             return False
