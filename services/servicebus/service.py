@@ -156,6 +156,7 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     async def init_servers(self):
+        self.log.debug("- init_servers()")
         for instance in self.node.instances:
             try:
                 async with self.apool.connection() as conn:
