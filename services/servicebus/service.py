@@ -82,7 +82,9 @@ class ServiceBus(Service):
             # noinspection PyAsyncCall
             asyncio.create_task(self.broadcasts_channel.subscribe())
 
+            self.log.debug("- init_servers()")
             await self.init_servers()
+            self.log.debug("- switch()")
             await self.switch()
 
         except Exception as ex:
@@ -91,10 +93,13 @@ class ServiceBus(Service):
     async def switch(self):
         if self.master:
             self.bot = ServiceRegistry.get(BotService).bot
+            self.log.debug("- Waiting for bot...")
             while not self.bot:
                 await asyncio.sleep(1)
                 self.bot = ServiceRegistry.get(BotService).bot
+            self.log.debug("- Waiting until ready...")
             await self.bot.wait_until_ready()
+            self.log.debug("- Register local servers...")
             await self.register_local_servers()
             for node in await self.node.get_active_nodes():
                 await self.send_to_node({
