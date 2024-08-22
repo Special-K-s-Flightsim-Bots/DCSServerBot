@@ -156,9 +156,9 @@ class SchedulerListener(EventListener):
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
-        restart = self.get_config(server).get('restart')
-        if restart:
-            restart_in, rconf = self.get_next_restart(server, restart)
+        action = self.get_config(server).get('action')
+        if action:
+            restart_in, rconf = self.get_next_restart(server, action)
             # do not print any chat message when the server is set to restart on populated = False
             if not rconf.get('populated', True):
                 return
@@ -245,10 +245,10 @@ class SchedulerListener(EventListener):
         config = self.get_config(server)
         if not config or not server.current_mission:
             return
-        restart = config.get('restart')
-        if not restart:
+        action = config.get('action')
+        if not action:
             return
-        result = self.get_next_restart(server, restart)
+        result = self.get_next_restart(server, action)
         if result:
             server.restart_time = datetime.now(tz=timezone.utc) + timedelta(seconds=result[0])
 

@@ -811,7 +811,7 @@ class Scheduler(Plugin):
                                Status.RUNNING, Status.PAUSED
                            ])
                        ]):
-        config = self.get_config(_server).get('restart')
+        config = self.get_config(_server).get('action')
         if not config:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("No restart configured for this server.", ephemeral=True)
@@ -828,10 +828,7 @@ class Scheduler(Plugin):
         # noinspection PyUnresolvedReferences
         restart_in, rconf = self.eventlistener.get_next_restart(_server, config)
         what = rconf['method']
-        if what == 'restart_with_shutdown':
-            what = 'restart'
-            item = f'Server {_server.name}'
-        elif what == 'shutdown':
+        if what == 'shutdown' or config.get('shutdown', False):
             item = f'Server {_server.name}'
         else:
             item = f'The mission on server {_server.name}'
