@@ -45,6 +45,7 @@ class InstanceImpl(Instance):
         asyncio.create_task(self.update_instance(server_name))
 
     async def update_instance(self, server_name: Optional[str] = None):
+        self.log.debug("Instance.update_instance()")
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 # clean up old server name entries to avoid conflicts
@@ -63,6 +64,7 @@ class InstanceImpl(Instance):
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
     def update_server(self, server: Optional["Server"] = None):
+        self.log.debug("Instance.update_server()")
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
