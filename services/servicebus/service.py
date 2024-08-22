@@ -161,24 +161,24 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     async def init_servers(self):
-        async with self.apool.connection() as conn:
-            for instance in self.node.instances:
-                try:
+        for instance in self.node.instances:
+            try:
+                async with self.apool.connection() as conn:
                     cursor = await conn.execute("""
                         SELECT server_name FROM instances 
                         WHERE node=%s AND instance=%s AND server_name IS NOT NULL
                     """, (self.node.name, instance.name))
                     row = await cursor.fetchone()
-                    # was there a server bound to this instance?
-                    if row:
-                        server: ServerImpl = DataObjectFactory().new(
-                            ServerImpl, node=self.node, port=instance.bot_port, name=row[0])
-                        instance.server = server
-                        self.servers[server.name] = server
-                    else:
-                        self.log.warning(f"There is no server bound to instance {instance.name}!")
-                except Exception as ex:
-                    self.log.exception(ex)
+                # was there a server bound to this instance?
+                if row:
+                    server: ServerImpl = DataObjectFactory().new(
+                        ServerImpl, node=self.node, port=instance.bot_port, name=row[0])
+                    instance.server = server
+                    self.servers[server.name] = server
+                else:
+                    self.log.warning(f"There is no server bound to instance {instance.name}!")
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def send_init(self, server: Server):
         timeout = 120 if self.node.locals.get('slow_system', False) else 60

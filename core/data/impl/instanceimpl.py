@@ -64,13 +64,14 @@ class InstanceImpl(Instance):
         return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
     def update_server(self, server: Optional["Server"] = None):
-        self.log.debug("Instance.update_server()")
+        self.log.debug("> Instance.update_server()")
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
                     UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE node = %s AND instance = %s
                 """, (server.name if server else None, self.node.name, self.name))
+        self.log.debug("< Instance.update_server()")
 
     def set_server(self, server: Optional["Server"]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
