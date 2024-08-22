@@ -330,30 +330,30 @@ def migrate(node: str):
                     i['missions_dir'] = cfg[instance]['MISSIONS_DIR']
                 if instance in scheduler:
                     schedule = scheduler[instance]
+                    if 'restart' in schedule:
+                        schedule['action'] = schedule.pop('restart')
+                        if 'restart_with_shutdown' in schedule['action']['method']:
+                            schedule['action']['method'] = 'restart'
+                            schedule['action']['shutdown'] = True
                     if 'affinity' in schedule:
-                        nodes[node]['instances'][instance]['affinity'] = schedule['affinity']
-                        del schedule['affinity']
+                        nodes[node]['instances'][instance]['affinity'] = schedule.pop('affinity')
                     if 'terrains' in schedule:
                         if 'extensions' not in schedule:
                             schedule['extensions'] = {}
                         schedule['extensions']['MizEdit'] = {
-                            "terrains": schedule['terrains']
+                            "terrains": schedule.pop('terrains')
                         }
-                        del schedule['terrains']
                     elif 'settings' in schedule:
                         if 'extensions' not in schedule:
                             schedule['extensions'] = {}
                         schedule['extensions']['MizEdit'] = {
-                            "settings": schedule['settings']
+                            "settings": schedule.pop('settings')
                         }
-                        del schedule['settings']
                     if 'extensions' in schedule:
-                        i['extensions'] = schedule['extensions']
-                        del schedule['extensions']
+                        i['extensions'] = schedule.pop('extensions')
                     # unusual, but people might have done it
                     if 'presets' in schedule:
-                        presets |= schedule['presets']
-                        del schedule['presets']
+                        presets |= schedule.pop('presets')
                 # fill missionstats
                 m = missionstats[instance] = {}
                 if 'EVENT_FILTER' in cfg['FILTER']:

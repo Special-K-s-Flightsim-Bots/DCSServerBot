@@ -314,10 +314,16 @@ class Tacview(Extension):
             return
 
     def get_inst_version(self) -> Optional[str]:
+        if not self.get_inst_path():
+            self.log.error("You need to specify an installation path for Tacview!")
+            return None
         path = os.path.join(self.get_inst_path(), 'DCS', 'Mods', 'tech', 'Tacview', 'bin')
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 
-    async def install(self):
+    async def install(self) -> bool:
+        if not self.get_inst_path():
+            self.log.error("You need to specify an installation path for Tacview!")
+            return False
         from_path = os.path.join(self.get_inst_path(), 'DCS')
         shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
         export_file = os.path.join(self.server.instance.home, 'Scripts', 'Export.lua')
@@ -328,8 +334,12 @@ class Tacview(Extension):
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
                 await outfile.writelines(lines)
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
+        return True
 
-    async def uninstall(self):
+    async def uninstall(self) -> bool:
+        if not self.get_inst_path():
+            self.log.error("You need to specify an installation path for Tacview!")
+            return False
         version = self.version
         from_path = os.path.join(self.get_inst_path(), 'DCS')
         for root, dirs, files in os.walk(from_path, topdown=False):
@@ -352,8 +362,10 @@ class Tacview(Extension):
         version = self.get_inst_version()
         if version != self.version:
             if force or self.config.get('autoupdate', False):
-                await self.uninstall()
-                await self.install()
+                if not await self.uninstall():
+                    return False
+                if not await self.install():
+                    return False
                 await ServiceRegistry.get(ServiceBus).send_to_node({
                     "command": "rpc",
                     "service": BotService.__name__,

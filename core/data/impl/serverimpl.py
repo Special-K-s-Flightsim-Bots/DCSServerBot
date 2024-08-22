@@ -713,6 +713,8 @@ class ServerImpl(Server):
         await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
 
     async def setStartIndex(self, mission_id: int) -> None:
+        if mission_id > len(self.settings['missionList']):
+            mission_id = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
         else:
