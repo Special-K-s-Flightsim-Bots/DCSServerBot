@@ -9,7 +9,7 @@ import traceback
 from core import Plugin, TEventListener, utils, Server, Status, Report, DEFAULT_TAG
 from discord.ext import commands
 from discord.ext.commands import Command
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Type, Optional
 
 
@@ -141,7 +141,7 @@ class Commands(Plugin):
                 return
             report = Report(self.bot, self.plugin_name, config['report'])
             env = await report.render(**kwargs)
-            await ctx.send(embed=env.embed)
+            await ctx.send(env.mention, embed=env.embed)
         elif data:
             if len(data) > 1:
                 embed = discord.Embed(color=discord.Color.blue())
@@ -154,6 +154,9 @@ class Commands(Plugin):
                 await ctx.send(data[0]['value'])
 
     def register_commands(self):
+        if 'commands' not in self.locals:
+            self.log.warning(f"No commands defined in {self.plugin_name}.yaml!")
+            return
         for cmd in self.locals['commands']:
             try:
                 checks = []

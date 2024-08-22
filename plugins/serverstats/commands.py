@@ -6,7 +6,7 @@ from core import utils, Plugin, TEventListener, PluginRequiredError, Report, Pag
 from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Type, Optional, Literal, Union
 
 from .listener import ServerStatsListener

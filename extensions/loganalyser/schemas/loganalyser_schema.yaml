@@ -1,0 +1,10 @@
+schema;loganalyser_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}
+    restart_on_unlist: {type: bool}
+    message_unlist: {type: str}
+    warn_times:
+      type: seq
+      sequence:
+        - type: int

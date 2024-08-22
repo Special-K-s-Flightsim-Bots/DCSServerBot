@@ -105,7 +105,10 @@ class MizFile:
         for key, value in preset.items():
             # handle special cases
             if key == 'date':
-                self.date = datetime.strptime(value, '%Y-%m-%d')
+                if isinstance(value, str):
+                    self.date = datetime.strptime(value, '%Y-%m-%d')
+                else:
+                    self.date = value
             elif key == 'clouds':
                 if isinstance(value, str):
                     self.clouds = {"preset": value}

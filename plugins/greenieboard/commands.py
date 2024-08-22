@@ -13,7 +13,7 @@ from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Union
 
 from .listener import GreenieBoardEventListener

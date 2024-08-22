@@ -13,7 +13,7 @@ from core.services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
     from .server import Server
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 __all__ = ["Player"]
 
@@ -45,7 +45,7 @@ class Player(DataObject):
     bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):
-        from services import BotService
+        from services.bot import BotService
 
         super().__post_init__()
         self.bot = ServiceRegistry.get(BotService).bot
@@ -232,7 +232,7 @@ class Player(DataObject):
                     WHERE ucid = %s
                 """, (self.ucid, ))
 
-    def has_discord_roles(self, roles: list[str]) -> bool:
+    def has_discord_roles(self, roles: list[Union[str, int]]) -> bool:
         valid_roles = []
         for role in roles:
             valid_roles.extend(self.bot.roles[role])

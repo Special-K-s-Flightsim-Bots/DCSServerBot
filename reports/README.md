@@ -33,6 +33,10 @@ An Embed has several attributes and many of them can be set inside the report de
 ```json
 {
   "color": "blue",
+  "mention": [
+    112233445566,
+    223344556677
+  ],
   "title": "This is the title of the Embed.",
   "description": "This is a brief description.",
   "url": "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot",
@@ -43,6 +47,8 @@ An Embed has several attributes and many of them can be set inside the report de
   "footer": "This is the footer (will be added to any other footers)"
 }
 ```
+Mentioning is done with role IDs. So you need to add the IDs of the roles to be mentioned in here.
+
 ### Input Section
 Within the "input" section you can define variables that will be used inside the report or validate such, that came from your render(...) call.
 ```json

@@ -5,7 +5,7 @@ import psycopg
 from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands
 from pathlib import Path
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Type
 
 from .listener import SlotBlockingListener
@@ -22,29 +22,50 @@ class SlotBlocking(Plugin):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
 
-    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        def _change_instance(instance: dict):
-            if instance.get('use_reservations'):
-                instance['payback'] = instance['use_reservations']
-                del instance['use_reservations']
+    def _migrate_3_1(self, instance: dict, **kwargs):
+        if instance.get('use_reservations'):
+            instance['payback'] = instance.pop('use_reservations')
 
+    def _migrate_3_2(self, instance: dict, **kwargs):
+        message = kwargs['message']
+        if instance.get('VIP'):
+            instance['message_server_full'] = message
+
+    async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
+        if not self.locals:
+            return
+        kwargs = {}
         if new_version == '3.1':
-            if not self.locals:
-                return
-            path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
-            data = yaml.load(Path(path).read_text(encoding='utf-8'))
-            if self.node.name in data.keys():
-                for name, node in data.items():
-                    if name == DEFAULT_TAG:
-                        _change_instance(node)
-                        continue
-                    for instance in node.values():
-                        _change_instance(instance)
-            else:
-                for instance in data.values():
-                    _change_instance(instance)
-            with open(path, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+            _change_instance = self._migrate_3_1
+        elif new_version == '3.2':
+            server_config = os.path.join(self.node.config_dir, 'servers.yaml')
+            server_data = yaml.load(Path(server_config).read_text(encoding='utf-8'))
+            message = server_data.get(DEFAULT_TAG, {}).get('message_server_full',
+                                                           'The server is full, please try again later!')
+            kwargs['message'] = message
+            _change_instance = self._migrate_3_2
+        else:
+            return
+
+        path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
+        data = yaml.load(Path(path).read_text(encoding='utf-8'))
+        if self.node.name in data.keys():
+            for name, node in data.items():
+                if name == DEFAULT_TAG:
+                    _change_instance(node, **kwargs)
+                    continue
+                for instance_name, instance in node.items():
+                    _change_instance(instance, **kwargs)
+        else:
+            for instance in data.values():
+                _change_instance(instance, **kwargs)
+        with open(path, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
+        if new_version == '3.2':
+            if DEFAULT_TAG in server_data:
+                server_data[DEFAULT_TAG].pop('message_server_full', None)
+            with open(server_config, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(server_data, outfile)
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:

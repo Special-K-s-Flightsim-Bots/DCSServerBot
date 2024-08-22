@@ -10,7 +10,8 @@ from core import Plugin, TEventListener, PluginInstallationError, Status, Group,
 from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
-from services import DCSServerBot, MusicService
+from services.bot import DCSServerBot
+from services.music import MusicService
 from typing import Type, Optional
 
 from .listener import MusicEventListener

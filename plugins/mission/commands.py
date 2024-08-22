@@ -5,6 +5,7 @@ import psycopg
 import random
 import re
 
+from copy import deepcopy
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
 from pathlib import Path
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Union, Literal
 
 from .listener import MissionEventListener
@@ -166,11 +167,135 @@ class Mission(Plugin):
         with open(path, mode='w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
 
+    def _migrate_3_11(self):
+        def _change_instance(instance: dict):
+            instance.pop('greeting_message_members', None)
+            instance.pop('greeting_message_unmatched', None)
+            instance.pop('smooth_pause', None)
+            instance.pop('afk_exemptions', None)
+            instance.pop('usage_alarm', None)
+            # remove message_server_full if Slotblocking is not used
+            if 'slotblocking' not in self.node.plugins:
+                instance.pop('message_server_full', None)
+
+        # first of all, reorganise the messages in servers.yaml
+        server_config = os.path.join(self.node.config_dir, 'servers.yaml')
+        server_data = yaml.load(Path(server_config).read_text(encoding='utf-8'))
+        # make sure we have a default tag
+        default = server_data.get(DEFAULT_TAG)
+        if not default:
+            default = server_data[DEFAULT_TAG] = {
+                "messages": {
+                    'greeting_message_members': self.locals.get(DEFAULT_TAG, {}).get(
+                        'greeting_message_members', '{player.name}, welcome back to {server.name}!'),
+                    'greeting_message_unmatched': self.locals.get(DEFAULT_TAG, {}).get(
+                        'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
+                                                      'if you want to see your user stats!'),
+                    'message_player_username': self.node.config.get('messages', {}).get(
+                        'player_username', 'Your player name contains invalid characters. '
+                                           'Please change your name to join our server.'),
+                    'message_player_default_username': self.node.config.get('messages', {}).get(
+                        'player_default_username', 'Please change your default player name at the top right of the '
+                                                   'multiplayer selection list to an individual one!'),
+                    'message_ban': 'You are banned from this server. Reason: {}',
+                    'message_reserved': 'This server is locked for specific users.\n'
+                                        'Please contact a server admin.',
+                    'message_no_voice': 'You need to be in voice channel "{}" to use this server!'
+                }
+            }
+        else:
+            default['messages'] = {
+                'greeting_message_members': self.locals.get(DEFAULT_TAG, {}).get(
+                    'greeting_message_members', '{player.name}, welcome back to {server.name}!'),
+                'greeting_message_unmatched': self.locals.get(DEFAULT_TAG, {}).get(
+                    'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
+                                                  'if you want to see your user stats!'),
+                'message_player_username': self.node.config.get('messages', {}).get(
+                    'player_username', 'Your player name contains invalid characters. '
+                                       'Please change your name to join our server.'),
+                'message_player_default_username': self.node.config.get('messages', {}).get(
+                    'player_default_username', 'Please change your default player name at the top right of the '
+                                               'multiplayer selection list to an individual one!'),
+                'message_ban': server_data[DEFAULT_TAG].pop('message_ban', 'You are banned from this server. Reason: {}'),
+                'message_reserved': server_data[DEFAULT_TAG].pop('message_reserved',
+                                                                 'This server is locked for specific users.\n'
+                                                                 'Please contact a server admin.'),
+                'message_no_voice': server_data[DEFAULT_TAG].pop('message_no_voice',
+                                                'You need to be in voice channel "{}" to use this server!'),
+            }
+        if 'smooth_pause' in self.locals.get(DEFAULT_TAG, {}):
+            default['smooth_pause'] = self.locals[DEFAULT_TAG].pop('smooth_pause')
+        if self.locals.get(DEFAULT_TAG, {}).get('usage_alarm'):
+            default['usage_alarm'] = self.locals[DEFAULT_TAG].pop('usage_alarm')
+        default['slot_spamming'] = {
+            "message": default.pop('message_slot_spamming', 'You have been kicked for slot spamming!'),
+            "check_time": 5,
+            "slot_changes": 5
+        }
+        for name, section in server_data.items():
+            if name == DEFAULT_TAG:
+                continue
+            if 'messages' not in section:
+                section['messages'] = {
+                    'greeting_message_members': default['messages']['greeting_message_members'],
+                    'greeting_message_unmatched': default['messages']['greeting_message_unmatched'],
+                    'message_player_username': default['messages']['message_player_username'],
+                    'message_player_default_username': default['messages']['message_player_default_username'],
+                    'message_ban': section.pop('message_ban', default['messages']['message_ban']),
+                    'message_reserved': section.pop('message_reserved', default['messages']['message_reserved']),
+                    'message_no_voice': section.pop('message_no_voice', default['messages']['message_no_voice']),
+                }
+            if 'afk_time' in section:
+                section['afk'] = {
+                    'afk_time': section.pop('afk_time'),
+                    'message': section.pop('message_afk', default.get(
+                        'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'))
+                }
+                if self.locals.get(DEFAULT_TAG, {}).get('afk_exemptions'):
+                    section['afk']['exemptions'] = deepcopy(self.locals[DEFAULT_TAG]['afk_exemptions'])
+        # remove defaults from the server sections
+        for element in default.keys():
+            for name, section in server_data.items():
+                if name == DEFAULT_TAG:
+                    continue
+                elif section.get(element) == default[element]:
+                    section.pop(element, None)
+        default.pop('message_afk', None)
+        # rewrite servers.yaml
+        with open(server_config, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(server_data, outfile)
+        # cleanup
+        # remove messages from main.yaml
+        config = os.path.join(self.node.config_dir, 'main.yaml')
+        data = yaml.load(Path(config).read_text(encoding='utf-8'))
+        if data.pop('messages', None):
+            with open(config, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(data, outfile)
+        # remove unnecessary stuff from own config
+        path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
+        if not os.path.exists(path):
+            return
+        data = yaml.load(Path(path).read_text(encoding='utf-8'))
+        if self.node.name in data.keys():
+            for name, node in data.items():
+                if name == DEFAULT_TAG:
+                    _change_instance(node)
+                    continue
+                for instance in node.values():
+                    _change_instance(instance)
+        else:
+            for instance in data.values():
+                _change_instance(instance)
+        with open(path, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
+
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         if new_version == '3.6':
             self._migrate_3_6()
         elif new_version == '3.10':
             self._migrate_3_10()
+        elif new_version == '3.11':
+            self._migrate_3_11()
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -857,36 +982,44 @@ class Mission(Plugin):
     async def exempt(self, interaction: discord.Interaction,
                      user: app_commands.Transform[
                          Union[discord.Member, str], utils.UserTransformer(sel_type=PlayerType.PLAYER)
-                     ]):
+                     ],
+                     server: Optional[app_commands.Transform[Server, utils.ServerTransformer]]):
         ephemeral = utils.get_ephemeral(interaction)
         if isinstance(user, discord.Member):
             ucid = await self.bot.get_ucid_by_member(user)
         else:
             ucid = user
-        config_file = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
-        if DEFAULT_TAG not in self.locals:
-            self.locals[DEFAULT_TAG] = {}
-        if 'afk_exemptions' not in self.locals[DEFAULT_TAG]:
-            self.locals[DEFAULT_TAG]['afk_exemptions'] = {}
-        if 'ucid' not in self.locals[DEFAULT_TAG]['afk_exemptions']:
-            self.locals[DEFAULT_TAG]['afk_exemptions']['ucid'] = []
-        if ucid not in self.locals[DEFAULT_TAG]['afk_exemptions']['ucid']:
+        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+        if not server:
+            section = DEFAULT_TAG
+        else:
+            section = server.name
+        data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+        if section not in data:
+            data[section] = {}
+        if 'afk' not in data[section]:
+            data[section]['afk'] = {}
+        if 'exemptions' not in data[section]['afk']:
+            data[section]['afk']['exemptions'] = {}
+        if 'ucid' not in data[section]['afk']['exemptions']:
+            data[section]['afk']['exemptions']['ucid'] = []
+        if ucid not in data[section]['afk']['exemptions']['ucid']:
             if not await utils.yn_question(interaction,
                                            _("Do you want to permanently add this user to the AFK exemption list?"),
                                            ephemeral=ephemeral):
                 await interaction.followup.send("Aborted.", ephemeral=ephemeral)
                 return
-            self.locals[DEFAULT_TAG]['afk_exemptions']['ucid'].append(ucid)
+            data[section]['afk']['exemptions']['ucid'].append(ucid)
             await interaction.followup.send(_("User added to the exemption list."), ephemeral=ephemeral)
         else:
             if not await utils.yn_question(interaction,
                                            _("Player is on the list already. Do you want to remove them?")):
                 await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
                 return
-            self.locals[DEFAULT_TAG]['afk_exemptions']['ucid'].remove(ucid)
+            data[section]['afk']['exemptions']['ucid'].remove(ucid)
             await interaction.followup.send(_("User removed from the exemption list."), ephemeral=ephemeral)
         with open(config_file, 'w', encoding='utf-8') as outfile:
-            yaml.dump(self.locals, outfile)
+            yaml.dump(data, outfile)
 
     @player.command(description=_('Sends a popup to a player\n'))
     @app_commands.guild_only()
@@ -1515,22 +1648,20 @@ class Mission(Plugin):
     async def afk_check(self):
         try:
             for server in self.bot.servers.values():
-                if server.status != Status.RUNNING:
-                    continue
-                max_time = server.locals.get('afk_time', -1)
-                if max_time == -1:
+                config = server.locals.get('afk', {})
+                max_time = config.get('afk_time', -1)
+                if not config or max_time == -1 or server.status != Status.RUNNING:
                     continue
                 for ucid, dt in server.afk.items():
                     player = server.get_player(ucid=ucid, active=True)
-                    exemptions = self.get_config(server).get('afk_exemptions', {})
+                    exemptions = config.get('exemptions', {})
                     if 'discord' in exemptions:
                         exemptions['discord'] = list(set(exemptions['discord']) | {"DCS Admin", "GameMaster"})
                     if not player or player.check_exemptions(exemptions):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
-                        msg = server.locals.get(
-                            'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'
-                        ).format(player=player, time=utils.format_time(max_time))
+                        msg = server.locals['messages']['message_afk'].format(player=player,
+                                                                              time=utils.format_time(max_time))
                         await server.kick(player, msg)
         except Exception as ex:
             self.log.exception(ex)

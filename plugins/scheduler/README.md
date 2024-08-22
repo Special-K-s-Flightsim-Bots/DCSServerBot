@@ -5,7 +5,6 @@ others:
 * Have a server rotate a mission every 4 hrs.
 * Restart the mission before it gets dark.
 * Have two servers run alternately, maybe one with password, one public
-* Change time and weather in your mission on specific times or randomly
 
 The plugin is one of if not the most complex plugins of DCSServerBot. Read this documentation thoroughly. 
 
@@ -29,7 +28,7 @@ instance2:
     timezone: Europe/Berlin                       # optional: timezone (default: local time)
     00-12: YYYYYYY
     12-24: NNNNNNN
-  restart:                                        # at 04:00 and 08:00 LT ..
+  action:                                        # at 04:00 and 08:00 LT ..
     local_times:
     - 04:00
     - 08:00
@@ -42,8 +41,9 @@ instance3:
   schedule:                                       # server "instance3" will run every day from noon to midnight
     00-12: NNNNNNN
     12-24: YYYYYYY
-  restart:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ..
-    method: restart_with_shutdown
+  action:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ..
+    method: restart
+    shutdown: true
     mission_time: 480
     populated: false                              # .. only, if nobody is on the server (or as soon as that happens afterwards)
 mission:
@@ -76,18 +76,22 @@ mission:
 | __Examples:__<br/>Time between 12:30h and 18:00h => 12:30-18:00<br/>Time between 09:00h and 21:30h => 09-21:30<br/>Time between 21:00h and 03:00h => 21-03 (next day!)<br/>All day long (00:00h - 24:00h) => 00-24<br/> | __Examples:__<br/>YYYYYYY => every day<br/>YYYYYNN => weekdays only<br/>&nbsp;<br/>&nbsp;                                                                                                                                                                          |
 See the above examples for a better understanding on how it works.
 
-### Section "restart"
+### Section "action"
 
-| Parameter        | Description                                                                                                                                                                                                                                                                                                               |
-|------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| method           | One of **restart**, **restart_with_shutdown**, **rotate** or **shutdown**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "shutdown" will only shutdown the server<br/>- "rotate" will launch the next mission in the mission list. |
-| mission_time     | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                                                                              |
-| max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                                                                                       |
-| real_time        | Time in minutes since the start of your server (not necessarily your mission, if that is paused for instance), when a restart should happen. Only works with restart_with_shutdown.                                                                                                                                       |
-| local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                                                                         |
-| utc_times        | Like local_times but UTC.                                                                                                                                                                                                                                                                                                 |
-| populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                                                                           |
-| mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                                                                                 |
+| Parameter        | Description                                                                                                                                                                                                                                                            |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| method           | One of **restart**, **rotate**, **load** or **shutdown**.<br/>- "restart" will restart the current mission,<br/>- "shutdown" will only shutdown the server<br/>- "rotate" will launch the next mission in the mission list.<br/>- "load" will load a specific mission. |
+| shutdown         | If true, the server will be shut down prior to restarting or rotating (default: false).                                                                                                                                                                                |
+| mission_time     | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                           |
+| max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                                    |
+| real_time        | Time in minutes since the start of your server (not necessarily your mission, if that is paused for instance), when a restart should happen. Only works with restart_with_shutdown.                                                                                    |
+| local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                      |
+| utc_times        | Like local_times but UTC.                                                                                                                                                                                                                                              |
+| mission_id       | For load only: the mission_id to load (1 = first from the mission list).                                                                                                                                                                                               |
+| mission_file     | For load only: the mission file name to load (has to be in the mission list).                                                                                                                                                                                          |
+| populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                        |
+| mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                              |
+| run_extensions   | If true, extensions will be applied to the mission prior to the restart / rotation (default: true) .                                                                                                                                                                   |
 
 ### on-commands
 

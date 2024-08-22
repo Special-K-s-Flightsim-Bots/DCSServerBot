@@ -2,8 +2,6 @@ schema;master_schema:
   type: map
   allowempty: true
   mapping:
-    greeting_message_members: {type: str}
-    greeting_message_unmatched: {type: str}
     uploads:
       type: map
       mapping:
@@ -12,24 +10,6 @@ schema;master_schema:
           type: seq
           sequence:
             - type: text
-    afk_exemptions:
-      type: map
-      mapping:
-        ucid:
-          type: seq
-          sequence:
-            - type: str
-        discord:
-          type: seq
-          sequence:
-            - type: text
-    usage_alarm:
-      type: map
-      mapping:
-        min_threshold: {type: int, range: {min: 1}}
-        max_threshold: {type: int, range: {min: 0}}
-        role: {type: text}
-        channel: {type: int}
 
 type: map
 mapping:

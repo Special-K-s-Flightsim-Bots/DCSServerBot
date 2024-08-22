@@ -16,7 +16,11 @@ The plugin can be configured via yaml in config/plugins/userstats.yaml. If such 
 DEFAULT:
   wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
   squadrons:
-    self_join: true   # enable self-join for squadrons (default: true, otherwise you need to get the associated role)
+    self_join: true         # enable self-join for squadrons (default: true, otherwise you need to get the associated role)
+    persist_list: true      # Show a persistent list in the squadron channel that updates with any join / leave
+    highscore:
+      params:
+        limit: 10
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:
@@ -51,6 +55,7 @@ instance2:
 | /squadron delete   | <name>            | all           | DCS Admin      | Deletes a squadron and removes all players from that squadron mapping.                            |
 | /squadron join     | <name>            | all           | DCS            | Join a squadron (and get the optional auto role).                                                 |
 | /squadron leave    | <name>            | all           | DCS            | Leave a squadron (and remove the optional auto role).                                             |
+| /squadron list     | <name>            | all           | DCS            | Lists the members of a squadron.                                                                  |
 
 ### Periods
 Periods can be used to specify, if you only want to see statistics for a specific time-period.

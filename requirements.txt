@@ -17,7 +17,7 @@ discord.py==2.4.0
 eyeD3==0.9.7
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.112.0
+fastapi==0.112.1
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -29,13 +29,13 @@ GitPython==3.1.43
 jsonschema==4.23.0
 
 # Matplotlib: Python 2D plotting library
-matplotlib==3.9.1.post1
+matplotlib==3.9.2
 
 # Minidump: Windows Minidump file reader
-minidump==0.0.23; sys_platform == 'win32'
+minidump==0.0.24; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
-numpy==2.0.1
+numpy==2.1.0
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.2
@@ -89,7 +89,7 @@ seaborn==0.13.2
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.30.5
+uvicorn==0.30.6
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==4.0.2

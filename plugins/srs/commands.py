@@ -4,7 +4,7 @@ import extensions
 from core import Plugin, PluginRequiredError, TEventListener, PluginInstallationError, Group, get_translation, utils, \
     Server, Coalition, Status
 from discord import app_commands
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Type, Literal, Optional
 
 from .listener import SRSEventListener

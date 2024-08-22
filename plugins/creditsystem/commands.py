@@ -5,7 +5,7 @@ from datetime import timezone
 from discord import app_commands, SelectOption
 from core import utils, Plugin, PluginRequiredError, Group, get_translation
 from psycopg.rows import dict_row
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, cast, Union
 
 from .listener import CreditSystemListener

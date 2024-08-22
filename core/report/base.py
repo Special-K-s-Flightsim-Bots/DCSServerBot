@@ -23,7 +23,7 @@ from .__utils import parse_input, parse_params
 
 if TYPE_CHECKING:
     from core import Server
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
 
 __all__ = [
     "Report",
@@ -67,6 +67,11 @@ class Report:
             # parse report parameters
             if name == 'title':
                 self.env.embed.title = utils.format_string(item, **self.env.params)[:256]
+            elif name == 'mention':
+                if isinstance(item, int):
+                    self.env.mention = f'<@&{item}>'
+                else:
+                    self.env.mention = ''.join([f"<@&{x}>" for x in item])
             elif name == 'description':
                 self.env.embed.description = utils.format_string(item, **self.env.params)[:4096]
             elif name == 'url':
@@ -297,6 +302,7 @@ class PaginationReport(Report):
         try:
             try:
                 message = await self.interaction.followup.send(
+                    env.mention,
                     embed=env.embed,
                     view=view or MISSING,
                     file=discord.File(fp=env.buffer or env.filename,

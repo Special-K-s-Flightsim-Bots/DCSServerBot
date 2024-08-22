@@ -208,6 +208,9 @@ class UsersPerMissionTime(report.GraphElement):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"server_name": server_name})
                 df = pd.DataFrame.from_dict(await cursor.fetchall())
+        all_hours = pd.DataFrame({'time': np.arange(0, 24)})
+        df = pd.merge(all_hours, df, on='time', how='left')
+        df['users'] = df['users'].fillna(0)
         sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
         self.axes.set_title('Users per Mission-Time | past 14 days', color='white', fontsize=25)
         self.axes.set_xticks(range(24))

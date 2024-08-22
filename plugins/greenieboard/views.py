@@ -4,7 +4,7 @@ from core import utils, get_translation
 from datetime import datetime
 from discord import TextStyle, SelectOption
 from discord.ui import Modal, TextInput, View, Select, Item
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Any, Union
 
 _ = get_translation(__name__.split('.')[1])

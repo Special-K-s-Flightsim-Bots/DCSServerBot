@@ -4,6 +4,8 @@ schema;node_extensions_schema:
   mapping:
     Lardoon:
       include: 'node_lardoon_schema'
+    LotAtc:
+      include: 'node_lotatc_schema'
     Olympus:
       include: 'node_olympus_schema'
     RealWeather:
@@ -25,7 +27,7 @@ schema;instance_extensions_schema:
     Lardoon:
       include: 'instance_lardoon_schema'
     LotAtc:
-      include: 'lotatc_schema'
+      include: 'instance_lotatc_schema'
     MizEdit:
       include: 'mizedit_schema'
     Olympus:
@@ -44,3 +46,5 @@ schema;instance_extensions_schema:
       include: 'instance_voicechat_schema'
     Pretense:
       include: 'instance_pretense_schema'
+    LogAnalyser:
+      include: 'loganalyser_schema'

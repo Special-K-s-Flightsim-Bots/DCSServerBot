@@ -1,0 +1,15 @@
+schema;node_lotatc_schema:
+  type: map
+  allowempty: true  # we might want to specify additional lotatc parameters, which are then not validated
+  mapping:
+    installation: {type: str}
+    autoupdate: {type: any}
+schema;instance_lotatc_schema:
+  type: map
+  allowempty: true  # we might get other LotAtc options in here
+  mapping:
+    enabled: {type: bool}
+    host: {type: str}
+    port: {type: int, range: {min: 80, max: 65535}}
+    show_passwords: {type: bool}
+    autoupdate: {type: bool}

@@ -12,7 +12,7 @@ from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -391,6 +391,7 @@ class Admin(Plugin):
             with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:
                 zip_file.writestr(filename, file)
             file = zip_buffer.getvalue()
+            filename += '.zip'
         if not target:
             dm_channel = await interaction.user.create_dm()
             for channel in [dm_channel, interaction.channel]:

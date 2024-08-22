@@ -4,7 +4,7 @@ import os
 from core import utils, Server, ServiceRegistry, get_translation
 from discord import SelectOption, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
-from services import MusicService
+from services.music import MusicService
 from services.music.radios import Mode
 
 from .utils import get_tag

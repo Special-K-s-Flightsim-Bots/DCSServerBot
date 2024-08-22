@@ -228,6 +228,5 @@ class CloudRotatingFileHandler(RotatingFileHandler):
         if self.maxBytes > 0:  # are we rolling over?
             log_file_size = os.path.getsize(self.baseFilename)
             if log_file_size >= self.maxBytes:
-                print(f"CloudRotatingFileHandler: Rollover: {log_file_size} / {self.maxBytes}")
                 return 1
         return 0

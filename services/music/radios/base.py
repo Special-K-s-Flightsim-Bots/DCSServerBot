@@ -28,7 +28,7 @@ class Mode(Enum):
 class Radio(ABC):
 
     def __init__(self, name: str, server: Server):
-        from services import MusicService
+        from services.music import MusicService
 
         self.name = name
         self.service = ServiceRegistry.get(MusicService)

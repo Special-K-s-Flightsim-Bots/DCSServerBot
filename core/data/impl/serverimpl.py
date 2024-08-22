@@ -40,7 +40,7 @@ yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Extension, Instance
-    from services import DCSServerBot
+    from services.bot import DCSServerBot
     from watchdog.events import FileSystemEvent, FileSystemMovedEvent
 
 DEFAULT_EXTENSIONS = {
@@ -61,7 +61,8 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if not path.endswith('.miz'):
             return
         if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.loop.create_task(self.server.send_to_dcs({"command": "addMission", "path": path}))
+            asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "addMission", "path": path}),
+                                             self.loop)
         else:
             missions = self.server.settings['missionList']
             missions.append(path)
@@ -83,7 +84,8 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
                     self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
                     return
                 else:
-                    self.loop.create_task(self.server.send_to_dcs({"command": "deleteMission", "id": idx}))
+                    asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "deleteMission", "id": idx}),
+                                                     self.loop)
             else:
                 missions.remove(path)
                 self.server.settings['missionList'] = missions
@@ -435,7 +437,7 @@ class ServerImpl(Server):
 
     def _load_extension(self, name: str) -> Optional[Extension]:
         if '.' not in name:
-            _extension = 'extensions.' + name
+            _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
             _extension = name
         _ext = utils.str_to_class(_extension)
@@ -711,6 +713,8 @@ class ServerImpl(Server):
         await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
 
     async def setStartIndex(self, mission_id: int) -> None:
+        if mission_id > len(self.settings['missionList']):
+            mission_id = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
         else:

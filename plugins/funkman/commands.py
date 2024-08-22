@@ -3,7 +3,7 @@ import psycopg
 
 from configparser import ConfigParser
 from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG, Server
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional
 
 from .listener import FunkManEventListener

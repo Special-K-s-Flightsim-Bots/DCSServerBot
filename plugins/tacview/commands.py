@@ -3,7 +3,7 @@ import extensions
 
 from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
 from discord import app_commands
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
@@ -47,7 +47,7 @@ class Tacview(Plugin):
         if 'Tacview' not in await server.init_extensions():
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Tacview not installed on server {}").format(server.display_name), ephemeral=ephemeral)
+                _("Tacview not installed on server {}!").format(server.display_name), ephemeral=ephemeral)
             return
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:
             config = await self._configure(interaction, server, enabled, autoupdate)
@@ -70,13 +70,13 @@ class Tacview(Plugin):
         if 'Tacview' in await server.init_extensions():
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Tacview already installed on server {}").format(server.display_name), ephemeral=ephemeral)
+                _("Tacview already installed on server {}!").format(server.display_name), ephemeral=ephemeral)
             return
 
         if 'Tacview' not in server.node.extensions:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                _("Tacview is not configured on node {}").format(server.node.name), ephemeral=ephemeral)
+                _("Tacview is not configured on node {}!").format(server.node.name), ephemeral=ephemeral)
             return
 
         config = await self._configure(interaction, server, True, autoupdate)
@@ -102,7 +102,7 @@ class Tacview(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if 'Tacview' not in await server.init_extensions():
-            await interaction.followup.send(_("Tacview not installed on server {}").format(server.display_name),
+            await interaction.followup.send(_("Tacview not installed on server {}!").format(server.display_name),
                                             ephemeral=ephemeral)
             return
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:

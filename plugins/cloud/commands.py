@@ -15,9 +15,10 @@ from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT
 from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
+from services.bot import DCSServerBot
+from services.bot.dummy import DummyBot
 from typing import Type, Any, Optional, Union
 
-from services import DCSServerBot
 from .listener import CloudListener
 from .logger import CloudLoggingHandler
 
@@ -300,7 +301,7 @@ class Cloud(Plugin):
                 "guild_id": self.bot.guilds[0].id,
                 "guild_name": self.bot.guilds[0].name,
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
-                "variant": "DCSServerBot",
+                "variant": "DCSServerBot" if not isinstance(self.bot, DummyBot) else "No Bot",
                 "dcs_version": dcs_version,
                 "python_version": '.'.join(platform.python_version_tuple()),
                 "num_bots": num_bots,

@@ -5,7 +5,7 @@ from core import Plugin, PluginRequiredError, utils, Report, Status, Server, com
 from discord import app_commands
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter, PeriodTransformer, PeriodFilter, \
     CampaignFilter, MissionFilter
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Optional, Union
 
 from .listener import MissionStatisticsEventListener

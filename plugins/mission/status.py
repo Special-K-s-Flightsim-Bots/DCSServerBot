@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 from core import const, report, Status, Server, utils, ServiceRegistry, Plugin, Side
 from datetime import datetime, timedelta, timezone
-from services import BotService
+from services.bot import BotService
 from typing import Optional, cast
 
 STATUS_IMG = {

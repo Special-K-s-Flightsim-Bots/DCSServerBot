@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.app_commands import Group
 
 from core import Plugin, utils, Channel, Coalition, Server, get_translation
-from services import DCSServerBot
+from services.bot import DCSServerBot
 
 _ = get_translation(__name__.split('.')[1])
 

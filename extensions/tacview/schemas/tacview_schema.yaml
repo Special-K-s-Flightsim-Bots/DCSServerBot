@@ -1,0 +1,31 @@
+schema;node_tacview_schema:
+  type: map
+  allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
+  mapping:
+    installation: {type: str}
+    tacviewExportPath: {type: str}
+schema;instance_tacview_schema:
+  type: map
+  allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
+  mapping:
+    enabled: {type: bool}
+    autoupdate: {type: bool}
+    host: {type: str}
+    log: {type: str}
+    tacviewExportPath: {type: str}
+    tacviewAutoDiscardFlights: {type: int}
+    tacviewDebugMode: {type: int}
+    tacviewFlightDataRecordingEnabled: {type: bool}
+    tacviewModuleEnabled: {type: bool}
+    tacviewMultiplayerFlightsAsClient: {type: int}
+    tacviewMultiplayerFlightsAsHost: {type: int}
+    tacviewRealTimeTelemetryEnabled: {type: bool}
+    tacviewRealTimeTelemetryPort: {type: text}
+    tacviewRealTimeTelemetryPassword: {type: str}
+    tacviewRemoteControlEnabled: {type: bool}
+    tacviewRemoteControlPort: {type: text}
+    tacviewRemoteControlPassword: {type: str}
+    tacviewSinglePlayerFlights: {type: int}
+    tacviewTerrainExport: {type: int}
+    tacviewPlaybackDelay: {type: int, range: {min: 0}}
+    target: {type: str}

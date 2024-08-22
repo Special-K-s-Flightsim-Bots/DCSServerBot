@@ -5,7 +5,8 @@ import re
 from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError, get_translation, PluginInstallationError
 from discord import app_commands
 from pathlib import Path
-from services import DCSServerBot, BackupService
+from services.bot import DCSServerBot
+from services.backup import BackupService
 
 # ruamel YAML support
 from ruamel.yaml import YAML

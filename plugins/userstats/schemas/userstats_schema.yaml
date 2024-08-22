@@ -8,6 +8,14 @@ schema;master_schema:
       type: map
       mapping:
         self_join: {type: bool}
+        persist_list: {type: bool}
+        highscore:
+          type: map
+          mapping:
+            params:
+              type: map
+              mapping:
+                limit: {type: int}
     highscore:
       type: any
       # todo

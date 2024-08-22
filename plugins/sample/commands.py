@@ -3,7 +3,7 @@ import psycopg
 
 from core import Plugin, utils, Server, TEventListener, Status, command
 from discord import app_commands
-from services import DCSServerBot
+from services.bot import DCSServerBot
 from typing import Type
 
 from .listener import SampleEventListener

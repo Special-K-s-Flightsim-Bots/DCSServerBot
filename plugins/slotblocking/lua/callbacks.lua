@@ -58,7 +58,7 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
         local current = #net.get_player_list() + 1
         if current >= (max - tonumber(cfg['slots'])) then
             if not is_vip(ucid) then
-                return false, config.MESSAGE_SERVER_FULL
+                return false, cfg['message_server_full']
             end
         end
     end
@@ -146,9 +146,9 @@ function balance_slots(playerID, side, slotID)
         return
     end
 
-    for _, playerId in base.pairs(players) do
-        local player_info = net.get_player_info(playerId)
-        local _, slot, sub_slot = utils.getMulticrewAllParameters(playerId)
+    for _, id in base.pairs(players) do
+        local player_info = net.get_player_info(id)
+        local _, slot, sub_slot = utils.getMulticrewAllParameters(id)
 
         -- only count real seats
         if sub_slot == 0 and slot ~= -1 then
@@ -185,7 +185,10 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
         end
     end
     -- check slot restrictions by balance
-    if dcsbot.params['slotblocking']['balancing'] then
+    local player_info = net.get_player_info(playerID)
+    local old_side = player_info.side
+    -- if not side change happens or they want in a sub-slot, do not run balancing
+    if old_side ~= side and tonumber(slotID) and dcsbot.params['slotblocking']['balancing'] then
         return balance_slots(playerID, side, slotID)
     end
 end

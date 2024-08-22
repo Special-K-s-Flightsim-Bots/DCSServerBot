@@ -444,19 +444,19 @@ class ServiceBus(Service):
                 cast(InstanceProxy, _instance).home = home
                 server.instance = _instance
                 self.servers[server_name] = server
-                server.settings = settings
-                server.options = options
-                server.dcs_version = dcs_version
-                server.maintenance = maintenance
-                # to support remote channel configs (for remote testing)
-                if not server.locals.get('channels'):
-                    server.locals['channels'] = channels
-                # add eventlistener queue
-                if server.name not in self.udp_server.message_queue:
-                    self.udp_server.message_queue[server.name] = Queue()
-                    self.executor.submit(self.udp_server.process, server.name)
-                self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
+            server.dcs_version = dcs_version
+            server.maintenance = maintenance
             server.status = Status(status)
+            server.settings = settings
+            server.options = options
+            # to support remote channel configs (for remote testing)
+            if not server.locals.get('channels'):
+                server.locals['channels'] = channels
+            # add eventlistener queue
+            if server.name not in self.udp_server.message_queue:
+                self.udp_server.message_queue[server.name] = Queue()
+                self.executor.submit(self.udp_server.process, server.name)
+            self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
         except StopIteration:
             self.log.error(f"No configuration found for instance {instance} in config\nodes.yaml")
         except Exception as ex:
@@ -740,7 +740,7 @@ class ServiceBus(Service):
                                         self.log.debug(f"Not processed: {listeners[pos].plugin_name}")
                                         future.cancel()
                             else:
-                                self.loop.create_task(self.send_to_node(data))
+                                asyncio.run_coroutine_threadsafe(self.send_to_node(data), self.loop)
                         except Exception as ex:
                             self.log.exception(ex)
                         finally:
