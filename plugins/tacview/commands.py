@@ -1,8 +1,8 @@
 import discord
-import extensions
 
 from core import Plugin, get_translation, Group, Server, utils, Status, UninstallException, InstallException
 from discord import app_commands
+from extensions.tacview import Tacview as TacviewExt
 from services.bot import DCSServerBot
 from typing import Optional
 
@@ -20,7 +20,7 @@ class Tacview(Plugin):
                          autoupdate: bool = None) -> Optional[dict]:
         config = server.instance.locals.get('extensions', {}).get('Tacview', {})
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
-                                  config=extensions.Tacview.CONFIG_DICT,
+                                  config=TacviewExt.CONFIG_DICT,
                                   default=config)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
@@ -73,11 +73,11 @@ class Tacview(Plugin):
                 _("Tacview already installed on server {}!").format(server.display_name), ephemeral=ephemeral)
             return
 
-        if 'Tacview' not in server.node.extensions:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("Tacview is not configured on node {}!").format(server.node.name), ephemeral=ephemeral)
-            return
+#        if 'Tacview' not in server.node.extensions:
+#            # noinspection PyUnresolvedReferences
+#            await interaction.response.send_message(
+#                _("Tacview is not configured on node {}!").format(server.node.name), ephemeral=ephemeral)
+#            return
 
         config = await self._configure(interaction, server, True, autoupdate)
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:

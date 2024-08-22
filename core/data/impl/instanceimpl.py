@@ -42,16 +42,16 @@ class InstanceImpl(Instance):
             server_name = settings.get('name', 'DCS Server') if settings else None
             if server_name == 'n/a':
                 server_name = None
-        asyncio.create_task(self.update_instance(server_name))
+        self.update_instance(server_name)
 
-    async def update_instance(self, server_name: Optional[str] = None):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
+    def update_instance(self, server_name: Optional[str] = None):
+        with self.pool.connection() as conn:
+            with conn.transaction():
                 # clean up old server name entries to avoid conflicts
-                await conn.execute("""
+                conn.execute("""
                     DELETE FROM instances WHERE server_name = %s
                 """, (server_name, ))
-                await conn.execute("""
+                conn.execute("""
                     INSERT INTO instances (node, instance, port, server_name)
                     VALUES (%s, %s, %s, %s) 
                     ON CONFLICT (node, instance) DO UPDATE 

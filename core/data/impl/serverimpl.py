@@ -252,8 +252,7 @@ class ServerImpl(Server):
                                                    admin_channel=admin_channel)
                         outfile.write(line)
         except KeyError as k:
-            self.log.error(
-                f'! You must set a value for {k}. See README for help.')
+            self.log.error(f'! You must set a value for {k}. See README for help.')
             raise k
         except Exception as ex:
             self.log.exception(ex)
