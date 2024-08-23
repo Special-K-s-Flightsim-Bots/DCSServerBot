@@ -1,7 +1,6 @@
 import aiofiles
 import aiohttp
 import asyncio
-import atexit
 import certifi
 import discord
 import glob
@@ -191,10 +190,6 @@ class NodeImpl(Node):
         self.is_shutdown.set()
 
     async def restart(self):
-#        def _restart():
-#            self.log.info("Restarting ...")
-#            os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
-#        atexit.register(_restart)
         await self.shutdown(-1)
 
     def read_locals(self) -> dict:
@@ -404,10 +399,6 @@ class NodeImpl(Node):
         return rc
 
     async def upgrade(self):
-#        def _upgrade():
-#            self.log.info("Starting the updater ...")
-#            os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
-
         # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
         if not self.master and self.locals.get('cloud_drive', True):
             await self.restart()
@@ -418,7 +409,6 @@ class NodeImpl(Node):
                     async with conn.transaction():
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
-#            atexit.register(_upgrade)
             await self.shutdown(-3)
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
