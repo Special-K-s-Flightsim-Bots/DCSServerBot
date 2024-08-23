@@ -51,9 +51,15 @@ class Scheduler(Plugin):
             def _change_instance(instance: dict):
                 if 'restart' in instance:
                     instance['action'] = instance.pop('restart')
-                    if instance['action']['method'] == 'restart_with_shutdown':
-                        instance['action']['method'] = 'restart'
-                        instance['action']['shutdown'] = True
+                    if isinstance(instance['action'], list):
+                        for action in instance['action']:
+                            if action['method'] == 'restart_with_shutdown':
+                                action['method'] = 'restart'
+                                action['shutdown'] = True
+                    else:
+                        if instance['action']['method'] == 'restart_with_shutdown':
+                            instance['action']['method'] = 'restart'
+                            instance['action']['shutdown'] = True
 
             config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
             data = yaml.load(Path(config).read_text(encoding='utf-8'))
