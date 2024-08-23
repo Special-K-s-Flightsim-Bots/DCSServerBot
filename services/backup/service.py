@@ -130,10 +130,11 @@ class BackupService(Service):
             return False
 
     def recover_database(self, date: str):
-        target = os.path.expandvars(self.locals.get('target'))
-        path = os.path.join(target, f"{self.node.name.lower()}_{date}", f"db_{date}_*.tar")
-        filename = glob.glob(path)[0]
-        os.execv(sys.executable, [os.path.basename(sys.executable), 'recover.py', '-f', filename] + sys.argv[1:])
+        ...
+#        target = os.path.expandvars(self.locals.get('target'))
+#        path = os.path.join(target, f"{self.node.name.lower()}_{date}", f"db_{date}_*.tar")
+#        filename = glob.glob(path)[0]
+#        os.execv(sys.executable, [os.path.basename(sys.executable), 'recover.py', '-f', filename] + sys.argv[1:])
 
     def recover_bot(self, filename: str):
         ...
