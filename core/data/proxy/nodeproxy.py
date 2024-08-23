@@ -68,11 +68,14 @@ class NodeProxy(Node):
                     _locals[name] = element
         return _locals
 
-    async def shutdown(self):
+    async def shutdown(self, rc: int = -2):
         await self.bus.send_to_node({
             "command": "rpc",
             "object": "Node",
-            "method": "shutdown"
+            "method": "shutdown",
+            "params": {
+                "rc": rc
+            }
         }, node=self.name)
 
     async def restart(self):

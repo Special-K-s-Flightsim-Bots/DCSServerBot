@@ -33,9 +33,16 @@ if not exist "%VENV%" (
     python -m venv "%VENV%"
     "%VENV%\Scripts\python.exe" -m pip install --no-cache-dir --prefer-binary -r requirements.txt
 )
+
+SET PROGRAM=run.py
 :loop
-"%VENV%\Scripts\python" run.py %ARGS%
+"%VENV%\Scripts\python" %PROGRAM% %ARGS%
 if %ERRORLEVEL% EQU -1 (
+    PROGRAM=run.py
+    goto loop
+)
+if %ERRORLEVEL% EQU -3 (
+    PROGRAM=update.py
     goto loop
 )
 if %ERRORLEVEL% EQU -2 (

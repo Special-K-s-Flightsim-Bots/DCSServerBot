@@ -85,6 +85,7 @@ class NodeImpl(Node):
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.is_shutdown = asyncio.Event()
+        self.rc = 0
         self.dcs_branch = None
         self.dcs_version = None
         self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
@@ -185,15 +186,16 @@ class NodeImpl(Node):
         else:
             del self.after_update[name]
 
-    async def shutdown(self):
+    async def shutdown(self, rc: int = -2):
+        self.rc = rc
         self.is_shutdown.set()
 
     async def restart(self):
-        def _restart():
-            self.log.info("Restarting ...")
-            os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
-        atexit.register(_restart)
-        await self.shutdown()
+#        def _restart():
+#            self.log.info("Restarting ...")
+#            os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py'] + sys.argv[1:])
+#        atexit.register(_restart)
+        await self.shutdown(-1)
 
     def read_locals(self) -> dict:
         _locals = dict()
@@ -402,9 +404,9 @@ class NodeImpl(Node):
         return rc
 
     async def upgrade(self):
-        def _upgrade():
-            self.log.info("Starting the updater ...")
-            os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
+#        def _upgrade():
+#            self.log.info("Starting the updater ...")
+#            os.execv(sys.executable, [os.path.basename(sys.executable), 'update.py'] + sys.argv[1:])
 
         # We do not want to run an upgrade, if we are on a cloud drive, so just restart in this case
         if not self.master and self.locals.get('cloud_drive', True):
@@ -416,8 +418,8 @@ class NodeImpl(Node):
                     async with conn.transaction():
                         await conn.execute("UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s",
                                            (self.guild_id, ))
-            atexit.register(_upgrade)
-            await self.shutdown()
+#            atexit.register(_upgrade)
+            await self.shutdown(-3)
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
