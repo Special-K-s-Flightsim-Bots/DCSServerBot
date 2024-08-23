@@ -38,11 +38,11 @@ SET PROGRAM=run.py
 :loop
 "%VENV%\Scripts\python" %PROGRAM% %ARGS%
 if %ERRORLEVEL% EQU -1 (
-    PROGRAM=run.py
+    SET PROGRAM=run.py
     goto loop
 )
 if %ERRORLEVEL% EQU -3 (
-    PROGRAM=update.py
+    SET PROGRAM=update.py
     goto loop
 )
 if %ERRORLEVEL% EQU -2 (
