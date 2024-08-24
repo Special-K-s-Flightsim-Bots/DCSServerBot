@@ -97,21 +97,21 @@ refer to the respective plugin-documentation for more.
 Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, LotAtc, etc.</br>
 DCSServerBot supports some of them already and can add a bit of quality of life.
 
-| Extension        | Scope                                                                                                             | Documentation |
-|------------------|-------------------------------------------------------------------------------------------------------------------|---------------|
-| MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up [here](./extensions/MizEdit.md)! | [README](./extensions/mizedit/README.md) |
-| DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                                 | [README](./extensions/voicechat/README.md) |
-| DCS-SRS          | Market leader in DCS VOIP integration.                                                                            | [README](./extensions/srs/README.md) |
-| Tacview          | Well known flight data capture and analysis tool.                                                                 | [README](./extensions/tacview/README.md) |
-| LotAtc           | GCI- and ATC-extension for DCS World. Simple display only extension.                                              | [README](./extensions/lotatc/README.md) |
-| DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                       | [README](./extensions/dsmc/README.md) |
-| DCS Olympus      | Real-time control of your DCS missions through a map interface.                                                   | [README](./extensions/olympus/README.md) |
-| Lardoon          | Webgui for Tacview with search options.                                                                           | [README](./extensions/lardoon/README.md) |
-| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option!        | [README](./extensions/sneaker/README.md) |
-| DCS Real Weather | Real weather for your missions.                                                                                   | [README](./extensions/realweather/README.md) |
-| OvGME            | Use mods within your DCS World servers.                                                                           | [README](./extensions/ovgme/README.md) |
-| gRPC             | Support gRPC, a communication framework with DCS World.                                                           | [README](./extensions/grpc/README.md) |
-| Pretense         | Dynamic campaign framework by Dzsek.                                                                              | [README](./extensions/pretense/README.md) |
+| Extension        | Scope                                                                                                      | Documentation                                |
+|------------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+| MizEdit          | My own invention, can be used to modify your missions. Very powerful!                                      | [README](./extensions/mizedit/README.md)     |
+| DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                          | [README](./extensions/voicechat/README.md)   |
+| DCS-SRS          | Market leader in DCS VOIP integration.                                                                     | [README](./extensions/srs/README.md)         |
+| Tacview          | Well known flight data capture and analysis tool.                                                          | [README](./extensions/tacview/README.md)     |
+| LotAtc           | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |
+| DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
+| DCS Olympus      | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
+| Lardoon          | Webgui for Tacview with search options.                                                                    | [README](./extensions/lardoon/README.md)     |
+| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! | [README](./extensions/sneaker/README.md)     |
+| DCS Real Weather | Real weather for your missions.                                                                            | [README](./extensions/realweather/README.md) |
+| OvGME            | Use mods within your DCS World servers.                                                                    | [README](./extensions/ovgme/README.md)       |
+| gRPC             | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
+| Pretense         | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
 
 > ⚠️ **Attention!**<br>
 > Besides LogAnalyser and MizEdit, which are my own solutions, all other extensions are made by fellow community members. 
@@ -430,7 +430,7 @@ My 2nd Fancy Server:            # You can have an unlimited amount of server con
 
 ### config/presets.yaml
 This file holds your different presets that you can apply to missions as modifications.<br>
-See [MizEdit](./extensions/MizEdit.md) for further details.
+See [MizEdit](./extensions/mizedit/README.md) for further details.
 
 ### services/bot.yaml
 This is your Discord-bot configuration.

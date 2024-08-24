@@ -1,8 +1,7 @@
 import asyncio
 import psycopg_pool
 
-from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event, Report, \
-    get_translation
+from core import EventListener, Plugin, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
 from discord.ext import tasks
 
 _ = get_translation(__name__.split('.')[1])

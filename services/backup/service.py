@@ -1,10 +1,8 @@
 import asyncio
-import glob
 import os
 import shlex
 import subprocess
 import time
-import sys
 
 from core import ServiceRegistry, Service, utils
 from datetime import datetime

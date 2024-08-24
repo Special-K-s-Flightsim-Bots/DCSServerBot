@@ -1,4 +1,3 @@
-import asyncio
 import luadata
 import os
 import shutil

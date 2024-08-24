@@ -1,7 +1,7 @@
 # Plugin "SRS"
 [SimpleRadioStandalone](http://dcssimpleradio.com/) (DCS-SRS) is a radio solution for DCS World.<br>
 If you want to use SRS in DCSServerBot, in most cases it is enough to activate the respective 
-[extension](../../extensions/README.md#srs). Especially when it comes to [LotAtc](../../plugins/lotatc/README.md),
+[extension](../../extensions/srs/README.md). Especially when it comes to [LotAtc](../../plugins/lotatc/README.md),
 or, if you want to display an SRS activity status for your players, or if you even want to use slot blocking based
 on SRS - then you want to install this plugin.
 
