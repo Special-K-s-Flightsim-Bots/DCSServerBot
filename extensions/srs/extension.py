@@ -159,11 +159,15 @@ class SRS(Extension, FileSystemEventHandler):
                                           'radio_effect_override') or dirty
         dirty = self._maybe_update_config('General Settings', 'GLOBAL_LOBBY_FREQUENCIES',
                                           'global_lobby_frequencies') or dirty
-        if 'LotAtc' in self.server.extensions:
+        extension = self.server.extensions.get('LotAtc')
+        if extension:
             self.config['lotatc'] = True
             dirty = self._maybe_update_config('General Settings',
                                               'LOTATC_EXPORT_ENABLED',
                                               'lotatc') or dirty
+            dirty = self._maybe_update_config('General Settings',
+                                              'LOTATC_EXPORT_PORT',
+                                              'lotatc_export_port') or dirty
             self.config['awacs'] = True
 
         if self.config.get('awacs', True):
