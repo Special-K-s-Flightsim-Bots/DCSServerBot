@@ -35,7 +35,7 @@ DCS.release_server:
 > recipients can be a list of Discord groups that the player either is part of or not (prepend with !).<br>
 > !@everyone means, this message is for people that are not a member of your Discord.
 
-If you want to play sounds, make sure that you loaded them into the mission first (see [MizEdit](../../extensions/MizEdit.md)).
+If you want to play sounds, make sure that you loaded them into the mission first (see [MizEdit](../../extensions/mizedit/README.md)).
 
 ### Optional: Layout for multiple Recipient Groups
 ```yaml

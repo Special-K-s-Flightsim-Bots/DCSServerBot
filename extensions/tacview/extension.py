@@ -37,17 +37,17 @@ class Tacview(Extension):
         "tacviewRealTimeTelemetryPassword": {
             "type": str,
             "label": _("Tacview Password"),
-            "placeholder": _("Password for Tacview"),
+            "placeholder": _("Password for Tacview, . for none"),
         },
         "tacviewRemoteControlPort": {
             "type": int,
             "label": _("Remote Control Port"),
-            "placeholder": _("Unique port number for remote control"),
+            "placeholder": _("Unique port number for remote control")
         },
         "tacviewRemoteControlPassword": {
             "type": str,
             "label": _("Remote Control Password"),
-            "placeholder": _("Password for remote control"),
+            "placeholder": _("Password for remote control, . for none"),
         },
         "tacviewPlaybackDelay": {
             "type": int,

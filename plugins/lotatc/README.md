@@ -1,9 +1,9 @@
 # Plugin "LotAtc"
 [LotAtc](https://www.lotatc.com/) is a famous GCI tool for DCS World.<br>
-DCSServerBot supports it as an [extension](../../extensions/README.md#lotatc), to manage and display the 
+DCSServerBot supports it as an [extension](../../extensions/lotatc/README.md), to manage and display the 
 configuration in your servers and a plugin, that enables the possibility to upload your transponder files through
 discord and to inform you about active GCIs on the server. The best result you'll get, if you use LotAtc together with 
-the [SRS](../../extensions/README.md#srs) extension.
+the [SRS](../../extensions/srs/README.md) extension.
 
 ## Configuration
 As LotAtc is an optional plugin, you need to activate it in main.yaml first like so:

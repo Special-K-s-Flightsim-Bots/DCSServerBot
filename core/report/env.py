@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from io import BytesIO
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from discord import Embed

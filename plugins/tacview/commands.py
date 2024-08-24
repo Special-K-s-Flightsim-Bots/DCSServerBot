@@ -18,7 +18,13 @@ class Tacview(Plugin):
                          server: Server,
                          enabled: bool = None,
                          autoupdate: bool = None) -> Optional[dict]:
-        config = server.instance.locals.get('extensions', {}).get('Tacview', {})
+        config = server.instance.locals.get('extensions', {}).get('Tacview', {
+            "tacviewRealTimeTelemetryPort": "42674",
+            "tacviewRealTimeTelemetryPassword": "",
+            "tacviewRemoteControlEnabled": "42675",
+            "tacviewRemoteControlPassword": "",
+            "tacviewPlaybackDelay": 0
+        })
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
                                   config=TacviewExt.CONFIG_DICT,
                                   default=config)
@@ -26,14 +32,20 @@ class Tacview(Plugin):
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return None
+        tacviewRealTimeTelemetryPassword = modal.value.get('tacviewRealTimeTelemetryPassword')
+        if tacviewRealTimeTelemetryPassword == '.':
+            tacviewRealTimeTelemetryPassword = ""
+        tacviewRemoteControlPassword = modal.value.get('tacviewRemoteControlPassword')
+        if tacviewRemoteControlPassword == '.':
+            tacviewRemoteControlPassword = ""
         return {
             "enabled": enabled or config.get('enabled', True),
             "autoupdate": autoupdate or config.get('autoupdate', False),
             "tacviewRealTimeTelemetryPort": modal.value.get('tacviewRealTimeTelemetryPort'),
-            "tacviewRealTimeTelemetryPassword": modal.value.get('tacviewRealTimeTelemetryPassword'),
+            "tacviewRealTimeTelemetryPassword": tacviewRealTimeTelemetryPassword,
             "tacviewRemoteControlEnabled": True if modal.value.get('tacviewRemoteControlPort') else False,
             "tacviewRemoteControlPort": modal.value.get('tacviewRemoteControlPort'),
-            "tacviewRemoteControlPassword": modal.value.get('tacviewRemoteControlPassword'),
+            "tacviewRemoteControlPassword": tacviewRemoteControlPassword,
             "tacviewPlaybackDelay": int(modal.value.get('tacviewPlaybackDelay')),
         }
 

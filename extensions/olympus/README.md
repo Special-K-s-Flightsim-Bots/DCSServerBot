@@ -1,7 +1,7 @@
 # Extension "DCS Olympus"
 [DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
 real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
-is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [OvGME](../services/ovgme/README.md) service like so:
+is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [OvGME](../../services/ovgme/README.md) service like so:
 ```yaml
 DEFAULT:
   SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'

@@ -48,12 +48,14 @@ class SRS(Extension, FileSystemEventHandler):
         "blue_password": {
             "type": str,
             "label": _("Blue Password"),
-            "placeholder": _("Password for blue GCI"),
+            "placeholder": _("Password for blue GCI, . for none"),
+            "required": True
           },
         "red_password": {
             "type": str,
             "label": _("Red Password"),
-            "placeholder": _("Password for red GCI"),
+            "placeholder": _("Password for red GCI, . for none"),
+            "required": True
         }
     }
 

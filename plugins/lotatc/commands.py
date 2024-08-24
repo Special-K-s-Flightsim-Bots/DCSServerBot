@@ -1,12 +1,12 @@
 import aiohttp
 import discord
-import extensions
 import json
 import os
 
 from core import Plugin, utils, Server, get_translation, Group, Coalition, Status, InstallException, UninstallException
 from discord import app_commands
 from discord.ext import commands
+from extensions.lotatc import LotAtc as LotAtcExt
 from jsonschema import validate, ValidationError
 from services.bot import DCSServerBot
 from typing import Optional, Literal
@@ -109,7 +109,7 @@ class LotAtc(Plugin):
                          autoupdate: bool = None) -> Optional[dict]:
         config = server.instance.locals.get('extensions', {}).get('LotAtc', {})
         modal = utils.ConfigModal(title=_("LotAtc Configuration"),
-                                  config=extensions.LotAtc.CONFIG_DICT,
+                                  config=LotAtcExt.CONFIG_DICT,
                                   default=config)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)

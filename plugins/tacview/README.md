@@ -1,6 +1,6 @@
 # Plugin "Tacview"
 [Tacview](https://www.tacview.net/) is a famous flight analysis tool for DCS World.<br>
-DCSServerBot supports it as an [extension](../../extensions/README.md#lotatc), to manage and display the 
+DCSServerBot supports it as an [extension](../../extensions/lotatc/README.md), to manage and display the 
 configuration in your servers and a plugin, to install or uninstall Tacview in/from your servers. 
 
 ## Configuration
@@ -9,7 +9,7 @@ As Tacview is an optional plugin, you need to activate it in main.yaml first lik
 opt_plugins:
   - tacview
 ```
-The additional configuration is handled in the [extension](../../extensions/README.md#tacview).
+The additional configuration is handled in the [extension](../../extensions/tacview/README.md).
 
 ## Discord Commands
 The following Discord commands are available through the LotAtc plugin:

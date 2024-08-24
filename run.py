@@ -183,9 +183,10 @@ class Main:
                 await self.node.unregister()
 
 
-async def run_node(name, config_dir=None, no_autoupdate=False):
+async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
     async with NodeImpl(name=name, config_dir=config_dir) as node:
         await Main(node, no_autoupdate=no_autoupdate).run()
+        return node.rc
 
 
 if __name__ == "__main__":
@@ -222,10 +223,10 @@ if __name__ == "__main__":
     try:
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
-                asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
+                rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError:
         # do not restart again
         log.error("There is a permission error.")
@@ -258,7 +259,4 @@ if __name__ == "__main__":
         console.print_exception(show_locals=True, max_frames=1)
         # restart on unknown errors
         exit(-1)
-    finally:
-        pidfile = f"dcssb_{args.node}.pid"
-#        if os.path.exists(pidfile):
-#            os.remove(pidfile)
+    exit(rc)

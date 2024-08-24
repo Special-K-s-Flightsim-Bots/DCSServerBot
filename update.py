@@ -126,5 +126,7 @@ if __name__ == '__main__':
         rc = do_update_git(args.delete)
     except ImportError:
         rc = do_update_github(args.delete)
-    if not args.no_restart:
-        os.execv(sys.executable, [os.path.basename(sys.executable), 'run.py', '--noupdate'] + sys.argv[1:])
+    if args.no_restart:
+        exit(-2)
+    else:
+        exit(-1)

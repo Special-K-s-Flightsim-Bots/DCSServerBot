@@ -118,7 +118,7 @@ class Node:
     def read_locals(self) -> dict:
         raise NotImplemented()
 
-    async def shutdown(self):
+    async def shutdown(self, rc: int = -2):
         raise NotImplemented()
 
     async def restart(self):

@@ -1231,7 +1231,7 @@ class ConfigModal(Modal):
                                     label=v.get('label'),
                                     style=discord.TextStyle(v.get('style', 1)),
                                     placeholder=v.get('placeholder'),
-                                    default=default.get(k),
+                                    default=str(default.get(k) or ""),
                                     required=v.get('required', False),
                                     min_length=v.get('min_length'),
                                     max_length=v.get('max_length')))
@@ -1255,7 +1255,10 @@ class ConfigModal(Modal):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=self.ephemeral)
-        self.value = {v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type')) for v in self.children}
+        self.value = {
+            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type')) if v.value else v.default
+            for v in self.children
+        }
         self.stop()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:

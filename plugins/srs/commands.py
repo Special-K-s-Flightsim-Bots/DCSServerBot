@@ -1,9 +1,9 @@
 import discord
-import extensions
 
 from core import Plugin, PluginRequiredError, TEventListener, PluginInstallationError, Group, get_translation, utils, \
     Server, Coalition, Status
 from discord import app_commands
+from extensions.srs import SRS as SRSExt
 from services.bot import DCSServerBot
 from typing import Type, Literal, Optional
 
@@ -85,18 +85,24 @@ class SRS(Plugin):
                          autoconnect: bool = None) -> Optional[dict]:
         config = server.instance.locals.get('extensions', {}).get('SRS', {})
         modal = utils.ConfigModal(title=_("SRS Configuration"),
-                                  config=extensions.SRS.CONFIG_DICT,
+                                  config=SRSExt.CONFIG_DICT,
                                   default=config)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
             return None
+        blue_password = modal.value.get('blue_password')
+        if blue_password == '.':
+            blue_password = ""
+        red_password = modal.value.get('red_password')
+        if red_password == '.':
+            red_password = ""
         return {
             "enabled": enabled or config.get('enabled', True),
             "autoconnect": autoconnect or config.get('autoconnect', True),
             "port": int(modal.value.get('port')),
-            "blue_password": modal.value.get('blue_password'),
-            "red_password": modal.value.get('red_password')
+            "blue_password": blue_password,
+            "red_password": red_password
         }
 
     @srs.command(description=_('Configure SRS'))
