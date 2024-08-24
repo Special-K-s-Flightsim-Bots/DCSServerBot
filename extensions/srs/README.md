@@ -33,7 +33,8 @@ MyNode:
           port: 5002
           minimized: true     # start SRS minimized (default: true)
           autoconnect: true   # install the appropriate DCS-SRS-AutoConnectGameGUI.lua, default: true
-          awacs: true
+          awacs: true         # if you use LotAtc
+          lotatc_export_port: 10712
           blue_password: blue
           red_password: red
           radio_effect_override: false                # optional: disable radio effects (LOS, etc)
