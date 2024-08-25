@@ -170,11 +170,11 @@ class ScheduleInfo(report.EmbedElement):
                 now = now.replace(tzinfo=tz)
                 hours, rem = divmod(tz.utcoffset(now).total_seconds(), 3600)
                 minutes, _ = divmod(rem, 60)
-                if hours > 0 or minutes > 0:
+                if hours == 0 and minutes == 0:
+                    name = 'Time (UTC)'
+                else:
                     sign = '+' if hours >= 0 else '-'
                     name = f'Time (UTC{sign}{int(abs(hours)):02d}:{int(minutes):02d})'
-                else:
-                    name = 'Time (UTC)'
                 self.add_field(name=name, value='\n'.join([x for x in config['schedule'].keys() if x != 'timezone']))
                 self.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
                 self.add_field(name='_ _', value='✅ = Server running\n'
