@@ -866,7 +866,7 @@ class NodeImpl(Node):
         if server.is_remote:
             server.name = new_name
 
-    @tasks.loop(minutes=5.0)
+    @tasks.loop(minutes=10.0)
     async def autoupdate(self):
         from services.bot import BotService
         from services.servicebus import ServiceBus
