@@ -1660,8 +1660,9 @@ class Mission(Plugin):
                     if not player or player.check_exemptions(exemptions):
                         continue
                     if (datetime.now(timezone.utc) - dt).total_seconds() > max_time:
-                        msg = server.locals['messages']['message_afk'].format(player=player,
-                                                                              time=utils.format_time(max_time))
+                        msg = server.locals.get('afk', {}).get(
+                            'message_afk', '{player.name}, you have been kicked for being AFK for more than {time}.'
+                        ).format(player=player, time=utils.format_time(max_time))
                         await server.kick(player, msg)
         except Exception as ex:
             self.log.exception(ex)
