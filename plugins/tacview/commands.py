@@ -23,7 +23,7 @@ class Tacview(Plugin):
             "tacviewRealTimeTelemetryPassword": "",
             "tacviewRemoteControlEnabled": "42675",
             "tacviewRemoteControlPassword": "",
-            "tacviewPlaybackDelay": 0
+            "tacviewPlaybackDelay": "0"
         })
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
                                   config=TacviewExt.CONFIG_DICT,
@@ -84,12 +84,6 @@ class Tacview(Plugin):
             await interaction.response.send_message(
                 _("Tacview already installed on server {}!").format(server.display_name), ephemeral=ephemeral)
             return
-
-#        if 'Tacview' not in server.node.extensions:
-#            # noinspection PyUnresolvedReferences
-#            await interaction.response.send_message(
-#                _("Tacview is not configured on node {}!").format(server.node.name), ephemeral=ephemeral)
-#            return
 
         config = await self._configure(interaction, server, True, autoupdate)
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:

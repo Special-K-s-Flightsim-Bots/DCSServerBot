@@ -321,11 +321,14 @@ class Tacview(Extension):
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 
     async def install(self) -> bool:
+        def ignore_export_lua(dirname, filenames):
+            return ['Scripts/Export.lua'] if dirname == from_path else []
+
         if not self.get_inst_path():
             self.log.error("You need to specify an installation path for Tacview!")
             return False
         from_path = os.path.join(self.get_inst_path(), 'DCS')
-        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True, ignore=ignore_export_lua)
         export_file = os.path.join(self.server.instance.home, 'Scripts', 'Export.lua')
         async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
             lines = await infile.readlines()
@@ -342,10 +345,13 @@ class Tacview(Extension):
             return False
         version = self.version
         from_path = os.path.join(self.get_inst_path(), 'DCS')
+        export_file = os.path.normpath(os.path.join(self.server.instance.home, 'Scripts', 'Export.lua'))
         for root, dirs, files in os.walk(from_path, topdown=False):
             for name in files:
                 file_x = os.path.join(root, name)
                 file_y = file_x.replace(from_path, self.server.instance.home)
+                if os.path.normpath(file_y) == export_file:
+                    continue
                 if os.path.exists(file_y):
                     os.remove(file_y)
             for name in dirs:
@@ -356,6 +362,15 @@ class Tacview(Extension):
                         os.rmdir(dir_y)  # only removes empty directories
                     except OSError:
                         pass  # directory not empty
+        # rewrite / remove the export.lua file
+        async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
+            lines = await infile.readlines()
+        lines_to_keep = [line for line in lines if 'TacviewGameExport' not in line and line.strip()]
+        if lines_to_keep:
+            async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
+                await outfile.writelines(lines_to_keep)
+        else:
+            os.remove(export_file)
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
 
     async def update_instance(self, force: bool) -> bool:
