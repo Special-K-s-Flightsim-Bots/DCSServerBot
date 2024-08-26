@@ -69,8 +69,9 @@ class Tacview(Extension):
     async def startup(self) -> bool:
         self.stop_event.clear()
         self.stopped.clear()
-        # noinspection PyAsyncCall
-        asyncio.create_task(self.check_log())
+        if self.config.get('target'):
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.check_log())
         return await super().startup()
 
     async def _shutdown(self):
@@ -78,9 +79,12 @@ class Tacview(Extension):
         super().shutdown()
 
     def shutdown(self) -> bool:
-        self.loop.create_task(self._shutdown())
-        self.stop_event.set()
-        return True
+        if self.config.get('target'):
+            self.loop.create_task(self._shutdown())
+            self.stop_event.set()
+            return True
+        else:
+            return super().shutdown()
 
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
