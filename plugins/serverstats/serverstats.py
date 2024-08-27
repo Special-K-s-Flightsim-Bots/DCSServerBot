@@ -338,7 +338,6 @@ class ServerLoad(report.MultiGraphElement):
         settings = {
             "Hour": {
                 "major_locator": mdates.MinuteLocator(),
-                "minor_locator": None,
                 "formatter": mdates.DateFormatter('%H:%M')
             },
             "Day": {
@@ -360,6 +359,6 @@ class ServerLoad(report.MultiGraphElement):
             ax.xaxis.set_major_locator(settings[period]['major_locator'])
             if 'minor_locator' in settings[period]:
                 ax.xaxis.set_minor_locator(settings[period]['minor_locator'])
+                ax.tick_params(axis='x', which='minor', length=6)
             ax.xaxis.set_major_formatter(settings[period]['formatter'])
             ax.tick_params(axis='x', which='major', rotation=30)
-            ax.tick_params(axis='x', which='minor', length=6)
