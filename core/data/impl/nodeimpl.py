@@ -573,7 +573,6 @@ class NodeImpl(Node):
                         for lic in all_licenses:
                             if lic.endswith('_terrain'):
                                 licenses.add(lic)
-                await session.get(LOGOUT_URL)
             return list(licenses)
 
     async def get_latest_version(self, branch: str) -> Optional[str]:
@@ -592,12 +591,13 @@ class NodeImpl(Node):
             }
             async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                response = await session.post(LOGIN_URL, data={"login": user, "password": password})
-                if response.status == 200:
-                    async with session.get(UPDATER_URL.format(branch)) as response:
-                        data = json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
-                    await session.post(LOGOUT_URL)
-                    return data
+                async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
+                    if r1.status == 200:
+                        async with await session.get(UPDATER_URL.format(branch)) as r2:
+                            data = json.loads(gzip.decompress(await r2.read()))['versions2'][-1]['version']
+                        async with await session.get(LOGOUT_URL):
+                            pass
+                        return data
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_version_no_auth()
