@@ -55,6 +55,7 @@ __all__ = [
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
 LOGIN_URL = 'https://www.digitalcombatsimulator.com/gameapi/login/'
+LOGOUT_URL = 'https://www.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
@@ -572,6 +573,7 @@ class NodeImpl(Node):
                         for lic in all_licenses:
                             if lic.endswith('_terrain'):
                                 licenses.add(lic)
+                await session.get(LOGOUT_URL)
             return list(licenses)
 
     async def get_latest_version(self, branch: str) -> Optional[str]:
@@ -592,8 +594,11 @@ class NodeImpl(Node):
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 response = await session.post(LOGIN_URL, data={"login": user, "password": password})
                 if response.status == 200:
-                    async with session.get(UPDATER_URL.format(branch)) as response:
-                        return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+                    try:
+                        async with session.get(UPDATER_URL.format(branch)) as response:
+                            return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+                    finally:
+                        await session.get(LOGOUT_URL)
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_version_no_auth()
@@ -866,7 +871,7 @@ class NodeImpl(Node):
         if server.is_remote:
             server.name = new_name
 
-    @tasks.loop(minutes=10.0)
+    @tasks.loop(minutes=5.0)
     async def autoupdate(self):
         from services.bot import BotService
         from services.servicebus import ServiceBus

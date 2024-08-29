@@ -300,6 +300,7 @@ class Tacview(Extension):
                                 "filename": filename
                             }
                         })
+                        self.log.debug(f"TACVIEW file {filename} uploaded.")
                     except AttributeError:
                         self.log.warning(f"Can't upload TACVIEW file {filename}, "
                                          f"channel {target[4:-1]} incorrect!")
