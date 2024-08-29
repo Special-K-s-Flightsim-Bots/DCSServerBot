@@ -594,11 +594,10 @@ class NodeImpl(Node):
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 response = await session.post(LOGIN_URL, data={"login": user, "password": password})
                 if response.status == 200:
-                    try:
-                        async with session.get(UPDATER_URL.format(branch)) as response:
-                            return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
-                    finally:
-                        await session.get(LOGOUT_URL)
+                    async with session.get(UPDATER_URL.format(branch)) as response:
+                        data = json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+                    await session.post(LOGOUT_URL)
+                    return data
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_version_no_auth()
