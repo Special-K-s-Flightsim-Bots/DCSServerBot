@@ -408,6 +408,9 @@ class MissionEventListener(EventListener):
         for p in list(server.players.values()):
             if not p.active and not p.id == 1:
                 del server.players[p.id]
+        # check if we are idle
+        if not server.is_populated():
+            server.idle_since = datetime.now(tz=timezone.utc)
         # remove roles
         if server.locals.get('autorole'):
             role = self.bot.get_role(server.locals.get('autorole'))
@@ -510,6 +513,9 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             await player.update(data)
+        # if the first player joined, the server is considered non-idle
+        if server.idle_since:
+            server.idle_since = None
         # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             'command': 'uploadUserRoles',
@@ -603,6 +609,9 @@ class MissionEventListener(EventListener):
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
         server.afk.pop(player.ucid, None)
+        # if the last player left, the server is considered idle
+        if not server.is_populated():
+            server.idle_since = datetime.now(tz=timezone.utc)
         if player.member:
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
             if autorole:

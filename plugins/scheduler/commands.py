@@ -373,6 +373,9 @@ class Scheduler(Plugin):
                             rconf['shutdown'] = True
                         asyncio.create_task(self.restart_mission(server, config, rconf, restart_in))
                         return
+                elif 'idle_time' in rconf and server.idle_since:
+                    if (datetime.now(tz=timezone.utc) - server.idle_since).total_seconds() / 60 >= rconf['idle_time']:
+                        asyncio.create_task(self.restart_mission(server, config, rconf, 0))
 
         if 'action' in config and not server.restart_pending:
             if isinstance(config['action'], list):

@@ -61,6 +61,7 @@ class Server(DataObject):
     bus: ServiceBus = field(compare=False, init=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
+    idle_since: datetime = field(compare=False, default=None)
 
     def __post_init__(self):
         from services.servicebus import ServiceBus

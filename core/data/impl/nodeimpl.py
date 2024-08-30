@@ -565,14 +565,16 @@ class NodeImpl(Node):
         }
         async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-            response = await session.post(LOGIN_URL, data={"login": user, "password": password})
-            if response.status == 200:
-                async with session.get(LICENSES_URL) as response:
-                    if response.status == 200:
-                        all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
-                        for lic in all_licenses:
-                            if lic.endswith('_terrain'):
-                                licenses.add(lic)
+            async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
+                if r1.status == 200:
+                    async with session.get(LICENSES_URL) as r2:
+                        if r2.status == 200:
+                            all_licenses = (await r2.text(encoding='utf8')).split('<br>')[1:]
+                            for lic in all_licenses:
+                                if lic.endswith('_terrain'):
+                                    licenses.add(lic)
+                    async with session.get(LOGOUT_URL):
+                        pass
             return list(licenses)
 
     async def get_latest_version(self, branch: str) -> Optional[str]:
@@ -594,7 +596,10 @@ class NodeImpl(Node):
                 async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
-                            data = json.loads(gzip.decompress(await r2.read()))['versions2'][-1]['version']
+                            if r2.status == 200:
+                                data = json.loads(gzip.decompress(await r2.read()))['versions2'][-1]['version']
+                            else:
+                                data = None
                         async with await session.get(LOGOUT_URL):
                             pass
                         return data
