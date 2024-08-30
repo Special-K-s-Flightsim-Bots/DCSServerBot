@@ -1775,9 +1775,15 @@ class Mission(Plugin):
                     self.log.error(msg)
                     await message.channel.send(_(msg))
                     return
-                self.log.debug("Mission added to the mission list.")
-                await message.channel.send(_('Mission "{mission}" uploaded to server {server} and added.').format(
-                    mission=name, server=server.display_name))
+                msg = _('Mission "{mission}" uploaded to server {server}').format(mission=name,
+                                                                                  server=server.display_name)
+                if server.locals.get('autoadd', True):
+                    self.log.debug("Mission added to the mission list.")
+                    msg += _(' and added')
+                    await message.channel.send(msg)
+                else:
+                    await message.channel.send(msg)
+                    return
             finally:
                 await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 

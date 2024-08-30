@@ -659,7 +659,7 @@ class ServerImpl(Server):
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
-        if not self.locals.get('autoscan', False):
+        if not self.locals.get('autoscan', False) and self.locals.get('autoadd', True):
             await self.addMission(filename)
         if stopped:
             await self.start()

@@ -110,7 +110,10 @@ class MissionEventListener(EventListener):
                 continue
             _channel = self.bot.get_channel(channel)
             if not _channel:
-                _channel = await self.bot.fetch_channel(channel)
+                try:
+                    _channel = await self.bot.fetch_channel(channel)
+                except Exception:
+                    pass
                 if not _channel:
                     return
             messages = message_old = ''
@@ -252,12 +255,11 @@ class MissionEventListener(EventListener):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                batch = []
+                async for ban in await cursor.execute("""
                     SELECT ucid, reason, banned_until 
                     FROM bans WHERE banned_until > (NOW() AT TIME ZONE 'utc')
-                """)
-                batch = []
-                async for ban in cursor:
+                """):
                     batch.append({
                         "ucid": ban['ucid'],
                         "reason": ban['reason'],
@@ -270,12 +272,12 @@ class MissionEventListener(EventListener):
                         })
                         batch = []
 
-                # send the remaining bans (if any) in the last batch
-                if batch:
-                    await server.send_to_dcs({
-                        "command": "ban",
-                        "batch": batch
-                    })
+            # send the remaining bans (if any) in the last batch
+            if batch:
+                await server.send_to_dcs({
+                    "command": "ban",
+                    "batch": batch
+                })
 
     async def _watchlist_alert(self, server: Server, player: Player):
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])

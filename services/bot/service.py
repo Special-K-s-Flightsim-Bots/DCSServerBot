@@ -129,7 +129,7 @@ class BotService(Service):
 
     async def alert(self, title: str, message: str, server: Optional[Server] = None,
                     node: Optional[Node] = None) -> None:
-        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert']])
+        mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert'] if role is not None])
         embed, file = utils.create_warning_embed(title=title, text=utils.escape_string(message))
         if not server and node:
             try:

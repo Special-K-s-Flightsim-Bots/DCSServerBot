@@ -405,11 +405,14 @@ class GameMaster(Plugin):
             return
         if isinstance(to, str):
             ucid = to
-        else:
+        elif isinstance(to, discord.Member):
             ucid = await self.bot.get_ucid_by_member(to)
             if not ucid:
                 await interaction.followup.send(_("User is not linked."), ephemeral=True)
                 return
+        else:
+            await interaction.followup.send(_("Unknown user {}!").format(to), ephemeral=True)
+            return
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""

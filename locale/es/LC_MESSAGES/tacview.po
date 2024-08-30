@@ -28,6 +28,9 @@ msgstr "Es necesario apagar el servidor {} para configurar Tacview."
 msgid "Install Tacview"
 msgstr "Instalar Tacview"
 
+msgid "Installing Tacview on server {} ..."
+msgstr "Instalando Tacview en el servidor {} ..."
+
 msgid "Tacview already installed on server {}!"
 msgstr "Tacview ya ha sido instalado en el servidor {}!"
 
@@ -46,6 +49,9 @@ msgstr "El servidor {} ha de ser apagado para instalar Tacview."
 # /tacview uninstall
 msgid "Uninstall Tacview"
 msgstr "Desinstalar Tacview"
+
+msgid "Uninstalling Tacview on server {} ..."
+msgstr "Desinstalando Tacview en el servidor {} ..."
 
 msgid "Tacview uninstalled on server {}."
 msgstr "Desinstalado Tacview del servidor {}."

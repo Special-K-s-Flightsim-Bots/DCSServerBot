@@ -130,17 +130,20 @@ class LogAnalyser(Extension):
     async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context=5):
         if not filename.strip('.') or not os.path.exists(filename):
             return
-        async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
-            lines = await file.readlines()
-
-        print_lines = lines[target_line - context - 1: target_line + context]
         marked_lines = []
-        starting_line_number = target_line - context
-        for i, line in enumerate(print_lines, starting_line_number):
-            if i == target_line:
-                marked_lines.append(f"> {i}: {line.rstrip()}")
-            else:
-                marked_lines.append(f"{i}: {line.rstrip()}")
+        try:
+            async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
+                lines = await file.readlines()
+
+            print_lines = lines[target_line - context - 1: target_line + context]
+            starting_line_number = target_line - context
+            for i, line in enumerate(print_lines, starting_line_number):
+                if i == target_line:
+                    marked_lines.append(f"> {i}: {line.rstrip()}")
+                else:
+                    marked_lines.append(f"{i}: {line.rstrip()}")
+        except PermissionError:
+            self.log.debug(f"Can't open file {filename} for reading!")
         code_content = "\n".join(marked_lines)
         await self.node.audit("A LUA error occurred!", server=self.server, file=filename,
                               error=f"Line {target_line}: {error_message}", code=f"```lua\n{code_content}\n```")
