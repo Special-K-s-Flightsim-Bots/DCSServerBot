@@ -381,7 +381,12 @@ class Admin(Plugin):
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         path = os.path.join(config['directory'].format(server=server), filename)
-        file = await server.node.read_file(path)
+        try:
+            file = await server.node.read_file(path)
+        except FileNotFoundError:
+            await interaction.followup.send(_("File {file} not found in directory {dir}.").format(
+                file=filename, dir=config['directory'].format(server=server)))
+            return
         target = config.get('target')
         if target:
             target = target.format(server=server)
@@ -950,6 +955,8 @@ Please make sure you forward the following ports:
                 await member.add_roles(self.bot.get_role(autorole))
             except discord.Forbidden:
                 await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+            except discord.NotFound:
+                await self.bot.audit(f"Can't assign autorole {autorole}. This role does not exist.")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):

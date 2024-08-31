@@ -9,6 +9,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 import traceback
 
 if sys.platform == 'win32':
@@ -28,7 +29,7 @@ from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path, PurePath
-from psutil import Process
+from psutil import Process, NoSuchProcess
 from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -577,10 +578,15 @@ class ServerImpl(Server):
             return self.process is not None
 
     def _terminate(self) -> None:
-        if self.process and self.process.is_running():
-            self.process.terminate()
-            if self.process.is_running():
-                self.process.kill()
+        if self.process:
+            try:
+                if self.process.is_running():
+                    self.process.terminate()
+                    time.sleep(2)
+                if self.process.is_running():
+                    self.process.kill()
+            except NoSuchProcess:
+                pass
         self.process = None
 
     @performance_log()
