@@ -44,7 +44,10 @@ class Sneaker(Extension):
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         if not process or not process.is_running():
-            process = utils.find_process(os.path.basename(self.config['cmd']))
+            cmd = self.config.get('cmd')
+            if not cmd:
+                return
+            process = utils.find_process(os.path.basename(cmd))
             if process:
                 self.log.debug("- Running Sneaker process found.")
 
