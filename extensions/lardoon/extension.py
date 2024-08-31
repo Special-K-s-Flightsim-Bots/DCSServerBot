@@ -49,8 +49,11 @@ class Lardoon(Extension):
 
         super().__init__(server, config)
         # find a running process, if there is any
-        if not process:
-            process = utils.find_process(os.path.basename(self.config['cmd']))
+        if not process or not process.is_running():
+            cmd = self.config.get('cmd')
+            if not cmd:
+                return
+            process = utils.find_process(os.path.basename(cmd))
             if process:
                 self.log.debug("- Running Lardoon process found.")
 
