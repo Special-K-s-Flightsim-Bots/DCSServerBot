@@ -54,7 +54,8 @@ class Punishment(Plugin):
                     member=utils.escape_string(member.display_name),
                     banned_by=utils.escape_string(self.bot.member.name),
                     reason=reason)
-                await admin_channel.send(message)
+                if admin_channel:
+                    await admin_channel.send(message)
                 await self.bot.audit(message)
                 with suppress(Exception):
                     guild = self.bot.guilds[0]
@@ -66,12 +67,14 @@ class Punishment(Plugin):
             elif player:
                 message = _("Player {player} (ucid={ucid}) banned by {banned_by} for {reason}.").format(
                     player=player.display_name, ucid=player.ucid, banned_by=self.bot.member.name, reason=reason)
-                await admin_channel.send(message)
+                if admin_channel:
+                    await admin_channel.send(message)
                 await self.bot.audit(message)
             else:
                 message = _("Player with ucid {ucid} banned by {banned_by} for {reason}.").format(
                     ucid=ucid, banned_by=self.bot.member.name, reason=reason)
-                await admin_channel.send(message)
+                if admin_channel:
+                    await admin_channel.send(message)
                 await self.bot.audit(message)
 
         # everything after that point can only be executed if players are active
@@ -80,16 +83,18 @@ class Punishment(Plugin):
 
         if punishment['action'] == 'kick' and player.active:
             await server.kick(player, reason)
-            await admin_channel.send(
-                _("Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}.").format(
-                    player=player.display_name, ucid=player.ucid, kicked_by=self.bot.member.name, reason=reason))
+            if admin_channel:
+                await admin_channel.send(
+                    _("Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}.").format(
+                        player=player.display_name, ucid=player.ucid, kicked_by=self.bot.member.name, reason=reason))
 
         elif punishment['action'] == 'move_to_spec':
             await server.move_to_spectators(player)
             await player.sendUserMessage(_("You've been kicked back to spectators because of: {}.").format(reason))
-            await admin_channel.send(
-                _("Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}.").format(
-                    player=player.display_name, ucid=player.ucid, spec_by=self.bot.member.name, reason=reason))
+            if admin_channel:
+                await admin_channel.send(
+                    _("Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}.").format(
+                        player=player.display_name, ucid=player.ucid, spec_by=self.bot.member.name, reason=reason))
 
         elif punishment['action'] == 'credits' and type(player).__name__ == 'CreditPlayer':
             player: CreditPlayer = cast(CreditPlayer, player)
@@ -100,9 +105,10 @@ class Punishment(Plugin):
                 _("{name}, you have been punished for: {reason}!\n"
                   "Your current credit points are: {points}").format(
                     name=player.name, reason=reason, points=player.points))
-            await admin_channel.send(
-                _("Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}.").format(
-                    player=player.display_name, ucid=player.ucid, punished_by=self.bot.member.name, reason=reason))
+            if admin_channel:
+                await admin_channel.send(
+                    _("Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}.").format(
+                        player=player.display_name, ucid=player.ucid, punished_by=self.bot.member.name, reason=reason))
 
         elif punishment['action'] == 'warn':
             await player.sendUserMessage(_("{name}, you have been punished for: {reason}!").format(name=player.name,

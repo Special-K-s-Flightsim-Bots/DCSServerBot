@@ -2,7 +2,7 @@ import asyncio
 import importlib
 import importlib.util
 
-from core import NodeImpl, ServiceRegistry, EventListener, Server, Plugin
+from core import NodeImpl, ServiceRegistry, EventListener, Server, Plugin, PluginError
 from typing import Union, Optional, Any
 
 from services.bot.dummy import DummyGuild, DummyMember, DummyRole
@@ -87,8 +87,14 @@ class DummyBot:
     async def load_plugin(self, plugin_name: str) -> bool:
         module = importlib.import_module(f"plugins.{plugin_name}.commands")
         if hasattr(module, 'setup'):
-            await module.setup(self)
-            return True
+            try:
+                await module.setup(self)
+                return True
+            except PluginError as ex:
+                self.log.error(f'  - {ex}')
+            except Exception as ex:
+                self.log.error(f'  - Plugin "{plugin_name.title()} not loaded!', exc_info=ex)
+            return False
         else:
             self.log.error(f"No 'setup' function in {plugin_name}")
             return False
@@ -150,3 +156,6 @@ class DummyBot:
 
     async def fetch_user(self, ucid: str) -> Optional[DummyMember]:
         return await self.guilds[0].fetch_member(ucid)
+
+    def add_command(self, command: Any, /) -> None:
+        ...
