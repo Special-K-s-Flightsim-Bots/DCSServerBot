@@ -85,7 +85,7 @@ class SchedulerListener(EventListener):
             asyncio.create_task(self.node.shell_command(cmd))
 
     async def process(self, server: Server, what: dict) -> None:
-        if 'shutdown' in what['command']:
+        if 'shutdown' in what['command'] or what.get('shutdown', False):
             await server.shutdown()
             message = 'shut down DCS server'
             if 'user' not in what:

@@ -159,3 +159,6 @@ class DummyBot:
 
     def add_command(self, command: Any, /) -> None:
         ...
+
+    async def fetch_channel(self, channel_id: int, /) -> None:
+        ...
