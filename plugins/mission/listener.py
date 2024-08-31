@@ -340,7 +340,7 @@ class MissionEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        channels = deepcopy(server.locals.get('channels'))
+        channels = deepcopy(server.locals.get('channels', {}))
         if 'admin' not in channels:
             channels['admin'] = self.bot.get_admin_channel(server).id
         # noinspection PyAsyncCall
