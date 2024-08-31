@@ -30,6 +30,12 @@ class SchedulerListener(EventListener):
                     return delta, restart
                 else:
                     return 0, restart
+            elif 'idle_time' in restart and server.idle_since:
+                delta = int((datetime.now(timezone.utc) - server.idle_since).total_seconds())
+                if delta >= 0:
+                    return delta, restart
+                else:
+                    return 0, restart
             elif 'local_times' in restart:
                 min_time_difference = 86400
                 for t in restart['local_times']:
