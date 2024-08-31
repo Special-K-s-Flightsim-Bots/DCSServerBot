@@ -20,3 +20,7 @@ class DummyRole:
     @property
     def members(self) -> list["DummyMember"]:
         return list(self._members.values())
+
+    @property
+    def mention(self) -> str:
+        return ""
