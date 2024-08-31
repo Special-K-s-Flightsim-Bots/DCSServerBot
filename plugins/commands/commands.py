@@ -20,8 +20,9 @@ class Commands(Plugin):
         self.prefix = self.locals.get(DEFAULT_TAG, {}).get('command_prefix', '.')
         self.register_commands()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self._unregister_commands()
+        await super().cog_unload()
 
     @staticmethod
     async def execute(ctx: commands.Context, config: dict, **kwargs) -> Optional[dict]:

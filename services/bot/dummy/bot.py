@@ -40,10 +40,10 @@ class DummyBot:
         # noinspection PyAsyncCall
         asyncio.create_task(self.setup_hook())
 
-    async def stop(self):
+    async def close(self):
         for plugin in self.cogs.values():
             await plugin.cog_unload()
-        await self.close()
+        self.closed = True
 
     async def login(self, token: str) -> None:
         ...
@@ -56,9 +56,6 @@ class DummyBot:
 
     def is_closed(self) -> bool:
         return self.closed
-
-    async def close(self) -> None:
-        self.closed = True
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
@@ -158,6 +155,9 @@ class DummyBot:
         return await self.guilds[0].fetch_member(ucid)
 
     def add_command(self, command: Any, /) -> None:
+        ...
+
+    def remove_command(self, name: str, /) -> None:
         ...
 
     async def fetch_channel(self, channel_id: int, /) -> None:
