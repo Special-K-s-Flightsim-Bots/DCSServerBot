@@ -34,6 +34,10 @@ class Restart(VotableItem):
             await self.server.sendChatMessage(Coalition.ALL, message)
             await self.server.sendPopupMessage(Coalition.ALL, message)
             await asyncio.sleep(60)
-            await self.server.restart(modify_mission=self.config.get('run_extensions', False))
+            if self.config.get('shutdown', False):
+                await self.server.shutdown()
+                await self.server.startup(modify_mission=self.config.get('run_extensions', False))
+            else:
+                await self.server.restart(modify_mission=self.config.get('run_extensions', False))
         finally:
             self.server.restart_pending = False

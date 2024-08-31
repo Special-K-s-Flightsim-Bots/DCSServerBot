@@ -28,6 +28,7 @@ DEFAULT:
         - b.miz
     restart:            # Vote for a mission restart
       run_extensions: true  # if true, extensions like RealWeather, MizEdit, etc will be run (default: false).
+      shutdown: true        # if true, the server will be shut down for the restart (default: false)
     kick: {}            # Vote for kicking a player
     tempban:            # Vote to tempban a player for duration days
       duration: 3       # default: 3 (days)
@@ -91,8 +92,8 @@ class Sexy(VotableItem):
 
     async def execute(self, winner: str):
         message = f"{winner} is the most sexiest player on this server!"
-        self.server.sendChatMessage(Coalition.ALL, message)
-        self.server.sendPopupMessage(Coalition.ALL, message)
+        await self.server.sendChatMessage(Coalition.ALL, message)
+        await self.server.sendPopupMessage(Coalition.ALL, message)
 ```
 
 To enable it, just add it to the options in your voting.yaml:

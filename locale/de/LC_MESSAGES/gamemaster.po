@@ -178,6 +178,19 @@ msgstr "Möchtest Du Kampagne \"{}\" stoppen?"
 msgid "Campaign stopped."
 msgstr "Kampagne gestoppt."
 
+# /message send
+msgid "Sends a message to a user"
+msgstr "Sendet einem User eine Nachricht"
+
+msgid "User is not linked."
+msgstr "Benutzer is nicht verknüpft."
+
+msgid "Unknown user {}!"
+msgstr "Unbekannter Benutzer {}!"
+
+msgid "Message will be displayed to the user."
+msgstr "Nachricht wird dem Nutzer bei nächster Gelegenheit präsentiert."
+
 # Upload of embeds
 msgid "Error while updating embed!"
 msgstr "Fehler beim Update des Embeds!"

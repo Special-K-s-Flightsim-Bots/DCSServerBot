@@ -254,7 +254,7 @@ class MonitoringService(Service):
         for server in self.bus.servers.values():
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
-            if not server.process:
+            if not server.process or not server.process.is_running():
                 self.log.warning(f"DCSServerBot is not attached to a DCS.exe or DCS_Server.exe process on "
                                  f"server {server.name}, skipping server load gathering.")
                 continue

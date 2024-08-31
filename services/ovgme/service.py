@@ -36,7 +36,6 @@ class OvGMEService(Service):
         if not os.path.exists('config/services/ovgme.yaml'):
             raise ServiceInstallationError(service='OvGME', reason="config/services/ovgme.yaml missing!")
         self.bus = ServiceRegistry.get(ServiceBus)
-        self._config: dict[str, dict] = {}
 
     async def start(self):
         await super().start()

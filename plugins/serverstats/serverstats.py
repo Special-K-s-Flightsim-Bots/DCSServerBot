@@ -4,6 +4,7 @@ import seaborn as sns
 import warnings
 
 from core import const, report, EmbedElement, utils
+import matplotlib.dates as mdates
 from psycopg.rows import dict_row
 from typing import Optional
 
@@ -333,3 +334,31 @@ class ServerLoad(report.MultiGraphElement):
         ax4 = self.axes[4].twinx()
         series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
         ax4.legend(['Ping'], loc='upper right')
+
+        settings = {
+            "Hour": {
+                "major_locator": mdates.MinuteLocator(),
+                "formatter": mdates.DateFormatter('%H:%M')
+            },
+            "Day": {
+                "major_locator": mdates.HourLocator(),
+                "minor_locator": mdates.MinuteLocator(byminute=[0, 30]),
+                "formatter": mdates.DateFormatter('%H:%M')
+            },
+            "Week": {
+                "major_locator": mdates.DayLocator(),
+                "minor_locator": mdates.HourLocator(byhour=[0, 6, 12, 18]),
+                "formatter": mdates.DateFormatter('%Y-%m-%d')
+            },
+            "Month": {
+                "major_locator": mdates.DayLocator(),
+                "formatter": mdates.DateFormatter('%Y-%m-%d')
+            }
+        }
+        for ax in [self.axes[x] for x in range(0, 4)] + [ax2, ax3, ax4]:
+            ax.xaxis.set_major_locator(settings[period]['major_locator'])
+            if 'minor_locator' in settings[period]:
+                ax.xaxis.set_minor_locator(settings[period]['minor_locator'])
+                ax.tick_params(axis='x', which='minor', length=6)
+            ax.xaxis.set_major_formatter(settings[period]['formatter'])
+            ax.tick_params(axis='x', which='major', rotation=30)

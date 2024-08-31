@@ -28,6 +28,9 @@ msgstr "Сервер {} необходимо выключить для конф�
 msgid "Install Tacview"
 msgstr "Установить Tacview"
 
+msgid "Installing Tacview on server {} ..."
+msgstr "Установка Tacview на сервер {} ..."
+
 msgid "Tacview already installed on server {}!"
 msgstr "Tacview уже установлен на сервер {}!"
 
@@ -46,6 +49,9 @@ msgstr "Сервер {} должен быть выключен для устан
 # /tacview uninstall
 msgid "Uninstall Tacview"
 msgstr "Удаление Tacview"
+
+msgid "Uninstalling Tacview on server {} ..."
+msgstr "Удаление Tacview на сервере {} ..."
 
 msgid "Tacview uninstalled on server {}."
 msgstr "Tacview удален с сервера {}."

@@ -32,6 +32,7 @@ class DummyBot:
         self.guilds = [DummyGuild()]
         self.owner_id = -1
         self.latency = 0
+        self.member = DummyMember("1", name="DCSServerBot")
 
     async def start(self):
         self.log.warning("This installation does not use a Discord bot!")

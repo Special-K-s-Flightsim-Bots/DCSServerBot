@@ -45,7 +45,14 @@ class Lardoon(Extension):
     }
 
     def __init__(self, server: Server, config: dict):
+        global process
+
         super().__init__(server, config)
+        # find a running process, if there is any
+        if not process:
+            process = utils.find_process(os.path.basename(self.config['cmd']))
+            if process:
+                self.log.debug("- Running Lardoon process found.")
 
     def _get_tacview_dir(self) -> str:
         return self.config.get('tacviewExportPath',
@@ -59,6 +66,7 @@ class Lardoon(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
+
         async with lock:
             if not process or not process.is_running():
 
@@ -74,22 +82,34 @@ class Lardoon(Extension):
                                             executable=os.path.expandvars(self.config['cmd']),
                                             stdout=out, stderr=subprocess.STDOUT)
                     if self.config.get('debug', False):
-                        Thread(target=log_output, args=(proc,)).start()
+                        Thread(target=log_output, args=(proc,), daemon=True).start()
                     return proc
 
                 p = await asyncio.to_thread(run_subprocess)
                 try:
                     process = psutil.Process(p.pid)
-                    atexit.register(self.shutdown)
+                    atexit.register(self.terminate)
                 except psutil.NoSuchProcess:
                     self.log.error(f"Error during launch of {self.config['cmd']}!")
                     return False
+
         servers.add(self.server.name)
         tacview_dir = self._get_tacview_dir()
         if tacview_dir not in tacview_dirs:
             tacview_dirs[tacview_dir] = set()
         tacview_dirs[tacview_dir].add(self.server.name)
-        return await asyncio.to_thread(self.is_running)
+        return self.is_running()
+
+    def terminate(self) -> bool:
+        global process
+
+        try:
+            utils.terminate_process(process)
+            process = None
+            return True
+        except Exception as ex:
+            self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+            return False
 
     def shutdown(self) -> bool:
         global process, servers
@@ -98,27 +118,15 @@ class Lardoon(Extension):
         if self.server.name in servers:
             servers.remove(self.server.name)
         tacview_dir = self._get_tacview_dir()
-        try:
-            tacview_dirs[tacview_dir].remove(self.server.name)
-        except KeyError:
-            pass
+        tacview_dirs[tacview_dir].discard(self.server.name)
         if not servers:
-            try:
-                utils.terminate_process(process)
-                process = None
-                return True
-            except Exception as ex:
-                self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
-                return False
+            return self.terminate()
         return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if not process or not process.is_running():
-            cmd = os.path.basename(self.config['cmd'])
-            process = utils.find_process(cmd)
-        return process is not None and self.server.name in servers
+        return process is not None and process.is_running() and self.server.name in servers
 
     @property
     def version(self) -> Optional[str]:

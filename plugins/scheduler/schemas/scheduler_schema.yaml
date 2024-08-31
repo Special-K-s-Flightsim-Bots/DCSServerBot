@@ -32,6 +32,7 @@ schema;master_schema:
         mission_time: {type: int, range: {min: 1}}
         max_mission_time: {type: int, range: {min: 1}}
         real_time: {type: int, range: {min: 1}}
+        idle_time: {type: int, range: {min: 1}}
         method: {type: str, enum: ['restart', 'rotate', 'shutdown', 'load']}
         shutdown: {type: bool}
         run_extensions: {type: bool}

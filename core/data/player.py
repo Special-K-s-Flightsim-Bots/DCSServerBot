@@ -282,6 +282,8 @@ class Player(DataObject):
             await self.member.add_roles(_role)
         except discord.Forbidden:
             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+        except discord.DiscordException as ex:
+            self.log.error(f"Error while adding role {role}: {ex}")
 
     async def remove_role(self, role: Union[str, int]):
         if not self.member or not role:
@@ -294,6 +296,8 @@ class Player(DataObject):
             await self.member.remove_roles(_role)
         except discord.Forbidden:
             await self.bot.audit('permission "Manage Roles" missing.', user=self.bot.member)
+        except discord.DiscordException as ex:
+            self.log.error(f"Error while removing role {role}: {ex}")
 
     def check_exemptions(self, exemptions: Union[dict, list]) -> bool:
         def _check_exemption(exemption: dict) -> bool:

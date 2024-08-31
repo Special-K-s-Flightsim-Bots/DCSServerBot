@@ -39,8 +39,14 @@ class Sneaker(Extension):
     }
 
     def __init__(self, server: Server, config: dict):
+        global process
+
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
+        if not process or not process.is_running():
+            process = utils.find_process(os.path.basename(self.config['cmd']))
+            if process:
+                self.log.debug("- Running Sneaker process found.")
 
     def create_config(self):
         cfg = {"servers": []}
@@ -84,7 +90,7 @@ class Sneaker(Extension):
                              executable=os.path.expandvars(self.config['cmd']),
                              stdout=out, stderr=subprocess.STDOUT)
         if self.config.get('debug', False):
-            Thread(target=self._log_output, args=(p,)).start()
+            Thread(target=self._log_output, args=(p,), daemon=True).start()
         return p
 
     async def startup(self) -> bool:
@@ -106,30 +112,34 @@ class Sneaker(Extension):
                 elif not process or not process.is_running():
                     p = await asyncio.to_thread(self._run_subprocess, os.path.expandvars(self.config['config']))
                     process = psutil.Process(p.pid)
-                    atexit.register(self.shutdown)
+                    atexit.register(self.terminate)
             servers.add(self.server.name)
             return True
         except Exception as ex:
             self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
             return False
 
+    def terminate(self) -> bool:
+        global process
+
+        try:
+            if process:
+                utils.terminate_process(process)
+                process = None
+            return True
+        except Exception as ex:
+            self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+            return False
+
     def shutdown(self) -> bool:
         global process, servers
-
-        def terminate() -> bool:
-            try:
-                utils.terminate_process(process)
-                return True
-            except Exception as ex:
-                self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
-                return False
 
         servers.remove(self.server.name)
         if not servers:
             super().shutdown()
-            return terminate()
+            return self.terminate()
         elif 'config' not in self.config:
-            if terminate():
+            if self.terminate():
                 self.create_config()
                 try:
                     p = self._run_subprocess(os.path.join(self.node.config_dir, 'sneaker.json'))
@@ -144,10 +154,7 @@ class Sneaker(Extension):
     def is_running(self) -> bool:
         global process, servers
 
-        if not process or not process.is_running():
-            cmd = os.path.basename(self.config['cmd'])
-            process = utils.find_process(cmd)
-        return process is not None and self.server.name in servers
+        return process is not None and process.is_running() and self.server.name in servers
 
     @property
     def version(self) -> Optional[str]:

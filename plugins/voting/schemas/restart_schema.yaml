@@ -2,3 +2,4 @@ schema;restart_schema:
   type: map
   mapping:
     run_extensions: {type: bool}
+    shutdown: {type: bool}

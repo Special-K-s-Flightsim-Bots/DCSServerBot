@@ -1231,7 +1231,7 @@ class ConfigModal(Modal):
                                     label=v.get('label'),
                                     style=discord.TextStyle(v.get('style', 1)),
                                     placeholder=v.get('placeholder'),
-                                    default=str(default.get(k) or ""),
+                                    default=str(default.get(k)) if default.get(k) is not None else "",
                                     required=v.get('required', False),
                                     min_length=v.get('min_length'),
                                     max_length=v.get('max_length')))

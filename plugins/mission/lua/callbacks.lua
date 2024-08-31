@@ -205,9 +205,9 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     if not slot_spamming or not tonumber(slot) then
         return
     end
-	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - (slot_spamming['check_time'] or 5)) then
+	if mission.last_change_slot[id] and mission.last_change_slot[id] > (os.clock() - tonumber(slot_spamming['check_time'] or 5)) then
 		mission.num_change_slots[id] = mission.num_change_slots[id] + 1
-		if mission.num_change_slots[id] > (slot_spamming['slot_changes'] or 5) then
+		if mission.num_change_slots[id] > tonumber(slot_spamming['slot_changes'] or 5) then
             mission.num_change_slots[id] = -1
 			net.kick(id, slot_spamming['message'])
             ucid = net.get_player_info(id, 'ucid')

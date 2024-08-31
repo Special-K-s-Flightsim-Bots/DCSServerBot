@@ -252,12 +252,12 @@ class MissionStatisticsEventListener(EventListener):
             # noinspection PyAsyncCall
             asyncio.create_task(self._process_event(server))
 
-    @tasks.loop(seconds=30)
+    @tasks.loop(minutes=5)
     async def do_update(self):
         for server_name, update in self.update.items():
-            if not update:
+            server: Server = self.bot.servers.get(server_name)
+            if not update or not server:
                 continue
-            server: Server = self.bot.servers[server_name]
             if self.plugin.get_config(server).get('display', True):
                 stats = self.mission_stats[server_name]
                 if 'coalitions' in stats:

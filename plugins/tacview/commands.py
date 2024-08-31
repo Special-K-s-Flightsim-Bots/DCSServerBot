@@ -14,7 +14,7 @@ class Tacview(Plugin):
     # New command group "/tacview"
     tacview = Group(name="tacview", description=_("Commands to manage Tacview"))
 
-    async def _configure(self, interaction: discord.Interaction,
+    async def _configure(self, interaction: discord.Interaction, *,
                          server: Server,
                          enabled: bool = None,
                          autoupdate: bool = None) -> Optional[dict]:
@@ -23,7 +23,7 @@ class Tacview(Plugin):
             "tacviewRealTimeTelemetryPassword": "",
             "tacviewRemoteControlEnabled": "42675",
             "tacviewRemoteControlPassword": "",
-            "tacviewPlaybackDelay": 0
+            "tacviewPlaybackDelay": "0"
         })
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
                                   config=TacviewExt.CONFIG_DICT,
@@ -56,21 +56,20 @@ class Tacview(Plugin):
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                         enabled: Optional[bool] = None, autoupdate: Optional[bool] = None):
         ephemeral = utils.get_ephemeral(interaction)
-        if 'Tacview' not in await server.init_extensions():
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("Tacview not installed on server {}!").format(server.display_name), ephemeral=ephemeral)
-            return
-        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
-            config = await self._configure(interaction, server, enabled, autoupdate)
-            await server.config_extension("Tacview", config)
-            await interaction.followup.send(
-                _("Tacview configuration changed on server {}.").format(server.display_name), ephemeral=ephemeral)
-        else:
+        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Server {} needs to be shut down to configure Tacview.").format(server.display_name),
                 ephemeral=ephemeral)
+            return
+        config = await self._configure(interaction, server=server, enabled=enabled, autoupdate=autoupdate)
+        if 'Tacview' not in await server.init_extensions():
+            await interaction.followup.send(_("Tacview not installed on server {}!").format(server.display_name),
+                                            ephemeral=ephemeral)
+            return
+        await server.config_extension("Tacview", config)
+        await interaction.followup.send(
+            _("Tacview configuration changed on server {}.").format(server.display_name), ephemeral=ephemeral)
 
     @tacview.command(name='install', description=_('Install Tacview'))
     @app_commands.guild_only()
@@ -79,27 +78,19 @@ class Tacview(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                        autoupdate: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
+        config = await self._configure(interaction, server=server, enabled=True, autoupdate=autoupdate)
+        msg = await interaction.followup.send(
+            _("Installing Tacview on server {} ...").format(server.display_name), ephemeral=ephemeral)
         if 'Tacview' in await server.init_extensions():
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                _("Tacview already installed on server {}!").format(server.display_name), ephemeral=ephemeral)
+            await msg.edit(content=_("Tacview already installed on server {}!").format(server.display_name))
             return
 
-#        if 'Tacview' not in server.node.extensions:
-#            # noinspection PyUnresolvedReferences
-#            await interaction.response.send_message(
-#                _("Tacview is not configured on node {}!").format(server.node.name), ephemeral=ephemeral)
-#            return
-
-        config = await self._configure(interaction, server, True, autoupdate)
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:
             try:
                 await server.install_extension(name="Tacview", config=config)
-                await interaction.followup.send(
-                    _("Tacview installed on server {}.").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("Tacview installed on server {}.").format(server.display_name))
             except InstallException:
-                await interaction.followup.send(
-                    _("Tacview could not be installed on server {}!").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("Tacview could not be installed on server {}!").format(server.display_name))
         else:
             await interaction.followup.send(
                 _("Server {} needs to be shut down to install Tacview.").format(server.display_name),
@@ -113,18 +104,17 @@ class Tacview(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
+        msg = await interaction.followup.send(
+            _("Uninstalling Tacview on server {} ...").format(server.display_name), ephemeral=ephemeral)
         if 'Tacview' not in await server.init_extensions():
-            await interaction.followup.send(_("Tacview not installed on server {}!").format(server.display_name),
-                                            ephemeral=ephemeral)
+            await msg.edit(content=_("Tacview not installed on server {}!").format(server.display_name))
             return
         if server.status in [Status.STOPPED, Status.SHUTDOWN]:
             try:
                 await server.uninstall_extension(name="Tacview")
-                await interaction.followup.send(
-                    _("Tacview uninstalled on server {}.").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(content=_("Tacview uninstalled on server {}.").format(server.display_name))
             except UninstallException:
-                await interaction.followup.send(
-                    _("Tacview could not be uninstalled on server {}!").format(server.display_name), ephemeral=ephemeral)
+                await msg.edit(_("Tacview could not be uninstalled on server {}!").format(server.display_name))
         else:
             await interaction.followup.send(
                 _("Server {} needs to be shut down to uninstall Tacview.").format(server.display_name),

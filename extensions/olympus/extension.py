@@ -55,7 +55,12 @@ class Olympus(Extension):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         super().__init__(server, config)
         self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
-        self.process: Optional[psutil.Process] = None
+        # check if there is an olympus process running already
+        self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
+                                                                    self.server.instance.name)
+        if self.process:
+            self.log.debug("- Running Olympus process found.")
+
         if self.version == '1.0.3.0':
             self.backend_tag = 'server'
             self.frontend_tag = 'client'
@@ -205,7 +210,7 @@ class Olympus(Extension):
             self.log.debug("Launching {}".format(' '.join(args)))
             proc = subprocess.Popen(args, cwd=path, stdout=out, stderr=subprocess.STDOUT)
             if self.config.get('debug', False):
-                Thread(target=log_output, args=(proc,)).start()
+                Thread(target=log_output, args=(proc,), daemon=True).start()
             return proc
 
         try:
@@ -215,7 +220,7 @@ class Olympus(Extension):
             except psutil.NoSuchProcess:
                 self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
                 return False
-            atexit.register(self.shutdown)
+            atexit.register(self.terminate)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
             return False
@@ -230,14 +235,17 @@ class Olympus(Extension):
         return False
 
     def is_running(self) -> bool:
-        if not self.process or not self.process.is_running():
-            cmd = os.path.basename(self.nodejs)
-            self.process = utils.find_process(cmd, self.server.instance.name)
-        return self.process is not None
+        return self.process is not None and self.process.is_running()
+
+    def terminate(self) -> bool:
+        try:
+            utils.terminate_process(self.process)
+            self.process = None
+            return True
+        except Exception as ex:
+            self.log.error(f"Error during shutdown of {self.config['cmd']}: {str(ex)}")
+            return False
 
     def shutdown(self) -> bool:
-        if self.is_running():
-            super().shutdown()
-            self.process.kill()
-            self.process = None
-        return True
+        super().shutdown()
+        return self.terminate()

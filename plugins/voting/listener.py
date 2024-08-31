@@ -1,18 +1,18 @@
 import asyncio
 
-from core import EventListener, chat_command, Server, Player, utils, Coalition, event, ChatCommand
+from core import EventListener, chat_command, Server, Player, utils, Coalition, event, ChatCommand, get_translation
 from functools import partial
 from itertools import islice
 from typing import Optional
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-
 from plugins.creditsystem.player import CreditPlayer
 from plugins.voting.base import VotableItem
 
+# ruamel YAML support
+from ruamel.yaml import YAML
 yaml = YAML()
 
+_ = get_translation(__name__.split('.')[1])
 
 all_votes: dict[str, 'VotingHandler'] = dict()
 
@@ -38,7 +38,7 @@ class VotingHandler:
             win_id = max(self.votes, key=self.votes.get) - 1
             winner = next(islice(self.item.get_choices(), win_id, None))
             if winner:
-                return f"\nCurrent leading vote: \"{winner}\""
+                return "\n" + _('Current leading vote: "{}"').format(winner)
         return ""
 
     async def print(self, player: Optional[Player] = None):
@@ -46,7 +46,8 @@ class VotingHandler:
         for idx, element in enumerate(self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
         message += self.get_leading_vote()
-        message += f"\nUse {self.config['prefix']}vote <number> to vote for the change.\n"
+        message += "\n" + _("Use {prefix}vote <number> to vote for the change.").format(
+            prefix=self.config['prefix']) + "\n"
         if player:
             await player.sendUserMessage(message)
         else:
@@ -56,7 +57,7 @@ class VotingHandler:
     async def start(self):
         await self.print()
         voting_time = self.config.get('time', 300)
-        message = f"You have {utils.format_time(voting_time)} to vote."
+        message = _("You have {time} to vote.").format(time=utils.format_time(voting_time))
         await self.server.sendChatMessage(Coalition.ALL, message)
         await self.server.sendPopupMessage(Coalition.ALL, message, timeout=20)
         for reminder in sorted(self.config.get('reminder', []), reverse=True):
@@ -69,17 +70,17 @@ class VotingHandler:
 
     async def vote(self, player: Player, num: int):
         if player in self.voter:
-            await player.sendChatMessage("You can only vote once.")
+            await player.sendChatMessage(_("You can only vote once!"))
             return
         if num not in self.votes.keys():
             self.votes[num] = 1
         else:
             self.votes[num] += 1
         self.voter.append(player)
-        await player.sendChatMessage("Your vote has been counted.")
+        await player.sendChatMessage(_("Your vote has been counted."))
 
     async def remind(self, remaining: int):
-        message = f"A voting is now open for another {utils.format_time(remaining)}!"
+        message = _("A voting is now open for another {time}!").format(time=utils.format_time(remaining))
         message += self.get_leading_vote()
         await self.server.sendPopupMessage(Coalition.ALL, message)
 
@@ -92,11 +93,11 @@ class VotingHandler:
             return len(self.server.get_active_players())
 
     async def check_vote(self) -> int:
-        message = "Voting finished"
+        message = _("Voting finished")
         voting_rule = self.config.get('voting_rule', 'majority')
         possible_voters = self._get_possible_voters()
         if not self.votes or not possible_voters:
-            message += " without any (active) participant."
+            message += _(" without any (active) participant.")
         elif (self.config.get('voting_threshold') and
               (sum(self.votes.values()) / possible_voters) < self.config.get('voting_threshold')):
             message += f" but less than {self.config['voting_threshold'] * 100}% players participated."

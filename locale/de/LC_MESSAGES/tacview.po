@@ -31,6 +31,9 @@ msgstr "Installiere Tacview"
 msgid "Tacview already installed on server {}!"
 msgstr "Tacview is bereits auf Server {} installiert!"
 
+msgid "Installing Tacview on server {} ..."
+msgstr "Installiere Tacview auf Server {} ..."
+
 msgid "Tacview is not configured on node {}!"
 msgstr "Tacview ist auf Knoten nicht {} konfiguriert!"
 
@@ -46,6 +49,9 @@ msgstr "Server {} muss zur Installation von Tacview heruntergefahren werden."
 # /tacview uninstall
 msgid "Uninstall Tacview"
 msgstr "De-installiere Tacview"
+
+msgid "Uninstalling Tacview on server {} ..."
+msgstr "De-installierer Tacview auf Server {} ..."
 
 msgid "Tacview uninstalled on server {}."
 msgstr "Tacview auf Server {} de-installiert."
