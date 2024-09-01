@@ -29,7 +29,6 @@ from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path, PurePath
-from psutil import Process, NoSuchProcess
 from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -425,7 +424,7 @@ class ServerImpl(Server):
             p = subprocess.Popen(
                 [exe, '--server', '--norender', '-w', self.instance.name], executable=path, close_fds=True
             )
-            self.process = Process(p.pid)
+            self.process = psutil.Process(p.pid)
             if 'priority' in self.locals:
                 self.set_priority(self.locals.get('priority'))
             if 'affinity' in self.locals:
@@ -585,7 +584,7 @@ class ServerImpl(Server):
                     time.sleep(2)
                 if self.process.is_running():
                     self.process.kill()
-            except NoSuchProcess:
+            except psutil.NoSuchProcess:
                 pass
         self.process = None
 

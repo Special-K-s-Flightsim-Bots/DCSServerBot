@@ -1,5 +1,3 @@
-import tempfile
-
 import aiofiles
 import aiohttp
 import asyncio
@@ -13,6 +11,7 @@ import shutil
 import subprocess
 import ssl
 import sys
+import tempfile
 
 if sys.platform == 'win32':
     import ctypes
@@ -233,7 +232,7 @@ class SRS(Extension, FileSystemEventHandler):
                 if not self.observer:
                     self.start_observer()
             except psutil.NoSuchProcess:
-                self.log.error(f"Error during launch of {self.config['cmd']}!")
+                self.log.error(f"Error during launch of {self.get_exe_path()}!")
                 return False
         return await asyncio.to_thread(self.is_running)
 

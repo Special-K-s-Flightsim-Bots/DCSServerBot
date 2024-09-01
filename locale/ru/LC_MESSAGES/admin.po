@@ -134,6 +134,9 @@ msgstr "Модуль {module} удалён с ноды {node}."
 msgid "Download files from your server"
 msgstr "Скачать файлы с вашего сервера"
 
+msgid "File {file} not found in directory {dir}."
+msgstr "Файл {file} не найден в каталоге {dir}."
+
 msgid "File sent as a DM."
 msgstr "Файл отправлен в личные сообщения."
 
