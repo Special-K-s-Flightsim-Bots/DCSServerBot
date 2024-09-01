@@ -2,11 +2,24 @@ import aiohttp
 import asyncio
 import discord
 import logging
+import psycopg
 import traceback
 import os
+import zipfile
 
 from contextlib import suppress
-from core import Node
+from core import Node, UnsupportedMizFileException
+
+EXCLUDE_LIST = [
+    ConnectionError,
+    EOFError,
+    MemoryError,
+    aiohttp.ClientError,
+    discord.errors.HTTPException,
+    psycopg.errors.OperationalError,
+    zipfile.BadZipFile,
+    UnsupportedMizFileException
+]
 
 
 class CloudLoggingHandler(logging.Handler):
@@ -41,6 +54,10 @@ class CloudLoggingHandler(logging.Handler):
             exc = exc_info[1]
         else:
             exc = None
+        # filter events
+        if isinstance(exc, tuple(EXCLUDE_LIST)):
+            return
+
         file, line, trace = self.format_traceback(exc.__traceback__) \
             if exc else (record.filename, record.lineno, [record.funcName])
         with suppress(Exception):

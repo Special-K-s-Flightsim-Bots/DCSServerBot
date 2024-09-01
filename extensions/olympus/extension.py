@@ -217,7 +217,7 @@ class Olympus(Extension):
             p = await asyncio.to_thread(run_subprocess)
             try:
                 self.process = psutil.Process(p.pid)
-            except psutil.NoSuchProcess:
+            except (AttributeError, psutil.NoSuchProcess):
                 self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
                 return False
             atexit.register(self.terminate)
