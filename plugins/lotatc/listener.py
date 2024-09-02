@@ -87,7 +87,7 @@ class LotAtcEventListener(EventListener):
         await server.sendPopupMessage(
             gci.coalition, _("{coalition} GCI \"{name}\" on station.").format(
                 coalition=gci.coalition.value.title(), name=gci.name))
-        channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+        channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
         if channel:
             await channel.send(self.COALITION_MARKUP[gci.coalition].format(
                 self.EVENT_TEXTS['on_gci_join'].format(gci.name)))
@@ -96,7 +96,7 @@ class LotAtcEventListener(EventListener):
     async def del_gci(self, server: Server, gci: GCI) -> None:
         await server.sendPopupMessage(gci.coalition, _("{coalition} GCI \"{name}\" offline.").format(
             coalition=gci.coalition.value.title(), name=gci.name))
-        channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+        channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
         if channel:
             await channel.send(self.COALITION_MARKUP[gci.coalition].format(
                 self.EVENT_TEXTS['on_gci_leave'].format(gci.name)))

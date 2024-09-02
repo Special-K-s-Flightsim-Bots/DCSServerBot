@@ -68,12 +68,12 @@ class GameMasterEventListener(EventListener):
         chat_channel: Optional[discord.TextChannel] = None
         if server.locals.get('coalitions') and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
-                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_BLUE_CHAT])
+                chat_channel = self.bot.get_channel(server.channels.get(Channel.COALITION_BLUE_CHAT, -1))
             elif player.coalition == Coalition.RED:
-                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_RED_CHAT])
+                chat_channel = self.bot.get_channel(server.channels.get(Channel.COALITION_RED_CHAT, -1))
         else:
             if not server.locals.get('no_coalition_chat', False) or data['to'] != -2:
-                chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
+                chat_channel = self.bot.get_channel(server.channels.get(Channel.CHAT, -1))
         if chat_channel:
             # noinspection PyAsyncCall
             asyncio.create_task(chat_channel.send(f"{player.name} said: {data['message']}"))

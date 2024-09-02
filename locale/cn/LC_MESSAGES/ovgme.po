@@ -1,0 +1,173 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+# /mods
+msgid "Commands to manage custom mods in your DCS server"
+msgstr "用于管理 DCS 服务器中的自定义模组的命令"
+
+# /mods manage
+msgid "manage mods"
+msgstr "管理模组"
+
+msgid "Shutting down {}, please wait ..."
+msgstr "正在关闭 {}, 请稍候 ..."
+
+msgid "**The following mods are currently installed:**"
+msgstr "**当前已安装以下模块:**"
+
+msgid "Mod"
+msgstr "模组"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "Update"
+msgstr "Update"
+
+msgid "There are no mods installed."
+msgstr "沒有安裝任何模组."
+
+msgid "Select a mod to install / update"
+msgstr "选择要安装 / 更新的模组"
+
+msgid "Select a mod to uninstall"
+msgstr "选择要卸载的模组"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Shutdown"
+msgstr "关闭"
+
+msgid "⚠️ Server {} needs to be shut down to change mods."
+msgstr "⚠️ 需要关闭服务器 {} 才能更改模组."
+
+msgid "Quit"
+msgstr "退出"
+
+msgid "Updating mod {}, please wait ..."
+msgstr "正在更新模组 {}, 请等待 ..."
+
+msgid "Mod {mod}_v{version} could not be uninstalled!"
+msgstr "无法卸载模组 {mod}_v{version} !"
+
+msgid "Mod {mod}_v{version} could not be installed!"
+msgstr "无法安装模组 {mod}_v{version} !"
+
+msgid "Mod {} updated."
+msgstr "模组 {} 已更新."
+
+msgid "Installing mod {}, please wait ..."
+msgstr "正在安装模组 {}, 请等待 ..."
+
+msgid "Installation of mod {} failed."
+msgstr "模组 {} 安装失败."
+
+msgid "Mod {} installed."
+msgstr "已安装模组 {} ."
+
+msgid "Uninstalling mod {}, please wait ..."
+msgstr "正在卸载模组 {}, 请等待 ..."
+
+msgid "Mod {} uninstalled."
+msgstr "模组 {} 已卸载."
+
+msgid "Download a new Mod"
+msgstr "下载新模组"
+
+msgid "URL / GitHub Repo"
+msgstr "URL / GitHub 存储库"
+
+msgid "Destination (S=Saved Games / R=Root Folder)"
+msgstr "目标地址 (S=保存的游戏 / R=根目录)"
+
+msgid "Not a valid URL!"
+msgstr "无效的 URL!"
+
+msgid "{} is not a valid URL!"
+msgstr "{} 不是有效的 URL!"
+
+msgid "Downloading {} , please wait ..."
+msgstr "正在下载 {}, 请稍候 ..."
+
+msgid "Error: {}"
+msgstr "错误: {}"
+
+msgid "Mod Manager"
+msgstr "模组管理器"
+
+msgid "Install or uninstall mods to {}"
+msgstr "安装或卸载 {} 的模组"
+
+# /mods install
+msgid "Install mods"
+msgstr "安装模组"
+
+msgid "Server {} needs to be shut down to install mods."
+msgstr "需要关闭服务器 {} 才能安装模组."
+
+msgid "Mod {} not found!"
+msgstr "未找到模组 {} !"
+
+msgid "Mod {mod}_v{version} is already installed!"
+msgstr "模组 {mod}_v{version} 已安装!"
+
+msgid "Updating mod {mod} from {current_version} to {new_version}, please wait ..."
+msgstr "正在将模组 {mod} 从 {current_version} 更新至 {new_version}, 请稍候 ..."
+
+msgid "Mod {mod} updated to version {version}."
+msgstr "模组 {mod} 更新至版本 {version}."
+
+msgid "Mod {mod} installed with version {version}."
+msgstr "已安装模组 {mod} 版本为 {version} ."
+
+# /mods uninstall
+msgid "Uninstall mods"
+msgstr "卸载模组"
+
+msgid "Server {} needs to be shut down to uninstall mods."
+msgstr "需要关闭服务器 {} 才能卸载模组."
+
+# /mods list
+msgid "List all installed mods"
+msgstr "列出所有已安装的模组"
+
+msgid "No mod installed on server {}."
+msgstr "服务器 {} 上未安装任何模组."
+
+msgid "The following mods are installed on server {}:"
+msgstr "服务器 {} 上安装了以下模块:"
+
+msgid "Folder"
+msgstr "文件夹"
+
+# /mods download
+msgid "Download a mod"
+msgstr "下载模块"
+
+msgid "GitHub repo link or download URL"
+msgstr "GitHub 存储库链接或下载 URL"
+
+msgid "Downloading {mod}_v{version} from GitHub ..."
+msgstr "正在从 GitHub 下载模组 {mod}_v{version} ..."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "文件已存在. 是​​否要覆盖它?"
+
+msgid "Aborted."
+msgstr "已中止."
+
+msgid "Error {code}: {mod}_v{version} {message}"
+msgstr "错误 {code}: {mod}_v{version} {message}"
+
+msgid "{file} downloaded. Use {command} to install it."
+msgstr "已下载 {file} 使用 {command} 进行安装."
+
+msgid "Downloading {} ..."
+msgstr "正在下载 {} ..."
+

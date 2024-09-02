@@ -1,0 +1,534 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+# /mission
+msgid "Commands to manage a DCS mission"
+msgstr "管理 DCS 任务的命令"
+
+# /mission info
+msgid "Info about the running mission"
+msgstr "有关正在运行的任务的信息"
+
+# /mission manage
+msgid "Manage the active mission"
+msgstr "管理活动任务"
+
+# /mission atis
+msgid "Information about a specific airport"
+msgstr "有关特定机场的信息"
+
+msgid "airport"
+msgstr "机场"
+
+msgid "Airport for ATIS information"
+msgstr "机场 ATIS 信息"
+
+msgid "Server {} is not running."
+msgstr "服务器 {} 未运行."
+
+# /mission briefing
+msgid "Shows briefing of the active mission"
+msgstr "显示当前任务的简报"
+
+# /mission restart
+msgid "Restarts the current active mission\n"
+msgstr "重启当前活动任务\n"
+
+# /mission rotate
+msgid "Rotates to the next mission\n"
+msgstr "轮换至下一个任务\n"
+
+msgid "Can't restart server {server} as it is {status}!"
+msgstr "无法重新启动服务器 {server} 因为它的状态为 {status}!"
+
+msgid "A restart is currently pending.\n"
+"Would you still like to {} the mission?"
+msgstr "目前正在等待重启.\n"
+"您仍想 {} 该任务吗?"
+
+msgid "restart"
+msgstr "重启"
+
+msgid "rotate"
+msgstr "轮换"
+
+msgid "Do you really want to {} the mission?"
+msgstr "您确实要{}该任务吗?"
+
+msgid "Mission will {}, when server is empty."
+msgstr "当服务器为空时，任务将{}."
+
+msgid "!!! Mission will be {what} in {when}!!!"
+msgstr "!!! 任务将在 {what} 进行 {when}!!!"
+
+msgid "restarted"
+msgstr "重新启动"
+
+msgid "rotated"
+msgstr "轮换"
+
+msgid "!!! Mission will be {} NOW !!!"
+msgstr "!!! 任务现在将 {} !!!"
+
+msgid " Reason: {}"
+msgstr " 原因: {}"
+
+msgid "Mission will be {what} in {when} (warning users before)..."
+msgstr "任务将在 {when} 完成 {what} (之前警告用户)..."
+
+msgid "Mission will {} now, please wait ..."
+msgstr "任务现在将 {} 请等待 ..."
+
+msgid "Mission {}."
+msgstr "任务 {}."
+
+msgid "Timeout while the mission {what}.\n"
+"Please check with {command}, if the mission is running."
+msgstr "执行任务 {what} 时超时."
+"请使用 {command} 检查任务是否正在运行."
+
+# /mission load
+msgid "Loads a mission\n"
+msgstr "加载任务\n"
+
+msgid "Can't load mission on server {server} as it is {status}!"
+msgstr "无法在服务器 {server} 上加载任务，因为它处于 {status}!"
+
+msgid "change"
+msgstr "更换"
+
+msgid "Mission {} will be loaded when server is empty or on the next restart."
+msgstr "当服务器为空或下次重启时，任务 {} 将被加载."
+
+msgid "Loading mission {} ..."
+msgstr "正在加载任务 {} ..."
+
+msgid "Mission {} loaded."
+msgstr "任务 {} 已加载."
+
+msgid "Timeout while loading mission {}!"
+msgstr "加载任务 {} 超时!"
+
+# /mission add
+msgid "Adds a mission to the list\n"
+msgstr "将任务添加到列表中\n"
+
+msgid "path"
+msgstr "路径"
+
+msgid "No mission found."
+msgstr "未找到任务."
+
+msgid "Mission \"{}\" added."
+msgstr "任务 \"{}\" 已添加."
+
+msgid "Do you want to load this mission?"
+msgstr "您要加载此任务吗?"
+
+# /mission delete
+msgid "Deletes a mission from the list\n"
+msgstr "从列表中删除任务\n"
+
+msgid "You can't delete the running mission."
+msgstr "您无法删除正在进行的任务."
+
+msgid "Delete mission \"{}\" from the mission list?"
+msgstr "从任务列表中删除任务 \"{}\" 吗?"
+
+msgid "Mission \"{}\" removed from list."
+msgstr "任务 \"{}\" 已从列表中删除."
+
+msgid "Delete \"{}\" also from disk?"
+msgstr "是否也从磁盘中删除 \"{}\" ?"
+
+msgid "Mission \"{}\" deleted."
+msgstr "任务 \"{}\" 已删除."
+
+msgid "Mission \"{}\" was already deleted."
+msgstr "任务 \"{}\" 已被删除."
+
+msgid "deleted mission {}"
+msgstr "删除任务 {}"
+
+msgid "Timeout while deleting mission.\n"
+"Please reconfirm that the deletion was successful."
+msgstr "删除任务超时.\n"
+"请确认删除成功."
+
+# /mission pause
+msgid "Pauses the current running mission"
+msgstr "暂停当前​​正在运行的任务"
+
+msgid "Mission on server \"{}\" paused."
+msgstr "服务器 \"{}\" 上的任务已暂停."
+
+# /mission unpause
+msgid "Resumes the running mission"
+msgstr "恢复正在运行的任务"
+
+msgid "Mission on server \"{}\" resumed."
+msgstr "服务器 \"{}\" 上的任务已恢复."
+
+msgid "Server \"{}\" is not paused."
+msgstr "服务器 \"{}\" 未暂停."
+
+msgid "Server {server} is {status}, can't unpause."
+msgstr "服务器 {server} 处于 {status}，无法取消暂停."
+
+# /mission modify
+msgid "Modify mission with a preset\n"
+msgstr "使用预设修改任务\n"
+
+msgid "Chose an alternate presets file"
+msgstr "选择备用预设文件"
+
+msgid "No presets available, please configure them in {}."
+msgstr "没有可用的预设，请在 {} 中配置它们."
+
+msgid "There is an error in your {}. Please check the file structure."
+msgstr "您的 {} 中有错误.请检查文件结构."
+
+msgid "Do you want to restart the server for a mission change?"
+msgstr "您是否要重新启动服务器以更改任务?"
+
+msgid "Mission will be changed when server is empty."
+msgstr "当服务器空时任务将会改变."
+
+msgid "Changing mission ..."
+msgstr "正在更换任务 ..."
+
+msgid "The following preset were applied: {}."
+msgstr "应用了以下预设: {}."
+
+msgid "\nMission reloaded."
+msgstr "\n重新加载任务."
+
+msgid "Timeout during restart of mission!\n"
+"Please check, if the mission is running or if it somehow got corrupted."
+msgstr "任务重新开始时超时!\n"
+"请检查任务是否正在运行或是否因某种原因损坏."
+
+# /mission save_preset
+msgid "Save mission preset\n"
+msgstr "保存任务预设\n"
+
+msgid "Do you want to overwrite the existing preset \"{}\"?"
+msgstr "是否要覆盖现有预设 \"{}\"?"
+
+msgid "Preset \"{}\" added."
+msgstr "预设 \"{}\" 已添加."
+
+# /mission rollback
+msgid "Rollback to the original mission file after any modifications"
+msgstr "修改后回滚至原始任务文件"
+
+msgid "Please stop your server first to rollback the running mission."
+msgstr "请先停止您的服务器以回滚正在运行的任务."
+
+msgid "No \".orig\" file there, the mission was never changed."
+msgstr "没有 \".orig\" 文件, 任务从未改变."
+
+msgid "Mission {} has been rolled back."
+msgstr "任务 {} 已撤销."
+
+# /player
+msgid "Commands to manage DCS players"
+msgstr "用于管理 DCS 玩家的命令"
+
+# /player list
+msgid "Lists the current players"
+msgstr "列出当前玩家"
+
+# /player kick
+msgid "Kicks a player\n"
+msgstr "踢出一名玩家\n"
+
+msgid "Player not found."
+msgstr "未找到玩家."
+
+msgid "Player {name} (ucid={ucid}) kicked."
+msgstr "玩家 {name} (ucid={ucid}) 已踢出."
+
+# /player ban
+msgid "Bans an active player"
+msgstr "封禁一名活跃玩家"
+
+msgid "Ban Details"
+msgstr "禁令详情"
+
+msgid "Reason"
+msgstr "原因"
+
+msgid "n/a"
+msgstr "n/a"
+
+msgid "Days (empty = forever)"
+msgstr "日期 (空 = 永久)"
+
+msgid "Player {} banned on all servers "
+msgstr "玩家 {} 在所有服务器上封禁 "
+
+msgid "for {} days."
+msgstr "持续 {} 天."
+
+# /player spec
+msgid "Moves a player to spectators\n"
+msgstr "将玩家移至观众席\n"
+
+msgid "You have been moved to spectators. Reason: {}"
+msgstr "您已被移至观众席. 原因: {}"
+
+msgid "Player \"{}\" moved to spectators."
+msgstr "玩家 \"{}\" 移至观众席."
+
+# /players afk
+msgid "List of AFK players"
+msgstr "AFK 玩家名单"
+
+msgid "These players are AFK for more than {} minutes:"
+msgstr "这些玩家离线时间超过 {} 分钟:"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Server"
+msgstr "服务器"
+
+msgid "No player is AFK for more than {} minutes."
+msgstr "没有玩家离线超过 {} 分钟."
+
+# /player exempt
+msgid "Exempt player from AFK kicks"
+msgstr "免除 AFK 踢出处罚的玩家"
+
+msgid "Do you want to permanently add this user to the AFK exemption list?"
+msgstr "是否要将此用户永久添加到 AFK 豁免列表中?"
+
+msgid "User added to the exemption list."
+msgstr "用户已添加到豁免名单."
+
+msgid "Player is on the list already. Do you want to remove them?"
+msgstr "玩家已在列表中.要将其移除吗?"
+
+msgid "Aborted."
+msgstr "已中止."
+
+msgid "User removed from the exemption list."
+msgstr "用户已从豁免名单中移除."
+
+# /player popup
+msgid "Sends a popup to a player\n"
+msgstr "向玩家发送弹出窗口\n"
+
+msgid "Message sent."
+msgstr "消息已发送."
+
+# /player chat
+msgid "Sends a chat message to a player\n"
+msgstr "向玩家发送聊天消息\n"
+
+# /watch add
+msgid "Puts a player onto the watchlist"
+msgstr "将一名玩家放入观察名单"
+
+msgid "Member {} is not linked!"
+msgstr "成员 {} 未链接!"
+
+msgid "Player {} was already on the watchlist."
+msgstr "玩家 {} 已在监视列表中."
+
+msgid "Player {} is now on the watchlist."
+msgstr "玩家 {} 现已进入监视列表."
+
+# /watch delete
+msgid "Removes a player from the watchlist"
+msgstr "从观察名单中移除一名玩家"
+
+msgid "Player {} removed from the watchlist."
+msgstr "玩家 {} 从监视列表中移除."
+
+# /watch list
+msgid "Shows the watchlist"
+msgstr "显示监视列表"
+
+msgid "The watchlist is currently empty."
+msgstr "监视列表目前是空的."
+
+msgid "These players are currently on the watchlist:"
+msgstr "这些玩家目前在观察名单上:"
+
+msgid "UCID"
+msgstr "UCID"
+
+msgid "Created by"
+msgstr "创建者"
+
+# / group
+msgid "Commands to manage DCS groups"
+msgstr "用于管理 DCS 组的命令"
+
+# /group popup
+msgid "Sends a popup to a group\n"
+msgstr "向群组发送弹出窗口\n"
+
+# /link
+msgid "Links a member to a DCS user"
+msgstr "将成员链接到 DCS 用户"
+
+msgid "This member is linked to this UCID already."
+msgstr "此成员已与此 UCID 关联."
+
+msgid "Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?"
+msgstr "成员 {name} 已链接到另一个 UCID ({ucid})。要重新链接吗?"
+
+msgid "Member {name} linked to UCID {ucid}."
+msgstr "成员 {name} 已链接到 UCID {ucid}."
+
+# /unlink
+msgid "Unlinks a member or ucid"
+msgstr "取消成员或 ucid 的链接"
+
+msgid "Name of player, member or UCID"
+msgstr "玩家姓名、成员或 UCID"
+
+msgid "Member {name} unlinked from UCID {ucid}."
+msgstr "成员 {name} 已取消与 UCID {ucid} 的链接."
+
+msgid "Player is not linked!"
+msgstr "玩家未链接！"
+
+msgid "Unknown player / member provided"
+msgstr "未知玩家/成员提供"
+
+# /find, /player find
+msgid "Find a player by name"
+msgstr "按姓名查找玩家"
+
+msgid "last seen"
+msgstr "上次出现:"
+
+msgid "No user found."
+msgstr "未找到用户."
+
+msgid "Select a User"
+msgstr "选择用户"
+
+# /info, /player info
+msgid "Shows player information"
+msgstr "显示玩家信息"
+
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "该用户不存在。请尝试 {} 在历史数据中找到他们."
+
+# /linkcheck
+msgid "Show players that could be linked"
+msgstr "显示可关联的玩家"
+
+msgid "Unlinked Players"
+msgstr "未链接的玩家"
+
+msgid "These players could be possibly linked:"
+msgstr "这些玩家可以链接:"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "DCS Player"
+msgstr "DCS 玩家"
+
+msgid "Member"
+msgstr "成员"
+
+msgid "Press a number to link this specific user."
+msgstr "按数字链接此特定用户."
+
+msgid "No unmatched member could be matched."
+msgstr "未匹配的成员无法匹配."
+
+msgid "DCS player {player} linked to member {member}."
+msgstr "DCS 玩家 {player} 已与成员 {member} 建立链接."
+
+# /mislinks
+msgid "Show possibly mislinked players"
+msgstr "显示可能链接错误的玩家"
+
+msgid "Possible Mislinks"
+msgstr "可能的错误链接"
+
+msgid "These players could be possibly mislinked:"
+msgstr "这些玩家可能被错误链接："
+
+msgid "Press a number to unlink this specific user."
+msgstr "按一个数字即可取消该特定用户的链接."
+
+msgid "No mislinked players found."
+msgstr "未找到错误链接的玩家."
+
+msgid "UCID {ucid} transferred from member {old_member} to member {new_member}."
+msgstr "UCID {ucid} 从成员 {old_member} 转移到成员 {new_member}."
+
+# /linkme
+msgid "Link your DCS and Discord user"
+msgstr "链接您的 DCS 和 Discord 用户"
+
+msgid "**Your secure TOKEN is: {token}**\n"
+"To link your user, type in the following into the DCS chat of one of our servers:"
+"```{prefix}linkme {token}```\n\n"
+"**The TOKEN will expire in 2 days!**"
+msgstr "**您的 TOKEN 是: {token}**\n"
+"要链接您的用户，请在我们其中一台服务器的 DCS 聊天中输入以下内容:"
+"```{prefix}linkme {token}```\n\n"
+"**TOKEN 将在2天后过期!**"
+
+msgid "You already have a verified DCS account!\n"
+"Are you sure you want to re-link your account? (Ex: Switched from Steam to Standalone)"
+
+msgstr "您已经有一个经过验证的 DCS 帐户！.\n"
+"您确定要重新链接您的帐户吗？（例如：从 Steam 切换到独立版）"
+
+# /player inactive
+msgid "Shows inactive players"
+msgstr "显示不活跃的玩家"
+
+# Mission Uploads
+msgid "To which server do you want to upload this mission to?"
+msgstr "您想将此任务上传到哪个服务器?"
+
+msgid "Upload aborted."
+msgstr "上传已中止."
+
+msgid "A mission is currently active.\n"
+"Do you want me to stop the DCS-server to replace it?"
+msgstr "目前有一个任务正在进行中.\n"
+"您想让我停止 DCS 服务器来替换它吗?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "文件已存在。是​​否要覆盖它?"
+
+msgid "Error while uploading: {}"
+msgstr "上传时出错: {}"
+
+msgid "Mission \"{mission}\" uploaded to server {server}.\n"
+"As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
+msgstr "任务 \"{mission}\" 已上传至服务器 {server}.\n"
+"由于您启用了 \"自动扫描\", 它可能需要几秒钟才能出现在您的任务列表中."
+
+msgid "Error while uploading: File not found in severSettings.lua!"
+msgstr "上传时出错: 在 severSettings.lua 中未找到文件!"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and added."
+msgstr "任务 \"{mission}\" 已上传至服务器 {server} 并添加."
+
+msgid "Do you want to apply extensions before mission start?"
+msgstr "您想在任务开始前应用扩展吗?"
+
+msgid "Timeout while trying to load the mission."
+msgstr "尝试加载任务时超时."

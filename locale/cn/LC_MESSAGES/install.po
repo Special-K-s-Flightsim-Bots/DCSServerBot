@@ -1,0 +1,312 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+# Master Setup
+msgid "The bot can be set to the same language, which means, that all Discord and in-game messages will be in your language as well. Would you like me to configure the bot this way?"
+msgstr "可以将机器人设置为相同的语言，这意味着所有 Discord 和游戏内消息也将使用您的语言。您希望我以这种方式配置机器人吗?"
+
+msgid ""
+"\n"
+"For a successful installation, you need to fulfill the following prerequisites:\n"
+"\n"
+"    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n"
+"    2. A Discord TOKEN for your bot from https://discord.com/developers/applications\n"
+"\n"
+""
+msgstr ""
+"\n"
+"为了成功安装，您需要满足以下先决条件:\n"
+"\n"
+"    1. 安装 PostgreSQL 数据库 https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n"
+"    2. 获取给 Server Bot 用的 Discord TOKEN https://discord.com/developers/applications\n"
+"\n"
+""
+
+msgid "Have you fulfilled all these requirements?"
+msgstr "您是否满足了所有这些要求?"
+
+msgid "Aborted: missing requirements."
+msgstr "已中止：您需要先满足所有要求."
+
+msgid "\n1. [u]General Setup[/]"
+msgstr "\n1. [u]常规设置[/]"
+
+msgid "Do you want your DCSServerBot being auto-updated?"
+msgstr "您是否希望 DCSServerBot 自动更新?"
+
+msgid "\n2. [u]Discord Setup[/]"
+msgstr "\n2. [u]Discord 设置[/]"
+
+msgid "Please enter your Discord Guild ID (right click on your Discord server, \"Copy Server ID\")"
+msgstr "请输入您的 Discord Guild ID (右键单击您的 Discord 服务器, \"复制服务器 ID\")"
+
+msgid "Please enter your discord TOKEN (see documentation)"
+msgstr "请输入您的 discord TOKEN（查看文档）"
+
+msgid "Please enter your Owner ID (right click on your discord user, \"Copy User ID\")"
+msgstr "请输入您的所有者 ID (右键单击您的 discord 用户, \"复制用户 ID\")"
+
+msgid "\nWe now need to setup your Discord roles and channels.\n"
+"DCSServerBot creates a role mapping for your bot users. It has the following internal roles:"
+msgstr "\n我们现在需要设置您的 Discord 角色和频道.\n"
+"DCSServerBot 为您的机器人用户创建角色映射。它具有以下内部角色:"
+
+# Admin
+msgid "Users can delete data, change the bot, run commands on your server"
+msgstr "Admin 用户可以删除数据、更改机器人、在你的服务器上运行命令."
+
+# DCS Admin
+msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
+msgstr "DCS Admin 用户可以上传任务、启动/停止 DCS 服务器、踢出/禁止用户等."
+
+# No Discord
+msgid "\n2. [u]Bot Setup[/]"
+msgstr "\n2. [u]机器人设置[/]"
+
+msgid "You now need to setup your users.\nDCSServerBot uses the following internal roles:"
+msgstr "您现在需要设置您的用户.\nDCSServerBot 使用以下内部角色:"
+
+msgid "Which user(s) should get the [bold]{}[/] role?\n"
+"Please enter a comma-separated list of UCIDs"
+msgstr "哪些用户应获得 [bold]{}[/] 角色?\n"
+"请输入以逗号分隔的 UCID 列表"
+
+msgid "[i]You can skip the Discord TOKEN, if you decide to do a non-Discord-installation.[/]"
+msgstr "[i]如果你决定不安装 Discord，则可以跳过 Discord TOKEN.[/]"
+
+msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
+msgstr "您是否想运行支持 Discord 的 DCSServerBot（推荐）?"
+
+msgid "Users can delete data and change the bot"
+msgstr "Admin 用户可以删除数据并更改机器人"
+
+msgid "Users can restart missions, kick/ban users, etc."
+msgstr "DCS Admin用户可以重新开始任务、踢出/禁止用户等."
+
+# DCS
+msgid "Searching for existing DCS server configurations ..."
+msgstr "正在搜索现有的 DCS 服务器配置 ..."
+
+msgid "Please enter the path to your DCS World installation"
+msgstr "请输入 DCS World 安装路径"
+
+msgid "Directory not found. Please try again."
+msgstr "未找到目录。请重试."
+
+msgid "Searching for DCS installations ..."
+msgstr "搜索 DCS 安装 ..."
+
+msgid "Other"
+msgstr "其他"
+
+msgid "Please specify, which installation you want the bot to use.\n"
+"Chose \"Other\", if it is not in the list"
+msgstr "请指定您希望机器人使用哪个进行安装.\n"
+"如果不在列表中，请选择 \"其他\""
+
+msgid "Normal user, can pull statistics, ATIS, etc."
+msgstr "普通用户，可以提取统计数据、ATIS 等."
+
+msgid "Please separate roles by comma, if you want to provide more than one.\n"
+"You can keep the defaults, if unsure and create the respective roles in your Discord server."
+msgstr "如果您想提供多个角色，请用逗号分隔.\n"
+"如果不确定，你可以保留默认设置，并在 Discord 服务器中创建相应的角色."
+
+msgid "Which role(s) in your discord should hold the [bold]{}[/] role?"
+msgstr "您的 discord 中的哪些角色应担任 [bold]{}[/] 角色?"
+
+msgid "\nPlease provide a channel ID for audit events (optional)"
+msgstr "\n请提供审计事件的渠道 ID（可选）"
+
+msgid "\nThe bot can either use a dedicated admin channel for each server or a central admin channel for all servers.\n"
+"If you want to use a central one, please provide the ID (optional)"
+msgstr "\n机器人可以为每个服务器使用专用的管理频道，也可以为所有服务器使用中央管理频道.\n"
+"如需使用中央账户，请提供 ID（可选）"
+
+# Node Setup
+msgid "[red]A configuration for this nodes exists already![/]\n"
+"Do you want to overwrite it?"
+msgstr "[red]此节点的配置已存在!![/]\n"
+"是否要覆盖它?"
+
+msgid "Aborted: configuration exists"
+msgstr "已中止：配置已存在."
+
+msgid "[yellow]Configuration found, adding another node...[/]"
+msgstr "[yellow]找到配置，添加另一个节点...[/]"
+
+# Database Configuration
+msgid "\n{}. [u]Database Setup[/]"
+msgstr "\n{}. [u]数据库设置[/]"
+
+msgid "[red]No PostgreSQL-database found on {host}:{port}![/]"
+msgstr "[red]在 {host}:{port} 上未找到 PostgreSQL 数据库![/]"
+
+msgid "Enter the hostname of your PostgreSQL-database"
+msgstr "输入你的 PostgreSQL 数据库的主机名"
+
+msgid "Enter the port to your PostgreSQL-database"
+msgstr "输入你的 PostgreSQL 数据库的端口"
+
+msgid "Please enter your PostgreSQL master password (user=postgres)"
+msgstr "请输入您的 PostgreSQL 主密码 (用户=postgres)"
+
+msgid "[yellow]Existing {} user found![/]"
+msgstr "[yellow]已找到用户 {} ![/]"
+
+msgid "Do you remember the password of {}?"
+msgstr "您记得 {} 的密码吗?"
+
+msgid "Please enter your password for user {}"
+msgstr "请输入用户 {} 的密码"
+
+msgid "[red]Wrong password! Try again ({}/3).[/]"
+msgstr "[red]密码错误!请重试 ({}/3).[/]"
+msgid "[yellow]You have entered 3x a wrong password. I have reset it.[/]'"
+msgstr "[yellow]您输入了 3 次错误密码。我已重置密码.[/]'"
+
+msgid "[green]- Database user and database created.[/]"
+msgstr "[green]- 创建数据库用户和数据库.[/]"
+
+msgid "[red]Master password wrong. Please try again.[/]"
+msgstr "[red]主密码错误. 请重试.[/]"
+
+msgid "Aborted: No valid Database URL provided."
+msgstr "中止：未提供有效的数据库 URL."
+
+msgid "\n{}. [u]Node Setup[/]"
+msgstr "\n{}. [u]节点设置[/]"
+
+# DCS Configuration
+msgid "Aborted: No DCS installation found."
+msgstr "已中止：未找到 DCS 安装."
+
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "您是否希望您的 DCS 安装由机器人自动更新?"
+
+# SRS
+msgid "Please enter the path to your DCS-SRS installation.\n"
+"Press ENTER, if there is none."
+msgstr "请输入 DCS-SRS 安装路径.\n"
+"如果没有，请按 ENTER."
+
+msgid "DCS-SRS installation path: {}"
+msgstr "DCS-SRS 安装路径：: {}"
+
+msgid "DCS-SRS not configured."
+msgstr "DCS-SRS 未配置."
+
+# DCS Server Configuration
+msgid "\n{}. [u]DCS Server Setup[/]"
+msgstr "\n{}. [u]DCS 服务器设置[/]"
+
+msgid "No configured DCS servers found."
+msgstr "未找到已配置的 DCS 服务器."
+
+msgid "\n[i]DCS server \"{}\" found.[/i]\n"
+"Would you like to manage this server through DCSServerBot?"
+msgstr "\n[i]DCS 服务器 \"{}\" 已找到.[/]\n"
+"您想通过 DCSServerBot 管理此服务器吗?"
+
+msgid "Adding instance {instance} with server {name} ..."
+msgstr "添加实例 {instance} 和服务器 {name} ..."
+
+msgid "[red]SRS configuration could not be created.\n"
+"Please copy your server.cfg to {} manually.[/]"
+msgstr "[red]无法创建 SRS 配置.\n"
+"请手动将您的 server.cfg 复制到 {} .[/]"
+
+msgid "SRS configuration could not be created, manual setup necessary."
+msgstr "无法创建 SRS 配置，需要手动设置."
+
+msgid "DCSServerBot uses up to {} channels per supported server:"
+msgstr "DCSServerBot 每个支持的服务器最多使用 {} 个通道:"
+
+# Status Channel
+msgid "To display the mission and player status."
+msgstr "显示任务和玩家状态."
+
+# Chat Channel
+msgid "[bright_black]Optional:[/]: An in-game chat replication."
+msgstr "[bright_black]可选:[/]: 游戏内聊天同步频道."
+
+# Admin Channel
+msgid "For admin commands."
+msgstr "对于管理命令."
+
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\n"
+"The Chat Channel should be readable and writable by everyone.\n"
+"The Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\n"
+"You can create these channels now, as I will ask for the IDs in a bit.\n"
+"DCSServerBot needs the following permissions on them to work:\n\n"
+"    - View Channel\n"
+"    - Send Messages\n"
+"    - Read Messages\n"
+"    - Read Message History\n"
+"    - Add Reactions\n"
+"    - Attach Files\n"
+"    - Embed Links\n"
+"    - Manage Messages\n\n"
+msgstr "\n状态通道应可供所有人读取，但只能由机器人写入.\n"
+"聊天频道应该对每个人都具有可读写权限.\n"
+"管理通道（无论是否中央）只能由管理员和 DCS 管理员用户读取和写入.\n\n"
+"你现在可以创建这些频道，稍后我会要求你提供 ID.\n"
+"DCSServerBot 需要以下权限才能运行:\n\n"
+"    - 查看频道\n"
+"    - 发送消息\n"
+"    - 读取消息\n"
+"    - 读取历史消息\n"
+"    - 添加反应\n"
+"    - 附加文件\n"
+"    - 嵌入链接\n"
+"    - 管理消息\n\n"
+
+msgid "Please enter the ID of your [bold]Status Channel[/]"
+msgstr "请输入您的 [bold] 状态频道的ID[/]"
+
+msgid "Please enter the ID of your [bold]Chat Channel[/] (optional)"
+msgstr "请输入您的 [bold] 聊天频道ID[/] (可选)"
+
+msgid "Please enter the ID of your [bold]Admin Channel[/]"
+msgstr "请输入您的 [bold]管理频道的ID[/]"
+
+msgid "Do you want DCSServerBot to autostart this server?"
+msgstr "您是否希望 DCSServerBot 自动启动该服务器?"
+
+msgid "Instance {} configured."
+msgstr "实例 {} 已配置."
+
+msgid "\n\nAll set. Writing / updating your config files now..."
+msgstr "\n\n全部设置完毕. 现在写入 / 更新您的配置文件..."
+
+msgid "- Created {}"
+msgstr "- 创建 {}"
+
+msgid "{} written"
+msgstr "{} 已写入"
+
+msgid "[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]"
+msgstr "[red]您需要授予 DCSServerBot 对 {} 的写入权限才能对您的 MissionScripting.lua 进行消毒![/]"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
+"You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
+"There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
+"You can start DCSServerBot with:\n\n"
+"    [bright_black]run.cmd[/]\n\n"
+msgstr"\n[green]您的基本 DCSServerBot 配置已完成.[/]\n\n"
+"您现在可以在 DCSServerBot安装目录的config文件夹下查看创建的配置文件.\n"
+"还有更多内容需要探索和配置，所以请不要忘记查看文档!\n\n"
+"你可以使用以下命令启动 DCSServerBot:\n\n"
+"    [bright_black]run.cmd[/]\n\n"
+
+msgid "Installation finished."
+msgstr "安装完成."
+
+msgid "\nAborted."
+msgstr "\n已中止."

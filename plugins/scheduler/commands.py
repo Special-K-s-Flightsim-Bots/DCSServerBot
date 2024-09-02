@@ -178,7 +178,7 @@ class Scheduler(Plugin):
                     await server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
                                                                               time=warn_time))
             with suppress(Exception):
-                events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
                 if events_channel:
                     await events_channel.send(warn_text.format(item=item, what=what,
                                                                when=utils.format_time(warn_time)))

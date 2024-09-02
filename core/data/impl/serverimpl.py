@@ -345,8 +345,7 @@ class ServerImpl(Server):
             if os.path.exists(filename):
                 data = yaml.load(Path(filename).read_text(encoding='utf-8'))
                 if old_name in data and new_name not in data:
-                    data[new_name] = deepcopy(data[old_name])
-                    del data[old_name]
+                    data[new_name] = data.pop(old_name)
                     with open(filename, mode='w', encoding='utf-8') as outfile:
                         yaml.dump(data, outfile)
             # update serverSettings.lua if requested
@@ -733,12 +732,12 @@ class ServerImpl(Server):
             if password:
                 advanced['bluePasswordHash'] = utils.hash_password(password)
             else:
-                del advanced['bluePasswordHash']
+                advanced.pop('bluePasswordHash', None)
         else:
             if password:
                 advanced['redPasswordHash'] = utils.hash_password(password)
             else:
-                del advanced['redPasswordHash']
+                advanced.pop('redPasswordHash', None)
         self.settings['advanced'] = advanced
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -862,5 +861,5 @@ class ServerImpl(Server):
         if not ext:
             raise UninstallException(f"Extension {name} is not installed!")
         await ext.uninstall()
-        del self.extensions[name]
+        self.extensions.pop(name, None)
         await self.config_extension(name, {"enabled": False})

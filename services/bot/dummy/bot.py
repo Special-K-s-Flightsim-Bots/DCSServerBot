@@ -102,9 +102,8 @@ class DummyBot:
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
         # cleanup remote servers (if any)
-        for key, value in self.bus.servers.items():
-            if value.is_remote:
-                del self.bus.servers[key]
+        for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
+            self.bus.servers.pop(key)
         self.setup.set()
 
     async def audit(self, message, *, user: Any = None, server: Optional[Server] = None, **kwargs):

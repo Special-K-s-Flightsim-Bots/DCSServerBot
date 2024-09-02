@@ -1,11 +1,12 @@
 type: map
 mapping:
   guild_id: {type: int, required: true}
+  guild_name: {type: str}
   autoupdate: {type: bool}
   use_dashboard: {type: bool}
   chat_command_prefix: {type: str, range: {min: 1, max: 1}}
   mission_rewrite: {type: bool}
-  language: {type: str, enum: ['en', 'de', 'es', 'ru']}
+  language: {type: str, enum: ['en', 'de', 'es', 'ru', 'cn']}
   database:
     type: map
     mapping:

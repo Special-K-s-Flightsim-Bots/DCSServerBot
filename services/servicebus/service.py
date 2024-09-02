@@ -270,13 +270,12 @@ class ServiceBus(Service):
         if not node:
             return
         self.log.info(f"- Unregistering remote node {node.name} and all its servers ...")
-        servers_to_remove = []
-        for server in (x for x in self.servers.values() if x.is_remote and x.node == node):
-            servers_to_remove.append(server.name)
-        for server_name in servers_to_remove:
-            self.log.info(f"  => Remote DCS-server \"{server_name}\" unregistered.")
-            self.servers[server_name].status = Status.UNREGISTERED
-            del self.servers[server_name]
+        for server_name, server in list(self.servers.items()):
+            if server.is_remote and server.node == node:
+                self.log.info(f"  => Remote DCS-server \"{server_name}\" unregistered.")
+                server.status = Status.UNREGISTERED
+                del self.servers[server_name]
+        # we do not delete the node but set it to None, to reactivate it later
         self.node.all_nodes[node.name] = None
         self.log.info(f"- Remote node {node.name} unregistered.")
 
@@ -349,14 +348,14 @@ class ServiceBus(Service):
                             asyncio.run(server.rename(server_name))
                         else:
                             self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
-                            del self.servers[server_name]
+                            self.servers.pop(server_name, None)
                             return False
         return True
 
     def rename_server(self, server: Server, new_name: str):
         self.servers[new_name] = server
         if server.name in self.servers:
-            del self.servers[server.name]
+            self.servers.pop(server.name, None)
         if server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put({})
             self.udp_server.message_queue[new_name] = Queue()
@@ -749,7 +748,7 @@ class ServiceBus(Service):
                             data = derived.message_queue[server.name].get()
                 finally:
                     self.log.debug(f"Listener for server {server_name} stopped.")
-                    del derived.message_queue[server_name]
+                    derived.message_queue.pop(server_name, None)
 
             def shutdown(derived):
                 super().shutdown()

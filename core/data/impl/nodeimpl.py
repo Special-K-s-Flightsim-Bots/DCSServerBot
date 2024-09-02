@@ -182,9 +182,9 @@ class NodeImpl(Node):
 
     def unregister_callback(self, what: str, name: str):
         if what == 'before_dcs_update':
-            del self.before_update[name]
+            self.before_update.pop(name, None)
         else:
-            del self.after_update[name]
+            self.after_update.pop(name, None)
 
     async def shutdown(self, rc: int = -2):
         self.rc = rc
@@ -1012,7 +1012,7 @@ class NodeImpl(Node):
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
-        del config[self.name]['instances'][instance.name]
+        config[self.name]['instances'].pop(instance.name, None)
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
         if instance.server:

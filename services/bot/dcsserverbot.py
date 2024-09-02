@@ -79,9 +79,8 @@ class DCSServerBot(commands.Bot):
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
         # cleanup remote servers (if any)
-        for key, value in self.bus.servers.items():
-            if value.is_remote:
-                del self.bus.servers[key]
+        for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
+            self.bus.servers.pop(key)
 
     async def load_plugin(self, plugin: str) -> bool:
         try:

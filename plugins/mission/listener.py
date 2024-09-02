@@ -312,7 +312,7 @@ class MissionEventListener(EventListener):
             embed.description = f"Server {server.display_name} has less than {min_threshold} players."
         elif max_threshold:
             embed.description = f"Server {server.display_name} has more than {max_threshold} players."
-        channel = self.bot.get_channel(config.get('channel', server.channels[Channel.STATUS]))
+        channel = self.bot.get_channel(config.get('channel', server.channels.get(Channel.STATUS, -1)))
         if channel:
             await channel.send(mentions, embed=embed)
         else:
@@ -409,9 +409,8 @@ class MissionEventListener(EventListener):
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
-        for p in list(server.players.values()):
-            if not p.active and not p.id == 1:
-                del server.players[p.id]
+        for player_id in [p.id for p in server.players.values() if not p.active and p.id != 1]:
+            del server.players[player_id]
         # check if we are idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
@@ -593,7 +592,7 @@ class MissionEventListener(EventListener):
             if server.locals.get('force_voice', False):
                 # we do not check DCS Admin users
                 if not utils.check_roles(self.bot.roles['DCS Admin'], player.member):
-                    voice: discord.VoiceChannel = self.bot.get_channel(server.channels[Channel.VOICE])
+                    voice: discord.VoiceChannel = self.bot.get_channel(server.channels.get(Channel.VOICE, -1))
                     if not voice:
                         self.log.error(
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")

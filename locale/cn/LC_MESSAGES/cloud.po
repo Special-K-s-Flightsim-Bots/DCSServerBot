@@ -1,0 +1,57 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+# /cloud status
+msgid "Test the cloud-connection"
+msgstr "测试云连接"
+
+msgid "Checking cloud connection ..."
+msgstr "检查云连接中..."
+
+msgid "\nCloud TOKEN configured and valid."
+msgstr "\n云 TOKEN 已配置且有效."
+
+msgid "\nCloud TOKEN configured, but invalid!"
+msgstr "\n云 TOKEN 已配置，但无效!"
+
+msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\n如果你想使用云统计数据，请获取一个云 TOKEN!"
+
+msgid "Cloud connection established."
+msgstr "云连接已建立."
+
+msgid "Cloud not connected!"
+msgstr "云未连接!"
+
+# /cloud resync
+msgid "Resync statistics with the cloud"
+msgstr "与云重新同步统计数据"
+
+msgid "No cloud sync configured!"
+msgstr "未配置云同步!"
+
+msgid "Resync with cloud triggered."
+msgstr "已触发与云的重新同步."
+
+# /cloud statistics
+msgid "Generate Cloud Statistics"
+msgstr "生成云统计数据"
+
+msgid "Cloud statistics are not activated in this Discord!"
+msgstr "在这个 Discord 中未激活云统计数据!"
+
+msgid "Use {} to link your account."
+msgstr "使用 {} 来关联你的账户."
+
+msgid "No cloud-based statistics found for this user."
+msgstr "未找到该用户的云统计数据."

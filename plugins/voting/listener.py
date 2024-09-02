@@ -133,7 +133,7 @@ class VotingHandler:
             await self.server.sendChatMessage(Coalition.ALL, message)
             await self.server.sendPopupMessage(Coalition.ALL, message)
             await self.item.execute(winner)
-        del all_votes[self.server.name]
+        all_votes.pop(self.server.name, None)
 
 
 class VotingListener(EventListener):
@@ -233,8 +233,7 @@ class VotingListener(EventListener):
         if server.name in all_votes:
             if len(params) == 1 and params[0] == 'cancel':
                 if utils.check_roles(self.bot.roles['DCS Admin'], player.member):
-                    all_votes[server.name].cancel()
-                    del all_votes[server.name]
+                    all_votes.pop(server.name).cancel()
                     message = "The voting has been cancelled by an Admin."
                     await server.sendChatMessage(Coalition.ALL, message)
                     await server.sendPopupMessage(Coalition.ALL, message)
