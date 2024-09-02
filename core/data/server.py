@@ -388,7 +388,7 @@ class Server(DataObject):
             if 'channels' not in self.locals and self.name != 'n/a':
                 self.log.warning(f"No channels defined in servers.yaml for server {self.name}!")
             self._channels = {}
-            for key, value in self.locals['channels'].items():
+            for key, value in self.locals.get('channels', {}).items():
                 self._channels[Channel(key)] = int(value)
             if Channel.STATUS not in self._channels:
                 self._channels[Channel.STATUS] = -1
