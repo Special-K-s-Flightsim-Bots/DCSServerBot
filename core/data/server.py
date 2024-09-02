@@ -386,8 +386,7 @@ class Server(DataObject):
     def channels(self) -> dict[Channel, int]:
         if not self._channels:
             if 'channels' not in self.locals and self.name != 'n/a':
-                self.log.error(f"No channels defined in servers.yaml for server {self.name}!")
-                return {}
+                self.log.warning(f"No channels defined in servers.yaml for server {self.name}!")
             self._channels = {}
             for key, value in self.locals['channels'].items():
                 self._channels[Channel(key)] = int(value)
