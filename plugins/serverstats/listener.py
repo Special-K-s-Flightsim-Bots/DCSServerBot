@@ -31,8 +31,10 @@ class ServerStatsListener(EventListener):
                         asyncio.create_task(ServiceRegistry.get(BotService).alert(title="Server Performance Low!",
                                                                                   message=message, server=server))
                     else:
-                        # noinspection PyAsyncCall
-                        asyncio.create_task(self.bot.get_admin_channel(server).send(message))
+                        admin_channel = self.bot.get_admin_channel(server)
+                        if admin_channel:
+                            # noinspection PyAsyncCall
+                            asyncio.create_task(admin_channel.send(message))
                     self.minutes[server.name] = 0
             else:
                 self.minutes[server.name] = 0

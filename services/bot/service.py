@@ -136,8 +136,9 @@ class BotService(Service):
                 server = next(server for server in self.bot.servers.values() if server.node.name == node.name)
             except StopIteration:
                 server = None
-        if server:
-            await self.bot.get_admin_channel(server).send(content=mentions, embed=embed, file=file)
+        admin_channel = self.bot.get_admin_channel(server)
+        if server and admin_channel:
+            await admin_channel.send(content=mentions, embed=embed, file=file)
 
     async def install_fonts(self):
         font_dir = Path('fonts')

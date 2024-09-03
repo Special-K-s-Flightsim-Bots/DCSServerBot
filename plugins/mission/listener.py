@@ -102,6 +102,8 @@ class MissionEventListener(EventListener):
         if command.name == 'linkme':
             if player.verified or isinstance(self.bot, DummyBot):
                 return False
+        if command.name == '911' and not self.bot.get_admin_channel(server):
+            return False
         return await super().can_run(command, server, player)
 
     async def work_queue(self):
@@ -280,19 +282,32 @@ class MissionEventListener(EventListener):
                 })
 
     async def _watchlist_alert(self, server: Server, player: Player):
+        admin_channel = self.bot.get_admin_channel(server)
+        if not admin_channel:
+            return
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("SELECT reason, created_by, created_at FROM watchlist WHERE player_ucid = %s",
+                                    (player.ucid, ))
+                row = await cursor.fetchone()
+        if not row:
+            return
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         embed = discord.Embed(title='Watchlist member joined!', colour=discord.Color.red())
         embed.description = "A user just joined that you put on the watchlist."
         embed.add_field(name="Server", value=server.name, inline=False)
         embed.add_field(name="Player", value=player.name)
         embed.add_field(name="UCID", value=player.ucid)
+        embed.add_field(name='_ _', value='_ _')
         if player.member:
-            embed.add_field(name="_ _", value='_ _')
             embed.add_field(name="Member", value=player.member.display_name)
             embed.add_field(name="Discord ID", value=player.member.id)
             embed.add_field(name="_ _", value='_ _')
+        embed.add_field(name="Reason", value=row['reason'])
+        embed.add_field(name="Added by", value=row['created_by'])
+        embed.add_field(name="Added at", value=f"<t:{int(row['created_by'].timestamp())}:f>")
         embed.set_footer(text="Players can be removed from the watchlist by using the /info command.")
-        await self.bot.get_admin_channel(server).send(mentions, embed=embed)
+        await admin_channel.send(mentions, embed=embed)
 
     async def _threshold_alert(self, server: Server, config: dict):
         if server.name in self.alert_fired:
@@ -344,7 +359,7 @@ class MissionEventListener(EventListener):
         if 'admin' not in channels:
             admin_channel = self.bot.get_admin_channel(server)
             if admin_channel:
-                channels['admin'] = self.bot.get_admin_channel(server).id
+                channels['admin'] = admin_channel.id
         # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             'command': 'loadParams',
@@ -573,9 +588,11 @@ class MissionEventListener(EventListener):
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.locals.get('automatch', True) and server.settings['password']:
-                # noinspection PyAsyncCall
-                asyncio.create_task(self.bot.get_admin_channel(server).send(
-                    f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
+                admin_channel = self.bot.get_admin_channel(server)
+                if admin_channel:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(admin_channel.send(
+                        f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
             if not isinstance(self.bot, DummyBot):
                 # noinspection PyAsyncCall
                 asyncio.create_task(player.sendChatMessage(
@@ -730,8 +747,10 @@ class MissionEventListener(EventListener):
                 # show the server name on central admin channels
                 if self.bot.locals.get('admin_channel'):
                     message = f"{server.display_name}: " + message
-                # noinspection PyAsyncCall
-                asyncio.create_task(self.bot.get_admin_channel(server).send(message))
+                admin_channel = self.bot.get_admin_channel(server)
+                if admin_channel:
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(admin_channel.send(message))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             player = server.get_player(id=data['arg1'])
             side = player.side if player else Side.UNKNOWN
@@ -901,8 +920,10 @@ class MissionEventListener(EventListener):
             row = await cursor.fetchone()
             if not row or len(token) > 4:
                 await player.sendChatMessage('Invalid token.')
-                await self.bot.get_admin_channel(server).send(
-                    f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
+                admin_channel = self.bot.get_admin_channel(server)
+                if admin_channel:
+                    await admin_channel.send(
+                        f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                 return
             discord_id = row[0]
         member = self.bot.guilds[0].get_member(discord_id)

@@ -1201,8 +1201,8 @@ def get_ephemeral(interaction: discord.Interaction) -> bool:
     # we will be ephemeral when we are called in public
     if not server:
         return True
-    channel = bot.get_admin_channel(server)
-    return not channel == interaction.channel
+    admin_channel = bot.get_admin_channel(server)
+    return not admin_channel == interaction.channel
 
 
 async def get_command(bot: DCSServerBot, *, name: str,
