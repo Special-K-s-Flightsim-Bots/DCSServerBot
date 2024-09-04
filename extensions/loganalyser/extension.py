@@ -45,7 +45,7 @@ class LogAnalyser(Extension):
         self.errors.clear()
         self.register_callback(ERROR_UNLISTED, self.unlisted)
         self.register_callback(ERROR_SCRIPT, self.script_error)
-        self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
+        # self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
 
