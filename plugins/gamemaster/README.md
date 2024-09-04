@@ -32,16 +32,17 @@ your Discord server.
 | /message edit        | <user>                                | admin-channel | DCS Admin, GameMaster | Edit or delete a user message.                                                                                 |
 
 ## In-Game Chat Commands
-| Command    | Parameter     | Role                  | Description                                              |
-|------------|---------------|-----------------------|----------------------------------------------------------|
-| -join      | \<coalition\> | all                   | Join a coalition.                                        |
-| -leave     |               | all                   | Leave a coalition.                                       |
-| -red       |               | all                   | Join the red coalition.                                  |
-| -blue      |               | all                   | Join the blue coalition.                                 |
-| -coalition |               | all                   | Shows your current coalition.                            |
-| -password  |               | all                   | Shows your coalition password.                           |
-| -flag      | flag [value]  | DCS Admin, GameMaster | Reads or sets a flag.                                    |
-| -ack       |               | all                   | Acknowledge the reception of a message, if there is any. |
+| Command    | Parameter                      | Role                   | Description                                              |
+|------------|--------------------------------|------------------------|----------------------------------------------------------|
+| -join      | \<coalition\>                  | all                    | Join a coalition.                                        |
+| -leave     |                                | all                    | Leave a coalition.                                       |
+| -red       |                                | all                    | Join the red coalition.                                  |
+| -blue      |                                | all                    | Join the blue coalition.                                 |
+| -coalition |                                | all                    | Shows your current coalition.                            |
+| -password  |                                | all                    | Shows your coalition password.                           |
+| -flag      | flag [value]                   | DCS Admin, GameMaster  | Reads or sets a flag.                                    |
+| -ack       |                                | all                    | Acknowledge the reception of a message, if there is any. |
+| -popup     | \[all\|red\|blue\] \<message\> | DCS Admin, GameMaster  | Sends a popup message to a coalition.                    |
 
 ## Usage inside of Missions (Scripting API)
 You can enable, disable (= delete) and reset (= delete + start) campaigns inside of missions, too. If you want to use 

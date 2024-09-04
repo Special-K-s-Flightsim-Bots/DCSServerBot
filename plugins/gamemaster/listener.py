@@ -441,3 +441,22 @@ class GameMasterEventListener(EventListener):
         if task:
             task.cancel()
         await player.sendChatMessage(_("Message(s) acknowledged."))
+
+    @chat_command(name="popup", help=_("send a popup message"), roles=['DCS Admin', 'GameMaster'])
+    async def popup(self, server: Server, player: Player, params: list[str]):
+        async def usage():
+            await player.sendChatMessage(_("Usage: {prefix}{command} <all|red|blue> <message>").format(
+                prefix=self.prefix, command=self.popup.name))
+
+        if not params:
+            await usage()
+            return
+        try:
+            receiver = Coalition(params[0].lower())
+            del params[0]
+        except ValueError:
+            receiver = Coalition.ALL
+        if not params:
+            await usage()
+            return
+        await server.sendPopupMessage(receiver, " ".join(params))
