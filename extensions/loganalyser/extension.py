@@ -4,6 +4,8 @@ import os
 import re
 
 from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation
+from datetime import datetime
+from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Callable
 
@@ -11,6 +13,7 @@ _ = get_translation(__name__.split('.')[1])
 
 ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
 ERROR_SCRIPT = r'Mission script error: \[string "(.*)"\]:(\d+): (.*)'
+MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})-\w+ \*\*\*"
 
 __all__ = [
     "LogAnalyser"
@@ -42,6 +45,7 @@ class LogAnalyser(Extension):
         self.errors.clear()
         self.register_callback(ERROR_UNLISTED, self.unlisted)
         self.register_callback(ERROR_SCRIPT, self.script_error)
+        self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
 
@@ -113,6 +117,19 @@ class LogAnalyser(Extension):
             Coalition.ALL, self.config.get('message_unlist', 'Server is going to restart in {}!').format(
                 utils.format_time(warn_time)))
 
+    async def send_alert(self, title: str, message: str):
+        params = {
+            "title": title,
+            "message": message,
+            'server': self.server.name
+        }
+        await self.bus.send_to_node({
+            "command": "rpc",
+            "service": BotService.__name__,
+            "method": "alert",
+            "params": params
+        })
+
     async def unlisted(self, idx: int, line: str, match: re.Match):
         if not self.config.get('restart_on_unlist', False):
             return
@@ -154,3 +171,12 @@ class LogAnalyser(Extension):
             return
         await self._send_audit_msg(filename, int(line_number), error_message)
         self.errors.add((filename, int(line_number)))
+
+    async def moose_log(self, idx: int, line: str, match: re.Match):
+        timestamp_str = match.group(1)
+        timestamp = datetime.fromisoformat(timestamp_str)
+        if timestamp < datetime.fromisoformat('2024-09-03T16:47:17+02:00'):
+            await self.send_alert(
+                title="Outdated Moose Version found!",
+                message=f"Mission {self.server.current_mission.name} is using an old Moose version. "
+                        f"You will probably see performance issues!")

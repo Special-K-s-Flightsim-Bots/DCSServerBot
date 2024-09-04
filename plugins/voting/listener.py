@@ -46,7 +46,7 @@ class VotingHandler:
         for idx, element in enumerate(self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
         message += self.get_leading_vote()
-        message += "\n" + _("Use {prefix}vote <number> to vote for the change.").format(
+        message += "\n" + _("Use {prefix}{self.vote.name} <number> to vote for the change.").format(
             prefix=self.config['prefix']) + "\n"
         if player:
             await player.sendUserMessage(message)
@@ -162,7 +162,7 @@ class VotingListener(EventListener):
             await vote.print(player)
             return
         elif not params[0].isnumeric():
-            await player.sendChatMessage(f"Usage: {self.prefix}vote <number>")
+            await player.sendChatMessage(f"Usage: {self.prefix}{self.vote.name} <number>")
             return
         await vote.vote(player, int(params[0]))
 
@@ -178,7 +178,8 @@ class VotingListener(EventListener):
         choices = list(config['options'].keys())
         if len(choices) > 1:
             if not params:
-                await player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
+                await player.sendChatMessage('Usage: {prefix}{command} <{params}>'.format(
+                    prefix=self.prefix, command=self.vote.name, params='|'.join(choices)))
                 return
             else:
                 what = params[0].lower()
@@ -187,7 +188,8 @@ class VotingListener(EventListener):
         else:
             return
         if what not in choices:
-            await player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
+            await player.sendChatMessage('Usage: {prefix}{command} <{params}>'.format(
+                prefix=self.prefix, command=self.vote.name, params='|'.join(choices)))
             return
         config['prefix'] = self.prefix
         try:

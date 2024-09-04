@@ -256,7 +256,8 @@ class GameMasterEventListener(EventListener):
     async def _join(self, server: Server, player: Player, params: list[str]):
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
-            await player.sendChatMessage(_("Usage: {}join <blue|red>").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} <blue|red>").format(
+                prefix=self.prefix, command=self.join.name))
             return
         if player.coalition:
             await player.sendChatMessage(_("You are a member of coalition {} already.").format(coalition))
@@ -413,7 +414,8 @@ class GameMasterEventListener(EventListener):
                   help=_("reads or sets a flag"))
     async def flag(self, server: Server, player: Player, params: list[str]):
         if not params:
-            await player.sendChatMessage(_("Usage: {}flag <flag> [value]").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} <flag> [value]").format(
+                prefix=self.prefix, command=self.flag.name))
             return
         flag = params[0]
         if len(params) > 1:

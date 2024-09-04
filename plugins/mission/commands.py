@@ -1758,6 +1758,9 @@ class Mission(Plugin):
                     await message.channel.send(_('Error while uploading: {}').format(rc.name))
                     return
             self.log.debug("Mission uploaded successfully.")
+            if not server.locals.get('autoadd', True):
+                await message.channel.send(_('Mission "{mission}" uploaded to server {server} and NOT added.'))
+                return
             name = utils.escape_string(os.path.basename(att.filename)[:-4])
             try:
                 if server.locals.get('autoscan', False):

@@ -191,13 +191,15 @@ class CreditSystemListener(EventListener):
     @chat_command(name="donate", help=_("Donate credits to another player"))
     async def donate(self, server: Server, player: CreditPlayer, params: list[str]):
         if len(params) < 2:
-            await player.sendChatMessage(_("Usage: {}donate player points").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} player points").format(
+                prefix=self.prefix, command=self.donate.name))
             return
         name = ' '.join(params[:-1])
         try:
             donation = int(params[-1])
         except ValueError:
-            await player.sendChatMessage(_("Usage: {}donate player points").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} player points").format(
+                prefix=self.prefix, command=self.donate.name))
             return
         if donation > player.points:
             await player.sendChatMessage(_("You can't donate {donation} credit points, you only have {total}!").format(
@@ -232,7 +234,8 @@ class CreditSystemListener(EventListener):
         player: CreditPlayer = cast(CreditPlayer, player)
 
         if not params:
-            await player.sendChatMessage(_("Usage: {}tip points [gci_number]").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} points [gci_number]").format(
+                prefix=self.prefix, command=self.tip.name))
             return
 
         donation = int(params[0])

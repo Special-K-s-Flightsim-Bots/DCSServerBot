@@ -127,8 +127,8 @@ msgstr "Du hast {} Credits"
 msgid "Donate credits to another player"
 msgstr "Spende an einen Spieler"
 
-msgid "Usage: {}donate player points"
-msgstr "Aufruf: {}donate name credits"
+msgid "Usage: {prefix}{command} player points"
+msgstr "Aufruf: {prefix}{command} name credits"
 
 msgid "Player {} not found."
 msgstr "Kein Spieler {} gefunden."
@@ -152,8 +152,8 @@ msgstr "Spieler {name} hat Dir {donation} Credits gespendet!"
 msgid "Tip a GCI with points"
 msgstr "Spende an einen GCI"
 
-msgid "Usage: {}tip points [gci_number]"
-msgstr "Aufruf: {}tip credits [GCI-Nummer]"
+msgid "Usage: {prefix}{command} points [gci_number]"
+msgstr "Aufruf: {prefix}{command} credits [GCI-Nummer]"
 
 msgid "There is currently no {} GCI active."
 msgstr "Es gibt zurzeit keinen GCI auf der Seite {}."

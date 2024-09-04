@@ -9,7 +9,7 @@ class Kick(VotableItem):
     def __init__(self, server: Server, config: dict, params: Optional[list[str]] = None):
         super().__init__('mission', server, config, params)
         if not params or not len(params):
-            raise TypeError("Usage: .vote kick <player name>")
+            raise TypeError("You have to provide a player name to kick!")
         self.player: Player = server.get_player(name=' '.join(params))
         if not self.player:
             raise ValueError('Player "{}" not found.'.format(' '.join(params)))

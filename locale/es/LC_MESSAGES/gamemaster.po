@@ -178,6 +178,19 @@ msgstr "¿Desea parar la campaña \"{}\"?"
 msgid "Campaign stopped."
 msgstr "Campaña parada."
 
+# /message send
+msgid "Sends a message to a user"
+msgstr "Envía un mensaje al usuario"
+
+msgid "User is not linked."
+msgstr "El usuario no está enlazado"
+
+msgid "Unknown user {}!"
+msgstr "Usuario desconocido {}!"
+
+msgid "Message will be displayed to the user."
+msgstr "El mensaje será mostrado al usuario."
+
 # Upload of embeds
 msgid "Error while updating embed!"
 msgstr "¡Error al actualizar el mensaje incrustado!"
@@ -203,8 +216,8 @@ msgstr "{num} ficheros LUA cargados. puede ejecutar cualquiera de ellos con {com
 msgid "join a coalition"
 msgstr "Unirse a una coalición"
 
-msgid "Usage: {}join <blue|red>"
-msgstr "Uso: {}join <blue|red>"
+msgid "Usage: {prefix}{command} <blue|red>"
+msgstr "Uso: {prefix}{command} <blue|red>"
 
 msgid "You are a member of coalition {} already."
 msgstr "Ya es miembro de la coalición {}."
@@ -257,5 +270,5 @@ msgstr "Asigna o lee un valor de bandera"
 msgid "<flag> [value]"
 msgstr "<Bandera> [Valor]"
 
-msgid "Usage: {}flag <flag> [value]"
-msgstr "Uso: {}flag <Bandera> [Valor]"
+msgid "Usage: {prefix}{command} <flag> [value]"
+msgstr "Uso: {prefix}{command} <Bandera> [Valor]"

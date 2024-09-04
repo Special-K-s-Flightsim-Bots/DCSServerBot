@@ -34,8 +34,20 @@ msgstr "{coalition} GCI \"{name}\" ist aktiv."
 msgid "{coalition} GCI \"{name}\" offline."
 msgstr "{coalition} GCI \"{name}\" ist offline."
 
+# -gcis
 msgid "The following GCIs are active on the {coalition} side:\n{gcis}"
 msgstr "Die folgenden GCIs sind zurzeit für Koalition {coalition} im Einsatz:\n{gcis}"
 
 msgid "No GCIs are active on the {} side."
 msgstr "Es sind keine GCIs für die Koaltion {} im Einsatz."
+
+# Report
+msgid "Information about {coalition} GCI \"{name}\""
+msgstr "Information über {coalition} GCI \"{name}\""
+
+# -gci
+msgid "Info about a GCI"
+msgstr "Infos zu einem GCI"
+
+msgid "Usage: {prefix}{command} <name>"
+msgstr "Aufruf: {prefix}{command} <name>"

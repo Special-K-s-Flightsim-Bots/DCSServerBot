@@ -187,7 +187,8 @@ class LotAtcEventListener(EventListener):
     @chat_command(name="gci", help=_("Info about a GCI"))
     async def gci(self, server: Server, player: Player, params: list[str]):
         if not params:
-            await player.sendChatMessage(_("Usage: {}gci <name>").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} <name>").format(
+                prefix=self.prefix, command=self.gci.name))
             return
         name = ' '.join(params)
         coalition = Coalition.BLUE if player.side == Side.BLUE else Coalition.RED

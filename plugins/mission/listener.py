@@ -814,7 +814,8 @@ class MissionEventListener(EventListener):
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
     async def atis(self, server: Server, player: Player, params: list[str]):
         if len(params) == 0:
-            await player.sendChatMessage(f"Usage: -atis <airbase/code>")
+            await player.sendChatMessage("Usage: {prefix}{command} <airbase/code>".format(
+                prefix=self.prefix, command=self.atis.name))
             return
         name = ' '.join(params)
         for airbase in server.current_mission.airbases:
@@ -854,40 +855,40 @@ class MissionEventListener(EventListener):
             mission = missions[i]
             mission = mission[(mission.rfind(os.path.sep) + 1):-4]
             message += f"{i + 1} {mission}\n"
-        message += f"\nUse {self.prefix}load <number> to load that mission"
+        message += f"\nUse {self.prefix}{self.load.name} <number> to load that mission"
         await player.sendUserMessage(message, 30)
 
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
     async def load(self, server: Server, player: Player, params: list[str]):
         if not params or not params[0].isnumeric():
-            await player.sendChatMessage(f"Usage: {self.prefix}load <number>")
+            await player.sendChatMessage(f"Usage: {self.prefix}{self.load.name} <number>")
             return
         # noinspection PyAsyncCall
         asyncio.create_task(server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
-        await self._handle_command(server, player, params, lambda delinquent, reason: (
+        await self._handle_command(server, player, params, self.ban.name, lambda delinquent, reason: (
             ServiceRegistry.get(ServiceBus).ban(delinquent.ucid, player.member.display_name, reason, 3),
             f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
     async def kick(self, server: Server, player: Player, params: list[str]):
-        await self._handle_command(server, player, params, lambda delinquent, reason: (
+        await self._handle_command(server, player, params, self.kick.name, lambda delinquent, reason: (
             server.kick(delinquent, reason),
             f'User {delinquent.display_name} kicked'))
 
     @chat_command(name="spec", roles=['DCS Admin'], usage="<name> [reason]", help="moves a user to spectators")
     async def spec(self, server: Server, player: Player, params: list[str]):
-        await self._handle_command(server, player, params, lambda delinquent, reason: (
+        await self._handle_command(server, player, params, self.spec.name, lambda delinquent, reason: (
             server.move_to_spectators(delinquent, reason),
             f'User {delinquent.display_name} moved to spectators'))
 
     async def _handle_command(self, server: Server, player: Player, params: list[str],
-                              action: Callable[[Player, str], tuple[Coroutine, str]]):
+                              cmd: str, action: Callable[[Player, str], tuple[Coroutine, str]]):
         if not params:
             await player.sendChatMessage(
-                f"Usage: {self.prefix}{action.__name__} <name> [reason]")
+                f"Usage: {self.prefix}{cmd} <name> [reason]")
             return
 
         params = shlex.split(' '.join(params))
@@ -911,7 +912,7 @@ class MissionEventListener(EventListener):
     async def linkme(self, server: Server, player: Player, params: list[str]):
         if not params:
             await player.sendChatMessage(
-                f"Usage: {self.prefix}linkme token\nYou get the token with /linkme in our Discord.")
+                f"Usage: {self.prefix}{self.linkme.name} token\nYou get the token with /linkme in our Discord.")
             return
 
         token = params[0]
@@ -986,7 +987,7 @@ class MissionEventListener(EventListener):
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
         if not params:
-            await player.sendChatMessage(f"Usage: {self.prefix}911 <message>")
+            await player.sendChatMessage(f"Usage: {self.prefix}{self.call911.name} <message>")
             return
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['DCS Admin']])
         message = ' '.join(params)
