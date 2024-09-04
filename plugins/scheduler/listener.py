@@ -17,7 +17,10 @@ class SchedulerListener(EventListener):
                     results.append(result)
             return min(results, key=lambda x: x[0]) if results else None
         else:
-            mission_time = restart.get('max_mission_time', restart.get('mission_time'))
+            if server.status == Status.RUNNING:
+                mission_time = restart.get('max_mission_time', restart.get('mission_time'))
+            else:
+                mission_time = restart.get('mission_time')
             if mission_time:
                 delta = mission_time * 60 - int(server.current_mission.mission_time)
                 if delta >= 0:
