@@ -869,7 +869,7 @@ class MissionEventListener(EventListener):
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
         await self._handle_command(server, player, params, self.ban.name, lambda delinquent, reason: (
-            ServiceRegistry.get(ServiceBus).ban(delinquent.ucid, player.member.display_name, reason, 3),
+            ServiceRegistry.get(ServiceBus).ban(delinquent.ucid, player.name, reason, 3),
             f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
@@ -906,7 +906,8 @@ class MissionEventListener(EventListener):
 
         await player.sendChatMessage(audit_msg)
         await self.bot.audit(f'Player {delinquent.display_name} {action_description}' +
-                             (f' with reason "{reason}".' if reason != 'n/a' else '.'), user=player.member)
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member or player.ucid)
 
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):

@@ -239,7 +239,7 @@ class VotingListener(EventListener):
                     message = "The voting has been cancelled by an Admin."
                     await server.sendChatMessage(Coalition.ALL, message)
                     await server.sendPopupMessage(Coalition.ALL, message)
-                    await self.bot.audit("cancelled voting", user=player.member, server=server)
+                    await self.bot.audit("cancelled voting", user=player.member or player.ucid, server=server)
                     return
                 else:
                     await player.sendChatMessage("You don't have the permission to cancel a voting.")
