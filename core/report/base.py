@@ -40,16 +40,30 @@ class Report:
         self.log = bot.log
         self.apool = bot.apool
         self.env = ReportEnv(bot)
+        self.filename, self.report_def = self.load_report_def(plugin, filename)
+
+    def load_report_def(self, plugin: str, filename: str):
         default = f'./plugins/{plugin}/reports/{filename}'
         overwrite = f'./reports/{plugin}/{filename}'
         if os.path.exists(overwrite):
-            self.filename = overwrite
+            filename = overwrite
         elif os.path.exists(default):
-            self.filename = default
+            filename = default
         else:
             raise FileNotFoundError(filename)
-        with open(self.filename, mode='r', encoding='utf-8') as file:
-            self.report_def = json.load(file)
+        with open(filename, mode='r', encoding='utf-8') as file:
+            report_def = json.load(file)
+        if 'include' in report_def:
+            report_def |= self.load_report_def(report_def['include'].get('plugin', plugin),
+                                               report_def['include']['filename'])[1]
+        else:
+            for idx, element in enumerate(report_def.get('elements', [])):
+                if 'include' in element:
+                    report_def['elements'][idx] = (
+                        self.load_report_def(element['include'].get('plugin', plugin), element['include']['filename'])
+                    )[1]
+        return filename, report_def
+
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         if 'input' in self.report_def:

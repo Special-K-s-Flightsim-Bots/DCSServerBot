@@ -22,7 +22,7 @@ from copy import deepcopy
 from core import utils, Server
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
-from core.extension import InstallException, UninstallException
+from core.extension import Extension, InstallException, UninstallException
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
@@ -39,7 +39,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Extension, Instance
+    from core import Instance
     from services.bot import DCSServerBot
     from watchdog.events import FileSystemEvent, FileSystemMovedEvent
 
@@ -599,16 +599,17 @@ class ServerImpl(Server):
                 return filename
         new_filename = filename
         try:
-            # make an initial backup, if there is none
-            if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-                shutil.copy2(filename, filename + '.orig')
             # process all mission modifications
             dirty = False
             for ext in self.extensions.values():
-                new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
-                if _dirty:
-                    self.log.info(f'  => {ext.name} applied on {new_filename}.')
-                dirty |= _dirty
+                if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
+                    # make an initial backup, if there is none
+                    if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
+                        shutil.copy2(filename, filename + '.orig')
+                    new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
+                    if _dirty:
+                        self.log.info(f'  => {ext.name} applied on {new_filename}.')
+                    dirty |= _dirty
             # we did not change anything in the mission
             if not dirty:
                 return filename

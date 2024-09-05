@@ -515,6 +515,9 @@ msgstr "El archivo ya existe. ¿Desea reemplazarlo?"
 msgid "Error while uploading: {}"
 msgstr "Error al cargar: {}"
 
+msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
+msgstr "Misión \"{mission}\" cargada al servidor {server} pero NO añadida."
+
 msgid "Mission \"{mission}\" uploaded to server {server}.\n"
 "As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
 msgstr "La misión \"{mission}\" ha sido cargada al servidor {server}.\n"

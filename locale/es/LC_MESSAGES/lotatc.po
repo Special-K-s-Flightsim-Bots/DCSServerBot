@@ -17,3 +17,14 @@ msgstr "Archivo de transpondedor {} cargado."
 
 msgid "Transponder file {} could not be uploaded!"
 msgstr "¡El archivo de transpondedor {} no pudo ser cargado!"
+
+# Report
+msgid "Information about {coalition} GCI \"{name}\""
+msgstr "Información sobre el GCI \"{name}\" de la coalición {coalition}"
+
+# -gci
+msgid "Info about a GCI"
+msgstr "Información de un GCI"
+
+msgid "Usage: {prefix}{command} <name>"
+msgstr "Uso: {prefix}{command} <nombre>"

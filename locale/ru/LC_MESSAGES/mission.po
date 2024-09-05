@@ -516,6 +516,9 @@ msgstr "Файл существует. Вы хотите перезаписат�
 msgid "Error while uploading: {}"
 msgstr "Ошибка во время загрузки: {}"
 
+msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
+msgstr "Миссия \"{mission}\" загружена на сервер {server} и НЕ добавлена."
+
 msgid "Mission \"{mission}\" uploaded to server {server}.\n"
 "As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
 msgstr "Миссия \"{mission}\" загружена на сервер {server}.\n"

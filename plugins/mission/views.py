@@ -205,7 +205,8 @@ class InfoView(View):
         button.callback = self.on_cancel
         self.add_item(button)
         report = Report(self.bot, 'mission', 'info.json')
-        env = await report.render(member=self.member, player=self.player, banned=banned, watchlist=watchlist)
+        env = await report.render(member=self.member, ucid=self.ucid, player=self.player, banned=banned,
+                                  watchlist=watchlist)
         return env.embed
 
     async def is_banned(self) -> bool:

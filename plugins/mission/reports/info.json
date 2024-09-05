@@ -5,6 +5,10 @@
     {
       "name": "ruler_length",
       "value": 32
+    },
+    {
+      "name": "limit",
+      "default": 10
     }
   ],
   "elements":
@@ -20,6 +24,35 @@
     },
     {
       "class": "plugins.mission.info.ServerInfo"
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "header": "Infractions"
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "SELECT TO_CHAR(m.time, 'YY-MM-DD HH24:MI') AS \"Time\", ' \u001b[0;3' || (m.init_side::NUMERIC-1)*3+1 || 'm' || CASE WHEN m.init_type = 'FA-18C_hornet' THEN 'F/A-18c' ELSE m.init_type END || '\u001b[0;37m ' || SUBSTRING(m.event, 9) || ' \u001b[0;3' || (m.target_side::NUMERIC-1)*3+1 || 'm' || COALESCE(p2.name, 'AI') || '\u001B[0m' AS \"Infraction\", count(*) AS \"Count\" FROM missionstats m join players p1 ON m.init_id = p1.ucid left outer join players p2 ON m.target_id = p2.ucid WHERE init_id = '{ucid}' AND m.target_side IS NOT NULL AND m.init_side = m.target_side AND m.event in ('S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL') GROUP BY 1,2 ORDER BY 1 DESC LIMIT {limit}",
+        "inline": true,
+        "ansi_colors": true,
+        "no_data": "There are no infractions of this user logged."
+      }
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "header": "Ban History"
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "SELECT TO_CHAR(banned_at, 'YY-MM-DD') || ' - ' || TO_CHAR(banned_until, 'YY-MM-DD') as \"Timeframe\", reason as \"Reason\", status as \"Status\"  FROM (SELECT ucid, TRUE as active, reason, banned_at, banned_until, 'Active' as status FROM bans UNION SELECT ucid, FALSE as active, reason, banned_at, banned_until, CASE WHEN auto_unban IS FALSE THEN 'Forgiven' ELSE 'Auto-Unbanned' END FROM bans_hist) x where x.ucid = '{ucid}'",
+        "inline": true,
+        "no_data": "There are no bans logged for this user."
+      }
     },
     {
       "class": "plugins.mission.info.Footer"
