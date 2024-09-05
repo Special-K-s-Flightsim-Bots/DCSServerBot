@@ -45,7 +45,7 @@ class LogAnalyser(Extension):
         self.errors.clear()
         self.register_callback(ERROR_UNLISTED, self.unlisted)
         self.register_callback(ERROR_SCRIPT, self.script_error)
-        # self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
+        self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
 
@@ -176,7 +176,15 @@ class LogAnalyser(Extension):
         timestamp_str = match.group(1)
         timestamp = datetime.fromisoformat(timestamp_str)
         if timestamp < datetime.fromisoformat('2024-09-03T16:47:17+02:00'):
-            await self.send_alert(
-                title="Outdated Moose Version found!",
-                message=f"Mission {self.server.current_mission.name} is using an old Moose version. "
-                        f"You will probably see performance issues!")
+            embed = utils.create_warning_embed(
+                title='Outdated Moose version found!',
+                text=f"Mission {self.server.current_mission.name} is using an old Moose version. "
+                     f"You will probably see performance issues!")
+            await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "service": BotService.__name__,
+                "method": "send_message",
+                "params": {
+                    "embed": embed.to_dict()
+                }
+            })

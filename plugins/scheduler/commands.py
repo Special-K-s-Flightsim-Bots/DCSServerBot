@@ -482,32 +482,33 @@ class Scheduler(Plugin):
                     await server.setStartIndex(mission_id + 1)
                 await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
                 if maintenance:
-                    embed, file = utils.create_warning_embed(
+                    embed = utils.create_warning_embed(
                         title=f"DCS server \"{server.display_name}\" started.",
                         text="Server is in maintenance mode!\n"
                              "Use {} to reset maintenance mode.".format(
                             (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
                         )
                     )
-                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 else:
                     await interaction.followup.send(f"DCS server \"{server.display_name}\" started.",
                                                     ephemeral=ephemeral)
             except (TimeoutError, asyncio.TimeoutError):
                 if server.status == Status.SHUTDOWN:
-                    embed, file = utils.create_warning_embed(title=f"DCS server \"{server.display_name}\" crashed!",
-                                                             text="The server has crashed while starting.\n"
-                                                                  "You should look for a cause in its dcs.log.")
-                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                    embed = utils.create_warning_embed(
+                        title=f"DCS server \"{server.display_name}\" crashed!",
+                        text="The server has crashed while starting.\n"
+                             "You should look for a cause in its dcs.log.")
+                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 else:
-                    embed, file = utils.create_warning_embed(
+                    embed = utils.create_warning_embed(
                         title=f"Timeout while launching \"{server.display_name}\"!",
                         text="The server might be running anyway\n"
                              "Check with {}.".format(
                             (await utils.get_command(self.bot, group='server', name='list')).mention
                         )
                     )
-                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             except Exception as ex:
                 self.log.error(ex)
                 await interaction.followup.send(ex, ephemeral=ephemeral)
@@ -539,14 +540,14 @@ class Scheduler(Plugin):
             else:
                 await self.teardown_dcs(server, interaction.user)
             if maintenance:
-                embed, file = utils.create_warning_embed(
+                embed = utils.create_warning_embed(
                     title=f"DCS server \"{server.display_name}\" shut down.",
                     text="Server is in maintenance mode!\n"
                          "Use {} to reset maintenance mode.".format(
                         (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
                     )
                 )
-                await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             else:
                 await interaction.followup.send(f"DCS server \"{server.display_name}\" shut down.", ephemeral=ephemeral)
 
@@ -591,11 +592,11 @@ class Scheduler(Plugin):
             try:
                 await server.start()
             except (TimeoutError, asyncio.TimeoutError):
-                embed, file = utils.create_warning_embed(
+                embed = utils.create_warning_embed(
                     title=f"Timeout while starting server \"{server.display_name}\"!",
                     text="Please check manually, if the server has started.\n"
                          "If not, check the dcs.log for errors.")
-                await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 return
             await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=ephemeral)
             await self.bot.audit('started the server', server=server, user=interaction.user)
@@ -631,11 +632,11 @@ class Scheduler(Plugin):
             msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=ephemeral)
             await server.stop()
         except (TimeoutError, asyncio.TimeoutError):
-            embed, file = utils.create_warning_embed(
+            embed = utils.create_warning_embed(
                 title=f"Timeout while stopping server \"{server.display_name}\"!",
                 text="Please check manually, if the server has stopped.\n"
                      "If not, check the dcs.log for errors.")
-            await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             return
         finally:
             try:
@@ -797,14 +798,14 @@ class Scheduler(Plugin):
                 await server.startup()
                 if maintenance:
                     await msg.delete()
-                    embed, file = utils.create_warning_embed(
+                    embed = utils.create_warning_embed(
                         title=f"DCS server \"{server.display_name}\" started.",
                         text="Server is in maintenance mode!\n"
                              "Use {} to reset maintenance mode.".format(
                             (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
                         )
                     )
-                    await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 else:
                     await msg.edit(content=f"DCS server \"{server.display_name}\" started.")
         finally:

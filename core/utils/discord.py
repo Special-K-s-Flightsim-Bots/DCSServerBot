@@ -733,19 +733,15 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
 
 
 def create_warning_embed(title: str, text: Optional[str] = None,
-                         fields: Optional[list[tuple[str, str]]] = None) -> tuple[discord.Embed, discord.File]:
+                         fields: Optional[list[tuple[str, str]]] = None) -> discord.Embed:
     embed = discord.Embed(title=title, color=discord.Color.yellow())
     if text:
         embed.description = text
-    with open(os.path.join('images', 'warning.png'), mode="rb") as img:
-        img_bytes = img.read()
-    buffer = BytesIO(img_bytes)
-    file = discord.File(fp=buffer, filename="warning.png")
-    embed.set_thumbnail(url="attachment://warning.png")
+    embed.set_thumbnail(url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
     if fields:
         for name, value in fields:
             embed.add_field(name=name, value=value)
-    return embed, file
+    return embed
 
 
 def escape_string(msg: str) -> str:
