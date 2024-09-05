@@ -22,3 +22,14 @@ msgstr "转发器文件 {} 已上传."
 
 msgid "Transponder file {} could not be uploaded!"
 msgstr "无法上传应答器文件 {}!"
+
+# Report
+msgid "Information about {coalition} GCI \"{name}\""
+msgstr "关于 {coalition} GCI \"{name}\" 的信息"
+
+# -gci
+msgid "Info about a GCI"
+msgstr "有关 GCI 的信息"
+
+msgid "Usage: {prefix}{command} <name>"
+msgstr "用法: {prefix}{command} <name>"

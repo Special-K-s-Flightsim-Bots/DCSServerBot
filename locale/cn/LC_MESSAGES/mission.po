@@ -516,6 +516,9 @@ msgstr "文件已存在。是​​否要覆盖它?"
 msgid "Error while uploading: {}"
 msgstr "上传时出错: {}"
 
+msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
+msgstr "任务 \"{mission}\" 已上传至服务器 {server} 且尚未添加."
+
 msgid "Mission \"{mission}\" uploaded to server {server}.\n"
 "As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
 msgstr "任务 \"{mission}\" 已上传至服务器 {server}.\n"
