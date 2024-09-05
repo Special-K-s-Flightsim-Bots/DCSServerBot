@@ -28,9 +28,12 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
 
 async def restart(node: Node, server: Optional[Server] = None, shutdown: Optional[bool] = False,
                   rotate: Optional[bool] = False, run_extensions: Optional[bool] = True,
-                  reboot: Optional[bool] = False):
+                  reboot: Optional[bool] = False, halt: Optional[bool] = False):
     def _reboot():
         os.system("shutdown /r /t 1")
+
+    def _halt():
+        os.system("shutdown /s /t 1")
 
     if server and server.status not in [Status.SHUTDOWN, Status.UNREGISTERED]:
         server.maintenance = True
@@ -43,14 +46,17 @@ async def restart(node: Node, server: Optional[Server] = None, shutdown: Optiona
             await server.loadNextMission(modify_mission=run_extensions)
         else:
             await server.restart(modify_mission=run_extensions)
-    elif reboot:
+    elif reboot or halt:
         bus = ServiceRegistry.get(ServiceBus)
         for server in [x for x in bus.servers.values() if x.status not in [Status.SHUTDOWN, Status.UNREGISTERED]]:
             if not server.is_remote:
                 await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
                 await asyncio.sleep(1)
                 await server.shutdown()
-        atexit.register(_reboot)
+        if reboot:
+            atexit.register(_reboot)
+        elif halt:
+            atexit.register(_halt)
         await node.shutdown()
 
 

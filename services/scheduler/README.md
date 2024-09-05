@@ -26,7 +26,7 @@ DEFAULT:
     action:
       type: restart                   # reboot the server each monday night at 03:00
       params:
-        reboot: true
+        reboot: true                  # could be one of reboot or halt
 DCS.release_server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs
