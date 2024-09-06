@@ -5,7 +5,7 @@ import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, TEventListener
+    PaginationReport, get_translation, TEventListener, DISCORD_FILE_SIZE_LIMIT
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
@@ -22,7 +22,6 @@ from ..scheduler.views import ConfigView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
-
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -391,7 +390,7 @@ class Admin(Plugin):
         if target:
             target = target.format(server=server)
         if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('.acmi') and \
-                len(file) >= 25 * 1024 * 1024:
+                len(file) >= DISCORD_FILE_SIZE_LIMIT:
             zip_buffer = BytesIO()
             with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:
                 zip_file.writestr(filename, file)
