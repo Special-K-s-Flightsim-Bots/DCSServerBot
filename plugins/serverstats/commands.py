@@ -58,10 +58,12 @@ class ServerStats(Plugin):
                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                          period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
         try:
+            ephemeral = utils.get_ephemeral(interaction)
             if _server:
-                await self.display_report(interaction, 'serverload.json', str(period), _server,
-                                          ephemeral=utils.get_ephemeral(interaction))
+                await self.display_report(interaction, 'serverload.json', str(period), _server, ephemeral=ephemeral)
             else:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.defer(ephemeral=ephemeral)
                 report = PaginationReport(interaction, self.plugin_name, 'serverload.json')
                 await report.render(period=period, server_name=None)
         except ValueNotInRange as ex:
@@ -79,10 +81,12 @@ class ServerStats(Plugin):
                                   flt=[PeriodFilter, CampaignFilter, MissionFilter, SquadronFilter]
                               )]] = PeriodFilter()):
         try:
+            ephemeral = utils.get_ephemeral(interaction)
             if _server:
-                await self.display_report(interaction, 'serverstats.json', period, _server,
-                                          ephemeral=utils.get_ephemeral(interaction))
+                await self.display_report(interaction, 'serverstats.json', period, _server, ephemeral=ephemeral)
             else:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.defer(ephemeral=ephemeral)
                 report = PaginationReport(interaction, self.plugin_name, 'serverstats.json')
                 await report.render(period=period, server_name=None)
         except ValueNotInRange as ex:
