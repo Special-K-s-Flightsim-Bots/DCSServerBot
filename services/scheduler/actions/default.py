@@ -76,5 +76,5 @@ async def cmd(node: Node, cmd: str):
         node.log.info(out)
 
 
-async def popup(node: Node, server: Server, to: str, message: str, timeout: Optional[int] = 10):
+async def popup(node: Node, server: Server, message: str, to: Optional[str] = 'all', timeout: Optional[int] = 10):
     await server.sendPopupMessage(Coalition(to), message, timeout)

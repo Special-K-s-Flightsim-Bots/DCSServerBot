@@ -15,21 +15,21 @@ As per usual, the service is configured with a yaml file, in this case config/se
 ```yaml
 DEFAULT:
   actions:
-  - cron: '0 * * * *'                 # run every full hour
-    action:
-      type: report                    # generate a report
-      params:
-        file: mysample.json           # using this template in reports/scheduler
-        channel: 1122334455667788     # channel to post the report in
-        persistent: true              # is it a persistent report? (default = true)
-  - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
-    action:
-      type: restart                   
-      params:
-        reboot: true                  # reboot the PC (shutdown /r)
-  - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
-    action:
-      type: halt                      # reboot the server each monday night at 03:00
+    - cron: '0 * * * *'                 # run every full hour
+      action:
+        type: report                    # generate a report
+        params:
+          file: mysample.json           # using this template in reports/scheduler
+          channel: 1122334455667788     # channel to post the report in
+          persistent: true              # is it a persistent report? (default = true)
+    - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
+      action:
+        type: restart                   
+        params:
+          reboot: true                  # reboot the PC (shutdown /r)
+    - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
+      action:
+        type: halt                      # reboot the server each monday night at 03:00
 DCS.release_server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs
