@@ -52,9 +52,9 @@ class ServerUsage(report.EmbedElement):
 class TopTheatresPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter):
-        sql = """
-            SELECT m.server_name, m.mission_theatre, 
-                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+        sql = f"""
+            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name,
+                   m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
             FROM missions m, statistics s
             WHERE m.id = s.mission_id
         """
@@ -84,9 +84,13 @@ class TopTheatresPerServer(report.EmbedElement):
 class TopMissionPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
-        sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
-                                      'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
-                                      'playtime DESC) AS rn FROM ('
+        sql_left = """
+            SELECT server_name, mission_name, playtime 
+            FROM (
+                SELECT server_name, mission_name, playtime, 
+                       ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY playtime DESC) AS rn 
+                FROM (
+        """
         sql_inner = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
                    trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
