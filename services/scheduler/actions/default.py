@@ -2,7 +2,7 @@ import asyncio
 import atexit
 import os
 
-from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status
+from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status, Coalition
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional
@@ -74,3 +74,7 @@ async def cmd(node: Node, cmd: str):
         node.log.info(err)
     else:
         node.log.info(out)
+
+
+async def popup(node: Node, server: Server, message: str, to: Optional[str] = 'all', timeout: Optional[int] = 10):
+    await server.sendPopupMessage(Coalition(to), message, timeout)

@@ -15,21 +15,21 @@ As per usual, the service is configured with a yaml file, in this case config/se
 ```yaml
 DEFAULT:
   actions:
-  - cron: '0 * * * *'                 # run every full hour
-    action:
-      type: report                    # generate a report
-      params:
-        file: mysample.json           # using this template in reports/scheduler
-        channel: 1122334455667788     # channel to post the report in
-        persistent: true              # is it a persistent report? (default = true)
-  - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
-    action:
-      type: restart                   
-      params:
-        reboot: true                  # reboot the PC (shutdown /r)
-  - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
-    action:
-      type: halt                      # reboot the server each monday night at 03:00
+    - cron: '0 * * * *'                 # run every full hour
+      action:
+        type: report                    # generate a report
+        params:
+          file: mysample.json           # using this template in reports/scheduler
+          channel: 1122334455667788     # channel to post the report in
+          persistent: true              # is it a persistent report? (default = true)
+    - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
+      action:
+        type: restart                   
+        params:
+          reboot: true                  # reboot the PC (shutdown /r)
+    - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
+      action:
+        type: halt                      # reboot the server each monday night at 03:00
 DCS.release_server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs
@@ -39,4 +39,10 @@ DCS.release_server:
           shutdown: false             # do not shutdown during the restart (default = false)
           rotate: false               # do not rotate the mission (default = false)
           run_extensions: true        # run the extensions (default = true)
+    - cron: '55 3 * * 1'                # Send a message to everyone, 5 mins prior to the shutdown
+      action:
+        type: popup                     
+        params:
+          message: Server will shut down in 5 mins!
+          timeout: 20
 ```
