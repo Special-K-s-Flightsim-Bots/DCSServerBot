@@ -1,0 +1,135 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+# /traps
+msgid "Commands to display and manage carrier traps"
+msgstr "显示和管理航母着舰的命令"
+
+# /traps info
+msgid "Show carrier landing qualifications"
+msgstr "显示航母着舰资格"
+
+msgid "No carrier landings recorded for this user."
+msgstr "未为此用户记录任何航母着舰数据."
+
+msgid "Select a trap for details"
+msgstr "选择一个着舰记录以查看详细信息"
+
+msgid "Select the plane for the trap"
+msgstr "选择用于着舰的飞机"
+
+# /traps board
+msgid "Display the current Greenieboard"
+msgstr "显示当前的 Greenieboard"
+
+# /traps add
+msgid "Adds a trap to the Greenieboard"
+msgstr "将一次着舰添加到 Greenieboard"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
+msgstr "你需要在你的 greenieboard.yaml 中指定评级才能使用 {}!"
+
+msgid "Trap added."
+msgstr "着舰已添加."
+
+msgid "Aborted,"
+msgstr "已中止,"
+
+msgid "Time (HH24:MI)"
+msgstr "时间 (HH24:MI)"
+
+msgid "Case"
+msgstr "Case"
+
+msgid "Grade"
+msgstr "等级"
+
+msgid "LSO Comment"
+msgstr "LSO 评价"
+
+msgid "Wire"
+msgstr "拦阻索"
+
+msgid "Enter the trap details"
+msgstr "输入着舰详细信息"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case 需要是 1, 2 或者 3."
+
+msgid "Grade has to be one of {}."
+msgstr "等级必须是以下之一 {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "拦阻索必须是 1 到 4."
+
+# Listener
+msgid "Carrier Landing"
+msgstr "航母着舰"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "在 {place} 着舰，等级 {grade}."
+
+# Reports
+msgid "Date/Time"
+msgstr "日期/时间"
+
+msgid "Plane"
+msgstr "计划"
+
+msgid "Carrier"
+msgstr "航母"
+
+msgid "Points"
+msgstr "分数"
+
+msgid "LSO Grade: {}"
+msgstr "LSO 评分: {}"
+
+msgid " (a little)\n"
+msgstr " (稍微)\n"
+
+msgid " (a lot!)\n"
+msgstr " (非常!)\n"
+
+msgid " (ignored)\n"
+msgstr " (脱索)\n"
+
+# Highscore
+msgid "Traps"
+msgstr "挂索"
+
+msgid "No data available."
+msgstr "没有可用数据."
+
+# Greenieboard
+msgid "Pilot"
+msgstr "飞行员"
+
+msgid "Avg"
+msgstr "平均值"
+
+msgid ""
+"\n"
+"The most recent landing is added at the front.\n"
+"Night landings have round markers."
+msgstr ""
+"\n"
+"最近的着舰记录会被添加到前面.\n"
+"夜间着舰有圆形标记."
+
+msgid ""
+"\n"
+"Last recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr ""
+"\n"
+"最后记录的着舰: {time:%y-%m-%d %H:%M:%S}"

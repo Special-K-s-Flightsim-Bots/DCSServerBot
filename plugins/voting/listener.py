@@ -46,7 +46,7 @@ class VotingHandler:
         for idx, element in enumerate(self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
         message += self.get_leading_vote()
-        message += "\n" + _("Use {prefix}vote <number> to vote for the change.").format(
+        message += "\n" + _("Use {prefix}{self.vote.name} <number> to vote for the change.").format(
             prefix=self.config['prefix']) + "\n"
         if player:
             await player.sendUserMessage(message)
@@ -133,7 +133,7 @@ class VotingHandler:
             await self.server.sendChatMessage(Coalition.ALL, message)
             await self.server.sendPopupMessage(Coalition.ALL, message)
             await self.item.execute(winner)
-        del all_votes[self.server.name]
+        all_votes.pop(self.server.name, None)
 
 
 class VotingListener(EventListener):
@@ -162,7 +162,7 @@ class VotingListener(EventListener):
             await vote.print(player)
             return
         elif not params[0].isnumeric():
-            await player.sendChatMessage(f"Usage: {self.prefix}vote <number>")
+            await player.sendChatMessage(f"Usage: {self.prefix}{self.vote.name} <number>")
             return
         await vote.vote(player, int(params[0]))
 
@@ -178,7 +178,8 @@ class VotingListener(EventListener):
         choices = list(config['options'].keys())
         if len(choices) > 1:
             if not params:
-                await player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
+                await player.sendChatMessage('Usage: {prefix}{command} <{params}>'.format(
+                    prefix=self.prefix, command=self.vote.name, params='|'.join(choices)))
                 return
             else:
                 what = params[0].lower()
@@ -187,7 +188,8 @@ class VotingListener(EventListener):
         else:
             return
         if what not in choices:
-            await player.sendChatMessage('Usage: {}vote <{}>'.format(self.prefix, '|'.join(choices)))
+            await player.sendChatMessage('Usage: {prefix}{command} <{params}>'.format(
+                prefix=self.prefix, command=self.vote.name, params='|'.join(choices)))
             return
         config['prefix'] = self.prefix
         try:
@@ -233,12 +235,11 @@ class VotingListener(EventListener):
         if server.name in all_votes:
             if len(params) == 1 and params[0] == 'cancel':
                 if utils.check_roles(self.bot.roles['DCS Admin'], player.member):
-                    all_votes[server.name].cancel()
-                    del all_votes[server.name]
+                    all_votes.pop(server.name).cancel()
                     message = "The voting has been cancelled by an Admin."
                     await server.sendChatMessage(Coalition.ALL, message)
                     await server.sendPopupMessage(Coalition.ALL, message)
-                    await self.bot.audit("cancelled voting", user=player.member, server=server)
+                    await self.bot.audit("cancelled voting", user=player.member or player.ucid, server=server)
                     return
                 else:
                     await player.sendChatMessage("You don't have the permission to cancel a voting.")

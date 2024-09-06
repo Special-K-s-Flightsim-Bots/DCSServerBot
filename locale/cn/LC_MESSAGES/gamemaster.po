@@ -1,0 +1,266 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+# /chat
+msgid "Send a chat message to DCS"
+msgstr "发送聊天消息给 DCS"
+
+msgid "Server {} is not running."
+msgstr "服务器 {} 未运行."
+
+msgid "Message sent."
+msgstr "消息已发送."
+
+# /popup
+msgid "Sends a popup to a coalition\n"
+msgstr "向阵营发送弹出窗口\n"
+
+# /broadcast
+msgid "Sends a popup to all servers"
+msgstr "向所有服务器发送弹出窗口"
+
+msgid "Message NOT sent to server {server} because it is {status}."
+msgstr "消息未发送至服务器 {server}，因为它处于 {status}."
+
+msgid "Message sent to server {}."
+msgstr "消息已发送至服务器 {}."
+
+# /flag
+msgid "Set or get a flag inside the mission"
+msgstr "在任务中设置或获取标志"
+
+msgid "Flag {flag} set to {value}."
+msgstr "标记 {flag} 设置为 {value}."
+
+msgid "Flag {flag} has value {value}."
+msgstr "标志 {flag} 具有值 {value}."
+
+# /variable
+msgid "Set or get a mission variable"
+msgstr "设置或获取任务变量"
+
+msgid "Variable {name} set to {value}."
+msgstr "变量 {name} 设置为 {value}."
+
+msgid "Timeout while retrieving variable. Most likely a lua error occurred. Check your dcs.log."
+msgstr "检索变量时超时。很可能是发生了 lua 错误。检查您的 dcs.log."
+
+msgid "Variable {name} has value {value}."
+msgstr "变量 {name} 有值 {value}."
+
+msgid "Variable {} is not set."
+msgstr "变量 {} 未设置."
+
+# /do_script
+msgid "Calls any function inside the mission"
+msgstr "调用任务内的任何功能"
+
+msgid "Lua Script"
+msgstr "Lua 脚本"
+
+msgid "Enter your script here:"
+msgstr "在此输入您的脚本:"
+
+msgid "Script sent."
+msgstr "脚本已发送."
+
+# /do_script_file
+msgid "Loads a lua file into the mission"
+msgstr "将 lua 文件加载到任务中"
+
+msgid "Script loaded."
+msgstr "脚本已加载."
+
+# /reset_coalitions
+msgid "Mass coalition leave for users"
+msgstr "重置所有玩家的联盟成员身份"
+
+msgid "Do you want to mass-reset all coalition-bindings from your players?"
+msgstr "您想重置所有玩家的联盟成员身份吗?"
+
+msgid "Coalition bindings reset for all players."
+msgstr "所有玩家的联盟会员资格已重置."
+
+msgid "The bot is missing the \"Manage Roles\" permission!"
+msgstr "该机器人没有 Discord 权限 \"管理角色\" !"
+
+# /campaign
+msgid "Commands to manage DCS campaigns"
+msgstr "DCS 活动管理命令"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Start (UTC)"
+msgstr "开始 (UTC)"
+
+msgid "End (UTC)"
+msgstr "结束 (UTC)"
+
+msgid "Description"
+msgstr "描述"
+
+msgid "Format for {} needs to be yyyy-mm-dd hh24:mi!"
+msgstr " {} 的格式需要为 yyyy-mm-dd hh24:mi!"
+
+# /campaign list
+msgid "Lists all (active) campaigns"
+msgstr "列出所有（活跃）活动"
+
+msgid "Display only active campaigns"
+msgstr "仅显示有效的活动"
+
+# /campaign info
+msgid "Campaign info"
+msgstr "活动信息"
+
+msgid "Campaign Overview"
+msgstr "活动概述"
+
+# /campaign add
+msgid "Add a campaign"
+msgstr "添加活动"
+
+msgid "Aborted."
+msgstr "终止."
+
+msgid "Select all servers for this campaign"
+msgstr "选择此活动的所有服务器"
+
+msgid "Campaign {} added."
+msgstr "活动 {} 已添加."
+
+msgid "A campaign is already configured for this timeframe!"
+msgstr "该活动已针对当前时间段进行设置!"
+
+msgid "A campaign with this name already exists!"
+msgstr "已存在同名活动!"
+
+# /campaign add_server
+msgid "Add a server to an existing campaign\n"
+msgstr "将服务器添加到现有活动\n"
+
+msgid "Server {server} added to campaign {campaign}."
+msgstr "服务器 {server} 已添加到活动 {campaign}."
+
+msgid "Server {server} is already part of the campaign {campaign}!"
+msgstr "服务器 {server} 已经是活动 {campaign} 的一部分!"
+
+# /campaign delete
+msgid "Delete a campaign"
+msgstr "删除活动"
+
+msgid "Do you want to delete campaign \"{}\"?"
+msgstr "是否要删除活动 \"{}\"?"
+
+msgid "Campaign deleted."
+msgstr "活动已删除."
+
+# /campaign start
+msgid "Start a campaign"
+msgstr "开始活动"
+
+msgid "Campaign {} started."
+msgstr "活动 {} 已开始."
+
+# /campaign stop
+msgid "Stop a campaign"
+msgstr "停止活动"
+
+msgid "Do you want to stop campaign \"{}\"?"
+msgstr "您想停止活动吗 \"{}\"?"
+
+msgid "Campaign stopped."
+msgstr "活动已停止."
+
+# Upload of embeds
+msgid "Error while updating embed!"
+msgstr "更新嵌入时出错!"
+
+msgid "Error {} while reading JSON file!"
+msgstr "读取JSON文件时出错 {} !"
+
+# Upload of LUA files
+msgid "To which server do you want to upload this LUA to?"
+msgstr "您想将此LUA上传到哪个服务器?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "文件存在。您想覆盖它吗?"
+
+msgid "File {} could not be uploaded."
+msgstr "无法上载文件 {} ."
+
+msgid "{num} LUA files uploaded. You can load any of them with {command} now."
+msgstr "{num} LUA文件已上传。现在，您可以使用 {command} 加载其中任何一个."
+
+# In-game commands
+# -join
+msgid "join a coalition"
+msgstr "加入联盟"
+
+msgid "Usage: {}join <blue|red>"
+msgstr "使用: {}join <blue|red>"
+
+msgid "You are a member of coalition {} already."
+msgstr "您已经是联盟 {} 的成员."
+
+msgid "You can't join the {coalition} coalition in-between {lock_time} of leaving a coalition."
+msgstr "您无法在离开联盟的 {lock_time} 期间加入 {coalition} 联盟."
+
+msgid "Welcome to the {} side!"
+msgstr "欢迎来到 {} 阵营!"
+
+msgid "Your coalition password is {}"
+msgstr "您的联盟密码是 {}"
+
+# -leave
+msgid "leave your coalition"
+msgstr "离开你的联盟"
+
+msgid "You are not a member of any coalition. You can join one with {}join blue|red."
+msgstr "您不是任何联盟的成员。您可以使用 {}join blue|red 加入联盟。."
+
+msgid "You left the {} coalition!"
+msgstr "您退出了 {} 联盟!"
+
+# -red
+msgid "join the red side"
+msgstr "加入红方"
+
+# -blue
+msgid "join the blue side"
+msgstr "加入蓝方"
+
+# -coalition
+msgid "displays your current coalition"
+msgstr "显示你当前的联盟"
+
+msgid "You are a member of the {} coalition."
+msgstr "您是 {} 联盟的成员."
+
+# -password
+msgid "displays the coalition password"
+msgstr "显示联盟密码"
+
+msgid "There is no password set for your coalition."
+msgstr "您的联盟没有设置密码."
+
+# -flag
+msgid "reads or sets a flag"
+msgstr "读取或设置标志"
+
+msgid "<flag> [value]"
+msgstr "<flag> [value]"
+
+msgid "Usage: {}flag <flag> [value]"
+msgstr "使用: {}flag <flag> [value]"

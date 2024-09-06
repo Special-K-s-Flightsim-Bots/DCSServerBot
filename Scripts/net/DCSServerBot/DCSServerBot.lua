@@ -22,6 +22,7 @@ if dcsbot.UDPSendSocket == nil then
 	package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 	local socket = require("socket")
 	dcsbot.UDPSendSocket = socket.udp()
+	dcsbot.UDPSendSocket:setsockname("*", 0)
 end
 
 dcsbot.sendBotMessage = dcsbot.sendBotMessage or function (msg, channel)

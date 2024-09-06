@@ -66,9 +66,11 @@ class LotAtcEventListener(EventListener):
                 not player.check_exemptions(self.get_config(server).get('exemptions', {}))):
             # noinspection PyAsyncCall
             asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.bot.get_admin_channel(server).send(
-                _("GCI {} tried to join as player {}!").format(gci.name, player.name)))
+            admin_channel = self.bot.get_admin_channel(server)
+            if admin_channel:
+                # noinspection PyAsyncCall
+                asyncio.create_task(
+                    admin_channel.send(_("GCI {} tried to join as player {}!").format(gci.name, player.name)))
             return
         message = ""
         message += self._generate_message(server, Coalition.BLUE)
@@ -87,7 +89,7 @@ class LotAtcEventListener(EventListener):
         await server.sendPopupMessage(
             gci.coalition, _("{coalition} GCI \"{name}\" on station.").format(
                 coalition=gci.coalition.value.title(), name=gci.name))
-        channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+        channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
         if channel:
             await channel.send(self.COALITION_MARKUP[gci.coalition].format(
                 self.EVENT_TEXTS['on_gci_join'].format(gci.name)))
@@ -96,7 +98,7 @@ class LotAtcEventListener(EventListener):
     async def del_gci(self, server: Server, gci: GCI) -> None:
         await server.sendPopupMessage(gci.coalition, _("{coalition} GCI \"{name}\" offline.").format(
             coalition=gci.coalition.value.title(), name=gci.name))
-        channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+        channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
         if channel:
             await channel.send(self.COALITION_MARKUP[gci.coalition].format(
                 self.EVENT_TEXTS['on_gci_leave'].format(gci.name)))
@@ -145,9 +147,11 @@ class LotAtcEventListener(EventListener):
             return
         # noinspection PyAsyncCall
         asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
-        # noinspection PyAsyncCall
-        asyncio.create_task(self.bot.get_admin_channel(server).send(
-            _("GCI {} tried to join as player {}!").format(gci.name, player.name)))
+        admin_channel = self.bot.get_admin_channel(server)
+        if admin_channel:
+            # noinspection PyAsyncCall
+            asyncio.create_task(
+                admin_channel.send(_("GCI {} tried to join as player {}!").format(gci.name, player.name)))
 
     @event(name="onGCILeave")
     async def onGCILeave(self, server: Server, data: dict) -> None:
@@ -183,7 +187,8 @@ class LotAtcEventListener(EventListener):
     @chat_command(name="gci", help=_("Info about a GCI"))
     async def gci(self, server: Server, player: Player, params: list[str]):
         if not params:
-            await player.sendChatMessage(_("Usage: {}gci <name>").format(self.prefix))
+            await player.sendChatMessage(_("Usage: {prefix}{command} <name>").format(
+                prefix=self.prefix, command=self.gci.name))
             return
         name = ' '.join(params)
         coalition = Coalition.BLUE if player.side == Side.BLUE else Coalition.RED

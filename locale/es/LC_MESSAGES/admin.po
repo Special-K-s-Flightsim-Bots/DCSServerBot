@@ -127,6 +127,9 @@ msgstr "El módulo {module} ha sido desinstalado del nodo {node}."
 msgid "Download files from your server"
 msgstr "Descarga archivos desde tu servidor"
 
+msgid "File {file} not found in directory {dir}."
+msgstr "El archivo {file} no se ha encontrado en el directorio {dir}."
+
 msgid "File sent as a DM."
 msgstr "Archivo enviado por mensaje privado."
 

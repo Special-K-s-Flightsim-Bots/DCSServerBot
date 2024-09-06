@@ -27,6 +27,10 @@
     },
     "Ruler",
     {
+      "class": "plugins.serverstats.serverstats.TopTheatresPerServer"
+    },
+    "Ruler",
+    {
       "class": "plugins.serverstats.serverstats.TopMissionPerServer",
       "params": { "limit": 3 }
     },

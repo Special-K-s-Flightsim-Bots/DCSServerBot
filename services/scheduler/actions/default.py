@@ -54,6 +54,20 @@ async def restart(node: Node, server: Optional[Server] = None, shutdown: Optiona
         await node.shutdown()
 
 
+async def halt(node: Node):
+    def _halt():
+        os.system("shutdown /s /t 1")
+
+    bus = ServiceRegistry.get(ServiceBus)
+    for server in [x for x in bus.servers.values() if x.status not in [Status.SHUTDOWN, Status.UNREGISTERED]]:
+        if not server.is_remote:
+            await bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+            await asyncio.sleep(1)
+            await server.shutdown()
+    atexit.register(_halt)
+    await node.shutdown()
+
+
 async def cmd(node: Node, cmd: str):
     out, err = await node.shell_command(cmd)
     if err:

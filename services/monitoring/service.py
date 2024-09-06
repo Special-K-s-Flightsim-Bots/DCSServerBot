@@ -262,6 +262,8 @@ class MonitoringService(Service):
                 await self.bus.send_to_node(await asyncio.to_thread(self._pull_load_params, server))
             except (psutil.AccessDenied, PermissionError):
                 self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
+            except psutil.NoSuchProcess:
+                self.log.debug(f"Server {server.name} died, skipping server load gathering.")
 
     @tasks.loop(minutes=1.0)
     async def monitoring(self):

@@ -29,8 +29,7 @@ class BackupService(Service):
     def _secure_password(self):
         config = self.locals['backups'].get('database')
         if config and config.get("password"):
-            utils.set_password("postgres", config["password"], self.node.config_dir)
-            del config['password']
+            utils.set_password("postgres", config.pop("password"), self.node.config_dir)
             return True
         return False
 

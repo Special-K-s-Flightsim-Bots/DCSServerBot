@@ -197,8 +197,7 @@ class Player(DataObject):
                 if 'id' in data:
                     # if the ID has changed (due to reconnect), we need to update the server list
                     if self.id != data['id']:
-                        del self.server.players[self.id]
-                        self.server.players[data['id']] = self
+                        self.server.players[data['id']] = self.server.players.pop(self.id)
                         self.id = data['id']
                 if 'active' in data:
                     self.active = data['active']

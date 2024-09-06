@@ -130,14 +130,15 @@ class BotService(Service):
     async def alert(self, title: str, message: str, server: Optional[Server] = None,
                     node: Optional[Node] = None) -> None:
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert'] if role is not None])
-        embed, file = utils.create_warning_embed(title=title, text=utils.escape_string(message))
+        embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
         if not server and node:
             try:
                 server = next(server for server in self.bot.servers.values() if server.node.name == node.name)
             except StopIteration:
                 server = None
-        if server:
-            await self.bot.get_admin_channel(server).send(content=mentions, embed=embed, file=file)
+        admin_channel = self.bot.get_admin_channel(server)
+        if server and admin_channel:
+            await admin_channel.send(content=mentions, embed=embed)
 
     async def install_fonts(self):
         font_dir = Path('fonts')
@@ -158,14 +159,17 @@ class BotService(Service):
         for f in font_manager.findSystemFonts('fonts'):
             font_manager.fontManager.addfont(f)
 
-    async def send_message(self, channel: int, content: Optional[str] = None, server: Optional[Server] = None,
-                           filename: Optional[str] = None, embed: Optional[dict] = None,
-                           mention: Optional[list] = None):
+    async def send_message(self, channel: Optional[int] = -1, content: Optional[str] = None,
+                           server: Optional[Server] = None, filename: Optional[str] = None,
+                           embed: Optional[dict] = None, mention: Optional[list] = None):
         _channel = self.bot.get_channel(channel)
         if not _channel:
-            if channel != -1:
+            if channel and channel != -1:
                 raise ValueError(f"Channel {channel} not found!")
-            return
+            elif self.bot.audit_channel:
+                _channel = self.bot.audit_channel
+            else:
+                return
         _embed = discord.Embed.from_dict(embed) if embed else MISSING
         if filename:
             data = await server.node.read_file(filename)

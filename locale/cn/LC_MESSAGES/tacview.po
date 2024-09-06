@@ -1,0 +1,70 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+# Plugin
+# /tacview
+msgid "Commands to manage Tacview"
+msgstr "管理 Tacview 的命令"
+
+# /tacview configure
+msgid "Configure Tacview"
+msgstr "配置 Tacview"
+
+msgid "Tacview not installed on server {}!"
+msgstr "服务器 {} 上未安装 Tacview!"
+
+msgid "Tacview configuration changed on server {}."
+msgstr "Tacview 配置已在服务器 {} 上发生更改."
+
+msgid "Server {} needs to be shut down to configure Tacview."
+msgstr "需要关闭服务器 {} 才能配置 Tacview."
+
+# /tacview install
+msgid "Install Tacview"
+msgstr "安装 Tacview"
+
+msgid "Installing Tacview on server {} ..."
+msgstr "在服务器 {} 上安装 Tacview ..."
+
+msgid "Tacview already installed on server {}!"
+msgstr "Tacview 已安装在服务器 {} 上!"
+
+msgid "Tacview is not configured on node {}!"
+msgstr "节点 {} 上未配置 Tacview!"
+
+msgid "Tacview installed on server {}."
+msgstr "Tacview 安装在服务器 {} 上."
+
+msgid "Tacview could not be installed on server {}!"
+msgstr "无法在服务器 {} 上安装 Tacview!"
+
+msgid "Server {} needs to be shut down to install Tacview."
+msgstr "需要关闭服务器 {} 才能安装 Tacview."
+
+# /tacview uninstall
+msgid "Uninstall Tacview"
+msgstr "卸载Tacview"
+
+msgid "Uninstalling Tacview on server {} ..."
+msgstr "正在卸载服务器 {} 上的 Tacview ..."
+
+msgid "Tacview uninstalled on server {}."
+msgstr "Tacview 已在服务器 {} 上卸载."
+
+msgid "Tacview could not be uninstalled on server {}!"
+msgstr "无法在服务器 {} 上卸载 Tacview!"
+
+msgid "Server {} needs to be shut down to uninstall Tacview."
+msgstr "需要关闭服务器 {} 才能卸载 Tacview."
+
+# Extension
+msgid "Tacview file for server {}"
+msgstr "服务器 {} 的 Tacview 文件"
+
+msgid "Tacview updated to version {version} on instance {instance}."
+msgstr "Tacview 在实例 {instance} 上已更新至版本 {version}."

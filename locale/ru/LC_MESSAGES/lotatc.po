@@ -22,3 +22,14 @@ msgstr "Файл ответчика {} загружен."
 
 msgid "Transponder file {} could not be uploaded!"
 msgstr "Файл ответчика {} не может быть загружен!"
+
+# Report
+msgid "Information about {coalition} GCI \"{name}\""
+msgstr "Информация о {coalition} ДРЛО \"{name}\""
+
+# -gci
+msgid "Info about a GCI"
+msgstr "Информация об ДРЛО"
+
+msgid "Usage: {prefix}{command} <name>"
+msgstr "Применение: {prefix}{command} <name>"

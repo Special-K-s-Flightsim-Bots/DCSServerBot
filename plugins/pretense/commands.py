@@ -1,5 +1,3 @@
-from typing import Literal
-
 import discord
 import json
 import os
@@ -9,6 +7,7 @@ from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
 from services.bot import DCSServerBot
+from typing import Literal
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -96,8 +95,10 @@ class Pretense(Plugin):
                 config = self.get_config(server)
                 if not config:
                     continue
-                json_file_path = config.get('json_file_path',
-                                            os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json"))
+                json_file_path = config.get(
+                    'json_file_path',
+                    os.path.join(await server.get_missions_dir(), 'Saves', "player_stats.json")
+                )
                 json_file_path = os.path.expandvars(utils.format_string(json_file_path, instance=server.instance))
                 json_file_path = os.path.expandvars(json_file_path)
                 try:

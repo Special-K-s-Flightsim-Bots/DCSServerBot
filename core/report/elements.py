@@ -213,9 +213,6 @@ class Graph(ReportElement):
         fonts = get_supported_fonts()
         if fonts:
             plt.rcParams['font.family'] = [f"Noto Sans {x}" for x in fonts] + ['sans-serif']
-            self.log.debug(f"Fonts: {plt.rcParams['font.family']}")
-        else:
-            self.log.debug("Fonts: no fonts loaded")
         self.env.figure = plt.figure(figsize=(width, height))
         try:
             if facecolor:

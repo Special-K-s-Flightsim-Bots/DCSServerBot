@@ -183,6 +183,19 @@ msgstr "Вы хотите остановить кампанию \"{}\"?"
 msgid "Campaign stopped."
 msgstr "Кампания остановлена."
 
+# /message send
+msgid "Sends a message to a user"
+msgstr "Отправляет сообющение пользователю"
+
+msgid "User is not linked."
+msgstr "Пользователь не слинкован"
+
+msgid "Unknown user {}!"
+msgstr "Неизвестный пользователь {}!"
+
+msgid "Message will be displayed to the user."
+msgstr "Сообщение будет показано пользователю."
+
 # Upload of embeds
 msgid "Error while updating embed!"
 msgstr "Ошибка при обновлении embed!"

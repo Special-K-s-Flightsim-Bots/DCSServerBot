@@ -5,7 +5,7 @@ import re
 import shutil
 import sys
 
-from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException
+from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional, Any
@@ -285,7 +285,7 @@ class Tacview(Extension):
             if os.path.exists(filename):
                 target = self.config['target']
                 if target.startswith('<'):
-                    if os.path.getsize(filename) > 25 * 1024 * 1024:
+                    if os.path.getsize(filename) > DISCORD_FILE_SIZE_LIMIT:
                         self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
                         return
                     try:

@@ -516,6 +516,9 @@ msgstr "Die Datei existiert. Möchtest Du sie überschreiben?"
 msgid "Error while uploading: {}"
 msgstr "Fehler beim Upload: {}"
 
+msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
+msgstr "Mission \"{mission}\" wurde auf den Server {server} geladen, aber nicht zur Liste zugefügt."
+
 msgid "Mission \"{mission}\" uploaded to server {server}.\n"
 "As you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
 msgstr "Mission \"{mission}\" wurde auf Server {server} geladen.\n"

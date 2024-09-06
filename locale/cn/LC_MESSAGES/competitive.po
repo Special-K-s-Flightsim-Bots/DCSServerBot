@@ -1,0 +1,96 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+# /trueskill
+msgid "Display your TrueSkill:tm: rating"
+msgstr "显示你的 TrueSkill:tm: 评级"
+
+msgid "Use {} to link your account."
+msgstr "使用 {} 来关联你的账户."
+
+msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
+msgstr "TrueSkill:tm: 玩家 {name} 的评级: {rating:.2f}"
+
+# # LISTENER
+msgid "Your TrueSkill rating is: {}"
+msgstr "你的 TrueSkill 评级是: {}"
+
+msgid "You're not allowed to re-join the same match!"
+msgstr "你不能重新加入同一场比赛!"
+
+msgid "Player {name} ({rating}) joined the {side} team!"
+msgstr "玩家 {name} ({rating}) 加入了 {side} 队伍!"
+
+msgid "The match is on! If you die, crash or leave now, you lose!"
+msgstr "比赛开始了！如果你现在死亡、崩溃或离开，你将失败!"
+
+msgid "You won against {loser}! Your new rating is {rating}"
+msgstr "你赢了 {loser}! 你的新评级是 {rating}"
+
+msgid "You lost against {winner}! Your new rating is {rating}"
+msgstr "你输给了 {winner}! 你的新评级是 {rating}"
+
+# -skill
+msgid "Display your rating"
+msgstr "显示你的评级"
+
+msgid ""
+"The match is over, {} won!\n"
+"\n"
+"The following players are still alive:\n"
+msgstr ""
+"比赛结束了，{} 赢了!\n"
+"\n"
+"以下玩家仍然存活:\n"
+
+msgid ""
+"\n"
+"This is the log of your last match:\n"
+msgstr ""
+"\n"
+"这是你最后一场比赛的日志:\n"
+
+msgid ""
+"\n"
+"Your new rating is as follows:\n"
+msgstr ""
+"\n"
+"你的新评级如下:\n"
+
+# Log
+msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
+msgstr "{killer} 在 {killer_module} 使用 {weapon} {what} {victim}，地点在 {victim_module}"
+
+msgid "killed"
+msgstr "被杀"
+
+msgid "team-killed"
+msgstr "全队阵亡"
+
+msgid "{player} in {module} died ({event})"
+msgstr "{player} 在 {module} 死亡 ({event})"
+
+msgid "self-kill"
+msgstr "自杀"
+
+msgid "crash"
+msgstr "坠毁"
+
+msgid "eject"
+msgstr "弹射"
+
+msgid "disconnect"
+msgstr "断开连接"
+
+msgid "change_slot"
+msgstr "改变战位"

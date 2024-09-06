@@ -215,7 +215,7 @@ class MissionStatisticsEventListener(EventListener):
             else:
                 message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
             update = True
-            events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+            events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:
                 # noinspection PyAsyncCall
                 asyncio.create_task(events_channel.send(message))

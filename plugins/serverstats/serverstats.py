@@ -49,12 +49,48 @@ class ServerUsage(report.EmbedElement):
                 self.add_field(name='Discord Members', value=members)
 
 
+class TopTheatresPerServer(report.EmbedElement):
+
+    async def render(self, server_name: Optional[str], period: StatisticsFilter):
+        sql = f"""
+            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name,
+                   m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+            FROM missions m, statistics s
+            WHERE m.id = s.mission_id
+        """
+        if server_name:
+            sql += " AND m.server_name = %(server_name)s"
+        sql += " AND " + period.filter(self.env.bot)
+        sql += " GROUP BY 1, 2 ORDER BY 3 DESC"
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                servers = theatres = playtimes = ''
+                await cursor.execute(sql, {"server_name": server_name})
+                async for row in cursor:
+                    servers += row['server_name'][:30] + '\n'
+                    theatres += row['mission_theatre'][:20] + '\n'
+                    playtimes += '{:.0f}\n'.format(row['playtime'])
+
+        if len(servers) > 0:
+            if not server_name:
+                self.add_field(name='Server', value=servers)
+            self.add_field(name='TOP Theatre' if not server_name else f"TOP Theatres", value=theatres)
+            self.add_field(name='Playtime (h)', value=playtimes)
+            if server_name:
+                self.add_field(name='_ _', value='_ _')
+
+
 class TopMissionPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
-        sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
-                                      'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
-                                      'playtime DESC) AS rn FROM ('
+        sql_left = """
+            SELECT server_name, mission_name, playtime 
+            FROM (
+                SELECT server_name, mission_name, playtime, 
+                       ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY playtime DESC) AS rn 
+                FROM (
+        """
         sql_inner = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
                    trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
@@ -215,7 +251,8 @@ class UsersPerMissionTime(report.GraphElement):
         sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
         self.axes.set_title('Users per Mission-Time | past 14 days', color='white', fontsize=25)
         self.axes.set_xticks(range(24))
-
+        time_labels = [f"{hour:02d}h" for hour in range(24)]
+        self.axes.set_xticklabels(time_labels)
 
 class ServerLoadHeader(EmbedElement):
     async def render(self, node: str, server_name: Optional[str] = None):

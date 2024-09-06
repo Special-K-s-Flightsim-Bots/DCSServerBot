@@ -1,0 +1,170 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+msgid "Commands to manage player credits"
+msgstr "管理玩家积分的命令"
+
+# /credits info
+msgid "Shows your current credits"
+msgstr "显示您当前的积分"
+
+msgid "You need the DCS Admin role to use this command!"
+msgstr "您需要 DCS 管理员角色才能使用此命令!"
+
+msgid "Member {} is not linked to any DCS user!"
+msgstr "成员 {} 未与任何 DCS 用户关联!"
+
+msgid "Use {} to link your account."
+msgstr "使用 {} 链接您的帐户."
+
+msgid "{} has no campaign credits."
+msgstr "{} 没有活动积分."
+
+msgid "Campaign Credits for {}"
+msgstr " {} 的活动积分"
+
+msgid "Campaign"
+msgstr "活动"
+
+msgid "Credits"
+msgstr "积分"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Event"
+msgstr "事件"
+
+msgid "Log shows the last 10 events only."
+msgstr "日志仅显示最后 10 个事件."
+
+# /credits donate (admin)
+msgid "{} needs to properly link their DCS account to receive donations."
+msgstr "{} 需要正确关联其 DCS 帐户才能接收捐款."
+
+msgid "It seems like there is no campaign running on your server(s)."
+msgstr "您的服务器上似乎没有正在运行的活动."
+
+msgid "Campaign Credits"
+msgstr "活动积分"
+
+msgid "Member {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "会员 {} 的此次捐赠将超出允许的最大积分数. 已中止."
+
+msgid "Donation from member {}"
+msgstr "来自会员 {} 的捐赠"
+
+msgid "Credit points change by Admin {}"
+msgstr "管理员更改信用点数 {}"
+
+msgid "You just received {} credit points from an Admin."
+msgstr "您刚刚从管理员处收到 {} 积分."
+
+msgid ", you just received {} credit points from an Admin."
+msgstr ", 您刚刚从管理员处收到 {} 积分."
+
+msgid "Your credits were decreased by {} credit points by an Admin."
+msgstr "管理员已将您的积分减少了 {} 个积分."
+
+msgid ", your credits were decreased by {} credit points by an Admin."
+msgstr ", 管理员已将您的积分减少了 {} 个积分."
+
+msgid "Donated {credits} points to {name}."
+msgstr "向 {name} 捐赠了 {credits} 积分."
+
+# /credits donate (normal)
+msgid "Donate credits to another member"
+msgstr "向其他会员捐赠积分"
+
+msgid "You can't donate to yourself."
+msgstr "你不能给自己捐款."
+
+msgid "Your donation has to be > 0."
+msgstr "您的捐款必须大于零."
+
+msgid "You need to properly link your DCS account to give donations!"
+msgstr "您需要正确链接您的DCS账户才能进行捐赠!"
+
+msgid "You don't have any credit points to donate."
+msgstr "您没有任何积分可以捐赠."
+
+msgid "You can't donate {donation} credit points, you only have {total}!"
+msgstr "您不能捐赠 {donation} 积分, 您只有 {total}!"
+
+msgid "Donation to member {}"
+msgstr "向会员 {} 捐款"
+
+msgid "You just received {donation} credit points from {member}!"
+msgstr "您刚刚收到来自 {member} 的 {donation} 积分!"
+
+msgid ", you just received {donation} credit points from {member}!"
+msgstr ", 您刚刚收到来自 {member} 的 {donation} 积分!"
+
+# # LISTENER
+msgid "Initial points received"
+msgstr "已收到初始积分"
+
+msgid "{name}, you currently have {credits} credit points."
+msgstr "{name}, 您目前有 {credits} 个积分."
+
+msgid "Unknown mission achievement"
+msgstr "未知任务成就"
+
+# onGameEvent()
+msgid "for killing {}"
+msgstr "杀死 {}"
+
+# -credits
+msgid "You currently have {} credit points"
+msgstr "您目前有 {} 个信用点"
+
+# -donate
+msgid "Donate credits to another player"
+msgstr "捐赠积分给其他玩家"
+
+msgid "Usage: {}donate player points"
+msgstr "用法: {}捐赠玩家积分"
+
+msgid "Player {} not found."
+msgstr "未找到玩家 {} ."
+
+msgid "Player {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "玩家 {} 的此次捐赠将超出允许的最大积分数. 已中止.."
+
+msgid "Donation to player {}"
+msgstr "向玩家 {} 捐款"
+
+msgid "Donation from player {}"
+msgstr "来自玩家 {} 的捐赠"
+
+msgid "You've donated {donation} credit points to player {name}."
+msgstr "您已向玩家 {name} 捐赠 {donation} 积分."
+
+msgid "Player {name} donated {donation} credit points to you!"
+msgstr "玩家 {name} 向您捐赠了 {donation} 个积分"
+
+# -tip
+msgid "Tip a GCI with points"
+msgstr "用积分给 GCI 打赏"
+
+msgid "Usage: {}tip points [gci_number]"
+msgstr "用法: {}提示点 [gci_number]"
+
+msgid "There is currently no {} GCI active."
+msgstr "目前没有 {} GCI 处于活动状态"
+
+msgid "Multiple GCIs found, use \"{}tip points gci_number\"."
+msgstr "发现多个 GCI, 使用 \"{}tip points gci_number\"."
+
+msgid "You've donated {donation} credit points to GCI {name}."
+msgstr "您已向 GCI {name} 捐赠了 {donation} 积分."

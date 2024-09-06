@@ -1,0 +1,158 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+msgid "Member {member} banned by {banned_by} for {reason}."
+msgstr "用户 {member} 被 {banned_by} 禁止访问。原因: {reason}."
+
+msgid "You have been banned from the DCS servers on {guild} for {reason} for the amount of {days} days."
+msgstr "你已被禁止进入DCS服务器上的 {guild} ，原因是 {reason} ，禁令时长为 {days} 天."
+
+msgid "Player {player} (ucid={ucid}) banned by {banned_by} for {reason}."
+msgstr "玩家 {player} (ucid={ucid}) 被 {banned_by} 禁止进入，原因是 {reason}."
+
+msgid "Player with ucid {ucid} banned by {banned_by} for {reason}."
+msgstr "ucid为 {ucid} 的玩家被 {banned_by} 禁止进入，原因是 {reason}."
+
+msgid "Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}."
+msgstr "玩家 {player} (ucid={ucid}) 被 {kicked_by} 踢出，原因是 {reason}."
+
+msgid "You've been kicked back to spectators because of: {}."
+msgstr "你已被踢回观众席，原因是: {}."
+
+msgid "Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}."
+msgstr "玩家 {player} (ucid={ucid}) 被 {spec_by} 移至观众席，原因是 {reason}."
+
+msgid "Punished for {}"
+msgstr "因以下原因受到处罚 {}"
+
+msgid "{name}, you have been punished for: {reason}!\n"
+"Your current credit points are: {points}"
+msgstr "{name}, 你已因以下原因受到处罚 {reason}.\n"
+"你当前的罚分为: {points}."
+
+msgid "Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}."
+msgstr "玩家 {player} (ucid={ucid}) 因 {reason} 被 {punished_by} 以罚分处罚."
+
+msgid "{name}, you have been punished for: {reason}!"
+msgstr "{name}, 你因以下原因受到处罚 {reason}!"
+
+msgid "{name}, check your fire: {reason}!"
+msgstr "{name}, 请注意你的开火行为: {reason}!"
+
+msgid "{name}, you have {points} punishment points."
+msgstr "{name}, 你有 {points} 处罚积分."
+
+# /punish
+msgid "Adds punishment points to a user\n"
+msgstr "向用户添加处罚积分\n"
+
+msgid "User {} is not linked."
+msgstr "用户 {} 未关联."
+
+msgid "The UCID provided is invalid."
+msgstr "提供的UCID无效."
+
+msgid "User punished with {} points."
+msgstr "用户被处罚了 {} 积分."
+
+msgid "punished user {ucid} with {points} points."
+msgstr "已处罚用户 {ucid} 积分为 {points}."
+
+# / forgive
+msgid "Deletes a users punishment points"
+msgstr "删除用户的处罚积分"
+
+msgid "This will delete all the punishment points for this user and unban them if they were banned.\n"
+"Are you sure?"
+msgstr "这将删除该用户的所有处罚积分，并在他们被禁止时解除禁令.\n"
+"你确定吗?"
+
+msgid "All punishment points deleted and player unbanned (if they were banned by the bot before)."
+msgstr "所有处罚积分已删除，玩家已被解禁（如果之前被机器人自动封禁的话）."
+
+msgid "forgave player {}"
+msgstr "原谅玩家 {}"
+
+# /penalty
+msgid "Displays the current penalty points"
+msgstr "显示当前的处罚积分"
+
+msgid "You need the DCS Admin role to show penalty points for other users."
+msgstr "你需要DCS管理员角色才能查看其他用户的处罚积分."
+
+msgid "Member {} is not linked."
+msgstr "成员 {} 未关联."
+
+msgid "Use {} to link your Discord and DCS accounts first."
+msgstr "请先使用 {} 将你的Discord和DCS账户关联."
+
+msgid "User has no penalty points."
+msgstr "用户没有处罚积分."
+
+msgid "Penalty Points for {}"
+msgstr " {} 的处罚积分"
+
+msgid "Total penalty points: {total:.2f}"
+msgstr "总处罚积分: {total:.2f}"
+
+msgid "Time (UTC)"
+msgstr "时间 (UTC)"
+
+msgid "Event"
+msgstr "事件"
+
+msgid "Points"
+msgstr "罚分"
+
+msgid "Points decay over time, you might see different results on different days."
+msgstr "罚分会随时间衰减，你可能会在不同的日子看到不同的结果."
+
+msgid "never"
+msgstr "从不"
+
+msgid "Ban expires"
+msgstr "禁令到期"
+
+msgid "Reason"
+msgstr "原因"
+
+msgid "You are currently banned.\n"
+"Please contact a member of the server staff, if you want to get unbanned."
+msgstr "你目前已被封禁.\n"
+"如果你想解除禁令，请联系服务器工作人员."
+
+# /infractions
+msgid "Show last infractions of a user"
+msgstr "显示用户的最近违规记录"
+
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "该用户不存在。尝试 {} 在历史数据中查找他们."
+
+# LISTENER
+msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"
+"If you send {prefix}forgive in chat within the next {time} seconds, you can pardon the other player."
+msgstr "{victim}, 您作为受害者被卷入了 {offender} 的 {event} 事件中.\n"
+"如果你在接下来的 {time} 秒内在聊天中发送 {prefix}forgive，将会原谅他."
+
+# -forgive
+msgid "forgive another user for their infraction"
+msgstr "原谅另一名用户的违规行为"
+
+msgid "There is nothing to forgive (maybe too late?)"
+msgstr "没有需要原谅的事件（可能已经晚了）"
+
+msgid "{offender}, You have been forgiven by {victim} and you will not be punished for your recent actions."
+msgstr "{offender}, 你已被 {victim} 原谅，你刚刚的违规行为将不会受到惩罚."
+
+msgid "You have chosen to forgive {} for their actions."
+msgstr "你已选择原谅 {} 的行为."
+
+# -penalty
+msgid "displays your penalty points"
+msgstr "显示你的处罚积分"
+

@@ -216,8 +216,8 @@ msgstr "{num} LUA files wurden hochgeladen. Du kannst jedes davon nun mit {comma
 msgid "join a coalition"
 msgstr "Trete einer Koalition bei"
 
-msgid "Usage: {}join <blue|red>"
-msgstr "Aufruf: {}join <blue|red>"
+msgid "Usage: {prefix}{command} <blue|red>"
+msgstr "Aufruf: {prefix}{command} <blue|red>"
 
 msgid "You are a member of coalition {} already."
 msgstr "Du bist bereits Mitglied der Koalition {}."
@@ -270,5 +270,5 @@ msgstr "Lese oder setze eine Flagge"
 msgid "<flag> [value]"
 msgstr "<Flagge> [Wert]"
 
-msgid "Usage: {}flag <flag> [value]"
-msgstr "Aufruf: {}flag <Flagge> [Wert]"
+msgid "Usage: {prefix}{command} <flag> [value]"
+msgstr "Aufruf: {prefix}{command} <Flagge> [Wert]"

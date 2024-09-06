@@ -1,0 +1,35 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.1\n"
+
+msgid "To which server do you want to upload this transponder file to?"
+msgstr "您要将此转发器文件上传到哪个服务器?"
+
+msgid "LotAtc is not configured on any server."
+msgstr "任何服务器上均未配置 LotAtc."
+
+msgid "Transponder file {} uploaded."
+msgstr "转发器文件 {} 已上传."
+
+msgid "Transponder file {} could not be uploaded!"
+msgstr "无法上传应答器文件 {}!"
+
+# Report
+msgid "Information about {coalition} GCI \"{name}\""
+msgstr "关于 {coalition} GCI \"{name}\" 的信息"
+
+# -gci
+msgid "Info about a GCI"
+msgstr "有关 GCI 的信息"
+
+msgid "Usage: {prefix}{command} <name>"
+msgstr "用法: {prefix}{command} <name>"

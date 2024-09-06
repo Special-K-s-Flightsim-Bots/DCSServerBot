@@ -1,0 +1,103 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: cn\n"
+
+# /pretense stats
+msgid "Display the Pretense stats"
+msgstr "显示 Pretense 统计数据"
+
+msgid "No player_stats.json found on this server! Is Pretense active?"
+msgstr "此服务器上未找到 player_stats.json！Pretense 是否处于活动状态?"
+
+# /pretense reset
+msgid "Reset Pretense progress"
+msgstr "重置 Pretense 进度"
+
+msgid "Server {} needs to be shut down to reset the Pretense progress!"
+msgstr "需要关闭服务器 {} 来重置 Pretense 进度！"
+
+msgid "Do you really want to reset the Pretense progress?"
+msgstr "您确实要重置 Pretense 进度吗?"
+
+msgid "Aborted."
+msgstr "已中止."
+
+msgid "Pretense persistence reset."
+msgstr "Pretense 持久性重置."
+
+msgid "Pretense statistics reset."
+msgstr "Pretense 统计信息重置."
+
+# Reports
+msgid "Rankings as of <t:{}:f>:"
+msgstr "截至 <t:{}:f> 的排名:"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "XP"
+msgstr "XP"
+
+msgid "Rank"
+msgstr "等级"
+
+msgid "E-1 Airman basic"
+msgstr "E-1 菜鸟飞行员"
+
+msgid "E-2 Airman"
+msgstr "E-2 飞行员"
+
+msgid "E-3 Airman first class"
+msgstr "E-3 一级飞行员"
+
+msgid "E-4 Senior airman"
+msgstr "E-4 资深飞行员"
+
+msgid "E-5 Staff sergeant"
+msgstr "E-5 参谋士官"
+
+msgid "E-6 Technical sergeant"
+msgstr "E-6 技术军士"
+
+msgid "E-7 Master sergeant"
+msgstr "E-7 上士"
+
+msgid "E-8 Senior master sergeant"
+msgstr "E-8 高级军士长"
+
+msgid "E-9 Chief master sergeant"
+msgstr "E-9 首席军士长"
+
+msgid "O-1 Second lieutenant"
+msgstr "O-1 少尉"
+
+msgid "O-2 First lieutenant"
+msgstr "O-2 中尉"
+
+msgid "O-3 Captain"
+msgstr "O-3 队长"
+
+msgid "O-4 Major"
+msgstr "O-4 少校"
+
+msgid "O-5 Lieutenant colonel"
+msgstr "O-5 中校"
+
+msgid "O-6 Colonel"
+msgstr "O-6 上校"
+
+msgid "O-7 Brigadier general"
+msgstr "O-7 准将"
+
+msgid "O-8 Major general"
+msgstr "O-8 少将"
+
+msgid "O-9 Lieutenant general"
+msgstr "O-9 中将"
+
+msgid "O-10 General"
+msgstr "O-10 将军"

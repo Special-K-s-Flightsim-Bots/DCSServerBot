@@ -79,9 +79,8 @@ class DCSServerBot(commands.Bot):
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
         # cleanup remote servers (if any)
-        for key, value in self.bus.servers.items():
-            if value.is_remote:
-                del self.bus.servers[key]
+        for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
+            self.bus.servers.pop(key)
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
@@ -312,7 +311,10 @@ class DCSServerBot(commands.Bot):
             embed = discord.Embed(color=discord.Color.blue())
             if member:
                 embed.set_author(name=member.name, icon_url=member.avatar)
-                embed.set_thumbnail(url=member.avatar)
+                if 'error' in kwargs:
+                    embed.set_thumbnail(url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+                else:
+                    embed.set_thumbnail(url=member.avatar)
                 if member != self.member:
                     embed.description = f'<@{member.id}> ' + message
                 else:
