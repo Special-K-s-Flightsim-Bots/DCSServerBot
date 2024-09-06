@@ -180,11 +180,14 @@ class LogAnalyser(Extension):
                 title='Outdated Moose version found!',
                 text=f"Mission {self.server.current_mission.name} is using an old Moose version. "
                      f"You will probably see performance issues!")
-            await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "send_message",
-                "params": {
-                    "embed": embed.to_dict()
-                }
-            })
+            try:
+                await self.bus.send_to_node_sync({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "send_message",
+                    "params": {
+                        "embed": embed.to_dict()
+                    }
+                })
+            except Exception as ex:
+                self.log.exception(ex)

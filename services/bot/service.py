@@ -166,8 +166,10 @@ class BotService(Service):
         if not _channel:
             if channel and channel != -1:
                 raise ValueError(f"Channel {channel} not found!")
-            else:
+            elif self.bot.audit_channel:
                 _channel = self.bot.audit_channel
+            else:
+                return
         _embed = discord.Embed.from_dict(embed) if embed else MISSING
         if filename:
             data = await server.node.read_file(filename)
