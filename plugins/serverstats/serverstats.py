@@ -61,7 +61,7 @@ class TopTheatresPerServer(report.EmbedElement):
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
         sql += " AND " + period.filter(self.env.bot)
-        sql += "GROUP BY 1, 2 ORDER BY 3 DESC"
+        sql += " GROUP BY 1, 2 ORDER BY 3 DESC"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
