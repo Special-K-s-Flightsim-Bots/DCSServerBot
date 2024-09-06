@@ -39,4 +39,10 @@ DCS.release_server:
           shutdown: false             # do not shutdown during the restart (default = false)
           rotate: false               # do not rotate the mission (default = false)
           run_extensions: true        # run the extensions (default = true)
+    - cron: '55 3 * * 1'                # Send a message to everyone, 5 mins prior to the shutdown
+      action:
+        type: popup                     
+        params:
+          message: Server will shut down in 5 mins!
+          timeout: 20
 ```
