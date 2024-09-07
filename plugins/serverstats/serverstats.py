@@ -224,10 +224,15 @@ class UniquePast14(report.GraphElement):
             self.axes.legend()
 
             # Add annotations inside the bars for new players and above the bars for total players
-            self.axes.bar_label(bars1.containers[0], labels=[str(val) if val != 0 else '' for val in total_players],
-                                color='white', fontsize=10, weight='bold', label_type='edge')
-            self.axes.bar_label(bars2.containers[0], labels=[str(val) if val != 0 else '' for val in new_players],
-                                color='black', fontsize=10, weight='bold', label_type='center')
+            for bar, new_val, total_val in zip(self.axes.patches[:len(dates)], new_players, total_players):
+                height = bar.get_height()
+                if total_val == height:
+                    self.axes.text(bar.get_x() + bar.get_width() / 2, bar.get_height() - new_val / 2,
+                                   new_val if new_val != 0 else '', ha='center', va='center', color='black',
+                                   fontsize=10, weight='bold')
+                    self.axes.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                                   total_val if total_val != 0 else '', ha='center', va='bottom', color='white',
+                                   fontsize=10, weight='bold')
 
             # Ensure the spines of the plot are white
             for spine in self.axes.spines.values():
