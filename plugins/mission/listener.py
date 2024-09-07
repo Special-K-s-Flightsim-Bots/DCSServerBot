@@ -303,9 +303,9 @@ class MissionEventListener(EventListener):
             embed.add_field(name="Member", value=player.member.display_name)
             embed.add_field(name="Discord ID", value=player.member.id)
             embed.add_field(name="_ _", value='_ _')
-        embed.add_field(name="Reason", value=row['reason'])
+        embed.add_field(name="Reason", value=row.get('reason', 'n/a'))
         embed.add_field(name="Added by", value=row['created_by'])
-        embed.add_field(name="Added at", value=f"<t:{int(row['created_by'].timestamp())}:f>")
+        embed.add_field(name="Added at", value=f"<t:{int(row['created_at'].timestamp())}:f>")
         embed.set_footer(text="Players can be removed from the watchlist by using the /info command.")
         await admin_channel.send(mentions, embed=embed)
 
