@@ -216,7 +216,7 @@ class UniquePast14(report.GraphElement):
 
             # Set axis labels and title
             self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
-            self.axes.set_xlabel("")
+            self.axes.set_xlabel('')
             self.axes.set_ylabel('Players', color='white', fontsize=10)
             self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
             self.axes.tick_params(axis='x', colors='white')
@@ -309,11 +309,41 @@ class UsersPerMissionTime(report.GraphElement):
         all_hours = pd.DataFrame({'time': np.arange(0, 24)})
         df = pd.merge(all_hours, df, on='time', how='left')
         df['users'] = df['users'].fillna(0)
-        sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
+
+        # Plot the data
+        barplot = sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
+
+        # Set axis title and labels
         self.axes.set_title('Users per Mission-Time | past 14 days', color='white', fontsize=25)
+        self.axes.set_xlabel('')
+        self.axes.set_ylabel('Average Users', color='white', fontsize=10)
+
         self.axes.set_xticks(range(24))
         time_labels = [f"{hour:02d}h" for hour in range(24)]
-        self.axes.set_xticklabels(time_labels)
+        self.axes.set_xticklabels(time_labels, color='white')
+
+        # Set y-axis ticks to be white
+        self.axes.tick_params(axis='y', colors='white')
+
+        # Add annotations for user count above the bars
+        for bar in barplot.patches:
+            height = bar.get_height()
+            if height > 0:
+                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
+                               f'{height:.1f}', ha='center', va='bottom', color='white',
+                               fontsize=10, weight='bold')
+
+        # Ensure the spines of the plot are white
+        for spine in self.axes.spines.values():
+            spine.set_color('white')
+
+        # Set background color (if applicable)
+        self.axes.set_facecolor('#303030')
+
+        # Remove top and right spines for cleaner look
+        self.axes.spines['top'].set_visible(False)
+        self.axes.spines['right'].set_visible(False)
+
 
 class ServerLoadHeader(EmbedElement):
     async def render(self, node: str, server_name: Optional[str] = None):
