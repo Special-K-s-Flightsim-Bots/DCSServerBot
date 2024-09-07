@@ -157,37 +157,87 @@ class UniquePast14(report.GraphElement):
 
     async def render(self, server_name: Optional[str]):
         sql = """
-            SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players 
-            FROM statistics s, missions m, 
-                 generate_series(DATE(NOW()) - INTERVAL '2 weeks', DATE(NOW()), INTERVAL '1 day') d 
-            WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) 
-            AND s.mission_id = m.id
-        """
+            WITH players_join AS (
+                SELECT 
+                    player_ucid,
+                    MIN(DATE(hop_on)) AS join_date
+                FROM statistics
+                GROUP BY player_ucid
+            ),
+            date_series AS (
+                SELECT 
+                    generate_series(DATE(NOW()) - INTERVAL '2 weeks', DATE(NOW()), INTERVAL '1 day') AS date
+            )
+            SELECT 
+                ds.date AS date, 
+                COALESCE(COUNT(DISTINCT s.player_ucid), 0) AS total_players,
+                COALESCE(COUNT(DISTINCT 
+                    CASE WHEN pj.join_date = ds.date THEN s.player_ucid ELSE NULL END), 0) AS new_players
+            FROM 
+                date_series ds
+                LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
+                LEFT JOIN missions m ON s.mission_id = m.id
+                LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
+            """
         if server_name:
-            sql += f" AND m.server_name = %(server_name)s"
-        sql += ' GROUP BY d.date'
+            sql += " WHERE m.server_name = %(server_name)s"
+        sql += " GROUP BY ds.date ORDER BY ds.date"
 
-        labels = []
-        values = []
+        # Fetch the data from query
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    labels.append(row['date'].strftime('%a %m-%d'))
-                    values.append(row['players'])
+                data = await cursor.fetchall()
 
-        sns.barplot(x=labels, y=values, color='dodgerblue', ax=self.axes)
-        self.axes.set_title('Unique Players | past 14 days', fontsize=25)
-        self.axes.spines['top'].set_visible(False)
-        self.axes.spines['right'].set_visible(False)
-        self.axes.spines['bottom'].set_visible(False)
-        self.axes.spines['left'].set_visible(False)
-        self.axes.set_yticks([])
-        for i, value in enumerate(values):
-            self.axes.text(i, value, int(value), ha='center', va='bottom', weight='bold')
-        if not values:
+        # Process data into lists for plotting
+        dates = [row['date'] for row in data]
+        total_players = [row['total_players'] for row in data]
+        new_players = [row['new_players'] for row in data]
+
+        if not dates:
+            # Handle case where no data is returned
+            self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', fontsize=15, color='white')
             self.axes.set_xticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+            self.axes.set_yticks([])
+        else:
+            # Create a DataFrame for seaborn
+            df = pd.DataFrame({
+                'date': dates,
+                'total_players': total_players,
+                'new_players': new_players
+            })
+            df['date'] = df['date'].dt.strftime('%a %m-%d')
+
+            # Perform plotting using seaborn
+            sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue', label='Total Players',
+                        edgecolor='white')
+            sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange', label='New Players',
+                        edgecolor='white')
+
+            # Set axis labels and title
+            self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
+            self.axes.set_ylabel('Players', color='white', fontsize=15)
+            self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
+            self.axes.tick_params(axis='x', colors='white')
+            self.axes.tick_params(axis='y', colors='white')
+            self.axes.legend()
+
+            # Add annotations inside the bars
+            for container in self.axes.containers:
+                self.axes.bar_label(container, labels=[str(val) if val != 0 else '' for val in container.datavalues],
+                                    color='white' if container[0].get_facecolor()[:3] == (
+                                    0.12, 0.47, 0.71) else 'black', fontsize=10, weight='bold', label_type='center')
+
+            # Ensure the spines of the plot are white
+            for spine in self.axes.spines.values():
+                spine.set_color('white')
+
+            # Set background color (if applicable)
+            self.axes.set_facecolor('#303030')
+
+            # Remove top and right spines for cleaner look
+            self.axes.spines['top'].set_visible(False)
+            self.axes.spines['right'].set_visible(False)
 
 
 class UsersPerDayTime(report.GraphElement):
