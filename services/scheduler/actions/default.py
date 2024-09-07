@@ -43,6 +43,7 @@ async def restart(node: Node, server: Optional[Server] = None, shutdown: Optiona
             await server.loadNextMission(modify_mission=run_extensions)
         else:
             await server.restart(modify_mission=run_extensions)
+        server.maintenance = False
     elif reboot:
         bus = ServiceRegistry.get(ServiceBus)
         for server in [x for x in bus.servers.values() if x.status not in [Status.SHUTDOWN, Status.UNREGISTERED]]:
