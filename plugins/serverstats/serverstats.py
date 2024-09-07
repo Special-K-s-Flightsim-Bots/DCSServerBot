@@ -209,10 +209,10 @@ class UniquePast14(report.GraphElement):
             df['date'] = df['date'].dt.strftime('%a %m-%d')
 
             # Perform plotting using seaborn
-            sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue', label='Total Players',
-                        edgecolor='white')
-            sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange', label='New Players',
-                        edgecolor='white')
+            bars1 = sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue',
+                                label='Total Players', edgecolor='white')
+            bars2 = sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange', label='New Players',
+                                edgecolor='white')
 
             # Set axis labels and title
             self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
@@ -224,15 +224,10 @@ class UniquePast14(report.GraphElement):
             self.axes.legend()
 
             # Add annotations inside the bars for new players and above the bars for total players
-            for container in self.axes.containers:
-                if 'new_players' in container.datavalues[0].get_label():
-                    self.axes.bar_label(container,
-                                        labels=[str(val) if val != 0 else '' for val in container.datavalues],
-                                        color='black', fontsize=10, weight='bold', label_type='center')
-                else:
-                    self.axes.bar_label(container,
-                                        labels=[str(val) if val != 0 else '' for val in container.datavalues],
-                                        color='white', fontsize=10, weight='bold', label_type='edge')
+            self.axes.bar_label(bars1.containers[0], labels=[str(val) if val != 0 else '' for val in total_players],
+                                color='white', fontsize=10, weight='bold', label_type='edge')
+            self.axes.bar_label(bars2.containers[0], labels=[str(val) if val != 0 else '' for val in new_players],
+                                color='black', fontsize=10, weight='bold', label_type='center')
 
             # Ensure the spines of the plot are white
             for spine in self.axes.spines.values():
