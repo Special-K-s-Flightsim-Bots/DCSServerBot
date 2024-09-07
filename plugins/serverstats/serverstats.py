@@ -163,7 +163,7 @@ class UniquePast14(report.GraphElement):
                     MIN(DATE(hop_on)) AS join_date
                 FROM statistics
                 GROUP BY player_ucid
-            ),
+            }),
             date_series AS (
                 SELECT 
                     generate_series(DATE(NOW()) - INTERVAL '2 weeks', DATE(NOW()), INTERVAL '1 day') AS date
@@ -209,10 +209,10 @@ class UniquePast14(report.GraphElement):
             df['date'] = df['date'].dt.strftime('%a %m-%d')
 
             # Perform plotting using seaborn
-            bars1 = sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue',
-                                label='Total Players', edgecolor='white')
-            bars2 = sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange', label='New Players',
-                                edgecolor='white')
+            total_bars = sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue',
+                                     label='Total Players', edgecolor='white')
+            new_bars = sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange',
+                                   label='New Players', edgecolor='white')
 
             # Set axis labels and title
             self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
@@ -223,19 +223,18 @@ class UniquePast14(report.GraphElement):
             self.axes.tick_params(axis='y', colors='white')
             self.axes.legend()
 
-            # Add annotations inside the bars for new players and above the bars for total players
-            for bar, new_val, total_val in zip(self.axes.patches[:len(dates)], new_players, total_players):
-                height = bar.get_height()
-                # Adjust the label position based on the height of the new player bar
-                self.axes.text(bar.get_x() + bar.get_width() / 2, height - new_val / 2,
-                               new_val if new_val != 0 else '', ha='center', va='center', color='black',
-                               fontsize=10, weight='bold')
-
-            # Add labels for the total players above the bars
-            for bar, total_val in zip(self.axes.patches[:len(dates)], total_players):
+            # Add annotations for total players above the bars
+            for bar in total_bars.containers[0]:
                 height = bar.get_height()
                 self.axes.text(bar.get_x() + bar.get_width() / 2, height,
-                               total_val if total_val != 0 else '', ha='center', va='bottom', color='white',
+                               int(height), ha='center', va='bottom', color='white',
+                               fontsize=10, weight='bold')
+
+            # Add annotations for new players inside the bars
+            for bar in new_bars.containers[0]:
+                height = bar.get_height()
+                self.axes.text(bar.get_x() + bar.get_width() / 2, height / 2,
+                               int(height), ha='center', va='center', color='black',
                                fontsize=10, weight='bold')
 
             # Ensure the spines of the plot are white
