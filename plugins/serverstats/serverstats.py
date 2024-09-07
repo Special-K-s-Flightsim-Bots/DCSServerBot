@@ -226,9 +226,10 @@ class UniquePast14(report.GraphElement):
             # Add annotations for total players above the bars
             for bar in total_bars.patches[:len(dates)]:
                 height = bar.get_height()
-                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
-                               int(height), ha='center', va='bottom', color='white',
-                               fontsize=10, weight='bold')
+                if height > 0:
+                    self.axes.text(bar.get_x() + bar.get_width() / 2, height,
+                                   int(height), ha='center', va='bottom', color='white',
+                                   fontsize=10, weight='bold')
 
             # Add annotations for new players inside the bars
             for bar in new_bars.patches[-len(dates):]:
