@@ -216,17 +216,23 @@ class UniquePast14(report.GraphElement):
 
             # Set axis labels and title
             self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
+            self.axes.set_xlabel('Date', color='white', fontsize=15)
             self.axes.set_ylabel('Players', color='white', fontsize=15)
             self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
             self.axes.tick_params(axis='x', colors='white')
             self.axes.tick_params(axis='y', colors='white')
             self.axes.legend()
 
-            # Add annotations inside the bars
+            # Add annotations inside the bars for new players and above the bars for total players
             for container in self.axes.containers:
-                self.axes.bar_label(container, labels=[str(val) if val != 0 else '' for val in container.datavalues],
-                                    color='white' if container[0].get_facecolor()[:3] == (
-                                    0.12, 0.47, 0.71) else 'black', fontsize=10, weight='bold', label_type='center')
+                if 'new_players' in container.datavalues[0].get_label():
+                    self.axes.bar_label(container,
+                                        labels=[str(val) if val != 0 else '' for val in container.datavalues],
+                                        color='black', fontsize=10, weight='bold', label_type='center')
+                else:
+                    self.axes.bar_label(container,
+                                        labels=[str(val) if val != 0 else '' for val in container.datavalues],
+                                        color='white', fontsize=10, weight='bold', label_type='edge')
 
             # Ensure the spines of the plot are white
             for spine in self.axes.spines.values():
