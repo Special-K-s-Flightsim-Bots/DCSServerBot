@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 
 class DummyMember:
-    def __init__(self, id: str, *, name: str = None):
+    def __init__(self, id: str, *, name: str = ""):
         self._id = id
         self._name = name
         self._roles: dict[str, "DummyRole"] = {}
