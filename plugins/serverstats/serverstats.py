@@ -163,7 +163,7 @@ class UniquePast14(report.GraphElement):
                     MIN(DATE(hop_on)) AS join_date
                 FROM statistics
                 GROUP BY player_ucid
-            }),
+            ),
             date_series AS (
                 SELECT 
                     generate_series(DATE(NOW()) - INTERVAL '2 weeks', DATE(NOW()), INTERVAL '1 day') AS date
@@ -178,7 +178,7 @@ class UniquePast14(report.GraphElement):
                 LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
                 LEFT JOIN missions m ON s.mission_id = m.id
                 LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
-            """
+        """
         if server_name:
             sql += " WHERE m.server_name = %(server_name)s"
         sql += " GROUP BY ds.date ORDER BY ds.date"
@@ -206,7 +206,7 @@ class UniquePast14(report.GraphElement):
                 'total_players': total_players,
                 'new_players': new_players
             })
-            df['date'] = df['date'].dt.strftime('%a %m-%d')
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%a %m-%d')
 
             # Perform plotting using seaborn
             total_bars = sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue',
@@ -216,22 +216,22 @@ class UniquePast14(report.GraphElement):
 
             # Set axis labels and title
             self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
-            self.axes.set_xlabel('Date', color='white', fontsize=15)
-            self.axes.set_ylabel('Players', color='white', fontsize=15)
+            self.axes.set_xlabel("")
+            self.axes.set_ylabel('Players', color='white', fontsize=10)
             self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
             self.axes.tick_params(axis='x', colors='white')
             self.axes.tick_params(axis='y', colors='white')
             self.axes.legend()
 
             # Add annotations for total players above the bars
-            for bar in total_bars.containers[0]:
+            for bar in total_bars.patches:
                 height = bar.get_height()
                 self.axes.text(bar.get_x() + bar.get_width() / 2, height,
                                int(height), ha='center', va='bottom', color='white',
                                fontsize=10, weight='bold')
 
             # Add annotations for new players inside the bars
-            for bar in new_bars.containers[0]:
+            for bar in new_bars.patches:
                 height = bar.get_height()
                 self.axes.text(bar.get_x() + bar.get_width() / 2, height / 2,
                                int(height), ha='center', va='center', color='black',
