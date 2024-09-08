@@ -318,8 +318,9 @@ class UserRetention(report.GraphElement):
         self.axes.spines['top'].set_visible(False)
         self.axes.spines['right'].set_visible(False)
 
-        # Make sure the bars align with the left and right edges
         self.axes.set_xlim([-0.5, len(df) - 0.5])
+        self.axes.set_xticks(range(len(df)))
+        self.axes.set_xticklabels(df['first_date'], rotation=45, ha='right')
 
         # Annotate the bars with counts, inside the bars with a black color
         for bar in bar1:
