@@ -309,7 +309,7 @@ class UserRetention(report.GraphElement):
         bar2 = self.axes.bar(df['first_date'], df['Retained Users'], bottom=df['New Users'], label='Retained Users',
                              color='dodgerblue', edgecolor='white')
 
-        self.axes.set_xlabel('First Visit Date', color='white', fontsize=10)
+        self.axes.set_xlabel('', color='white', fontsize=10)
         self.axes.set_ylabel('Number of Users', color='white', fontsize=10)
         self.axes.tick_params(axis='x', colors='white', rotation=45)
         self.axes.tick_params(axis='y', colors='white')
