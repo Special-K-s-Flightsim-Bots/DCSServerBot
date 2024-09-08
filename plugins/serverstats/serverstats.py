@@ -305,10 +305,9 @@ class UserRetention(report.GraphElement):
         })
         df['first_date'] = df['first_date'].dt.strftime('%a %m-%d')
 
-        bar_width = 0.35
-        bar1 = self.axes.bar(df['first_date'], df['New Users'], bar_width, label='New Users', color='dodgerblue')
-        bar2 = self.axes.bar(df['first_date'], df['Retained Users'], bar_width, bottom=df['New Users'], label='Retained Users',
-                      color='orange')
+        bar1 = self.axes.bar(df['first_date'], df['New Users'], label='New Users', color='orange')
+        bar2 = self.axes.bar(df['first_date'], df['Retained Users'], bottom=df['New Users'], label='Retained Users',
+                      color='dodgerblue')
 
         self.axes.set_xlabel('First Visit Date', color='white', fontsize=10)
         self.axes.set_ylabel('Number of Users', color='white', fontsize=10)
