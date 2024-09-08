@@ -335,6 +335,22 @@ msgstr "消息已发送."
 msgid "Sends a chat message to a player\n"
 msgstr "向玩家发送聊天消息\n"
 
+# /player screenshot
+msgid "Server can not take screenshots."
+msgstr "服务器无法截图."
+
+msgid "Requesting screenshot ..."
+msgstr "正在请求截图 ..."
+
+msgid "Timeout while waiting for screenshot!"
+msgstr "等待截图超时!"
+
+msgid "Screenshot of Player {}"
+msgstr "玩家 {} 的截图"
+
+msgid "Taken by"
+msgstr "由以下人员拍摄"
+
 # /watch add
 msgid "Puts a player onto the watchlist"
 msgstr "将一名玩家放入观察名单"
