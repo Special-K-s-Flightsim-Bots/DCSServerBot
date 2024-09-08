@@ -247,14 +247,11 @@ class UserRetention(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        # Extended SQL with date series to handle missing dates
+        # SQL with date series to handle missing dates
         sql = f"""
-            WITH RECURSIVE date_series AS (
-                SELECT DATE(NOW()) - INTERVAL '{interval}' + INTERVAL '1 day' AS date
-                UNION ALL
-                SELECT date + INTERVAL '1 day'
-                FROM date_series
-                WHERE date + INTERVAL '1 day' <= DATE(NOW())
+            WITH date_series AS (
+                SELECT 
+                    generate_series(DATE(NOW()) - INTERVAL '{interval}', DATE(NOW()), INTERVAL '1 day') AS date
             ),
             first_visit AS (
                 SELECT 
@@ -307,34 +304,39 @@ class UserRetention(report.GraphElement):
             'New Users': new_users
         })
         df['first_date'] = df['first_date'].dt.strftime('%a %m-%d')
-        df_melted = df.melt(id_vars=['first_date'], value_vars=['Retained Users', 'New Users'],
-                            var_name='User Type', value_name='Count')
 
-        # Plot using seaborn
-        sns.set(style="whitegrid")
-        barplot = sns.barplot(x='first_date', y='Count', hue='User Type', data=df_melted, ax=self.axes,
-                              palette=['dodgerblue', 'orange'])
+        bar_width = 0.35
+        bar1 = self.axes.bar(df['first_date'], df['New Users'], bar_width, label='New Users', color='dodgerblue')
+        bar2 = self.axes.bar(df['first_date'], df['Retained Users'], bar_width, bottom=df['New Users'], label='Retained Users',
+                      color='orange')
 
         self.axes.set_xlabel('First Visit Date', color='white', fontsize=10)
         self.axes.set_ylabel('Number of Users', color='white', fontsize=10)
         self.axes.tick_params(axis='x', colors='white', rotation=45)
         self.axes.tick_params(axis='y', colors='white')
 
-        # Annotate numbers on top of each bar
-        for p in barplot.patches:
-            height = p.get_height()
-            if height > 0:
-                barplot.annotate(f'{height}', (p.get_x() + p.get_width() / 2., height),
-                                 ha='center', va='bottom', color='white', fontsize=10, weight='bold')
-
-        for spine in self.axes.spines.values():
-            spine.set_color('white')
-
         self.axes.set_facecolor('#303030')
         self.axes.spines['top'].set_visible(False)
         self.axes.spines['right'].set_visible(False)
+
+        # Annotate the bars with counts, inside the bars with a black color
+        for bar in bar1:
+            height = bar.get_height()
+            if height > 0:
+                self.axes.annotate(f'{int(height)}',
+                                   xy=(bar.get_x() + bar.get_width() / 2, bar.get_y() + height / 2),
+                                   ha='center', va='center', color='black', fontsize=10, weight='bold')
+
+        for bar in bar2:
+            height = bar.get_height()
+            bottom = bar.get_y()
+            if height > 0:
+                self.axes.annotate(f'{int(height)}',
+                                   xy=(bar.get_x() + bar.get_width() / 2, bottom + height / 2),
+                                   ha='center', va='center', color='black', fontsize=10, weight='bold')
+
         handles, labels = self.axes.get_legend_handles_labels()
-        self.axes.legend(handles, ['Retained Users', 'New Users'], loc='upper right', fontsize=12)
+        self.axes.legend(handles, ['New Users', 'Retained Users'], loc='upper right', fontsize=12)
 
 
 class UsersPerDayTime(report.GraphElement):
