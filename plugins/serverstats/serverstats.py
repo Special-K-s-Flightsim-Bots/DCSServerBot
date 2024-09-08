@@ -258,6 +258,7 @@ class UserRetention(report.GraphElement):
                     player_ucid, 
                     MIN(DATE(hop_on)) AS first_date
                 FROM statistics
+                WHERE (%(server_name)s IS NULL OR server_name = %(server_name)s)
                 GROUP BY player_ucid
                 HAVING MIN(DATE(hop_on)) >= DATE(NOW()) - INTERVAL '{interval}'
             ),
@@ -268,6 +269,7 @@ class UserRetention(report.GraphElement):
                     DATE(hop_on) AS activity_date
                 FROM first_visit fv
                 JOIN statistics s ON fv.player_ucid = s.player_ucid
+                WHERE (%(server_name)s IS NULL OR s.server_name = %(server_name)s)
             )
             SELECT 
                 ds.date AS first_date, 
