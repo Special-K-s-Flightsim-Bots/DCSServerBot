@@ -247,9 +247,16 @@ class UserRetention(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        # SQL to get the first login date and subsequent logins for the new players.
+        # Extended SQL with date series to handle missing dates
         sql = f"""
-            WITH first_visit AS (
+            WITH RECURSIVE date_series AS (
+                SELECT DATE(NOW()) - INTERVAL '{interval}' + INTERVAL '1 day' AS date
+                UNION ALL
+                SELECT date + INTERVAL '1 day'
+                FROM date_series
+                WHERE date + INTERVAL '1 day' <= DATE(NOW())
+            ),
+            first_visit AS (
                 SELECT 
                     player_ucid, 
                     MIN(DATE(hop_on)) AS first_date
@@ -266,13 +273,14 @@ class UserRetention(report.GraphElement):
                 JOIN statistics s ON fv.player_ucid = s.player_ucid
             )
             SELECT 
-                fv.first_date, 
-                COUNT(DISTINCT fv.player_ucid) AS new_users,
+                ds.date AS first_date, 
+                COALESCE(COUNT(DISTINCT fv.player_ucid), 0) AS new_users,
                 COALESCE(COUNT(DISTINCT CASE WHEN a.activity_date > fv.first_date THEN a.player_ucid ELSE NULL END), 0) AS retained_users
-            FROM first_visit fv
+            FROM date_series ds
+            LEFT JOIN first_visit fv ON ds.date = fv.first_date
             LEFT JOIN activity a ON fv.player_ucid = a.player_ucid
-            GROUP BY fv.first_date
-            ORDER BY fv.first_date
+            GROUP BY ds.date
+            ORDER BY ds.date
         """
 
         async with self.apool.connection() as conn:
@@ -284,9 +292,10 @@ class UserRetention(report.GraphElement):
         retained_users = [row['retained_users'] for row in data]
         new_users = [row['new_users'] for row in data]
 
-        self.axes.set_title('User Retention | past {}'.format(interval.replace('1', '').strip()),
+        self.axes.set_title(f'User Retention | past {interval.replace("1", "").strip()}',
                             color='white', fontsize=25)
-        if not first_dates:
+        if (all(user_count == 0 for user_count in new_users) and
+                all(user_count == 0 for user_count in retained_users)):
             self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', fontsize=15, color='white')
             self.axes.set_xticks([])
             self.axes.set_yticks([])
@@ -301,6 +310,8 @@ class UserRetention(report.GraphElement):
         df_melted = df.melt(id_vars=['first_date'], value_vars=['Retained Users', 'New Users'],
                             var_name='User Type', value_name='Count')
 
+        # Plot using seaborn
+        sns.set(style="whitegrid")
         barplot = sns.barplot(x='first_date', y='Count', hue='User Type', data=df_melted, ax=self.axes,
                               palette=['dodgerblue', 'orange'])
 
@@ -313,7 +324,7 @@ class UserRetention(report.GraphElement):
         for p in barplot.patches:
             height = p.get_height()
             if height > 0:
-                barplot.annotate(f'{height:.1f}', (p.get_x() + p.get_width() / 2., height),
+                barplot.annotate(f'{height}', (p.get_x() + p.get_width() / 2., height),
                                  ha='center', va='bottom', color='white', fontsize=10, weight='bold')
 
         for spine in self.axes.spines.values():
