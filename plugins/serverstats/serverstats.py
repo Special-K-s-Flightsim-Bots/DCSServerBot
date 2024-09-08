@@ -247,7 +247,7 @@ class UserRetention(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        # SQL with date series to handle missing dates
+        where_clause = "WHERE m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH date_series AS (
                 SELECT 
@@ -257,8 +257,9 @@ class UserRetention(report.GraphElement):
                 SELECT 
                     player_ucid, 
                     MIN(DATE(hop_on)) AS first_date
-                FROM statistics
-                WHERE (%(server_name)s IS NULL OR server_name = %(server_name)s)
+                FROM statistics s 
+                JOIN missions m ON s.mission_id = m.id
+                {where_clause}
                 GROUP BY player_ucid
                 HAVING MIN(DATE(hop_on)) >= DATE(NOW()) - INTERVAL '{interval}'
             ),
@@ -269,7 +270,8 @@ class UserRetention(report.GraphElement):
                     DATE(hop_on) AS activity_date
                 FROM first_visit fv
                 JOIN statistics s ON fv.player_ucid = s.player_ucid
-                WHERE (%(server_name)s IS NULL OR s.server_name = %(server_name)s)
+                JOIN missions m ON s.mission_id = m.id
+                {where_clause}
             )
             SELECT 
                 ds.date AS first_date, 
