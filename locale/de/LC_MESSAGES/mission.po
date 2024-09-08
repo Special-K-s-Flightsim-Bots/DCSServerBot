@@ -297,7 +297,7 @@ msgid "Name"
 msgstr "Name"
 
 msgid "Time"
-msgstr "Zeit"
+msgstr "Uhrzeit"
 
 msgid "Server"
 msgstr "Server"
@@ -334,6 +334,22 @@ msgstr "Nachricht gesendet."
 # /player chat
 msgid "Sends a chat message to a player\n"
 msgstr "Sendet einem Spieler eine Nachricht\n"
+
+# /player screenshot
+msgid "Server can not take screenshots."
+msgstr "Der Server kann keine Bildschirmaufnahmen machen."
+
+msgid "Requesting screenshot ..."
+msgstr "Mache Bildschirmaufnahme ..."
+
+msgid "Timeout while waiting for screenshot!"
+msgstr "Zeitüberschreitung bei der Bildschirmaufnahme!"
+
+msgid "Screenshot of Player {}"
+msgstr "Bildschirmaufnahme von Spieler {}"
+
+msgid "Taken by"
+msgstr "Aufgenommen von"
 
 # /watch add
 msgid "Puts a player onto the watchlist"

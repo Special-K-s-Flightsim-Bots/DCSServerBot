@@ -335,6 +335,22 @@ msgstr "Mensaje enviado."
 msgid "Sends a chat message to a player\n"
 msgstr "Envía un mensaje de chat a un jugador\n"
 
+# /player screenshot
+msgid "Server can not take screenshots."
+msgstr "El servidor no puede tomar capturas de pantalla."
+
+msgid "Requesting screenshot ..."
+msgstr "Solicitando captura de pantalla ..."
+
+msgid "Timeout while waiting for screenshot!"
+msgstr "¡TIempo expirando esperando por la captura de pantalla!"
+
+msgid "Screenshot of Player {}"
+msgstr "Captura de pantalla del jugador {}"
+
+msgid "Taken by"
+msgstr "Tomada por"
+
 # /watch add
 msgid "Puts a player onto the watchlist"
 msgstr "Añade a un jugador a la lista de observación"

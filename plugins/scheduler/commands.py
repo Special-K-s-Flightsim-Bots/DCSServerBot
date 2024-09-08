@@ -611,7 +611,7 @@ class Scheduler(Plugin):
                 await server.shutdown()
             else:
                 await self.teardown_dcs(server, interaction.user)
-            await msg.edit(content=f"Server \"{server.display_name}\" is shut down. Restarting ...")
+            await msg.edit(content=f"Server \"{server.display_name}\" shut down. Restarting ...")
             server.maintenance = maintenance
             if mission_id is not None:
                 await server.setStartIndex(mission_id + 1)

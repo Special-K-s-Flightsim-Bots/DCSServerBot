@@ -1068,7 +1068,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        msg = await interaction.followup.send("Requesting screenshot ...", ephemeral=ephemeral)
+        msg = await interaction.followup.send(_("Requesting screenshot ..."), ephemeral=ephemeral)
         old_screens = await player.getScreenshots()
         await player.makeScreenshot()
         timeout = 30 if server.node.locals.get('slow_system', False) else 10
@@ -1078,7 +1078,7 @@ class Mission(Plugin):
             if len(new_screens) > len(old_screens):
                 break
         else:
-            await msg.edit(content="Timeout while waiting for screenshot!")
+            await msg.edit(content=_("Timeout while waiting for screenshot!"))
             return
         key = new_screens[-1]
         try:
@@ -1086,11 +1086,12 @@ class Mission(Plugin):
             image_data = await server.node.read_file(image_url)
             file = discord.File(BytesIO(image_data), filename="screenshot.png")
             await msg.delete()
-            embed = discord.Embed(color=discord.Color.blue(), title=f"Screenshot of player {player.display_name}")
+            embed = discord.Embed(color=discord.Color.blue(),
+                                  title=_("Screenshot of Player {}").format(player.display_name))
             embed.set_image(url="attachment://screenshot.png")
-            embed.add_field(name="Server", value=server.display_name, inline=False)
-            embed.add_field(name="Time", value=f"<t:{int(datetime.now().timestamp())}>", inline=False)
-            embed.add_field(name="Taken by", value=interaction.user.display_name, inline=False)
+            embed.add_field(name=_("Server"), value=server.display_name, inline=False)
+            embed.add_field(name=_("Time"), value=f"<t:{int(datetime.now().timestamp())}>", inline=False)
+            embed.add_field(name=_("Taken by"), value=interaction.user.display_name, inline=False)
             await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
         finally:
             await player.deleteScreenshot(key)
