@@ -153,10 +153,10 @@ class TopModulesPerServer(report.EmbedElement):
             self.add_field(name='Players (# uses)', value=players)
 
 
-class UniquePast14(report.GraphElement):
+class UniqueUsers(report.GraphElement):
 
-    async def render(self, server_name: Optional[str]):
-        sql = """
+    async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+        sql = f"""
             WITH players_join AS (
                 SELECT 
                     player_ucid,
@@ -166,7 +166,7 @@ class UniquePast14(report.GraphElement):
             ),
             date_series AS (
                 SELECT 
-                    generate_series(DATE(NOW()) - INTERVAL '2 weeks', DATE(NOW()), INTERVAL '1 day') AS date
+                    generate_series(DATE(NOW()) - INTERVAL '{interval}', DATE(NOW()), INTERVAL '1 day') AS date
             )
             SELECT 
                 ds.date AS date, 
@@ -183,88 +183,162 @@ class UniquePast14(report.GraphElement):
             sql += " WHERE m.server_name = %(server_name)s"
         sql += " GROUP BY ds.date ORDER BY ds.date"
 
-        # Fetch the data from query
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"server_name": server_name})
                 data = await cursor.fetchall()
 
-        # Process data into lists for plotting
         dates = [row['date'] for row in data]
         total_players = [row['total_players'] for row in data]
         new_players = [row['new_players'] for row in data]
 
+        self.axes.set_title('Unique Players | past {}'.format(interval.replace('1', '').strip()),
+                            color='white', fontsize=25)
         if not dates:
-            # Handle case where no data is returned
             self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', fontsize=15, color='white')
             self.axes.set_xticks([])
             self.axes.set_yticks([])
-        else:
-            # Create a DataFrame for seaborn
-            df = pd.DataFrame({
-                'date': dates,
-                'total_players': total_players,
-                'new_players': new_players
-            })
-            df['date'] = pd.to_datetime(df['date']).dt.strftime('%a %m-%d')
+            return
 
-            # Perform plotting using seaborn
-            total_bars = sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue',
-                                     label='Total Players', edgecolor='white')
-            new_bars = sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange',
-                                   label='New Players', edgecolor='white')
+        df = pd.DataFrame({
+            'date': dates,
+            'total_players': total_players,
+            'new_players': new_players
+        })
+        df['date'] = pd.to_datetime(df['date']).dt.strftime('%a %m-%d')
 
-            # Set axis labels and title
-            self.axes.set_title('Unique Players | past 14 days', color='white', fontsize=25)
-            self.axes.set_xlabel('')
-            self.axes.set_ylabel('Players', color='white', fontsize=10)
-            self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
-            self.axes.tick_params(axis='x', colors='white')
-            self.axes.tick_params(axis='y', colors='white')
-            self.axes.legend()
+        total_bars = sns.barplot(x='date', y='total_players', data=df, ax=self.axes, color='dodgerblue',
+                                 label='Total Players', edgecolor='white')
+        new_bars = sns.barplot(x='date', y='new_players', data=df, ax=self.axes, color='orange',
+                               label='New Players', edgecolor='white')
 
-            # Add annotations for total players above the bars
-            for bar in total_bars.patches[:len(dates)]:
-                height = bar.get_height()
-                if height > 0:
-                    self.axes.text(bar.get_x() + bar.get_width() / 2, height,
-                                   int(height), ha='center', va='bottom', color='white',
-                                   fontsize=10, weight='bold')
+        self.axes.set_xlabel('')
+        self.axes.set_ylabel('Players', color='white', fontsize=10)
+        self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
+        self.axes.tick_params(axis='x', colors='white')
+        self.axes.tick_params(axis='y', colors='white')
+        self.axes.legend()
 
-            # Add annotations for new players inside the bars
-            for bar in new_bars.patches[-len(dates):]:
-                height = bar.get_height()
-                if height > 0:
-                    self.axes.text(bar.get_x() + bar.get_width() / 2, height / 2,
-                                   int(height), ha='center', va='center', color='black',
-                                   fontsize=10, weight='bold')
+        # Add annotations for total players above the bars
+        for bar in total_bars.patches[:len(dates)]:
+            height = bar.get_height()
+            if height > 0:
+                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
+                               int(height), ha='center', va='bottom', color='white',
+                               fontsize=10, weight='bold')
 
-            # Ensure the spines of the plot are white
-            for spine in self.axes.spines.values():
-                spine.set_color('white')
+        # Add annotations for new players inside the bars
+        for bar in new_bars.patches[-len(dates):]:
+            height = bar.get_height()
+            if height > 0:
+                self.axes.text(bar.get_x() + bar.get_width() / 2, height / 2,
+                               int(height), ha='center', va='center', color='black',
+                               fontsize=10, weight='bold')
 
-            # Set background color (if applicable)
-            self.axes.set_facecolor('#303030')
+        for spine in self.axes.spines.values():
+            spine.set_color('white')
 
-            # Remove top and right spines for cleaner look
-            self.axes.spines['top'].set_visible(False)
-            self.axes.spines['right'].set_visible(False)
+        self.axes.set_facecolor('#303030')
+        self.axes.spines['top'].set_visible(False)
+        self.axes.spines['right'].set_visible(False)
+
+
+class UserRetention(report.GraphElement):
+
+    async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+
+        # SQL to get the first login date and subsequent logins for the new players.
+        sql = f"""
+            WITH first_visit AS (
+                SELECT 
+                    player_ucid, 
+                    MIN(DATE(hop_on)) AS first_date
+                FROM statistics
+                GROUP BY player_ucid
+                HAVING MIN(DATE(hop_on)) >= DATE(NOW()) - INTERVAL '{interval}'
+            ),
+            activity AS (
+                SELECT 
+                    fv.player_ucid, 
+                    fv.first_date, 
+                    DATE(hop_on) AS activity_date
+                FROM first_visit fv
+                JOIN statistics s ON fv.player_ucid = s.player_ucid
+            )
+            SELECT 
+                fv.first_date, 
+                COUNT(DISTINCT fv.player_ucid) AS new_users,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.activity_date > fv.first_date THEN a.player_ucid ELSE NULL END), 0) AS retained_users
+            FROM first_visit fv
+            LEFT JOIN activity a ON fv.player_ucid = a.player_ucid
+            GROUP BY fv.first_date
+            ORDER BY fv.first_date
+        """
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"server_name": server_name})
+                data = await cursor.fetchall()
+
+        first_dates = [row['first_date'] for row in data]
+        retained_users = [row['retained_users'] for row in data]
+        new_users = [row['new_users'] for row in data]
+
+        self.axes.set_title('User Retention | past {}'.format(interval.replace('1', '').strip()),
+                            color='white', fontsize=25)
+        if not first_dates:
+            self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', fontsize=15, color='white')
+            self.axes.set_xticks([])
+            self.axes.set_yticks([])
+            return
+
+        df = pd.DataFrame({
+            'first_date': pd.to_datetime(first_dates),
+            'Retained Users': retained_users,
+            'New Users': new_users
+        })
+        df['first_date'] = df['first_date'].dt.strftime('%a %m-%d')
+        df_melted = df.melt(id_vars=['first_date'], value_vars=['Retained Users', 'New Users'],
+                            var_name='User Type', value_name='Count')
+
+        barplot = sns.barplot(x='first_date', y='Count', hue='User Type', data=df_melted, ax=self.axes,
+                              palette=['dodgerblue', 'orange'])
+
+        self.axes.set_xlabel('First Visit Date', color='white', fontsize=10)
+        self.axes.set_ylabel('Number of Users', color='white', fontsize=10)
+        self.axes.tick_params(axis='x', colors='white', rotation=45)
+        self.axes.tick_params(axis='y', colors='white')
+
+        # Annotate numbers on top of each bar
+        for p in barplot.patches:
+            height = p.get_height()
+            if height > 0:
+                barplot.annotate(f'{height:.1f}', (p.get_x() + p.get_width() / 2., height),
+                                 ha='center', va='bottom', color='white', fontsize=10, weight='bold')
+
+        for spine in self.axes.spines.values():
+            spine.set_color('white')
+
+        self.axes.set_facecolor('#303030')
+        self.axes.spines['top'].set_visible(False)
+        self.axes.spines['right'].set_visible(False)
+        handles, labels = self.axes.get_legend_handles_labels()
+        self.axes.legend(handles, ['Retained Users', 'New Users'], loc='upper right', fontsize=12)
 
 
 class UsersPerDayTime(report.GraphElement):
 
-    async def render(self, server_name: Optional[str], period: StatisticsFilter):
-        sql = """
+    async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
+        sql = f"""
             SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
                    COUNT(DISTINCT s.player_ucid) AS players 
             FROM statistics s, missions m, generate_series(current_date, current_date + 1, INTERVAL '1 hour') h 
             WHERE date_part('hour', h.time) BETWEEN date_part('hour', s.hop_on) AND date_part('hour', s.hop_off)
-            AND s.hop_on > (NOW() at time zone 'UTC') - interval '2 weeks' 
+            AND s.hop_on > (NOW() at time zone 'UTC') - interval '{interval}' 
             AND s.mission_id = m.id
         """
         if server_name:
             sql += " AND m.server_name = %(server_name)s"
-        sql += ' AND ' + period.filter(self.env.bot)
         sql += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
@@ -280,18 +354,19 @@ class UsersPerDayTime(report.GraphElement):
                         ax=self.axes)
             self.axes.invert_yaxis()
             self.axes.set_yticklabels(self.axes.get_yticklabels(), rotation=0)
-            self.axes.set_title('Users per Day/Time (UTC) | past 14 days', color='white', fontsize=25)
+            self.axes.set_title('Users per Day/Time (UTC) | past {}'.format(interval.replace('1', '').strip()),
+                                                                            color='white', fontsize=25)
 
 
 class UsersPerMissionTime(report.GraphElement):
 
-    async def render(self, server_name: Optional[str]):
+    async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
 
-        inner_sql = """
+        inner_sql = f"""
             SELECT mission_time / 3600 AS time, users 
             FROM serverstats
             WHERE mission_time IS NOT NULL
-            AND time > (now() at time zone 'UTC') - interval '2 weeks'
+            AND time > (now() at time zone 'UTC') - interval '{interval}'
         """
         if server_name:
             inner_sql += "AND server_name = %(server_name)s"
@@ -310,19 +385,16 @@ class UsersPerMissionTime(report.GraphElement):
         df = pd.merge(all_hours, df, on='time', how='left')
         df['users'] = df['users'].fillna(0)
 
-        # Plot the data
         barplot = sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
 
-        # Set axis title and labels
-        self.axes.set_title('Users per Mission-Time | past 14 days', color='white', fontsize=25)
+        self.axes.set_title('Users per Mission-Time | past {}'.format(interval.replace('1', '').strip()),
+                            color='white', fontsize=25)
         self.axes.set_xlabel('')
         self.axes.set_ylabel('Average Users', color='white', fontsize=10)
 
         self.axes.set_xticks(range(24))
         time_labels = [f"{hour:02d}h" for hour in range(24)]
         self.axes.set_xticklabels(time_labels, color='white')
-
-        # Set y-axis ticks to be white
         self.axes.tick_params(axis='y', colors='white')
 
         # Add annotations for user count above the bars
@@ -333,14 +405,9 @@ class UsersPerMissionTime(report.GraphElement):
                                f'{height:.1f}', ha='center', va='bottom', color='white',
                                fontsize=10, weight='bold')
 
-        # Ensure the spines of the plot are white
         for spine in self.axes.spines.values():
             spine.set_color('white')
-
-        # Set background color (if applicable)
         self.axes.set_facecolor('#303030')
-
-        # Remove top and right spines for cleaner look
         self.axes.spines['top'].set_visible(False)
         self.axes.spines['right'].set_visible(False)
 
