@@ -811,16 +811,26 @@ class NodeImpl(Node):
             raise TimeoutError()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
+        async def _read_file(path: str):
+            if path.startswith('http'):
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(path) as response:
+                        if response.status == 200:
+                            return await response.read()
+                        else:
+                            raise FileNotFoundError(path)
+            else:
+                async with aiofiles.open(path, mode='rb') as file:
+                    return await file.read()
+
         path = os.path.expandvars(path)
         if self.node.master:
-            async with aiofiles.open(path, mode='rb') as file:
-                return await file.read()
+            return await _read_file(path)
         else:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    async with aiofiles.open(path, mode='rb') as file:
-                        await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
-                                           (self.guild_id, path, psycopg.Binary(await file.read())))
+                    await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
+                                       (self.guild_id, path, psycopg.Binary(await _read_file(path))))
                     cursor = await conn.execute("SELECT currval('files_id_seq')")
                     return (await cursor.fetchone())[0]
 

@@ -325,3 +325,23 @@ class Player(DataObject):
         else:
             ret = _check_exemption(exemptions)
         return ret
+
+    async def makeScreenshot(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "makeScreenshot",
+            "id": self.id
+        })
+
+    async def getScreenshots(self) -> list[str]:
+        data = await self.server.send_to_dcs_sync({
+            "command": "getScreenshots",
+            "id": self.id
+        })
+        return data.get('screens', [])
+
+    async def deleteScreenshot(self, key: str) -> None:
+        await self.server.send_to_dcs({
+            "command": "deleteScreenshot",
+            "id": self.id,
+            "key": key
+        })
