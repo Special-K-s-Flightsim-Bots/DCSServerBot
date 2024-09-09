@@ -17,7 +17,7 @@ class SchedulerListener(EventListener):
                     results.append(result)
             return min(results, key=lambda x: x[0]) if results else None
         else:
-            if server.status == Status.RUNNING:
+            if server.is_populated():
                 mission_time = restart.get('max_mission_time', restart.get('mission_time'))
             else:
                 mission_time = restart.get('mission_time')
