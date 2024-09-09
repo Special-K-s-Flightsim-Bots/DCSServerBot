@@ -76,7 +76,8 @@ class ServersWidget:
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
-        return Panel(table, title="[b]Servers", padding=1,
+        title = "[b]Servers" if self.service.is_multinode() else None
+        return Panel(table, title=title, padding=1,
                      style=self.service.get_config().get("servers", {}).get("background", "white on dark_blue"),
                      border_style=self.service.get_config().get("servers", {}).get("border", "white"))
 
@@ -185,7 +186,7 @@ class LogWidget:
             total_height_used -= removed_lines
 
         log_content = Group(*(renderable for _, renderable in self.buffer))
-        yield Panel(log_content, title="[b]Log", height=options.max_height,
+        yield Panel(log_content, height=options.max_height,
                     style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
                     border_style=self.service.get_config().get("log", {}).get("border", "white"))
 
