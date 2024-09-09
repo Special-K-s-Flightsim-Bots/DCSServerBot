@@ -125,6 +125,10 @@ class LogWidget:
         self.buffer: list[tuple[int, "ConsoleRenderable"]] = []
         self.handler = service.old_handler
         self.console = Console(record=True)
+        self.panel = Panel("", height=self.console.options.max_height,
+                           style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
+                           border_style=self.service.get_config().get("log", {}).get("border", "white"))
+        self.previous_size = self.console.size
 
     def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
         message = self.handler.format(record)
@@ -168,27 +172,38 @@ class LogWidget:
         lines = capture.get().splitlines()
         return len(lines)
 
+    def _check_size_change(self) -> bool:
+        """Check if the terminal has been resized"""
+        current_size = self.console.size
+        if current_size != self.previous_size:
+            self.previous_size = current_size
+            return True
+        return False
+
     def __rich_console__(self, _: Console, options: ConsoleOptions) -> RenderResult:
-        max_displayable_height = options.max_height - 2
-        available_height = max_displayable_height
+        if not self.queue.empty() or self._check_size_change():
+            max_displayable_height = options.max_height - 2
+            available_height = max_displayable_height
 
-        while not self.queue.empty():
-            record: logging.LogRecord = self.queue.get()
-            log_renderable = self._emit(record)
-            renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
-            self.buffer.append((renderable_lines, log_renderable))
-            available_height -= renderable_lines
+            while not self.queue.empty():
+                record: logging.LogRecord = self.queue.get()
+                log_renderable = self._emit(record)
+                renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
+                self.buffer.append((renderable_lines, log_renderable))
+                available_height -= renderable_lines
 
-        # Adjust the buffer to fit into max_displayable_height
-        total_height_used = sum(lines for lines, _ in self.buffer)
-        while total_height_used > max_displayable_height and self.buffer:
-            removed_lines, _ = self.buffer.pop(0)
-            total_height_used -= removed_lines
+            # Adjust the buffer to fit into max_displayable_height
+            total_height_used = sum(lines for lines, _ in self.buffer)
+            while total_height_used > max_displayable_height and self.buffer:
+                removed_lines, _ = self.buffer.pop(0)
+                total_height_used -= removed_lines
 
-        log_content = Group(*(renderable for _, renderable in self.buffer))
-        yield Panel(log_content, height=options.max_height,
-                    style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
-                    border_style=self.service.get_config().get("log", {}).get("border", "white"))
+            log_content = Group(*(renderable for _, renderable in self.buffer))
+            self.panel = Panel(log_content, height=options.max_height,
+                        style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
+                        border_style=self.service.get_config().get("log", {}).get("border", "white"))
+
+        yield self.panel
 
 
 @ServiceRegistry.register()
@@ -268,7 +283,7 @@ class Dashboard(Service):
 
     async def update(self):
         try:
-            with Live(self.layout, refresh_per_second=1, screen=False):
+            with Live(self.layout, screen=True):
                 await self.stop_event.wait()
         except Exception as ex:
             self.log.exception(ex)
