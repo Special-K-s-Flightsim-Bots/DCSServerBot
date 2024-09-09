@@ -283,7 +283,7 @@ class Dashboard(Service):
 
     async def update(self):
         try:
-            with Live(self.layout, screen=True):
+            with Live(self.layout, refresh_per_second=1, screen=True):
                 await self.stop_event.wait()
         except Exception as ex:
             self.log.exception(ex)
