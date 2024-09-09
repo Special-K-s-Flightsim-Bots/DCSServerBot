@@ -170,7 +170,7 @@ class UniqueUsers(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        where_clause = "WHERE m.server_name = %(server_name)s" if server_name else ""
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH players_join AS (
                 SELECT 
@@ -181,7 +181,7 @@ class UniqueUsers(report.GraphElement):
             ),
             date_series AS (
                 SELECT 
-                    generate_series(DATE(NOW()) - INTERVAL '{interval}', DATE(NOW()), INTERVAL '1 day') AS date
+                    generate_series(DATE(NOW()) - INTERVAL '{interval}', DATE(NOW()), INTERVAL '1 day')::DATE AS date
             )
             SELECT 
                 ds.date AS date, 
@@ -191,10 +191,10 @@ class UniqueUsers(report.GraphElement):
             FROM 
                 date_series ds
                 LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
-                LEFT JOIN missions m ON s.mission_id = m.id
+                LEFT JOIN missions m ON s.mission_id = m.id {where_clause}
                 LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
-            {where_clause}
-            GROUP BY ds.date ORDER BY ds.date
+            GROUP BY ds.date
+            ORDER BY ds.date
         """
 
         async with self.apool.connection() as conn:
@@ -261,7 +261,7 @@ class UserRetention(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        where_clause = "WHERE m.server_name = %(server_name)s" if server_name else ""
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH date_series AS (
                 SELECT 
@@ -272,8 +272,7 @@ class UserRetention(report.GraphElement):
                     player_ucid, 
                     MIN(DATE(hop_on)) AS first_date
                 FROM statistics s 
-                JOIN missions m ON s.mission_id = m.id
-                {where_clause}
+                JOIN missions m ON s.mission_id = m.id {where_clause}
                 GROUP BY player_ucid
                 HAVING MIN(DATE(hop_on)) >= DATE(NOW()) - INTERVAL '{interval}'
             ),
