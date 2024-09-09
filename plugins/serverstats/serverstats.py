@@ -17,18 +17,22 @@ warnings.filterwarnings("ignore", category=UserWarning)
 class ServerUsage(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter):
+
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
                    ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, 
                    COUNT(DISTINCT s.player_ucid) AS players, 
                    COUNT(DISTINCT p.discord_id) AS members 
             FROM missions m, statistics s, players p 
-            WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL
+            WHERE m.id = s.mission_id 
+            AND s.player_ucid = p.ucid 
+            AND s.hop_off IS NOT NULL
+            {where_clause}
+            AND {period.filter(self.env.bot)}
+            GROUP BY 1 
+            ORDER BY 2 DESC
         """
-        if server_name:
-            sql += " AND m.server_name = %(server_name)s"
-        sql += ' AND ' + period.filter(self.env.bot)
-        sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -52,16 +56,19 @@ class ServerUsage(report.EmbedElement):
 class TopTheatresPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter):
+
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name,
-                   m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+                   m.mission_theatre, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
             FROM missions m, statistics s
             WHERE m.id = s.mission_id
+            {where_clause}
+            AND {period.filter(self.env.bot)}
+            GROUP BY 1, 2 
+            ORDER BY 3 DESC
         """
-        if server_name:
-            sql += " AND m.server_name = %(server_name)s"
-        sql += " AND " + period.filter(self.env.bot)
-        sql += " GROUP BY 1, 2 ORDER BY 3 DESC"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -84,31 +91,34 @@ class TopTheatresPerServer(report.EmbedElement):
 class TopMissionPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
-        sql_left = """
+
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
+        limit_clause = f"WHERE rn <= {limit}" if server_name else "WHERE rn = 1"
+        sql = f"""
             SELECT server_name, mission_name, playtime 
             FROM (
                 SELECT server_name, mission_name, playtime, 
                        ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY playtime DESC) AS rn 
                 FROM (
+                    SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
+                           trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
+                           ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+                    FROM missions m, statistics s 
+                    WHERE m.id = s.mission_id 
+                    AND s.hop_off IS NOT NULL
+                    {where_clause}
+                    AND {period.filter(self.env.bot)}
+                    GROUP BY 1, 2
+                ) AS x
+            ) AS y 
+            {limit_clause}
+            ORDER BY 3 DESC
         """
-        sql_inner = f"""
-            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
-                   trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
-                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
-            FROM missions m, statistics s 
-            WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL
-        """
-        sql_right = ") AS x) AS y WHERE rn {} ORDER BY 3 DESC"
-        if server_name:
-            sql_inner += " AND m.server_name = %(server_name)s"
-        sql_inner += ' AND ' + period.filter(self.env.bot)
-        sql_inner += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 servers = missions = playtimes = ''
-                await cursor.execute(sql_left + sql_inner + sql_right.format(
-                    '= 1' if not server_name else f'<= {limit}'), {"server_name": server_name})
+                await cursor.execute(sql, {"server_name": server_name})
                 async for row in cursor:
                     servers += row['server_name'][:30] + '\n'
                     missions += row['mission_name'][:20] + '\n'
@@ -126,17 +136,20 @@ class TopMissionPerServer(report.EmbedElement):
 class TopModulesPerServer(report.EmbedElement):
 
     async def render(self, server_name: Optional[str], period: StatisticsFilter, limit: int):
-        sql = """
+
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
+        sql = f"""
             SELECT s.slot, COUNT(s.slot) AS num_usage, 
                    COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime, 
                    COUNT(DISTINCT s.player_ucid) AS players 
             FROM missions m, statistics s 
             WHERE m.id = s.mission_id
+            {where_clause}
+            AND {period.filter(self.env.bot)}
+            GROUP BY s.slot 
+            ORDER BY 3 DESC 
+            LIMIT {limit}
         """
-        if server_name:
-            sql += " AND m.server_name = %(server_name)s"
-        sql += ' AND ' + period.filter(self.env.bot)
-        sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -156,6 +169,8 @@ class TopModulesPerServer(report.EmbedElement):
 class UniqueUsers(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+
+        where_clause = "WHERE m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH players_join AS (
                 SELECT 
@@ -178,10 +193,9 @@ class UniqueUsers(report.GraphElement):
                 LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
                 LEFT JOIN missions m ON s.mission_id = m.id
                 LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
+            {where_clause}
+            GROUP BY ds.date ORDER BY ds.date
         """
-        if server_name:
-            sql += " WHERE m.server_name = %(server_name)s"
-        sql += " GROUP BY ds.date ORDER BY ds.date"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -349,6 +363,8 @@ class UserRetention(report.GraphElement):
 class UsersPerDayTime(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
+
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
                    COUNT(DISTINCT s.player_ucid) AS players 
@@ -356,10 +372,9 @@ class UsersPerDayTime(report.GraphElement):
             WHERE date_part('hour', h.time) BETWEEN date_part('hour', s.hop_on) AND date_part('hour', s.hop_off)
             AND s.hop_on > (NOW() at time zone 'UTC') - interval '{interval}' 
             AND s.mission_id = m.id
+            {where_clause}
+            GROUP BY 1, 2
         """
-        if server_name:
-            sql += " AND m.server_name = %(server_name)s"
-        sql += " GROUP BY 1, 2"
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -382,14 +397,14 @@ class UsersPerMissionTime(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
 
+        where_clause = "AND server_name = %(server_name)s" if server_name else ""
         inner_sql = f"""
             SELECT mission_time / 3600 AS time, users 
             FROM serverstats
             WHERE mission_time IS NOT NULL
             AND time > (now() at time zone 'UTC') - interval '{interval}'
+            {where_clause}
         """
-        if server_name:
-            inner_sql += "AND server_name = %(server_name)s"
         sql = f"""
             SELECT time::INTEGER, avg(users)::DECIMAL AS users FROM (
                 {inner_sql}
@@ -441,7 +456,8 @@ class ServerLoadHeader(EmbedElement):
 class ServerLoad(report.MultiGraphElement):
 
     async def render(self, node: str, period: str, server_name: Optional[str] = None):
-        sql = """
+
+        inner_sql = """
             SELECT date_trunc('minute', time) AS time, AVG(users) AS users, AVG(cpu) AS cpu, 
                    AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS mem_paged,  
                    AVG(mem_ram)/(1024*1024) AS mem_ram, 
@@ -456,16 +472,22 @@ class ServerLoad(report.MultiGraphElement):
             AND node = %(node)s 
         """
         if server_name:
-            sql += " AND server_name = %(server_name)s GROUP BY 1"
-        if not server_name:
+            sql = f"""
+                {inner_sql}
+                AND server_name = %(server_name)s 
+                GROUP BY 1 ORDER BY 1
+            """
+        else:
             sql = f"""
                 SELECT time, SUM(users) AS users, SUM(cpu) AS cpu, SUM(mem_paged) AS mem_paged, SUM(mem_ram) AS mem_ram, 
                              SUM(read) AS read, SUM(write) AS write, ROUND(AVG(sent)) AS sent, ROUND(AVG(recv)) AS recv, 
                              ROUND(AVG(fps), 2) AS fps, ROUND(AVG(ping), 2) AS ping        
-                FROM ({sql} GROUP BY 1, server_name) x
-                GROUP BY 1
+                FROM (
+                    {inner_sql} 
+                    GROUP BY 1, server_name
+                ) x
+                GROUP BY 1 ORDER BY 1
             """
-        sql += " ORDER BY 1"
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"node": node, "server_name": server_name, "period": period})
