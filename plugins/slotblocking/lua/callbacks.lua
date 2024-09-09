@@ -58,7 +58,7 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
         local current = #net.get_player_list() + 1
         if current >= (max - tonumber(cfg['slots'])) then
             if not is_vip(ucid) then
-                return false, cfg['message_server_full']
+                return false, cfg['message_server_full'] or 'The server is full, please try again later!'
             end
         end
     end
