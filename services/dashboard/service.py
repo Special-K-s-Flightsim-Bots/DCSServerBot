@@ -28,6 +28,7 @@ __all__ = [
 
 class HeaderWidget:
     """Display header with clock."""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.node = service.node
@@ -52,6 +53,7 @@ class HeaderWidget:
 
 class ServersWidget:
     """Displaying List of Servers"""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.bus = service.bus
@@ -81,6 +83,7 @@ class ServersWidget:
 
 class NodeWidget:
     """Displaying Bot Info"""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.node = service.node
@@ -114,19 +117,21 @@ class NodeWidget:
 
 class LogWidget:
     """Display log messages"""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.queue = service.queue
-        self.buffer: list[ConsoleRenderable] = []
+        self.buffer: list[tuple[int, "ConsoleRenderable"]] = []
         self.handler = service.old_handler
+        self.console = Console(record=True)
 
     def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
         message = self.handler.format(record)
         traceback = None
         if (
-            self.handler.rich_tracebacks
-            and record.exc_info
-            and record.exc_info != (None, None, None)
+                self.handler.rich_tracebacks
+                and record.exc_info
+                and record.exc_info != (None, None, None)
         ):
             exc_type, exc_value, exc_traceback = record.exc_info
             assert exc_type is not None
@@ -151,23 +156,35 @@ class LogWidget:
                 if hasattr(formatter, "usesTime") and formatter.usesTime():
                     record.asctime = formatter.formatTime(record, formatter.datefmt)
                 message = formatter.formatMessage(record)
-
         message_renderable = self.handler.render_message(record, message)
         return self.handler.render(
             record=record, traceback=traceback, message_renderable=message_renderable
         )
 
+    def _measure_renderable_lines(self, renderable: "ConsoleRenderable", width: int):
+        with self.console.capture() as capture:  # Capture the rendered output for measurement
+            self.console.print(renderable, width=width)
+        lines = capture.get().splitlines()
+        return len(lines)
+
     def __rich_console__(self, _: Console, options: ConsoleOptions) -> RenderResult:
+        max_displayable_height = options.max_height - 2
+        available_height = max_displayable_height
+
         while not self.queue.empty():
             record: logging.LogRecord = self.queue.get()
             log_renderable = self._emit(record)
-            self.buffer.append(log_renderable)
+            renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
+            self.buffer.append((renderable_lines, log_renderable))
+            available_height -= renderable_lines
 
-        height = options.max_height - 2
-        if len(self.buffer) > height:
-            self.buffer = self.buffer[-height:]
+        # Adjust the buffer to fit into max_displayable_height
+        total_height_used = sum(lines for lines, _ in self.buffer)
+        while total_height_used > max_displayable_height and self.buffer:
+            removed_lines, _ = self.buffer.pop(0)
+            total_height_used -= removed_lines
 
-        log_content = Group(*self.buffer)
+        log_content = Group(*(renderable for _, renderable in self.buffer))
         yield Panel(log_content, title="[b]Log", height=options.max_height,
                     style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
                     border_style=self.service.get_config().get("log", {}).get("border", "white"))
