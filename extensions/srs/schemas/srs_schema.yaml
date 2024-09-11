@@ -37,3 +37,4 @@ schema;instance_srs_schema:
     always_on: {type: bool}
     radio_effect_override: {type: bool}
     global_lobby_frequencies: {type: str}
+    lotatc_export_port: {type: int, range: {min: 80, max: 65535}}

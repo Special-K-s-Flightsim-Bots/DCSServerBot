@@ -34,7 +34,7 @@ class SchedulerListener(EventListener):
                 else:
                     return 0, restart
             elif 'idle_time' in restart and server.idle_since:
-                delta = int((datetime.now(timezone.utc) - server.idle_since).total_seconds())
+                delta = restart['idle_time'] * 60 - int((datetime.now(timezone.utc) - server.idle_since).total_seconds())
                 if delta >= 0:
                     return delta, restart
                 else:
