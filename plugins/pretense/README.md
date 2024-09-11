@@ -20,5 +20,17 @@ DCS.release_server:
 ```
 Every parameter has a default value, which means, that you do not need to specify a configuration file at all.
 
+## File Upload
+You can upload a modified pretense*.json or player_stats.json by dragging and dropping them into your admin folder.
+
+## File Download
+If you want to download the pretense files, you can add this section to your admin.yaml:
+```yaml
+  - label: Pretense
+    directory: '{server.instance.missions_dir}\Saves'
+    pattern: '*.json'
+```
+This would work for Foothold and similar missions also.
+
 ## Credits
 Credits to No15|KillerDog for implementing the base version of this plugin!

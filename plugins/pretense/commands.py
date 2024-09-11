@@ -4,7 +4,7 @@ import os
 
 from core import Plugin, Status, PersistentReport, Channel, utils, Server, Report, get_translation, Group
 from discord import app_commands
-from discord.ext import tasks
+from discord.ext import tasks, commands
 from discord.utils import MISSING
 from services.bot import DCSServerBot
 from typing import Literal
@@ -117,6 +117,44 @@ class Pretense(Plugin):
     @update_leaderboard.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # ignore bot messages
+        if message.author.bot:
+            return
+        if not message.attachments or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+            return
+        server: Server = self.bot.get_server(message, admin_only=True)
+        for attachment in message.attachments:
+            if not (attachment.filename == 'player_stats.json' or
+                    (attachment.filename.startswith('pretense') and attachment.filename.endswith('.json'))):
+                continue
+            if not server:
+                ctx = await self.bot.get_context(message)
+                # check if there is a central admin channel configured
+                if self.bot.locals.get('admin_channel', 0) == message.channel.id:
+                    try:
+                        server = await utils.server_selection(self.bus, ctx,
+                                                              title=_("To which server do you want to upload to?"))
+                        if not server:
+                            await ctx.send(_('Upload aborted.'))
+                            return
+                    except Exception as ex:
+                        self.log.exception(ex)
+                        return
+                else:
+                    return
+            try:
+                filename = os.path.join(await server.get_missions_dir(), 'Saves', attachment.filename)
+                await server.node.write_file(filename, attachment.url, overwrite=True)
+                await message.channel.send(_('Pretense file {} uploaded.').format(attachment.filename))
+            except Exception as ex:
+                self.log.exception(ex)
+                await message.channel.send(_('Pretense file {} could not be uploaded!').format(attachment.filename))
+            finally:
+                await message.delete()
+
 
 
 async def setup(bot: DCSServerBot):
