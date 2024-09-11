@@ -56,6 +56,7 @@ class ServersWidget:
 
     def __init__(self, service: "Dashboard"):
         self.service = service
+        self.node = service.node
         self.bus = service.bus
 
     def __rich__(self) -> Panel:
@@ -76,7 +77,7 @@ class ServersWidget:
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
-        title = "[b]Servers" if self.service.is_multinode() else None
+        title = "[b]Servers" if self.service.is_multinode() and self.node.master else None
         return Panel(table, title=title, padding=1,
                      style=self.service.get_config().get("servers", {}).get("background", "white on dark_blue"),
                      border_style=self.service.get_config().get("servers", {}).get("border", "white"))
