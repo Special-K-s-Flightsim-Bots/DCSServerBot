@@ -467,7 +467,8 @@ class ServerImpl(Server):
             try:
                 await ext.prepare()
             except Exception as ex:
-                self.log.error(f"  => Error during {ext.name}.prepare(): {ex}. Skipped.")
+                self.log.exception(ex)
+                self.log.error(f"  => Error during {ext.name}.prepare() - skipped.")
 
     @staticmethod
     def _window_enumeration_handler(hwnd, top_windows):
