@@ -164,27 +164,25 @@ class Tacview(Extension):
 
     def get_inst_path(self) -> str:
         if not self._inst_path:
-            inst_path = os.path.join(
-                os.path.expandvars(self.config.get('installation', os.path.join('%ProgramFiles(x86)%', 'Tacview'))))
-            # is the installation path configured, or is it the standard windows one?
-            if os.path.exists(inst_path):
-                self._inst_path = inst_path
-            # no, we are probably on Win32/steam
+            if self.config.get('installation'):
+                self._inst_path = os.path.join(os.path.expandvars(self.config.get('installation')))
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(
+                        f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
-                import winreg
+                    import winreg
 
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
-                path = winreg.QueryValueEx(key, 'SteamPath')[0]
-                inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
-                if os.path.exists(inst_path):
-                    self._inst_path = inst_path
-                else:
-                    raise InstallException(f"Can't find the {self.name} installation dir, "
-                                           "please specify it manually in your nodes.yaml!")
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
+                    path = winreg.QueryValueEx(key, 'SteamPath')[0]
+                    self._inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
+                    if not os.path.exists(self._inst_path):
+                        raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                               "please specify it manually in your nodes.yaml!")
             else:
-                raise InstallException(f"Can't find the {self.name} installation dir, "
-                                       "please specify it manually in your nodes.yaml!")
-
+                self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles(x86)%'), 'Tacview')
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
         return self._inst_path
 
     async def render(self, param: Optional[dict] = None) -> dict:

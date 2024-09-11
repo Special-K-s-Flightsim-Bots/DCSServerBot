@@ -17,7 +17,7 @@ if sys.platform == 'win32':
     import ctypes
 
 from configparser import RawConfigParser
-from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation
+from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -65,6 +65,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
+        self._inst_path: str = None
         self.clients: dict[str, set[int]] = {}
         atexit.register(self.stop_observer)
 
@@ -336,9 +337,26 @@ class SRS(Extension, FileSystemEventHandler):
         return running
 
     def get_inst_path(self) -> str:
-        return os.path.join(
-            os.path.expandvars(self.config.get('installation',
-                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))))
+        if not self._inst_path:
+            if self.config.get('installation'):
+                self._inst_path = os.path.join(os.path.expandvars(self.config.get('installation')))
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(
+                        f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
+            elif sys.platform == 'win32':
+                    import winreg
+
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DCS-SR-Standalone", 0)
+                    self._inst_path = winreg.QueryValueEx(key, 'SRPathStandalone')[0]
+                    if not os.path.exists(self._inst_path):
+                        raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                               "please specify it manually in your nodes.yaml!")
+            else:
+                self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles%'), 'DCS-SimpleRadio-Standalone')
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
+        return self._inst_path
 
     def get_exe_path(self) -> str:
         return os.path.join(self.get_inst_path(), 'SR-Server.exe')
