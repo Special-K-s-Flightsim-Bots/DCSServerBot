@@ -98,8 +98,9 @@ class LotAtc(Extension, FileSystemEventHandler):
             config['srs_server'] = '127.0.0.1'
             srs_port = extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
             config['srs_server_port'] = srs_port
-            srs_transponder_port = extension.config.get('srs_transponder_port',
-                                                        extension.locals['General Settings']['LOTATC_EXPORT_PORT'])
+            srs_transponder_port = extension.config.get('lotatc_export_port',
+                                                        extension.locals['General Settings'].get('LOTATC_EXPORT_PORT',
+                                                                                                 10712))
             if srs_transponder_port:
                 config['srs_use_transponder'] = True
                 config['srs_transponder_port'] = srs_transponder_port

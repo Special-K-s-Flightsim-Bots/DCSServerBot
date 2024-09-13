@@ -129,7 +129,7 @@ class SRS(Extension, FileSystemEventHandler):
     def _maybe_update_config(self, section, key, value_key):
         if value_key in self.config:
             value = self.config[value_key]
-            if Autoexec.parse(self.cfg[section][key]) != value:
+            if not self.cfg[section].get(key) or Autoexec.parse(self.cfg[section][key]) != value:
                 self.cfg.set(section, key, value)
                 self.log.info(f"  => {self.server.name}: [{section}][{key}] set to {self.config[value_key]}")
                 return True
@@ -162,9 +162,13 @@ class SRS(Extension, FileSystemEventHandler):
         extension = self.server.extensions.get('LotAtc')
         if extension:
             self.config['lotatc'] = True
+            self.config['lotatc_export_port'] = self.config.get('lotatc_export_port', 10712)
             dirty = self._maybe_update_config('General Settings',
                                               'LOTATC_EXPORT_ENABLED',
                                               'lotatc') or dirty
+            dirty = self._maybe_update_config('General Settings',
+                                              'LOTATC_EXPORT_IP',
+                                              '127.0.0.1') or dirty
             dirty = self._maybe_update_config('General Settings',
                                               'LOTATC_EXPORT_PORT',
                                               'lotatc_export_port') or dirty
