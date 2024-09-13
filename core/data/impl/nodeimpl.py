@@ -19,6 +19,7 @@ from collections import defaultdict
 from contextlib import closing
 from core import utils, Status, Coalition
 from core.const import SAVED_GAMES
+from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
 from packaging import version
@@ -476,48 +477,24 @@ class NodeImpl(Node):
             return rc
 
         self.update_pending = True
-        to_start = []
-        in_maintenance = []
-        tasks = []
-        bus = ServiceRegistry.get(ServiceBus)
-        for server in [x for x in bus.servers.values() if not x.is_remote]:
-            if server.maintenance:
-                in_maintenance.append(server)
-            else:
-                server.maintenance = True
-            if server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
-                to_start.append(server)
-                tasks.append(asyncio.create_task(shutdown_with_warning(server)))
-        # wait for DCS servers to shut down
-        if tasks:
-            await asyncio.gather(*tasks)
-        self.log.info(f"Updating {self.installation} ...")
-        # call before update hooks
-        for callback in self.before_update.values():
-            await callback()
-        rc = await do_update(branch)
-        if rc == 0:
-            self.dcs_branch = self.dcs_version = None
-            if self.locals['DCS'].get('desanitize', True):
-                if not self.locals['DCS'].get('cloud', False) or self.master:
-                    utils.desanitize(self)
-            # call after update hooks
-            for callback in self.after_update.values():
+        async with ServerMaintenanceManager(self.node, warn_times,
+                                            _('Server is going down for a DCS update in {}!')):
+            self.log.info(f"Updating {self.installation} ...")
+            # call before update hooks
+            for callback in self.before_update.values():
                 await callback()
-            self.log.info(f"{self.installation} updated to the latest version.")
-        for server in [x for x in bus.servers.values() if not x.is_remote]:
-            if server not in in_maintenance:
-                # let the scheduler do its job
-                server.maintenance = False
-            if server in to_start:
-                try:
-                    # the server was running before (being in maintenance mode), so start it again
-                    await server.startup()
-                except (TimeoutError, asyncio.TimeoutError):
-                    self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
-        if rc == 0:
-            self.update_pending = False
-        return rc
+            rc = await do_update(branch)
+            if rc == 0:
+                self.dcs_branch = self.dcs_version = None
+                if self.locals['DCS'].get('desanitize', True):
+                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                        utils.desanitize(self)
+                # call after update hooks
+                for callback in self.after_update.values():
+                    await callback()
+                self.log.info(f"{self.installation} updated to the latest version.")
+                self.update_pending = False
+            return rc
 
     async def handle_module(self, what: str, module: str):
         if sys.platform == 'win32':
@@ -533,7 +510,9 @@ class NodeImpl(Node):
                 startupinfo=startupinfo
             )
 
-        await asyncio.to_thread(run_subprocess)
+        async with ServerMaintenanceManager(self.node, [120, 60, 10],
+                                            _('Server is going down to {what}'.format(what=what) + ' a module in {}!')):
+            await asyncio.to_thread(run_subprocess)
 
     async def get_installed_modules(self) -> list[str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
