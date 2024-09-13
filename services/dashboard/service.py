@@ -77,8 +77,7 @@ class ServersWidget:
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
-        title = "[b]Servers" if self.service.is_multinode() and self.node.master else None
-        return Panel(table, title=title, padding=1,
+        return Panel(table, padding=1,
                      style=self.service.get_config().get("servers", {}).get("background", "white on dark_blue"),
                      border_style=self.service.get_config().get("servers", {}).get("border", "white"))
 
@@ -112,7 +111,7 @@ class NodeWidget:
                 table.add_row(f"[green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
-        return Panel(table, title="[b]Nodes", padding=1,
+        return Panel(table, padding=1,
                      style=self.service.get_config().get("nodes", {}).get("background", "white on dark_blue"),
                      border_style=self.service.get_config().get("nodes", {}).get("border", "white"))
 

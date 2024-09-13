@@ -314,7 +314,7 @@ local eventHandlers = {
                 return false
             end
             -- ignore multiple collisions that happened in-between 10s
-            if (utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3) or (utils.isWithinInterval(mission.last_collision[arg3], 10) and mission.last_victim[arg3] == arg1) then
+            if ((utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg3)) or ((utils.isWithinInterval(mission.last_collision[arg3], 10) and mission.last_victim[arg3] == arg1)) then
                 return false
             else
                 mission.last_collision[arg1] = os.clock()
@@ -331,10 +331,6 @@ local eventHandlers = {
         if display_name == arg7 then
             -- ignore "spawn on top"
             if utils.isWithinInterval(mission.last_change_slot[arg1], 60) or utils.isWithinInterval(mission.last_change_slot[arg3], 60) then
-                return false
-            end
-            -- ignore collision kills that happened in-between 10s
-            if (utils.isWithinInterval(mission.last_collision[arg1], 10) and mission.last_victim[arg1] == arg4) or (utils.isWithinInterval(mission.last_collision[arg4], 10) and mission.last_victim[arg4] == arg1) then
                 return false
             end
         end

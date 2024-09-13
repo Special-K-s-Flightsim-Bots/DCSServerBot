@@ -177,10 +177,8 @@ class BotService(Service):
         else:
             file = MISSING
         if mention:
-            _mention = ""
-            for role in mention:
-                _mention += self.bot.get_role(role).mention
-            content = _mention + (content or '')
+            _mention = "".join([self.bot.get_role(role).mention for role in mention])
+            content = _mention + (content or "")
         await _channel.send(content=content, file=file, embed=_embed)
 
     async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,

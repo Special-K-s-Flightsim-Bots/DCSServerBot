@@ -60,6 +60,9 @@ class MOTDListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
+        async def _send_message(config: dict, server: Server, player: Player) -> None:
+            await player.sendChatMessage(await self.on_join(config['on_join'], server, player))
+
         if data['id'] == 1 or 'ucid' not in data:
             return
         config = self.plugin.get_config(server)
@@ -67,7 +70,7 @@ class MOTDListener(EventListener):
             player: Player = server.get_player(ucid=data['ucid'])
             if player:
                 # noinspection PyAsyncCall
-                asyncio.create_task(player.sendChatMessage(await self.on_join(config['on_join'], server, player)))
+                asyncio.create_task(_send_message(config, server, player))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:

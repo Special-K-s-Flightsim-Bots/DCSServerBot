@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import builtins
+import functools
 import hashlib
 import importlib
 import json
@@ -58,6 +59,7 @@ __all__ = [
     "is_github_repo",
     "matches_cron",
     "dynamic_import",
+    "async_cache",
     "ThreadSafeDict",
     "SettingsDict",
     "RemoteSettingsDict",
@@ -442,6 +444,20 @@ def dynamic_import(package_name: str):
     for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__):
         if is_pkg:
             globals()[module_name] = importlib.import_module(f"{package_name}.{module_name}")
+
+
+def async_cache(func):
+    cache = {}
+
+    @functools.wraps(func)
+    async def wrapper(*args):
+        if args in cache:
+            return cache[args]
+        result = await func(*args)
+        cache[args] = result
+        return result
+
+    return wrapper
 
 
 class ThreadSafeDict(dict):

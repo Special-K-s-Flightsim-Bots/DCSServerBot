@@ -17,7 +17,7 @@ import sys
 
 from collections import defaultdict
 from contextlib import closing
-from core import utils, Status, Coalition
+from core import utils, Status
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
@@ -40,7 +40,7 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
-from core.utils.helper import SettingsDict, YAMLError
+from core.utils.helper import SettingsDict, YAMLError, async_cache
 
 # ruamel YAML support
 from pykwalify.errors import SchemaError
@@ -425,20 +425,6 @@ class NodeImpl(Node):
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
-        from services.servicebus import ServiceBus
-
-        async def shutdown_with_warning(server: Server):
-            if server.is_populated():
-                shutdown_in = max(warn_times) if len(warn_times) else 0
-                while shutdown_in > 0:
-                    for warn_time in warn_times:
-                        if warn_time == shutdown_in:
-                            await server.sendPopupMessage(
-                                Coalition.ALL,
-                                _('Server is going down for a DCS update in {}!').format(utils.format_time(warn_time)))
-                    await asyncio.sleep(1)
-                    shutdown_in -= 1
-            await server.shutdown(force=True)
 
         async def do_update(branch: Optional[str] = None) -> int:
             # disable any popup on the remote machine
@@ -519,6 +505,7 @@ class NodeImpl(Node):
             data = json.load(cfg)
         return data['modules']
 
+    @async_cache
     async def get_available_modules(self) -> list[str]:
         licenses = {
             "CAUCASUS_terrain",
