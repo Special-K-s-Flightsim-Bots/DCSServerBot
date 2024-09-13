@@ -567,7 +567,12 @@ class ServerImpl(Server):
         if await self.is_running():
             if not force:
                 await super().shutdown(False)
-            self._terminate()
+                # wait 30/60s for the process to terminate
+                for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
+                    if not self.process.is_running():
+                        break
+                    await asyncio.sleep(1)
+            await self._terminate()
         self.status = Status.SHUTDOWN
 
     async def is_running(self) -> bool:
@@ -576,17 +581,22 @@ class ServerImpl(Server):
                 self.process = await asyncio.to_thread(utils.find_process, "DCS_server.exe|DCS.exe", self.instance.name)
             return self.process is not None
 
-    def _terminate(self) -> None:
-        if self.process:
-            try:
-                if self.process.is_running():
-                    self.process.terminate()
-                    time.sleep(2)
-                if self.process.is_running():
-                    self.process.kill()
-            except psutil.NoSuchProcess:
-                pass
-        self.process = None
+    async def _terminate(self) -> None:
+        try:
+            if not self.process.is_running():
+                return
+            self.process.terminate()
+            # wait 30/60s for the process to terminate
+            for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
+                if not self.process.is_running():
+                    return
+                await asyncio.sleep(1)
+            else:
+                self.process.kill()
+        except psutil.NoSuchProcess:
+            pass
+        finally:
+            self.process = None
 
     @performance_log()
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
