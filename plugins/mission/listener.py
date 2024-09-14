@@ -681,8 +681,7 @@ class MissionEventListener(EventListener):
                 if player.ucid in server.afk:
                     del server.afk[player.ucid]
                 side = Side(data['side'])
-                self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(
-                    player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
+                self.send_dcs_event(server, side, self.EVENT_TEXTS[side]['change_slot'].format(player.side.name,
                     data['name'], Side(data['side']).name, data['unit_type']))
             else:
                 server.afk[player.ucid] = datetime.now(timezone.utc)

@@ -390,6 +390,11 @@ function mission.onPlayerTrySendChat(from, message, to)
             return new_msg
         end
     end
+    -- Workaround DCS bug
+    side = net.get_player_info(from, 'side')
+    if to == -2 and (side == 1 or side == 2) then
+        mission.onChatMessage(message, from, to)
+    end
 end
 
 function mission.onChatMessage(message, from, to)
