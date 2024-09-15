@@ -30,8 +30,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path, PurePath
 from typing import Optional, TYPE_CHECKING, Union, Any
+from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
 
 # ruamel YAML support
@@ -41,7 +41,6 @@ yaml = YAML()
 if TYPE_CHECKING:
     from core import Instance
     from services.bot import DCSServerBot
-    from watchdog.events import FileSystemEvent, FileSystemMovedEvent
 
 DEFAULT_EXTENSIONS = {
     "LogAnalyser": {}
