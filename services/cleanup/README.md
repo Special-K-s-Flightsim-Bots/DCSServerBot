@@ -1,9 +1,10 @@
 # Cleanup Service
-The cleanup service is your cleaning lady, that deletes all the unnecessary stuff from your disk after some time.<br>
+The cleanup service is your cleaning lady, that deletes all the unnecessary stuff from your disk or discord channels 
+after some time.
 
 ## Configuration
 The configuration is held in config/services/cleanup.yaml and is straight forward. You can add as many directories
-as you want to clean up in here.
+or channels as you want to clean up in here.
 
 ```yaml
 DEFAULT:
@@ -27,5 +28,12 @@ DCS.release_server:
     pattern: "*.acmi"
     recursive: true                       # If true, subdirectories will be included
     delete_after: 30
+  channels:
+    channel:                # delete all messages from these channels ...
+      - 112233445566778899
+      - 998877665544332211
+    delete_after: 7         # ... which are older than 7 days
 ```
-These are just examples, feel free to add your own directories.
+These are just examples, feel free to add your own directories / channels.
+> ⚠️ **Attention!**<br>
+> Please keep in mind that deleting a lot of messages will take its time and can result in Discord rate limits.

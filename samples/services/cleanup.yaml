@@ -18,3 +18,8 @@ DCS.release_server:
     directory: "%USERPROFILE%/Documents/Tacview"
     pattern: "*.acmi"
     delete_after: 30
+  channels:
+    channel:                # delete all messages from these channels ...
+      - 112233445566778899
+      - 998877665544332211
+    delete_after: 7         # ... which are older than 7 days
