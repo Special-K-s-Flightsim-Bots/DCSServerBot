@@ -65,7 +65,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
-        self._inst_path: str = None
+        self._inst_path: Optional[str] = None
         self.clients: dict[str, set[int]] = {}
         atexit.register(self.stop_observer)
 
