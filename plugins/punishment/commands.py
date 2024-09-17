@@ -133,30 +133,25 @@ class Punishment(Plugin):
                             # we are not initialized correctly yet
                             if not config:
                                 continue
-                            forgive = config.get('forgive', 30)
-                            await cursor.execute(f"""
+                            async for row in await cursor.execute(f"""
                                 SELECT * FROM pu_events_sdw 
                                 WHERE server_name = %s
-                                AND time < (timezone('utc', now()) - interval '{forgive} seconds')
-                            """, (server_name,))
-                            rows = await cursor.fetchall()
-                            for row in rows:
+                            """, (server_name,)):
                                 try:
-                                    if 'punishments' in config:
-                                        for punishment in config['punishments']:
-                                            if row['points'] < punishment['points']:
-                                                continue
-                                            reason = None
-                                            for penalty in config['penalties']:
-                                                if penalty['event'] == row['event']:
-                                                    reason = penalty['reason'] if 'reason' in penalty else row['event']
-                                                    break
-                                            if not reason:
-                                                self.log.warning(
-                                                    f"No penalty or reason configured for event {row['event']}.")
-                                                reason = row['event']
-                                            await self.punish(server, row['init_id'], punishment, reason, row['points'])
-                                            break
+                                    for punishment in config.get('punishments', {}):
+                                        if row['points'] < punishment['points']:
+                                            continue
+                                        reason = None
+                                        for penalty in config['penalties']:
+                                            if penalty['event'] == row['event']:
+                                                reason = penalty['reason'] if 'reason' in penalty else row['event']
+                                                break
+                                        if not reason:
+                                            self.log.warning(
+                                                f"No penalty or reason configured for event {row['event']}.")
+                                            reason = row['event']
+                                        await self.punish(server, row['init_id'], punishment, reason, row['points'])
+                                        break
                                 finally:
                                     await cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
 
