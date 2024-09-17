@@ -259,9 +259,19 @@ class LotAtc(Extension, FileSystemEventHandler):
         return False
 
     async def install(self):
+        def ignore_funct(dirname, filenames) -> list[str]:
+            ignored = []
+            for item in filenames:
+                path = os.path.join(dirname, item)
+                relpath = os.path.relpath(path, from_path)
+                to_path = os.path.join(self.server.instance.home, relpath)
+                if utils.is_junction(to_path):
+                    ignored.append(item)
+            return ignored
+
         major_version, _ = self.get_inst_version()
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
-        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True, ignore=ignore_funct)
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
 
     async def uninstall(self):
@@ -277,7 +287,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             for name in dirs:
                 dir_x = os.path.join(root, name)
                 dir_y = dir_x.replace(from_path, self.server.instance.home)
-                if os.path.exists(dir_y):
+                if os.path.exists(dir_y) and not utils.is_junction(dir_y):
                     try:
                         os.rmdir(dir_y)  # only removes empty directories
                     except OSError:
