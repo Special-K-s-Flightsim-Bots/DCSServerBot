@@ -552,6 +552,7 @@ To add subsequent servers, just follow the steps above, and you're good, unless 
 DCSServerBot will autodetect all configured DCS servers on installation and generate simple configuration files 
 for you already. To add a new instance, you can either do that manually or use `/node add_instance` in your Discord.
 ---
+
 ## Starting the Bot
 To start the bot, use the packaged ```run.cmd``` command. This creates the necessary Python virtual environment and 
 launches the bot afterward.<br/>
