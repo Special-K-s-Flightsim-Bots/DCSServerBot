@@ -4,6 +4,7 @@ import asyncio
 import atexit
 import certifi
 import discord
+import ipaddress
 import json
 import os
 import psutil
@@ -331,8 +332,14 @@ class SRS(Extension, FileSystemEventHandler):
             self.clients.clear()
 
     def is_running(self) -> bool:
-        server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
-        if server_ip == '0.0.0.0':
+        try:
+            server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+            if server_ip == '0.0.0.0':
+                server_ip = '127.0.0.1'
+            ipaddress.ip_address(server_ip)
+        except ValueError:
+            self.log.warning(f"Please check [Server Settings]: SERVER_IP in your {self.config.get('config')}. "
+                             f"It does not contain a valid IP-address!")
             server_ip = '127.0.0.1'
         running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
         # start the observer, if we were started to a running SRS server
@@ -370,21 +377,22 @@ class SRS(Extension, FileSystemEventHandler):
         return utils.get_windows_version(self.get_exe_path())
 
     async def render(self, param: Optional[dict] = None) -> dict:
-        if self.locals:
-            host = self.config.get('host', self.node.public_ip)
-            value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
-            show_passwords = self.config.get('show_passwords', True)
-            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] and \
-                    'External AWACS Mode Settings' in self.locals:
-                blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
-                red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
-                if blue or red:
-                    value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            return {
-                "name": self.name,
-                "version": self.version,
-                "value": value
-            }
+        if not self.locals:
+            return {}
+        host = self.config.get('host', self.node.public_ip)
+        value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
+        show_passwords = self.config.get('show_passwords', True)
+        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] and \
+                'External AWACS Mode Settings' in self.locals:
+            blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
+            red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
+            if blue or red:
+                value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
+        return {
+            "name": self.name,
+            "version": self.version,
+            "value": value
+        }
 
     def is_installed(self) -> bool:
         if not super().is_installed():

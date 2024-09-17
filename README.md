@@ -547,10 +547,16 @@ increase that for every server (6667, 6668, ...).<br>
 Don't forget to configure different Discord channels (`chat` and `status`, optional `admin`) for every server, too. 
 This will be done in the servers.yaml file.<br>
 To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server 
-(see [Multi-Node-Setup](./MULTINODE.md) in that case).
+(see below).
 
-DCSServerBot will autodetect all configured DCS servers on installation and generate simple configuration files 
-for you already. To add a new instance, you can either do that manually or use `/node add_instance` in your Discord.
+> ⚠️ **Attention!**<br>
+> DCSServerBot will autodetect all configured DCS servers on an installation and generate simple configuration files 
+> for you already. To add a new instance, you can either do that manually or use `/node add_instance` in your Discord.
+
+### How to set up a Multi-Node-System?
+DCSServerBot can be used to run multiple DCS servers on multiple PCs, which can even be at different locations. 
+The installation and maintenance of such a use-case is just a bit more complex than a single server 
+installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
 ---
 ## Starting the Bot
 To start the bot, use the packaged ```run.cmd``` command. This creates the necessary Python virtual environment and 
@@ -563,11 +569,6 @@ If you have issues starting DCSServerBot, especially after an update, it might b
 corrupted. In rare cases, it can also happen, that an auto-update is not possible at all, because some file got changed 
 that was not supposed to be changed, or some other corruption has occurred.<br>
 In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
----
-## How to set up a Multi-Node-System?
-DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest 
-communities. The installation and maintenance of such a use-case is just a bit more complex than a single server 
-installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
 ---
 ## How to use DCSServerBot in Missions?
 
@@ -617,6 +618,7 @@ can do that, by giving is a name like "myEmbed" in this example. The name has to
 If no embed named "myEmbed" is already there, the updateEmbed() call will generate it for you. Otherwise, it will be 
 replaced with this one.
 ---
+
 ## How to enhance DCSServerBot?
 
 ### How to overwrite DCSServerBot's default commands?
