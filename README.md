@@ -558,6 +558,7 @@ DCSServerBot can be used to run multiple DCS servers on multiple PCs, which can 
 The installation and maintenance of such a use-case is just a bit more complex than a single server 
 installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
 ---
+
 ## Starting the Bot
 To start the bot, use the packaged ```run.cmd``` command. This creates the necessary Python virtual environment and 
 launches the bot afterward.<br/>
