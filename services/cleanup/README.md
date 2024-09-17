@@ -11,7 +11,7 @@ DEFAULT:
   dcs.log:                                # Name (can be anything but needs to be unique)
     directory: "{instance.home}/Logs"     # The directory to clean up
     pattern: "*.*"                        # The pattern of the files to be cleaned up
-    delete_after: 30                      # The min age of the files to be deleted
+    delete_after: 30                      # The min age of the files to be deleted (default: 30)
   trackfiles:
     directory: "{instance.home}/Tracks/Multiplayer"
     pattern: "*.trk"
@@ -32,7 +32,7 @@ DCS.release_server:
     channel:                # delete all messages from these channels ...
       - 112233445566778899
       - 998877665544332211
-    delete_after: 7         # ... which are older than 7 days
+    delete_after: 7         # ... which are older than 7 days (default: 0)
 ```
 These are just examples, feel free to add your own directories / channels.
 > ⚠️ **Attention!**<br>

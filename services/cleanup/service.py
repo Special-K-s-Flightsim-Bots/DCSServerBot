@@ -1,13 +1,12 @@
 import asyncio
-import discord
 import os
 
 from core import ServiceRegistry, Service, utils, Instance
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime
 from discord.ext import tasks
 from pathlib import Path
 from services.bot import BotService
-
+from services.scheduler.actions import purge_channel
 
 @ServiceRegistry.register()
 class CleanupService(Service):
@@ -47,35 +46,7 @@ class CleanupService(Service):
         await asyncio.gather(*tasks)
 
     async def do_channel_cleanup(self, config: dict):
-        # channel cleanup only runs on the master node
-        if not self.node.master:
-            return
-        bot = ServiceRegistry.get(BotService).bot
-        delete_after = int(config.get('delete_after', 30))
-        now = datetime.now(tz=timezone.utc)
-        threshold_time = now - timedelta(days=delete_after)
-
-        if isinstance(config['channel'], str):
-            channels = [config['channel']]
-        else:
-            channels = config['channel']
-        for c in channels:
-            channel = bot.get_channel(c)
-            if not channel:
-                self.log.warning(f"Channel {c} not found!")
-                return
-
-            try:
-                # Bulk delete messages that are less than 14 days old and match the criteria
-                self.log.debug(f"Deleting messages older than {delete_after} days in channel {channel.name} ...")
-                deleted_messages = await channel.purge(limit=None, before=threshold_time, bulk=True)
-                self.log.debug(f"Purged {len(deleted_messages)} messages from channel {channel.name}.")
-            except discord.NotFound:
-                self.log.warning(f"Can't delete messages in channel {channel.name}: Not found")
-            except discord.Forbidden:
-                self.log.warning(f"Can't delete messages in channel {channel.name}: Missing permissions")
-            except discord.HTTPException:
-                self.log.error(f"Failed to delete message in channel {channel.name}", exc_info=True)
+        await purge_channel(self.node, config['channel'], int(config.get('delete_after', 0)), config.get('ignore'))
 
     async def do_cleanup(self, instance: Instance) -> None:
         for name, config in self.get_config(instance.server).items():

@@ -314,6 +314,8 @@ _ _
                 await interaction.response.defer()
 
         if fmt == 'xls':
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer()
             discord_commands = (await self.discord_commands_to_df(interaction)).sort_values(['Plugin', 'Command'])
             ingame_commands = (await self.ingame_commands_to_df()).sort_values(['Plugin', 'Command'])
             output = BytesIO()
@@ -339,7 +341,7 @@ _ _
 
             output.seek(0)
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(file=discord.File(fp=output, filename='DCSSB-Commands.xlsx'))
+            await interaction.followup.send(file=discord.File(fp=output, filename='DCSSB-Commands.xlsx'))
         elif role:
             modal = DocModal(role=role)
             # noinspection PyUnresolvedReferences
