@@ -73,25 +73,20 @@ class LogAnalyser(Extension):
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
             while not self.stop_event.is_set():
-                if not os.path.exists(logfile):
+                while not os.path.exists(logfile):
                     self.log_pos = 0
                     await asyncio.sleep(1)
-                    continue
                 async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
                     max_pos = os.fstat(file.fileno()).st_size
-                    # no new data has been added to the log, so continue
-                    if max_pos == self.log_pos:
+                    if self.log_pos == -1 or max_pos == self.log_pos:
+                        self.log_pos = max_pos
                         await asyncio.sleep(1)
                         continue
-                    # if we were started with an existing logfile, seek to the file end, else seek to the last position
-                    if self.log_pos == -1:
-                        await file.seek(0, 2)
-                        self.log_pos = max_pos
-                    else:
-                        # if the log was rotated, reset the pointer to 0
-                        if max_pos < self.log_pos:
-                            self.log_pos = 0
-                        await file.seek(self.log_pos, 0)
+                    # if the logfile was rotated, seek to the beginning of the file
+                    elif max_pos < self.log_pos:
+                        self.log_pos = 0
+
+                    self.log_pos = await file.seek(self.log_pos, 0)
                     lines = await file.readlines()
                     for idx, line in enumerate(lines):
                         if '=== Log closed.' in line:
@@ -105,7 +100,7 @@ class LogAnalyser(Extension):
                                     asyncio.create_task(callback(self.log_pos + idx, line, match))
                                 else:
                                     self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
-                    self.log_pos = max_pos
+                    self.log_pos = await file.tell()
         except Exception as ex:
             self.log.exception(ex)
         finally:

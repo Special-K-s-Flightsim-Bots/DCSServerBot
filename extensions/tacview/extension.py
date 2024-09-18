@@ -5,6 +5,8 @@ import re
 import shutil
 import sys
 
+from minidump.utils.winapi.defines import sizeof
+
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -243,25 +245,21 @@ class Tacview(Extension):
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
             while not self.stop_event.is_set():
-                if not os.path.exists(logfile):
+                while not os.path.exists(logfile):
                     self.log_pos = 0
                     await asyncio.sleep(1)
-                    continue
-                async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
+                async with (aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file):
                     max_pos = os.fstat(file.fileno()).st_size
-                    # no new data has been added to the log, so continue
-                    if max_pos == self.log_pos:
+                    # initial start or no new data, continue
+                    if self.log_pos == -1 or max_pos == self.log_pos:
+                        self.log_pos = max_pos
                         await asyncio.sleep(1)
                         continue
-                    # if we were started with an existing logfile, seek to the file end, else seek to the last position
-                    if self.log_pos == -1:
-                        await file.seek(0, 2)
-                        self.log_pos = max_pos
-                    else:
-                        # if the log was rotated, reset the pointer to 0
-                        if max_pos < self.log_pos:
-                            self.log_pos = 0
-                        await file.seek(self.log_pos, 0)
+                    # if the logfile was rotated, seek to the beginning of the file
+                    elif max_pos < self.log_pos:
+                        self.log_pos = 0
+
+                    self.log_pos = await file.seek(self.log_pos, 0)
                     lines = await file.readlines()
                     for line in lines:
                         if 'End of flight data recorder.' in line or '=== Log closed.' in line:
@@ -271,7 +269,8 @@ class Tacview(Extension):
                         if match:
                             # noinspection PyAsyncCall
                             asyncio.create_task(self.send_tacview_file(match.group('filename')))
-                    self.log_pos = max_pos
+                    self.log_pos = await file.tell()
+
         except Exception as ex:
             self.log.exception(ex)
         finally:
@@ -281,40 +280,40 @@ class Tacview(Extension):
         # wait 60s for the file to appear
         for i in range(0, 60):
             if os.path.exists(filename):
-                target = self.config['target']
-                if target.startswith('<'):
-                    if os.path.getsize(filename) > DISCORD_FILE_SIZE_LIMIT:
-                        self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
-                        return
-                    try:
-                        await self.bus.send_to_node_sync({
-                            "command": "rpc",
-                            "service": BotService.__name__,
-                            "method": "send_message",
-                            "params": {
-                                "channel": int(target[4:-1]),
-                                "content": _("Tacview file for server {}").format(self.server.name),
-                                "server": self.server.name,
-                                "filename": filename
-                            }
-                        })
-                        self.log.debug(f"TACVIEW file {filename} uploaded.")
-                    except AttributeError:
-                        self.log.warning(f"Can't upload TACVIEW file {filename}, "
-                                         f"channel {target[4:-1]} incorrect!")
-                    except Exception as ex:
-                        self.log.warning(f"Can't upload TACVIEW file {filename}: {ex}!")
-                    return
-                else:
-                    try:
-                        shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
-                    except Exception:
-                        self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
-                    return
+                break
             await asyncio.sleep(1)
         else:
             self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
             return
+
+        target = self.config['target']
+        if target.startswith('<'):
+            if os.path.getsize(filename) > DISCORD_FILE_SIZE_LIMIT:
+                self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                return
+            try:
+                await self.bus.send_to_node_sync({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "send_message",
+                    "params": {
+                        "channel": int(target[4:-1]),
+                        "content": _("Tacview file for server {}").format(self.server.name),
+                        "server": self.server.name,
+                        "filename": filename
+                    }
+                })
+                self.log.debug(f"TACVIEW file {filename} uploaded.")
+            except AttributeError:
+                self.log.warning(f"Can't upload TACVIEW file {filename}, "
+                                 f"channel {target[4:-1]} incorrect!")
+            except Exception as ex:
+                self.log.warning(f"Can't upload TACVIEW file {filename}: {ex}!")
+        else:
+            try:
+                shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
+            except Exception:
+                self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
 
     def get_inst_version(self) -> Optional[str]:
         if not self.get_inst_path():
