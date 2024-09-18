@@ -455,18 +455,21 @@ class UserEngagement(report.GraphElement):
         for spine in self.axes.spines.values():
             spine.set_color('white')
 
-        for bar in bar1:
-            height = bar.get_height()
-            if height > 0:
-                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
-                               int(height), ha='center', va='bottom', color='white',
+        for i in range(len(bar1)):
+            bar1_height = bar1[i].get_height()
+            bar2_height = bar2[i].get_height()
+            total_height = bar1_height + bar2_height
+
+            # Annotate inside the orange bar (new players)
+            if bar1_height > 0:
+                self.axes.text(bar1[i].get_x() + bar1[i].get_width() / 2, bar1_height / 2,
+                               int(bar1_height), ha='center', va='center', color='black',
                                fontsize=10, weight='bold')
 
-        for bar in bar2:
-            height = bar.get_height() + bar1[bar2.index(bar)].get_height()
-            if height > 0:
-                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
-                               int(height), ha='center', va='bottom', color='white',
+            # Annotate on top of the total height (new + returning players)
+            if total_height > 0:
+                self.axes.text(bar1[i].get_x() + bar1[i].get_width() / 2, total_height,
+                               int(total_height), ha='center', va='bottom', color='white',
                                fontsize=10, weight='bold')
 
         handles, labels = self.axes.get_legend_handles_labels()
