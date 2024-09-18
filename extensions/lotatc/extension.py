@@ -282,7 +282,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             for name in files:
                 file_x = os.path.join(root, name)
                 file_y = file_x.replace(from_path, self.server.instance.home)
-                if os.path.exists(file_y):
+                if os.path.exists(file_y) and not utils.is_junction(file_y):
                     os.remove(file_y)
             for name in dirs:
                 dir_x = os.path.join(root, name)

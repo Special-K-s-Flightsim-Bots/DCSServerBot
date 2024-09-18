@@ -364,7 +364,7 @@ class Tacview(Extension):
                 file_y = file_x.replace(from_path, self.server.instance.home)
                 if os.path.normpath(file_y) == export_file:
                     continue
-                if os.path.exists(file_y):
+                if os.path.exists(file_y) and not utils.is_junction(file_y):
                     os.remove(file_y)
             for name in dirs:
                 dir_x = os.path.join(root, name)
@@ -375,14 +375,15 @@ class Tacview(Extension):
                     except OSError:
                         pass  # directory not empty
         # rewrite / remove the export.lua file
-        async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
-            lines = await infile.readlines()
-        lines_to_keep = [line for line in lines if 'TacviewGameExport' not in line and line.strip()]
-        if lines_to_keep:
-            async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
-                await outfile.writelines(lines_to_keep)
-        else:
-            os.remove(export_file)
+        if os.path.exists(export_file):
+            async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
+                lines = await infile.readlines()
+            lines_to_keep = [line for line in lines if 'TacviewGameExport' not in line and line.strip()]
+            if lines_to_keep:
+                async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
+                    await outfile.writelines(lines_to_keep)
+            else:
+                os.remove(export_file)
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
 
     async def update_instance(self, force: bool) -> bool:
