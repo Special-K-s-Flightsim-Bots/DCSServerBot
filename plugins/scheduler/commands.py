@@ -611,7 +611,7 @@ class Scheduler(Plugin):
                 await server.shutdown()
             else:
                 await self.teardown_dcs(server, interaction.user)
-            await msg.edit(content=f"Server \"{server.display_name}\" is shut down. Restarting ...")
+            await msg.edit(content=f"Server \"{server.display_name}\" shut down. Restarting ...")
             server.maintenance = maintenance
             if mission_id is not None:
                 await server.setStartIndex(mission_id + 1)
@@ -895,12 +895,13 @@ class Scheduler(Plugin):
         # noinspection PyUnresolvedReferences
         restart_in, rconf = self.eventlistener.get_next_restart(_server, config)
         what = rconf['method']
-        if what == 'shutdown' or config.get('shutdown', False):
+        if what == 'shutdown' or rconf.get('shutdown', False):
             item = f'Server {_server.name}'
         else:
             item = f'The mission on server {_server.name}'
         message = f"{item} will {what}"
-        if 'local_times' in rconf or 'utc_times' in rconf or 'real_time' in rconf or _server.status == Status.RUNNING:
+        if (any(key in rconf for key in ['local_times', 'utc_times', 'real_time', 'idle_time']) or
+                _server.status == Status.RUNNING):
             if _server.restart_time >= datetime.now(tz=timezone.utc):
                 message += f" <t:{int(_server.restart_time.timestamp())}:R>"
             else:

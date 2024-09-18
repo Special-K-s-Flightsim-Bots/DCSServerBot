@@ -17,7 +17,7 @@ class SchedulerListener(EventListener):
                     results.append(result)
             return min(results, key=lambda x: x[0]) if results else None
         else:
-            if server.status == Status.RUNNING:
+            if server.is_populated():
                 mission_time = restart.get('max_mission_time', restart.get('mission_time'))
             else:
                 mission_time = restart.get('mission_time')
@@ -34,7 +34,7 @@ class SchedulerListener(EventListener):
                 else:
                     return 0, restart
             elif 'idle_time' in restart and server.idle_since:
-                delta = int((datetime.now(timezone.utc) - server.idle_since).total_seconds())
+                delta = restart['idle_time'] * 60 - int((datetime.now(timezone.utc) - server.idle_since).total_seconds())
                 if delta >= 0:
                     return delta, restart
                 else:

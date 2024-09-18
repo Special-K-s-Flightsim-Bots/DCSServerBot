@@ -4,6 +4,7 @@ import asyncio
 import atexit
 import certifi
 import discord
+import ipaddress
 import json
 import os
 import psutil
@@ -17,7 +18,7 @@ if sys.platform == 'win32':
     import ctypes
 
 from configparser import RawConfigParser
-from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation
+from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -65,6 +66,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
+        self._inst_path: Optional[str] = None
         self.clients: dict[str, set[int]] = {}
         atexit.register(self.stop_observer)
 
@@ -128,7 +130,7 @@ class SRS(Extension, FileSystemEventHandler):
     def _maybe_update_config(self, section, key, value_key):
         if value_key in self.config:
             value = self.config[value_key]
-            if Autoexec.parse(self.cfg[section][key]) != value:
+            if not self.cfg[section].get(key) or Autoexec.parse(self.cfg[section][key]) != value:
                 self.cfg.set(section, key, value)
                 self.log.info(f"  => {self.server.name}: [{section}][{key}] set to {self.config[value_key]}")
                 return True
@@ -161,9 +163,13 @@ class SRS(Extension, FileSystemEventHandler):
         extension = self.server.extensions.get('LotAtc')
         if extension:
             self.config['lotatc'] = True
+            self.config['lotatc_export_port'] = self.config.get('lotatc_export_port', 10712)
             dirty = self._maybe_update_config('General Settings',
                                               'LOTATC_EXPORT_ENABLED',
                                               'lotatc') or dirty
+            dirty = self._maybe_update_config('General Settings',
+                                              'LOTATC_EXPORT_IP',
+                                              '127.0.0.1') or dirty
             dirty = self._maybe_update_config('General Settings',
                                               'LOTATC_EXPORT_PORT',
                                               'lotatc_export_port') or dirty
@@ -326,8 +332,14 @@ class SRS(Extension, FileSystemEventHandler):
             self.clients.clear()
 
     def is_running(self) -> bool:
-        server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
-        if server_ip == '0.0.0.0':
+        try:
+            server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+            if server_ip == '0.0.0.0':
+                server_ip = '127.0.0.1'
+            ipaddress.ip_address(server_ip)
+        except ValueError:
+            self.log.warning(f"Please check [Server Settings]: SERVER_IP in your {self.config.get('config')}. "
+                             f"It does not contain a valid IP-address!")
             server_ip = '127.0.0.1'
         running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
         # start the observer, if we were started to a running SRS server
@@ -336,9 +348,26 @@ class SRS(Extension, FileSystemEventHandler):
         return running
 
     def get_inst_path(self) -> str:
-        return os.path.join(
-            os.path.expandvars(self.config.get('installation',
-                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))))
+        if not self._inst_path:
+            if self.config.get('installation'):
+                self._inst_path = os.path.join(os.path.expandvars(self.config.get('installation')))
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(
+                        f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
+            elif sys.platform == 'win32':
+                    import winreg
+
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DCS-SR-Standalone", 0)
+                    self._inst_path = winreg.QueryValueEx(key, 'SRPathStandalone')[0]
+                    if not os.path.exists(self._inst_path):
+                        raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                               "please specify it manually in your nodes.yaml!")
+            else:
+                self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles%'), 'DCS-SimpleRadio-Standalone')
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
+        return self._inst_path
 
     def get_exe_path(self) -> str:
         return os.path.join(self.get_inst_path(), 'SR-Server.exe')
@@ -348,21 +377,22 @@ class SRS(Extension, FileSystemEventHandler):
         return utils.get_windows_version(self.get_exe_path())
 
     async def render(self, param: Optional[dict] = None) -> dict:
-        if self.locals:
-            host = self.config.get('host', self.node.public_ip)
-            value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
-            show_passwords = self.config.get('show_passwords', True)
-            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] and \
-                    'External AWACS Mode Settings' in self.locals:
-                blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
-                red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
-                if blue or red:
-                    value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            return {
-                "name": self.name,
-                "version": self.version,
-                "value": value
-            }
+        if not self.locals:
+            return {}
+        host = self.config.get('host', self.node.public_ip)
+        value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
+        show_passwords = self.config.get('show_passwords', True)
+        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] and \
+                'External AWACS Mode Settings' in self.locals:
+            blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
+            red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
+            if blue or red:
+                value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
+        return {
+            "name": self.name,
+            "version": self.version,
+            "value": value
+        }
 
     def is_installed(self) -> bool:
         if not super().is_installed():

@@ -63,7 +63,7 @@ msgstr "Usuario castigado con {} puntos."
 msgid "punished user {ucid} with {points} points."
 msgstr "ha castigado al usuario {ucid} con {points} puntos."
 
-# / forgive
+# /forgive
 msgid "Deletes a users punishment points"
 msgstr "Elimina los puntos de penalización del jugador"
 
@@ -134,10 +134,10 @@ msgid "This user does not exist. Try {} to find them in the historic data."
 msgstr "Este usuario no existe. Pruebe a utilizar {} para encontrarlos en el historial."
 
 # LISTENER
-msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"
+msgid "{victim}, you are a victim of a friendly-fire event by player {offender}.\n"
 "If you send {prefix}forgive in chat within the next {time} seconds, you can pardon the other player."
-msgstr "{victim}, has sido víctima de {event} por el jugador {offender}\n"
-"Si envía {prefix}forgive en chat en los próximos {time} segundos, puede perdonar al otro jugador."
+msgstr "{victim}, eres una víctima de fuego amigo realizado por el jugador {offender}\n"
+"Si envías {prefix}forgive en el chat en los próximos {time} segundos, puedes perdonar al otro jugador."
 
 # -forgive
 msgid "forgive another user for their infraction"

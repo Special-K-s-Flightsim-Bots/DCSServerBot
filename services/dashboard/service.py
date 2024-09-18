@@ -28,6 +28,7 @@ __all__ = [
 
 class HeaderWidget:
     """Display header with clock."""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.node = service.node
@@ -52,8 +53,10 @@ class HeaderWidget:
 
 class ServersWidget:
     """Displaying List of Servers"""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
+        self.node = service.node
         self.bus = service.bus
 
     def __rich__(self) -> Panel:
@@ -74,13 +77,14 @@ class ServersWidget:
                 table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
-        return Panel(table, title="[b]Servers", padding=1,
+        return Panel(table, padding=1,
                      style=self.service.get_config().get("servers", {}).get("background", "white on dark_blue"),
                      border_style=self.service.get_config().get("servers", {}).get("border", "white"))
 
 
 class NodeWidget:
     """Displaying Bot Info"""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.node = service.node
@@ -107,26 +111,32 @@ class NodeWidget:
                 table.add_row(f"[green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
-        return Panel(table, title="[b]Nodes", padding=1,
+        return Panel(table, padding=1,
                      style=self.service.get_config().get("nodes", {}).get("background", "white on dark_blue"),
                      border_style=self.service.get_config().get("nodes", {}).get("border", "white"))
 
 
 class LogWidget:
     """Display log messages"""
+
     def __init__(self, service: "Dashboard"):
         self.service = service
         self.queue = service.queue
-        self.buffer: list[ConsoleRenderable] = []
+        self.buffer: list[tuple[int, "ConsoleRenderable"]] = []
         self.handler = service.old_handler
+        self.console = Console(record=True)
+        self.panel = Panel("", height=self.console.options.max_height,
+                           style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
+                           border_style=self.service.get_config().get("log", {}).get("border", "white"))
+        self.previous_size = self.console.size
 
     def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
         message = self.handler.format(record)
         traceback = None
         if (
-            self.handler.rich_tracebacks
-            and record.exc_info
-            and record.exc_info != (None, None, None)
+                self.handler.rich_tracebacks
+                and record.exc_info
+                and record.exc_info != (None, None, None)
         ):
             exc_type, exc_value, exc_traceback = record.exc_info
             assert exc_type is not None
@@ -151,26 +161,49 @@ class LogWidget:
                 if hasattr(formatter, "usesTime") and formatter.usesTime():
                     record.asctime = formatter.formatTime(record, formatter.datefmt)
                 message = formatter.formatMessage(record)
-
         message_renderable = self.handler.render_message(record, message)
         return self.handler.render(
             record=record, traceback=traceback, message_renderable=message_renderable
         )
 
+    def _measure_renderable_lines(self, renderable: "ConsoleRenderable", width: int):
+        with self.console.capture() as capture:  # Capture the rendered output for measurement
+            self.console.print(renderable, width=width)
+        lines = capture.get().splitlines()
+        return len(lines)
+
+    def _check_size_change(self) -> bool:
+        """Check if the terminal has been resized"""
+        current_size = self.console.size
+        if current_size != self.previous_size:
+            self.previous_size = current_size
+            return True
+        return False
+
     def __rich_console__(self, _: Console, options: ConsoleOptions) -> RenderResult:
-        while not self.queue.empty():
-            record: logging.LogRecord = self.queue.get()
-            log_renderable = self._emit(record)
-            self.buffer.append(log_renderable)
+        if not self.queue.empty() or self._check_size_change():
+            max_displayable_height = options.max_height - 2
+            available_height = max_displayable_height
 
-        height = options.max_height - 2
-        if len(self.buffer) > height:
-            self.buffer = self.buffer[-height:]
+            while not self.queue.empty():
+                record: logging.LogRecord = self.queue.get()
+                log_renderable = self._emit(record)
+                renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
+                self.buffer.append((renderable_lines, log_renderable))
+                available_height -= renderable_lines
 
-        log_content = Group(*self.buffer)
-        yield Panel(log_content, title="[b]Log", height=options.max_height,
-                    style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
-                    border_style=self.service.get_config().get("log", {}).get("border", "white"))
+            # Adjust the buffer to fit into max_displayable_height
+            total_height_used = sum(lines for lines, _ in self.buffer)
+            while total_height_used > max_displayable_height and self.buffer:
+                removed_lines, _ = self.buffer.pop(0)
+                total_height_used -= removed_lines
+
+            log_content = Group(*(renderable for _, renderable in self.buffer))
+            self.panel = Panel(log_content, height=options.max_height,
+                        style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
+                        border_style=self.service.get_config().get("log", {}).get("border", "white"))
+
+        yield self.panel
 
 
 @ServiceRegistry.register()
@@ -250,7 +283,7 @@ class Dashboard(Service):
 
     async def update(self):
         try:
-            with Live(self.layout, refresh_per_second=1, screen=False):
+            with Live(self.layout, refresh_per_second=1, screen=True):
                 await self.stop_event.wait()
         except Exception as ex:
             self.log.exception(ex)

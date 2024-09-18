@@ -5,6 +5,8 @@ import re
 import shutil
 import sys
 
+from minidump.utils.winapi.defines import sizeof
+
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -164,27 +166,25 @@ class Tacview(Extension):
 
     def get_inst_path(self) -> str:
         if not self._inst_path:
-            inst_path = os.path.join(
-                os.path.expandvars(self.config.get('installation', os.path.join('%ProgramFiles(x86)%', 'Tacview'))))
-            # is the installation path configured, or is it the standard windows one?
-            if os.path.exists(inst_path):
-                self._inst_path = inst_path
-            # no, we are probably on Win32/steam
+            if self.config.get('installation'):
+                self._inst_path = os.path.join(os.path.expandvars(self.config.get('installation')))
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(
+                        f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
-                import winreg
+                    import winreg
 
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
-                path = winreg.QueryValueEx(key, 'SteamPath')[0]
-                inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
-                if os.path.exists(inst_path):
-                    self._inst_path = inst_path
-                else:
-                    raise InstallException(f"Can't find the {self.name} installation dir, "
-                                           "please specify it manually in your nodes.yaml!")
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
+                    path = winreg.QueryValueEx(key, 'SteamPath')[0]
+                    self._inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
+                    if not os.path.exists(self._inst_path):
+                        raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                               "please specify it manually in your nodes.yaml!")
             else:
-                raise InstallException(f"Can't find the {self.name} installation dir, "
-                                       "please specify it manually in your nodes.yaml!")
-
+                self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles(x86)%'), 'Tacview')
+                if not os.path.exists(self._inst_path):
+                    raise InstallException(f"Can't detect the {self.name} installation dir, "
+                                           "please specify it manually in your nodes.yaml!")
         return self._inst_path
 
     async def render(self, param: Optional[dict] = None) -> dict:
@@ -245,25 +245,21 @@ class Tacview(Extension):
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
             while not self.stop_event.is_set():
-                if not os.path.exists(logfile):
+                while not os.path.exists(logfile):
                     self.log_pos = 0
                     await asyncio.sleep(1)
-                    continue
-                async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
+                async with (aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file):
                     max_pos = os.fstat(file.fileno()).st_size
-                    # no new data has been added to the log, so continue
-                    if max_pos == self.log_pos:
+                    # initial start or no new data, continue
+                    if self.log_pos == -1 or max_pos == self.log_pos:
+                        self.log_pos = max_pos
                         await asyncio.sleep(1)
                         continue
-                    # if we were started with an existing logfile, seek to the file end, else seek to the last position
-                    if self.log_pos == -1:
-                        await file.seek(0, 2)
-                        self.log_pos = max_pos
-                    else:
-                        # if the log was rotated, reset the pointer to 0
-                        if max_pos < self.log_pos:
-                            self.log_pos = 0
-                        await file.seek(self.log_pos, 0)
+                    # if the logfile was rotated, seek to the beginning of the file
+                    elif max_pos < self.log_pos:
+                        self.log_pos = 0
+
+                    self.log_pos = await file.seek(self.log_pos, 0)
                     lines = await file.readlines()
                     for line in lines:
                         if 'End of flight data recorder.' in line or '=== Log closed.' in line:
@@ -273,7 +269,8 @@ class Tacview(Extension):
                         if match:
                             # noinspection PyAsyncCall
                             asyncio.create_task(self.send_tacview_file(match.group('filename')))
-                    self.log_pos = max_pos
+                    self.log_pos = await file.tell()
+
         except Exception as ex:
             self.log.exception(ex)
         finally:
@@ -283,40 +280,40 @@ class Tacview(Extension):
         # wait 60s for the file to appear
         for i in range(0, 60):
             if os.path.exists(filename):
-                target = self.config['target']
-                if target.startswith('<'):
-                    if os.path.getsize(filename) > DISCORD_FILE_SIZE_LIMIT:
-                        self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
-                        return
-                    try:
-                        await self.bus.send_to_node_sync({
-                            "command": "rpc",
-                            "service": BotService.__name__,
-                            "method": "send_message",
-                            "params": {
-                                "channel": int(target[4:-1]),
-                                "content": _("Tacview file for server {}").format(self.server.name),
-                                "server": self.server.name,
-                                "filename": filename
-                            }
-                        })
-                        self.log.debug(f"TACVIEW file {filename} uploaded.")
-                    except AttributeError:
-                        self.log.warning(f"Can't upload TACVIEW file {filename}, "
-                                         f"channel {target[4:-1]} incorrect!")
-                    except Exception as ex:
-                        self.log.warning(f"Can't upload TACVIEW file {filename}: {ex}!")
-                    return
-                else:
-                    try:
-                        shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
-                    except Exception:
-                        self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
-                    return
+                break
             await asyncio.sleep(1)
         else:
             self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
             return
+
+        target = self.config['target']
+        if target.startswith('<'):
+            if os.path.getsize(filename) > DISCORD_FILE_SIZE_LIMIT:
+                self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                return
+            try:
+                await self.bus.send_to_node_sync({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "send_message",
+                    "params": {
+                        "channel": int(target[4:-1]),
+                        "content": _("Tacview file for server {}").format(self.server.name),
+                        "server": self.server.name,
+                        "filename": filename
+                    }
+                })
+                self.log.debug(f"TACVIEW file {filename} uploaded.")
+            except AttributeError:
+                self.log.warning(f"Can't upload TACVIEW file {filename}, "
+                                 f"channel {target[4:-1]} incorrect!")
+            except Exception as ex:
+                self.log.warning(f"Can't upload TACVIEW file {filename}: {ex}!")
+        else:
+            try:
+                shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
+            except Exception:
+                self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
 
     def get_inst_version(self) -> Optional[str]:
         if not self.get_inst_path():
@@ -326,17 +323,29 @@ class Tacview(Extension):
         return utils.get_windows_version(os.path.join(path, 'tacview.dll'))
 
     async def install(self) -> bool:
-        def ignore_export_lua(dirname, filenames):
-            return ['Scripts/Export.lua'] if dirname == from_path else []
+        def ignore_funct(dirname, filenames) -> list[str]:
+            ignored = []
+            for item in filenames:
+                path = os.path.join(dirname, item)
+                relpath = os.path.relpath(path, from_path)
+                to_path = os.path.join(self.server.instance.home, relpath)
+                if utils.is_junction(to_path):
+                    ignored.append(item)
+                elif relpath == 'Scripts\\Export.lua':
+                    ignored.append(item)
+            return ignored
 
         if not self.get_inst_path():
             self.log.error("You need to specify an installation path for Tacview!")
             return False
         from_path = os.path.join(self.get_inst_path(), 'DCS')
-        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True, ignore=ignore_export_lua)
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True, ignore=ignore_funct)
         export_file = os.path.join(self.server.instance.home, 'Scripts', 'Export.lua')
-        async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
-            lines = await infile.readlines()
+        try:
+            async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
+                lines = await infile.readlines()
+        except FileNotFoundError:
+            lines = []
         if TACVIEW_EXPORT_LINE not in lines:
             lines.append(TACVIEW_EXPORT_LINE)
             async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
@@ -362,7 +371,7 @@ class Tacview(Extension):
             for name in dirs:
                 dir_x = os.path.join(root, name)
                 dir_y = dir_x.replace(from_path, self.server.instance.home)
-                if os.path.exists(dir_y):
+                if os.path.exists(dir_y) and not utils.is_junction(dir_y):
                     try:
                         os.rmdir(dir_y)  # only removes empty directories
                     except OSError:

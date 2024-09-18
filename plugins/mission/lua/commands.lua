@@ -465,3 +465,22 @@ function dcsbot.unban(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: unban()')
 	dcsbot.banList[json.ucid] = nil
 end
+
+function dcsbot.makeScreenshot(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: makeScreenshot()')
+    net.screenshot_request(json.id)
+end
+
+function dcsbot.getScreenshots(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getScreenshots()')
+    local msg = {
+        command = "getScreenshots",
+        screens = net.get_player_info(json.id, 'screens')
+    }
+    utils.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.deleteScreenshot(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: deleteScreenshot()')
+    net.screenshot_del(json.id, json.key)
+end

@@ -75,8 +75,21 @@ class GameMasterEventListener(EventListener):
             if not server.locals.get('no_coalition_chat', False) or data['to'] != -2:
                 chat_channel = self.bot.get_channel(server.channels.get(Channel.CHAT, -1))
         if chat_channel:
+            colors = {
+                Side.RED: 31,
+                Side.BLUE: 34,
+                Side.NEUTRAL: 37,
+                Side.SPECTATOR: 37,
+                Side.UNKNOWN: 37
+            }
+            if data['to'] == -2:
+                color = colors[player.side]
+            else:
+                color = colors[Side.SPECTATOR]
             # noinspection PyAsyncCall
-            asyncio.create_task(chat_channel.send(f"{player.name} said: {data['message']}"))
+            asyncio.create_task(chat_channel.send(
+                f"```ansi\n\u001b[1;{color}mPlayer {player.name} said: {data['message']}```"
+            ))
 
     async def get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
         if not player.coalition:

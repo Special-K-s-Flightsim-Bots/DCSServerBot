@@ -30,6 +30,15 @@ DEFAULT:
     - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
       action:
         type: halt                      # reboot the server each monday night at 03:00
+    - cron: '0 12 * * *'                # run every 12 hrs
+      action:
+        type: purge_channel             # purge Discord channels
+        params:
+          channel:                      # list of channels to purge
+            - 112233445566778899
+            - 998877665544332211
+          delete_after: 7               # delete all messages that are older than 7 days
+          ignore: 119922883377446655    # ignore this user id (probably the bots)
 DCS.release_server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs

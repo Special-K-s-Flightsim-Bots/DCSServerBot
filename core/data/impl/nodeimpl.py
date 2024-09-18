@@ -17,8 +17,9 @@ import sys
 
 from collections import defaultdict
 from contextlib import closing
-from core import utils, Status, Coalition
+from core import utils, Status
 from core.const import SAVED_GAMES
+from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
 from packaging import version
@@ -39,7 +40,7 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
-from core.utils.helper import SettingsDict, YAMLError
+from core.utils.helper import SettingsDict, YAMLError, async_cache
 
 # ruamel YAML support
 from pykwalify.errors import SchemaError
@@ -424,20 +425,6 @@ class NodeImpl(Node):
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
-        from services.servicebus import ServiceBus
-
-        async def shutdown_with_warning(server: Server):
-            if server.is_populated():
-                shutdown_in = max(warn_times) if len(warn_times) else 0
-                while shutdown_in > 0:
-                    for warn_time in warn_times:
-                        if warn_time == shutdown_in:
-                            await server.sendPopupMessage(
-                                Coalition.ALL,
-                                _('Server is going down for a DCS update in {}!').format(utils.format_time(warn_time)))
-                    await asyncio.sleep(1)
-                    shutdown_in -= 1
-            await server.shutdown(force=True)
 
         async def do_update(branch: Optional[str] = None) -> int:
             # disable any popup on the remote machine
@@ -476,48 +463,24 @@ class NodeImpl(Node):
             return rc
 
         self.update_pending = True
-        to_start = []
-        in_maintenance = []
-        tasks = []
-        bus = ServiceRegistry.get(ServiceBus)
-        for server in [x for x in bus.servers.values() if not x.is_remote]:
-            if server.maintenance:
-                in_maintenance.append(server)
-            else:
-                server.maintenance = True
-            if server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
-                to_start.append(server)
-                tasks.append(asyncio.create_task(shutdown_with_warning(server)))
-        # wait for DCS servers to shut down
-        if tasks:
-            await asyncio.gather(*tasks)
-        self.log.info(f"Updating {self.installation} ...")
-        # call before update hooks
-        for callback in self.before_update.values():
-            await callback()
-        rc = await do_update(branch)
-        if rc == 0:
-            self.dcs_branch = self.dcs_version = None
-            if self.locals['DCS'].get('desanitize', True):
-                if not self.locals['DCS'].get('cloud', False) or self.master:
-                    utils.desanitize(self)
-            # call after update hooks
-            for callback in self.after_update.values():
+        async with ServerMaintenanceManager(self.node, warn_times,
+                                            _('Server is going down for a DCS update in {}!')):
+            self.log.info(f"Updating {self.installation} ...")
+            # call before update hooks
+            for callback in self.before_update.values():
                 await callback()
-            self.log.info(f"{self.installation} updated to the latest version.")
-        for server in [x for x in bus.servers.values() if not x.is_remote]:
-            if server not in in_maintenance:
-                # let the scheduler do its job
-                server.maintenance = False
-            if server in to_start:
-                try:
-                    # the server was running before (being in maintenance mode), so start it again
-                    await server.startup()
-                except (TimeoutError, asyncio.TimeoutError):
-                    self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
-        if rc == 0:
-            self.update_pending = False
-        return rc
+            rc = await do_update(branch)
+            if rc == 0:
+                self.dcs_branch = self.dcs_version = None
+                if self.locals['DCS'].get('desanitize', True):
+                    if not self.locals['DCS'].get('cloud', False) or self.master:
+                        utils.desanitize(self)
+                # call after update hooks
+                for callback in self.after_update.values():
+                    await callback()
+                self.log.info(f"{self.installation} updated to the latest version.")
+                self.update_pending = False
+            return rc
 
     async def handle_module(self, what: str, module: str):
         if sys.platform == 'win32':
@@ -533,13 +496,16 @@ class NodeImpl(Node):
                 startupinfo=startupinfo
             )
 
-        await asyncio.to_thread(run_subprocess)
+        async with ServerMaintenanceManager(self.node, [120, 60, 10],
+                                            _('Server is going down to {what}'.format(what=what) + ' a module in {}!')):
+            await asyncio.to_thread(run_subprocess)
 
     async def get_installed_modules(self) -> list[str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
             data = json.load(cfg)
         return data['modules']
 
+    @async_cache
     async def get_available_modules(self) -> list[str]:
         licenses = {
             "CAUCASUS_terrain",
@@ -811,16 +777,26 @@ class NodeImpl(Node):
             raise TimeoutError()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
+        async def _read_file(path: str):
+            if path.startswith('http'):
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(path) as response:
+                        if response.status == 200:
+                            return await response.read()
+                        else:
+                            raise FileNotFoundError(path)
+            else:
+                async with aiofiles.open(path, mode='rb') as file:
+                    return await file.read()
+
         path = os.path.expandvars(path)
         if self.node.master:
-            async with aiofiles.open(path, mode='rb') as file:
-                return await file.read()
+            return await _read_file(path)
         else:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
-                    async with aiofiles.open(path, mode='rb') as file:
-                        await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
-                                           (self.guild_id, path, psycopg.Binary(await file.read())))
+                    await conn.execute("INSERT INTO files (guild_id, name, data) VALUES (%s, %s, %s)",
+                                       (self.guild_id, path, psycopg.Binary(await _read_file(path))))
                     cursor = await conn.execute("SELECT currval('files_id_seq')")
                     return (await cursor.fetchone())[0]
 

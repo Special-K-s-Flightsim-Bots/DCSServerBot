@@ -13,6 +13,7 @@ from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands, tasks
 from discord.ui import Modal, TextInput
+from io import BytesIO
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -1049,6 +1050,51 @@ class Mission(Plugin):
         await player.sendChatMessage(message, interaction.user.display_name)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_('Message sent.'), ephemeral=utils.get_ephemeral(interaction))
+
+    @player.command(description=_('Take a screenshot'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def screenshot(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]) -> None:
+        if not player:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Player not found."), ephemeral=True)
+            return
+        if not server.settings.get('advanced', {}).get('server_can_screenshot'):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Server can not take screenshots."), ephemeral=True)
+            return
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        msg = await interaction.followup.send(_("Requesting screenshot ..."), ephemeral=ephemeral)
+        old_screens = await player.getScreenshots()
+        await player.makeScreenshot()
+        timeout = 30 if server.node.locals.get('slow_system', False) else 10
+        for i in range(1, timeout):
+            await asyncio.sleep(1)
+            new_screens = await player.getScreenshots()
+            if len(new_screens) > len(old_screens):
+                break
+        else:
+            await msg.edit(content=_("Timeout while waiting for screenshot!"))
+            return
+        key = new_screens[-1]
+        try:
+            image_url = f"http://127.0.0.1:{server.instance.webgui_port}{key}"
+            image_data = await server.node.read_file(image_url)
+            file = discord.File(BytesIO(image_data), filename="screenshot.png")
+            await msg.delete()
+            embed = discord.Embed(color=discord.Color.blue(),
+                                  title=_("Screenshot of Player {}").format(player.display_name))
+            embed.set_image(url="attachment://screenshot.png")
+            embed.add_field(name=_("Server"), value=server.display_name, inline=False)
+            embed.add_field(name=_("Time"), value=f"<t:{int(datetime.now().timestamp())}>", inline=False)
+            embed.add_field(name=_("Taken by"), value=interaction.user.display_name, inline=False)
+            await interaction.followup.send(embed=embed, file=file, ephemeral=ephemeral)
+        finally:
+            await player.deleteScreenshot(key)
 
     watch = Group(name="watch", description="Commands to manage the watchlist")
 

@@ -124,7 +124,8 @@ class OvGME(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        if os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')):
+        if (os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')) and
+                not os.path.exists(os.path.join(self.node.config_dir, 'services', 'ovgme.yaml'))):
             self.log.warning(f"  => OvGME: your ovgme.yaml belongs into {self.node.config_dir}/services/ovgme.yaml, "
                              f"not in {self.node.config_dir}/plugins!")
         self.service = ServiceRegistry.get(OvGMEService)

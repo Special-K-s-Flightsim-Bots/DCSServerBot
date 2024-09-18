@@ -39,6 +39,7 @@ __all__ = [
     "list_all_files",
     "make_unix_filename",
     "safe_rmtree",
+    "is_junction",
     "terminate_process",
     "quick_edit_mode",
     "create_secret_dir",
@@ -162,6 +163,11 @@ def safe_rmtree(path: Union[str, Path]):
                 os.rmdir(dirname)
         os.chmod(path, stat.S_IWUSR)
         os.rmdir(path)
+
+
+def is_junction(path):
+    # Check if path is a junction on Windows
+    return os.path.isdir(path) and bool(os.readlink(path) if os.path.islink(path) else False)
 
 
 def terminate_process(process: Optional[psutil.Process]):

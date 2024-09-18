@@ -14,6 +14,12 @@ msgstr ""
 msgid "Server is going down for a DCS update in {)}!"
 msgstr "Перезагрузка сервера для обновления DCS через {)}!"
 
+msgid "Server is going down to install a module in {}!"
+msgstr "Сервер будет отключен для установки модуля через {}!"
+
+msgid "Server is going down to uninstall a module in {}!"
+msgstr "Сервер будет отключен для удаления модуля через {}!"
+
 msgid "You are banned from this server. Reason: {}"
 msgstr "Вы забанены на этом сервере. Причина: {}"
 

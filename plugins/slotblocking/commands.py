@@ -29,7 +29,7 @@ class SlotBlocking(Plugin):
     def _migrate_3_2(self, instance: dict, **kwargs):
         message = kwargs['message']
         if instance.get('VIP'):
-            instance['message_server_full'] = message
+            instance['VIP']['message_server_full'] = message
 
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
         if not self.locals:

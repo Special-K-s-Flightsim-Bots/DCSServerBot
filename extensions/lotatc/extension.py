@@ -98,8 +98,9 @@ class LotAtc(Extension, FileSystemEventHandler):
             config['srs_server'] = '127.0.0.1'
             srs_port = extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
             config['srs_server_port'] = srs_port
-            srs_transponder_port = extension.config.get('srs_transponder_port',
-                                                        extension.locals['General Settings']['LOTATC_EXPORT_PORT'])
+            srs_transponder_port = extension.config.get('lotatc_export_port',
+                                                        extension.locals['General Settings'].get('LOTATC_EXPORT_PORT',
+                                                                                                 10712))
             if srs_transponder_port:
                 config['srs_use_transponder'] = True
                 config['srs_transponder_port'] = srs_transponder_port
@@ -258,9 +259,19 @@ class LotAtc(Extension, FileSystemEventHandler):
         return False
 
     async def install(self):
+        def ignore_funct(dirname, filenames) -> list[str]:
+            ignored = []
+            for item in filenames:
+                path = os.path.join(dirname, item)
+                relpath = os.path.relpath(path, from_path)
+                to_path = os.path.join(self.server.instance.home, relpath)
+                if utils.is_junction(to_path):
+                    ignored.append(item)
+            return ignored
+
         major_version, _ = self.get_inst_version()
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
-        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True, ignore=ignore_funct)
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
 
     async def uninstall(self):
@@ -276,7 +287,7 @@ class LotAtc(Extension, FileSystemEventHandler):
             for name in dirs:
                 dir_x = os.path.join(root, name)
                 dir_y = dir_x.replace(from_path, self.server.instance.home)
-                if os.path.exists(dir_y):
+                if os.path.exists(dir_y) and not utils.is_junction(dir_y):
                     try:
                         os.rmdir(dir_y)  # only removes empty directories
                     except OSError:

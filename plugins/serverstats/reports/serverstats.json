@@ -44,23 +44,27 @@
       "type": "Graph",
       "params":
       {
-        "width": 35,
-        "height": 25,
+        "width": 41,
+        "height": 33,
         "cols": 1,
-        "rows": 3,
+        "rows": 4,
         "elements":
          [
             {
-              "class": "plugins.serverstats.serverstats.UniquePast14",
-              "params": { "col": 0, "row": 0 }
+              "class": "plugins.serverstats.serverstats.UniqueUsers",
+              "params": { "col": 0, "row": 0, "interval": "1 month" }
+            },
+            {
+              "class": "plugins.serverstats.serverstats.UserRetention",
+              "params": { "col": 0, "row": 1, "interval": "1 month" }
             },
             {
               "class": "plugins.serverstats.serverstats.UsersPerDayTime",
-              "params": { "col": 0, "row": 1 }
+              "params": { "col": 0, "row": 2, "interval": "1 month" }
             },
             {
               "class": "plugins.serverstats.serverstats.UsersPerMissionTime",
-              "params": { "col": 0, "row": 2 }
+              "params": { "col": 0, "row": 3, "interval": "1 month" }
             }
          ]
       }

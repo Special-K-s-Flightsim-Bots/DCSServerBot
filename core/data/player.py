@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import discord
 
 from contextlib import closing
@@ -7,7 +8,7 @@ from core import utils
 from core.data.dataobject import DataObject, DataObjectFactory
 from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, AsyncGenerator
 
 from core.services.registry import ServiceRegistry
 
@@ -238,7 +239,11 @@ class Player(DataObject):
         return self.verified and self._member is not None and utils.check_roles(set(valid_roles), self._member)
 
     async def sendChatMessage(self, message: str, sender: str = None):
-        for msg in message.split('\n'):
+        async def message_lines(m: str) -> AsyncGenerator[str, None]:
+            for line in m.splitlines():
+                yield line
+
+        async for msg in message_lines(message):
             await self.server.send_to_dcs({
                 "command": "sendChatMessage",
                 "to": self.id,
@@ -247,8 +252,10 @@ class Player(DataObject):
             })
 
     async def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
-        [await self.sendChatMessage(msg) for msg in message.splitlines()]
-        await self.sendPopupMessage(message, timeout)
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.sendPopupMessage(message, timeout))
+        # noinspection PyAsyncCall
+        asyncio.create_task(self.sendChatMessage(message))
 
     async def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
@@ -325,3 +332,23 @@ class Player(DataObject):
         else:
             ret = _check_exemption(exemptions)
         return ret
+
+    async def makeScreenshot(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "makeScreenshot",
+            "id": self.id
+        })
+
+    async def getScreenshots(self) -> list[str]:
+        data = await self.server.send_to_dcs_sync({
+            "command": "getScreenshots",
+            "id": self.id
+        })
+        return data.get('screens', [])
+
+    async def deleteScreenshot(self, key: str) -> None:
+        await self.server.send_to_dcs({
+            "command": "deleteScreenshot",
+            "id": self.id,
+            "key": key
+        })

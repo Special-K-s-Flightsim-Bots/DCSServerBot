@@ -25,6 +25,7 @@ mapping:
   discord_status: {type: str}
   roles:
     type: map
+    allowempty: true
     mapping:
       Admin:
         type: seq

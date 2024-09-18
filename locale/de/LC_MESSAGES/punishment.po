@@ -134,9 +134,9 @@ msgid "This user does not exist. Try {} to find them in the historic data."
 msgstr "Ein Spieler dieses Namens existiert nicht. Versuche ihn mit {} in den historischen Daten zu finden."
 
 # LISTENER
-msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"
+msgid "{victim}, you are a victim of a friendly-fire event by player {offender}.\n"
 "If you send {prefix}forgive in chat within the next {time} seconds, you can pardon the other player."
-msgstr "{victim}, Du bist Opfer eines {event}-Events durch den Spieler {offender}\n"
+msgstr "{victim}, Du bist Opfer eines Friendly-Fire-Events durch den Spieler {offender}\n"
 "Wenn Du den Spieler begnadigen möchtest, sende {prefix}forgive innerhalb von {time} Sekunden in den in-game Chat."
 
 # -forgive
