@@ -5,8 +5,6 @@ import re
 import shutil
 import sys
 
-from minidump.utils.winapi.defines import sizeof
-
 from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT
 from services.bot import BotService
 from services.servicebus import ServiceBus
