@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import certifi
 import discord
 import logging
 import os
@@ -218,6 +219,9 @@ if __name__ == "__main__":
         exit(-2)
     elif int(platform.python_version_tuple()[1]) == 9:
         log.warning("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
+
+    # Add certificates
+    os.environ["SSL_CERT_FILE"] = certifi.where()
 
     # Call the DCSServerBot 2.x migration utility
     if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):
