@@ -1237,7 +1237,7 @@ class ConfigModal(Modal):
 
     @staticmethod
     def unmap(value: str, t: str = None) -> Any:
-        if not t:
+        if not t or t == str:
             return value
         elif t == int:
             return int(value)
