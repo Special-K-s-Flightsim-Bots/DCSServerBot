@@ -231,7 +231,7 @@ class UniqueUsers(report.GraphElement):
         self.axes.set_xticklabels(df['date'], rotation=45, ha='right', color='white')
         self.axes.tick_params(axis='x', colors='white')
         self.axes.tick_params(axis='y', colors='white')
-        self.axes.legend()
+        self.axes.legend(loc='upper right', facecolor='#303030', edgecolor='white', labelcolor='white')
 
         # Add annotations for total players above the bars
         for bar in total_bars.patches[:len(dates)]:
@@ -306,7 +306,7 @@ class UserRetention(report.GraphElement):
         retained_users = [row['retained_users'] for row in data]
         new_users = [row['new_users'] for row in data]
 
-        self.axes.set_title(f'User Retention | past {interval.replace("1", "").strip()}',
+        self.axes.set_title(f'Player Retention | past {interval.replace("1", "").strip()}',
                             color='white', fontsize=25)
         if (all(user_count == 0 for user_count in new_users) and
                 all(user_count == 0 for user_count in retained_users)):
@@ -357,6 +357,120 @@ class UserRetention(report.GraphElement):
 
         handles, labels = self.axes.get_legend_handles_labels()
         self.axes.legend(handles, ['New Users', 'Retained Users'], loc='upper right', fontsize=12)
+
+
+class UserEngagement(report.GraphElement):
+
+    async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
+        sql = f"""
+            WITH first_seen AS (
+                SELECT 
+                    s.player_ucid,
+                    MIN(s.hop_on) AS first_seen
+                FROM 
+                    statistics s
+                GROUP BY s.player_ucid
+            ),
+            player_days AS (
+                SELECT 
+                    s.player_ucid,
+                    COUNT(DISTINCT DATE(s.hop_on)) AS days_present,
+                    CASE WHEN f.first_seen >= NOW() - INTERVAL '{interval}' THEN true ELSE false END AS is_new
+                FROM 
+                    statistics s
+                    LEFT JOIN missions m ON s.mission_id = m.id
+                    LEFT JOIN first_seen f ON s.player_ucid = f.player_ucid
+                WHERE s.hop_on >= NOW() - INTERVAL '{interval}'
+                {where_clause}
+                GROUP BY s.player_ucid, f.first_seen
+            ),
+            retention AS (
+                SELECT
+                    days_present,
+                    COUNT(player_ucid) FILTER (WHERE is_new) AS new_player_count,
+                    COUNT(player_ucid) FILTER (WHERE NOT is_new) AS returning_player_count
+                FROM player_days
+                GROUP BY days_present
+            ),
+            date_series AS (
+                SELECT generate_series(1, (
+                    SELECT DATE_PART('day', NOW() - (NOW() - INTERVAL '{interval}'))::INTEGER)
+                ) AS date
+            )
+            SELECT
+                ds.date AS days_present,
+                COALESCE(r.new_player_count, 0) AS new_player_count,
+                COALESCE(r.returning_player_count, 0) AS returning_player_count
+            FROM
+                date_series ds
+                LEFT JOIN retention r ON r.days_present = ds.date
+            ORDER BY ds.date
+         """
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {"server_name": server_name})
+                data = await cursor.fetchall()
+
+        if not data:
+            self.axes.set_title('No Data Available', color='white', fontsize=25)
+            self.axes.text(0.5, 0.5, 'No data available for the selected server or interval.', ha='center', va='center',
+                           fontsize=15, color='white')
+            self.axes.set_xticks([])
+            self.axes.set_yticks([])
+            return
+
+        days_present = [row['days_present'] for row in data]
+        new_player_count = [row['new_player_count'] for row in data]
+        returning_player_count = [row['returning_player_count'] for row in data]
+
+        self.axes.set_title(f'Player Engagement | past {interval.replace("1", "").strip()}', color='white', fontsize=25)
+
+        df = pd.DataFrame({
+            'days_present': days_present,
+            'new_player_count': new_player_count,
+            'returning_player_count': returning_player_count
+        })
+
+        df['days_present'] = df['days_present'].astype(str)
+
+        bar1 = self.axes.bar(df['days_present'], df['new_player_count'], label='New Players', color='orange',
+                             edgecolor='white')
+        bar2 = self.axes.bar(df['days_present'], df['returning_player_count'], bottom=df['new_player_count'],
+                             label='Returning Players', color='dodgerblue', edgecolor='white')
+
+        self.axes.set_xlabel('Server Days', color='white', fontsize=10)
+        self.axes.set_ylabel('Players', color='white', fontsize=10)
+        self.axes.set_xlim([-0.5, len(df) - 0.5])
+        self.axes.set_xticks(range(len(df)))
+        self.axes.set_xticklabels(df['days_present'], ha='right', color='white')
+        self.axes.tick_params(axis='x', colors='white')
+        self.axes.tick_params(axis='y', colors='white')
+
+        self.axes.set_facecolor('#303030')
+        self.axes.spines['top'].set_visible(False)
+        self.axes.spines['right'].set_visible(False)
+
+        for spine in self.axes.spines.values():
+            spine.set_color('white')
+
+        for bar in bar1:
+            height = bar.get_height()
+            if height > 0:
+                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
+                               int(height), ha='center', va='bottom', color='white',
+                               fontsize=10, weight='bold')
+
+        for bar in bar2:
+            height = bar.get_height() + bar1[bar2.index(bar)].get_height()
+            if height > 0:
+                self.axes.text(bar.get_x() + bar.get_width() / 2, height,
+                               int(height), ha='center', va='bottom', color='white',
+                               fontsize=10, weight='bold')
+
+        handles, labels = self.axes.get_legend_handles_labels()
+        self.axes.legend(handles, ['New Players', 'Returning Players'], loc='upper right', fontsize=12)
 
 
 class UsersPerDayTime(report.GraphElement):
