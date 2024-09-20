@@ -170,7 +170,7 @@ class UniqueUsers(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        where_clause = "WHERE m.server_name = %(server_name)s" if server_name else ""
+        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH players_join AS (
                 SELECT 
@@ -191,9 +191,8 @@ class UniqueUsers(report.GraphElement):
             FROM 
                 date_series ds
                 LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
-                LEFT JOIN missions m ON s.mission_id = m.id
+                INNER JOIN missions m ON s.mission_id = m.id {where_clause}
                 LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
-            {where_clause}
             GROUP BY ds.date
             ORDER BY ds.date
         """
@@ -306,11 +305,13 @@ class UserRetention(report.GraphElement):
         retained_users = [row['retained_users'] for row in data]
         new_users = [row['new_users'] for row in data]
 
-        self.axes.set_title(f'Player Retention | past {interval.replace("1", "").strip()}',
+        period = interval.replace("1", "").strip()
+        self.axes.set_title(f'Player Retention | past {period}',
                             color='white', fontsize=25)
         if (all(user_count == 0 for user_count in new_users) and
                 all(user_count == 0 for user_count in retained_users)):
-            self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', fontsize=15, color='white')
+            self.axes.text(0.5, 0.5, f'No new users joined in the past {period}.', ha='center', va='center',
+                           fontsize=15, color='white')
             self.axes.set_xticks([])
             self.axes.set_yticks([])
             return
