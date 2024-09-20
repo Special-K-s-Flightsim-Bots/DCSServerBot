@@ -24,8 +24,8 @@ class CleanupService(Service):
     async def do_directory_cleanup(self, instance: Instance, config: dict) -> None:
 
         async def check_and_delete(file_path: Path) -> None:
-            file_ctime = await asyncio.to_thread(os.path.getctime, file_path)
-            if file_ctime < threshold_timestamp:
+            file_mtime = await asyncio.to_thread(os.path.getmtime, file_path)
+            if file_mtime < threshold_timestamp:
                 self.log.debug(f"  => {file_path.name} is older than {delete_after} days, deleting ...")
                 await asyncio.to_thread(utils.safe_rmtree, file_path)
 

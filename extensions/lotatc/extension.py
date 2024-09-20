@@ -1,3 +1,6 @@
+import ctypes
+import sys
+
 import aiohttp
 import asyncio
 import atexit
@@ -243,8 +246,13 @@ class LotAtc(Extension, FileSystemEventHandler):
     def do_update(self):
         cwd = self.get_inst_path()
         exe_path = os.path.join(cwd, 'LotAtc_updater.exe')
-        subprocess.run([exe_path, '-c', 'up'], cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL)
+        args = ['-c', 'up']
+        if sys.platform == 'win32':
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", exe_path, ' '.join(args), None, 1)
+        else:
+            subprocess.run([exe_path] + args, cwd=cwd, shell=False, stderr=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL)
 
     async def update_instance(self, force: bool) -> bool:
         major_version, version = self.get_inst_version()

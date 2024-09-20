@@ -165,8 +165,14 @@ def safe_rmtree(path: Union[str, Path]):
 
 
 def is_junction(path):
-    # Check if path is a junction on Windows
-    return os.path.isdir(path) and bool(os.readlink(path) if os.path.islink(path) else False)
+    if not os.path.exists(path):
+        return False
+    if os.path.islink(path):
+        return True
+    attrs = ctypes.windll.kernel32.GetFileAttributesW(path)
+    if attrs == -1:
+        raise ctypes.WinError()
+    return bool(attrs & 0x0400)
 
 
 def terminate_process(process: Optional[psutil.Process]):

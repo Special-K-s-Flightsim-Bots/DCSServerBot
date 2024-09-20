@@ -329,10 +329,7 @@ class Tacview(Extension):
             for item in filenames:
                 path = os.path.join(dirname, item)
                 relpath = os.path.relpath(path, from_path)
-                to_path = os.path.join(self.server.instance.home, relpath)
-                if utils.is_junction(to_path):
-                    ignored.append(item)
-                elif relpath == 'Scripts\\Export.lua':
+                if relpath == 'Scripts\\Export.lua':
                     ignored.append(item)
             return ignored
 
