@@ -85,6 +85,10 @@ ruamel.yaml==0.18.6
 # seaborn: Extension for Matplotlib with more and nicer graphics
 seaborn==0.13.2
 
+# tomli: Python TOML parser
+tomli==2.0.1
+tomli_w==1.0.0
+
 # TrueSkill: Python module implementing the TrueSkill rating system
 trueskill==0.4.5
 
