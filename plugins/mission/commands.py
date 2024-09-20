@@ -1069,15 +1069,19 @@ class Mission(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         msg = await interaction.followup.send(_("Requesting screenshot ..."), ephemeral=ephemeral)
-        old_screens = await player.getScreenshots()
-        await player.makeScreenshot()
-        timeout = 30 if server.node.locals.get('slow_system', False) else 10
-        for i in range(1, timeout):
-            await asyncio.sleep(1)
-            new_screens = await player.getScreenshots()
-            if len(new_screens) > len(old_screens):
-                break
-        else:
+        try:
+            old_screens = await player.getScreenshots()
+            await player.makeScreenshot()
+            timeout = 30 if server.node.locals.get('slow_system', False) else 10
+            for i in range(1, timeout):
+                await asyncio.sleep(1)
+                new_screens = await player.getScreenshots()
+                if len(new_screens) > len(old_screens):
+                    break
+            else:
+                await msg.edit(content=_("Timeout while waiting for screenshot!"))
+                return
+        except (TimeoutError, asyncio.TimeoutError):
             await msg.edit(content=_("Timeout while waiting for screenshot!"))
             return
         key = new_screens[-1]

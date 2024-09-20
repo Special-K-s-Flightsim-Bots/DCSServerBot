@@ -8,6 +8,8 @@ from psycopg.rows import dict_row
 class CloudListener(EventListener):
 
     async def update_cloud_data(self, server: Server, player: Player):
+        if not server.current_mission:
+            return
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
