@@ -190,9 +190,12 @@ class UniqueUsers(report.GraphElement):
                     CASE WHEN pj.join_date = ds.date THEN s.player_ucid ELSE NULL END), 0) AS new_players
             FROM 
                 date_series ds
-                LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
-                INNER JOIN missions m ON s.mission_id = m.id {where_clause}
-                LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
+                LEFT JOIN (
+                    SELECT s.*, m.id AS mission_id
+                    FROM statistics s
+                    INNER JOIN missions m ON s.mission_id = m.id {where_clause}
+                ) s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
+                LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid
             GROUP BY ds.date
             ORDER BY ds.date
         """
