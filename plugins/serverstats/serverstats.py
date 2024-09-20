@@ -313,7 +313,7 @@ class UserRetention(report.GraphElement):
                             color='white', fontsize=25)
         if (all(user_count == 0 for user_count in new_users) and
                 all(user_count == 0 for user_count in retained_users)):
-            self.axes.text(0.5, 0.5, f'No new users joined in the past {period}.', ha='center', va='center',
+            self.axes.text(0.5, 0.5, f'No new players joined in the past {period}.', ha='center', va='center',
                            fontsize=15, color='white')
             self.axes.set_xticks([])
             self.axes.set_yticks([])
