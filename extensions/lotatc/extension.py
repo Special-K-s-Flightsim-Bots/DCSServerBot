@@ -1,10 +1,8 @@
-import ctypes
-import sys
-
 import aiohttp
 import asyncio
 import atexit
 import certifi
+import ctypes
 import discord
 import json
 import luadata
@@ -13,6 +11,7 @@ import re
 import shutil
 import ssl
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 
 from core import Extension, utils, Server, ServiceRegistry, get_translation, InstallException
