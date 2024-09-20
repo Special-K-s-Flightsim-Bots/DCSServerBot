@@ -170,7 +170,7 @@ class UniqueUsers(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = "1 month"):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
+        where_clause = "WHERE m.server_name = %(server_name)s" if server_name else ""
         sql = f"""
             WITH players_join AS (
                 SELECT 
@@ -191,8 +191,9 @@ class UniqueUsers(report.GraphElement):
             FROM 
                 date_series ds
                 LEFT JOIN statistics s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
-                LEFT JOIN missions m ON s.mission_id = m.id {where_clause}
+                LEFT JOIN missions m ON s.mission_id = m.id
                 LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid AND pj.join_date = ds.date
+            {where_clause}
             GROUP BY ds.date
             ORDER BY ds.date
         """
@@ -283,8 +284,7 @@ class UserRetention(report.GraphElement):
                     DATE(hop_on) AS activity_date
                 FROM first_visit fv
                 JOIN statistics s ON fv.player_ucid = s.player_ucid
-                JOIN missions m ON s.mission_id = m.id
-                {where_clause}
+                JOIN missions m ON s.mission_id = m.id {where_clause}
             )
             SELECT 
                 ds.date AS first_date, 
