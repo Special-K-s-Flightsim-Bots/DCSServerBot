@@ -268,6 +268,7 @@ class Tacview(Extension):
                             return
                         match = self.exp.search(line)
                         if match:
+                            self.log.debug("TACVIEW pattern found.")
                             # noinspection PyAsyncCall
                             asyncio.create_task(self.send_tacview_file(match.group('filename')))
                     self.log_pos = await file.tell()
@@ -312,7 +313,9 @@ class Tacview(Extension):
                 self.log.warning(f"Can't upload TACVIEW file {filename}: {ex}!")
         else:
             try:
-                shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
+                target_path = os.path.expandvars(utils.format_string(target, server=self.server))
+                shutil.copy2(filename, target_path)
+                self.log.debug(f"TACVIEW file {filename} copied to {target_path}")
             except Exception:
                 self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=True)
 
