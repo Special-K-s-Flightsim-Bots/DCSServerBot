@@ -170,6 +170,7 @@ class Tacview(Extension):
                     raise InstallException(
                         f"The {self.name} installation dir can not be found at {self.config.get('installation')}!")
             elif sys.platform == 'win32':
+                try:
                     import winreg
 
                     key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", 0)
@@ -178,7 +179,9 @@ class Tacview(Extension):
                     if not os.path.exists(self._inst_path):
                         raise InstallException(f"Can't detect the {self.name} installation dir, "
                                                "please specify it manually in your nodes.yaml!")
-            else:
+                except FileNotFoundError:
+                    pass
+            if not self._inst_path:
                 self._inst_path = os.path.join(os.path.expandvars('%ProgramFiles(x86)%'), 'Tacview')
                 if not os.path.exists(self._inst_path):
                     raise InstallException(f"Can't detect the {self.name} installation dir, "
@@ -326,10 +329,7 @@ class Tacview(Extension):
             for item in filenames:
                 path = os.path.join(dirname, item)
                 relpath = os.path.relpath(path, from_path)
-                to_path = os.path.join(self.server.instance.home, relpath)
-                if utils.is_junction(to_path):
-                    ignored.append(item)
-                elif relpath == 'Scripts\\Export.lua':
+                if relpath == 'Scripts\\Export.lua':
                     ignored.append(item)
             return ignored
 

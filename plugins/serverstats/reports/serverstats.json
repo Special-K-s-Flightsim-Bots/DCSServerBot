@@ -44,10 +44,10 @@
       "type": "Graph",
       "params":
       {
-        "width": 41,
-        "height": 33,
+        "width": 50,
+        "height": 41,
         "cols": 1,
-        "rows": 4,
+        "rows": 5,
         "elements":
          [
             {
@@ -59,12 +59,16 @@
               "params": { "col": 0, "row": 1, "interval": "1 month" }
             },
             {
-              "class": "plugins.serverstats.serverstats.UsersPerDayTime",
+              "class": "plugins.serverstats.serverstats.UserEngagement",
               "params": { "col": 0, "row": 2, "interval": "1 month" }
             },
             {
-              "class": "plugins.serverstats.serverstats.UsersPerMissionTime",
+              "class": "plugins.serverstats.serverstats.UsersPerDayTime",
               "params": { "col": 0, "row": 3, "interval": "1 month" }
+            },
+            {
+              "class": "plugins.serverstats.serverstats.UsersPerMissionTime",
+              "params": { "col": 0, "row": 4, "interval": "1 month" }
             }
          ]
       }
