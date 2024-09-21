@@ -268,27 +268,30 @@ class MonitoringService(Service):
             except psutil.NoSuchProcess:
                 self.log.debug(f"Server {server.name} died, skipping server load gathering.")
 
+    async def drive_check(self):
+        for drive in self.space_warning_sent.keys():
+            total, free = utils.get_drive_space(drive)
+            warn_pct = (self.get_config().get('drive_warn_threshold', 10)) / 100
+            alert_pct = (self.get_config().get('drive_alert_threshold', 5)) / 100
+            if (free < total * warn_pct) and not self.space_warning_sent[drive]:
+                message = f"Your freespace on {drive} is below {warn_pct * 100}%!"
+                self.log.warning(message)
+                await self.node.audit(message)
+                self.space_warning_sent[drive] = True
+            if (free < total * alert_pct) and not self.space_alert_sent[drive]:
+                message = f"Your freespace on {drive} is below {alert_pct * 100}%!"
+                self.log.error(message)
+                await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
+                                      message=message)
+                self.space_alert_sent[drive] = True
+
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
             if sys.platform == 'win32':
                 await self.check_popups()
             await self.heartbeat()
-            for drive in self.space_warning_sent.keys():
-                total, free = utils.get_drive_space(drive)
-                warn_pct = (self.get_config().get('drive_warn_threshold', 10)) / 100
-                alert_pct = (self.get_config().get('drive_alert_threshold', 5)) / 100
-                if (free < total * warn_pct) and not self.space_warning_sent[drive]:
-                    message = f"Your freespace on {drive} is below {warn_pct * 100}%!"
-                    self.log.warning(message)
-                    await self.node.audit(message)
-                    self.space_warning_sent[drive] = True
-                if (free < total * alert_pct) and not self.space_alert_sent[drive]:
-                    message = f"Your freespace on {drive} is below {alert_pct * 100}%!"
-                    self.log.error(message)
-                    await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
-                                          message=message)
-                    self.space_alert_sent[drive] = True
+            await self.drive_check()
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()
             if self.node.locals.get('nodestats', True):
