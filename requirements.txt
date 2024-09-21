@@ -2,7 +2,7 @@
 aiofiles==24.1.0
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.9.5
+aiohttp==3.10.5
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2024.8.30
@@ -38,10 +38,10 @@ minidump==0.0.24; sys_platform == 'win32'
 numpy==2.1.1
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
-openpyxl==3.1.2
+openpyxl==3.1.5
 
 # Pandas: Python data analysis library
-pandas==2.2.2
+pandas==2.2.3
 
 # Packaging: A core package providing support for PEP 440 version identifiers
 packaging==24.1
