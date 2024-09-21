@@ -177,8 +177,7 @@ class Tacview(Extension):
                     path = winreg.QueryValueEx(key, 'SteamPath')[0]
                     self._inst_path = os.path.join(path, 'steamapps', 'common', 'Tacview')
                     if not os.path.exists(self._inst_path):
-                        raise InstallException(f"Can't detect the {self.name} installation dir, "
-                                               "please specify it manually in your nodes.yaml!")
+                        self._inst_path = None
                 except FileNotFoundError:
                     pass
             if not self._inst_path:
