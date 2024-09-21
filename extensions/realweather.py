@@ -64,8 +64,8 @@ class RealWeather(Extension):
             self.log.error(f'No realweather.exe found in {rw_home}')
             return False
         ver = [int(x) for x in self.version.split('.')]
-        if ver[0] == 1 and ver[1] < 9:
-            self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
+        if (ver[0] == 1 and ver[1] < 9) or ver[0] > 1:
+            self.log.error(f"DCS Realweather {self.version} not supported by this version of DCSServerBot!")
             return False
         if not os.path.exists(os.path.join(rw_home, 'config.json')):
             self.log.error(f'No config.json found in {rw_home}')

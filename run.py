@@ -425,10 +425,10 @@ if __name__ == "__main__":
         print("Please run 'python install.py' first.")
         exit(-1)
     if int(platform.python_version_tuple()[0]) != 3 or int(platform.python_version_tuple()[1]) not in range(9, 12):
-        print("You need Python 3.9 to 3.11 to run DCSServerBot!")
+        print("You need Python 3.9 to 3.11 to run DCSServerBot 2.x!")
         exit(-1)
 
-    print("DCSServerBot 2.0 is discontinued. Please upgrade to 3.0!")
+    print("DCSServerBot 2.x is discontinued. Please upgrade to version 3.x!")
     try:
         Install.verify()
         asyncio.run(Main().run())

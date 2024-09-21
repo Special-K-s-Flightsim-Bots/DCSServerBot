@@ -302,27 +302,21 @@ function mission.onPlayerTrySendChat(from, message, to)
         msg.to = to
         utils.sendBotTable(msg)
         return ''
-    else
-        msg.command = 'onChatMessage'
-        msg.message = message
-        msg.from_id = net.get_player_info(from, 'id')
-        msg.from_name = net.get_player_info(from, 'name')
-        msg.to = to
-        if msg.from_id ~= 1 then
-            utils.sendBotTable(msg)
-        end
     end
-    return message
+    -- Workaround DCS bug
+    side = net.get_player_info(from, 'side')
+    if to == -2 and (side == 1 or side == 2) then
+        mission.onChatMessage(message, from, to)
+    end
 end
 
 function mission.onChatMessage(message, from, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
-    if not from then
+    if from > 1 then
         local msg = {}
         msg.command = 'onChatMessage'
         msg.message = message
-        msg.from_id = net.get_player_info(from, 'id')
-        msg.from_name = net.get_player_info(from, 'name')
+        msg.from_id = from
         msg.to = to
         utils.sendBotTable(msg, config.CHAT_CHANNEL)
     end

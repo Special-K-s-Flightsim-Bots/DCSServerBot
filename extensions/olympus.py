@@ -38,6 +38,9 @@ class Olympus(Extension):
     def is_installed(self) -> bool:
         global server_ports, client_ports
 
+        if self.version != '1.0.3':
+            self.log.error(f"DCS Olympus {self.version} not supported by this version of DCSServerBot!")
+            return False
         if not os.path.exists(os.path.join(self.home, 'bin', 'olympus.dll')):
             self.log.warning(f"  => {self.server.name}: Can't load extension, {self.name} is not installed!")
             return False
