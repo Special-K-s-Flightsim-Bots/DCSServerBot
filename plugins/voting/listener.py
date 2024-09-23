@@ -46,8 +46,8 @@ class VotingHandler:
         for idx, element in enumerate(self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
         message += self.get_leading_vote()
-        message += "\n" + _("Use {prefix}{self.vote.name} <number> to vote for the change.").format(
-            prefix=self.config['prefix']) + "\n"
+        message += "\n" + _("Use {prefix}{command} <number> to vote for the change.").format(
+            prefix=self.config['prefix'], command=self.listener.vote.name) + "\n"
         if player:
             await player.sendUserMessage(message)
         else:
