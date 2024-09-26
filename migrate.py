@@ -7,12 +7,14 @@ import traceback
 from configparser import ConfigParser
 from contextlib import suppress
 from copy import deepcopy
-from core import utils, DEFAULT_TAG, BACKUP_FOLDER
-from extensions.tacview import TACVIEW_DEFAULT_DIR
+from core import utils
+from core.const import DEFAULT_TAG
+from core.plugin import BACKUP_FOLDER
+from core.data.node import Node
 from pathlib import Path
-from typing import Union
 from rich import print
 from rich.prompt import IntPrompt, Confirm
+from typing import Union
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -129,7 +131,30 @@ def post_migrate_greenieboard(node: str):
             yaml.dump(data, outfile)
 
 
-def migrate(node: str):
+def migrate(node: Node, old_version: str, new_version: str):
+    if old_version == 'v3.10' and new_version == 'v3.11':
+        migrate_3_11(node)
+
+
+def migrate_3_11(node: Node):
+    filename = os.path.join(node.config_dir, 'services', 'bot.yaml')
+    if not os.path.exists(filename):
+        return
+    with open(filename, mode='r', encoding='utf-8') as infile:
+        data = yaml.load(infile)
+    channels = {}
+    if 'audit_channel' in data:
+        channels['audit'] = data.pop('audit_channel')
+    if 'admin_channel' in data:
+        channels['admin'] = data.pop('admin_channel')
+    if channels:
+        data['channels'] = channels
+        with open(filename, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
+        node.log.info("  => config/services/bot.yaml auto-migrated, please check")
+
+
+def migrate_3(node: str):
     cfg = ConfigParser()
     cfg.read('config/default.ini', encoding='utf-8')
     cfg.read('config/dcsserverbot.ini', encoding='utf-8')
@@ -141,7 +166,7 @@ def migrate(node: str):
             print("[red]ATTENTION:[/]The Master Node needs to be migrated first! Aborting.")
             exit(-2)
         bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
-        single_admin = ('admin_channel' in bot)
+        single_admin = bot.get('channels', {}).get('admin')
     else:
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
@@ -278,7 +303,9 @@ def migrate(node: str):
                 for server_name, instance in utils.findDCSInstances():
                     if instance in cfg and 'ADMIN_CHANNEL' in cfg[instance]:
                         print(f"[yellow]- Configured ADMIN_CHANNEL of instance {instance} as single admin channel.[/]")
-                        bot['admin_channel'] = int(cfg[instance]['ADMIN_CHANNEL'])
+                        bot['channels'] = {
+                            "admin": int(cfg[instance]['ADMIN_CHANNEL'])
+                        }
                         break
 
             if 'GREETING_DM' in cfg['BOT']:
@@ -286,7 +313,9 @@ def migrate(node: str):
             if 'DISCORD_STATUS' in cfg['BOT']:
                 bot['discord_status'] = cfg['BOT']['DISCORD_STATUS']
             if 'AUDIT_CHANNEL' in cfg['BOT']:
-                bot['audit_channel'] = int(cfg['BOT']['AUDIT_CHANNEL'])
+                if 'channels' not in bot:
+                    bot['channels'] = {}
+                bot['channels']['audit'] = int(cfg['BOT']['AUDIT_CHANNEL'])
             bot['roles'] = {}
             for role in ['Admin', 'DCS Admin', 'DCS', 'GameMaster']:
                 bot['roles'][role] = [x.strip() for x in cfg['ROLES'][role].split(',')]
@@ -428,10 +457,6 @@ def migrate(node: str):
         if slotblocking.get(DEFAULT_TAG, {}).get('VIP'):
             slotblocking[DEFAULT_TAG]['VIP']['message_server_full'] = cfg['DCS']['MESSAGE_SERVER_FULL']
 
-        # Now we need to figure if tacview has a delete_after configured...
-        delete_after = nodes[node].get('extensions', {}).get('Tacview', {}).get('delete_after', 0)
-        directory = nodes[node].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
-                                                                             TACVIEW_DEFAULT_DIR)
         if os.path.exists('config/services/cleanup.yaml'):
             with open('config/services/cleanup.yaml', mode='r', encoding='utf-8') as infile:
                 cleanup = yaml.load(infile)
@@ -439,6 +464,11 @@ def migrate(node: str):
             cleanup = {}
         for name, instance in nodes[node].get('instances', {}).items():
             if 'extensions' in instance and 'Tacview' in instance['extensions']:
+                from extensions.tacview import TACVIEW_DEFAULT_DIR
+
+                delete_after = nodes[node].get('extensions', {}).get('Tacview', {}).get('delete_after', 0)
+                directory = nodes[node].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
+                                                                                     TACVIEW_DEFAULT_DIR)
                 _delete_after = instance['extensions']['Tacview'].get('delete_after', delete_after)
                 _directory = instance['extensions']['Tacview'].get('tacviewExportPath', directory)
                 if _delete_after:

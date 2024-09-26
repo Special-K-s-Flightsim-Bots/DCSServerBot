@@ -157,7 +157,11 @@ class Node:
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplemented()
 
-    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
+    async def list_directory(self, path: str, *, pattern: str = '*', order: SortOrder = SortOrder.DATE,
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
+        raise NotImplemented()
+
+    async def create_directory(self, path: str):
         raise NotImplemented()
 
     async def remove_file(self, path: str):

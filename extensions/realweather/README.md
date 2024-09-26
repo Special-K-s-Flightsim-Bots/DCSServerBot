@@ -42,13 +42,13 @@ MyNode:
                 - RainyPreset2
                 - RainyPreset3
             fog:
-              enabled: true
+              enable: true
               thickness-minimum: 0
               thickness-maximum: 100
               visibility-minimum: 1000
               visibility-maximum: 4000
             dust:
-              enabled: true
+              enable: true
               visibility-minimum: 300
               visibility-maximum: 2000
 ```

@@ -770,7 +770,7 @@ class Scheduler(Plugin):
                                 "chat": server.locals.get('channels', {}).get('chat', -1)
                             }
                         }
-                        if not self.bot.locals.get('admin_channel'):
+                        if not self.bot.locals.get('channels', {}).get('admin'):
                             config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin',
                                                                                                              -1)
                         with open(config_file, mode='w', encoding='utf-8') as outfile:

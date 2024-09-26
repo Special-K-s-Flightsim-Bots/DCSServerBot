@@ -111,6 +111,14 @@ class ServerImpl(Server):
                 self._maintenance = row[0]
         atexit.register(self._stop_observer)
 
+    def __eq__(self, other):
+        if isinstance(other, ServerImpl):
+            return self.name == other.name
+        return False
+
+    def __hash__(self):
+        return hash(self.name)
+
     async def reload(self):
         self.locals = self.read_locals()
         self._channels.clear()
@@ -241,7 +249,7 @@ class ServerImpl(Server):
             admin_channel = self.channels.get(Channel.ADMIN)
             if not admin_channel:
                 data = yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')))
-                admin_channel = data.get('admin_channel', -1)
+                admin_channel = data.get('channels', {}).get('admin', -1)
             with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), mode='r',
                       encoding='utf-8') as template:
                 with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), mode='w', encoding='utf-8') as outfile:
@@ -657,10 +665,13 @@ class ServerImpl(Server):
                     WHERE node = %s AND server_name = %s
                 """, (self.node.name, self.name))
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
         stopped = False
+        if not missions_dir:
+            missions_dir = self.instance.missions_dir
+        filename = os.path.normpath(os.path.join(missions_dir, filename))
         for idx, name in enumerate(self.settings['missionList']):
-            if os.path.basename(name) == filename:
+            if (os.path.normpath(name) == filename) or (os.path.normpath(name) == os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))):
                 if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
                     if not force:
                         return UploadStatus.FILE_IN_USE
@@ -668,8 +679,6 @@ class ServerImpl(Server):
                     stopped = True
                 filename = name
                 break
-        else:
-            filename = os.path.normpath(os.path.join(self.instance.missions_dir, filename))
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc

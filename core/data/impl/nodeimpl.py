@@ -22,6 +22,7 @@ from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
+from migrate import migrate
 from packaging import version
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation, OperationalError
@@ -312,12 +313,12 @@ class NodeImpl(Node):
                 tables = [x[0] async for x in cursor]
                 # initial setup
                 if len(tables) == 0:
-                    self.log.info('Creating Database ...')
+                    self.log.info('- Creating Database ...')
                     with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
                         for query in tables_sql.readlines():
                             self.log.debug(query.rstrip())
                             await cursor.execute(query.rstrip())
-                    self.log.info('Database created.')
+                    self.log.info('- Database created.')
                 else:
                     # version table missing (DB version <= 1.4)
                     if 'version' not in tables:
@@ -333,7 +334,8 @@ class NodeImpl(Node):
                                 await conn.execute(query.rstrip())
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
-                        self.log.info(f'Database upgraded from {old_version} to {self.db_version}.')
+                        await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
+                        self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
@@ -819,13 +821,28 @@ class NodeImpl(Node):
                     return UploadStatus.READ_ERROR
         return UploadStatus.OK
 
-    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
+    async def list_directory(self, path: str, *, pattern: str = '*', order: SortOrder = SortOrder.DATE,
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
         directory = Path(os.path.expandvars(path))
+        ignore = ignore or []
         ret = []
-        for file in sorted(directory.glob(pattern), key=os.path.getmtime if order == SortOrder.DATE else None,
-                           reverse=True):
-            ret.append(os.path.join(directory.__str__(), file.name))
+
+        sort_key = os.path.getmtime if order == SortOrder.DATE else str
+
+        def filtered_files():
+            for file in directory.rglob(pattern) if traverse else directory.glob(pattern):
+                if file.name in ignore or os.path.basename(file.parent) in ignore:
+                    continue
+                if (file.is_dir() and is_dir) or (not is_dir and not file.is_dir()):
+                    yield file
+
+        for file in sorted(filtered_files(), key=sort_key, reverse=sort_key != str):
+            ret.append(str(file))
+
         return ret
+
+    async def create_directory(self, path: str):
+        os.makedirs(path, exist_ok=True)
 
     async def remove_file(self, path: str):
         files = glob.glob(path)

@@ -1,18 +1,22 @@
 from __future__ import annotations
+
 import asyncio
 import discord
 import functools
+import logging
 import os
 import re
 
 from core import Status, utils
+from core.data.node import SortOrder, UploadStatus
+from core.services.registry import ServiceRegistry
+from core.translations import get_translation
 from datetime import datetime
 from discord import app_commands, Interaction, SelectOption
 from discord.ext import commands
 from discord.ui import Button, View, Select, Item, Modal, TextInput
 from enum import Enum, auto
 from fuzzywuzzy import fuzz
-from io import BytesIO
 from psycopg.rows import dict_row
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any, Callable
 
@@ -63,8 +67,15 @@ __all__ = [
     "server_selection",
     "get_ephemeral",
     "get_command",
-    "ConfigModal"
+    "ConfigModal",
+    "DirectoryPicker",
+    "UploadHandler"
 ]
+
+# Internationalisation
+_ = get_translation('core')
+# Logging
+logger = logging.getLogger(__name__)
 
 DISCORD_FILE_SIZE_LIMIT = 10 * 1024 * 1024
 
@@ -1004,12 +1015,13 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         if not server:
             return []
+        base_dir = await server.get_missions_dir()
         choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            app_commands.Choice(name=os.path.relpath(x, base_dir).replace('.dcssb' + os.path.sep, '')[:-4], value=idx)
             for idx, x in enumerate(await server.getMissionList())
-            if not current or current.casefold() in x[:-4].casefold()
+            if not current or current.casefold() in os.path.relpath(x, base_dir)[:-4].casefold()
         ]
-        return choices[:25]
+        return sorted(choices, key=lambda choice: choice.name)[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
 
@@ -1264,3 +1276,230 @@ class ConfigModal(Modal):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"An error occurred: {error}")
         self.stop()
+
+
+class DirectoryPicker(discord.ui.View):
+    def __init__(self, node: Node, base_dir: str, ignore: Optional[list[str]] = None):
+        super().__init__()
+        self.node = node
+        self.base_dir = base_dir
+        self.dir = None
+        self.ignore = ignore or []
+
+    @property
+    def directory(self) -> str:
+        if self.dir:
+            return os.path.join(self.base_dir, self.dir)
+        else:
+            return self.base_dir
+
+    @property
+    def rel_path(self) -> str:
+        rel_dir = os.path.basename(self.base_dir)
+        if self.dir:
+            rel_dir = os.path.join(rel_dir, self.dir)
+        return rel_dir
+
+    async def render(self, init=False) -> Optional[discord.Embed]:
+        embed = discord.Embed(color=discord.Color.blue())
+        embed.title = f"Current Directory: {self.rel_path}"
+        if await self.create_select():
+            options = cast(Select, self.children[0]).options
+            embed.description = (
+                "Your directory contains sub-directories:\n"
+                "```"
+                f"\n{os.path.basename(self.rel_path)}"
+                "\n{}"
+                "\n```"
+            ).format(
+                '\n'.join(
+                    [
+                        f"{'├' if i < len(options) - 1 else '└'} {x.label}"
+                        for i, x in enumerate(options)
+                    ]
+                )
+            )
+            self.children[0].disabled = False
+        elif not init:
+            self.children[0].disabled = True
+        else:
+            self.children[0].disabled = True
+            embed = None
+        self.children[2].disabled = not self.dir
+        return embed
+
+    async def create_select(self) -> bool:
+        sub_dirs: list[str] = await self.node.list_directory(self.directory, is_dir=True, ignore=self.ignore,
+                                                             order=SortOrder.NAME)
+        if sub_dirs:
+            select = cast(Select, self.children[0])
+            select.options = [
+                SelectOption(label=os.path.basename(x), value=x)
+                for x in sub_dirs if os.path.basename(x)
+            ]
+            return True
+        else:
+            return False
+
+    async def refresh(self, interaction: discord.Interaction) -> None:
+        embed = await self.render()
+        if interaction.message:
+            await interaction.message.edit(view=self, embed=embed)
+        else:
+            await interaction.edit_original_response(view=self, embed=embed)
+
+    @discord.ui.select(min_values=0, max_values=1, placeholder="Pick a directory ...")
+    async def on_select(self, interaction: discord.Interaction, select: Select):
+        try:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer()
+            self.dir = os.path.relpath(select.values[0], self.base_dir)
+            await self.refresh(interaction)
+        except Exception as ex:
+            interaction.client.log.exception(ex)
+
+    @discord.ui.button(label="Select", style=discord.ButtonStyle.green)
+    async def on_pick(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label="Up", style=discord.ButtonStyle.secondary)
+    async def on_up(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        if self.dir:
+            self.dir = os.path.dirname(self.dir)
+            await self.refresh(interaction)
+
+    @discord.ui.button(label="Create", style=discord.ButtonStyle.primary)
+    async def on_create(self, interaction: discord.Interaction, button: Button):
+        class TextModal(Modal, title="Create Directory"):
+            name = TextInput(label="Name", max_length=80, required=True)
+
+            async def on_submit(derived, interaction: discord.Interaction) -> None:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.defer()
+                derived.stop()
+
+        modal = TextModal()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if not await modal.wait():
+            new_name = re.sub(r'[\\/\.]', '', modal.name.value)
+            await self.node.create_directory(os.path.join(self.directory, new_name))
+            if self.dir:
+                self.dir = os.path.join(self.dir, new_name)
+            else:
+                self.dir = modal.name.value
+            await self.refresh(interaction)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def on_cancel(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.base_dir = self.dir = None
+        self.stop()
+
+
+class UploadHandler:
+
+    def __init__(self, message: discord.Message):
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
+
+        self.message = message
+        self.bot = ServiceRegistry.get(BotService).bot
+        self.bus = ServiceRegistry.get(ServiceBus)
+        self.log = logger
+        self.pattern = None
+        self.ctx = None
+        self.server = None
+
+    async def is_valid(self, pattern: list[str], roles: list[Union[int, str]]) -> bool:
+        # ignore bot messages or messages that do not contain miz attachments
+        if (self.message.author.bot or not self.message.attachments or
+                not any(att.filename.lower().endswith(ext) for ext in pattern for att in self.message.attachments)):
+            return False
+        self.pattern = pattern
+        # check if the user has the correct role to upload, defaults to DCS Admin
+        if not utils.check_roles(roles, self.message.author):
+            return False
+        self.ctx = await self.bot.get_context(self.message)
+        self.server = await self.get_server()
+        return True
+
+    async def get_server(self) -> Optional[Server]:
+        # check if there is a central admin channel configured
+        admin_channel = self.bot.locals.get('channels', {}).get('admin')
+        if not admin_channel or admin_channel != self.message.channel.id:
+            return None
+        server = await utils.server_selection(self.bus, self.ctx, title=_("To which server do you want to upload?"))
+        if not server:
+            await self.ctx.send(_('Upload aborted.'))
+            return None
+        return server
+
+    async def get_directory(self, directory: str, ignore_list: Optional[list[str]] = None) -> Optional[str]:
+        # do we have multiple sub-directories to upload to?
+        view = DirectoryPicker(self.server.node, directory, ignore=ignore_list)
+        embed = await view.render(init=True)
+        if embed:
+            msg = await self.ctx.send(embed=embed, view=view)
+            try:
+                if await view.wait():
+                    await self.ctx.send(_('Upload aborted.'))
+                    return None
+                directory = view.directory
+                if not directory:
+                    await self.ctx.send(_('Upload aborted.'))
+                    return None
+            finally:
+                await msg.delete()
+        return directory
+
+    async def upload_file(self, directory: str, att: discord.Attachment) -> UploadStatus:
+        self.log.debug(f"Uploading {att.filename} to {self.server.name} ...")
+        rc = await self.server.node.write_file(os.path.join(directory, att.filename), att.url, overwrite=False)
+        if rc == UploadStatus.FILE_EXISTS:
+            self.log.debug("File exists, asking for overwrite.")
+            if not await utils.yn_question(self.ctx, _('File exists. Do you want to overwrite it?')):
+                await self.ctx.send(_('Upload aborted.'))
+                return rc
+        if rc != UploadStatus.OK:
+            rc = await self.server.node.write_file(os.path.join(directory, att.filename), att.url, overwrite=True)
+            if rc != UploadStatus.OK:
+                self.log.debug(f"Error while uploading: {rc}")
+                await self.ctx.send(_('Error while uploading: {}').format(rc.name))
+        return rc
+
+    async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
+        rc = await self.upload_file(directory, att)
+        if rc == UploadStatus.OK:
+            await self.bot.audit(f'uploaded file "{os.path.basename(att.filename)}"',
+                                 server=self.server, user=self.message.author)
+        return rc
+
+    async def post_upload(self, uploaded: list[discord.Attachment]):
+        ...
+
+    async def upload(self, base_dir: str, ignore_list: Optional[list[str]] = None):
+        directory = await self.get_directory(base_dir, ignore_list)
+        if not directory:
+            return
+
+        attachments = [
+            att for att in self.message.attachments
+            if any(att.filename.lower().endswith(ext) for ext in self.pattern)
+        ]
+        # run all uploads in parallel
+        tasks = [self.handle_attachment(directory, att) for att in attachments]
+        ret_vals = await asyncio.gather(*tasks)
+
+        uploaded = []
+        for idx, ret in enumerate(ret_vals):
+            if ret == UploadStatus.OK:
+                uploaded.append(attachments[idx])
+
+        # handle aftermath
+        await self.post_upload(uploaded)

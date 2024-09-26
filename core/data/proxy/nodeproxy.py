@@ -1,8 +1,9 @@
 import os
 
-from core.services.registry import ServiceRegistry
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
+from core.services.registry import ServiceRegistry
+from core.utils import cache_with_expiration
 from pathlib import Path
 from typing import Union, Optional, TYPE_CHECKING
 
@@ -133,6 +134,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=600)
 
+    @cache_with_expiration(expiration=60)
     async def get_installed_modules(self) -> list[str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -142,6 +144,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @cache_with_expiration(expiration=60)
     async def get_available_modules(self) -> list[str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -151,6 +154,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
         return data['return']
 
+    @cache_with_expiration(expiration=60)
     async def get_latest_version(self, branch: str) -> Optional[str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -204,7 +208,9 @@ class NodeProxy(Node):
         }, timeout=timeout, node=self.name)
         return UploadStatus(data["return"])
 
-    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
+    @cache_with_expiration(expiration=60)
+    async def list_directory(self, path: str, *, pattern: str = '*', order: SortOrder = SortOrder.DATE,
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -213,10 +219,24 @@ class NodeProxy(Node):
             "params": {
                 "path": path,
                 "pattern": pattern,
-                "order": order.value
+                "order": order.value,
+                "is_dir": is_dir,
+                "ignore": ignore,
+                "traverse": traverse
             }
         }, node=self.name, timeout=timeout)
         return data['return']
+
+    async def create_directory(self, path: str):
+        timeout = 60 if not self.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "create_directory",
+            "params": {
+                "path": path
+            }
+        }, node=self.name, timeout=timeout)
 
     async def remove_file(self, path: str):
         timeout = 60 if not self.slow_system else 120

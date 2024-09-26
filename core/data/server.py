@@ -39,7 +39,7 @@ _ = get_translation('core')
 @dataclass
 class Server(DataObject):
     port: int
-    _instance: Instance = field(default=None)
+    _instance: Instance = field(compare=False, default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
@@ -373,7 +373,7 @@ class Server(DataObject):
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
         raise NotImplemented()
 
     async def listAvailableMissions(self) -> list[str]:

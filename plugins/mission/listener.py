@@ -744,7 +744,7 @@ class MissionEventListener(EventListener):
                     if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members."
                 # show the server name on central admin channels
-                if self.bot.locals.get('admin_channel'):
+                if self.bot.locals.get('channels', {}).get('admin'):
                     message = f"{server.display_name}: " + message
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:

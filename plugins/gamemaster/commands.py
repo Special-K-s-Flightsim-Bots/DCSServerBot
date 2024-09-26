@@ -1,21 +1,19 @@
-import aiohttp
 import asyncio
-import json
 import discord
 import os
 import psycopg
 from psycopg.rows import dict_row
 
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, UploadStatus, \
-    get_translation, PlayerType
+from core import (Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, get_translation,
+                  PlayerType)
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
-from jsonschema import validate, ValidationError
 from services.bot import DCSServerBot
 from typing import Optional, Literal, Union
 
 from .listener import GameMasterEventListener
+from .upload import GameMasterUploadHandler
 from .views import CampaignModal, ScriptModal, MessageModal, MessageView
 
 _ = get_translation(__name__.split('.')[1])
@@ -32,7 +30,7 @@ async def scriptfile_autocomplete(interaction: discord.Interaction, current: str
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))
             for x in await server.node.list_directory(os.path.join(await server.get_missions_dir(), 'Scripts'),
-                                                      pattern='*.lua')
+                                                      pattern='*.lua', traverse=True)
             if not current or current.casefold() in x.casefold()
         ]
         return choices[:25]
@@ -459,93 +457,17 @@ class GameMaster(Plugin):
                     'roles': [x.id for x in after.roles]
                 })
 
-    async def _create_embed(self, message: discord.Message) -> None:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(message.attachments[0].url) as response:
-                if response.status == 200:
-                    data = await response.json(encoding="utf-8")
-                    with open(os.path.join('plugins', self.plugin_name, 'schemas', 'embed_schema.json'),
-                              mode='r') as infile:
-                        schema = json.load(infile)
-                    try:
-                        validate(instance=data, schema=schema)
-                    except ValidationError:
-                        return
-                    embed = utils.format_embed(data, bot=self.bot, bus=self.bus, node=self.bus.node,
-                                               user=message.author)
-                    msg = None
-                    if 'message_id' in data:
-                        try:
-                            msg = await message.channel.fetch_message(int(data['message_id']))
-                            await msg.edit(embed=embed)
-                        except discord.errors.NotFound:
-                            msg = None
-                        except discord.errors.DiscordException as ex:
-                            self.log.exception(ex)
-                            await message.channel.send(_('Error while updating embed!'))
-                            return
-                    if not msg:
-                        await message.channel.send(embed=embed)
-                    await message.delete()
-                else:
-                    await message.channel.send(_('Error {} while reading JSON file!').format(response.status))
-
-    async def _upload_lua(self, message: discord.Message) -> int:
-        # check if the upload happens in the servers admin channel (if provided)
-        server: Server = self.bot.get_server(message, admin_only=True)
-        ctx = await self.bot.get_context(message)
-        if not server:
-            # check if there is a central admin channel configured
-            if self.bot.locals.get('admin_channel', 0) == message.channel.id:
-                try:
-                    server = await utils.server_selection(
-                        self.bus, ctx, title=_("To which server do you want to upload this LUA to?"))
-                    if not server:
-                        await ctx.send(_('Aborted.'))
-                        return -1
-                except Exception as ex:
-                    self.log.exception(ex)
-                    return -1
-            else:
-                return -1
-        num = 0
-        for attachment in message.attachments:
-            if not attachment.filename.endswith('.lua'):
-                continue
-            filename = os.path.normpath(os.path.join(await server.get_missions_dir(), 'Scripts', attachment.filename))
-            rc = await server.node.write_file(filename, attachment.url)
-            if rc == UploadStatus.OK:
-                num += 1
-                continue
-            if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
-                await message.channel.send(_('Aborted.'))
-                continue
-            rc = await server.node.write_file(filename, attachment.url, overwrite=True)
-            if rc != UploadStatus.OK:
-                await message.channel.send(_("File {} could not be uploaded.").format(attachment.filename))
-            else:
-                num += 1
-        return num
-
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages
-        if message.author.bot:
-            return
-        if message.attachments:
-            if (message.attachments[0].filename.endswith('.json') and
-                    utils.check_roles(self.bot.roles['DCS Admin'], message.author)):
-                await self._create_embed(message)
-            elif (message.attachments[0].filename.endswith('.lua') and
-                  utils.check_roles(self.bot.roles['DCS Admin'], message.author)):
-                num = await self._upload_lua(message)
-                if num > 0:
-                    await message.channel.send(
-                        _("{num} LUA files uploaded. You can load any of them with {command} now.").format(
-                            num=num, command=(await utils.get_command(self.bot, name='do_script_file')).mention
-                        )
-                    )
-                    await message.delete()
+        handler = GameMasterUploadHandler(plugin=self, message=message)
+        if await handler.is_valid(pattern=['.lua'], roles=self.bot.roles['DCS Admin']):
+            try:
+                base_dir = os.path.join(await handler.server.get_missions_dir(), 'Scripts')
+                await handler.upload(base_dir)
+            except Exception as ex:
+                self.log.exception(ex)
+            finally:
+                await message.delete()
         else:
             for server in self.bot.servers.values():
                 if server.status != Status.RUNNING:

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from core import Server, Status, utils, Coalition
+from core.utils.helper import async_cache, cache_with_expiration
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from typing import Optional, Union, Any
@@ -24,6 +26,7 @@ class ServerProxy(Server):
     def is_remote(self) -> bool:
         return True
 
+    @async_cache
     async def get_missions_dir(self) -> str:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -138,7 +141,7 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -147,12 +150,14 @@ class ServerProxy(Server):
             "params": {
                 "filename": filename,
                 "url": url,
-                "force": force
+                "force": force,
+                "missions_dir": missions_dir
             },
             "server_name": self.name
         }, timeout=timeout, node=self.node.name)
         return UploadStatus(data["return"])
 
+    @cache_with_expiration(expiration=30)
     async def listAvailableMissions(self) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({

@@ -16,8 +16,6 @@ from core import (
     CloudRotatingFileHandler
 )
 from datetime import datetime
-from install import Install
-from migrate import migrate
 from pid import PidFile, PidFileError
 from rich import print
 from rich.console import Console
@@ -225,12 +223,16 @@ if __name__ == "__main__":
 
     # Call the DCSServerBot 2.x migration utility
     if os.path.exists(os.path.join(args.config, 'dcsserverbot.ini')):
-        migrate(node=args.node)
+        from migrate import migrate_3
+
+        migrate_3(node=args.node)
     try:
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
                 rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
             except FatalException:
+                from install import Install
+
                 Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
                 rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
     except PermissionError:
