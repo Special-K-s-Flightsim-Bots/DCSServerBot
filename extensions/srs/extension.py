@@ -17,6 +17,7 @@ import tempfile
 if sys.platform == 'win32':
     import ctypes
 
+from aiohttp import ClientConnectionError
 from configparser import RawConfigParser
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
@@ -421,15 +422,18 @@ class SRS(Extension, FileSystemEventHandler):
             return False
 
     async def check_for_updates(self) -> Optional[str]:
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-            async with session.get(SRS_GITHUB_URL) as response:
-                if response.status in [200, 302]:
-                    version = response.url.raw_parts[-1]
-                    if version != self.version:
-                        return version
-                    else:
-                        return None
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get(SRS_GITHUB_URL) as response:
+                    if response.status in [200, 302]:
+                        version = response.url.raw_parts[-1]
+                        if version != self.version:
+                            return version
+                        else:
+                            return None
+        except ClientConnectionError:
+            return None
 
     def do_update(self):
         try:

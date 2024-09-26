@@ -245,35 +245,35 @@ class Tacview(Extension):
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
             while not self.stop_event.is_set():
-                while not os.path.exists(logfile):
-                    self.log_pos = 0
-                    await asyncio.sleep(1)
-                async with (aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file):
-                    max_pos = os.fstat(file.fileno()).st_size
-                    # initial start or no new data, continue
-                    if self.log_pos == -1 or max_pos == self.log_pos:
-                        self.log_pos = max_pos
-                        await asyncio.sleep(1)
-                        continue
-                    # if the logfile was rotated, seek to the beginning of the file
-                    elif max_pos < self.log_pos:
+                try:
+                    while not os.path.exists(logfile):
                         self.log_pos = 0
+                        await asyncio.sleep(1)
+                    async with (aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file):
+                        max_pos = os.fstat(file.fileno()).st_size
+                        # initial start or no new data, continue
+                        if self.log_pos == -1 or max_pos == self.log_pos:
+                            self.log_pos = max_pos
+                            await asyncio.sleep(1)
+                            continue
+                        # if the logfile was rotated, seek to the beginning of the file
+                        elif max_pos < self.log_pos:
+                            self.log_pos = 0
 
-                    self.log_pos = await file.seek(self.log_pos, 0)
-                    lines = await file.readlines()
-                    for line in lines:
-                        if 'End of flight data recorder.' in line or '=== Log closed.' in line:
-                            self.log_pos = -1
-                            return
-                        match = self.exp.search(line)
-                        if match:
-                            self.log.debug("TACVIEW pattern found.")
-                            # noinspection PyAsyncCall
-                            asyncio.create_task(self.send_tacview_file(match.group('filename')))
-                    self.log_pos = await file.tell()
-
-        except Exception as ex:
-            self.log.exception(ex)
+                        self.log_pos = await file.seek(self.log_pos, 0)
+                        lines = await file.readlines()
+                        for line in lines:
+                            if 'End of flight data recorder.' in line or '=== Log closed.' in line:
+                                self.log_pos = -1
+                                return
+                            match = self.exp.search(line)
+                            if match:
+                                self.log.debug("TACVIEW pattern found.")
+                                # noinspection PyAsyncCall
+                                asyncio.create_task(self.send_tacview_file(match.group('filename')))
+                        self.log_pos = await file.tell()
+                except Exception as ex:
+                    self.log.exception(ex)
         finally:
             self.stopped.set()
 
@@ -387,6 +387,7 @@ class Tacview(Extension):
             else:
                 os.remove(export_file)
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
+        return True
 
     async def update_instance(self, force: bool) -> bool:
         version = self.get_inst_version()
