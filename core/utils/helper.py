@@ -476,7 +476,8 @@ def cache_with_expiration(expiration: int):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # Generate a key based on function arguments
-            cache_key = (args, frozenset(kwargs.items()))
+            hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
+            cache_key = (args, frozenset(hashable_kwargs.items()))
 
             # Check if the cache is still valid
             if cache_key in cache and cache_key in cache_expiry:
