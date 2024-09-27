@@ -13,6 +13,14 @@ __all__ = ["ServerProxy"]
 class ServerProxy(Server):
     _extensions: Optional[list[dict]] = field(compare=False, default=None)
 
+    def __eq__(self, other):
+        if isinstance(other, ServerProxy):
+            return self.name == other.name
+        return False
+
+    def __hash__(self):
+        return hash(self.name)
+
     async def reload(self):
         timeout = 60 if not self.node.slow_system else 120
         await self.bus.send_to_node_sync({
