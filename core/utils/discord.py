@@ -1476,7 +1476,7 @@ class UploadHandler:
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
         rc = await self.upload_file(directory, att)
         if rc == UploadStatus.OK:
-            await self.bot.audit(f'uploaded file "{os.path.basename(att.filename)}"',
+            await self.bot.audit(f'uploaded file "{utils.escape_string(att.filename)}"',
                                  server=self.server, user=self.message.author)
         return rc
 

@@ -209,7 +209,8 @@ class NodeProxy(Node):
         return UploadStatus(data["return"])
 
     @cache_with_expiration(expiration=60)
-    async def list_directory(self, path: str, *, pattern: str = '*', order: SortOrder = SortOrder.DATE,
+    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+                             order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({

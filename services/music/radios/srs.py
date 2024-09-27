@@ -74,3 +74,5 @@ class SRSRadio(Radio):
             await self.skip()
             while self.queue_worker.is_running():
                 await asyncio.sleep(0.5)
+        else:
+            await self.skip()

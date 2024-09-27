@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import discord
 import eyed3
-import os
 
-from core import utils, ServiceRegistry, Server
-from discord import app_commands
+from core import ServiceRegistry
 from eyed3.id3 import Tag
 from functools import lru_cache
-from pathlib import Path
 
 
 @lru_cache(maxsize=None)
@@ -79,92 +75,3 @@ class Playlist:
                 await conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
                 await conn.execute('DELETE FROM music_radios WHERE playlist_name = %s', (self.playlist,))
                 self._items.clear()
-
-
-async def get_all_playlists(interaction: discord.Interaction) -> list[str]:
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')
-        return [x[0] async for x in cursor]
-
-
-async def playlist_autocomplete(
-        interaction: discord.Interaction,
-        current: str,
-) -> list[app_commands.Choice[str]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    try:
-        playlists = await get_all_playlists(interaction)
-        return [
-            app_commands.Choice(name=playlist, value=playlist)
-            for playlist in playlists if not current or current.casefold() in playlist.casefold()
-        ]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def all_songs_autocomplete(
-        interaction: discord.Interaction,
-        current: str,
-) -> list[app_commands.Choice[str]]:
-    from services.music import MusicService
-
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    try:
-        ret = []
-        service = ServiceRegistry.get(MusicService)
-        music_dir = await service.get_music_dir()
-        for song in [
-            file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)
-        ]:
-            title = get_tag(os.path.join(music_dir, song)).title or song
-            if current and current.casefold() not in title.casefold():
-                continue
-            ret.append(app_commands.Choice(name=title[:100], value=song))
-        return ret[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def songs_autocomplete(
-        interaction: discord.Interaction,
-        current: str,
-) -> list[app_commands.Choice[str]]:
-    from services.music import MusicService
-
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    try:
-        service = ServiceRegistry.get(MusicService)
-        music_dir = await service.get_music_dir()
-        playlist = await Playlist.create(utils.get_interaction_param(interaction, 'playlist'))
-        ret = []
-        for song in playlist.items:
-            title = get_tag(os.path.join(music_dir, song)).title or song
-            if current and current.casefold() not in title.casefold():
-                continue
-            ret.append(app_commands.Choice(name=title[:100], value=song))
-        return ret[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)
-
-
-async def radios_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    from services.music import MusicService
-
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    try:
-        server: Server = await utils.ServerTransformer().transform(
-            interaction, utils.get_interaction_param(interaction, 'server'))
-        if not server:
-            return []
-        service = ServiceRegistry.get(MusicService)
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x, value=x) for x in service.get_config(server)['radios'].keys()
-            if not current or current.casefold() in x.casefold()
-        ]
-        return choices[:25]
-    except Exception as ex:
-        interaction.client.log.exception(ex)

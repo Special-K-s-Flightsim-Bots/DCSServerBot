@@ -821,20 +821,23 @@ class NodeImpl(Node):
                     return UploadStatus.READ_ERROR
         return UploadStatus.OK
 
-    async def list_directory(self, path: str, *, pattern: str = '*', order: SortOrder = SortOrder.DATE,
+    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+                             order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
         directory = Path(os.path.expandvars(path))
         ignore = ignore or []
         ret = []
-
         sort_key = os.path.getmtime if order == SortOrder.DATE else str
+        if isinstance(pattern, str):
+            pattern = [pattern]
 
         def filtered_files():
-            for file in directory.rglob(pattern) if traverse else directory.glob(pattern):
-                if file.name in ignore or os.path.basename(file.parent) in ignore:
-                    continue
-                if (file.is_dir() and is_dir) or (not is_dir and not file.is_dir()):
-                    yield file
+            for pat in pattern:
+                for file in directory.rglob(pat) if traverse else directory.glob(pat):
+                    if file.name in ignore or os.path.basename(file.parent) in ignore:
+                        continue
+                    if (file.is_dir() and is_dir) or (not is_dir and not file.is_dir()):
+                        yield file
 
         for file in sorted(filtered_files(), key=sort_key, reverse=sort_key != str):
             ret.append(str(file))
