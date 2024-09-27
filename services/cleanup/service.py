@@ -24,10 +24,13 @@ class CleanupService(Service):
     async def do_directory_cleanup(self, instance: Instance, config: dict) -> None:
 
         async def check_and_delete(file_path: Path) -> None:
-            file_mtime = await asyncio.to_thread(os.path.getmtime, file_path)
-            if file_mtime < threshold_timestamp:
-                self.log.debug(f"  => {file_path.name} is older than {delete_after} days, deleting ...")
-                await asyncio.to_thread(utils.safe_rmtree, file_path)
+            try:
+                file_mtime = await asyncio.to_thread(os.path.getmtime, file_path)
+                if file_mtime < threshold_timestamp:
+                    self.log.debug(f"  => {file_path.name} is older than {delete_after} days, deleting ...")
+                    await asyncio.to_thread(utils.safe_rmtree, file_path)
+            except Exception as ex:
+                self.log.error(f"Could not delete {file_path}: {ex}")
 
         directory = Path(
             os.path.expandvars(utils.format_string(config['directory'], node=self.node, instance=instance)))
@@ -46,7 +49,10 @@ class CleanupService(Service):
         await asyncio.gather(*tasks)
 
     async def do_channel_cleanup(self, config: dict):
-        await purge_channel(self.node, config['channel'], int(config.get('delete_after', 0)), config.get('ignore'))
+        try:
+            await purge_channel(self.node, config['channel'], int(config.get('delete_after', 0)), config.get('ignore'))
+        except Exception as ex:
+            self.log.error(f"Could not purge channel {config['channel']}: {ex}")
 
     async def do_cleanup(self, instance: Instance) -> None:
         for name, config in self.get_config(instance.server).items():

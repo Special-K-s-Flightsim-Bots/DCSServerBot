@@ -5,7 +5,8 @@ import re
 import shutil
 import sys
 
-from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT
+from core import Extension, utils, ServiceRegistry, Server, get_translation, InstallException, DISCORD_FILE_SIZE_LIMIT, \
+    Status
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional, Any
@@ -244,7 +245,7 @@ class Tacview(Extension):
             logfile = os.path.expandvars(
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
-            while not self.stop_event.is_set():
+            while not (self.stop_event.is_set() and self.server.status in [Status.RUNNING, Status.PAUSED]):
                 try:
                     while not os.path.exists(logfile):
                         self.log_pos = 0
@@ -271,10 +272,13 @@ class Tacview(Extension):
                                 self.log.debug("TACVIEW pattern found.")
                                 # noinspection PyAsyncCall
                                 asyncio.create_task(self.send_tacview_file(match.group('filename')))
+                                if self.stop_event.is_set():
+                                    return
                         self.log_pos = await file.tell()
                 except Exception as ex:
                     self.log.exception(ex)
         finally:
+            self.log.debug("TACVIEW check_log() stopped.")
             self.stopped.set()
 
     async def send_tacview_file(self, filename: str):

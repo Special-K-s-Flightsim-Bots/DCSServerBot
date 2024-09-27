@@ -880,7 +880,7 @@ class NodeImpl(Node):
             try:
                 branch, old_version = await self.get_dcs_branch_and_version()
                 new_version = await self.get_latest_version(branch)
-            except Exception:
+            except aiohttp.ClientError:
                 self.log.warning("Update check failed, possible server outage at ED.")
                 return
             if new_version and old_version != new_version:
@@ -925,13 +925,20 @@ class NodeImpl(Node):
                             "params": params
                         })
                 else:
+                    if rc == 112:
+                        message = f"DCS World could not be updated on node {self.name} due to missing disk space!"
+                    elif rc == 350:
+                        message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
+                                   f"The updater has requested a **reboot** of the system!")
+                    else:
+                        message = f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
                         "method": "alert",
                         "params": {
                             "title": "DCS Update Issue",
-                            "message": f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                            "message": message
                         }
                     })
         except aiohttp.ClientError as ex:

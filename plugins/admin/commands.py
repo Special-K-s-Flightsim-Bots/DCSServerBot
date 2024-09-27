@@ -325,6 +325,15 @@ class Admin(Plugin):
                                          ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
+            elif rc == 112:
+                await msg.edit(
+                    content=_("DCS World could not be updated on node {name} due to missing disk space!").format(
+                        name=node.name))
+            elif rc == 350:
+                branch, new_version = await node.get_dcs_branch_and_version()
+                await msg.edit(content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
+                                         "The updater has requested a **reboot** of the system!").format(
+                    version=new_version, branch=branch, name=node.name))
             else:
                 await msg.edit(
                     content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc))
