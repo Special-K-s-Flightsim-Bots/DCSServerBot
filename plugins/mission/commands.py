@@ -1584,11 +1584,23 @@ class Mission(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        handler = MissionUploadHandler(plugin=self, message=message)
-        if not await handler.is_valid(pattern=['.miz'],
-                                      roles=self.get_config().get('discord', self.bot.roles['DCS Admin'])):
+        pattern = ['.miz']
+        if not MissionUploadHandler.is_valid(message, pattern,
+                                             self.get_config().get('discord', self.bot.roles['DCS Admin'])):
             return
+        config = self.get_config().get('uploads', {})
+        # check, if upload is enabled
+        if not config.get('enabled', True):
+            self.log.debug("Mission upload is disabled!")
+            return
+
+        # check, if we are in the correct channel
+        server = await MissionUploadHandler.get_server(message)
+        if not server:
+            return
+
         try:
+            handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
             base_dir = await handler.server.get_missions_dir()
             await handler.upload(base_dir, ignore_list=['.dcssb', 'Saves', 'Scripts'])
         except Exception as ex:

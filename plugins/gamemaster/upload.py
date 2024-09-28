@@ -3,7 +3,7 @@ import discord
 import json
 import os
 
-from core import UploadHandler, utils, get_translation, Plugin
+from core import utils, get_translation, Plugin, Server, ServerUploadHandler
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
 from typing import Optional
@@ -11,10 +11,10 @@ from typing import Optional
 _ = get_translation(__name__.split('.')[1])
 
 
-class GameMasterUploadHandler(UploadHandler):
+class GameMasterUploadHandler(ServerUploadHandler):
 
-    def __init__(self, plugin: Plugin, message: discord.Message):
-        super().__init__(message)
+    def __init__(self, plugin: Plugin, server: Server, message: discord.Message, pattern: list[str]):
+        super().__init__(server, message, pattern)
         self.plugin = plugin
         self.log = plugin.log
 
@@ -22,7 +22,7 @@ class GameMasterUploadHandler(UploadHandler):
         async with aiohttp.ClientSession() as session:
             async with session.get(att.url) as response:
                 if response.status != 200:
-                    await self.ctx.send(_('Error {} while reading JSON file!').format(response.status))
+                    await self.channel.send(_('Error {} while reading JSON file!').format(response.status))
                     return
                 data = await response.json(encoding="utf-8")
 
@@ -32,20 +32,20 @@ class GameMasterUploadHandler(UploadHandler):
             validate(instance=data, schema=schema)
         except ValidationError:
             return
-        embed = utils.format_embed(data, bot=self.bot, bus=self.bus, node=self.bus.node, user=self.message.author)
+        embed = utils.format_embed(data, server=self.server, user=self.message.author)
         msg = None
         if 'message_id' in data:
             try:
-                msg = await self.ctx.fetch_message(int(data['message_id']))
+                msg = await self.channel.fetch_message(int(data['message_id']))
                 await msg.edit(embed=embed)
             except discord.errors.NotFound:
                 msg = None
             except discord.errors.DiscordException as ex:
                 self.log.exception(ex)
-                await self.message.channel.send(_('Error while updating embed!'))
+                await self.channel.send(_('Error while updating embed!'))
                 return
         if not msg:
-            await self.ctx.send(embed=embed)
+            await self.channel.send(embed=embed)
         await self.message.delete()
 
     async def upload(self, base_dir: str, ignore_list: Optional[list[str]] = None):
@@ -58,7 +58,7 @@ class GameMasterUploadHandler(UploadHandler):
     async def post_upload(self, uploaded: list[discord.Attachment]):
         num = len(uploaded)
         if num > 0:
-            await self.ctx.send(
+            await self.channel.send(
                 _("{num} LUA files uploaded. You can load any of them with {command} now.").format(
                     num=num, command=(await utils.get_command(self.bot, name='do_script_file')).mention
                 )

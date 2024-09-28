@@ -1,4 +1,3 @@
-import aiohttp
 import asyncio
 import discord
 import os
@@ -6,7 +5,7 @@ import os
 import psycopg
 
 from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, \
-    get_translation, DirectoryPicker
+    get_translation, NodeUploadHandler
 from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
@@ -259,73 +258,17 @@ class Music(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-
-        async def get_directory(ctx: commands.Context, directory: str) -> Optional[str]:
-            # do we have multiple sub-directories to upload to?
-            view = DirectoryPicker(self.node, directory)
-            embed = await view.render(init=True)
-            if embed:
-                msg = await ctx.send(embed=embed, view=view)
-                try:
-                    if await view.wait():
-                        await ctx.send(_('Upload aborted.'))
-                        return None
-                    directory = view.directory
-                    if not directory:
-                        await ctx.send(_('Upload aborted.'))
-                        return None
-                finally:
-                    await msg.delete()
-            return directory
-
-        # ignore bot messages or messages that do not contain music attachments
-        if message.author.bot or not message.attachments:
+        pattern =  ['.mp3', '.ogg']
+        if not NodeUploadHandler.is_valid(message, pattern, self.bot.roles['DCS Admin']):
             return
-        # only DCS Admin role is allowed to upload music in the servers admin channel
-        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
-            return
-        delete = True
         try:
-            ctx = await self.bot.get_context(message)
-            music_dir = await get_directory(ctx, await self.service.get_music_dir())
-            for att in message.attachments:
-                if att.filename[-4:] not in ['.mp3', '.ogg']:
-                    delete = False
-                    return
-                if len(att.filename) > 100:
-                    ext = att.filename[-4:]
-                    filename = os.path.join(music_dir, (att.filename[:-4])[:96] + ext)
-                else:
-                    filename = os.path.join(music_dir, att.filename)
-                if os.path.exists(filename):
-                    if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
-                        continue
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(att.url) as response:
-                            if response.status == 200:
-                                with open(filename, mode='wb') as outfile:
-                                    outfile.write(await response.read())
-                                await message.channel.send(_('Song {} uploaded.').format(
-                                    utils.escape_string(att.filename)))
-                                await self.bot.audit(f'uploaded song "{utils.escape_string(att.filename)}"',
-                                                     user=message.author)
-
-                            else:
-                                await message.channel.send(_('Error {status} while reading file {file}!').format(
-                                        status=response.status, file=utils.escape_string(att.filename)))
-                except (aiohttp.ClientError, OSError) as ex:
-                    self.log.error(f"Error while uploading file {att.filename} {ex}")
-                    await message.channel.send(_('Error while uploading file {file}! See log for details').format(
-                        file=utils.escape_string(att.filename)))
+            handler = NodeUploadHandler(self.node, message, pattern)
+            base_dir = await self.service.get_music_dir()
+            await handler.upload(base_dir)
         except Exception as ex:
             self.log.exception(ex)
         finally:
-            if delete:
-                try:
-                    await message.delete()
-                except discord.NotFound:
-                    pass
+            await message.delete()
 
 
 async def setup(bot: DCSServerBot):

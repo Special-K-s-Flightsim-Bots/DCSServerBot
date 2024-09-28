@@ -69,7 +69,8 @@ __all__ = [
     "get_command",
     "ConfigModal",
     "DirectoryPicker",
-    "UploadHandler"
+    "NodeUploadHandler",
+    "ServerUploadHandler"
 ]
 
 # Internationalisation
@@ -1402,82 +1403,71 @@ class DirectoryPicker(discord.ui.View):
         self.stop()
 
 
-class UploadHandler:
+class NodeUploadHandler(View):
 
-    def __init__(self, message: discord.Message):
+    def __init__(self, node: Node, message: discord.Message, pattern: list[str], *, timeout: Optional[int] = 180.0):
         from services.bot import BotService
-        from services.servicebus import ServiceBus
 
+        super().__init__(timeout=timeout)
+        self.node = node
         self.message = message
+        self.channel = message.channel
+        self.log = node.log
         self.bot = ServiceRegistry.get(BotService).bot
-        self.bus = ServiceRegistry.get(ServiceBus)
-        self.log = logger
-        self.pattern = None
-        self.ctx = None
-        self.server = None
-
-    async def is_valid(self, pattern: list[str], roles: list[Union[int, str]]) -> bool:
-        # ignore bot messages or messages that do not contain miz attachments
-        if (self.message.author.bot or not self.message.attachments or
-                not any(att.filename.lower().endswith(ext) for ext in pattern for att in self.message.attachments)):
-            return False
         self.pattern = pattern
-        # check if the user has the correct role to upload, defaults to DCS Admin
-        if not utils.check_roles(roles, self.message.author):
-            return False
-        self.ctx = await self.bot.get_context(self.message)
-        self.server = await self.get_server()
-        return True
 
-    async def get_server(self) -> Optional[Server]:
-        # check if there is a central admin channel configured
-        admin_channel = self.bot.locals.get('channels', {}).get('admin')
-        if not admin_channel or admin_channel != self.message.channel.id:
-            return None
-        server = await utils.server_selection(self.bus, self.ctx, title=_("To which server do you want to upload?"))
-        if not server:
-            await self.ctx.send(_('Upload aborted.'))
-            return None
-        return server
+    @staticmethod
+    def is_valid(message: discord.Message, pattern: list[str], roles: list[Union[int, str]]) -> bool:
+        # ignore bot messages or messages that do not contain miz attachments
+        if (message.author.bot or not message.attachments or
+                not any(att.filename.lower().endswith(ext) for ext in pattern for att in message.attachments)):
+            return False
+        # check if the user has the correct role to upload, defaults to DCS Admin
+        if not utils.check_roles(roles, message.author):
+            return False
+        return True
 
     async def get_directory(self, directory: str, ignore_list: Optional[list[str]] = None) -> Optional[str]:
         # do we have multiple sub-directories to upload to?
-        view = DirectoryPicker(self.server.node, directory, ignore=ignore_list)
+        view = DirectoryPicker(self.node, directory, ignore=ignore_list)
         embed = await view.render(init=True)
         if embed:
-            msg = await self.ctx.send(embed=embed, view=view)
+            msg = await self.channel.send(embed=embed, view=view)
             try:
                 if await view.wait():
-                    await self.ctx.send(_('Upload aborted.'))
+                    await self.channel.send(_('Upload aborted.'))
                     return None
                 directory = view.directory
                 if not directory:
-                    await self.ctx.send(_('Upload aborted.'))
+                    await self.channel.send(_('Upload aborted.'))
                     return None
             finally:
                 await msg.delete()
         return directory
 
     async def upload_file(self, directory: str, att: discord.Attachment) -> UploadStatus:
-        self.log.debug(f"Uploading {att.filename} to {self.server.name} ...")
-        rc = await self.server.node.write_file(os.path.join(directory, att.filename), att.url, overwrite=False)
+        self.log.debug(f"Uploading {att.filename} to {self.node.name}:{directory} ...")
+        filename = os.path.join(directory, att.filename)
+        rc = await self.node.write_file(filename, att.url, overwrite=False)
         if rc == UploadStatus.FILE_EXISTS:
             self.log.debug("File exists, asking for overwrite.")
-            if not await utils.yn_question(self.ctx, _('File exists. Do you want to overwrite it?')):
-                await self.ctx.send(_('Upload aborted.'))
+            ctx = await self.bot.get_context(self.message)
+            if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
+                await self.channel.send(_('Upload aborted.'))
                 return rc
         if rc != UploadStatus.OK:
-            rc = await self.server.node.write_file(os.path.join(directory, att.filename), att.url, overwrite=True)
+            rc = await self.node.write_file(filename, att.url, overwrite=True)
             if rc != UploadStatus.OK:
                 self.log.debug(f"Error while uploading: {rc}")
-                await self.ctx.send(_('Error while uploading: {}').format(rc.name))
+                await self.channel.send(_('Error while uploading: {}').format(rc.name))
         return rc
 
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
         rc = await self.upload_file(directory, att)
         if rc == UploadStatus.OK:
+            await self.channel.send(_("File {} uploaded.").format(utils.escape_string(att.filename)))
             await self.bot.audit(f'uploaded file "{utils.escape_string(att.filename)}"',
-                                 server=self.server, user=self.message.author)
+                                 node=self.node, user=self.message.author)
         return rc
 
     async def post_upload(self, uploaded: list[discord.Attachment]):
@@ -1503,3 +1493,28 @@ class UploadHandler:
 
         # handle aftermath
         await self.post_upload(uploaded)
+
+
+class ServerUploadHandler(NodeUploadHandler):
+
+    def __init__(self, server: Server, message: discord.Message, pattern: list[str], *, timeout: Optional[int] = 180.0):
+        super().__init__(server.node, message, pattern, timeout=timeout)
+        self.server = server
+
+    @staticmethod
+    async def get_server(message: discord.Message) -> Optional[Server]:
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
+
+        bot = ServiceRegistry.get(BotService).bot
+        bus = ServiceRegistry.get(ServiceBus)
+        # check if there is a central admin channel configured
+        admin_channel = bot.locals.get('channels', {}).get('admin')
+        if not admin_channel or admin_channel != message.channel.id:
+            return None
+        ctx = await bot.get_context(message)
+        server = await utils.server_selection(bus, ctx, title=_("To which server do you want to upload?"))
+        if not server:
+            await ctx.send(_('Upload aborted.'))
+            return None
+        return server

@@ -459,8 +459,13 @@ class GameMaster(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        handler = GameMasterUploadHandler(plugin=self, message=message)
-        if await handler.is_valid(pattern=['.lua'], roles=self.bot.roles['DCS Admin']):
+        pattern = ['.lua', '.json']
+
+        if GameMasterUploadHandler.is_valid(message, pattern=pattern, roles=self.bot.roles['DCS Admin']):
+            server = await GameMasterUploadHandler.get_server(message)
+            if not server:
+                return
+            handler = GameMasterUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
             try:
                 base_dir = os.path.join(await handler.server.get_missions_dir(), 'Scripts')
                 await handler.upload(base_dir)

@@ -61,6 +61,9 @@ class Node:
         self.guild_id: int = int(self.config['guild_id'])
         self.slow_system: bool = False
 
+    def __repr__(self):
+        return self.name
+
     @property
     def master(self) -> bool:
         raise NotImplemented()
