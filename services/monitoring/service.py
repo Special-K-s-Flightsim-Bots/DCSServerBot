@@ -201,6 +201,7 @@ class MonitoringService(Service):
                     # check extension states
                     for ext in [x for x in server.extensions.values() if not await asyncio.to_thread(x.is_running)]:
                         try:
+                            self.log.warning(f"{ext.name} died - restarting ...")
                             await ext.startup()
                         except Exception as ex:
                             self.log.exception(ex)
