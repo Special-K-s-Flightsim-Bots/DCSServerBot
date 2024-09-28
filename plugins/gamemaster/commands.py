@@ -468,7 +468,7 @@ class GameMaster(Plugin):
                 self.log.exception(ex)
             finally:
                 await message.delete()
-        else:
+        elif not message.author.bot:
             for server in self.bot.servers.values():
                 if server.status != Status.RUNNING:
                     continue
