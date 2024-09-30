@@ -421,7 +421,7 @@ class NodeImpl(Node):
                 data = json.loads(await cfg.read())
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
-            if "openbeta" in dcs_branch:
+            if "openbeta" in self.dcs_branch:
                 self.log.debug("You're running DCS OpenBeta, which is discontinued. "
                                "Use /dcs update if you want to switch to the release branch.")
         return self.dcs_branch, self.dcs_version
