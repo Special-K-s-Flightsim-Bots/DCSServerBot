@@ -230,7 +230,14 @@ class ServerImpl(Server):
                     self._init_mission_list()
                 else:
                     self._make_missions_unique()
-            super().set_status(status)
+                super().set_status(status)
+            elif self._status in [Status.UNREGISTERED, Status.LOADING] and status in [Status.RUNNING, Status.PAUSED]:
+                asyncio.create_task(self.init_extensions())
+                asyncio.create_task(self._startup_extensions(status))
+            elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and status in [Status.STOPPED, Status.SHUTDOWN]:
+                asyncio.create_task(self._shutdown_extensions(status))
+            else:
+                super().set_status(status)
 
     def _install_luas(self):
         dcs_path = os.path.join(self.instance.home, 'Scripts')
@@ -523,13 +530,13 @@ class ServerImpl(Server):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
             else:
                 utils.desanitize(self)
+        self.status = Status.LOADING
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
             await self.apply_mission_changes()
         await asyncio.to_thread(self.do_startup)
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
-        self.status = Status.LOADING
         try:
             await self.wait_for_status_change([Status.SHUTDOWN, Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
             if self.status == Status.SHUTDOWN:
@@ -542,8 +549,7 @@ class ServerImpl(Server):
                 self.status = Status.SHUTDOWN
             raise
 
-    @performance_log()
-    async def startup_extensions(self) -> None:
+    async def _startup_extensions(self, status: Status) -> None:
         not_running_extensions = [
             ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
         ]
@@ -556,8 +562,10 @@ class ServerImpl(Server):
                 tb_str = "".join(
                     traceback.format_exception(type(res), res, res.__traceback__))
                 self.log.error(f"Error during startup_extension(): %s", tb_str)
+        # set the status after the extensions have been started
+        super().set_status(status)
 
-    async def shutdown_extensions(self) -> None:
+    async def _shutdown_extensions(self, status: Status) -> None:
         running_extensions = [
             ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
         ]
@@ -568,6 +576,9 @@ class ServerImpl(Server):
         for res in results:
             if isinstance(res, Exception):
                 self.log.error(f"Error during shutdown_extension()", exc_info=res)
+
+        # set the status after the extensions have been shut down
+        super().set_status(status)
 
     async def shutdown(self, force: bool = False) -> None:
         if await self.is_running():
@@ -687,9 +698,6 @@ class ServerImpl(Server):
         if stopped:
             await self.start()
         return UploadStatus.OK
-
-    async def listAvailableMissions(self) -> list[str]:
-        return [str(x) for x in sorted(Path(PurePath(self.instance.missions_dir)).glob("*.miz"))]
 
     async def getMissionList(self) -> list[str]:
         return self.settings.get('missionList', [])

@@ -1498,8 +1498,7 @@ class Mission(Plugin):
 #                    else:
 #                        continue
                 name = channel.name
-                # if the server owner leaves, the server is shut down
-                if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
+                if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING, Status.SHUTTING_DOWN]:
                     if name.find('［') == -1:
                         name = name + '［-］'
                     else:

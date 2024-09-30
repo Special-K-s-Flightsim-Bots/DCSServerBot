@@ -19,10 +19,11 @@ class Side(Enum):
 class Status(Enum):
     UNREGISTERED = 'Unregistered'
     SHUTDOWN = 'Shutdown'
+    LOADING = 'Loading'
     RUNNING = 'Running'
     PAUSED = 'Paused'
     STOPPED = 'Stopped'
-    LOADING = 'Loading'
+    SHUTTING_DOWN = 'Shutting down'
 
 
 class Coalition(Enum):

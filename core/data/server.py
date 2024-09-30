@@ -131,7 +131,7 @@ class Server(DataObject):
         else:
             new_status = status
         if new_status != self._status:
-            # self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
+            #self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
             self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
@@ -275,12 +275,6 @@ class Server(DataObject):
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         raise NotImplemented()
 
-    async def startup_extensions(self) -> None:
-        raise NotImplemented()
-
-    async def shutdown_extensions(self) -> None:
-        raise NotImplemented()
-
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
         with PerformanceLog(f"DCS: dcsbot.{message['command']}()"):
             future = self.bus.loop.create_future()
@@ -376,9 +370,6 @@ class Server(DataObject):
     async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
         raise NotImplemented()
 
-    async def listAvailableMissions(self) -> list[str]:
-        raise NotImplemented()
-
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         raise NotImplemented()
 
@@ -414,6 +405,7 @@ class Server(DataObject):
 
     @performance_log()
     async def shutdown(self, force: bool = False) -> None:
+        self.status = Status.SHUTTING_DOWN
         slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
         await self.send_to_dcs({"command": "shutdown"})

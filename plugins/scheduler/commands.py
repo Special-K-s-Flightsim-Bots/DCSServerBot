@@ -390,7 +390,7 @@ class Scheduler(Plugin):
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
-            if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
+            if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN] or server.maintenance:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
@@ -467,6 +467,11 @@ class Scheduler(Plugin):
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
                                                     f"Please wait or use /server shutdown force instead.",
                                                     ephemeral=True)
+        elif server.status == Status.SHUTTING_DOWN:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is shutting down.\n"
+                                                    f"Please wait or use /server shutdown force instead.",
+                                                    ephemeral=True)
         elif server.status == Status.SHUTDOWN:
             ephemeral = utils.get_ephemeral(interaction)
             # noinspection PyUnresolvedReferences
@@ -528,7 +533,7 @@ class Scheduler(Plugin):
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[
-                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING
+                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.SHUTTING_DOWN
                            ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
         async def do_shutdown(*, force: bool = False):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
@@ -554,7 +559,7 @@ class Scheduler(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        if server.status in [Status.UNREGISTERED, Status.LOADING]:
+        if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
             if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"
                                                              f"Do you want to force a shutdown?", ephemeral=ephemeral):
                 await do_shutdown(force=True)

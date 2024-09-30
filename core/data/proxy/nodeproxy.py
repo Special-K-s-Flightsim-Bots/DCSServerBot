@@ -114,6 +114,7 @@ class NodeProxy(Node):
         }, node=self.name, timeout=600)
         return data['return']
 
+    @cache_with_expiration(expiration=30)
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
@@ -313,6 +314,7 @@ class NodeProxy(Node):
             }
         }, node=self.name, timeout=timeout)
 
+    @cache_with_expiration(expiration=60)
     async def find_all_instances(self) -> list[tuple[str, str]]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({

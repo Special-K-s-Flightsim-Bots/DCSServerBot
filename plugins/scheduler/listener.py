@@ -139,26 +139,9 @@ class SchedulerListener(EventListener):
                 await server.start()
         server.restart_pending = False
 
-    async def _init_extensions(self, server: Server) -> None:
-        try:
-            await server.init_extensions()
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"Timeout while initializing extensions for server {server.name}!")
-
-    async def _startup_extensions(self, server: Server) -> None:
-        try:
-            await server.startup_extensions()
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"Timeout while starting extensions for server {server.name}!")
-
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync-'):
-            # noinspection PyAsyncCall
-            asyncio.create_task(self._init_extensions(server))
-            if data.get('players'):
-                # noinspection PyAsyncCall
-                asyncio.create_task(self._startup_extensions(server))
             self.set_restart_time(server)
 
     @event(name="onPlayerStart")
@@ -209,8 +192,6 @@ class SchedulerListener(EventListener):
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
-        # noinspection PyAsyncCall
-        asyncio.create_task(self._startup_extensions(server))
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
             # noinspection PyAsyncCall
@@ -231,17 +212,6 @@ class SchedulerListener(EventListener):
         if config and 'onMissionEnd' in config:
             # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onMissionEnd']))
-
-    async def _shutdown_extensions(self, server: Server) -> None:
-        try:
-            await server.shutdown_extensions()
-        except (TimeoutError, asyncio.TimeoutError):
-            self.log.error(f"Timeout while shutting down extensions for server {server.name}!")
-
-    @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, _: dict) -> None:
-        # noinspection PyAsyncCall
-        asyncio.create_task(self._shutdown_extensions(server))
 
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, _: dict) -> None:

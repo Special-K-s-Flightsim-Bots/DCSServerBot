@@ -164,9 +164,9 @@ class MonitoringService(Service):
             await self.warn_admins(server, title=f'Server \"{server.name}\" unreachable', message=message)
 
     async def heartbeat(self):
-        for server in list(self.bus.servers.values()):  # type: ServerImpl
+        for server in self.bus.servers.values():  # type: ServerImpl
             # don't test remote servers or servers that are not initialized or shutdown
-            if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
+            if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTTING_DOWN, Status.SHUTDOWN]:
                 continue
             # check if the process is dead (on load it might take some seconds for the process to appear)
             if server.process and not await server.is_running():
