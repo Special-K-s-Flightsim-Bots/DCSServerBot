@@ -469,16 +469,25 @@ class NodeImpl(Node):
             # call before update hooks
             for callback in self.before_update.values():
                 await callback()
+            old_branch, old_version = await self.get_dcs_branch_and_version()
             rc = await do_update(branch)
-            if rc == 0:
+            if rc in [0, 350]:
                 self.dcs_branch = self.dcs_version = None
+                dcs_branch, dcs_version = await self.get_dcs_branch_and_version()
+                # if only the updater updated itself, run the update again
+                if old_branch == dcs_branch and old_version == dcs_version:
+                    self.log.info("dcs_updater.exe updated to the latest version, now updating DCS World ...")
+                    rc = await do_update(branch)
+                    self.dcs_branch = self.dcs_version = None
+                    if rc not in [0, 350]:
+                        return rc
                 if self.locals['DCS'].get('desanitize', True):
                     if not self.locals['DCS'].get('cloud', False) or self.master:
                         utils.desanitize(self)
                 # call after update hooks
                 for callback in self.after_update.values():
                     await callback()
-                self.log.info(f"{self.installation} updated to the latest version.")
+                self.log.info(f"{self.installation} updated to version {dcs_version}.")
                 self.update_pending = False
             return rc
 
