@@ -1,5 +1,6 @@
 import luadata
 import os
+import psycopg
 import shutil
 
 from core import Instance, InstanceBusyError, Status, utils, DataObjectFactory
@@ -44,18 +45,22 @@ class InstanceImpl(Instance):
         self.update_instance(server_name)
 
     def update_instance(self, server_name: Optional[str] = None):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                # clean up old server name entries to avoid conflicts
-                conn.execute("""
-                    DELETE FROM instances WHERE server_name = %s
-                """, (server_name, ))
-                conn.execute("""
-                    INSERT INTO instances (node, instance, port, server_name)
-                    VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT (node, instance) DO UPDATE 
-                    SET port=excluded.port, server_name=excluded.server_name 
-                """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
+        try:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    # clean up old server name entries to avoid conflicts
+                    conn.execute("""
+                        DELETE FROM instances WHERE server_name = %s
+                    """, (server_name, ))
+                    conn.execute("""
+                        INSERT INTO instances (node, instance, port, server_name)
+                        VALUES (%s, %s, %s, %s) 
+                        ON CONFLICT (node, instance) DO UPDATE 
+                        SET port=excluded.port, server_name=excluded.server_name 
+                    """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
+        except psycopg.errors.UniqueViolation:
+            self.log.error(f"bot_port {self.locals.get('bot_port', 6666)} is already in use on node {self.node.name}!")
+            raise
 
     @property
     def home(self) -> str:
