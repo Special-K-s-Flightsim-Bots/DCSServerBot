@@ -17,6 +17,9 @@ import sys
 
 from collections import defaultdict
 from contextlib import closing
+
+from psutil import Process
+
 from core import utils, Status
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
@@ -444,9 +447,10 @@ class NodeImpl(Node):
                     if branch:
                         cmd.append(f"@{branch}")
 
-                    process = subprocess.run(
+                    process = subprocess.Popen(
                         cmd, startupinfo=startupinfo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                     )
+                    process.communicate()
                     return process.returncode
                 except Exception as ex:
                     self.log.exception(ex)
