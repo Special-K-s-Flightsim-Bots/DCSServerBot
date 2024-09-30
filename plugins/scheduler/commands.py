@@ -541,7 +541,7 @@ class Scheduler(Plugin):
             # set maintenance flag to prevent auto-starts of this server
             server.maintenance = maintenance
             if force:
-                await server.shutdown()
+                await server.shutdown(force=True)
             else:
                 await self.teardown_dcs(server, interaction.user)
             if maintenance:
@@ -613,7 +613,7 @@ class Scheduler(Plugin):
             maintenance = server.maintenance
             server.maintenance = True
             if force:
-                await server.shutdown()
+                await server.shutdown(force=True)
             else:
                 await self.teardown_dcs(server, interaction.user)
             await msg.edit(content=f"Server \"{server.display_name}\" shut down. Restarting ...")

@@ -403,15 +403,8 @@ class Server(DataObject):
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
 
-    @performance_log()
     async def shutdown(self, force: bool = False) -> None:
-        self.status = Status.SHUTTING_DOWN
-        slow_system = self.node.locals.get('slow_system', False)
-        timeout = 300 if slow_system else 180
-        await self.send_to_dcs({"command": "shutdown"})
-        with suppress(TimeoutError, asyncio.TimeoutError):
-            await self.wait_for_status_change([Status.STOPPED, Status.SHUTDOWN], timeout)
-        self.current_mission = None
+        raise NotImplemented()
 
     async def init_extensions(self) -> list[str]:
         raise NotImplemented()

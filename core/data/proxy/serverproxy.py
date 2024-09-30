@@ -97,7 +97,6 @@ class ServerProxy(Server):
 
     async def shutdown(self, force: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
-        await super().shutdown(force)
         if self.status != Status.SHUTDOWN:
             await self.bus.send_to_node_sync({
                 "command": "rpc",

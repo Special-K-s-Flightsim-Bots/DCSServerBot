@@ -580,10 +580,19 @@ class ServerImpl(Server):
         # set the status after the extensions have been shut down
         super().set_status(status)
 
+    async def do_shutdown(self):
+        self.status = Status.SHUTTING_DOWN
+        slow_system = self.node.locals.get('slow_system', False)
+        timeout = 300 if slow_system else 180
+        await self.send_to_dcs({"command": "shutdown"})
+        with suppress(TimeoutError, asyncio.TimeoutError):
+            await self.wait_for_status_change([Status.STOPPED, Status.SHUTDOWN], timeout)
+        self.current_mission = None
+
     async def shutdown(self, force: bool = False) -> None:
         if await self.is_running():
             if not force:
-                await super().shutdown(False)
+                await self.do_shutdown()
                 # wait 30/60s for the process to terminate
                 for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
                     if not self.process.is_running():
