@@ -223,18 +223,22 @@ class ServerImpl(Server):
             self._settings['listStartIndex'] = new_start + 1
 
     def set_status(self, status: Union[Status, str]):
+        self.log.info(">> set_status()")
         if status != self._status:
             # make sure the mission list is tidy on the first start
             if self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
+                self.log.info(">> U => S")
                 if self.locals.get('autoscan', False):
                     self._init_mission_list()
                 else:
                     self._make_missions_unique()
                 super().set_status(status)
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and status in [Status.RUNNING, Status.PAUSED]:
+                self.log.info(">> U,L => R,P")
                 asyncio.create_task(self.init_extensions())
                 asyncio.create_task(self._startup_extensions(status))
             elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and status in [Status.STOPPED, Status.SHUTDOWN]:
+                self.log.info(">> R,P,S => S,S")
                 asyncio.create_task(self._shutdown_extensions(status))
             else:
                 super().set_status(status)
