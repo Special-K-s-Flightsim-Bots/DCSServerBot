@@ -223,22 +223,22 @@ class ServerImpl(Server):
             self._settings['listStartIndex'] = new_start + 1
 
     def set_status(self, status: Union[Status, str]):
-        self.log.info(">> set_status()")
-        if status != self._status:
+        if isinstance(status, str):
+            new_status = Status(status)
+        else:
+            new_status = status
+        if new_status != self._status:
             # make sure the mission list is tidy on the first start
             if self._status == Status.UNREGISTERED and status == Status.SHUTDOWN:
-                self.log.info(">> U => S")
                 if self.locals.get('autoscan', False):
                     self._init_mission_list()
                 else:
                     self._make_missions_unique()
                 super().set_status(status)
-            elif self._status in [Status.UNREGISTERED, Status.LOADING] and status in [Status.RUNNING, Status.PAUSED]:
-                self.log.info(">> U,L => R,P")
+            elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
                 asyncio.create_task(self.init_extensions())
                 asyncio.create_task(self._startup_extensions(status))
-            elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and status in [Status.STOPPED, Status.SHUTDOWN]:
-                self.log.info(">> R,P,S => S,S")
+            elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and new_status in [Status.STOPPED, Status.SHUTDOWN]:
                 asyncio.create_task(self._shutdown_extensions(status))
             else:
                 super().set_status(status)
@@ -553,8 +553,7 @@ class ServerImpl(Server):
                 self.status = Status.SHUTDOWN
             raise
 
-    async def _startup_extensions(self, status: Status) -> None:
-        self.log.info(">> startup_extensions()")
+    async def _startup_extensions(self, status: Union[Status, str]) -> None:
         not_running_extensions = [
             ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
         ]
@@ -570,8 +569,7 @@ class ServerImpl(Server):
         # set the status after the extensions have been started
         super().set_status(status)
 
-    async def _shutdown_extensions(self, status: Status) -> None:
-        self.log.info(">> shutdown_extensions()")
+    async def _shutdown_extensions(self, status: Union[Status, str]) -> None:
         running_extensions = [
             ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
         ]
