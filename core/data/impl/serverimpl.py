@@ -550,6 +550,7 @@ class ServerImpl(Server):
             raise
 
     async def _startup_extensions(self, status: Status) -> None:
+        self.log.info(">> startup_extensions()")
         not_running_extensions = [
             ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
         ]
@@ -566,6 +567,7 @@ class ServerImpl(Server):
         super().set_status(status)
 
     async def _shutdown_extensions(self, status: Status) -> None:
+        self.log.info(">> shutdown_extensions()")
         running_extensions = [
             ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
         ]
