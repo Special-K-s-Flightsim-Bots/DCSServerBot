@@ -131,7 +131,7 @@ class Server(DataObject):
         else:
             new_status = status
         if new_status != self._status:
-            #self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
+            self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
             self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
