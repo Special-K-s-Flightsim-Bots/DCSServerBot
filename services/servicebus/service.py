@@ -296,7 +296,7 @@ class ServiceBus(Service):
             server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
-        server.dcs_version = data['dcs_version']
+        server.dcs_version = self.node.dcs_version or data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:
             if 'current_mission' in data:
