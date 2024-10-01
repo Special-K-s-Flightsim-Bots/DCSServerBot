@@ -133,6 +133,7 @@ class ServiceBus(Service):
                     "node": self.node.name
                 }
             })
+            self.log.debug('- Unregistered from Master node.')
         await self.intercom_channel.close()
         await super().stop()
 
@@ -156,7 +157,6 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     async def init_servers(self):
-        self.log.debug("- init_servers()")
         for instance in self.node.instances:
             try:
                 async with self.apool.connection() as conn:
@@ -296,7 +296,7 @@ class ServiceBus(Service):
             server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
-        server.dcs_version = data['dcs_version']
+        server.dcs_version = self.node.dcs_version or data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:
             if 'current_mission' in data:
