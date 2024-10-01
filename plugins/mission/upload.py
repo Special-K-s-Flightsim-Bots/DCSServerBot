@@ -2,7 +2,7 @@ import asyncio
 import discord
 import os
 
-from core import UploadStatus, utils, get_translation, Status, Plugin, Server
+from core import UploadStatus, utils, get_translation, Status, Plugin, Server, ServiceRegistry
 from core.utils.discord import ServerUploadHandler
 from typing import Optional
 
@@ -15,7 +15,6 @@ class MissionUploadHandler(ServerUploadHandler):
         super().__init__(server, message, pattern)
         self.plugin = plugin
         self.log = plugin.log
-
 
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
         ctx = await self.bot.get_context(self.message)

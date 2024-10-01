@@ -1507,14 +1507,12 @@ class ServerUploadHandler(NodeUploadHandler):
         from services.servicebus import ServiceBus
 
         bot = ServiceRegistry.get(BotService).bot
-        bus = ServiceRegistry.get(ServiceBus)
-        # check if there is a central admin channel configured
-        admin_channel = bot.locals.get('channels', {}).get('admin')
-        if not admin_channel or admin_channel != message.channel.id:
-            return None
-        ctx = await bot.get_context(message)
-        server = await utils.server_selection(bus, ctx, title=_("To which server do you want to upload?"))
-        if not server:
-            await ctx.send(_('Upload aborted.'))
-            return None
+        server = bot.get_server(message)
+        if not server and message.channel.id == bot.locals.get('channels', {}).get('admin'):
+            bus = ServiceRegistry.get(ServiceBus)
+            ctx = await bot.get_context(message)
+            server = await utils.server_selection(bus, ctx, title=_("To which server do you want to upload?"))
+            if not server:
+                await ctx.send(_('Upload aborted.'))
+                return None
         return server
