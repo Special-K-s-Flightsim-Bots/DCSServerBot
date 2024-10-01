@@ -13,6 +13,7 @@ from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, Ser
     ThreadSafeDict
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
+from core.data.impl.instanceimpl import InstanceImpl
 from core.data.impl.serverimpl import ServerImpl
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -309,25 +310,25 @@ class ServiceBus(Service):
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
-        for server in self.servers.values():
+        for s in self.servers.values():
             # only check ports of local servers
-            if server.is_remote or server.status == Status.SHUTDOWN:
+            if s.is_remote or s.status == Status.SHUTDOWN:
                 continue
-            dcs_port = int(server.settings.get('port', 10308))
+            dcs_port = int(s.settings.get('port', 10308))
             if dcs_port in dcs_ports:
-                self.log.error(f'Server "{server.name}" shares its DCS port with server '
+                self.log.error(f'Server "{s.name}" shares its DCS port with server '
                                f'"{dcs_ports[dcs_port]}"! Registration aborted.')
                 return False
             else:
-                dcs_ports[dcs_port] = server.name
-            autoexec = Autoexec(server.instance)
+                dcs_ports[dcs_port] = s.name
+            autoexec = Autoexec(cast(InstanceImpl, s.instance))
             webgui_port = autoexec.webgui_port or 8088
             if webgui_port in webgui_ports:
-                self.log.error(f'Server "{server.name}" shares its webgui_port with server '
+                self.log.error(f'Server "{s.name}" shares its webgui_port with server '
                                f'"{webgui_ports[webgui_port]}"! Registration aborted.')
                 return False
             else:
-                webgui_ports[webgui_port] = server.name
+                webgui_ports[webgui_port] = s.name
         # check for DSMC
         if server.status == Status.RUNNING and data.get('dsmc_enabled', False) and 'DSMC' not in server.extensions:
             self.log.warning("  => DSMC is enabled for this server but DSMC extension is not loaded!")
@@ -664,7 +665,11 @@ class ServiceBus(Service):
                 if not derived.request or not derived.request[0]:
                     self.log.warning(f"Empty request received on port {self.node.listen_port} - ignoring.")
                     return
-                data: dict = json.loads(derived.request[0].strip())
+                try:
+                    data: dict = json.loads(derived.request[0].strip())
+                except json.JSONDecodeError:
+                    self.log.warning(f"Invalid request received on port {self.node.listen_port} - ignoring.")
+                    return
                 # ignore messages not containing server names
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
