@@ -266,19 +266,9 @@ class LotAtc(Extension, FileSystemEventHandler):
         return False
 
     async def install(self):
-        def ignore_funct(dirname, filenames) -> list[str]:
-            ignored = []
-            for item in filenames:
-                path = os.path.join(dirname, item)
-                relpath = os.path.relpath(path, from_path)
-                to_path = os.path.join(self.server.instance.home, relpath)
-                if utils.is_junction(to_path):
-                    ignored.append(item)
-            return ignored
-
         major_version, _ = self.get_inst_version()
         from_path = os.path.join(self.get_inst_path(), 'server', major_version)
-        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True, ignore=ignore_funct)
+        shutil.copytree(from_path, self.server.instance.home, dirs_exist_ok=True)
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
 
     async def uninstall(self):
