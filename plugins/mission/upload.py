@@ -21,7 +21,7 @@ class MissionUploadHandler(ServerUploadHandler):
         rc = await self.server.uploadMission(att.filename, att.url, force=False, missions_dir=directory)
         if rc == UploadStatus.FILE_IN_USE:
             if not await utils.yn_question(ctx, _('A mission is currently active.\n'
-                                                       'Do you want me to stop the DCS-server to replace it?')):
+                                                  'Do you want me to stop the DCS-server to replace it?')):
                 await self.channel.send(_('Upload aborted.'))
                 return rc
         elif rc == UploadStatus.FILE_EXISTS:
@@ -90,12 +90,24 @@ class MissionUploadHandler(ServerUploadHandler):
             await self.channel.send(_('Mission {} loaded.').format(name))
 
     async def post_upload(self, uploaded: list[discord.Attachment]):
+        if len(uploaded) != 1:
+            return
         # if only one mission was uploaded, ask if it should be loaded and load it
-        if len(uploaded) == 1:
-            filename = await self._wait_for_mission(uploaded[0])
-            if not filename:
-                msg = 'Error while uploading: File not found in severSettings.lua!'
-                self.log.error(msg)
-                await self.channel.send(_(msg))
+        filename = await self._wait_for_mission(uploaded[0])
+        if not filename:
+            msg = 'Error while uploading: File not found in severSettings.lua!'
+            self.log.error(msg)
+            await self.channel.send(_(msg))
+            return
+        stopped = False
+        if self.server.is_populated():
+            ctx = await self.bot.get_context(self.message)
+            if not await utils.yn_question(ctx, _("People are flying on this server.\n"
+                                                  "Do you want to stop it and load the new mission?")):
+                await self.channel.send("Aborted.")
                 return
-            await self._load_mission(filename)
+            await self.server.stop()
+            stopped = True
+        await self._load_mission(filename)
+        if stopped:
+            await self.server.start()
