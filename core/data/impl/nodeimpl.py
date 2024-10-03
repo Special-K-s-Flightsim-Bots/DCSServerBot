@@ -99,7 +99,7 @@ class NodeImpl(Node):
         self.locals = self.read_locals()
         if sys.platform == 'win32':
             from os import system
-            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version}")
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
