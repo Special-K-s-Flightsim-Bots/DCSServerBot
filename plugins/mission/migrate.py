@@ -9,7 +9,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-def migrate_3_6(self: Plugin):
+async def migrate_3_6(self: Plugin):
     filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
     if not os.path.exists(filename):
         return
@@ -50,7 +50,7 @@ def migrate_3_6(self: Plugin):
         self.log.warning(f"New file {path} written, please check for possible errors.")
 
 
-def migrate_3_10(self: Plugin):
+async def migrate_3_10(self: Plugin):
     def _change_instance(instance: dict):
         if instance.get('afk_exemptions') and isinstance(instance['afk_exemptions'], list):
             instance['afk_exemptions'] = {
@@ -75,7 +75,7 @@ def migrate_3_10(self: Plugin):
         yaml.dump(data, outfile)
 
 
-def migrate_3_11(self: Plugin):
+async def migrate_3_11(self: Plugin):
     def _change_instance(instance: dict):
         instance.pop('greeting_message_members', None)
         instance.pop('greeting_message_unmatched', None)
@@ -195,4 +195,22 @@ def migrate_3_11(self: Plugin):
         for instance in data.values():
             _change_instance(instance)
     with open(path, mode='w', encoding='utf-8') as outfile:
+        yaml.dump(data, outfile)
+
+
+async def migrate_3_12(self: Plugin):
+    config = os.path.join(self.node.config_dir, 'main.yaml')
+    data = yaml.load(Path(config).read_text(encoding='utf-8'))
+    if not 'mission_rewrite' in data:
+        return
+    mission_rewrite = data.pop('mission_rewrite')
+    with open(config, mode='w', encoding='utf-8') as outfile:
+        yaml.dump(data, outfile)
+    if mission_rewrite is True:
+        return
+    config = os.path.join(self.node.config_dir, 'nodes.yaml')
+    data = yaml.load(Path(config).read_text(encoding='utf-8'))
+    for name, instance in data.get('instances', {}).items():
+        instance['mission_rewrite'] = False
+    with open(config, mode='w', encoding='utf-8') as outfile:
         yaml.dump(data, outfile)

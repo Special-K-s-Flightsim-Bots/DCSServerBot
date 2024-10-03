@@ -125,7 +125,7 @@ class SchedulerListener(EventListener):
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         elif what['command'] == 'preset':
-            if not server.node.config.get('mission_rewrite', True):
+            if not server.locals.get('mission_rewrite', True):
                 await server.stop()
             filename = await server.get_current_mission_file()
             new_filename = await server.modifyMission(filename,

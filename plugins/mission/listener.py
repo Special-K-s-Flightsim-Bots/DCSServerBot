@@ -1004,7 +1004,7 @@ class MissionEventListener(EventListener):
     async def preset(self, server: Server, player: Player, params: list[str]):
         async def change_preset(preset: str):
             filename = await server.get_current_mission_file()
-            if not server.node.config.get('mission_rewrite', True):
+            if not server.locals.get('mission_rewrite', True):
                 await server.stop()
             new_filename = await server.modifyMission(filename, utils.get_preset(self.node, preset))
             if new_filename != filename:

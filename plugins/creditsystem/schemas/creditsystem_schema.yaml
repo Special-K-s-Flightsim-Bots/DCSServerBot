@@ -11,7 +11,10 @@ schema;master_schema:
         - type: map
           mapping:
             default: {type: int, range: {min: 0}}
-            category: {type: str, enum: ['Planes', 'Helicopters', 'Ships', 'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Locomotive', 'Carriage', 'MissilesSS']}
+            category: {type: str, enum: [
+              'Planes', 'Helicopters', 'Ships', 'Fortifications', 'LTAvehicles', 'WWII structures', 'Animal',
+              'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Infantry', 'Locomotive', 'Carriage', 'MissilesSS'
+            ]}
             type: {type: str, enum: ['AI', 'Player']}
             unit_type: {type: str}
             unit_name: {type: str}

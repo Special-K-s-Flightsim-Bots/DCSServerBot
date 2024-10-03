@@ -24,7 +24,7 @@ class Preset(VotableItem):
         await self.server.sendPopupMessage(Coalition.ALL, message)
         await asyncio.sleep(60)
         filename = await self.server.get_current_mission_file()
-        if not self.server.node.config.get('mission_rewrite', True):
+        if not self.server.locals.get('mission_rewrite', True):
             await self.server.stop()
         new_filename = await self.server.modifyMission(filename, utils.get_preset(self.server.node, winner))
         if new_filename != filename:

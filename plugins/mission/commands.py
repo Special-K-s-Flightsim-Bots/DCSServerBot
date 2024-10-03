@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import importlib
 import os
 import psycopg
 import random
@@ -20,7 +21,6 @@ from services.bot import DCSServerBot
 from typing import Optional, Union, Literal
 
 from .listener import MissionEventListener
-from .migrate import migrate_3_6, migrate_3_10, migrate_3_11
 from .upload import MissionUploadHandler
 from .views import ServerView, PresetView, InfoView
 
@@ -108,12 +108,11 @@ class Mission(Plugin):
         await super().cog_unload()
 
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        if new_version == '3.6':
-            migrate_3_6(self)
-        elif new_version == '3.10':
-            migrate_3_10(self)
-        elif new_version == '3.11':
-            migrate_3_11(self)
+        function_name = f"migrate_{new_version.replace('.', '_')}"
+        migrate_module = importlib.import_module('.migrate', package=__package__)
+        migrate_function = getattr(migrate_module, function_name, None)
+        if callable(migrate_function):
+            await migrate_function(self)
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -566,7 +565,7 @@ class Mission(Plugin):
         else:
             startup = False
             msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
-            if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
+            if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
