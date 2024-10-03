@@ -41,9 +41,10 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
             return []
         base_dir = await server.get_missions_dir()
         installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
+        exp_base, file_list = await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=['.dcssb'])
         choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=os.path.relpath(x, base_dir)[:-4], value=os.path.relpath(x, base_dir))
-            for x in await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=['.dcssb'])
+            app_commands.Choice(name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
+            for x in file_list
             if x not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
         ]
         return choices[:25]
@@ -59,8 +60,9 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
                                                                    utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        orig_files = [os.path.basename(x)[:-9] for x in await server.node.list_directory(
-            await server.get_missions_dir(), pattern='*.orig', traverse=True)]
+        _, file_list = await server.node.list_directory(await server.get_missions_dir(), pattern='*.orig',
+                                                        traverse=True)
+        orig_files = [os.path.basename(x)[:-9] for x in file_list]
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
             for idx, x in enumerate(await server.getMissionList())

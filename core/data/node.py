@@ -162,7 +162,8 @@ class Node:
 
     async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
                              order: SortOrder = SortOrder.DATE,
-                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
+                             ) -> tuple[str, list[str]]:
         raise NotImplemented()
 
     async def create_directory(self, path: str):

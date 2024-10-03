@@ -103,12 +103,13 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
             return []
-        base_dir = os.path.expandvars(config['directory'].format(server=server))
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.relpath(x, base_dir), value=os.path.relpath(x, base_dir))
-            for x in await server.node.list_directory(
+        base_dir = config['directory'].format(server=server)
+        exp_base, file_list = await server.node.list_directory(
                 base_dir, pattern=config['pattern'], traverse=True, ignore=['.dcssb']
             )
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
+            for x in file_list
             if not current or current.casefold() in os.path.relpath(x, base_dir).casefold()
         ]
         return choices[:25]

@@ -27,10 +27,11 @@ async def scriptfile_autocomplete(interaction: discord.Interaction, current: str
                                                                    utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
+        base_dir = os.path.join(await server.get_missions_dir(), 'Scripts')
+        exp_base, file_list = await server.node.list_directory(base_dir, pattern='*.lua', traverse=True)
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))
-            for x in await server.node.list_directory(os.path.join(await server.get_missions_dir(), 'Scripts'),
-                                                      pattern='*.lua', traverse=True)
+            app_commands.Choice(name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
+            for x in file_list
             if not current or current.casefold() in x.casefold()
         ]
         return choices[:25]

@@ -212,7 +212,8 @@ class NodeProxy(Node):
     @cache_with_expiration(expiration=60)
     async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
                              order: SortOrder = SortOrder.DATE,
-                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False) -> list[str]:
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
+                             ) -> tuple[str, list[str]]:
         timeout = 60 if not self.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
