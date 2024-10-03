@@ -103,7 +103,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
             return []
-        base_dir = config['directory'].format(server=server)
+        base_dir = os.path.expandvars(config['directory'].format(server=server))
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.relpath(x, base_dir), value=os.path.relpath(x, base_dir))
             for x in await server.node.list_directory(
