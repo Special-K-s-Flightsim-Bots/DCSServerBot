@@ -391,3 +391,12 @@ class ServerProxy(Server):
                 "name": name
             }
         }, timeout=timeout, node=self.node.name)
+
+    async def cleanup(self) -> None:
+        timeout = 180 if not self.node.slow_system else 300
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "cleanup",
+            "server_name": self.name
+        }, timeout=timeout, node=self.node.name)

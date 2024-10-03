@@ -835,7 +835,7 @@ class Scheduler(Plugin):
         try:
             if server.status != Status.SHUTDOWN:
                 if not await utils.yn_question(interaction,
-                                               f"Do you want to shut down server {server.name} for migration?",
+                                               f"Do you want to shut down server \"{server.name}\" for migration?",
                                                ephemeral=ephemeral):
                     await interaction.followup.send("Aborted", ephemeral=ephemeral)
                 running = True
@@ -921,6 +921,23 @@ class Scheduler(Plugin):
             message += f", if the mission is unpaused again."
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(message, delete_after=60)
+
+    @group.command(name="cleanup", description="Clear the temp directory")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def cleanup(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer(
+                          status=[Status.SHUTDOWN])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        if server.status != Status.SHUTDOWN:
+            if not await utils.yn_question(
+                interaction, f"Do you want to shut down server \"{server.display_name}\" for a cleanup?",
+                ephemeral=ephemeral):
+                return
+            await server.shutdown()
+        await server.cleanup()
+        await interaction.followup.send(f"Server \"{server.display_name}\" cleaned up.", ephemeral=ephemeral)
 
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")

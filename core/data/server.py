@@ -432,3 +432,6 @@ class Server(DataObject):
 
     async def uninstall_extension(self, name: str) -> None:
         raise NotImplemented()
+
+    async def cleanup(self) -> None:
+        raise NotImplemented()

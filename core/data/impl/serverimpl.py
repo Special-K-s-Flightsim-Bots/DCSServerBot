@@ -4,6 +4,8 @@ import asyncio
 import atexit
 import json
 import os
+import tempfile
+
 import psutil
 import shutil
 import socket
@@ -906,3 +908,7 @@ class ServerImpl(Server):
         await ext.uninstall()
         self.extensions.pop(name, None)
         await self.config_extension(name, {"enabled": False})
+
+    async def cleanup(self) -> None:
+        tempdir = os.path.join(tempfile.gettempdir(), self.instance.name)
+        await asyncio.to_thread(utils.safe_rmtree, tempdir)
