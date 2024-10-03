@@ -37,11 +37,11 @@ class Autoexec:
                     value = self.parse(match.group('value').strip())
                     if '.' in key:
                         keys = key.split('.')
-                        if keys[0] not in mydict or not isinstance(keys[0], dict):
-                            mydict[keys[0]] = dict()
+                        if keys[0] not in mydict or not isinstance(mydict[keys[0]], dict):
+                            mydict[keys[0]] = {}
                         if len(keys) == 3:
                             if keys[1] not in mydict[keys[0]]:
-                                mydict[keys[0]][keys[1]] = dict()
+                                mydict[keys[0]][keys[1]] = {}
                             mydict[keys[0]][keys[1]][keys[2]] = value
                         else:
                             mydict[keys[0]][keys[1]] = value
