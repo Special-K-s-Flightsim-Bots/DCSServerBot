@@ -1280,6 +1280,7 @@ class ConfigModal(Modal):
 
 
 class DirectoryPicker(discord.ui.View):
+
     def __init__(self, node: Node, base_dir: str, ignore: Optional[list[str]] = None):
         super().__init__()
         self.node = node
@@ -1330,16 +1331,17 @@ class DirectoryPicker(discord.ui.View):
         return embed
 
     async def create_select(self) -> bool:
-        sub_dirs: list[str] = await self.node.list_directory(self.directory, is_dir=True, ignore=self.ignore,
-                                                             order=SortOrder.NAME)
+        _, sub_dirs = await self.node.list_directory(self.directory, is_dir=True, ignore=self.ignore,
+                                                     order=SortOrder.NAME)
+        select = cast(Select, self.children[0])
         if sub_dirs:
-            select = cast(Select, self.children[0])
             select.options = [
                 SelectOption(label=os.path.basename(x), value=x)
                 for x in sub_dirs if os.path.basename(x)
             ]
             return True
         else:
+            select.options = [SelectOption(label="None", value="None")]
             return False
 
     async def refresh(self, interaction: discord.Interaction) -> None:
@@ -1359,8 +1361,8 @@ class DirectoryPicker(discord.ui.View):
         except Exception as ex:
             interaction.client.log.exception(ex)
 
-    @discord.ui.button(label="Select", style=discord.ButtonStyle.green)
-    async def on_pick(self, interaction: discord.Interaction, button: Button):
+    @discord.ui.button(label="Upload", style=discord.ButtonStyle.green, row=2)
+    async def on_upload(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
@@ -1395,7 +1397,7 @@ class DirectoryPicker(discord.ui.View):
                 self.dir = modal.name.value
             await self.refresh(interaction)
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
     async def on_cancel(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1403,18 +1405,40 @@ class DirectoryPicker(discord.ui.View):
         self.stop()
 
 
-class NodeUploadHandler(View):
+class UploadView(DirectoryPicker):
 
-    def __init__(self, node: Node, message: discord.Message, pattern: list[str], *, timeout: Optional[int] = 180.0):
+    def __init__(self, node: Node, base_dir: str, ignore: Optional[list[str]] = None):
+        super().__init__(node, base_dir, ignore)
+        self.overwrite = False
+
+    async def render(self, init=False) -> Optional[discord.Embed]:
+        embed = await super().render(init)
+        if 'Overwrite' not in cast(Button, self.children[-1]).label:
+            button = Button(label="❌ Overwrite")
+            button.callback = self.on_overwrite
+            self.add_item(button)
+        return embed
+
+    async def on_overwrite(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.overwrite = not self.overwrite
+        cast(Button, self.children[-1]).label = '✔️ Overwrite' if self.overwrite else '❌ Overwrite'
+        await interaction.edit_original_response(view=self)
+
+
+class NodeUploadHandler:
+
+    def __init__(self, node: Node, message: discord.Message, pattern: list[str]):
         from services.bot import BotService
 
-        super().__init__(timeout=timeout)
         self.node = node
         self.message = message
         self.channel = message.channel
         self.log = node.log
         self.bot = ServiceRegistry.get(BotService).bot
         self.pattern = pattern
+        self.overwrite = False
 
     @staticmethod
     def is_valid(message: discord.Message, pattern: list[str], roles: list[Union[int, str]]) -> bool:
@@ -1427,39 +1451,44 @@ class NodeUploadHandler(View):
             return False
         return True
 
-    async def get_directory(self, directory: str, ignore_list: Optional[list[str]] = None) -> Optional[str]:
+    async def render(self, directory: str, ignore_list: Optional[list[str]] = None) -> Optional[str]:
         # do we have multiple sub-directories to upload to?
-        view = DirectoryPicker(self.node, directory, ignore=ignore_list)
-        embed = await view.render(init=True)
-        if embed:
+        view = UploadView(self.node, directory, ignore=ignore_list)
+        embed = await view.render(init=True) or discord.utils.MISSING
+        try:
             msg = await self.channel.send(embed=embed, view=view)
-            try:
-                if await view.wait():
-                    await self.channel.send(_('Upload aborted.'))
-                    return None
-                directory = view.directory
-                if not directory:
-                    await self.channel.send(_('Upload aborted.'))
-                    return None
-            finally:
-                await msg.delete()
+        except Exception as ex:
+            return
+        try:
+            if await view.wait():
+                await self.channel.send(_('Upload aborted.'))
+                return None
+            directory = view.directory
+            self.overwrite = view.overwrite
+            if not directory:
+                await self.channel.send(_('Upload aborted.'))
+                return None
+        finally:
+            await msg.delete()
         return directory
 
     async def upload_file(self, directory: str, att: discord.Attachment) -> UploadStatus:
         self.log.debug(f"Uploading {att.filename} to {self.node.name}:{directory} ...")
         filename = os.path.join(directory, att.filename)
-        rc = await self.node.write_file(filename, att.url, overwrite=False)
-        if rc == UploadStatus.FILE_EXISTS:
-            self.log.debug("File exists, asking for overwrite.")
-            ctx = await self.bot.get_context(self.message)
-            if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
-                await self.channel.send(_('Upload aborted.'))
-                return rc
-        if rc != UploadStatus.OK:
+        if not self.overwrite:
+            rc = await self.node.write_file(filename, att.url, overwrite=False)
+            if rc == UploadStatus.FILE_EXISTS:
+                self.log.debug("File exists, asking for overwrite.")
+                ctx = await self.bot.get_context(self.message)
+                if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
+                    await self.channel.send(_('Upload aborted.'))
+                    return rc
+                rc = await self.node.write_file(filename, att.url, overwrite=True)
+        else:
             rc = await self.node.write_file(filename, att.url, overwrite=True)
-            if rc != UploadStatus.OK:
-                self.log.debug(f"Error while uploading: {rc}")
-                await self.channel.send(_('Error while uploading: {}').format(rc.name))
+        if rc != UploadStatus.OK:
+            self.log.debug(f"Error while uploading: {rc}")
+            await self.channel.send(_('Error while uploading: {}').format(rc.name))
         return rc
 
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
@@ -1474,7 +1503,7 @@ class NodeUploadHandler(View):
         ...
 
     async def upload(self, base_dir: str, ignore_list: Optional[list[str]] = None):
-        directory = await self.get_directory(base_dir, ignore_list)
+        directory = await self.render(base_dir, ignore_list)
         if not directory:
             return
 
@@ -1497,8 +1526,8 @@ class NodeUploadHandler(View):
 
 class ServerUploadHandler(NodeUploadHandler):
 
-    def __init__(self, server: Server, message: discord.Message, pattern: list[str], *, timeout: Optional[int] = 180.0):
-        super().__init__(server.node, message, pattern, timeout=timeout)
+    def __init__(self, server: Server, message: discord.Message, pattern: list[str]):
+        super().__init__(server.node, message, pattern)
         self.server = server
 
     @staticmethod

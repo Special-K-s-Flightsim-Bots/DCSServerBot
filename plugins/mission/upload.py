@@ -2,7 +2,7 @@ import asyncio
 import discord
 import os
 
-from core import UploadStatus, utils, get_translation, Status, Plugin, Server, ServiceRegistry
+from core import UploadStatus, utils, get_translation, Status, Plugin, Server
 from core.utils.discord import ServerUploadHandler
 from typing import Optional
 
