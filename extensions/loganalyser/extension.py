@@ -193,12 +193,16 @@ class LogAnalyser(Extension):
 
     async def disable_upnp(self, idx: int, line: str, match: re.Match):
         autoexec = Autoexec(self.server.instance)
-        autoexec.net |= {
+        net = autoexec.net or {}
+        net |= {
             "use_upnp": False
         }
+        autoexec.net = net
 
     async def terrain_missing(self, idx: int, line: str, match: re.Match):
-        mission = await asyncio.to_thread(MizFile, await self.server.get_current_mission_file())
-        theatre = mission.theatre
-        await self.send_alert(title="Terrain Missing!", message=f"Terrain {theatre} is not installed on this server!\n"
-                                                                f"You can't run mission {mission.filename}.")
+        filename =  await self.server.get_current_mission_file()
+        theatre = await self.server.get_current_mission_theatre()
+        if theatre:
+            await self.send_alert(title="Terrain Missing!",
+                                  message=f"Terrain {theatre} is not installed on this server!\n"
+                                          f"You can't run mission {filename}.")
