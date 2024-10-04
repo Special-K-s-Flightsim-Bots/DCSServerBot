@@ -3,7 +3,7 @@ import asyncio
 import os
 import re
 
-from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec, MizFile
+from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec
 from datetime import datetime
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -200,7 +200,7 @@ class LogAnalyser(Extension):
         autoexec.net = net
 
     async def terrain_missing(self, idx: int, line: str, match: re.Match):
-        filename =  await self.server.get_current_mission_file()
+        filename = await self.server.get_current_mission_file()
         theatre = await self.server.get_current_mission_theatre()
         if theatre:
             await self.send_alert(title="Terrain Missing!",

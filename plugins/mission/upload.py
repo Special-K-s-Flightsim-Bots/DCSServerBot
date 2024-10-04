@@ -76,18 +76,17 @@ class MissionUploadHandler(ServerUploadHandler):
                 modify = await utils.yn_question(ctx, _("Do you want to apply extensions before mission start?"))
             else:
                 modify = False
-            tmp = await self.channel.send(_('Loading mission {} ...').format(name))
+            msg = await self.channel.send(_('Loading mission {} ...').format(name))
             try:
-                await self.server.loadMission(filename, modify_mission=modify)
+                if not await self.server.loadMission(filename, modify_mission=modify):
+                    await msg.edit(content=_('Mission {} NOT loaded.').format(name))
+                else:
+                    await self.bot.audit(f"loaded mission {name}", server=self.server, user=self.message.author)
+                    await msg.edit(content=_('Mission {} loaded.').format(name))
             except (TimeoutError, asyncio.TimeoutError):
-                await tmp.delete()
-                await self.channel.send(_("Timeout while trying to load the mission."))
+                await msg.edit(content=_('Timeout while loading mission {}!').format(name))
                 await self.bot.audit(f"Timeout while trying to load mission {name}",
                                      server=self.server)
-                return
-            await self.bot.audit(f"loaded mission {name}", server=self.server, user=self.message.author)
-            await tmp.delete()
-            await self.channel.send(_('Mission {} loaded.').format(name))
 
     async def post_upload(self, uploaded: list[discord.Attachment]):
         if len(uploaded) != 1:

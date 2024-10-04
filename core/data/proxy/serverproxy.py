@@ -314,9 +314,9 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
         timeout = 180 if not self.node.slow_system else 300
-        await self.bus.send_to_node_sync({
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "loadMission",
@@ -326,10 +326,11 @@ class ServerProxy(Server):
                 "modify_mission": modify_mission
             }
         }, timeout=timeout, node=self.node.name)
+        return data['return']
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
         timeout = 180 if not self.node.slow_system else 300
-        await self.bus.send_to_node_sync({
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "loadNextMission",
@@ -338,6 +339,7 @@ class ServerProxy(Server):
                 "modify_mission": modify_mission
             }
         }, timeout=timeout, node=self.node.name)
+        return data['return']
 
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         timeout = 180 if not self.node.slow_system else 300

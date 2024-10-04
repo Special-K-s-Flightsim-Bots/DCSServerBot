@@ -8,7 +8,8 @@ import re
 
 from copy import deepcopy
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation
+    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
+    UnsupportedMizFileException
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Range
@@ -368,18 +369,21 @@ class Mission(Plugin):
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(name),
                     ephemeral=ephemeral)
             else:
-                tmp = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
+                msg = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
                                                       ephemeral=ephemeral)
                 try:
-                    await server.loadMission(mission_id + 1, modify_mission=run_extensions)
-                    await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
-                                         user=interaction.user)
-                    await interaction.followup.send(_('Mission {} loaded.').format(name), ephemeral=ephemeral)
+                    if not await server.loadMission(mission_id + 1, modify_mission=run_extensions):
+                        await msg.edit(content=_('Mission {} NOT loaded. '
+                                                 'Check that you have installed the pre-requisites (terrains, mods).'
+                                                 ).format(name))
+                    else:
+                        await msg.edit(content=_('Mission {} loaded.').format(name))
+                        await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
+                                             user=interaction.user)
                 except (TimeoutError, asyncio.TimeoutError):
-                    await interaction.followup.send(_('Timeout while loading mission {}!').format(name),
-                                                    ephemeral=ephemeral)
-                finally:
-                    await tmp.delete()
+                    await msg.edit(content=_('Timeout while loading mission {}!').format(name))
+                except UnsupportedMizFileException as ex:
+                    await msg.edit(content=ex)
 
     @mission.command(description=_('Loads a mission\n'))
     @app_commands.guild_only()
@@ -606,7 +610,7 @@ class Mission(Plugin):
             with open(config_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
         else:
-            presets = dict()
+            presets = {}
         if name in presets and \
                 not await utils.yn_question(interaction,
                                             _('Do you want to overwrite the existing preset "{}"?').format(name),

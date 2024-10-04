@@ -63,11 +63,14 @@ class ServerView(View):
         await interaction.response.defer()
         self.env.embed.set_footer(text="Loading mission, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
-        await self.server.loadMission(int(interaction.data['values'][0]) + 1)
-        with suppress(TimeoutError, asyncio.TimeoutError):
-            await self.server.wait_for_status_change([Status.RUNNING], 2)
-        await self.render(interaction)
-        await interaction.edit_original_response(embed=self.env.embed, view=self)
+        if not await self.server.loadMission(int(interaction.data['values'][0]) + 1):
+            self.env.embed.set_footer(text="Mission loading failed.")
+            await interaction.edit_original_response(embed=self.env.embed)
+        else:
+            with suppress(TimeoutError, asyncio.TimeoutError):
+                await self.server.wait_for_status_change([Status.RUNNING], 2)
+            await self.render(interaction)
+            await interaction.edit_original_response(embed=self.env.embed, view=self)
 
     async def change_preset(self, interaction: discord.Interaction):
         pass

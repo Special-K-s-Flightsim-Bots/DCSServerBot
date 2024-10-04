@@ -319,7 +319,9 @@ class Scheduler(Plugin):
                         self.log.debug(f"Scheduler: Starting DCS Server {server.name} ...")
                         await self.launch_dcs(server, modify_mission=modify_mission)
                     else:
-                        await server.loadMission(mission=mission_id, modify_mission=modify_mission)
+                        if not await server.loadMission(mission=mission_id, modify_mission=modify_mission):
+                            self.log.error(f"Mission {mission_id} not loaded on server {server.name}")
+                            return
                     await self.bot.audit(f"{self.plugin_name.title()} loaded mission "
                                          f"{server.current_mission.display_name}", server=server)
                 except (TimeoutError, asyncio.TimeoutError):

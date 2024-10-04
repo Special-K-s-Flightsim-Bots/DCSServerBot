@@ -118,12 +118,14 @@ class SchedulerListener(EventListener):
             asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                                f"{server.current_mission.display_name}", server=server))
         elif what['command'] == 'load':
-            await server.loadMission(what['id'])
-            message = f'loaded mission {server.current_mission.display_name}'
-            if 'user' not in what:
-                message = self.plugin_name.title() + ' ' + message
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
+            if not await server.loadMission(what['id']):
+                self.log.warning(f"Mission {server.current_mission.display_name} NOT loaded.")
+            else:
+                message = f'loaded mission {server.current_mission.display_name}'
+                if 'user' not in what:
+                    message = self.plugin_name.title() + ' ' + message
+                # noinspection PyAsyncCall
+                asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         elif what['command'] == 'preset':
             if not server.locals.get('mission_rewrite', True):
                 await server.stop()

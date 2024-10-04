@@ -7,10 +7,9 @@ import shutil
 import tempfile
 import zipfile
 
+from core import utils
 from datetime import datetime
 from typing import Union, Optional
-
-from core import utils
 
 __all__ = [
     "MizFile",
@@ -463,5 +462,7 @@ class MizFile:
 
 
 class UnsupportedMizFileException(Exception):
-    def __init__(self, mizfile: str):
-        super().__init__(f'The mission {mizfile} is not compatible with MizEdit. Please re-save it in DCS World.')
+    def __init__(self, mizfile: str, message: Optional[str] = None):
+        if not message:
+            message = f'The mission {mizfile} is not compatible with MizEdit. Please re-save it in DCS World.'
+        super().__init__(message)

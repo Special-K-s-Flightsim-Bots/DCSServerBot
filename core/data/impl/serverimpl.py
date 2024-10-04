@@ -669,8 +669,7 @@ class ServerImpl(Server):
             return new_filename
         except Exception as ex:
             if isinstance(ex, UnsupportedMizFileException):
-                self.log.error(
-                    f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
+                self.log.error(ex)
             else:
                 self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
@@ -825,7 +824,7 @@ class ServerImpl(Server):
             missions[mission_id - 1] = path
             self.settings['missionList'] = missions
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
         if isinstance(mission, int):
             if mission > len(self.settings['missionList']):
                 mission = 1
@@ -838,11 +837,15 @@ class ServerImpl(Server):
         try:
             idx = self.settings['missionList'].index(filename) + 1
             if idx == int(self.settings['listStartIndex']):
-                await self.send_to_dcs({"command": "startMission", "filename": filename})
+                rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
             else:
-                await self.send_to_dcs({"command": "startMission", "id": idx})
+                rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})
         except ValueError:
-            await self.send_to_dcs({"command": "startMission", "filename": filename})
+            rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
+        # We could not load the mission
+        if not rc['result']:
+            return False
+        # else, wait for the mission to be loaded
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
@@ -850,9 +853,23 @@ class ServerImpl(Server):
             await self.send_to_dcs({"command": "start_server"})
         # wait until we are running again
         await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
+        return True
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
-        await self.loadMission(int(self.settings['listStartIndex']) + 1, modify_mission)
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
+        init_mission_id = int(self.settings['listStartIndex'])
+        max_mission_id = len(self.settings['missionList'])
+        mission_id = init_mission_id + 1
+        if mission_id > max_mission_id:
+            mission_id = 1
+        while not await self.loadMission(mission_id, modify_mission):
+            mission_id += 1
+            if mission_id > max_mission_id:
+                mission_id = 1
+            if mission_id == init_mission_id:
+                break
+        else:
+            return True
+        return False
 
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         ext = self.extensions.get(extension)

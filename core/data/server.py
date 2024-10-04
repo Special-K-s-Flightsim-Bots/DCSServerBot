@@ -355,10 +355,10 @@ class Server(DataObject):
     async def replaceMission(self, mission_id: int, path: str) -> None:
         raise NotImplemented()
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
