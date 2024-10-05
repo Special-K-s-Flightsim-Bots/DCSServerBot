@@ -274,7 +274,6 @@ guild_name: My Group      # Non-Discord only: your DCS group name
 autoupdate: true          # use the bots autoupdate functionality, default is false
 use_dashboard: true       # Use the dashboard display for your node. Default is true.
 chat_command_prefix: '-'  # The command prefix to be used for in-game chat commands. Default is "-"
-mission_rewrite: false    # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
 language: de              # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
 database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
@@ -338,6 +337,7 @@ NODENAME:                       # this will usually be your hostname
     DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.release_server' # The path to your saved games directory.
       missions_dir: '%USERPROFILE%\Documents\Missions'        # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
+      mission_rewrite: false    # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       webgui_port: 8088         # The port of the WebGUI (default: 8088)
       dcs_port: 10308           # The DCS port of this instance (default: 10308)

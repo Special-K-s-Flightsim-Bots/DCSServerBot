@@ -95,6 +95,14 @@ msgstr "Обновляю сервер DCS World до самоей новой в�
 msgid "DCS updated to version {version}@{branch} on node {name}."
 msgstr "DCS обновлен до версии {version}@{branch} на ноде {name}."
 
+msgid "DCS World could not be updated on node {name} due to missing disk space!"
+msgstr "DCS World не был обновлен на ноде {name}, недостаточно дискового пространства!"
+
+msgid "DCS World updated to version {version}@{branch} on node {name}.\n"
+"The updater has requested a **reboot** of the system!"
+msgstr "DCS World был обновлен до {version}@{branch} на ноде {name}.\n"
+"Обновление запросило **перезагрузку** системы!"
+
 msgid "Error while updating DCS on node {name}, code={rc}"
 msgstr "Ошибка во время обновления DCS на ноде {name}, код={rc}"
 

@@ -319,7 +319,9 @@ class Scheduler(Plugin):
                         self.log.debug(f"Scheduler: Starting DCS Server {server.name} ...")
                         await self.launch_dcs(server, modify_mission=modify_mission)
                     else:
-                        await server.loadMission(mission=mission_id, modify_mission=modify_mission)
+                        if not await server.loadMission(mission=mission_id, modify_mission=modify_mission):
+                            self.log.error(f"Mission {mission_id} not loaded on server {server.name}")
+                            return
                     await self.bot.audit(f"{self.plugin_name.title()} loaded mission "
                                          f"{server.current_mission.display_name}", server=server)
                 except (TimeoutError, asyncio.TimeoutError):
@@ -390,7 +392,7 @@ class Scheduler(Plugin):
         startup_delay = self.get_config().get('startup_delay', 10)
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
-            if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
+            if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN] or server.maintenance:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
@@ -467,6 +469,11 @@ class Scheduler(Plugin):
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
                                                     f"Please wait or use /server shutdown force instead.",
                                                     ephemeral=True)
+        elif server.status == Status.SHUTTING_DOWN:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is shutting down.\n"
+                                                    f"Please wait or use /server shutdown force instead.",
+                                                    ephemeral=True)
         elif server.status == Status.SHUTDOWN:
             ephemeral = utils.get_ephemeral(interaction)
             # noinspection PyUnresolvedReferences
@@ -528,7 +535,7 @@ class Scheduler(Plugin):
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[
-                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING
+                               Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.SHUTTING_DOWN
                            ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
         async def do_shutdown(*, force: bool = False):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
@@ -536,7 +543,7 @@ class Scheduler(Plugin):
             # set maintenance flag to prevent auto-starts of this server
             server.maintenance = maintenance
             if force:
-                await server.shutdown()
+                await server.shutdown(force=True)
             else:
                 await self.teardown_dcs(server, interaction.user)
             if maintenance:
@@ -554,7 +561,7 @@ class Scheduler(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        if server.status in [Status.UNREGISTERED, Status.LOADING]:
+        if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
             if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"
                                                              f"Do you want to force a shutdown?", ephemeral=ephemeral):
                 await do_shutdown(force=True)
@@ -608,7 +615,7 @@ class Scheduler(Plugin):
             maintenance = server.maintenance
             server.maintenance = True
             if force:
-                await server.shutdown()
+                await server.shutdown(force=True)
             else:
                 await self.teardown_dcs(server, interaction.user)
             await msg.edit(content=f"Server \"{server.display_name}\" shut down. Restarting ...")
@@ -770,7 +777,7 @@ class Scheduler(Plugin):
                                 "chat": server.locals.get('channels', {}).get('chat', -1)
                             }
                         }
-                        if not self.bot.locals.get('admin_channel'):
+                        if not self.bot.locals.get('channels', {}).get('admin'):
                             config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin',
                                                                                                              -1)
                         with open(config_file, mode='w', encoding='utf-8') as outfile:
@@ -830,7 +837,7 @@ class Scheduler(Plugin):
         try:
             if server.status != Status.SHUTDOWN:
                 if not await utils.yn_question(interaction,
-                                               f"Do you want to shut down server {server.name} for migration?",
+                                               f"Do you want to shut down server \"{server.name}\" for migration?",
                                                ephemeral=ephemeral):
                     await interaction.followup.send("Aborted", ephemeral=ephemeral)
                 running = True
@@ -916,6 +923,23 @@ class Scheduler(Plugin):
             message += f", if the mission is unpaused again."
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(message, delete_after=60)
+
+    @group.command(name="cleanup", description="Clear the temp directory")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def cleanup(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer(
+                          status=[Status.SHUTDOWN])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
+        if server.status != Status.SHUTDOWN:
+            if not await utils.yn_question(
+                interaction, f"Do you want to shut down server \"{server.display_name}\" for a cleanup?",
+                ephemeral=ephemeral):
+                return
+            await server.shutdown()
+        await server.cleanup()
+        await interaction.followup.send(f"Server \"{server.display_name}\" cleaned up.", ephemeral=ephemeral)
 
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")

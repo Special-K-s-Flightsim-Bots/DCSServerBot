@@ -138,7 +138,8 @@ class Command(app_commands.Command):
             del self._params['node']
         # remove server parameter from slash commands if only one server is there
         num_servers = len(bot.servers)
-        if 'server' in self._params and ((num_servers == 1 and nodes == 1) or not bot.locals.get('admin_channel')):
+        if ('server' in self._params and
+                ((num_servers == 1 and nodes == 1) or not bot.locals.get('channels', {}).get('admin'))):
             del self._params['server']
 
     async def _do_call(self, interaction: Interaction, params: Dict[str, Any]) -> T:

@@ -3,6 +3,8 @@ import atexit
 import hashlib
 import json
 import os
+
+import aiofiles
 import psutil
 import stat
 import subprocess
@@ -13,6 +15,8 @@ from threading import Thread
 from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
+
+OLYMPUS_EXPORT_LINE = "pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\Services\Olympus\Scripts\OlympusCameraControl.lua]]); end,nil)"
 
 server_ports: dict[int, str] = dict()
 client_ports: dict[int, str] = dict()
@@ -131,8 +135,12 @@ class Olympus(Extension):
             value = f"http://{self.node.public_ip}:{self.config.get(self.frontend_tag, {}).get('port', 3000)}"
         if self.config.get('show_passwords', False):
             value += ''.join([
-                f"\n{x[0].upper() + x[1:]}: {self.config.get('authentication', {}).get(f'{x}Password', '')}"
-                for x in ['gameMaster', 'blueCommander', 'redCommander']
+                f"\n{y}: {self.config.get('authentication', {}).get(f'{x}Password', '')}"
+                for x, y in [
+                    ('gameMaster', '▫️ GameMaster'),
+                    ('blueCommander', '🔹 Commander'),
+                    ('redCommander', '🔸 Commander')
+                ]
             ])
         return {
             "name": self.__class__.__name__,
@@ -140,53 +148,70 @@ class Olympus(Extension):
             "value": value
         }
 
-    async def prepare(self) -> bool:
+    async def prepare_olympus_json(self):
         global server_ports, client_ports
 
+        try:
+            os.chmod(self.config_path, stat.S_IWUSR)
+        except FileNotFoundError:
+            pass
+        except PermissionError:
+            self.log.warning(
+                f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
+            return False
+        server_port = self.config.get(self.backend_tag, {}).get('port', 3001)
+        if server_ports.get(server_port, self.server.name) != self.server.name:
+            self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
+                           f"server {server_ports[server_port]}!")
+            return False
+        server_ports[server_port] = self.server.name
+        client_port = self.config.get(self.frontend_tag, {}).get('port', 3000)
+        if client_ports.get(client_port, self.server.name) != self.server.name:
+            self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
+                           f"server {client_ports[client_port]}!")
+            return False
+        client_ports[client_port] = self.server.name
+
+        self.locals = self.load_config()
+        default_address = '*' if self.version == '1.0.3.0' else 'localhost'
+        self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', default_address)
+        self.locals[self.backend_tag]['port'] = server_port
+        self.locals[self.frontend_tag]['port'] = client_port
+        self.locals['authentication'] = {
+            "gameMasterPassword": hashlib.sha256(
+                str(self.config.get('authentication', {}).get('gameMasterPassword', '')).encode('utf-8')).hexdigest(),
+            "blueCommanderPassword": hashlib.sha256(
+                str(self.config.get('authentication', {}).get('blueCommanderPassword', '')).encode(
+                    'utf-8')).hexdigest(),
+            "redCommanderPassword": hashlib.sha256(
+                str(self.config.get('authentication', {}).get('redCommanderPassword', '')).encode('utf-8')).hexdigest()
+        }
+        with open(self.config_path, mode='w', encoding='utf-8') as cfg:
+            json.dump(self.locals, cfg, indent=2)
+
+    async def prepare_exports_lua(self):
+        export_file = os.path.join(self.server.instance.home, 'Scripts', 'Export.lua')
+        try:
+            async with aiofiles.open(export_file, mode='r', encoding='utf-8') as infile:
+                lines = await infile.readlines()
+        except FileNotFoundError:
+            lines = []
+        if OLYMPUS_EXPORT_LINE not in lines:
+            lines.append(OLYMPUS_EXPORT_LINE)
+            async with aiofiles.open(export_file, mode='w', encoding='utf-8') as outfile:
+                await outfile.writelines(lines)
+
+    async def prepare(self) -> bool:
         if not self.is_installed():
             return False
         self.log.debug(f"Preparing {self.name} configuration ...")
         try:
-            try:
-                os.chmod(self.config_path, stat.S_IWUSR)
-            except FileNotFoundError:
-                pass
-            except PermissionError:
-                self.log.warning(
-                    f"  => {self.server.name}: No write permission on olympus.json, skipping {self.name}.")
-                return False
-            server_port = self.config.get(self.backend_tag, {}).get('port', 3001)
-            if server_ports.get(server_port, self.server.name) != self.server.name:
-                self.log.error(f"  => {self.server.name}: {self.name} server.port {server_port} already in use by "
-                               f"server {server_ports[server_port]}!")
-                return False
-            server_ports[server_port] = self.server.name
-            client_port = self.config.get(self.frontend_tag, {}).get('port', 3000)
-            if client_ports.get(client_port, self.server.name) != self.server.name:
-                self.log.error(f"  => {self.server.name}: {self.name} client.port {client_port} already in use by "
-                               f"server {client_ports[client_port]}!")
-                return False
-            client_ports[client_port] = self.server.name
-
-            self.locals = self.load_config()
-            default_address = '*' if self.version == '1.0.3.0' else 'localhost'
-            self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', default_address)
-            self.locals[self.backend_tag]['port'] = server_port
-            self.locals[self.frontend_tag]['port'] = client_port
-            self.locals['authentication'] = {
-                "gameMasterPassword": hashlib.sha256(
-                    str(self.config.get('authentication', {}).get('gameMasterPassword', '')).encode('utf-8')).hexdigest(),
-                "blueCommanderPassword": hashlib.sha256(
-                    str(self.config.get('authentication', {}).get('blueCommanderPassword', '')).encode('utf-8')).hexdigest(),
-                "redCommanderPassword": hashlib.sha256(
-                    str(self.config.get('authentication', {}).get('redCommanderPassword', '')).encode('utf-8')).hexdigest()
-            }
-            with open(self.config_path, 'w', encoding='utf-8') as cfg:
-                json.dump(self.locals, cfg, indent=2)
-
+            await self.prepare_olympus_json()
+            if self.version != '1.0.3.0':
+                await self.prepare_exports_lua()
             return await super().prepare()
         except Exception as ex:
-            self.log.error(f"Error during launch of {self.name}: {str(ex)}")
+            self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
             return False
 
     async def startup(self) -> bool:

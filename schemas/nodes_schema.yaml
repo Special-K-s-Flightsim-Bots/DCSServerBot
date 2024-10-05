@@ -39,6 +39,7 @@ mapping:
             mapping:
               home: {type: str}
               missions_dir: {type: str}
+              mission_rewrite: {type: bool}
               autoscan: {type: bool}
               bot_port: {type: int, range: {min: 1025, max: 65535}, required: true}
               webgui_port: {type: int, range: {min: 1025, max: 65535}}

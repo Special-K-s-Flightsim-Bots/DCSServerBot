@@ -17,6 +17,7 @@ import tempfile
 if sys.platform == 'win32':
     import ctypes
 
+from aiohttp import ClientConnectionError
 from configparser import RawConfigParser
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
@@ -332,16 +333,20 @@ class SRS(Extension, FileSystemEventHandler):
             self.clients.clear()
 
     def is_running(self) -> bool:
-        try:
-            server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
-            if server_ip == '0.0.0.0':
+        if not self.process:
+            self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+            running = self.process is not None and self.process.is_running()
+        else:
+            try:
+                server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+                if server_ip == '0.0.0.0':
+                    server_ip = '127.0.0.1'
+                ipaddress.ip_address(server_ip)
+            except ValueError:
+                self.log.warning(f"Please check [Server Settings]: SERVER_IP in your {self.config.get('config')}. "
+                                 f"It does not contain a valid IP-address!")
                 server_ip = '127.0.0.1'
-            ipaddress.ip_address(server_ip)
-        except ValueError:
-            self.log.warning(f"Please check [Server Settings]: SERVER_IP in your {self.config.get('config')}. "
-                             f"It does not contain a valid IP-address!")
-            server_ip = '127.0.0.1'
-        running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+            running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
         # start the observer, if we were started to a running SRS server
         if running and not self.observer:
             self.start_observer()
@@ -417,15 +422,18 @@ class SRS(Extension, FileSystemEventHandler):
             return False
 
     async def check_for_updates(self) -> Optional[str]:
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-            async with session.get(SRS_GITHUB_URL) as response:
-                if response.status in [200, 302]:
-                    version = response.url.raw_parts[-1]
-                    if version != self.version:
-                        return version
-                    else:
-                        return None
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get(SRS_GITHUB_URL) as response:
+                    if response.status in [200, 302]:
+                        version = response.url.raw_parts[-1]
+                        if version != self.version:
+                            return version
+                        else:
+                            return None
+        except ClientConnectionError:
+            return None
 
     def do_update(self):
         try:

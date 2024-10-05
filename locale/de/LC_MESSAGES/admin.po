@@ -88,6 +88,14 @@ msgstr "Aktualisiere DCS World auf die aktuellste Version, bitte warten ..."
 msgid "DCS updated to version {version}@{branch} on node {name}."
 msgstr "DCS wurde auf Knoten {name} auf Version {version}@{branch} aktualisiert."
 
+msgid "DCS World could not be updated on node {name} due to missing disk space!"
+msgstr "DCS konnte nicht auf dem Knoten {name} installiert werden, da die Festplatte zu voll ist!"
+
+msgid "DCS World updated to version {version}@{branch} on node {name}.\n"
+"The updater has requested a **reboot** of the system!"
+msgstr "DCS wurde auf Knoten {name} auf Version {version}@{branch} aktualisiert."
+"Der Update-Prozess benötigt noch einen **Reboot** des Systems!"
+
 msgid "Error while updating DCS on node {name}, code={rc}"
 msgstr "Fehler beim Aktualisieren von DCS auf Knoten {name}: Code={rc}"
 

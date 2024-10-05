@@ -17,6 +17,7 @@ import shutil
 import string
 import tempfile
 import threading
+import time
 import unicodedata
 
 # for eval
@@ -27,7 +28,7 @@ from croniter import croniter
 from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable
+from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable, Callable, Any
 from urllib.parse import urlparse
 
 # ruamel YAML support
@@ -60,6 +61,7 @@ __all__ = [
     "matches_cron",
     "dynamic_import",
     "async_cache",
+    "cache_with_expiration",
     "ThreadSafeDict",
     "SettingsDict",
     "RemoteSettingsDict",
@@ -458,6 +460,39 @@ def async_cache(func):
         return result
 
     return wrapper
+
+
+def cache_with_expiration(expiration: int):
+    """
+    Decorator to cache function results for a specific duration.
+
+    :param expiration: Cache duration in seconds.
+    """
+
+    def decorator(func: Callable) -> Callable:
+        cache: dict[Any, Any] = {}
+        cache_expiry: dict[Any, float] = {}
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Generate a key based on function arguments
+            hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
+            cache_key = (args, frozenset(hashable_kwargs.items()))
+
+            # Check if the cache is still valid
+            if cache_key in cache and cache_key in cache_expiry:
+                if time.time() < cache_expiry[cache_key]:
+                    return cache[cache_key]
+
+            # Call the original function and cache its result
+            result = await func(*args, **kwargs)
+            cache[cache_key] = result
+            cache_expiry[cache_key] = time.time() + expiration
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 class ThreadSafeDict(dict):

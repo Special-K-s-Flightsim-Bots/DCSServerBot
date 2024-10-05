@@ -63,10 +63,9 @@ class VotingHandler:
         for reminder in sorted(self.config.get('reminder', []), reverse=True):
             if reminder >= voting_time:
                 continue
-            self.tasks.append(self.loop.call_later(delay=voting_time - reminder,
-                                                   callback=partial(asyncio.create_task, self.remind(reminder))))
-        self.tasks.append(self.loop.call_later(delay=voting_time,
-                                               callback=lambda: asyncio.create_task(self.end_vote())))
+            self.tasks.append(self.loop.call_later(voting_time - reminder,
+                                                   partial(asyncio.create_task, self.remind(reminder))))
+        self.tasks.append(self.loop.call_later(voting_time, lambda: asyncio.create_task(self.end_vote())))
 
     async def vote(self, player: Player, num: int):
         if player in self.voter:

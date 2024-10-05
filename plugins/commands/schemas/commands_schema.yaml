@@ -30,7 +30,7 @@ mapping:
             type: seq
             sequence:
               - type: text
-          server: {type: str}
+          server: {type: any} # can be str or list[str]
           server_only: {type: bool}
           execute:
             include: 'cmd_execute_schema'

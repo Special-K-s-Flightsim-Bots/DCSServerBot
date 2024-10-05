@@ -200,32 +200,37 @@ end
 function dcsbot.startMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: startMission()')
     if json.id ~= nil then
-        net.missionlist_run(json.id)
-        utils.saveSettings({
-            listStartIndex=json.id
-        })
+        json.result = net.missionlist_run(json.id)
+        if json.result == true then
+            utils.saveSettings({
+                listStartIndex=json.id
+            })
+        end
     else
-    	net.load_mission(json.filename)
+        json.result = net.load_mission(json.filename)
     end
+	utils.sendBotTable(json, json.channel)
 end
 
 function dcsbot.startNextMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: startNextMission()')
-	local result = net.load_next_mission()
-	if (result == false) then
-		result = net.missionlist_run(1)
+	json.result = net.load_next_mission()
+	if json.result == false then
+		json.result = net.missionlist_run(1)
 	end
-	if (result == true) then
+	if json.result == true then
         local mission_list = net.missionlist_get()
 		utils.saveSettings({
 			listStartIndex=mission_list["listStartIndex"]
 		})
 	end
+	utils.sendBotTable(json, json.channel)
 end
 
 function dcsbot.restartMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: restartMission()')
-	net.load_mission(DCS.getMissionFilename())
+	json.result = net.load_mission(DCS.getMissionFilename())
+	utils.sendBotTable(json, json.channel)
 end
 
 function dcsbot.pauseMission(json)

@@ -12,7 +12,7 @@ class ConfigView(View):
         self.server = server
         self.cancelled = False
         self.channel_update = False
-        if self.bot.locals.get('admin_channel'):
+        if self.bot.locals.get('channels', {}).get('admin'):
             # noinspection PyUnresolvedReferences
             self.children[0].disabled = True
         # noinspection PyUnresolvedReferences
@@ -31,7 +31,7 @@ class ConfigView(View):
 
     def toggle_config(self) -> bool:
         try:
-            if (self.server.locals.get('channels', {}).get('admin', self.bot.locals.get('admin_channel', -1)) != -1
+            if (self.server.locals.get('channels', {}).get('admin', self.bot.locals.get('channels', {}).get('admin', -1)) != -1
                     and self.server.locals.get('channels', {}).get('status', -1) != -1):
                 # noinspection PyUnresolvedReferences
                 self.children[4].disabled = False

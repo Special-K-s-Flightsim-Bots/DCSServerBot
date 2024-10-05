@@ -1,9 +1,9 @@
 import asyncio
 import os
-from typing import Optional
 
 from core import Coalition, Server
 from plugins.voting.base import VotableItem
+from typing import Optional
 
 
 class Mission(VotableItem):
@@ -30,8 +30,8 @@ class Mission(VotableItem):
         await asyncio.sleep(60)
         for idx, mission in enumerate(await self.server.getMissionList()):
             if winner in mission:
-                await self.server.loadMission(mission=idx + 1, modify_mission=False)
+                asyncio.create_task(self.server.loadMission(mission=idx + 1, modify_mission=False))
                 break
         else:
             mission = os.path.join(await self.server.get_missions_dir(), winner)
-            await self.server.loadMission(mission=mission, modify_mission=False)
+            asyncio.create_task(self.server.loadMission(mission=mission, modify_mission=False))

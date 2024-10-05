@@ -12,7 +12,7 @@ import ssl
 from contextlib import suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
     get_translation
-from discord import app_commands
+from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -42,6 +42,7 @@ class Cloud(Plugin):
             self.cloud_bans.add_exception_type(aiohttp.ClientError)
             self.cloud_bans.add_exception_type(discord.Forbidden)
             self.cloud_bans.add_exception_type(psycopg.DatabaseError)
+            self.cloud_bans.add_exception_type(DiscordServerError)
             self.cloud_bans.start()
         if 'token' in self.config:
             self.cloud_sync.add_exception_type(IndexError)

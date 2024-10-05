@@ -3,7 +3,7 @@ import asyncio
 import os
 import re
 
-from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation
+from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec
 from datetime import datetime
 from services.bot import BotService
 from services.servicebus import ServiceBus
@@ -14,6 +14,8 @@ _ = get_translation(__name__.split('.')[1])
 ERROR_UNLISTED = r"ERROR\s+ASYNCNET\s+\(Main\):\s+Server update failed with code -?\d+\.\s+The server will be unlisted."
 ERROR_SCRIPT = r'Mission script error: \[string "(.*)"\]:(\d+): (.*)'
 MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})-\w+ \*\*\*"
+NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
+NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
 
 __all__ = [
     "LogAnalyser"
@@ -46,6 +48,8 @@ class LogAnalyser(Extension):
         self.register_callback(ERROR_UNLISTED, self.unlisted)
         self.register_callback(ERROR_SCRIPT, self.script_error)
         self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
+        self.register_callback(NO_UPNP, self.disable_upnp)
+        self.register_callback(NO_TERRAIN, self.terrain_missing)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
 
@@ -186,3 +190,19 @@ class LogAnalyser(Extension):
                 })
             except Exception as ex:
                 self.log.exception(ex)
+
+    async def disable_upnp(self, idx: int, line: str, match: re.Match):
+        autoexec = Autoexec(self.server.instance)
+        net = autoexec.net or {}
+        net |= {
+            "use_upnp": False
+        }
+        autoexec.net = net
+
+    async def terrain_missing(self, idx: int, line: str, match: re.Match):
+        filename = await self.server.get_current_mission_file()
+        theatre = await self.server.get_current_mission_theatre()
+        if theatre:
+            await self.send_alert(title="Terrain Missing!",
+                                  message=f"Terrain {theatre} is not installed on this server!\n"
+                                          f"You can't run mission {filename}.")

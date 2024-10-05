@@ -38,10 +38,10 @@ minidump==0.0.24; sys_platform == 'win32'
 numpy==2.1.1
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
-openpyxl==3.1.2
+openpyxl==3.1.5
 
 # Pandas: Python data analysis library
-pandas==2.2.2
+pandas==2.2.3
 
 # Packaging: A core package providing support for PEP 440 version identifiers
 packaging==24.1
@@ -84,6 +84,10 @@ ruamel.yaml==0.18.6
 
 # seaborn: Extension for Matplotlib with more and nicer graphics
 seaborn==0.13.2
+
+# tomli: Python TOML parser
+tomli==2.0.1
+tomli_w==1.0.0
 
 # TrueSkill: Python module implementing the TrueSkill rating system
 trueskill==0.4.5

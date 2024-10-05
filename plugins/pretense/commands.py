@@ -133,17 +133,17 @@ class Pretense(Plugin):
             if not server:
                 ctx = await self.bot.get_context(message)
                 # check if there is a central admin channel configured
-                if self.bot.locals.get('admin_channel', 0) == message.channel.id:
-                    try:
-                        server = await utils.server_selection(self.bus, ctx,
-                                                              title=_("To which server do you want to upload to?"))
-                        if not server:
-                            await ctx.send(_('Upload aborted.'))
-                            return
-                    except Exception as ex:
-                        self.log.exception(ex)
+                admin_channel = self.bot.locals.get('channels', {}).get('admin')
+                if not admin_channel or admin_channel != message.channel.id:
+                    return
+                try:
+                    server = await utils.server_selection(self.bus, ctx,
+                                                          title=_("To which server do you want to upload to?"))
+                    if not server:
+                        await ctx.send(_('Upload aborted.'))
                         return
-                else:
+                except Exception as ex:
+                    self.log.exception(ex)
                     return
             try:
                 filename = os.path.join(await server.get_missions_dir(), 'Saves', attachment.filename)

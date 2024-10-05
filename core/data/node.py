@@ -61,6 +61,9 @@ class Node:
         self.guild_id: int = int(self.config['guild_id'])
         self.slow_system: bool = False
 
+    def __repr__(self):
+        return self.name
+
     @property
     def master(self) -> bool:
         raise NotImplemented()
@@ -157,7 +160,13 @@ class Node:
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplemented()
 
-    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
+    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+                             order: SortOrder = SortOrder.DATE,
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
+                             ) -> tuple[str, list[str]]:
+        raise NotImplemented()
+
+    async def create_directory(self, path: str):
         raise NotImplemented()
 
     async def remove_file(self, path: str):

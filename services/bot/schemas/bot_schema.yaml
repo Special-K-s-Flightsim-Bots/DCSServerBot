@@ -14,8 +14,11 @@ mapping:
   no_dcs_autoban: {type: bool}
   message_ban: {type: str}
   message_autodelete: {type: int, range: {min: 0}}
-  audit_channel: {type: int}
-  admin_channel: {type: int}
+  channels:
+    type: map
+    mapping:
+      audit: {type: int}
+      admin: {type: int}
   greeting_dm: {type: str}
   reports:
     type: map

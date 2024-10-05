@@ -4,13 +4,16 @@ Download the release zip and unzip it to a directory of your choice on your syst
 DCSServerBot. 
 
 ## Configuration
-You can then add another extension into your nodes.yaml:
+The configuration for RealWeather goes into your nodes.yaml. There are 2 versions available at the moment, v1.x.x and 
+v2.x.x. Both differ in their configuration, which is why I added 2 examples in here:
+
+### Version 1.x
 ```yaml
 MyNode:
   # [...]
   extensions:
     RealWeather:
-      installation: '%USERPROFILE%\Documents\realweather_v1.9.0-rc2'
+      installation: '%USERPROFILE%\Documents\realweather_v1.14.0'
   # [...]
   instances:
     DCS.release_server:
@@ -39,17 +42,53 @@ MyNode:
                 - RainyPreset2
                 - RainyPreset3
             fog:
-              enabled: true
+              enable: true
               thickness-minimum: 0
               thickness-maximum: 100
               visibility-minimum: 1000
               visibility-maximum: 4000
             dust:
-              enabled: true
+              enable: true
               visibility-minimum: 300
               visibility-maximum: 2000
 ```
-You can find a list of supported parameters in the config.json provided by DCS-real-weather.<br>
+
+### Version 2.x
+```yaml
+MyNode:
+  # [...]
+  extensions:
+    RealWeather:
+      installation: '%USERPROFILE%\Documents\realweather_v2.0.0'
+  # [...]
+  instances:
+    DCS.release_server:
+      # [...]
+      extensions:
+        RealWeather:
+          enabled: true   # optional to disable the extension, default: true
+          debug: true     # see outputs of RealWeather, default: false
+          options:
+            weather:
+              icao: PGUM
+              wind:
+                minimum: -1
+                maximum: -1
+                stability: 0.143
+              fog:
+                thickness-minimum: 0
+              temperature:
+                enabled: true
+              pressure:
+                enabled: true
+            time:
+              enabled: true
+              system-time: true
+              offset: '0h5m'
+```
+You can find a list of supported parameters in the config.json (v1.x) or config.toml (v2.x) provided by DCS-real-weather.
+
+
 > ⚠️ **Attention!**<br>
 > DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.
 > 

@@ -32,7 +32,7 @@ async def backup_autocomplete(interaction: discord.Interaction, current: str) ->
 
 async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     async def get_all_dates(node: Node, target: str) -> list[str]:
-        all_directories = await node.list_directory(target, f"{node.name.lower()}_*")
+        _, all_directories = await node.list_directory(target, pattern=f"{node.name.lower()}_*")
 
         date_pattern = re.compile(rf"{node.name.lower()}_([0-9]{{8}})")
         dates = []

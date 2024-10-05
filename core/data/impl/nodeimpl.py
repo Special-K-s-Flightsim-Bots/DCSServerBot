@@ -22,6 +22,7 @@ from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
+from migrate import migrate
 from packaging import version
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation, OperationalError
@@ -98,7 +99,7 @@ class NodeImpl(Node):
         self.locals = self.read_locals()
         if sys.platform == 'win32':
             from os import system
-            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version}")
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
@@ -312,12 +313,12 @@ class NodeImpl(Node):
                 tables = [x[0] async for x in cursor]
                 # initial setup
                 if len(tables) == 0:
-                    self.log.info('Creating Database ...')
+                    self.log.info('- Creating Database ...')
                     with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
                         for query in tables_sql.readlines():
                             self.log.debug(query.rstrip())
                             await cursor.execute(query.rstrip())
-                    self.log.info('Database created.')
+                    self.log.info('- Database created.')
                 else:
                     # version table missing (DB version <= 1.4)
                     if 'version' not in tables:
@@ -333,7 +334,8 @@ class NodeImpl(Node):
                                 await conn.execute(query.rstrip())
                         cursor = await conn.execute('SELECT version FROM version')
                         self.db_version = (await cursor.fetchone())[0]
-                        self.log.info(f'Database upgraded from {old_version} to {self.db_version}.')
+                        await asyncio.to_thread(migrate, self.node, old_version, self.db_version)
+                        self.log.info(f'- Database upgraded from {old_version} to {self.db_version}.')
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
@@ -415,13 +417,13 @@ class NodeImpl(Node):
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:
-            with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
-                data = json.load(cfg)
+            async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
+                data = json.loads(await cfg.read())
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
             if "openbeta" in self.dcs_branch:
                 self.log.debug("You're running DCS OpenBeta, which is discontinued. "
-                               "Use /dcs update, if you want to switch to the release branch.")
+                               "Use /dcs update if you want to switch to the release branch.")
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
@@ -828,13 +830,32 @@ class NodeImpl(Node):
                     return UploadStatus.READ_ERROR
         return UploadStatus.OK
 
-    async def list_directory(self, path: str, pattern: str, order: Optional[SortOrder] = SortOrder.DATE) -> list[str]:
+    async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
+                             order: SortOrder = SortOrder.DATE,
+                             is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
+                             ) -> tuple[str, list[str]]:
         directory = Path(os.path.expandvars(path))
+        ignore = ignore or []
         ret = []
-        for file in sorted(directory.glob(pattern), key=os.path.getmtime if order == SortOrder.DATE else None,
-                           reverse=True):
-            ret.append(os.path.join(directory.__str__(), file.name))
-        return ret
+        sort_key = os.path.getmtime if order == SortOrder.DATE else str
+        if isinstance(pattern, str):
+            pattern = [pattern]
+
+        def filtered_files():
+            for pat in pattern:
+                for file in directory.rglob(pat) if traverse else directory.glob(pat):
+                    if file.name in ignore or os.path.basename(file.parent) in ignore:
+                        continue
+                    if (file.is_dir() and is_dir) or (not is_dir and not file.is_dir()):
+                        yield file
+
+        for file in sorted(filtered_files(), key=sort_key, reverse=sort_key != str):
+            ret.append(str(file))
+
+        return str(directory), ret
+
+    async def create_directory(self, path: str):
+        os.makedirs(path, exist_ok=True)
 
     async def remove_file(self, path: str):
         files = glob.glob(path)
@@ -872,7 +893,7 @@ class NodeImpl(Node):
             try:
                 branch, old_version = await self.get_dcs_branch_and_version()
                 new_version = await self.get_latest_version(branch)
-            except Exception:
+            except aiohttp.ClientError:
                 self.log.warning("Update check failed, possible server outage at ED.")
                 return
             if new_version and old_version != new_version:
@@ -917,13 +938,20 @@ class NodeImpl(Node):
                             "params": params
                         })
                 else:
+                    if rc == 112:
+                        message = f"DCS World could not be updated on node {self.name} due to missing disk space!"
+                    elif rc == 350:
+                        message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
+                                   f"The updater has requested a **reboot** of the system!")
+                    else:
+                        message = f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
                     await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
                         "method": "alert",
                         "params": {
                             "title": "DCS Update Issue",
-                            "message": f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                            "message": message
                         }
                     })
         except aiohttp.ClientError as ex:

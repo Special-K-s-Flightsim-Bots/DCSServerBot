@@ -85,7 +85,7 @@ class RealWeather(Plugin):
         airbase = server.current_mission.airbases[idx]
         startup = False
         msg = await interaction.followup.send('Changing weather...', ephemeral=ephemeral)
-        if not server.node.config.get('mission_rewrite', True) and server.status != Status.STOPPED:
+        if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
             await server.stop()
             startup = True
         filename = await server.get_current_mission_file()

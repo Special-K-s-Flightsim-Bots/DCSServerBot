@@ -744,7 +744,7 @@ class MissionEventListener(EventListener):
                     if player1.member else ('Player ' + player1.display_name)
                 message = f"{name} (ucid={player1.ucid}) is killing team members."
                 # show the server name on central admin channels
-                if self.bot.locals.get('admin_channel'):
+                if self.bot.locals.get('channels', {}).get('admin'):
                     message = f"{server.display_name}: " + message
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:
@@ -1004,7 +1004,7 @@ class MissionEventListener(EventListener):
     async def preset(self, server: Server, player: Player, params: list[str]):
         async def change_preset(preset: str):
             filename = await server.get_current_mission_file()
-            if not server.node.config.get('mission_rewrite', True):
+            if not server.locals.get('mission_rewrite', True):
                 await server.stop()
             new_filename = await server.modifyMission(filename, utils.get_preset(self.node, preset))
             if new_filename != filename:

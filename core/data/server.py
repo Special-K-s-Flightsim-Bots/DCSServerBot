@@ -39,7 +39,7 @@ _ = get_translation('core')
 @dataclass
 class Server(DataObject):
     port: int
-    _instance: Instance = field(default=None)
+    _instance: Instance = field(compare=False, default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
@@ -131,7 +131,7 @@ class Server(DataObject):
         else:
             new_status = status
         if new_status != self._status:
-            # self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
+            #self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
             self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
@@ -275,12 +275,6 @@ class Server(DataObject):
     async def startup(self, modify_mission: Optional[bool] = True) -> None:
         raise NotImplemented()
 
-    async def startup_extensions(self) -> None:
-        raise NotImplemented()
-
-    async def shutdown_extensions(self) -> None:
-        raise NotImplemented()
-
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
         with PerformanceLog(f"DCS: dcsbot.{message['command']}()"):
             future = self.bus.loop.create_future()
@@ -361,10 +355,10 @@ class Server(DataObject):
     async def replaceMission(self, mission_id: int, path: str) -> None:
         raise NotImplemented()
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> None:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> None:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
@@ -373,10 +367,7 @@ class Server(DataObject):
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        raise NotImplemented()
-
-    async def listAvailableMissions(self) -> list[str]:
+    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
         raise NotImplemented()
 
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
@@ -412,14 +403,8 @@ class Server(DataObject):
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
 
-    @performance_log()
     async def shutdown(self, force: bool = False) -> None:
-        slow_system = self.node.locals.get('slow_system', False)
-        timeout = 300 if slow_system else 180
-        await self.send_to_dcs({"command": "shutdown"})
-        with suppress(TimeoutError, asyncio.TimeoutError):
-            await self.wait_for_status_change([Status.STOPPED, Status.SHUTDOWN], timeout)
-        self.current_mission = None
+        raise NotImplemented()
 
     async def init_extensions(self) -> list[str]:
         raise NotImplemented()
@@ -446,4 +431,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def uninstall_extension(self, name: str) -> None:
+        raise NotImplemented()
+
+    async def cleanup(self) -> None:
         raise NotImplemented()

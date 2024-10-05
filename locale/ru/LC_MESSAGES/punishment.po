@@ -134,10 +134,10 @@ msgid "This user does not exist. Try {} to find them in the historic data."
 msgstr "Пользователь не существует. Используйте команду {} для поиска архивных данных."
 
 # LISTENER
-msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"
+msgid "{victim}, you are a victim of a friendly-fire event by player {offender}.\n"
 "If you send {prefix}forgive in chat within the next {time} seconds, you can pardon the other player."
-msgstr "{victim}, вы стали жертвой {event} игрока {offender}.\n"
-"Чтобы простить его, отправьте в чат команду {prefix}forgive в течении следующих {time} секунд."
+msgstr "{victim}, вы попали под дружественный огонь {offender}\n"
+"Послав команду {prefix}forgive в игровой чат в течении {time} секунд вы простите нарушителя."
 
 # -forgive
 msgid "forgive another user for their infraction"
