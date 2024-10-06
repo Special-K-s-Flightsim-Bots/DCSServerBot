@@ -467,6 +467,10 @@ class MissionEventListener(EventListener):
 
     async def _smooth_pause(self, server: Server, seconds: int):
         if server.current_mission:
+            # wait for the server to be initialised correctly
+            while server.status == Status.LOADING:
+                await asyncio.sleep(1)
+            # now do the smooth pause
             self.log.debug(f"Smooth pausing server {server.name} after {seconds}s")
             await server.current_mission.unpause()
             await asyncio.sleep(seconds)
