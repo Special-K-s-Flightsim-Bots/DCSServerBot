@@ -12,8 +12,6 @@ import sys
 import tempfile
 import traceback
 
-from rich.pretty import traverse
-
 if sys.platform == 'win32':
     import win32con
     import win32gui
