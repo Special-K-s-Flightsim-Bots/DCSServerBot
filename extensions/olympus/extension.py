@@ -16,7 +16,7 @@ from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
-OLYMPUS_EXPORT_LINE = "pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\Services\Olympus\Scripts\OlympusCameraControl.lua]]); end,nil)"
+OLYMPUS_EXPORT_LINE = r"pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\Services\Olympus\Scripts\OlympusCameraControl.lua]]); end,nil)"
 
 server_ports: dict[int, str] = dict()
 client_ports: dict[int, str] = dict()

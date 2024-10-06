@@ -130,7 +130,7 @@ class Tacview(Extension):
             if not name.startswith('tacview'):
                 continue
             if name == 'tacviewExportPath':
-                path = os.path.normpath(os.path.expandvars(self.config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)))
+                path = os.path.normpath(os.path.expandvars(self.config.get('tacviewExportPath'))) or TACVIEW_DEFAULT_DIR
                 os.makedirs(path, exist_ok=True)
                 dirty = self.set_option(options, name, path) or dirty
             # Unbelievable but true. Tacview can only work with strings as ports.
