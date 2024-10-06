@@ -58,9 +58,8 @@ class Lardoon(Extension):
                 self.log.debug("- Running Lardoon process found.")
 
     def _get_tacview_dir(self) -> str:
-        return self.config.get('tacviewExportPath',
-                               self.server.options['plugins']['Tacview'].get('tacviewExportPath',
-                                                                             TACVIEW_DEFAULT_DIR))
+        return self.config.get('tacviewExportPath', self.server.options['plugins']['Tacview'].get(
+            'tacviewExportPath')) or TACVIEW_DEFAULT_DIR
 
     async def startup(self) -> bool:
         global process, servers, tacview_dirs, lock
