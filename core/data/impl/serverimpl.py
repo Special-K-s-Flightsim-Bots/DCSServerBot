@@ -4,14 +4,15 @@ import asyncio
 import atexit
 import json
 import os
-import tempfile
-
 import psutil
 import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import traceback
+
+from rich.pretty import traverse
 
 if sys.platform == 'win32':
     import win32con
@@ -201,7 +202,7 @@ class ServerImpl(Server):
         directory = Path(self.instance.missions_dir)
         missions = self.settings['missionList']
         i: int = 0
-        for file in directory.glob('*.miz'):
+        for file in directory.rglob('*.miz'):
             secondary = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
             if str(file) not in missions and secondary not in missions:
                 missions.append(str(file))
