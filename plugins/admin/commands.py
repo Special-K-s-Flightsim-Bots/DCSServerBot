@@ -543,15 +543,19 @@ class Admin(Plugin):
     @command(name='clear', description=_('Clear Discord messages'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def clear(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel]=None,
-                    delete_after: Optional[int] = 0, ignore: Optional[discord.Member] = None):
+    @app_commands.describe(older_than=_('Delete messages older than x days (0 = all)'))
+    @app_commands.describe(ignore=_('Messages from this member will be ignored'))
+    async def clear(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None,
+                    older_than: Optional[int] = None, ignore: Optional[discord.Member] = None,
+                    after_id: Optional[str] = None, before_id: Optional[str] = None):
         if not channel:
             channel = interaction.channel
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=True)
         msg = await interaction.followup.send(_("Deleting messages ..."))
-        await purge_channel(node=self.node, channel=channel.id, delete_after=delete_after,
-                            ignore=ignore.id if ignore else None)
+        await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
+                            ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
+                            before_id=int(before_id) if before_id else None)
         await msg.edit(content=_("All messages deleted."))
 
     node_group = Group(name="node", description=_("Commands to manage your nodes"))

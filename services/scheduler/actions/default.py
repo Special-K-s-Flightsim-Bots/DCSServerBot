@@ -1,11 +1,10 @@
 import asyncio
 import atexit
-import os
-from datetime import datetime, timezone, timedelta
-
 import discord
+import os
 
 from core import Server, ServiceRegistry, Node, PersistentReport, Report, Status, Coalition
+from datetime import datetime, timezone, timedelta
 from services.bot import BotService
 from services.servicebus import ServiceBus
 from typing import Optional, Union
@@ -84,12 +83,11 @@ async def popup(node: Node, server: Server, message: str, to: Optional[str] = 'a
     await server.sendPopupMessage(Coalition(to), message, timeout)
 
 
-async def purge_channel(node: Node, channel: Union[int, list[int]], delete_after: int = 0, ignore: int = None):
+async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: int = None, ignore: int = None,
+                        after_id: int = None, before_id: int = None):
     if not node.master:
         return
     bot = ServiceRegistry.get(BotService).bot
-    now = datetime.now(tz=timezone.utc)
-    threshold_time = now - timedelta(days=delete_after)
 
     if isinstance(channel, int):
         channels = [channel]
@@ -105,9 +103,21 @@ async def purge_channel(node: Node, channel: Union[int, list[int]], delete_after
             def check(message: discord.Message):
                 return not ignore or message.author.id != ignore
 
-            # Bulk delete messages that are less than 14 days old and match the criteria
-            node.log.debug(f"Deleting messages older than {delete_after} days in channel {channel.name} ...")
-            deleted_messages = await channel.purge(limit=None, before=threshold_time, check=check, bulk=True)
+            if older_than is not None:
+                now = datetime.now(tz=timezone.utc)
+                before = now - timedelta(days=older_than)
+                node.log.debug(f"Deleting messages older than {older_than} days in channel {channel.name} ...")
+            elif before_id is not None:
+                before = (await channel.fetch_message(before_id)).created_at
+                node.log.debug(f"Deleting messages older than {before_id} in channel {channel.name} ...")
+            else:
+                before = None
+            if after_id is not None:
+                after = (await channel.fetch_message(after_id)).created_at
+                node.log.debug(f"Deleting messages younger than {after_id} in channel {channel.name} ...")
+            else:
+                after = None
+            deleted_messages = await channel.purge(limit=None, after=after, before=before, check=check, bulk=True)
             node.log.debug(f"Purged {len(deleted_messages)} messages from channel {channel.name}.")
         except discord.NotFound:
             node.log.warning(f"Can't delete messages in channel {channel.name}: Not found")
@@ -115,3 +125,12 @@ async def purge_channel(node: Node, channel: Union[int, list[int]], delete_after
             node.log.warning(f"Can't delete messages in channel {channel.name}: Missing permissions")
         except discord.HTTPException:
             node.log.error(f"Failed to delete message in channel {channel.name}", exc_info=True)
+
+
+async def dcs_update(node: Node, warn_times: Optional[list[int]] = None):
+    branch, version = await node.get_dcs_branch_and_version()
+    new_version = await node.get_latest_version(branch)
+    if new_version != version:
+        if not warn_times:
+            warn_times = [120, 60]
+        await node.update(warn_times=warn_times, branch=branch)
