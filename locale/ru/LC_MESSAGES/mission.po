@@ -111,6 +111,9 @@ msgstr "Загрузка миссии {} ..."
 msgid "Mission {} loaded."
 msgstr "Миссия {} загружена."
 
+msgid "Mission {} NOT loaded. Check that you have installed the pre-requisites (terrains, mods)."
+msgstr "Миссия {} НЕ загружена. Проверьте, что вы установили необходимые компоненты (карты, моды)."
+
 msgid "Timeout while loading mission {}!"
 msgstr "Истекло время загрузки миссии {}!"
 

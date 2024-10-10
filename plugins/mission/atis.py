@@ -35,7 +35,7 @@ class Main(report.EmbedElement):
         if weather['enable_fog'] is True:
             visibility = weather['fog']['visibility']
         self.add_field(name='Visibility', value='{:,} m'.format(
-            int(visibility)) if visibility < 10000 else '10 km (+)')
+            int(visibility)) if visibility < 10000 else '10 km / 6 SM (+)')
         if 'clouds' in data:
             if 'preset' in data['clouds']:
                 readable_name = data['clouds']['preset']['readableName']
