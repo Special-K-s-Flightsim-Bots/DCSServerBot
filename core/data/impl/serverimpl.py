@@ -466,27 +466,30 @@ class ServerImpl(Server):
         )
 
     async def init_extensions(self) -> list[str]:
-        extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
-        for extension in extensions:
-            try:
-                ext: Extension = self.extensions.get(extension)
-                if not ext:
-                    ext = self._load_extension(extension)
+        async with self.lock:
+            extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
+            for extension in extensions:
+                try:
+                    ext: Extension = self.extensions.get(extension)
                     if not ext:
-                        continue
-                    if ext.is_installed():
-                        self.extensions[extension] = ext
-            except Exception as ex:
-                self.log.exception(ex)
-        return list(self.extensions.keys())
+                        ext = self._load_extension(extension)
+                        if not ext:
+                            continue
+                        if ext.is_installed():
+                            self.extensions[extension] = ext
+                except Exception as ex:
+                    self.log.exception(ex)
+            return list(self.extensions.keys())
 
     async def prepare_extensions(self):
-        for ext in self.extensions.values():
-            try:
-                await ext.prepare()
-            except Exception as ex:
-                self.log.exception(ex)
-                self.log.error(f"  => Error during {ext.name}.prepare() - skipped.")
+        async with self.lock:
+            for ext in self.extensions.values():
+                try:
+                    await ext.prepare()
+                except InstallException as ex:
+                    self.log.error(f"  => Error during {ext.name}.prepare(): {ex} - skipped")
+                except Exception as ex:
+                    self.log.error(f"  => Unknown error during {ext.name}.prepare() - skipped.", exc_info=True)
 
     @staticmethod
     def _window_enumeration_handler(hwnd, top_windows):
@@ -555,35 +558,37 @@ class ServerImpl(Server):
             raise
 
     async def _startup_extensions(self, status: Union[Status, str]) -> None:
-        not_running_extensions = [
-            ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
-        ]
-        startup_coroutines = [ext.startup() for ext in not_running_extensions]
+        async with self.lock:
+            not_running_extensions = [
+                ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
+            ]
+            startup_coroutines = [ext.startup() for ext in not_running_extensions]
 
-        results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
+            results = await asyncio.gather(*startup_coroutines, return_exceptions=True)
 
-        for res in results:
-            if isinstance(res, Exception):
-                tb_str = "".join(
-                    traceback.format_exception(type(res), res, res.__traceback__))
-                self.log.error(f"Error during startup_extension(): %s", tb_str)
-        # set the status after the extensions have been started
-        super().set_status(status)
+            for res in results:
+                if isinstance(res, Exception):
+                    tb_str = "".join(
+                        traceback.format_exception(type(res), res, res.__traceback__))
+                    self.log.error(f"Error during startup_extension(): %s", tb_str)
+            # set the status after the extensions have been started
+            super().set_status(status)
 
     async def _shutdown_extensions(self, status: Union[Status, str]) -> None:
-        running_extensions = [
-            ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
-        ]
-        shutdown_coroutines = [asyncio.to_thread(ext.shutdown) for ext in running_extensions]
+        async with self.lock:
+            running_extensions = [
+                ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
+            ]
+            shutdown_coroutines = [asyncio.to_thread(ext.shutdown) for ext in running_extensions]
 
-        results = await asyncio.gather(*shutdown_coroutines, return_exceptions=True)
+            results = await asyncio.gather(*shutdown_coroutines, return_exceptions=True)
 
-        for res in results:
-            if isinstance(res, Exception):
-                self.log.error(f"Error during shutdown_extension()", exc_info=res)
+            for res in results:
+                if isinstance(res, Exception):
+                    self.log.error(f"Error during shutdown_extension()", exc_info=res)
 
-        # set the status after the extensions have been shut down
-        super().set_status(status)
+            # set the status after the extensions have been shut down
+            super().set_status(status)
 
     async def do_shutdown(self):
         self.status = Status.SHUTTING_DOWN
