@@ -33,7 +33,7 @@ class OvGMEService(Service):
 
     def __init__(self, node):
         super().__init__(node=node, name="OvGME")
-        if not os.path.exists('config/services/ovgme.yaml'):
+        if not os.path.exists(os.path.join(self.node.config_dir, 'services', 'ovgme.yaml')):
             raise ServiceInstallationError(service='OvGME', reason="config/services/ovgme.yaml missing!")
         self.bus = ServiceRegistry.get(ServiceBus)
 

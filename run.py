@@ -45,7 +45,7 @@ class Main:
         utils.dynamic_import('services')
 
     @staticmethod
-    def setup_logging(node: str):
+    def setup_logging(node: str, config_dir: str):
         def time_formatter(time: datetime, _: str = None) -> Text:
             return Text(time.strftime('%H:%M:%S'))
 
@@ -55,7 +55,7 @@ class Main:
 
         # Setup file logging
         try:
-            config = yaml.load(pathlib.Path('config/main.yaml').read_text(encoding='utf-8'))['logging']
+            config = yaml.load(pathlib.Path(os.path.join(config_dir, 'main.yaml')).read_text(encoding='utf-8'))['logging']
         except (FileNotFoundError, KeyError, YAMLError):
             config = {}
         os.makedirs('logs', exist_ok=True)
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     args = COMMAND_LINE_ARGS
 
     # Setup the logging
-    Main.setup_logging(args.node)
+    Main.setup_logging(args.node, args.config)
     log = logging.getLogger("dcsserverbot")
     # check if we should reveal the passwords
     utils.create_secret_dir(args.config)
