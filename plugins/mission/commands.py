@@ -513,8 +513,10 @@ class Mission(Plugin):
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
-                     presets_file: Optional[str] = 'config/presets.yaml'):
+                     presets_file: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        if presets_file is None:
+            presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
         try:
             with open(presets_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
