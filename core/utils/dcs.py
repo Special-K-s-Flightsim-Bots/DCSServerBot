@@ -73,7 +73,7 @@ def desanitize(self, _filename: str = None) -> None:
         # don't fail, if no backup could be created (for whatever reason)
         with suppress(Exception):
             shutil.copyfile(filename, backup)
-        shutil.copyfile(os.path.join(self.node.config_dir, 'MissionScripting.lua', filename))
+        shutil.copyfile(os.path.join(self.node.config_dir, 'MissionScripting.lua'), filename)
         return
     try:
         with open(filename, mode='r', encoding='utf-8') as infile:
