@@ -16,13 +16,10 @@ __all__ = ["BackupService"]
 @ServiceRegistry.register(plugin="backup")
 class BackupService(Service):
     def __init__(self, node):
-        from services.servicebus import ServiceBus
-
         super().__init__(node=node, name="Backup")
         if not self.locals:
             self.log.debug("  - No backup.yaml configured, skipping backup service.")
             return
-        self.bus = ServiceRegistry.get(ServiceBus)
         if self._secure_password():
             self.save_config()
 
@@ -80,10 +77,13 @@ class BackupService(Service):
             zf.close()
 
     def backup_servers(self) -> bool:
+        from services.servicebus import ServiceBus
+
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
         rc = True
-        for server_name, server in self.bus.servers.items():
+
+        for server_name, server in ServiceRegistry.get(ServiceBus).servers.items():
             self.log.info(f'Backing up server "{server_name}" ...')
             filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
             zf = ZipFile(os.path.join(target, filename), mode="w")
