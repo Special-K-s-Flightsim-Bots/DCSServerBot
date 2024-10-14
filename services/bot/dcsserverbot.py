@@ -463,14 +463,12 @@ class DCSServerBot(commands.Bot):
             message = None
             if row:
                 try:
-                    if channel.type == discord.ChannelType.text:
-                        message = await channel.fetch_message(row[0])
-                    elif channel.type == discord.ChannelType.forum:
+                    if channel.type == discord.ChannelType.forum:
                         thread = cast(discord.ForumChannel, channel).get_thread(row[1])
                         if thread:
                             message = await thread.fetch_message(row[0])
                     else:
-                        raise ValueError(f"Unsupported channel type for channel {channel.name}")
+                        message = await channel.fetch_message(row[0])
                     if message:
                         if not file:
                             await message.edit(embed=embed)
