@@ -161,7 +161,10 @@ class NodeProxy(Node):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
-            "method": "get_latest_version"
+            "method": "get_latest_version",
+            "params": {
+                "branch": branch
+            }
         }, node=self.name, timeout=timeout)
         return data['return']
 
