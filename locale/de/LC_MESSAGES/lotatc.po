@@ -35,6 +35,12 @@ msgid "{coalition} GCI \"{name}\" offline."
 msgstr "{coalition} GCI \"{name}\" ist offline."
 
 # -gcis
+msgid "Shows active GCIs"
+msgstr "Zeigt die GCIs"
+
+msgid "You need to join a side to show their GCIs"
+msgstr "Du musst eine Koalition auswählen, bevor Du die GCIs anzeigen lassen kannst."
+
 msgid "The following GCIs are active on the {coalition} side:\n{gcis}"
 msgstr "Die folgenden GCIs sind zurzeit für Koalition {coalition} im Einsatz:\n{gcis}"
 

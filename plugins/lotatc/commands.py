@@ -243,7 +243,7 @@ class LotAtc(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("You are not allowed to see the {} GCIs.").format(coalition))
             return
-        gcis = self.eventlistener.on_station.get(server.name, {}).get(coalition, {})
+        gcis = self.eventlistener.on_station.get(server.name, {}).get(Coalition(coalition), {})
         if not gcis:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
