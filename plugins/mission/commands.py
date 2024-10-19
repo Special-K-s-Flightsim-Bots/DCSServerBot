@@ -248,7 +248,7 @@ class Mission(Plugin):
     async def _restart(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False,
+                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
                        rotate: Optional[bool] = False):
         what = "restart" if not rotate else "rotate"
         actions = {
