@@ -618,7 +618,7 @@ class SettingsDict(dict):
             from services.servicebus import ServiceBus
 
             self._bus = ServiceRegistry.get(ServiceBus)
-        return self.bus
+        return self._bus
 
     def update_master(self, key, value = None, *, method: str):
         if self.root == 'cfg':
