@@ -39,6 +39,7 @@ yaml = YAML()
 
 if TYPE_CHECKING:
     from core import ServerProxy, DataObject, Node
+    from services.servicebus import ServiceBus
 
 __all__ = [
     "parse_time",
@@ -558,16 +559,13 @@ class SettingsDict(dict):
     :type root: str
     """
     def __init__(self, obj: DataObject, path: str, root: str):
-        from core.services.registry import ServiceRegistry
-        from services.servicebus import ServiceBus
-
         super().__init__()
         self.path = path
         self.root = root
         self.mtime = 0
         self.obj = obj
         self.log = obj.log
-        self.bus = ServiceRegistry.get(ServiceBus)
+        self._bus = None
         self.read_file()
 
     def read_file(self):
@@ -613,6 +611,15 @@ class SettingsDict(dict):
         finally:
             os.remove(tmpname)
 
+    @property
+    def bus(self) -> "ServiceBus":
+        if self._bus is None:
+            from core.services.registry import ServiceRegistry
+            from services.servicebus import ServiceBus
+
+            self._bus = ServiceRegistry.get(ServiceBus)
+        return self.bus
+
     def update_master(self, key, value = None, *, method: str):
         if self.root == 'cfg':
             obj = '_settings'
@@ -635,7 +642,8 @@ class SettingsDict(dict):
                 "sync": False
             }
         }
-        asyncio.create_task(self.bus.send_to_node(msg))
+        if self.bus:
+            asyncio.create_task(self.bus.send_to_node(msg))
 
     def __setitem__(self, key, value):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
