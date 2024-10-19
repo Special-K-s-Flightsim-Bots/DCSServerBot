@@ -101,10 +101,6 @@ class Server(DataObject):
         return {}
 
     @property
-    def is_remote(self) -> bool:
-        raise NotImplemented()
-
-    @property
     def instance(self) -> Instance:
         return self._instance
 
@@ -346,13 +342,13 @@ class Server(DataObject):
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
         raise NotImplemented()
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         raise NotImplemented()
 
-    async def deleteMission(self, mission_id: int) -> None:
+    async def deleteMission(self, mission_id: int) -> list[str]:
         raise NotImplemented()
 
-    async def replaceMission(self, mission_id: int, path: str) -> None:
+    async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         raise NotImplemented()
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
@@ -362,7 +358,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
-        raise NotImplemented()
+        return self.settings.get('missionList', [])
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()

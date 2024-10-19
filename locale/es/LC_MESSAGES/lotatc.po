@@ -28,3 +28,10 @@ msgstr "Información de un GCI"
 
 msgid "Usage: {prefix}{command} <name>"
 msgstr "Uso: {prefix}{command} <nombre>"
+
+# -gcis
+msgid "Shows active GCIs"
+msgstr "Muestra los GCIs en activo"
+
+msgid "You need to join a side to show their GCIs"
+msgstr "Debes unirte a un bando para mostrar sus GCIs."

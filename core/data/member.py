@@ -19,6 +19,7 @@ class Member(DataObject):
 
     def __post_init__(self):
         super().__post_init__()
+        self.is_remote = False
         with self.pool.connection() as conn:
             row = conn.execute("""
                 SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 

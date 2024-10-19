@@ -46,7 +46,8 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
             for x in file_list
-            if x not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
+            if x not in installed_missions and os.path.join(os.path.dirname(x), '.dcssb', os.path.basename(
+                x)) not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
         ]
         return choices[:25]
     except Exception as ex:
@@ -408,10 +409,9 @@ class Mission(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
 
         path = os.path.normpath(os.path.join(await server.get_missions_dir(), path))
-        await server.addMission(path, autostart=autostart)
+        new_mission_list = await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)
         await interaction.followup.send(_('Mission "{}" added.').format(utils.escape_string(name)), ephemeral=ephemeral)
-        new_mission_list = await server.getMissionList()
         mission_id = new_mission_list.index(path)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, _('Do you want to load this mission?'),

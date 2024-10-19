@@ -102,6 +102,7 @@ class ServerImpl(Server):
 
     def __post_init__(self):
         super().__post_init__()
+        self.is_remote = False
         self.lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -126,10 +127,6 @@ class ServerImpl(Server):
         self._options = None
         self._settings = None
         self.prepare()
-
-    @property
-    def is_remote(self) -> bool:
-        return False
 
     async def get_missions_dir(self) -> str:
         return self.instance.missions_dir
@@ -223,6 +220,14 @@ class ServerImpl(Server):
                 new_start = 0
             self._settings['listStartIndex'] = new_start + 1
 
+    async def _load_mission_list(self):
+        data = await self.send_to_dcs_sync({"command": "listMissions"}, timeout=60)
+        mission_list = data['missionList']
+        if mission_list != self.settings['missionList']:
+            for m in set(self.settings['missionList']) - set(mission_list):
+                self.log.warning(f"Removed unsupported mission file from the list: {m}")
+            self.settings['missionList'] = mission_list
+
     def set_status(self, status: Union[Status, str]):
         if isinstance(status, str):
             new_status = Status(status)
@@ -237,6 +242,7 @@ class ServerImpl(Server):
                     self._make_missions_unique()
                 super().set_status(status)
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
+                # TODO: asyncio.create_task(self._load_mission_list())
                 asyncio.create_task(self.init_extensions())
                 asyncio.create_task(self._startup_extensions(status))
             elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and new_status in [Status.STOPPED, Status.SHUTDOWN]:
@@ -717,9 +723,6 @@ class ServerImpl(Server):
             await self.start()
         return UploadStatus.OK
 
-    async def getMissionList(self) -> list[str]:
-        return self.settings.get('missionList', [])
-
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
@@ -790,7 +793,7 @@ class ServerImpl(Server):
                     'blue_password' if coalition == Coalition.BLUE else 'red_password'),
                     (password, self.name))
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
         if '.dcssb' in path:
             secondary = os.path.join(os.path.dirname(os.path.dirname(path)), os.path.basename(path))
@@ -798,7 +801,7 @@ class ServerImpl(Server):
             secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         missions = self.settings['missionList']
         if path in missions or secondary in missions:
-            return
+            return missions
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
             self.settings['missionList'] = data['missionList']
@@ -807,8 +810,9 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             if autostart:
                 self.settings['listStartIndex'] = missions.index(path if path in missions else secondary) + 1
+        return self.settings['missionList']
 
-    async def deleteMission(self, mission_id: int) -> None:
+    async def deleteMission(self, mission_id: int) -> list[str]:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
@@ -818,8 +822,9 @@ class ServerImpl(Server):
             missions = self.settings['missionList']
             del missions[mission_id - 1]
             self.settings['missionList'] = missions
+        return self.settings['missionList']
 
-    async def replaceMission(self, mission_id: int, path: str) -> None:
+    async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         path = os.path.normpath(path)
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
@@ -827,6 +832,7 @@ class ServerImpl(Server):
             missions: list[str] = self.settings['missionList']
             missions[mission_id - 1] = path
             self.settings['missionList'] = missions
+        return self.settings['missionList']
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
         if isinstance(mission, int):
@@ -847,7 +853,8 @@ class ServerImpl(Server):
         except ValueError:
             rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
         # We could not load the mission
-        if not rc['result']:
+        result = rc['result'] if isinstance(rc['result'], bool) else (rc['result'] == 0)
+        if not result:
             return False
         # else, wait for the mission to be loaded
         if not stopped:

@@ -381,6 +381,23 @@ class Admin(Plugin):
         await interaction.followup.send(
             _("Module {module} uninstalled on node {node}.").format(module=module, node=node.name), ephemeral=ephemeral)
 
+    @dcs.command(name='info', description=_('Info about your DCS installation'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def info(self, interaction: discord.Interaction,
+                   node: app_commands.Transform[Node, utils.NodeTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        modules = await node.get_installed_modules()
+        if not modules:
+            await interaction.followup.send(_("There are no modules installed on this server."), ephemeral=ephemeral)
+            return
+        embed = discord.Embed(color=discord.Color.blue())
+        embed.description = _("Installed modules on node {}").format(node.name)
+        embed.add_field(name=_("Module"), value='\n'.join([f'- {x}' for x in modules]))
+        await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
     @command(description=_('Download files from your server'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
