@@ -232,7 +232,7 @@ class Mission(Plugin):
     async def restart(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                      delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False):
+                      delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True):
         await self._restart(interaction, server, delay, reason, run_extensions, rotate=False)
 
     @mission.command(description=_('Rotates to the next mission\n'))
@@ -241,13 +241,13 @@ class Mission(Plugin):
     async def rotate(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                     delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False):
+                     delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True):
         await self._restart(interaction, server, delay, reason, run_extensions, rotate=True)
 
     async def _restart(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False,
+                       delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
                        rotate: Optional[bool] = False):
         what = "restart" if not rotate else "rotate"
         actions = {
@@ -393,7 +393,7 @@ class Mission(Plugin):
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
-                   mission_id: int, run_extensions: Optional[bool] = False):
+                   mission_id: int, run_extensions: Optional[bool] = True):
         await self._load(interaction, server, mission_id, run_extensions)
 
     @mission.command(description=_('Adds a mission to the list\n'))
