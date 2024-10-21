@@ -126,7 +126,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
+You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.12 and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
 "Add python.exe to PATH" during your Python installation.<br>
 
 If you want to use instant autoupdate from the master branch, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
