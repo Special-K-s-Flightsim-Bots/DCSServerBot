@@ -438,7 +438,7 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
         else:
-            with open(os.path.expandvars(target), mode='wb') as outfile:
+            with open(os.path.join(os.path.expandvars(target), filename), mode='wb') as outfile:
                 outfile.write(file)
             await interaction.followup.send(_('File copied to the specified location.'), ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
