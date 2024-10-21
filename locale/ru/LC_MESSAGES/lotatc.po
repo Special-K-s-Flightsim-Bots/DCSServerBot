@@ -36,7 +36,7 @@ msgstr "Применение: {prefix}{command} <name>"
 
 # -gcis
 msgid "Shows active GCIs"
-msgstr "Показать активных операторов"
+msgstr "Показать активных ОБУ"
 
 msgid "You need to join a side to show their GCIs"
-msgstr "Вы должны присоединиться к коалиции для просмотра операторов."
+msgstr "Необходимо выбрать коалицию для показа их ОБУ"
