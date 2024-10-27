@@ -218,7 +218,7 @@ def set_password(key: str, password: str, config_dir='config'):
 def get_password(key: str, config_dir='config') -> str:
     try:
         with open(os.path.join(config_dir, '.secret', f'{key}.pkl'), mode='rb') as f:
-            return pickle.load(f)
+            return str(pickle.load(f))
     except FileNotFoundError:
         raise ValueError(key)
 
