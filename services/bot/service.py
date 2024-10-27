@@ -137,7 +137,7 @@ class BotService(Service):
             except StopIteration:
                 server = None
         admin_channel = self.bot.get_admin_channel(server)
-        if server and admin_channel:
+        if admin_channel:
             await admin_channel.send(content=mentions, embed=embed)
 
     async def install_fonts(self):
