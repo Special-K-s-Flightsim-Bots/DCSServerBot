@@ -938,13 +938,14 @@ class NodeImpl(Node):
                             "params": params
                         })
                 else:
-                    if rc == 112:
+                    if rc in [2, 112]:
                         message = f"DCS World could not be updated on node {self.name} due to missing disk space!"
-                    elif rc == 350:
+                    elif rc in [3, 350]:
                         message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
                                    f"The updater has requested a **reboot** of the system!")
                     else:
                         message = f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                    self.log.error(message)
                     await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",
                         "service": BotService.__name__,
