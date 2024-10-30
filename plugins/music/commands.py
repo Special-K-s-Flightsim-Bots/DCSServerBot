@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import os
-
 import psycopg
 
 from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, \
@@ -46,6 +45,8 @@ async def all_songs_autocomplete(interaction: discord.Interaction, current: str)
         service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
         for song in await interaction.client.node.list_directory(music_dir, pattern=['*.mp3', '*.ogg'], traverse=True):
+            if os.path.isdir(song):
+                continue
             title = get_tag(song).title or os.path.relpath(song, music_dir)
             if current and current.casefold() not in title.casefold():
                 continue
