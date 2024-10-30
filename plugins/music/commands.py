@@ -44,7 +44,8 @@ async def all_songs_autocomplete(interaction: discord.Interaction, current: str)
         ret = []
         service = ServiceRegistry.get(MusicService)
         music_dir = await service.get_music_dir()
-        for song in await interaction.client.node.list_directory(music_dir, pattern=['*.mp3', '*.ogg'], traverse=True):
+        _, file_list = await interaction.client.node.list_directory(music_dir, pattern=['*.mp3', '*.ogg'], traverse=True)
+        for song in file_list:
             if os.path.isdir(song):
                 continue
             title = get_tag(song).title or os.path.relpath(song, music_dir)
