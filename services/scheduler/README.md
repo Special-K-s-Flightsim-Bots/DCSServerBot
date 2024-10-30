@@ -37,7 +37,7 @@ DEFAULT:
           channel:                      # list of channels to purge
             - 112233445566778899
             - 998877665544332211
-          delete_after: 7               # delete all messages that are older than 7 days
+          older_than: 7                 # delete all messages that are older than 7 days
           ignore: 119922883377446655    # ignore this user id (probably the bots)
 DCS.release_server:
   actions:

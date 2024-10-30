@@ -94,7 +94,7 @@ class MissionUploadHandler(ServerUploadHandler):
         # if only one mission was uploaded, ask if it should be loaded and load it
         filename = await self._wait_for_mission(uploaded[0])
         if not filename:
-            msg = 'Error while uploading: File not found in severSettings.lua!'
+            msg = 'Error while uploading: File not found in serverSettings.lua!'
             self.log.error(msg)
             await self.channel.send(_(msg))
             return

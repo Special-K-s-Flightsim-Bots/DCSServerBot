@@ -654,7 +654,13 @@ class Scheduler(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral, thinking=True)
             try:
-                await server.start()
+                if not await server.start():
+                    embed = utils.create_warning_embed(
+                        title=f"Error while starting server \"{server.display_name}\"!",
+                        text="Please check manually, if the server has started.\n"
+                             "If not, check the dcs.log for errors.")
+                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                    return
             except (TimeoutError, asyncio.TimeoutError):
                 embed = utils.create_warning_embed(
                     title=f"Timeout while starting server \"{server.display_name}\"!",
