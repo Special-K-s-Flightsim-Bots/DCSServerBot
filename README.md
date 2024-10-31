@@ -126,7 +126,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.12 and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
+You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
 "Add python.exe to PATH" during your Python installation.<br>
 
 If you want to use instant autoupdate from the master branch, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
@@ -391,6 +391,8 @@ My Fancy Server:                # Your server name, as displayed in the server l
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
   autoadd: true                 # Enable auto-adding of uploaded missions (default: true)
+  ignore_dirs:                  # Optional: ignore directories from mission upload / mission add (already ignored are .dcssb, Scripts and Saves)
+    - archive
   autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).
   force_voice: false            # Optional: enforce the usage of a voice channel (users needs to be linked!) - default: false
   discord:                      # Optional: specify discord roles that are allowed to use this server

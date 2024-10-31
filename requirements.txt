@@ -1,14 +1,17 @@
-# AIOFiles: File support for python's asyncio
+ # AIOFiles: File support for python's asyncio
 aiofiles==24.1.0
 
+# For discord.py on Python 3.13
+audioop-lts; python_version>='3.13'
+
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.10.9
+aiohttp==3.10.10
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2024.8.30
 
 # Croniter: Python iterator implementing a cron schedule format
-croniter==3.0.3
+croniter==5.0.1
 
 # discord.py: The python interface for the Discord API
 discord.py==2.4.0
@@ -17,7 +20,7 @@ discord.py==2.4.0
 eyeD3==0.9.7
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.115.0
+fastapi==0.115.4
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -59,25 +62,25 @@ psycopg-pool==3.2.3
 psutil==6.0.0
 
 # PyArrow: Python library providing high-performance tools for doing analytics on Arrow-based columnar data
-pyarrow==17.0.0
+pyarrow==18.0.0
 
 # pyKwalify: A Python library for YAML/JSON schema validation
 pykwalify==1.8.0
 
 # python-Levenshtein: Python extension for computing string edit distances and similarities
-python-Levenshtein==0.26.0
+python-Levenshtein==0.26.1
 
 # python-multipart: A library for parsing multipart/form-data input requests
-python-multipart==0.0.9
+python-multipart==0.0.17
 
 # Pywin32: Set of Python extensions for MS Windows
-pywin32==307; sys_platform == 'win32'
+pywin32==308; sys_platform == 'win32'
 
 # Requests: Python HTTP library
 requests==2.32.3
 
 # Rich: Python library for rich text and beautiful formatting in the terminal
-rich==13.9.2
+rich==13.9.3
 
 # ruamel-yaml: YAML parser/emitter supporting roundtrip comment preservation
 ruamel.yaml==0.18.6
@@ -86,14 +89,14 @@ ruamel.yaml==0.18.6
 seaborn==0.13.2
 
 # tomli: Python TOML parser
-tomli==2.0.1
-tomli_w==1.0.0
+tomli==2.0.2
+tomli_w==1.1.0
 
 # TrueSkill: Python module implementing the TrueSkill rating system
 trueskill==0.4.5
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
-uvicorn==0.31.0
+uvicorn==0.32.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==5.0.3
