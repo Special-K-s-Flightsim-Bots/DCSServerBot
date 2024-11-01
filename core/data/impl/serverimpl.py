@@ -28,7 +28,7 @@ from core.data.node import UploadStatus
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer
@@ -242,7 +242,9 @@ class ServerImpl(Server):
                     self._make_missions_unique()
                 super().set_status(status)
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
-                # TODO: asyncio.create_task(self._load_mission_list())
+                # only check the mission list, if we started that server
+                if self._status == Status.LOADING:
+                    asyncio.create_task(self._load_mission_list())
                 asyncio.create_task(self.init_extensions())
                 asyncio.create_task(self._startup_extensions(status))
             elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and new_status in [Status.STOPPED, Status.SHUTDOWN]:
@@ -843,27 +845,31 @@ class ServerImpl(Server):
             filename = mission
         if modify_mission:
             filename = await self.apply_mission_changes(filename)
-        stopped = self.status == Status.STOPPED
-        try:
-            idx = self.settings['missionList'].index(filename) + 1
-            if idx == int(self.settings['listStartIndex']):
+
+        if self.status == Status.STOPPED:
+            try:
+                idx = self.settings['missionList'].index(filename) + 1
+                self.settings['listStartIndex'] = idx
+                return await self.start()
+            except ValueError:
+                return False
+        else:
+            try:
+                idx = self.settings['missionList'].index(filename) + 1
+                if idx == int(self.settings['listStartIndex']):
+                    rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
+                else:
+                    rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})
+            except ValueError:
                 rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
-            else:
-                rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})
-        except ValueError:
-            rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
-        # We could not load the mission
-        result = rc['result'] if isinstance(rc['result'], bool) else (rc['result'] == 0)
-        if not result:
-            return False
-        # else, wait for the mission to be loaded
-        if not stopped:
+            # We could not load the mission
+            result = rc['result'] if isinstance(rc['result'], bool) else (rc['result'] == 0)
+            if not result:
+                return False
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
-        else:
-            await self.send_to_dcs({"command": "start_server"})
-        # wait until we are running again
-        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
+            # wait until we are running again
+            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
         return True
 
     async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:

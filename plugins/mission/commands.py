@@ -6,9 +6,8 @@ import psycopg
 import random
 import re
 
-from copy import deepcopy
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
+    Group, ReportEnv, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
     UnsupportedMizFileException
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
@@ -41,8 +40,11 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         if not server:
             return []
         base_dir = await server.get_missions_dir()
+        ignore = ['.dcssb']
+        if server.locals.get('ignore_dirs'):
+            ignore.extend(server.locals['ignore_dirs'])
         installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
-        exp_base, file_list = await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=['.dcssb'])
+        exp_base, file_list = await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=ignore)
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
             for x in file_list
@@ -321,7 +323,7 @@ class Mission(Plugin):
                     command=(await utils.get_command(self.bot, group='mission', name='info')).mention
                 ), ephemeral=ephemeral)
 
-    async def _load(self, interaction: discord.Interaction, server: Server, mission_id: int,
+    async def _load(self, interaction: discord.Interaction, server: Server, mission: Optional[Union[int, str]] = None,
                     run_extensions: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
@@ -351,7 +353,15 @@ class Mission(Plugin):
         if not interaction.response.is_done():
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
-        mission = (await server.getMissionList())[mission_id]
+        if isinstance(mission, int):
+            mission_id = mission
+            mission = (await server.getMissionList())[mission_id]
+        else:
+            try:
+                mission = os.path.join(await server.get_missions_dir(), mission)
+                mission_id = (await server.getMissionList()).index(mission)
+            except ValueError:
+                mission_id = None
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
@@ -362,7 +372,7 @@ class Mission(Plugin):
                 await interaction.followup.send(_('Mission {}.').format(_('restarted')), ephemeral=ephemeral)
         else:
             name = os.path.basename(mission[:-4])
-            if result == 'later':
+            if mission_id and result == 'later':
                 # make sure, we load that mission, independently on what happens to the server
                 await server.setStartIndex(mission_id + 1)
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
@@ -373,12 +383,18 @@ class Mission(Plugin):
                 msg = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
                                                       ephemeral=ephemeral)
                 try:
-                    if not await server.loadMission(mission_id + 1, modify_mission=run_extensions):
+                    if not await server.loadMission(mission, modify_mission=run_extensions):
                         await msg.edit(content=_('Mission {} NOT loaded. '
                                                  'Check that you have installed the pre-requisites (terrains, mods).'
                                                  ).format(name))
                     else:
-                        await msg.edit(content=_('Mission {} loaded.').format(name))
+                        message = _('Mission {} loaded.').format(name)
+                        if not mission_id:
+                            message += _('\nThis mission is NOT in the mission list and will not auto-load on server '
+                                         'or mission restarts.\n'
+                                         'If you want it to auto-load, use {}').format(
+                                (await utils.get_command(self.bot, group='mission', name='add')).mention)
+                        await msg.edit(content=message)
                         await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
                                              user=interaction.user)
                 except (TimeoutError, asyncio.TimeoutError):
@@ -391,11 +407,13 @@ class Mission(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
-                   mission_id: int, run_extensions: Optional[bool] = True):
-        await self._load(interaction, server, mission_id, run_extensions)
+                   mission_id: Optional[int] = None, alt_mission: Optional[str] = None,
+                   run_extensions: Optional[bool] = True):
+        await self._load(interaction, server, mission_id or alt_mission, run_extensions)
 
     @mission.command(description=_('Adds a mission to the list\n'))
     @app_commands.guild_only()
@@ -1608,7 +1626,10 @@ class Mission(Plugin):
         try:
             handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
             base_dir = await handler.server.get_missions_dir()
-            await handler.upload(base_dir, ignore_list=['.dcssb', 'Saves', 'Scripts'])
+            ignore = ['.dcssb', 'Saves', 'Scripts']
+            if server.locals.get('ignore_dirs'):
+                ignore.extend(server.locals['ignore_dirs'])
+            await handler.upload(base_dir, ignore_list=ignore)
         except Exception as ex:
             self.log.exception(ex)
         finally:

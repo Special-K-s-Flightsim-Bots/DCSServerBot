@@ -12,10 +12,13 @@
   "elements":
   [
     {
+      "class": "plugins.userstats.userstats.Header"
+    },
+    {
       "type": "Graph",
       "params":
       {
-        "width": 20,
+        "width": 27,
         "height": 20,
         "rows": 3,
         "cols": 3,

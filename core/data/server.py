@@ -167,13 +167,13 @@ class Server(DataObject):
                     "server_name": self.name
                 }, node=self.node.name))
             else:
-                asyncio.create_task(self.update_maintenance())
+                self.update_maintenance()
 
-    async def update_maintenance(self):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
-                                   (self._maintenance, self.name))
+    def update_maintenance(self):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                             (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:
@@ -323,12 +323,16 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     @performance_log()
-    async def start(self) -> None:
+    async def start(self) -> bool:
         if self.status == Status.STOPPED:
-            timeout = 300 if self.node.locals.get('slow_system', False) else 120
+            timeout = 300 if self.node.locals.get('slow_system', False) else 180
             self.status = Status.LOADING
-            await self.send_to_dcs({"command": "start_server"})
-            await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
+            rc = await self.send_to_dcs_sync({"command": "start_server"})
+            if rc['result'] == 0:
+                await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
+                return True
+            else:
+                return False
 
     async def restart(self, modify_mission: Optional[bool] = True) -> None:
         raise NotImplemented()

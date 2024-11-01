@@ -92,6 +92,14 @@ class EmbedElement(ReportElement):
             value = value[:1020] + ' ...'
         return self.embed.add_field(name=name or '_ _', value=value or '_ _', inline=inline)
 
+    def add_datetime_field(self, name: str, time_obj: datetime):
+        if time_obj != datetime(1970, 1, 1):
+            if time_obj.year == 9999:
+                value = 'never'
+            else:
+                value = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
+            self.add_field(name=f'{name}:', value=value)
+
     def set_image(self, *, url):
         return self.embed.set_image(url=url)
 

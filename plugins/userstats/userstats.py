@@ -9,6 +9,36 @@ from typing import Union
 from .filter import StatisticsFilter
 
 
+class Header(report.EmbedElement):
+    async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
+        sql = '''
+            SELECT p.first_seen, p.last_seen, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
+            FROM statistics s, players p, missions m 
+            WHERE s.player_ucid = p.ucid AND s.hop_off IS NOT NULL AND s.mission_id = m.id 
+        '''
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %(member)s '
+        else:
+            sql += 'AND p.ucid = %(member)s '
+        if server_name:
+            self.env.embed.description = utils.escape_string(server_name)
+            sql += "AND m.server_name = %(server_name)s"
+        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot)
+        sql += ' GROUP BY 1, 2'
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, {
+                    "member": str(member.id if isinstance(member, discord.Member) else member,),
+                    "server_name": server_name
+                })
+                row = await cursor.fetchone()
+                self.add_datetime_field("First seen", row['first_seen'])
+                self.add_datetime_field("Last seen", row['last_seen'])
+                self.add_field(name="Playtime", value=utils.convert_time(row['playtime']))
+
+
 class PlaytimesPerPlane(report.GraphElement):
 
     async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
@@ -22,7 +52,6 @@ class PlaytimesPerPlane(report.GraphElement):
         if server_name:
             self.env.embed.description = utils.escape_string(server_name)
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
-        self.env.embed.title = flt.format(self.env.bot) + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot)
         sql += ' GROUP BY s.slot ORDER BY 2'
 
