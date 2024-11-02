@@ -5,6 +5,8 @@ import discord
 import os
 import zipfile
 
+from aiohttp import BasicAuth
+
 from core import utils, FatalException, Node
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
@@ -85,6 +87,12 @@ class BotService(Service):
         else:
             # Create the Bot
             proxy = self.locals.get('proxy', {}).get('url')
+            username = self.locals.get('proxy', {}).get('username')
+            password = self.locals.get('proxy', {}).get('password')
+            if username and password:
+                proxy_auth = BasicAuth(username, password)
+            else:
+                proxy_auth = None
             return DCSServerBot(version=self.node.bot_version,
                                 sub_version=self.node.sub_version,
                                 command_prefix=get_prefix,
@@ -99,7 +107,8 @@ class BotService(Service):
                                     name=self.locals['discord_status']) if 'discord_status' in self.locals else None,
                                 heartbeat_timeout=120,
                                 assume_unsync_clock=True,
-                                proxy=proxy)
+                                proxy=proxy,
+                                proxy_auth=proxy_auth)
 
     async def start(self, *, reconnect: bool = True) -> None:
         from services.servicebus import ServiceBus
