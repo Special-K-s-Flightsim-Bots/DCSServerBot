@@ -26,6 +26,12 @@ mapping:
       num_workers: {type: int, range: {min: 4}}
       cjk_font: {type: str, enum: ['TC', 'JP', 'KR']}
   discord_status: {type: str}
+   proxy:
+    type: map
+    mapping:
+      url: {type: str}
+      username: {type: str} # for future use
+      password: {type: str} # for future use
   roles:
     type: map
     allowempty: true
