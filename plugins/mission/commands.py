@@ -1589,10 +1589,9 @@ class Mission(Plugin):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         pattern = ['.miz']
-        if not MissionUploadHandler.is_valid(message, pattern,
-                                             self.get_config().get('discord', self.bot.roles['DCS Admin'])):
-            return
         config = self.get_config().get('uploads', {})
+        if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
+            return
         # check, if upload is enabled
         if not config.get('enabled', True):
             self.log.debug("Mission upload is disabled!")
