@@ -84,6 +84,7 @@ class BotService(Service):
                             locals=self.locals)
         else:
             # Create the Bot
+            proxy = self.locals.get('proxy', {}).get('url')
             return DCSServerBot(version=self.node.bot_version,
                                 sub_version=self.node.sub_version,
                                 command_prefix=get_prefix,
@@ -97,7 +98,8 @@ class BotService(Service):
                                 activity=discord.Game(
                                     name=self.locals['discord_status']) if 'discord_status' in self.locals else None,
                                 heartbeat_timeout=120,
-                                assume_unsync_clock=True)
+                                assume_unsync_clock=True,
+                                proxy=proxy)
 
     async def start(self, *, reconnect: bool = True) -> None:
         from services.servicebus import ServiceBus
