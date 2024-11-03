@@ -416,7 +416,7 @@ class Mission(Plugin):
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                    mission_id: Optional[int] = None, alt_mission: Optional[str] = None,
                    run_extensions: Optional[bool] = True):
-        await self._load(interaction, server, mission_id or alt_mission, run_extensions)
+        await self._load(interaction, server, mission_id if mission_id is not None else alt_mission, run_extensions)
 
     @mission.command(description=_('Adds a mission to the list\n'))
     @app_commands.guild_only()
