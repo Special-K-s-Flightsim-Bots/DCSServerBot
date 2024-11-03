@@ -356,12 +356,15 @@ class Mission(Plugin):
         if isinstance(mission, int):
             mission_id = mission
             mission = (await server.getMissionList())[mission_id]
-        else:
+        elif isinstance(mission, str):
             try:
                 mission = os.path.join(await server.get_missions_dir(), mission)
                 mission_id = (await server.getMissionList()).index(mission)
             except ValueError:
                 mission_id = None
+        else:
+            await interaction.followup.send(_('You need to provide a mission!'), ephemeral=True)
+            return
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
