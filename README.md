@@ -423,11 +423,12 @@ My Fancy Server:                # Your server name, as displayed in the server l
     message: You have been kicked for slot spamming! # default message for slot spamming
     check_time: 5       # number of seconds to test
     slot_changes: 5     # number of slot changes in these number of seconds that are allowed
-  serverSettings:               # Overwrite the serverSettings.lua with these values
+  smart_bans: true      # Used to disable the smart ban system (usually enabled). Servers that see people getting banned with high number of IPv4 reusage (in CN for instance) want to say false here.
+  serverSettings:       # Overwrite the serverSettings.lua with these values
     port: 10308
     advanced:
       resume_mode: 0
-My 2nd Fancy Server:            # You can have an unlimited amount of server configurations.
+My 2nd Fancy Server:    # You can have an unlimited amount of server configurations.
   ...
 ```
 

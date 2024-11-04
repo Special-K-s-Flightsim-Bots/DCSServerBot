@@ -369,7 +369,8 @@ class MissionEventListener(EventListener):
                 "profanity_filter": server.locals.get('profanity_filter', False),
                 "messages": server.locals.get('messages'),
                 "channels": channels,
-                "slot_spamming": server.locals.get('slot_spamming')
+                "slot_spamming": server.locals.get('slot_spamming'),
+                "smart_bans": server.locals.get('smart_bans', True)
             }
         }))
         if not data.get('current_mission'):

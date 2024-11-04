@@ -53,13 +53,17 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     end
     ipaddr = utils.getIP(addr)
     if isBanned(ucid) then
-        -- add their IP to the smart ban system
-        dcsbot.banList[ipaddr] = ucid
-        local msg = {
-            command = 'sendMessage',
-            message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
-        }
-        utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
+        if config['smart_bans'] then
+            -- add their IP to the smart ban system
+            dcsbot.banList[ipaddr] = ucid
+            local msg = {
+                command = 'sendMessage',
+                message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
+            }
+            utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
+        else
+            log.write('DCSServerBot', log.DEBUG, 'Mission: Smart Bans disabled')
+        end
         return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[ucid])
     elseif isBanned(ipaddr) and dcsbot.banList[dcsbot.banList[ipaddr]] then
         local old_ucid = dcsbot.banList[ipaddr]
