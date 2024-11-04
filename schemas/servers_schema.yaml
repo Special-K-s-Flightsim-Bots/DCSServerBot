@@ -108,6 +108,7 @@ mapping:
       force_voice: {type: bool}
       rules: {type: str}
       accept_rules_on_join: {type: bool}
+      smart_bans: {type: bool}
       serverSettings:
         include: 'settings_schema'
       discord:

@@ -11,11 +11,11 @@ import ssl
 
 from contextlib import suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
-    get_translation
+    get_translation, ServiceRegistry
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
-from services.bot import DCSServerBot
+from services.bot import DCSServerBot, BotService
 from services.bot.dummy import DummyBot
 from typing import Type, Any, Optional, Union
 
@@ -102,13 +102,15 @@ class Cloud(Plugin):
 
     async def get(self, request: str) -> Any:
         url = f"{self.base_url}/{request}"
-        async with self.session.get(url) as response:  # type: aiohttp.ClientResponse
+        async with self.session.get(url, proxy=ServiceRegistry.get(BotService).proxy,
+                                    proxy_auth=ServiceRegistry.get(BotService).proxy_auth) as response:
             return await response.json()
 
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with self.session.post(url, json=element) as response:  # type: aiohttp.ClientResponse
+            async with self.session.post(url, json=element, proxy=ServiceRegistry.get(BotService).proxy,
+                                         proxy_auth=ServiceRegistry.get(BotService).proxy_auth) as response:
                 return await response.json()
 
         if isinstance(data, list):
