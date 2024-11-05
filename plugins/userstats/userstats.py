@@ -13,14 +13,15 @@ class Header(report.EmbedElement):
     async def render(self, member: Union[discord.Member, str], server_name: str, flt: StatisticsFilter):
         sql = '''
             SELECT p.first_seen, p.last_seen, 
-                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
-            FROM statistics s, players p, missions m 
-            WHERE s.player_ucid = p.ucid AND s.hop_off IS NOT NULL AND s.mission_id = m.id 
+                   COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
+            FROM players p
+            LEFT OUTER JOIN statistics s ON s.player_ucid = p.ucid AND s.hop_off IS NOT NULL 
+            LEFT OUTER JOIN missions m ON s.mission_id = m.id
         '''
         if isinstance(member, discord.Member):
-            sql += 'AND p.discord_id = %(member)s '
+            sql += 'WHERE p.discord_id = %(member)s '
         else:
-            sql += 'AND p.ucid = %(member)s '
+            sql += 'WHERE p.ucid = %(member)s '
         if server_name:
             self.env.embed.description = utils.escape_string(server_name)
             sql += "AND m.server_name = %(server_name)s"
@@ -34,9 +35,10 @@ class Header(report.EmbedElement):
                     "server_name": server_name
                 })
                 row = await cursor.fetchone()
-                self.add_datetime_field("First seen", row['first_seen'])
-                self.add_datetime_field("Last seen", row['last_seen'])
-                self.add_field(name="Playtime", value=utils.convert_time(row['playtime']))
+                if row:
+                    self.add_datetime_field("First seen", row['first_seen'])
+                    self.add_datetime_field("Last seen", row['last_seen'])
+                    self.add_field(name="Playtime", value=utils.convert_time(row['playtime']))
 
 
 class PlaytimesPerPlane(report.GraphElement):

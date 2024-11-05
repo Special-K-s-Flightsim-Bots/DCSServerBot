@@ -717,5 +717,7 @@ class ServerLoad(report.MultiGraphElement):
             if 'minor_locator' in settings[period]:
                 ax.xaxis.set_minor_locator(settings[period]['minor_locator'])
                 ax.tick_params(axis='x', which='minor', length=6)
+            else:
+                ax.xaxis.set_minor_locator(mdates.AutoMinorLocator())
             ax.xaxis.set_major_formatter(settings[period]['formatter'])
             ax.tick_params(axis='x', which='major', rotation=30)
