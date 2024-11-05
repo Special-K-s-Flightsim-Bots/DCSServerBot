@@ -689,7 +689,7 @@ class ServerLoad(report.MultiGraphElement):
                     ylabel='KB/s', grid=True)
         self.axes[4].legend(['Sent', 'Recv'], loc='upper left')
         ax4 = self.axes[4].twinx()
-        series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
+        series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='red')
         ax4.legend(['Ping'], loc='upper right')
 
         settings = {
@@ -699,12 +699,12 @@ class ServerLoad(report.MultiGraphElement):
             },
             "Day": {
                 "major_locator": mdates.HourLocator(),
-                "minor_locator": mdates.MinuteLocator(byminute=[0, 30]),
+                "minor_locator": mdates.MinuteLocator(byminute=range(0,60,15)),
                 "formatter": mdates.DateFormatter('%H:%M')
             },
             "Week": {
                 "major_locator": mdates.DayLocator(),
-                "minor_locator": mdates.HourLocator(byhour=[0, 6, 12, 18]),
+                "minor_locator": mdates.HourLocator(byhour=range(0,24,4)),
                 "formatter": mdates.DateFormatter('%Y-%m-%d')
             },
             "Month": {
