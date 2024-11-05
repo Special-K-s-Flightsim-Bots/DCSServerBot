@@ -259,7 +259,7 @@ msgid "Bans an active player"
 msgstr "封禁一名活跃玩家"
 
 msgid "Ban Details"
-msgstr "禁令详情"
+msgstr "封禁详情"
 
 msgid "Reason"
 msgstr "原因"
@@ -268,7 +268,7 @@ msgid "n/a"
 msgstr "n/a"
 
 msgid "Days (empty = forever)"
-msgstr "日期 (空 = 永久)"
+msgstr "期限 (空 = 永久)"
 
 msgid "Player {} banned on all servers "
 msgstr "玩家 {} 在所有服务器上封禁 "
@@ -393,7 +393,7 @@ msgstr "用于管理 DCS 组的命令"
 
 # /group popup
 msgid "Sends a popup to a group\n"
-msgstr "向群组发送弹出窗口\n"
+msgstr "向指定群组发送全屏消息\n"
 
 # /link
 msgid "Links a member to a DCS user"

@@ -23,11 +23,11 @@ msgstr "消息已发送."
 
 # /popup
 msgid "Sends a popup to a coalition\n"
-msgstr "向阵营发送弹出窗口\n"
+msgstr "向指定阵营发送全屏消息\n"
 
 # /broadcast
 msgid "Sends a popup to all servers"
-msgstr "向所有服务器发送弹出窗口"
+msgstr "向所有服务器发送全屏消息"
 
 msgid "Message NOT sent to server {server} because it is {status}."
 msgstr "消息未发送至服务器 {server}，因为它处于 {status}."
