@@ -666,8 +666,8 @@ class UserStatistics(Plugin):
                             await conn.execute("""
                                 DELETE FROM squadron_members WHERE squadron_id = %s and player_ucid = %s
                             """, (row[0], ucid))
-            if self.get_config().get('squadrons', {}).get('persist_list', False):
-                await self.persist_squadron_list(row[0])
+                        if self.get_config().get('squadrons', {}).get('persist_list', False):
+                            await self.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)
 
