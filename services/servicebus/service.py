@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog, \
-    ThreadSafeDict
+    ThreadSafeDict, Instance
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from core.data.impl.instanceimpl import InstanceImpl
@@ -554,6 +554,8 @@ class ServiceBus(Service):
             if data.get('channel', '').startswith('sync-'):
                 if isinstance(rc, Enum):
                     rc = rc.value
+                elif isinstance(rc, (Node, Server, Instance)):
+                    rc = rc.name
                 await self.send_to_node({
                     "command": "rpc",
                     "method": data['method'],
