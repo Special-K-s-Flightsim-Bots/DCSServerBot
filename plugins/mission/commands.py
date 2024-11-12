@@ -474,6 +474,14 @@ class Mission(Plugin):
                                            ephemeral=ephemeral):
                     try:
                         await server.node.remove_file(filename)
+                        if '.dcssb' in filename:
+                            origname = filename.replace(os.path.sep + '.dcssb', '')
+                            await server.node.remove_file(origname)
+                        else:
+                            origname = filename
+                            secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
+                            await server.node.remove_file(secondary)
+                        await server.node.remove_file(origname + '.orig')
                         await interaction.followup.send(_('Mission "{}" deleted.').format(os.path.basename(filename)),
                                                         ephemeral=ephemeral)
                     except FileNotFoundError:
