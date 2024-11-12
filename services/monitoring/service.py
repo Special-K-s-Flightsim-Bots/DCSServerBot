@@ -123,7 +123,8 @@ class MonitoringService(Service):
             "Login Failed",
             "DCS Login",
             "Authorization failed",
-            "Login session has expired"
+            "Login session has expired",
+            "Mission script error"
         ]:
             handle = win32gui.FindWindowEx(None, None, None, title)
             if handle:
