@@ -483,10 +483,7 @@ class DCSServerBot(commands.Bot):
                     self.log.exception(ex)
                     return
             if not row or not message:
-                if channel.type == discord.ChannelType.text:
-                    message = await channel.send(embed=embed, file=file)
-                    thread = None
-                else:
+                if channel.type == discord.ChannelType.forum:
                     for thread in channel.threads:
                         if thread.name.startswith(server.name):
                             message = await thread.send(embed=embed, file=file)
@@ -496,6 +493,9 @@ class DCSServerBot(commands.Bot):
                                                              embed=embed, file=file)
                         message = thread.message
                         thread = thread.thread
+                else:
+                    message = await channel.send(embed=embed, file=file)
+                    thread = None
                 async with self.apool.connection() as conn:
                     async with conn.transaction():
                         await conn.execute("""
