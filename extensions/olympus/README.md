@@ -12,7 +12,7 @@ DCS_MERCS:
     version: latest
     source: SavedGames
 ```
-To use the DCS Olympus client, you need [Node.js](https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi) installed.
+To use the DCS Olympus client, you need [Node.js](https://nodejs.org/download/release/latest-v20.x/) installed.
 Click on the link, download and install it. Remember the installation location, as you need to provide it in the 
 configuration.
 
