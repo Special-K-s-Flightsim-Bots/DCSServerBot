@@ -2,7 +2,7 @@
 aiofiles==24.1.0
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.10.9
+aiohttp==3.11.6
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2024.8.30
