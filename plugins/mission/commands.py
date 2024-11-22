@@ -6,7 +6,7 @@ import psycopg
 import random
 import re
 
-from copy import deepcopy
+from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
     UnsupportedMizFileException
@@ -1609,7 +1609,8 @@ class Mission(Plugin):
         except Exception as ex:
             self.log.exception(ex)
         finally:
-            await message.delete()
+            with suppress(discord.errors.NotFound):
+                await message.delete()
 
     @commands.Cog.listener()
     async def on_member_ban(self, _: discord.Guild, member: discord.Member):
