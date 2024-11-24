@@ -58,12 +58,13 @@ class Extension(ABC):
         return filename, False
 
     async def startup(self) -> bool:
-        # avoid race conditions
-        if await asyncio.to_thread(self.is_running):
-            return True
         self.running = True
-        self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
-        return True
+        if self.is_running():
+            self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
+            return True
+        else:
+            self.log.warning(f"  => {self.name} NOT launched for \"{self.server.name}\".")
+            return False
 
     def shutdown(self) -> bool:
         # avoid race conditions

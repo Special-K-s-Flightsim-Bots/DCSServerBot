@@ -283,6 +283,8 @@ class DCSServerBot(commands.Bot):
             await interaction.followup.send('A timeout occurred. Is the DCS server running?', ephemeral=True)
         elif isinstance(error, discord.app_commands.TransformerError):
             await interaction.followup.send(error, ephemeral=True)
+        elif isinstance(error, discord.app_commands.AppCommandError):
+            await interaction.followup.send(str(error))
         else:
             self.log.exception(error)
             await interaction.followup.send("An unknown exception occurred.", ephemeral=True)

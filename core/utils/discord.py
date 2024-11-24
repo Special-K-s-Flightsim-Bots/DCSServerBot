@@ -17,6 +17,7 @@ from discord.ext import commands
 from discord.ui import Button, View, Select, Item, Modal, TextInput
 from enum import Enum, auto
 from fuzzywuzzy import fuzz
+from packaging.version import parse, Version
 from psycopg.rows import dict_row
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any, Callable
 
@@ -43,6 +44,7 @@ __all__ = [
     "app_has_not_role",
     "app_has_roles",
     "app_has_not_roles",
+    "app_has_dcs_version",
     "cmd_has_roles",
     "get_role_ids",
     "format_embed",
@@ -550,6 +552,16 @@ def app_has_not_roles(roles: list[str]):
         return not check_roles(invalid_roles, interaction.user)
 
     predicate.roles = roles
+    return app_commands.check(predicate)
+
+
+def app_has_dcs_version(version: str):
+    def predicate(interaction: Interaction) -> bool:
+        if parse(interaction.client.node.dcs_version) < Version(version):
+            raise app_commands.AppCommandError(
+                _("You need at least DCS version {} to use this command!").format(version))
+        return True
+
     return app_commands.check(predicate)
 
 
