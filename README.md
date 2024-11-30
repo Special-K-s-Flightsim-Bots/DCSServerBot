@@ -97,30 +97,32 @@ refer to the respective plugin-documentation for more.
 Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, LotAtc, etc.</br>
 DCSServerBot supports some of them already and can add a bit of quality of life.
 
-| Extension        | Scope                                                                                                      | Documentation                                |
-|------------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------|
-| MizEdit          | My own invention, can be used to modify your missions. Very powerful!                                      | [README](./extensions/mizedit/README.md)     |
-| DCS Voice Chat   | DCS VOIP system to communicate with other pilots.                                                          | [README](./extensions/voicechat/README.md)   |
-| DCS-SRS          | Market leader in DCS VOIP integration.                                                                     | [README](./extensions/srs/README.md)         |
-| Tacview          | Well known flight data capture and analysis tool.                                                          | [README](./extensions/tacview/README.md)     |
-| LotAtc           | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |
-| DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
-| DCS Olympus      | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
-| Lardoon          | Webgui for Tacview with search options.                                                                    | [README](./extensions/lardoon/README.md)     |
-| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! | [README](./extensions/sneaker/README.md)     |
-| DCS Real Weather | Real weather for your missions.                                                                            | [README](./extensions/realweather/README.md) |
-| OvGME            | Use mods within your DCS World servers.                                                                    | [README](./extensions/ovgme/README.md)       |
-| gRPC             | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
-| Pretense         | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
+| Extension   | Scope                                                                                                      | Documentation                                |
+|-------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+| DSMC        | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
+| gRPC        | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
+| Lardoon     | Webgui for Tacview with search options.                                                                    | [README](./extensions/lardoon/README.md)     |
+| LogAnalyser | Analyses the dcs.log on the fly and does some helpful things. Activated per default.                       | [README](./extensions/loganalyser/README.md) |
+| LotAtc      | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |
+| MizEdit     | My own invention, can be used to modify your missions. Very powerful!                                      | [README](./extensions/mizedit/README.md)     |
+| Olympus     | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
+| OvGME       | Use mods within your DCS World servers.                                                                    | [README](./extensions/ovgme/README.md)       |
+| Pretense    | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
+| RealWeather | Real weather for your missions using DCS Real Weather.                                                     | [README](./extensions/realweather/README.md) |
+| Sneaker     | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! | [README](./extensions/sneaker/README.md)     |
+| SRS         | DCS-SRS, "market leader" in DCS VOIP integration.                                                          | [README](./extensions/srs/README.md)         |
+| Tacview     | Well known flight data capture and analysis tool.                                                          | [README](./extensions/tacview/README.md)     |
+| Trackfile   | Upload your track files to a Discord channel or a (cloud) drive.                                           | [README](./extensions/trackfile/README.md)   |
+| VoiceChat   | DCS VOIP system to communicate with other pilots.                                                          | [README](./extensions/voicechat/README.md)   |
 
 > ⚠️ **Attention!**<br>
-> Besides LogAnalyser and MizEdit, which are my own solutions, all other extensions are made by fellow community members. 
-> I am very happy about these solutions and I really appreciate that someone put a lot of time in to make them what they
-> are today.<br>
-> Nevertheless, I am not responsible for them. Neither for any bugs, nor for their proper functionality. The developers
-> usually either have their own Discord servers, where you can ask for support, or they have the option to raise an 
-> issue in their GitHubs.<br>
-> So please - if you see any issues in these solutions, contact the developers and ask for help.
+> Many of the solutions that these extensions rely on are created by talented community members. I deeply appreciate 
+> the extensive time and effort they have invested in developing these tools to their current state.<br>
+> However, please note that I am not accountable for these extensions, including any bugs or their overall 
+> functionality. The developers typically have dedicated Discord servers for support inquiries or GitHub repositories 
+> where you can report any issues.<br>
+> Therefore, if you encounter any problems with these solutions, please reach out directly to the developers for 
+> assistance.
 
 ---
 ## Installation
@@ -336,7 +338,7 @@ NODENAME:                       # this will usually be your hostname
   instances:
     DCS.release_server:        # The name of your instance. You can have multiple instances that have to have unique names.
       home: '%USERPROFILE%\\Saved Games\\DCS.release_server' # The path to your saved games directory.
-      missions_dir: '%USERPROFILE%\Documents\Missions'        # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
+      missions_dir: '%USERPROFILE%\Documents\Missions'       # You can overwrite the default missions dir like so. Default is the Missions dir below the instance home folder.
       mission_rewrite: false    # Disable the re-write of missions by MizEdit or RealWeather. The server will be stopped for any mission change then. (default: true)
       bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
       webgui_port: 8088         # The port of the WebGUI (default: 8088)
@@ -356,6 +358,8 @@ NODENAME:                       # this will usually be your hostname
     instance2:                  # you can have an unlimited amount of instance configurations, but each instance has to have a physical representation on your disk.
       ...
 ```
+> ⚠️ **Attention!**<br>
+> Don't forget to put apostrophes around any path, as the colon might mangle your yaml!
 
 ### config/servers.yaml
 This is your server configuration.<br>

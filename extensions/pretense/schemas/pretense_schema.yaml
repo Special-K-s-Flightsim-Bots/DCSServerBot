@@ -1,4 +1,4 @@
-schema;instance_pretense_schema:
+schema;pretense_schema:
   type: map
   mapping:
     enabled: {type: bool}
