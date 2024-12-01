@@ -69,9 +69,14 @@ Supported periods:
 - today
 - yesterday
 - all
+- yyyymmdd-yyyymmdd
+- yyyymmdd HH:MM:SS-yyyymmdd HH:MM:SS (and any variation without seconds, minutes)
+- -3 days (or years, weeks, months, hours, minutes)
 
-In addition, you can provide any campaign name (which have to be different from the periods, so please don't name your
-campaign "day" or "year").
+In addition, you can provide any campaign name or any mission name like so:
+- campaign:My Fancy Campaign
+- mission:Foothold
+It will do a wildcard search in all your missions.
 
 > ⚠️ **Attention!**<br/>
 > If a campaign is active on your server, `/statistics` and `/highscore` will display the data of that campaign only, 

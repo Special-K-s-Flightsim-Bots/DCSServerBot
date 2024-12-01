@@ -135,6 +135,7 @@ class Report:
                             except Exception:
                                 self.log.error(f"Error while processing report {self.filename}! "
                                                f"Some elements might be empty.", exc_info=True)
+                                raise
                         else:
                             raise UnknownReportElement(element['class'])
                     else:
