@@ -119,8 +119,10 @@ class PeriodFilter(StatisticsFilter):
             return 'Daily '
         elif period in ['today', 'yesterday']:
             return period.capitalize() + 's '
-        else:
+        elif period in ['day', 'week', 'month', 'year']:
             return period.capitalize() + 'ly '
+        else:
+            return period
 
 
 class CampaignFilter(StatisticsFilter):
