@@ -101,6 +101,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 |-------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------|
 | DSMC        | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
 | gRPC        | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
+| GitHub      | Clone / update a Git repository into a directory on your server.                                           | [README](./extensions/github/README.md)      |
 | Lardoon     | Webgui for Tacview with search options.                                                                    | [README](./extensions/lardoon/README.md)     |
 | LogAnalyser | Analyses the dcs.log on the fly and does some helpful things. Activated per default.                       | [README](./extensions/loganalyser/README.md) |
 | LotAtc      | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |

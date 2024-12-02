@@ -24,6 +24,8 @@ schema;instance_extensions_schema:
       include: 'dsmc_schema'
     gRPC:
       include: 'grpc_schema'
+    GitHub:
+      include: 'github_schema'
     Lardoon:
       include: 'instance_lardoon_schema'
     LogAnalyser:

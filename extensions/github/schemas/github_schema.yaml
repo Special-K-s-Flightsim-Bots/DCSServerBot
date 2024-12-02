@@ -1,0 +1,7 @@
+schema;github_schema:
+  type: map
+  mapping:
+    enabled: {type: bool}
+    repo: {type: str, required: true}
+    target: {type: str, required: true}
+    filter: {type: str}
