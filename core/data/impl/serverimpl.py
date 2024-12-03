@@ -57,7 +57,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
-        if not path.endswith('.miz'):
+        if not path.endswith('.miz') or '.dcssb' in path:
             return
         if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "addMission", "path": path}),
