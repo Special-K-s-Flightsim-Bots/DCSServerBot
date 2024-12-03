@@ -198,6 +198,8 @@ class ServerImpl(Server):
         missions = self.settings['missionList']
         i: int = 0
         for file in directory.rglob('*.miz'):
+            if '.dcssb' in file:
+                continue
             secondary = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
             if str(file) not in missions and secondary not in missions:
                 missions.append(str(file))
