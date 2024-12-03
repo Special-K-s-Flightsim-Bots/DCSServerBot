@@ -78,11 +78,11 @@ MyNode:
               fog:
                 thickness-minimum: 0
               temperature:
-                enabled: true
+                enable: true
               pressure:
-                enabled: true
+                enable: true
             time:
-              enabled: true
+              enable: true
               system-time: true
               offset: '0h5m'
 ```
