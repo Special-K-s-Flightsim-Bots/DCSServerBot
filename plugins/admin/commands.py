@@ -960,7 +960,7 @@ Please make sure you forward the following ports:
                 return
         att = message.attachments[0]
         name = att.filename[:-5]
-        if name in ['main', 'nodes', 'presets', 'servers']:
+        if name in ['main', 'nodes', 'servers'] or name.startswith('presets'):
             target_path = self.node.config_dir
             plugin = False
         elif name in ['backup', 'bot']:

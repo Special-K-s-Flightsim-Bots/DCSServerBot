@@ -741,6 +741,7 @@ class Mission(Plugin):
     @mission.command(description=_('Runs a fog animation'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(presets_file=presets_autocomplete)
     @utils.app_has_dcs_version("2.9.10")
     async def fog_animation(self, interaction: discord.Interaction,
                             server: app_commands.Transform[Server, utils.ServerTransformer(
