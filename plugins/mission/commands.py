@@ -714,8 +714,8 @@ class Mission(Plugin):
     async def fog(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer(
                       status=[Status.RUNNING, Status.PAUSED])],
-                  thickness: Optional[app_commands.Range[int, 100, 5000]] = None,
-                  visibility: Optional[app_commands.Range[int, 100, 100000]] = None):
+                  thickness: Optional[app_commands.Range[int, 0, 5000]] = None,
+                  visibility: Optional[app_commands.Range[int, 0, 100000]] = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -724,6 +724,12 @@ class Mission(Plugin):
                 "command": "getFog"
             })
         else:
+            if thickness and thickness < 100:
+                await interaction.followup.send(_("Thickness has to be in the range 100-5000"))
+                return
+            if visibility and visibility < 100:
+                await interaction.followup.send(_("Visibility has to be in the range 100-100000"))
+                return
             ret = await server.send_to_dcs_sync({
                 "command": "setFog",
                 "thickness": thickness or -1,
