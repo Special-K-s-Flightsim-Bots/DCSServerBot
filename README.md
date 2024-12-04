@@ -60,7 +60,7 @@ from time to time, but you as a community member can also create your own plugin
 | UserStats    | Users statistics system.                                                        | yes*     | Mission                 | [README](./plugins/userstats/README.md)    |
 | CreditSystem | User credits, based on achievements.                                            | yes*     | Mission                 | [README](./plugins/creditsystem/README.md) |
 | Scheduler    | Autostart / -stop of servers or missions, modify missions, etc.                 | yes*     | Mission                 | [README](./plugins/scheduler/README.md)    |
-| Cloud        | Cloud-based statistics and connection to the DGSA global ban system.            | yes*     | Userstats               | [README](./plugins/cloud/README.md)        |
+| Cloud        | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.   | yes*     | Userstats               | [README](./plugins/cloud/README.md)        |
 | MissionStats | Detailed users statistics / mission statistics.                                 | yes*     | Userstats               | [README](./plugins/missionstats/README.md) |
 | Backup       | Create a backup of your database, server or bot configurations.                 | yes      |                         | [README](./plugins/backup/README.md)       |
 | Battleground | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)    | yes      |                         | [README](./plugins/battleground/README.md) |
@@ -131,8 +131,12 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 ### Prerequisites
 You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
 "Add python.exe to PATH" during your Python installation.<br>
+> ⚠️ **Attention!**<br>
+> Keep in mind, that Python 3.13 is still very new and can have bugs. I would recommend using the latest Python 3.12 for 
+> now.
 
-If you want to use instant autoupdate from the master branch, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
+If you want to use instant autoupdate from the master branch, you have to install [Git for Windows](https://git-scm.com/download/win) and make sure 
+the ```git```-command is in your PATH.
 
 ### Discord Setup
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
@@ -144,9 +148,10 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - To add the bot to your Discord guild, select "OAuth2" from the left menu
 - Select the "bot" checkbox in "OAuth2 URL Generator"
 - Select the following "Bot Permissions":
-  - Left side:
-    - Manage Channels
-  - Center:
+  - Left side (optional):
+    - Manage Channels (only, if you want to have the bot auto-rename your status channel with the current number of players)
+    - Ban Members (only, if you want to use the bots auto-ban feature that is part of the global [DGSA](#dgsa) banlist)
+  - Center (mandatory):
     - Send Messages
     - Manage Messages
     - Embed Links
@@ -158,7 +163,7 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - Select the guild the bot has to be added to - and you're done!
 
 > ⚠️ **Attention!**<br>
-> For easier access to user and channel IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
+> For easier access to user- and channel-IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
 ### 🆕 Setup without using Discord
 If you do not want to use Discord, or if you maybe are not allowed to do so due to limitations of your Country, etc.
@@ -677,6 +682,16 @@ I have created some READMEs for you that you can start with:
 > If you decide to develop something that might be of interest for other community members, I highly encourage you to 
 > share it. You can either ask me to incorporate it in the solution (some requirements might need to be met), or you 
 > just provide it in the format and way you prefer.
+---
+## DGSA
+DGSA is an association of server administrators of the largest or most popular DCS servers worldwide. We founded it 
+so that we can coordinate quickly and efficiently and, for example, react to cheaters or players who generally ensure 
+hat DCS is not enjoyable for everyone.<br>
+One result is two ban lists, one for DCS and one for Discord, in which we include players who fit into the 
+above-mentioned scheme. DCSServerBot supports these ban lists and can therefore ensure that your servers cannot be 
+visited by these players in the first place. For configuration, please look [here](./plugins/cloud/README.md).
+
+If you want to be part of DGSA, feel free to contact me (see below).
 
 ---
 ## Contact / Support

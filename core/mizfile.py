@@ -9,6 +9,7 @@ import zipfile
 
 from core import utils
 from datetime import datetime
+from packaging.version import parse, Version
 from typing import Union, Optional
 
 __all__ = [
@@ -20,6 +21,9 @@ __all__ = [
 class MizFile:
 
     def __init__(self, filename: str):
+        from core.services.registry import ServiceRegistry
+        from services.servicebus import ServiceBus
+
         self.log = logging.getLogger(__name__)
         self.filename = filename
         self.mission: dict = {}
@@ -27,6 +31,7 @@ class MizFile:
         self.warehouses: dict = {}
         self._load()
         self._files: list[dict] = []
+        self.node = ServiceRegistry.get(ServiceBus).node
 
     def _load(self):
         try:
@@ -55,9 +60,12 @@ class MizFile:
                 zout.comment = zin.comment  # preserve the comment
                 filenames = []
                 for item in self._files:
-                    filenames.extend([
-                        utils.make_unix_filename(item['target'], x) for x in utils.list_all_files(item['source'])
-                    ])
+                    if utils.is_valid_url(item['source']):
+                        ...
+                    else:
+                        filenames.extend([
+                            utils.make_unix_filename(item['target'], x) for x in utils.list_all_files(item['source'])
+                        ])
                 for item in zin.infolist():
                     if item.filename == 'mission':
                         zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
@@ -226,19 +234,62 @@ class MizFile:
 
     @property
     def enable_fog(self) -> bool:
-        return self.mission['weather']['enable_fog']
+        if parse(self.node.dcs_version) >= Version('2.9.10'):
+            return self.mission['weather'].get('fog2') is not None
+        else:
+            return self.mission['weather']['enable_fog']
 
     @enable_fog.setter
     def enable_fog(self, value: bool) -> None:
+        if parse(self.node.dcs_version) >= Version('2.9.10'):
+            if value:
+                self.mission['weather']['fog2'] = {
+                    "mode": 2
+                }
+            else:
+                del self.mission['weather']['fog2']
+            value = False
         self.mission['weather']['enable_fog'] = value
 
     @property
     def fog(self) -> dict:
-        return self.mission['weather']['fog']
+        if parse(self.node.dcs_version) >= Version('2.9.10'):
+            fog = self.mission['weather'].get('fog2')
+            if not fog:
+                return {}
+            if fog['mode'] == 2:
+                return {
+                    "mode": "auto"
+                }
+            else:
+                return {d["time"]: {"thickness": d["thickness"], "visibility": d["visibility"]} for d in fog["manual"]}
+        else:
+            return self.mission['weather']['fog']
 
     @fog.setter
     def fog(self, values: dict):
-        self.mission['weather']['fog'] |= values
+        if parse(self.node.dcs_version) >= Version('2.9.10'):
+            if values.get('mode') == "auto":
+                self.mission['weather']['enable_fog'] = False
+                self.mission['weather']['fog2'] = {
+                    "mode": 2
+                }
+            elif "thickness" in values or "visibility" in values:
+                self.mission['weather']['enable_fog'] = True
+                self.mission['weather']['fog'] |= values
+            elif values.pop('mode', 'manual') == 'manual':
+                self.mission['weather']['enable_fog'] = False
+                self.mission['weather']['fog2'] = {
+                    "manual": [
+                        {"time": key, "visibility": value["visibility"], "thickness": value["thickness"]}
+                        for key, value in values.items()
+                        if isinstance(key, int)
+                    ],
+                    "mode": 4
+                }
+        else:
+            self.mission['weather']['enable_fog'] = True
+            self.mission['weather']['fog'] |= values
 
     @property
     def halo(self) -> dict:

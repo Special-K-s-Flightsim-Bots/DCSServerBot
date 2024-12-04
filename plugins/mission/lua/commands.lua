@@ -489,3 +489,23 @@ function dcsbot.deleteScreenshot(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: deleteScreenshot()')
     net.screenshot_del(json.id, json.key)
 end
+
+function dcsbot.setFog(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setFog()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFog(' .. json.visibility .. ',' .. json.thickness .. ',"' .. json.channel .. '")') .. ')')
+end
+
+function dcsbot.getFog(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: getFog()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getFog("' .. json.channel .. '")') .. ')')
+end
+
+function dcsbot.setFogAnimation(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setFogAnimation()')
+    local animation = '{'
+    for i, value in pairs(json.values) do
+        animation = animation .. '{' .. value[1] .. ',' .. value[2] .. ',' .. value[3] .. '},'
+    end
+    animation = animation .. '}'
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFogAnimation(' .. animation .. ',"' .. json.channel .. '")') .. ')')
+end

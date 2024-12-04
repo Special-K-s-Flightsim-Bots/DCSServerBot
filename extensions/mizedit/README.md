@@ -105,7 +105,26 @@ AddFiles:
       target: KNEEBOARDS          # at this place
 ```
 
-#### c) Complex Modifications
+#### c) Fog
+With DCS 2.9.10, Eagle Dynamics added a new fog system, which allows fog animations, based on time. You can use this 
+new feature set with the bot like so:
+```yaml
+auto_fog:   # let DCS to the fog on its own
+    fog:
+        mode: auto
+manual_fog: # set a manual fog animation
+    fog:
+        mode: manual
+        0: {"thickness": 100, "visibility": 1000}
+        300: {"thickness": 200, "visibility": 2000}
+        600: {"thickness": 250, "visibility": 2500}
+        900: {"thickness": 100, "visibility": 500}
+        1200: {"thickness": 0, "visibility": 0}
+```
+The key is the time in seconds after which the specific thickness and visibility should appear. DCS will then animate
+the fog changes in-between for you.
+
+#### d) Complex Modifications
 Sometimes, only changing the weather is not enough, and you want to change some parts in the mission that are deeply 
 nested or even dependent on another parts of your mission file. This is for instance true, if you want to change
 frequencies, TACAN codes or similar items.

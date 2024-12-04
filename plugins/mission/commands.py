@@ -6,6 +6,7 @@ import psycopg
 import random
 import re
 
+from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
     UnsupportedMizFileException
@@ -568,6 +569,9 @@ class Mission(Plugin):
             return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
+        elif not options:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("There are no presets to chose from."), ephemeral=True)
 
         result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:
@@ -700,6 +704,104 @@ class Mission(Plugin):
             await server.replaceMission(mission_id + 1, new_file)
         await interaction.followup.send(_("Mission {} has been rolled back.").format(miz_file[:-4]),
                                         ephemeral=ephemeral)
+
+    @mission.command(description=_('Sets fog in the running mission'))
+    @app_commands.guild_only()
+    @app_commands.describe(thickness=_("Thickness of the fog [100-5000]m, to disable, set 0."))
+    @app_commands.describe(visibility=_("Visibility of the fog [100-100000]m, to disable, set 0."))
+    @utils.app_has_role('DCS Admin')
+    @utils.app_has_dcs_version("2.9.10")
+    async def fog(self, interaction: discord.Interaction,
+                  server: app_commands.Transform[Server, utils.ServerTransformer(
+                      status=[Status.RUNNING, Status.PAUSED])],
+                  thickness: Optional[app_commands.Range[int, 100, 5000]] = None,
+                  visibility: Optional[app_commands.Range[int, 100, 100000]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not thickness and not visibility:
+            ret = await server.send_to_dcs_sync({
+                "command": "getFog"
+            })
+        else:
+            ret = await server.send_to_dcs_sync({
+                "command": "setFog",
+                "thickness": thickness or -1,
+                "visibility": visibility or -1
+            })
+        await interaction.followup.send(_("Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:\t{visibility:.2f}m").format(
+            thickness=ret['thickness'], visibility=ret['visibility']), ephemeral=ephemeral)
+
+    @mission.command(description=_('Runs a fog animation'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @utils.app_has_dcs_version("2.9.10")
+    async def fog_animation(self, interaction: discord.Interaction,
+                            server: app_commands.Transform[Server, utils.ServerTransformer(
+                                status=[Status.RUNNING, Status.PAUSED])],
+                            presets_file: Optional[str] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if presets_file is None:
+            presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
+        try:
+            with open(presets_file, mode='r', encoding='utf-8') as infile:
+                presets = yaml.load(infile)
+        except FileNotFoundError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
+            return
+        try:
+            options = [
+                discord.SelectOption(label=k)
+                for k, v in presets.items()
+                if not v.get('hidden', False) and v.get('fog') and
+                   (v['fog'].get('mode', None) == 'manual' or all(isinstance(y, int) for y in v['fog'].keys()))
+            ]
+        except AttributeError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("There is an error in your {}. Please check the file structure.").format(presets_file),
+                ephemeral=True)
+            return
+        if len(options) > 25:
+            self.log.warning("You have more than 25 presets created, you can only choose from 25!")
+        elif not options:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("There is no manual fog preset in your {}").format(presets_file),
+                                                    ephemeral=True)
+            return
+
+        # select a preset
+        view = PresetView(options[:25], multi=False)
+        # noinspection PyUnresolvedReferences
+        if interaction.response.is_done():
+            msg = await interaction.followup.send(view=view, ephemeral=ephemeral)
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(view=view, ephemeral=ephemeral)
+            msg = await interaction.original_response()
+        try:
+            if await view.wait() or view.result is None:
+                return
+        finally:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
+
+        fog = utils.get_preset(self.node, view.result[0])['fog']
+        fog.pop('mode', None)
+        await server.send_to_dcs_sync(
+            {
+                'command': 'setFogAnimation',
+                'values': [
+                    (key, value["visibility"], value["thickness"])
+                    for key, value in fog.items()
+                ]
+            })
+        message = _('The following preset was applied: {}.').format(view.result[0])
+        await interaction.followup.send(message, ephemeral=ephemeral)
 
     # New command group "/player"
     player = Group(name="player", description=_("Commands to manage DCS players"))
@@ -1643,7 +1745,8 @@ class Mission(Plugin):
         except Exception as ex:
             self.log.exception(ex)
         finally:
-            await message.delete()
+            with suppress(discord.errors.NotFound):
+                await message.delete()
 
     @commands.Cog.listener()
     async def on_member_ban(self, _: discord.Guild, member: discord.Member):
