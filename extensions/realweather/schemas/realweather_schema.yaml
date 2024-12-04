@@ -59,7 +59,7 @@ schema;instance_realweather_schema:
           type: map
           allowempty: true
           mapping:
-            enabled: {type: bool}
+            enable: {type: bool}
             thickness-minimum: {type: int, range: {min: 0}}
             thickness-maximum: {type: int, range: {max: 1000}}
             visibility-minimum: {type: int, range: {min: 0}}
@@ -68,6 +68,6 @@ schema;instance_realweather_schema:
           type: map
           allowempty: true
           mapping:
-            enabled: {type: bool}
+            enable: {type: bool}
             visibility-minimum: {type: int, range: {min: 300}}
             visibility-maximum: {type: int, range: {max: 3000}}
