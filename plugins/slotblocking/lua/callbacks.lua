@@ -1,7 +1,6 @@
 local base 	    = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
-local config	= base.require("DCSServerBotConfig")
 
 local slotblock = slotblock or {}
 
@@ -190,6 +189,17 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     -- if not side change happens or they want in a sub-slot, do not run balancing
     if old_side ~= side and tonumber(slotID) and dcsbot.params['slotblocking']['balancing'] then
         return balance_slots(playerID, side, slotID)
+    end
+end
+
+function slotblock.onPlayerChangeSlot(id)
+    local side = net.get_player_info(id, 'side')
+    local slot = net.get_player_info(id, 'slot')
+    local _, _slot, _ = utils.getMulticrewAllParameters(id)
+
+    -- workaround for non-working onPlayerTryChangeSlot calls on dynamic spawns
+    if _slot > 1000000 and slotblock.onPlayerTryChangeSlot(id, side, slot) == false then
+        net.force_player_slot(id, side, 1)
     end
 end
 

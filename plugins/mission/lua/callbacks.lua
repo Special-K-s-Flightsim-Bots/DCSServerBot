@@ -42,6 +42,10 @@ end
 
 function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryConnect()')
+    if dcsbot.params == nil then
+        -- don't block players, if the bot is not up
+        return
+    end
     config = dcsbot.params['mission']
     if locate(default_names, name) then
         return false, config['messages']['message_player_default_username']
