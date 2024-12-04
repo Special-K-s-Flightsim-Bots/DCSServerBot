@@ -719,7 +719,7 @@ class Mission(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        if not thickness and not visibility:
+        if thickness is None and visibility is None:
             ret = await server.send_to_dcs_sync({
                 "command": "getFog"
             })
@@ -732,8 +732,8 @@ class Mission(Plugin):
                 return
             ret = await server.send_to_dcs_sync({
                 "command": "setFog",
-                "thickness": thickness or -1,
-                "visibility": visibility or -1
+                "thickness": thickness if thickness is not None else -1,
+                "visibility": visibility if visibility is not None else -1
             })
         await interaction.followup.send(_("Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:\t{visibility:.2f}m").format(
             thickness=ret['thickness'], visibility=ret['visibility']), ephemeral=ephemeral)
