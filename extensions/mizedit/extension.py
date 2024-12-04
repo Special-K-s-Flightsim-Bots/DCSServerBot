@@ -1,3 +1,4 @@
+import os
 import random
 
 from core import Extension, utils, Server, YAMLError, DEFAULT_TAG
@@ -18,7 +19,7 @@ class MizEdit(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        presets_file = self.config.get('presets', 'config/presets.yaml')
+        presets_file = self.config.get('presets', os.path.join(server.node.config_dir, 'presets.yaml'))
         self.presets = {}
         if not isinstance(presets_file, list):
             presets_file = [presets_file]

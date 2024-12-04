@@ -26,7 +26,7 @@ msgid "Days (empty = forever)"
 msgstr "天 (空 = 永久)"
 
 msgid "Ban Details"
-msgstr "禁令详情"
+msgstr "封禁详情"
 
 msgid "Member {} is not linked!"
 msgstr "成员 {} 未链接!"
@@ -48,14 +48,14 @@ msgid "Player {} unbanned on all servers."
 msgstr "玩家 {} 在所有服务器上被解禁."
 
 msgid "Shows active bans"
-msgstr "显示有效禁令"
+msgstr "显示有效封禁"
 
 msgid "User with UCID {} is not banned."
 msgstr "UCID为 {} 的玩家未被封禁."
 
 # /dcs bans
 msgid "Ban Information"
-msgstr "禁令信息"
+msgstr "封禁信息"
 
 msgid "<unknown>"
 msgstr "<未知>"
@@ -71,7 +71,7 @@ msgstr "经验值: {}"
 
 # /dcs update
 msgid "Update your DCS installations"
-msgstr "更新您的 DCS 安装"
+msgstr "更新您的 DCS World 主程序"
 
 msgid "Time in seconds to warn users before shutdown"
 msgstr "关闭前警告用户的时间（秒）"
@@ -135,7 +135,7 @@ msgid "Download files from your server"
 msgstr "从您的服务器下载文件"
 
 msgid "File sent as a DM."
-msgstr "文件以 DM 形式发送."
+msgstr "文件以私信形式发送."
 
 msgid "Here is your file:"
 msgstr "这是你的文件:"
@@ -161,7 +161,7 @@ msgid ""
 "\n"
 "Please select the data to be pruned:"
 msgstr ""
-"注意!您想从数据库中删除数据!当心!请选择要删除的数据:"
+"注意!您想从数据库中删除数据!当心! 请选择要删除的数据:"
 
 msgid "We are going to delete all data of user {}. Are you sure?"
 msgstr "我们将删除用户 {} 的所有数据。你确定吗?"
@@ -182,7 +182,7 @@ msgid ""
 "This will delete {} players incl. their stats from the database.\n"
 "Are you sure?"
 msgstr ""
-"这将从数据库中删除 {} 名球员及其统计数据.\n"
+"这将从数据库中删除 {} 名玩家及其统计数据.\n"
 "你确定吗?"
 
 msgid ""
@@ -245,10 +245,10 @@ msgid "All nodes are"
 msgstr "所有节点均为"
 
 msgid "Master is"
-msgstr "Мастер является"
+msgstr "主程序"
 
 msgid " going to {} **NOW**."
-msgstr " 去 {} **现在**."
+msgstr "即将 {} ."
 
 # /node shutdown
 msgid "Shuts a specific node down"

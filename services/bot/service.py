@@ -5,6 +5,7 @@ import discord
 import os
 import zipfile
 
+from aiohttp import BasicAuth
 from core import utils, FatalException, Node
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
@@ -55,12 +56,21 @@ class BotService(Service):
         utils.set_password('token', token, self.node.config_dir)
         return True
 
+    def _secure_proxy_pass(self) -> bool:
+        password = self.locals.get('proxy', {}).pop('password', None)
+        if not password:
+            return False
+        self.log.info("Proxy password found, removing it from yaml ...")
+        utils.set_password('proxy', password, self.node.config_dir)
+        return True
+
     def __init__(self, node):
         super().__init__(node=node, name="Bot")
         self.bot: Optional[DCSServerBot] = None
         # do we need to change the bot.yaml file?
         dirty = self._migrate_autorole()
         dirty = self._secure_token() or dirty
+        dirty = self._secure_proxy_pass() or dirty
         if dirty:
             self.save_config()
 
@@ -70,6 +80,20 @@ class BotService(Service):
             return utils.get_password('token', self.node.config_dir)
         except ValueError:
             return None
+
+    @property
+    def proxy(self) -> Optional[str]:
+        return self.locals.get('proxy', {}).get('url')
+
+    @property
+    def proxy_auth(self) -> Optional[BasicAuth]:
+        username = self.locals.get('proxy', {}).get('username')
+        try:
+            password = utils.get_password('proxy', self.node.config_dir)
+        except ValueError:
+            return None
+        if username and password:
+            return BasicAuth(username, password)
 
     def init_bot(self):
         def get_prefix(client, message):
@@ -99,7 +123,8 @@ class BotService(Service):
                                     name=self.locals['discord_status']) if 'discord_status' in self.locals else None,
                                 heartbeat_timeout=120,
                                 assume_unsync_clock=True,
-                                proxy=proxy)
+                                proxy=self.proxy,
+                                proxy_auth=self.proxy_auth)
 
     async def start(self, *, reconnect: bool = True) -> None:
         from services.servicebus import ServiceBus
@@ -139,7 +164,7 @@ class BotService(Service):
             except StopIteration:
                 server = None
         admin_channel = self.bot.get_admin_channel(server)
-        if server and admin_channel:
+        if admin_channel:
             await admin_channel.send(content=mentions, embed=embed)
 
     async def install_fonts(self):

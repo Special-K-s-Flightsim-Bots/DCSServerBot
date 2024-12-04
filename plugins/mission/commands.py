@@ -8,7 +8,7 @@ import re
 
 from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv, UploadStatus, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
+    Group, ReportEnv, command, PlayerType, DataObjectFactory, Member, DEFAULT_TAG, get_translation, \
     UnsupportedMizFileException
 from datetime import datetime, timezone
 from discord import Interaction, app_commands, SelectOption
@@ -41,12 +41,16 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         if not server:
             return []
         base_dir = await server.get_missions_dir()
+        ignore = ['.dcssb']
+        if server.locals.get('ignore_dirs'):
+            ignore.extend(server.locals['ignore_dirs'])
         installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
-        exp_base, file_list = await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=['.dcssb'])
+        exp_base, file_list = await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=ignore)
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
             for x in file_list
-            if x not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
+            if x not in installed_missions and os.path.join(os.path.dirname(x), '.dcssb', os.path.basename(
+                x)) not in installed_missions and current.casefold() in os.path.relpath(x, base_dir).casefold()
         ]
         return choices[:25]
     except Exception as ex:
@@ -320,7 +324,7 @@ class Mission(Plugin):
                     command=(await utils.get_command(self.bot, group='mission', name='info')).mention
                 ), ephemeral=ephemeral)
 
-    async def _load(self, interaction: discord.Interaction, server: Server, mission_id: int,
+    async def _load(self, interaction: discord.Interaction, server: Server, mission: Optional[Union[int, str]] = None,
                     run_extensions: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
@@ -350,7 +354,18 @@ class Mission(Plugin):
         if not interaction.response.is_done():
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral)
-        mission = (await server.getMissionList())[mission_id]
+        if isinstance(mission, int):
+            mission_id = mission
+            mission = (await server.getMissionList())[mission_id]
+        elif isinstance(mission, str):
+            try:
+                mission = os.path.join(await server.get_missions_dir(), mission)
+                mission_id = (await server.getMissionList()).index(mission)
+            except ValueError:
+                mission_id = None
+        else:
+            await interaction.followup.send(_('You need to provide a mission!'), ephemeral=True)
+            return
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
@@ -361,7 +376,7 @@ class Mission(Plugin):
                 await interaction.followup.send(_('Mission {}.').format(_('restarted')), ephemeral=ephemeral)
         else:
             name = os.path.basename(mission[:-4])
-            if result == 'later':
+            if mission_id and result == 'later':
                 # make sure, we load that mission, independently on what happens to the server
                 await server.setStartIndex(mission_id + 1)
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
@@ -372,12 +387,18 @@ class Mission(Plugin):
                 msg = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
                                                       ephemeral=ephemeral)
                 try:
-                    if not await server.loadMission(mission_id + 1, modify_mission=run_extensions):
+                    if not await server.loadMission(mission, modify_mission=run_extensions):
                         await msg.edit(content=_('Mission {} NOT loaded. '
                                                  'Check that you have installed the pre-requisites (terrains, mods).'
                                                  ).format(name))
                     else:
-                        await msg.edit(content=_('Mission {} loaded.').format(name))
+                        message = _('Mission {} loaded.').format(name)
+                        if not mission_id:
+                            message += _('\nThis mission is NOT in the mission list and will not auto-load on server '
+                                         'or mission restarts.\n'
+                                         'If you want it to auto-load, use {}').format(
+                                (await utils.get_command(self.bot, group='mission', name='add')).mention)
+                        await msg.edit(content=message)
                         await self.bot.audit(f"loaded mission {utils.escape_string(name)}", server=server,
                                              user=interaction.user)
                 except (TimeoutError, asyncio.TimeoutError):
@@ -390,11 +411,13 @@ class Mission(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
-                   mission_id: int, run_extensions: Optional[bool] = True):
-        await self._load(interaction, server, mission_id, run_extensions)
+                   mission_id: Optional[int] = None, alt_mission: Optional[str] = None,
+                   run_extensions: Optional[bool] = True):
+        await self._load(interaction, server, mission_id if mission_id is not None else alt_mission, run_extensions)
 
     @mission.command(description=_('Adds a mission to the list\n'))
     @app_commands.guild_only()
@@ -408,10 +431,9 @@ class Mission(Plugin):
         await interaction.response.defer(ephemeral=ephemeral)
 
         path = os.path.normpath(os.path.join(await server.get_missions_dir(), path))
-        await server.addMission(path, autostart=autostart)
+        new_mission_list = await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)
         await interaction.followup.send(_('Mission "{}" added.').format(utils.escape_string(name)), ephemeral=ephemeral)
-        new_mission_list = await server.getMissionList()
         mission_id = new_mission_list.index(path)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, _('Do you want to load this mission?'),
@@ -453,6 +475,14 @@ class Mission(Plugin):
                                            ephemeral=ephemeral):
                     try:
                         await server.node.remove_file(filename)
+                        if '.dcssb' in filename:
+                            origname = filename.replace(os.path.sep + '.dcssb', '')
+                            await server.node.remove_file(origname)
+                        else:
+                            origname = filename
+                            secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
+                            await server.node.remove_file(secondary)
+                        await server.node.remove_file(origname + '.orig')
                         await interaction.followup.send(_('Mission "{}" deleted.').format(os.path.basename(filename)),
                                                         ephemeral=ephemeral)
                     except FileNotFoundError:
@@ -513,8 +543,10 @@ class Mission(Plugin):
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
-                     presets_file: Optional[str] = 'config/presets.yaml'):
+                     presets_file: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        if presets_file is None:
+            presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
         try:
             with open(presets_file, mode='r', encoding='utf-8') as infile:
                 presets = yaml.load(infile)
@@ -537,6 +569,9 @@ class Mission(Plugin):
             return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
+        elif not options:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("There are no presets to chose from."), ephemeral=True)
 
         result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:
@@ -669,6 +704,104 @@ class Mission(Plugin):
             await server.replaceMission(mission_id + 1, new_file)
         await interaction.followup.send(_("Mission {} has been rolled back.").format(miz_file[:-4]),
                                         ephemeral=ephemeral)
+
+    @mission.command(description=_('Sets fog in the running mission'))
+    @app_commands.guild_only()
+    @app_commands.describe(thickness=_("Thickness of the fog [100-5000]m, to disable, set 0."))
+    @app_commands.describe(visibility=_("Visibility of the fog [100-100000]m, to disable, set 0."))
+    @utils.app_has_role('DCS Admin')
+    @utils.app_has_dcs_version("2.9.10")
+    async def fog(self, interaction: discord.Interaction,
+                  server: app_commands.Transform[Server, utils.ServerTransformer(
+                      status=[Status.RUNNING, Status.PAUSED])],
+                  thickness: Optional[app_commands.Range[int, 100, 5000]] = None,
+                  visibility: Optional[app_commands.Range[int, 100, 100000]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not thickness and not visibility:
+            ret = await server.send_to_dcs_sync({
+                "command": "getFog"
+            })
+        else:
+            ret = await server.send_to_dcs_sync({
+                "command": "setFog",
+                "thickness": thickness or -1,
+                "visibility": visibility or -1
+            })
+        await interaction.followup.send(_("Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:\t{visibility:.2f}m").format(
+            thickness=ret['thickness'], visibility=ret['visibility']), ephemeral=ephemeral)
+
+    @mission.command(description=_('Runs a fog animation'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @utils.app_has_dcs_version("2.9.10")
+    async def fog_animation(self, interaction: discord.Interaction,
+                            server: app_commands.Transform[Server, utils.ServerTransformer(
+                                status=[Status.RUNNING, Status.PAUSED])],
+                            presets_file: Optional[str] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if presets_file is None:
+            presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
+        try:
+            with open(presets_file, mode='r', encoding='utf-8') as infile:
+                presets = yaml.load(infile)
+        except FileNotFoundError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
+            return
+        try:
+            options = [
+                discord.SelectOption(label=k)
+                for k, v in presets.items()
+                if not v.get('hidden', False) and v.get('fog') and
+                   (v['fog'].get('mode', None) == 'manual' or all(isinstance(y, int) for y in v['fog'].keys()))
+            ]
+        except AttributeError:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                _("There is an error in your {}. Please check the file structure.").format(presets_file),
+                ephemeral=True)
+            return
+        if len(options) > 25:
+            self.log.warning("You have more than 25 presets created, you can only choose from 25!")
+        elif not options:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("There is no manual fog preset in your {}").format(presets_file),
+                                                    ephemeral=True)
+            return
+
+        # select a preset
+        view = PresetView(options[:25], multi=False)
+        # noinspection PyUnresolvedReferences
+        if interaction.response.is_done():
+            msg = await interaction.followup.send(view=view, ephemeral=ephemeral)
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(view=view, ephemeral=ephemeral)
+            msg = await interaction.original_response()
+        try:
+            if await view.wait() or view.result is None:
+                return
+        finally:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
+
+        fog = utils.get_preset(self.node, view.result[0])['fog']
+        fog.pop('mode', None)
+        await server.send_to_dcs_sync(
+            {
+                'command': 'setFogAnimation',
+                'values': [
+                    (key, value["visibility"], value["thickness"])
+                    for key, value in fog.items()
+                ]
+            })
+        message = _('The following preset was applied: {}.').format(view.result[0])
+        await interaction.followup.send(message, ephemeral=ephemeral)
 
     # New command group "/player"
     player = Group(name="player", description=_("Commands to manage DCS players"))
@@ -1605,7 +1738,10 @@ class Mission(Plugin):
         try:
             handler = MissionUploadHandler(plugin=self, server=server, message=message, pattern=pattern)
             base_dir = await handler.server.get_missions_dir()
-            await handler.upload(base_dir, ignore_list=['.dcssb', 'Saves', 'Scripts'])
+            ignore = ['.dcssb', 'Saves', 'Scripts']
+            if server.locals.get('ignore_dirs'):
+                ignore.extend(server.locals['ignore_dirs'])
+            await handler.upload(base_dir, ignore_list=ignore)
         except Exception as ex:
             self.log.exception(ex)
         finally:

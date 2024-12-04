@@ -64,7 +64,7 @@ msgid "Mission will {}, when server is empty."
 msgstr "当服务器为空时，任务将{}."
 
 msgid "!!! Mission will be {what} in {when}!!!"
-msgstr "!!! 任务将在 {what} 进行 {when}!!!"
+msgstr "!!! 任务将进行 {what} 在 {when} 之后!!!"
 
 msgid "restarted"
 msgstr "重新启动"

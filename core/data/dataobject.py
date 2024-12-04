@@ -25,6 +25,7 @@ class DataObject:
     apool: AsyncConnectionPool = field(compare=False, repr=False, init=False)
     log: Logger = field(compare=False, repr=False, init=False)
     config: ConfigParser = field(compare=False, repr=False, init=False)
+    is_remote: bool = field(compare=False, repr=False, init=False)
 
     def __post_init__(self):
         self.pool = self.node.pool

@@ -45,11 +45,11 @@ msgid "{name}, check your fire: {reason}!"
 msgstr "{name}, 请注意你的开火行为: {reason}!"
 
 msgid "{name}, you have {points} punishment points."
-msgstr "{name}, 你有 {points} 处罚积分."
+msgstr "{name}, 你的罚分为 {points} ."
 
 # /punish
 msgid "Adds punishment points to a user\n"
-msgstr "向用户添加处罚积分\n"
+msgstr "向用户添加罚分\n"
 
 msgid "User {} is not linked."
 msgstr "用户 {} 未关联."
@@ -65,25 +65,25 @@ msgstr "已处罚用户 {ucid} 积分为 {points}."
 
 # / forgive
 msgid "Deletes a users punishment points"
-msgstr "删除用户的处罚积分"
+msgstr "删除用户的罚分"
 
 msgid "This will delete all the punishment points for this user and unban them if they were banned.\n"
 "Are you sure?"
-msgstr "这将删除该用户的所有处罚积分，并在他们被禁止时解除禁令.\n"
+msgstr "这将删除该用户的所有罚分，并在他们被封禁时解除封禁.\n"
 "你确定吗?"
 
 msgid "All punishment points deleted and player unbanned (if they were banned by the bot before)."
-msgstr "所有处罚积分已删除，玩家已被解禁（如果之前被机器人自动封禁的话）."
+msgstr "所有罚分已删除，玩家已被解禁（如果之前被机器人自动封禁的话）."
 
 msgid "forgave player {}"
 msgstr "原谅玩家 {}"
 
 # /penalty
 msgid "Displays the current penalty points"
-msgstr "显示当前的处罚积分"
+msgstr "显示当前的罚分"
 
 msgid "You need the DCS Admin role to show penalty points for other users."
-msgstr "你需要DCS管理员角色才能查看其他用户的处罚积分."
+msgstr "你需要DCS管理员角色才能查看其他用户的罚分."
 
 msgid "Member {} is not linked."
 msgstr "成员 {} 未关联."
@@ -92,13 +92,13 @@ msgid "Use {} to link your Discord and DCS accounts first."
 msgstr "请先使用 {} 将你的Discord和DCS账户关联."
 
 msgid "User has no penalty points."
-msgstr "用户没有处罚积分."
+msgstr "用户没有罚分."
 
 msgid "Penalty Points for {}"
-msgstr " {} 的处罚积分"
+msgstr " {} 的罚分"
 
 msgid "Total penalty points: {total:.2f}"
-msgstr "总处罚积分: {total:.2f}"
+msgstr "总罚分: {total:.2f}"
 
 msgid "Time (UTC)"
 msgstr "时间 (UTC)"
@@ -110,13 +110,13 @@ msgid "Points"
 msgstr "罚分"
 
 msgid "Points decay over time, you might see different results on different days."
-msgstr "罚分会随时间衰减，你可能会在不同的日子看到不同的结果."
+msgstr "罚分会随时间衰减，你会在不同的日子看到不同的结果."
 
 msgid "never"
 msgstr "从不"
 
 msgid "Ban expires"
-msgstr "禁令到期"
+msgstr "封禁到期"
 
 msgid "Reason"
 msgstr "原因"
@@ -124,7 +124,7 @@ msgstr "原因"
 msgid "You are currently banned.\n"
 "Please contact a member of the server staff, if you want to get unbanned."
 msgstr "你目前已被封禁.\n"
-"如果你想解除禁令，请联系服务器工作人员."
+"如果你想解除封禁，请联系服务器工作人员."
 
 # /infractions
 msgid "Show last infractions of a user"
@@ -154,5 +154,5 @@ msgstr "你已选择原谅 {} 的行为."
 
 # -penalty
 msgid "displays your penalty points"
-msgstr "显示你的处罚积分"
+msgstr "显示你的罚分"
 

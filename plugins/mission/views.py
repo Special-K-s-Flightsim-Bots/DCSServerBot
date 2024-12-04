@@ -124,11 +124,14 @@ class ServerView(View):
 
 
 class PresetView(View):
-    def __init__(self, options: list[discord.SelectOption]):
+    def __init__(self, options: list[discord.SelectOption], multi: bool = True):
         super().__init__()
         select: Select = cast(Select, self.children[0])
         select.options = options
-        select.max_values = min(10, len(options))
+        if multi:
+            select.max_values = min(10, len(options))
+        else:
+            select.max_values = 1
         self.result = None
 
     @discord.ui.select(placeholder="Select the preset(s) you want to apply")

@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, Plugin, Server, Player, event, chat_command, get_translation, ChatCommand
+from core import EventListener, Plugin, Server, Player, event, chat_command, get_translation, ChatCommand, Channel
 from plugins.competitive.commands import Competitive
 from typing import Optional
 
@@ -227,6 +227,12 @@ class PunishmentEventListener(EventListener):
                           "recent actions.").format(offender=offender.name, victim=player.name))
                     await player.sendChatMessage(_('You have chosen to forgive {offender} for their actions.').format(
                         offender=offender.name))
+                    events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
+                    if events_channel:
+                        await events_channel.send(
+                            "```" + _("Player {victim} forgave player {offender} for their actions").format(
+                                victim=player.display_name, offender=offender.display_name) + "```"
+                        )
 
     @chat_command(name="penalty", help=_("displays your penalty points"))
     async def penalty(self, server: Server, player: Player, params: list[str]):

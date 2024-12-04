@@ -192,14 +192,13 @@ class LotAtc(Extension, FileSystemEventHandler):
         return True
 
     async def startup(self) -> bool:
-        await super().startup()
         path = os.path.join(self.home, 'stats.json')
         if os.path.exists(path):
             self.process_stats_file(path)
         self.observer = Observer()
         self.observer.schedule(self, path=self.home)
         self.observer.start()
-        return True
+        return await super().startup()
 
     def stop_observer(self):
         if self.observer:

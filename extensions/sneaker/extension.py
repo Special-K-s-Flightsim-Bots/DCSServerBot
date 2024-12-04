@@ -99,7 +99,6 @@ class Sneaker(Extension):
     async def startup(self) -> bool:
         global process, servers, lock
 
-        await super().startup()
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
@@ -117,7 +116,7 @@ class Sneaker(Extension):
                     process = psutil.Process(p.pid)
                     atexit.register(self.terminate)
             servers.add(self.server.name)
-            return True
+            return await super().startup()
         except Exception as ex:
             self.log.error(f"Error during launch of {self.config['cmd']}: {str(ex)}")
             return False

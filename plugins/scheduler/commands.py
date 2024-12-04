@@ -304,6 +304,7 @@ class Scheduler(Plugin):
                     if not mission_id and not filename:
                         self.log.error("You need to provide either mission_id or filename to your load configuration!")
                         return
+                    filename = utils.format_string(filename, instance=server.instance, server=server)
                     if not mission_id:
                         for idx, mission in enumerate(server.settings['missionList']):
                             if os.path.basename(mission).lower() == filename.lower():
@@ -401,6 +402,8 @@ class Scheduler(Plugin):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         server.status = Status.LOADING
+                        if config.get('startup') and config['startup'].get('mission_id'):
+                            await server.setStartIndex(config['startup']['mission_id'])
                         self.loop.call_later(
                             delay=next_startup, callback=partial(asyncio.create_task,
                                                                  self.launch_dcs(server, ignore_exception=True)))
@@ -654,7 +657,13 @@ class Scheduler(Plugin):
             # noinspection PyUnresolvedReferences
             await interaction.response.defer(ephemeral=ephemeral, thinking=True)
             try:
-                await server.start()
+                if not await server.start():
+                    embed = utils.create_warning_embed(
+                        title=f"Error while starting server \"{server.display_name}\"!",
+                        text="Please check manually, if the server has started.\n"
+                             "If not, check the dcs.log for errors.")
+                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                    return
             except (TimeoutError, asyncio.TimeoutError):
                 embed = utils.create_warning_embed(
                     title=f"Timeout while starting server \"{server.display_name}\"!",

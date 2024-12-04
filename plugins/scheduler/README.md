@@ -23,6 +23,8 @@ DEFAULT:
 DCS.release_server:                              
   schedule:                                       # Server "DCS.release_server" will run 24x7
     00-24: YYYYYYY
+  startup:
+    mission_id: 3                                 # Load mission #3 from the mission list on startup
 instance2:
   schedule:                                       # Server "instance2" will run every day from 0h-12h in the specified time zone
     timezone: Europe/Berlin                       # optional: timezone (default: local time)
@@ -75,6 +77,9 @@ mission:
 | Timeframe, with start and end-time in either HH24 or HH24:MM format.<br/>If only one time is provided, the action (see second parameter) has to happen at exactly this time.                                            | The second parameter contains a character for every day, starting Mo and ending Su. Depending on the character, the behaviour will be selected:<br/>Y, N or P - the server should run in that timeframe (Y) or not (N). P means, it should only run, if populated. |
 | __Examples:__<br/>Time between 12:30h and 18:00h => 12:30-18:00<br/>Time between 09:00h and 21:30h => 09-21:30<br/>Time between 21:00h and 03:00h => 21-03 (next day!)<br/>All day long (00:00h - 24:00h) => 00-24<br/> | __Examples:__<br/>YYYYYYY => every day<br/>YYYYYNN => weekdays only<br/>&nbsp;<br/>&nbsp;                                                                                                                                                                          |
 See the above examples for a better understanding on how it works.
+
+### Section "startup"
+Here you can provide a mission_id to be started on server startup.
 
 ### Section "action"
 

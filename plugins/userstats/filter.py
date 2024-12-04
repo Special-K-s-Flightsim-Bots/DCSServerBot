@@ -1,7 +1,9 @@
 import discord
+import re
 
 from abc import ABC, abstractmethod
 from core import utils, Pagination, ReportEnv, const
+from datetime import datetime, timezone
 from discord import app_commands
 from services.bot import DCSServerBot
 from typing import Any, Optional, Type
@@ -58,21 +60,53 @@ class PeriodFilter(StatisticsFilter):
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return (period and period.startswith('period:')) or period in PeriodFilter.list(bot)
+        return (period and period.startswith('period:')) or period in PeriodFilter.list(bot) or '-' in period
+
+    @staticmethod
+    def parse_date(date_str):
+        formats = [
+            "%Y%m%d %H:%M:%S",
+            "%Y%m%d %H:%M",
+            "%Y%m%d %H",
+            "%Y%m%d"
+        ]
+
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+
+        # If none of the formats match, raise an error
+        raise ValueError("Date format is not supported")
 
     def filter(self, bot: DCSServerBot) -> str:
         if self.period and self.period.startswith('period:'):
-            period = self.period[7:]
+            period = self.period[7:].strip()
         else:
             period = self.period
-        if period not in PeriodFilter.list(bot) or period in [None, 'all']:
+        if period in [None, 'all']:
             return '1 = 1'
         elif period == 'yesterday':
             return "DATE_TRUNC('day', s.hop_on) = current_date - 1"
         elif period == 'today':
             return "DATE_TRUNC('day', s.hop_on) = current_date"
-        else:
+        elif period in PeriodFilter.list(bot):
             return f"DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
+        elif '-' in period:
+            start, end = period.split('-')
+            start = start.strip()
+            end = end.strip()
+            # avoid SQL injection
+            pattern = re.compile(r'^\d+\s+(year|month|week|day|hour|minute)s?$')
+            if pattern.match(end):
+                return f"DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '{end}')"
+            else:
+                start = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
+                end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
+                return (f"DATE(s.hop_on) >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
+                        f"COALESCE(DATE(s.hop_off), (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
+
 
     def format(self, bot: DCSServerBot) -> str:
         if self.period and self.period.startswith('period:'):
@@ -85,8 +119,10 @@ class PeriodFilter(StatisticsFilter):
             return 'Daily '
         elif period in ['today', 'yesterday']:
             return period.capitalize() + 's '
-        else:
+        elif period in ['day', 'week', 'month', 'year']:
             return period.capitalize() + 'ly '
+        else:
+            return period
 
 
 class CampaignFilter(StatisticsFilter):
@@ -102,7 +138,7 @@ class CampaignFilter(StatisticsFilter):
 
     def filter(self, bot: DCSServerBot) -> str:
         if self.period and self.period.startswith('campaign:'):
-            period = self.period[9:]
+            period = self.period[9:].strip()
         else:
             period = self.period
         period = utils.sanitize_string(period)

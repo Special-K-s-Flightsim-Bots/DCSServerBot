@@ -4,7 +4,7 @@ import os
 import psycopg
 
 from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, \
-    get_translation, NodeUploadHandler
+    get_translation, NodeUploadHandler, Channel
 from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
@@ -262,6 +262,14 @@ class Music(Plugin):
     async def on_message(self, message: discord.Message):
         pattern =  ['.mp3', '.ogg']
         if not NodeUploadHandler.is_valid(message, pattern, self.bot.roles['DCS Admin']):
+            return
+        admin_channels = []
+        if self.bot.locals.get('channels', {}).get('admin'):
+            admin_channels.append(self.bot.locals.get('channels', {}).get('admin'))
+        else:
+            for server in self.bot.servers.values():
+                admin_channels.append(server.channels[Channel.ADMIN])
+        if message.channel.id not in admin_channels:
             return
         try:
             handler = NodeUploadHandler(self.node, message, pattern)

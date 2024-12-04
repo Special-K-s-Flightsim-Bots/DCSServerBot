@@ -101,10 +101,6 @@ class Server(DataObject):
         return {}
 
     @property
-    def is_remote(self) -> bool:
-        raise NotImplemented()
-
-    @property
     def instance(self) -> Instance:
         return self._instance
 
@@ -131,7 +127,7 @@ class Server(DataObject):
         else:
             new_status = status
         if new_status != self._status:
-            #self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
+            self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
             self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
@@ -171,13 +167,13 @@ class Server(DataObject):
                     "server_name": self.name
                 }, node=self.node.name))
             else:
-                asyncio.create_task(self.update_maintenance())
+                self.update_maintenance()
 
-    async def update_maintenance(self):
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
-                                   (self._maintenance, self.name))
+    def update_maintenance(self):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("UPDATE servers SET maintenance = %s WHERE server_name = %s",
+                             (self._maintenance, self.name))
 
     @property
     def display_name(self) -> str:
@@ -327,12 +323,16 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     @performance_log()
-    async def start(self) -> None:
+    async def start(self) -> bool:
         if self.status == Status.STOPPED:
-            timeout = 300 if self.node.locals.get('slow_system', False) else 120
+            timeout = 300 if self.node.locals.get('slow_system', False) else 180
             self.status = Status.LOADING
-            await self.send_to_dcs({"command": "start_server"})
-            await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
+            rc = await self.send_to_dcs_sync({"command": "start_server"})
+            if rc['result'] == 0:
+                await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
+                return True
+            else:
+                return False
 
     async def restart(self, modify_mission: Optional[bool] = True) -> None:
         raise NotImplemented()
@@ -346,13 +346,13 @@ class Server(DataObject):
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
         raise NotImplemented()
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         raise NotImplemented()
 
-    async def deleteMission(self, mission_id: int) -> None:
+    async def deleteMission(self, mission_id: int) -> list[str]:
         raise NotImplemented()
 
-    async def replaceMission(self, mission_id: int, path: str) -> None:
+    async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         raise NotImplemented()
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
@@ -362,7 +362,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
-        raise NotImplemented()
+        return self.settings.get('missionList', [])
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()

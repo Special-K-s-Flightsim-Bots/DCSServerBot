@@ -213,21 +213,21 @@ class SRS(Extension, FileSystemEventHandler):
         return await super().prepare()
 
     async def startup(self) -> bool:
-        await super().startup()
         if self.config.get('autostart', True):
             self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.config['config']}\"")
-            if sys.platform == 'win32' and self.config.get('minimized', True):
-                import win32process
-                import win32con
-
-                info = subprocess.STARTUPINFO()
-                info.dwFlags |= win32process.STARTF_USESHOWWINDOW
-                info.wShowWindow = win32con.SW_SHOWMINNOACTIVE
-            else:
-                info = None
-            out = subprocess.DEVNULL if not self.config.get('debug', False) else None
 
             def run_subprocess():
+                if sys.platform == 'win32' and self.config.get('minimized', True):
+                    import win32process
+                    import win32con
+
+                    info = subprocess.STARTUPINFO()
+                    info.dwFlags |= win32process.STARTF_USESHOWWINDOW
+                    info.wShowWindow = win32con.SW_SHOWMINNOACTIVE
+                else:
+                    info = None
+                out = subprocess.DEVNULL if not self.config.get('debug', False) else None
+
                 return subprocess.Popen([
                     self.get_exe_path(),
                     f"-cfg={os.path.expandvars(self.config['config'])}"
@@ -241,7 +241,14 @@ class SRS(Extension, FileSystemEventHandler):
             except psutil.NoSuchProcess:
                 self.log.error(f"Error during launch of {self.get_exe_path()}!")
                 return False
-        return await asyncio.to_thread(self.is_running)
+        # Give SRS 10s to start
+        for _ in range(0, 10):
+            if self.is_running():
+                break
+            await asyncio.sleep(1)
+        else:
+            return False
+        return await super().startup()
 
     def shutdown(self) -> bool:
         if self.config.get('autostart', True) and not self.config.get('no_shutdown', False):
@@ -336,6 +343,8 @@ class SRS(Extension, FileSystemEventHandler):
         if not self.process:
             self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
             running = self.process is not None and self.process.is_running()
+            if not running:
+                self.log.debug("SRS: is NOT running (process)")
         else:
             try:
                 server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
@@ -347,6 +356,8 @@ class SRS(Extension, FileSystemEventHandler):
                                  f"It does not contain a valid IP-address!")
                 server_ip = '127.0.0.1'
             running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
+            if not running:
+                self.log.debug("SRS: is NOT running (port)")
         # start the observer, if we were started to a running SRS server
         if running and not self.observer:
             self.start_observer()

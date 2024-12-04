@@ -54,12 +54,12 @@ class MissionUploadHandler(ServerUploadHandler):
 
     async def _wait_for_mission(self, att: discord.Attachment) -> Optional[str]:
         # wait 60s for the mission to appear
-        for i in range(0, 6):
+        for i in range(0, 60):
             filename = next((file for file in await self.server.getMissionList()
                              if os.path.basename(file) == os.path.basename(att.filename)), None)
             if filename:
                 return filename
-            await asyncio.sleep(10)
+            await asyncio.sleep(1)
         return None
 
     async def _load_mission(self, filename: str):
@@ -94,7 +94,7 @@ class MissionUploadHandler(ServerUploadHandler):
         # if only one mission was uploaded, ask if it should be loaded and load it
         filename = await self._wait_for_mission(uploaded[0])
         if not filename:
-            msg = 'Error while uploading: File not found in severSettings.lua!'
+            msg = 'Error while uploading: File not found in serverSettings.lua!'
             self.log.error(msg)
             await self.channel.send(_(msg))
             return

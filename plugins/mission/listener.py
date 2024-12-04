@@ -369,7 +369,8 @@ class MissionEventListener(EventListener):
                 "profanity_filter": server.locals.get('profanity_filter', False),
                 "messages": server.locals.get('messages'),
                 "channels": channels,
-                "slot_spamming": server.locals.get('slot_spamming')
+                "slot_spamming": server.locals.get('slot_spamming'),
+                "smart_bans": server.locals.get('smart_bans', True)
             }
         }))
         if not data.get('current_mission'):
@@ -1006,17 +1007,30 @@ class MissionEventListener(EventListener):
     @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
                   help="load a specific weather preset")
     async def preset(self, server: Server, player: Player, params: list[str]):
-        async def change_preset(preset: str):
-            filename = await server.get_current_mission_file()
-            if not server.locals.get('mission_rewrite', True):
-                await server.stop()
-            new_filename = await server.modifyMission(filename, utils.get_preset(self.node, preset))
-            if new_filename != filename:
-                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
-            await server.restart(modify_mission=False)
-            if server.status == Status.STOPPED:
-                await server.start()
-            await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
+        async def change_preset(preset_name: str):
+            preset = utils.get_preset(self.node, preset_name)
+            if ('fog' in preset and
+                    (preset['fog'].get('mode') == "manual" or all(isinstance(x, int) for x in preset['fog'].keys()))):
+                preset['fog'].pop('mode', None)
+                await server.send_to_dcs_sync(
+                    {
+                        'command': 'setFogAnimation',
+                        'values': [
+                            (key, value["visibility"], value["thickness"])
+                            for key, value in preset['fog'].items()
+                        ]
+                    })
+            else:
+                filename = await server.get_current_mission_file()
+                if not server.locals.get('mission_rewrite', True):
+                    await server.stop()
+                new_filename = await server.modifyMission(filename, preset)
+                if new_filename != filename:
+                    await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+                await server.restart(modify_mission=False)
+                if server.status == Status.STOPPED:
+                    await server.start()
+            await self.bot.audit(f"changed preset to {preset_name}", server=server, user=player.ucid)
 
         presets = list(utils.get_presets(self.node))
         if presets:
@@ -1025,7 +1039,7 @@ class MissionEventListener(EventListener):
                 for idx, preset in enumerate(presets):
                     message += f"{idx + 1} {preset}\n"
                 message += f"\nUse {self.prefix}preset <number> to load that preset " \
-                           f"(mission will be restarted!)"
+                           f"(mission might be restarted!)"
                 await player.sendUserMessage(message, 30)
             else:
                 n = int(params[0]) - 1

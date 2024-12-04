@@ -59,6 +59,27 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
         interaction.client.log.exception(ex)
 
 
+async def campaign_servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        campaign_name = utils.get_interaction_param(interaction, 'campaign')
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT DISTINCT server_name FROM campaigns_servers
+                WHERE campaign_id IN (
+                    SELECT id FROM campaigns WHERE name = %s 
+                ) 
+            """, (campaign_name, ))
+            choices: list[app_commands.Choice[str]] = [
+                app_commands.Choice(name=row[0], value=row[0])
+                async for row in cursor
+            ]
+            return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
 class GameMaster(Plugin):
 
     async def install(self) -> bool:
@@ -340,6 +361,27 @@ class GameMaster(Plugin):
             await interaction.response.send_message(
                 _("Server {server} is already part of the campaign {campaign}!").format(
                     server=server.name, campaign=campaign), ephemeral=ephemeral)
+
+    @campaign.command(description=_("Delete a server from a campaign\n"))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
+    @app_commands.rename(server_name='server')
+    @app_commands.autocomplete(server_name=campaign_servers_autocomplete)
+    async def delete_server(self, interaction: discord.Interaction, campaign: str, server_name: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    DELETE FROM campaigns_servers
+                    WHERE campaign_id = (
+                        SELECT id FROM campaigns WHERE name = %s 
+                    ) AND server_name = %s 
+                    """, (campaign, server_name))
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(
+            _("Server {server} deleted from campaign {campaign}.").format(server=server_name, campaign=campaign),
+            ephemeral=ephemeral)
 
     @campaign.command(description=_("Delete a campaign"))
     @app_commands.guild_only()

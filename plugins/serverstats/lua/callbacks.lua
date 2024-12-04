@@ -10,8 +10,9 @@ function createSimulateFrame()
         if counter == 3600 then
             local currentTime = os.clock()
             local elapsedTime = currentTime - startTime
-            local fps = counter / elapsedTime
-            utils.sendBotTable({command = 'perfmon', fps = fps})
+            if elapsedTime > 0 then
+                utils.sendBotTable({command = 'perfmon', fps = counter / elapsedTime})
+            end
             startTime = currentTime
             counter = 0
         else

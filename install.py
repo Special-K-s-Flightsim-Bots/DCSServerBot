@@ -272,7 +272,7 @@ For a successful installation, you need to fulfill the following prerequisites:
         major_version = int(platform.python_version_tuple()[1])
         if major_version <= 8:
             print(f"""
-[red]!!! Your Python 3.{major_version} installation is not supported, you might face issues. Please use 3.9 - 3.12 !!![/]
+[red]!!! Your Python 3.{major_version} installation is not supported, you might face issues. Please use 3.9 or higher!!![/]
             """)
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]

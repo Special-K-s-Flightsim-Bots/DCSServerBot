@@ -147,7 +147,8 @@ def safe_rmtree(path: Union[str, Path]):
     # if path is a single file, delete that
     if os.path.isfile(path):
         os.chmod(path, stat.S_IWUSR)
-        os.remove(path)
+        with suppress(FileNotFoundError):
+            os.remove(path)
         return
     # otherwise delete the tree
     elif os.path.isdir(path):
@@ -155,13 +156,16 @@ def safe_rmtree(path: Union[str, Path]):
             for name in files:
                 filename = os.path.join(root, name)
                 os.chmod(filename, stat.S_IWUSR)
-                os.remove(filename)
+                with suppress(FileNotFoundError):
+                    os.remove(filename)
             for name in dirs:
                 dirname = os.path.join(root, name)
                 os.chmod(dirname, stat.S_IWUSR)
-                os.rmdir(dirname)
+                with suppress(FileNotFoundError):
+                    os.rmdir(dirname)
         os.chmod(path, stat.S_IWUSR)
-        os.rmdir(path)
+        with suppress(FileNotFoundError):
+            os.rmdir(path)
 
 
 def is_junction(path):

@@ -138,3 +138,37 @@ function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel
 	}
 	dcsbot.sendBotTable(msg, channel)
 end
+
+function dcsbot.setFog(visibility, thickness, channel)
+    if visibility ~= -1 then
+    	world.weather.setFogVisibilityDistance(visibility)
+    end
+    if thickness ~= -1 then
+    	world.weather.setFogThickness(thickness)
+    end
+    local msg = {
+        command = 'setFog',
+        thickness =  world.weather.getFogThickness(),
+        visibility = world.weather.getFogVisibilityDistance()
+    }
+    dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.getFog(channel)
+    local msg = {
+        command = 'getFog',
+        thickness =  world.weather.getFogThickness(),
+        visibility = world.weather.getFogVisibilityDistance()
+    }
+    dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.setFogAnimation(animation, channel)
+    world.weather.setFogAnimation(animation)
+    local msg = {
+        command = 'setFogAnimation',
+        thickness =  world.weather.getFogThickness(),
+        visibility = world.weather.getFogVisibilityDistance()
+    }
+    dcsbot.sendBotTable(msg, channel)
+end

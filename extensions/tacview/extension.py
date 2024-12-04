@@ -15,7 +15,7 @@ _ = get_translation(__name__.split('.')[1])
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 TACVIEW_EXPORT_LINE = "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir()..'Scripts/TacviewGameExport.lua')\n"
-TACVIEW_PATTERN_MATCH = r'Successfully saved \[(?P<filename>.*?)\]'
+TACVIEW_PATTERN_MATCH = r'Successfully saved \[(?P<filename>.*?\.acmi)\]'
 
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()

@@ -143,9 +143,14 @@ class SlotBlockingListener(EventListener):
                 return
             old_points = player.points
             player.points -= plane_costs
-            player.audit('buy', old_points, 'Points taken for using a reserved module')
+            player.audit('buy', old_points, f'{plane_costs} points taken for using a reserved module')
             if payback:
                 player.deposit = plane_costs
+            message = self.get_config(server).get('messages', {}).get(
+                'credits_taken', '').format(
+                deposit=plane_costs, old_points=old_points, new_points=player.points)
+            if message:
+                await player.sendUserMessage(message)
 
     async def _payback(self, server: Server, player: CreditPlayer, reason: str, *, plane_only: bool = False):
         async with self.lock:
@@ -159,6 +164,11 @@ class SlotBlockingListener(EventListener):
                 player.points += player.deposit
             player.audit('payback', old_points, reason)
             player.deposit = 0
+            message = self.get_config(server).get('messages', {}).get(
+                'payback', '').format(
+                deposit=plane_costs, old_points=old_points, new_points=player.points)
+            if message:
+                await player.sendUserMessage(message)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:

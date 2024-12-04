@@ -37,4 +37,15 @@ function gamemaster.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
+function gamemaster.onPlayerChangeSlot(id)
+    local side = net.get_player_info(id, 'side')
+    local slot = net.get_player_info(id, 'slot')
+    local _, _slot, _ = utils.getMulticrewAllParameters(id)
+
+    -- workaround for non-working onPlayerTryChangeSlot calls on dynamic spawns
+    if _slot > 1000000 and gamemaster.onPlayerTryChangeSlot(id, side, slot) == false then
+        net.force_player_slot(id, side, 1)
+    end
+end
+
 DCS.setUserCallbacks(gamemaster)

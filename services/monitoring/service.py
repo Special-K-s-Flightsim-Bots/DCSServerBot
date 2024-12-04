@@ -270,18 +270,31 @@ class MonitoringService(Service):
             except psutil.NoSuchProcess:
                 self.log.debug(f"Server {server.name} died, skipping server load gathering.")
 
+    @staticmethod
+    def convert_bytes(size_bytes: int) -> str:
+        scales = ('B', 'KB', 'MB', 'GB', 'TB')
+        if size_bytes == 0:
+            return "0B"
+        idx = 0
+        while size_bytes >= 1024 and idx < len(scales) - 1:
+            size_bytes /= 1024.0
+            idx += 1
+        return f"{size_bytes:.2f}{scales[idx]}"
+
     async def drive_check(self):
         for drive in self.space_warning_sent.keys():
             total, free = utils.get_drive_space(drive)
             warn_pct = (self.get_config().get('drive_warn_threshold', 10)) / 100
             alert_pct = (self.get_config().get('drive_alert_threshold', 5)) / 100
             if (free < total * warn_pct) and not self.space_warning_sent[drive]:
-                message = f"Your freespace on {drive} is below {warn_pct * 100}%!"
+                message = (f"Your freespace on {drive} is below {warn_pct * 100}%!\n{self.convert_bytes(free)} of "
+                           f"{self.convert_bytes(total)} bytes free.")
                 self.log.warning(message)
                 await self.node.audit(message)
                 self.space_warning_sent[drive] = True
             if (free < total * alert_pct) and not self.space_alert_sent[drive]:
-                message = f"Your freespace on {drive} is below {alert_pct * 100}%!"
+                message = (f"Your freespace on {drive} is below {alert_pct * 100}%!\n{self.convert_bytes(free)} of "
+                           f"{self.convert_bytes(total)} bytes free.")
                 self.log.error(message)
                 await self.send_alert(title=f"Your DCS drive on node {self.node.name} is running out of space!",
                                       message=message)

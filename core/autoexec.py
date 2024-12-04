@@ -48,7 +48,9 @@ class Autoexec:
                     else:
                         mydict[key] = value
                 elif line.startswith('log'):
-                    mydict['log'] = line[4:]
+                    if 'log' not in mydict:
+                        mydict['log'] = []
+                    mydict['log'].append(line[4:])
                 elif line.startswith('table'):
                     if 'table' not in mydict:
                         mydict['table'] = []
@@ -102,7 +104,8 @@ class Autoexec:
         with open(outfile, mode='w', encoding='utf-8') as outcfg:
             for key, value in self.values.items():
                 if key == 'log':
-                    outcfg.write(f"{key}.{value}\n")
+                    for log in value:
+                        outcfg.write(f"{key}.{log}\n")
                     continue
                 elif key == 'net':
                     outcfg.write('if not net then net = {} end\n')

@@ -18,7 +18,7 @@ from discord.app_commands import locale_str
 from discord.app_commands.commands import CommandCallback, GroupT, P, T
 from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
-from packaging import version
+from packaging.version import parse
 from pathlib import Path
 from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
 
@@ -352,7 +352,7 @@ class Plugin(commands.Cog):
                         # old variant, to be migrated
                         if installed.startswith('v'):
                             installed = installed[1:]
-                        while version.parse(installed) < version.parse(self.plugin_version):
+                        while parse(installed) < parse(self.plugin_version):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if os.path.exists(updates_file):
                                 with open(updates_file, mode='r') as updates_sql:

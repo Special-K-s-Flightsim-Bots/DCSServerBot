@@ -98,12 +98,17 @@ mapping:
           slot_changes: {type: int}
       ping_admin_on_crash: {type: bool}
       autoscan: {type: bool}
+      ignore_dirs:
+        type: seq
+        sequence:
+          - type: str
       autoadd: {type: bool}
       autorole: {type: text}
       smooth_pause: {type: int}
       force_voice: {type: bool}
       rules: {type: str}
       accept_rules_on_join: {type: bool}
+      smart_bans: {type: bool}
       serverSettings:
         include: 'settings_schema'
       discord:

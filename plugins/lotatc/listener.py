@@ -166,6 +166,9 @@ class LotAtcEventListener(EventListener):
 
     @chat_command(name="gcis", help=_("Shows active GCIs"))
     async def gcis(self, server: Server, player: Player, params: list[str]):
+        if player.side == Side.SPECTATOR:
+            await player.sendChatMessage(_("You need to join a side to show their GCIs"))
+            return
         coalition = Coalition.BLUE if player.side == Side.BLUE else Coalition.RED
         gcis = self.on_station.get(server.name, {}).get(coalition, {})
         if gcis:

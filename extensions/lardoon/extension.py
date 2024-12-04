@@ -64,7 +64,6 @@ class Lardoon(Extension):
     async def startup(self) -> bool:
         global process, servers, tacview_dirs, lock
 
-        await super().startup()
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
@@ -100,7 +99,7 @@ class Lardoon(Extension):
         if tacview_dir not in tacview_dirs:
             tacview_dirs[tacview_dir] = set()
         tacview_dirs[tacview_dir].add(self.server.name)
-        return self.is_running()
+        return await super().startup()
 
     def terminate(self) -> bool:
         global process

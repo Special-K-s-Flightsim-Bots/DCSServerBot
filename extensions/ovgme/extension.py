@@ -14,14 +14,13 @@ class OvGME(Extension):
         self.modules: dict[str, list[str]] = {}
 
     async def startup(self) -> bool:
-        await super().startup()
         filename = await self.server.get_current_mission_file()
         try:
             mission = await asyncio.to_thread(MizFile, filename)
             self.modules[self.server.name] = mission.requiredModules
         except UnsupportedMizFileException:
             self.log.warning(f"Can't read requiredModules from Mission {filename}, unsupported format.")
-        return True
+        return await super().startup()
 
     def shutdown(self) -> bool:
         self.modules.pop(self.server.name, None)

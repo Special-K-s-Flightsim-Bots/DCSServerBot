@@ -37,7 +37,7 @@ DEFAULT:
           channel:                      # list of channels to purge
             - 112233445566778899
             - 998877665544332211
-          delete_after: 7               # delete all messages that are older than 7 days
+          older_than: 7                 # delete all messages that are older than 7 days
           ignore: 119922883377446655    # ignore this user id (probably the bots)
 DCS.release_server:
   actions:
@@ -54,4 +54,100 @@ DCS.release_server:
         params:
           message: Server will shut down in 5 mins!
           timeout: 20
+```
+
+## Actions
+The following actions are available:
+
+a) report
+Send a report at a specific time.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 * * * *'                 # run every full hour
+      action:
+        type: report                    # generate a report
+        params:
+          file: mysample.json           # using this template in reports/scheduler
+          channel: 1122334455667788     # channel to post the report in
+          persistent: true              # is it a persistent report? (default = true)
+```
+
+b) restart
+Restarts the running mission / server / PC.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
+      action:
+        type: restart                   
+        params:
+          rotate: true                  # Optional: rotate to the next mission
+          shutdown: true                # Optional: shutdown the DCS server
+          reboot: true                  # Optional: reboot the PC (shutdown /r)
+```
+
+c) halt
+Shuts the PC down.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 4 * * 1'                 # shut the server down once a week on Monday
+      action:
+        type: halt                      # reboot the server each monday night at 03:00
+```
+
+d) cmd
+Run a shell command.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '*/5 * * * *' # run a specific command every 5 minutes
+      action:
+        type: cmd
+        params:
+          cmd: 'copy a.txt b.txt'
+```
+
+e) popup
+Send a popup
+```yaml
+DEFAULT:
+  actions:
+    - cron: '55 3 * * 1'                # Send a message to everyone at Mo, 03:55h
+      action:
+        type: popup                     
+        params:
+          message: Server will shut down in 5 mins!
+          timeout: 20
+```
+
+f) purge_channel
+Delete messages from a Discord channel.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 12 * * *'                # run every 12 hrs
+      action:
+        type: purge_channel             # purge Discord channels
+        params:
+          channel:                      # list of channels to purge
+            - 112233445566778899
+            - 998877665544332211
+          older_than: 7                 # delete all messages that are older than 7 days
+          ignore: 119922883377446655    # ignore this user id (probably the bots)
+```
+
+g) dcs_update
+Run a DCS update at a specific time.
+```yaml
+DEFAULT:
+  actions:
+    - cron: '0 3 * * *'   # run every night at 03:00
+      action:
+        type: dcs_update  # Update DCS (if there is an update available)
+        params:
+          warn_times:     # Optional: warn users before the update
+            - 120
+            - 60
 ```

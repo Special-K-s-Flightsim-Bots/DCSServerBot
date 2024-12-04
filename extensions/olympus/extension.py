@@ -215,7 +215,6 @@ class Olympus(Extension):
             return False
 
     async def startup(self) -> bool:
-        await super().startup()
 
         def log_output(proc: subprocess.Popen):
             for line in iter(proc.stdout.readline, b''):
@@ -255,9 +254,11 @@ class Olympus(Extension):
         # Give the Olympus server 10s to start
         for _ in range(0, 10):
             if self.is_running():
-                return True
+                break
             await asyncio.sleep(1)
-        return False
+        else:
+            return False
+        return await super().startup()
 
     def is_running(self) -> bool:
         return self.process is not None and self.process.is_running()

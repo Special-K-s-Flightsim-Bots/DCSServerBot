@@ -118,7 +118,7 @@ class WeatherInfo(report.EmbedElement):
             visibility = weather['visibility']['distance']
             if weather['enable_fog'] is True:
                 visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
-            value = "{:,} ft".format(int(visibility)) if visibility < 30000 else "10 km (+)"
+            value = "{:,} ft".format(int(visibility)) if visibility < 30000 else "10 km / 6 SM (+)"
             value += ("\n\n**Wind**\n"
                       "\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts").format(
                 int(weather['wind']['atGround']['dir'] + 180) % 360,

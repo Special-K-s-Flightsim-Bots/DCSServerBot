@@ -8,14 +8,6 @@ from psycopg.rows import dict_row
 
 class Header(report.EmbedElement):
 
-    def add_datetime_field(self, name: str, time_obj: datetime):
-        if time_obj != datetime(1970, 1, 1):
-            if time_obj.year == 9999:
-                value = 'never'
-            else:
-                value = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
-            self.add_field(name=f'{name}:', value=value)
-
     async def render(self, member: Union[discord.Member, str]):
         sql = """
             SELECT p.first_seen, p.last_seen, 

@@ -33,3 +33,10 @@ msgstr "Информация об ДРЛО"
 
 msgid "Usage: {prefix}{command} <name>"
 msgstr "Применение: {prefix}{command} <name>"
+
+# -gcis
+msgid "Shows active GCIs"
+msgstr "Показать активных ОБУ"
+
+msgid "You need to join a side to show their GCIs"
+msgstr "Необходимо выбрать коалицию для показа их ОБУ"

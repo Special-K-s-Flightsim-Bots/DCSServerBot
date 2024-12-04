@@ -61,12 +61,13 @@ class Backup(Plugin):
                                           plugin=self.plugin_name)
 
     def read_locals(self) -> dict:
-        if not os.path.exists('config/services/backup.yaml'):
+        config_file = os.path.join(self.node.config_dir, 'services', 'backup.yaml')
+        if not os.path.exists(config_file):
             return {}
         try:
-            return yaml.load(Path('config/services/backup.yaml').read_text(encoding='utf-8'))
+            return yaml.load(Path(config_file).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
-            raise YAMLError('config/services/backup.yaml', ex)
+            raise YAMLError(config_file, ex)
 
     @command(description=_('Backup your data'))
     @app_commands.guild_only()

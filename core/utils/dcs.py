@@ -66,14 +66,14 @@ def desanitize(self, _filename: str = None) -> None:
         self.log.error(f"Can't desanitize {filename}, no write permissions!")
         raise
     backup = filename.replace('.lua', '.bak')
-    if os.path.exists('./config/MissionScripting.lua'):
+    if os.path.exists(os.path.join(self.node.config_dir, 'MissionScripting.lua')):
         if _filename:
             self.log.error('SLmod is installed, it will overwrite your custom MissionScripting.lua again!')
         self.log.info('- Desanitizing MissionScripting')
         # don't fail, if no backup could be created (for whatever reason)
         with suppress(Exception):
             shutil.copyfile(filename, backup)
-        shutil.copyfile('./config/MissionScripting.lua', filename)
+        shutil.copyfile(os.path.join(self.node.config_dir, 'MissionScripting.lua'), filename)
         return
     try:
         with open(filename, mode='r', encoding='utf-8') as infile:

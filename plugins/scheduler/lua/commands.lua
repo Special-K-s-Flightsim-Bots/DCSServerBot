@@ -6,7 +6,8 @@ local utils 	= base.require("DCSServerBotUtils")
 function dcsbot.start_server(json)
     log.write('DCSServerBot', log.DEBUG, 'Scheduler: start_server()')
     utils.server_name = nil
-    net.start_server(utils.loadSettingsRaw())
+    json.result = net.start_server(utils.loadSettingsRaw())
+    utils.sendBotTable(json, json.channel)
 end
 
 function dcsbot.stop_server(json)

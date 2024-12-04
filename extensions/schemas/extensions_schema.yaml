@@ -24,8 +24,12 @@ schema;instance_extensions_schema:
       include: 'dsmc_schema'
     gRPC:
       include: 'grpc_schema'
+    GitHub:
+      include: 'github_schema'
     Lardoon:
       include: 'instance_lardoon_schema'
+    LogAnalyser:
+      include: 'loganalyser_schema'
     LotAtc:
       include: 'instance_lotatc_schema'
     MizEdit:
@@ -34,6 +38,8 @@ schema;instance_extensions_schema:
       include: 'instance_olympus_schema'
     OvGME:
       include: 'instance_ovgme_schema'
+    Pretense:
+      include: 'pretense_schema'
     RealWeather:
       include: 'instance_realweather_schema'
     Sneaker:
@@ -42,9 +48,7 @@ schema;instance_extensions_schema:
       include: 'instance_srs_schema'
     Tacview:
       include: 'instance_tacview_schema'
+    Trackfile:
+      include: 'trackfile_schema'
     VoiceChat:
       include: 'instance_voicechat_schema'
-    Pretense:
-      include: 'instance_pretense_schema'
-    LogAnalyser:
-      include: 'loganalyser_schema'
