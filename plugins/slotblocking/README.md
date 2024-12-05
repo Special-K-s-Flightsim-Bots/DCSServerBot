@@ -39,6 +39,9 @@ DEFAULT:            # Default section - true for all your servers.
     side: 2               # side 1 = red, 2 = blue, not given - both sides
     discord: '@everyone'  # Only the "everyone" role needs the @ at the beginning, all other roles don't.
     message: This slot is reserved for members of https://invite.link!
+  - unit_type: dynamic    # restrict the usage of dynamic slots in general for a specific Discord role
+    discord: Tester
+    message: Dynamic Slots are restricted for Testers only.
   balancing:                  # Optional: Allows balancing for your server (blue vs red)
     blue_vs_red: 0.5          # 50% balance blue vs red
     threshold: 0.1            # 10% threshold until slots are blocked

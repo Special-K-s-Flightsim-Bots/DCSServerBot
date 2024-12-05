@@ -71,7 +71,7 @@ function restrict_slots(playerID, side, slotID)
     local points
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
-        local is_unit_type_match = unit['unit_type'] and unit['unit_type'] == unit_type
+        local is_unit_type_match = (unit['unit_type'] and unit['unit_type'] == unit_type) or (unit['unit_type'] == 'dynamic' and utils.isDynamic(playerID))
         local is_unit_name_match = unit['unit_name'] and string.match(unit_name, unit['unit_name'])
         local is_group_name_match = unit['group_name'] and string.match(group_name, unit['group_name'])
         local is_side = (tonumber(unit['side']) or side) == side
@@ -195,10 +195,9 @@ end
 function slotblock.onPlayerChangeSlot(id)
     local side = net.get_player_info(id, 'side')
     local slot = net.get_player_info(id, 'slot')
-    local _, _slot, _ = utils.getMulticrewAllParameters(id)
 
     -- workaround for non-working onPlayerTryChangeSlot calls on dynamic spawns
-    if _slot > 1000000 and slotblock.onPlayerTryChangeSlot(id, side, slot) == false then
+    if utils.isDynamic(id) and slotblock.onPlayerTryChangeSlot(id, side, slot) == false then
         net.force_player_slot(id, side, 1)
     end
 end

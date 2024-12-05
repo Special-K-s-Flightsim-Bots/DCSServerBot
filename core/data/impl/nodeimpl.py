@@ -263,7 +263,7 @@ class NodeImpl(Node):
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
         self.log.debug("- Initializing database pools ...")
-        db_pool = ConnectionPool(url, min_size=2, max_size=4, check=ConnectionPool.check_connection, max_idle=max_idle,
+        db_pool = ConnectionPool(url, min_size=2, max_size=10, check=ConnectionPool.check_connection, max_idle=max_idle,
                                  timeout=timeout, open=False)
         db_apool = AsyncConnectionPool(conninfo=url, min_size=pool_min, max_size=pool_max,
                                        check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,

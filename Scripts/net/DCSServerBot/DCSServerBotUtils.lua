@@ -178,3 +178,8 @@ function getIP(s)
 	end
     return nil
 end
+
+function isDynamic(id)
+	local _, _slot, _ = getMulticrewAllParameters(id)
+	return _slot > 1000000
+end
