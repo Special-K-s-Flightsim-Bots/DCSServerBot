@@ -247,7 +247,7 @@ class MizFile:
                     "mode": 2
                 }
             else:
-                del self.mission['weather']['fog2']
+                self.mission['weather'].pop('fog2', None)
             value = False
         self.mission['weather']['enable_fog'] = value
 
