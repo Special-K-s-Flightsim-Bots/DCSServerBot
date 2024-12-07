@@ -11,6 +11,7 @@ import platform
 import psycopg
 import re
 import shutil
+import sqlparse
 import ssl
 import subprocess
 import sys
@@ -315,7 +316,11 @@ class NodeImpl(Node):
                 if len(tables) == 0:
                     self.log.info('- Creating Database ...')
                     with open(os.path.join('sql', 'tables.sql'), mode='r') as tables_sql:
-                        for query in tables_sql.readlines():
+                        for query in [
+                            stmt.strip()
+                            for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                            if stmt.strip()
+                        ]:
                             self.log.debug(query.rstrip())
                             await cursor.execute(query.rstrip())
                     self.log.info('- Database created.')
@@ -329,7 +334,11 @@ class NodeImpl(Node):
                     while os.path.exists(f'sql/update_{self.db_version}.sql'):
                         old_version = self.db_version
                         with open(os.path.join('sql', f'update_{self.db_version}.sql'), mode='r') as tables_sql:
-                            for query in tables_sql.readlines():
+                            for query in [
+                                stmt.strip()
+                                for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                                if stmt.strip()
+                            ]:
                                 self.log.debug(query.rstrip())
                                 await conn.execute(query.rstrip())
                         cursor = await conn.execute('SELECT version FROM version')
