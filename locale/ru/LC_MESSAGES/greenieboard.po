@@ -72,6 +72,22 @@ msgstr "Оценка должна быть из {}."
 msgid "Wire needs to be one of 1 to 4."
 msgstr "Трос должен быть от 1 до 4."
 
+# /traps reset
+msgid "Resets all traps"
+msgstr "Сброс всех зацепов"
+
+msgid "Do you want to reset all traps?"
+msgstr "Вы хотите сбросить все зацепы?"
+
+msgid "User {} is not linked!"
+msgstr "Игрок {} не слинкован!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "Вы хотите сбросить все зацепы игрока {}?"
+
+msgid "All traps reset."
+msgstr "Все зацепы сброшены."
+
 # Listener
 msgid "Carrier Landing"
 msgstr "Посадка на авианосец"

@@ -1470,7 +1470,7 @@ class NodeUploadHandler:
         return True
 
     async def render(self, directory: str, ignore_list: Optional[list[str]] = None) -> Optional[str]:
-        # do we have multiple sub-directories to upload to?
+        # do we have multiple subdirectories to upload to?
         view = UploadView(self.node, directory, ignore=ignore_list)
         embed = await view.render(init=True) or discord.utils.MISSING
         try:
