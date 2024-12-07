@@ -139,4 +139,4 @@ DEFAULT:
 ``` 
 Balancing will **not** be checked
 - if a user selects another slot on the same side (if you are on blue, you can stay on blue)
-- if a user jumps in a CA (Artillery Commander, etc) or carrier slot (LSO, Airboss)
+- if a user jumps in a CA (Artillery Commander, etc.) or carrier slot (LSO, Airboss)

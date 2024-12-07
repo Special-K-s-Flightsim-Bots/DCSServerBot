@@ -940,6 +940,7 @@ class Scheduler(Plugin):
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.SHUTDOWN])]):
         ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if server.status != Status.SHUTDOWN:
             if not await utils.yn_question(
