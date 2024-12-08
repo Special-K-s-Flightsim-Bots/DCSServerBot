@@ -26,7 +26,8 @@ If you are a server admin of a large server and not part of DGSA, the "DCS Globa
 ```yaml
 DEFAULT:
   dcs-ban: true                         # true: subscribe to the global ban service for DCS users (default: false).
-  discord-ban: true                     # true: subscrive to the global ban service for Discord users (default: false).
+  discord-ban: true                     # true: subscribe to the global ban service for Discord users (default: false).
+  watchlist_only: true                  # true: a player being on the global banlist will be added to the watchlist only (default: false, does not work with dcs-ban: true)
   host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
   port: 443                             # Don't change that until told otherwise.
   protocol: https                       # Don't change that until told otherwise.

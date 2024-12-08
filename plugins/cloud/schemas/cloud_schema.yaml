@@ -5,6 +5,7 @@ mapping:
     mapping:
       dcs-ban: {type: bool}
       discord-ban: {type: bool}
+      watchlist_only: {type: bool}
       host: {type: str}
       port: {type: int, range: {min: 80, max: 65535}}
       protocol: {type: str, enum: ['http', 'https']}
