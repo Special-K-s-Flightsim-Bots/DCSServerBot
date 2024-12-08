@@ -220,29 +220,55 @@ class Cloud(Plugin):
 
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
-        if self.config.get('dcs-ban', False):
-            self_bans: set = {x['ucid'] for x in await self.bus.bans() if x['banned_by'] == self.plugin_name}
-            external_bans: set = {ban['ucid'] for ban in await self.get('bans')}
-            # find UCIDs to ban (in external_bans but not in self_bans)
-            for ucid in external_bans - self_bans:
-                reason = next(ban['reason'] for ban in await self.get('bans') if ban['ucid'] == ucid)
-                await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
-            # find UCIDs to unban (in self_bans but not in external_bans)
-            for ucid in self_bans - external_bans:
-                await self.bus.unban(ucid)
-        if self.config.get('discord-ban', False):
-            bans: dict = await self.get('discord-bans')
-            users_to_ban = {user for ban in bans if (user := await self.bot.fetch_user(ban['discord_id'])) is not None}
-            guild = self.bot.guilds[0]
-            guild_bans = [entry async for entry in guild.bans()]
-            banned_users = {x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')}
-            # unban users that should not be banned anymore
-            for user in banned_users - users_to_ban:
-                await guild.unban(user, reason='DGSA: ban revoked.')
-            # ban users that were not banned yet (omit the owner)
-            for user in users_to_ban - banned_users - {self.bot.owner_id}:
-                reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
-                await guild.ban(user, reason='DGSA: ' + reason)
+        try:
+            if self.config.get('dcs-ban', False):
+                all_bans: dict = await self.get('bans')
+                self_bans: set = {x['ucid'] for x in await self.bus.bans() if x['banned_by'] == self.plugin_name}
+                external_bans: set = {ban['ucid'] for ban in all_bans}
+                # find UCIDs to ban (in external_bans but not in self_bans)
+                for ucid in external_bans - self_bans:
+                    reason = next(ban['reason'] for ban in all_bans if ban['ucid'] == ucid)
+                    await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
+                # find UCIDs to unban (in self_bans but not in external_bans)
+                for ucid in self_bans - external_bans:
+                    await self.bus.unban(ucid)
+            elif self.config.get('watchlist_only', False):
+                all_bans: dict = await self.get('bans')
+                external_bans: set = {ban['ucid'] for ban in all_bans}
+                async with self.apool.connection() as conn:
+                    cursor = await conn.execute("SELECT player_ucid FROM watchlist WHERE created_by = 'DGSA'")
+                    watches = set([row[0] for row in await cursor.fetchall()])
+                    async with conn.transaction():
+                        # find watches to add
+                        for ucid in external_bans - watches:
+                            reason = next(ban['reason'] for ban in all_bans if ban['ucid'] == ucid)
+                            await conn.execute("""
+                                INSERT INTO watchlist (player_ucid, reason, created_by) 
+                                VALUES (%s, %s, %s)
+                                ON CONFLICT (player_ucid) DO NOTHING
+                            """, (ucid, reason, 'DGSA'))
+                        # find watches to remove
+                        for ucid in watches - external_bans:
+                            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
+            if self.config.get('discord-ban', False):
+                bans: dict = await self.get('discord-bans')
+                users_to_ban = {user for ban in bans if (user := await self.bot.fetch_user(ban['discord_id'])) is not None}
+                guild = self.bot.guilds[0]
+                guild_bans = [entry async for entry in guild.bans()]
+                banned_users = {x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')}
+                # unban users that should not be banned anymore
+                for user in banned_users - users_to_ban:
+                    await guild.unban(user, reason='DGSA: ban revoked.')
+                # ban users that were not banned yet (omit the owner)
+                for user in users_to_ban - banned_users - {self.bot.owner_id}:
+                    reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
+                    await guild.ban(user, reason='DGSA: ' + reason)
+        except Exception as ex:
+            self.log.exception(ex)
+
+    @cloud_bans.before_loop
+    async def before_cloud_bans(self):
+        await self.bot.wait_until_ready()
 
     @tasks.loop(seconds=10)
     async def cloud_sync(self):

@@ -67,6 +67,22 @@ msgstr "Wertung muss eine von {} sein."
 msgid "Wire needs to be one of 1 to 4."
 msgstr "Seil muss zwischen 1 und 4 sein."
 
+# /traps reset
+msgid "Resets all traps"
+msgstr "Löscht alle Landungen"
+
+msgid "Do you want to reset all traps?"
+msgstr "Möchtest Du alle Landungen löschen?"
+
+msgid "User {} is not linked!"
+msgstr "Benutzer {} ist nicht verknüpft!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "Möchtest Du alle Landungen von Benutzer {} löschen?"
+
+msgid "All traps reset."
+msgstr "Alle Landungen wurden gelöscht."
+
 # Listener
 msgid "Carrier Landing"
 msgstr "Trägerlandung"

@@ -1,5 +1,5 @@
 DEFAULT:
-  time_sync: true           # sync the PC time with a time server every 12 hrs
-  time_server: pool.ntp.org # and use this non-default time server for it
+  time_sync: true           # sync the PC time with a time-server every 12 hrs
+  time_server: pool.ntp.org # and use this non-default time-server for it
   drive_warn_threshold: 10  # Warn, if your drive where DCS is installed (or your C: drive), gets below 10%
   drive_alert_threshold: 5  # Send an alert and ping admins, if your DCS drive (or your C: drive) gets below 5%

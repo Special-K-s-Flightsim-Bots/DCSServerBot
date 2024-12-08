@@ -224,6 +224,36 @@ class GreenieBoard(Plugin):
         finally:
             await interaction.delete_original_response()
 
+    @traps.command(description=_('Resets all traps'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def reset(self, interaction: discord.Interaction,
+                    user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        if not user:
+            message = _('Do you want to reset all traps?')
+            sql = 'DELETE FROM traps'
+            ucid = None
+        else:
+            if isinstance(user, discord.Member):
+                ucid = await self.bot.get_ucid_by_member(user)
+                if not ucid:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_('User {} is not linked!').format(user.display_name),
+                                                            ephemeral=ephemeral)
+                    return
+            else:
+                ucid = user
+            message = _('Do you want to reset all traps for user {}').format(
+                user.display_name if isinstance(user, discord.Member) else user)
+            sql = 'DELETE FROM traps WHERE player_ucid = %(ucid)s'
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+            return
+        async with self.node.apool.connection() as conn:
+            await conn.execute(sql, {"ucid": ucid})
+        await interaction.followup.send(_('All traps reset.'), ephemeral=ephemeral)
+
 
 async def setup(bot: DCSServerBot):
     if 'missionstats' not in bot.plugins:

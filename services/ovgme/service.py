@@ -111,10 +111,10 @@ class OvGMEService(Service):
     def parse_filename(filename: str) -> tuple[Optional[str], Optional[str]]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
-        exp = re.compile(r'(?P<package>.*?)(?P<version>v?[0-9]+(?:\.[A-Za-z0-9._-]+)?)$')
+        exp = re.compile(r'(?P<package>.*?)(?:v)?(?P<version>[0-9]+(?:\.[A-Za-z0-9._-]+)?)$')
         match = exp.match(filename)
         if match:
-            return match.group('package').rstrip('v').rstrip('_').rstrip('-'), match.group('version')
+            return match.group('package').rstrip('v').rstrip('_').rstrip('-').strip(), match.group('version').strip()
         else:
             return None, None
 
@@ -210,7 +210,7 @@ class OvGMEService(Service):
         for _, _version in available:
             if not max_version or version.parse(_version) > version.parse(max_version):
                 max_version = _version
-        return max_version
+        return max_version.strip('v')
 
     async def get_latest_version(self, package: dict) -> str:
         if 'repo' in package:

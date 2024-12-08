@@ -3,7 +3,6 @@ import asyncio
 import os
 import uuid
 
-from contextlib import suppress
 from core import utils
 from core.const import DEFAULT_TAG
 from core.utils.performance import PerformanceLog, performance_log
