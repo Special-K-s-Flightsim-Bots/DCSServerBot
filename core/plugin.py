@@ -8,6 +8,7 @@ import logging
 import os
 import psycopg
 import shutil
+import sqlparse
 import sys
 
 from copy import deepcopy
@@ -338,7 +339,11 @@ class Plugin(commands.Cog):
                         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
                         if os.path.exists(tables_file):
                             with open(tables_file, mode='r') as tables_sql:
-                                for query in tables_sql.readlines():
+                                for query in [
+                                    stmt.strip()
+                                    for stmt in sqlparse.split(tables_sql.read(), encoding='utf-8')
+                                    if stmt.strip()
+                                ]:
                                     self.log.debug(query.rstrip())
                                     await cursor.execute(query.rstrip())
                         await cursor.execute("""
