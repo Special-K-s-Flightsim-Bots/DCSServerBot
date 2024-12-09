@@ -1047,6 +1047,9 @@ class Mission(Plugin):
             await msg.edit(content=_("Timeout while waiting for screenshot!"))
             return
         key = new_screens[-1]
+        # DCS 2.9.11+
+        if 'screenshots' not in key:
+            key = '/screenshots/' + key
         try:
             image_url = f"http://127.0.0.1:{server.instance.webgui_port}{key}"
             image_data = await server.node.read_file(image_url)
