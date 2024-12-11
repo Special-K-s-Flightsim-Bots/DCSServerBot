@@ -84,8 +84,8 @@ class ServerInfo(report.EmbedElement):
             footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
         else:
             footer = ''
-        if server.dcs_version:
-            footer += f'DCS {server.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
+        if server.node.dcs_version:
+            footer += f'DCS {self.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
         self.embed.set_footer(text=footer)
 
 
@@ -116,7 +116,7 @@ class WeatherInfo(report.EmbedElement):
                 self.add_field(name='Weather', value='Dynamic\n**Clouds**\nn/a')
 
             visibility = weather['visibility']['distance']
-            if weather['enable_fog'] is True:
+            if weather.get('enable_fog', False) is True:
                 visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
             value = "{:,} ft".format(int(visibility)) if visibility < 30000 else "10 km / 6 SM (+)"
             value += ("\n\n**Wind**\n"
