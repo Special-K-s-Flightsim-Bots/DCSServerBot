@@ -1037,7 +1037,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         base_dir = await server.get_missions_dir()
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=get_name(base_dir, x), value=idx)
-            for idx, x in enumerate(server.settings['missionList'])
+            for idx, x in enumerate(await server.getMissionList())
             if not current or current.casefold() in get_name(base_dir, x).casefold()
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]

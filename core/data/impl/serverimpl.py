@@ -890,6 +890,9 @@ class ServerImpl(Server):
             return True
         return False
 
+    async def getMissionList(self) -> list[str]:
+        return self.settings.get('missionList', [])
+
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         ext = self.extensions.get(extension)
         if not ext:

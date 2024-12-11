@@ -52,7 +52,6 @@ class Server(DataObject):
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
-    dcs_version: str = field(default=None, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
@@ -361,7 +360,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
-        return self.settings.get('missionList', [])
+        raise NotImplemented()
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()

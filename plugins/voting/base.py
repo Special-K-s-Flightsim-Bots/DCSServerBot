@@ -14,10 +14,10 @@ class VotableItem(ABC):
     def can_vote(self) -> bool:
         return True
 
-    def print(self) -> str:
+    async def print(self) -> str:
         ...
 
-    def get_choices(self) -> list[str]:
+    async def get_choices(self) -> list[str]:
         ...
 
     async def execute(self, winner: str):

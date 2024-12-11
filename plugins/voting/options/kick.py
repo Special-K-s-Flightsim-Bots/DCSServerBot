@@ -14,10 +14,10 @@ class Kick(VotableItem):
         if not self.player:
             raise ValueError('Player "{}" not found.'.format(' '.join(params)))
 
-    def print(self) -> str:
+    async def print(self) -> str:
         return f"You can now vote to kick player {self.player.name} because of misbehaviour."
 
-    def get_choices(self) -> list[str]:
+    async def get_choices(self) -> list[str]:
         return [f"Kick {self.player.name}", f"Don't kick {self.player.name}"]
 
     async def execute(self, winner: str):
