@@ -1554,7 +1554,7 @@ class ServerUploadHandler(NodeUploadHandler):
         from services.servicebus import ServiceBus
 
         bot = ServiceRegistry.get(BotService).bot
-        server = bot.get_server(message)
+        server = bot.get_server(message, admin_only=True)
         if not server and message.channel.id == bot.locals.get('channels', {}).get('admin'):
             bus = ServiceRegistry.get(ServiceBus)
             ctx = await bot.get_context(message)
