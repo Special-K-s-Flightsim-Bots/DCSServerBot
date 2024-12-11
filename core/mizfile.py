@@ -237,7 +237,7 @@ class MizFile:
         if parse(self.node.dcs_version) >= Version('2.9.10'):
             return self.mission['weather'].get('fog2') is not None
         else:
-            return self.mission['weather']['enable_fog']
+            return self.mission['weather'].get('enable_fog', False)
 
     @enable_fog.setter
     def enable_fog(self, value: bool) -> None:
