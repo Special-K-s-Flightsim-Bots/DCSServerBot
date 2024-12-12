@@ -1,6 +1,6 @@
-# Plugin OvGME
-This plugin belongs to the [OvGME Service](../../services/ovgme/README.md) that lets you install additional packages 
-(aka mods) into your DCS World servers. Read there for further details.</br>
+# Plugin ModManager
+This plugin belongs to the [ModManager Service](../../services/modmanager/README.md) that lets you install additional 
+packages (aka mods) into your DCS World servers. Read there for further details.</br>
 
 ## Discord Commands
 

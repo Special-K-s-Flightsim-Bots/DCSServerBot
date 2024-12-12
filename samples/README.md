@@ -53,8 +53,8 @@ section for server "DCS.release_server", that is overwriting the default.
 Sample configuration which defines a Music upload directory "Music" in your Saved Games\<instance>\ folders. Besides 
 that, it defines an SRS radio to be used on a specific SRS channel.
 
-## services/ovgme.json
-With the OvGME plugin you can install OvGME like packages automatically into your DCS servers. The sample shows two
+## services/modmanager.yaml
+With the ModManager plugin you can install OvGME like packages automatically into your DCS servers. The sample shows two
 possible ways, by either providing a strict version (2.0.1) or by using the term "latest", to get the latest available
 version that is provided in one of the installation directories.
 

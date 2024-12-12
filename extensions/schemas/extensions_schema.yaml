@@ -36,8 +36,8 @@ schema;instance_extensions_schema:
       include: 'mizedit_schema'
     Olympus:
       include: 'instance_olympus_schema'
-    OvGME:
-      include: 'instance_ovgme_schema'
+    ModManager:
+      include: 'modmanager_schema'
     Pretense:
       include: 'pretense_schema'
     RealWeather:

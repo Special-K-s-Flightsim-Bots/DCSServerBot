@@ -22,6 +22,6 @@ opt_plugins:                          # Optional: list of optional plugins to be
 - slotblocking
 - music
 - funkman
-- ovgme
+- modmanager
 - commands
 - restapi

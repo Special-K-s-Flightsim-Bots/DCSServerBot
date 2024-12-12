@@ -13,7 +13,7 @@ from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
 from services.bot import DCSServerBot
-from services.scheduler.actions import purge_channel
+from services.cron.actions import purge_channel
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 

@@ -38,12 +38,12 @@ Discord commands, like the Music service. Some services only run on the master n
 |------------|-----------------------------------------------------------------------------------------------------------|-------------|-------------------------------------------|
 | Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.                                     | Backup      | [README](./services/backup/README.md)     |
 | Bot        | The Discord bot handling all discord commands. There is a Discord-free variant available also (see blow)! |             | [README](./services/bot/README.md)        |
-| Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                                                        |             | [README](./services/cleanup/README.md)    |
+| Cleanup    | Cleanup log-files, track-files, etc. from your disk.                                                      |             | [README](./services/cleanup/README.md)    |
 | Dashboard  | Nice console graphics display to show the status of your bot / servers.                                   |             | [README](./services/dashboard/README.md)  |
 | Monitoring | Availability- and performance-monitoring of your DCS servers.                                             | ServerStats | [README](./services/monitoring/README.md) |
 | Music      | Play music over different SRS-radios on your servers.                                                     | Music       | [README](./services/music/README.md)      |
-| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.                                     | OvGME       | [README](./services/ovgme/README.md)      |
-| Scheduler  | Schedule tasks based on a cron-like configuration.                                                        | Scheduler   | [README](./services/scheduler/README.md)  |
+| ModManager | Manage mods that needs to be installed / updated in your DCS servers.                                     | ModManager  | [README](./services/modmanager/README.md) |
+| Cron       | Schedule tasks based on a cron-like configuration.                                                        |             | [README](./services/cron/README.md)       |
 | ServiceBus | Communication hub between every node of the bot cluster and all DCS-servers.                              |             | [README](./services/servicebus/README.md) |
 
 ### Plugins
@@ -72,7 +72,7 @@ from time to time, but you as a community member can also create your own plugin
 | LotAtc       | Upload LotAtc Transponder files to your servers.                                | yes      |                         | [README](./plugins/lotatc/README.md)       |
 | MOTD         | Message for players on join or when they jump in a module.                      | yes      | Mission, MissionStats   | [README](./plugins/motd/README.md)         |
 | Music        | Upload and play music over SRS.                                                 | yes      |                         | [README](./plugins/music/README.md)        |
-| OvGME        | Install or update mods into your DCS server.                                    | yes      |                         | [README](./plugins/ovgme/README.md)        |
+| ModManager   | Install or update mods into your DCS server.                                    | yes      |                         | [README](./plugins/modmanager/README.md)   |
 | Pretense     | Commands for Pretense missions.                                                 | yes      |                         | [README](./plugins/pretense/README.md)     |
 | Punishment   | Punish users for team-hits or team-kills.                                       | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
 | RealWeather  | Apply real weather to your missions (also available as an extension).           | yes      |                         | [README](./plugins/realweather/README.md)  |
@@ -107,7 +107,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | LotAtc      | GCI- and ATC-extension for DCS World. Simple display only extension.                                       | [README](./extensions/lotatc/README.md)      |
 | MizEdit     | My own invention, can be used to modify your missions. Very powerful!                                      | [README](./extensions/mizedit/README.md)     |
 | Olympus     | Real-time control of your DCS missions through a map interface.                                            | [README](./extensions/olympus/README.md)     |
-| OvGME       | Use mods within your DCS World servers.                                                                    | [README](./extensions/ovgme/README.md)       |
+| ModManager  | Use mods within your DCS World servers.                                                                    | [README](./extensions/modmanager/README.md)  |
 | Pretense    | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
 | RealWeather | Real weather for your missions using DCS Real Weather.                                                     | [README](./extensions/realweather/README.md) |
 | Sneaker     | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! | [README](./extensions/sneaker/README.md)     |
@@ -306,7 +306,7 @@ opt_plugins:                          # Optional: list of optional plugins to be
 - slotblocking
 - music
 - funkman
-- ovgme
+- modmanager
 - commands
 - restapi
 ```

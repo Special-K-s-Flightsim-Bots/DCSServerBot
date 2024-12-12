@@ -67,6 +67,22 @@ msgstr "Grado debe ser uno de {}."
 msgid "Wire needs to be one of 1 to 4."
 msgstr "Cable debe ser uno de 1 a 4."
 
+# /traps reset
+msgid "Resets all traps"
+msgstr "Reinicia todas las recogidas"
+
+msgid "Do you want to reset all traps?"
+msgstr "¿Desea reiniciar todas las recogidas?"
+
+msgid "User {} is not linked!"
+msgstr "¡El usuario {} no está enlazado!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "¿Desea reiniciar todas las recogidas para el usuario {}?"
+
+msgid "All traps reset."
+msgstr "Todas las recogidas han sido reiniciadas."
+
 # Listener
 msgid "Carrier Landing"
 msgstr "Aterrizaje en portaaviones"

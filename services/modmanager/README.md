@@ -1,21 +1,21 @@
-# OvGME Service
+# ModManager Service
 
-This is the OvGME service, which lets you install packaged modifications (mods) to your DCS server.
+This is the ModManager service, which lets you install packaged modifications (mods) to your DCS server.
 
 ## Configuration
-To activate the OvGME service, you need to add an optional plugin in your main.yaml first like so:
+To activate the ModManager service, you need to add an optional plugin in your main.yaml first like so:
 ```yaml
 opt_plugins:
-  - ovgme
+  - modmanager
 ```
 
-The service itself is configured via yaml. There is an additional [plugin](../../plugins/ovgme/README.md) to provide Discord
-commands to operate the service.
+The service itself is configured via yaml. There is an additional [plugin](../../plugins/modmanager/README.md) to 
+provide Discord commands to operate the service.
 
 ```yaml
 DEFAULT:
-  SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'  # folder to store plugins that should be installed into Saved Games
-  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'  # folder to store plugins that should go into the base game directories
+  SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'  # folder to store plugins that should be installed into Saved Games
+  RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'  # folder to store plugins that should go into the base game directories
 DCS.release_server:
   packages:
   - name: Community_A-4E-C    # The community A-4E-C model can be used out of the box with this service

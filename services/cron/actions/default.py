@@ -19,11 +19,11 @@ async def report(file: str, channel: int, node: Node, persistent: Optional[bool]
     if bot.is_closed():
         return
     if persistent:
-        r = PersistentReport(bot, 'scheduler', file, channel_id=channel, server=server,
+        r = PersistentReport(bot, 'cron', file, channel_id=channel, server=server,
                              embed_name=os.path.basename(file)[:-5])
         await r.render(node=node, server=server)
     else:
-        r = Report(bot, 'scheduler', file)
+        r = Report(bot, 'cron', file)
         env = await r.render(node=node, server=server)
         await bot.get_channel(channel).send(embed=env.embed)
 

@@ -41,7 +41,7 @@ Node
    |_ DashBoard
    |_ Monitoring
    |_ Backup (optional)
-   |_ OvGME (optional)
+   |_ ModManager (optional)
    |_ Music (optional)
 |_ Extensions (all optional)
    |_ DCS-SRS

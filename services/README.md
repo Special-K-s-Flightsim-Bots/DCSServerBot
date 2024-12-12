@@ -25,7 +25,7 @@ implemented by using the NodeProxy (read_file(), write_file(), list_directory())
 service, as read_file() would transfer any file over the database to the master node, which does not only not sound
 very efficient, it indeed isn't.
 
-#### OvGMEService
+#### ModManagerService
 This service has to unpack mod-packs onto your DCS servers that are installed on the specific nodes.
 
 I think you get the idea - whenever you need to do something on a specific node, a service needs to be implemented.

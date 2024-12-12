@@ -276,12 +276,12 @@ class NodeImpl(Node):
         return db_pool, db_apool
 
     async def close_db(self):
-        if not self.pool.closed:
+        if self.pool and not self.pool.closed:
             try:
                 self.pool.close()
             except Exception as ex:
                 self.log.exception(ex)
-        if not self.apool.closed:
+        if self.apool and not self.apool.closed:
             try:
                 await self.apool.close()
             except Exception as ex:

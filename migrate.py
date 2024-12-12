@@ -131,15 +131,18 @@ def post_migrate_greenieboard(node: str):
             yaml.dump(data, outfile)
 
 
-def migrate(node: Node, old_version: str, new_version: str):
+def migrate(node: Node, old_version: str, new_version: str) -> int:
     if old_version == 'v3.10' and new_version == 'v3.11':
-        migrate_3_11(node)
+        return migrate_3_11(node)
+    elif old_version == 'v3.11' and new_version == 'v3.12':
+        return migrate_3_12(node)
+    return 0
 
-
-def migrate_3_11(node: Node):
+def migrate_3_11(node: Node) -> int:
     filename = os.path.join(node.config_dir, 'services', 'bot.yaml')
     if not os.path.exists(filename):
-        return
+        node.log.error('main.yaml not found. Exiting.')
+        return -2
     with open(filename, mode='r', encoding='utf-8') as infile:
         data = yaml.load(infile)
     channels = {}
@@ -152,6 +155,48 @@ def migrate_3_11(node: Node):
         with open(filename, mode='w', encoding='utf-8') as outfile:
             yaml.dump(data, outfile)
         node.log.info("  => config/services/bot.yaml auto-migrated, please check")
+        return -1
+    return 0
+
+
+def migrate_3_12(node: Node) -> int:
+    filename = os.path.join(node.config_dir, 'main.yaml')
+    if not os.path.exists(filename):
+        node.log.error('main.yaml not found. Exiting.')
+        return -2
+    with open(filename, mode='r', encoding='utf-8') as infile:
+        data = yaml.load(infile)
+    if 'ovgme' in data.get('opt_plugins', []):
+        data['opt_plugins'].remove('ovgme')
+        data['opt_plugins'].append('modmanager')
+        with open(filename, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
+        node.log.info("  => main.yaml auto-migrated, please check")
+        with node.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("UPDATE plugins SET plugin = 'modmanager' WHERE plugin = 'ovgme'")
+        filename = os.path.join(node.config_dir, 'services', 'ovgme.yaml')
+        if os.path.exists(filename):
+            shutil.move(filename, os.path.join(node.config_dir, 'services', 'modmanager.yaml'))
+            node.log.info("  => ovgme.yaml renamed to modmanager.yaml")
+        filename = os.path.join(node.config_dir, 'nodes.yaml')
+        with open(filename, mode='r', encoding='utf-8') as infile:
+            data = yaml.load(infile)
+        dirty = False
+        for _node in data.values():
+            for instance in _node['instances'].values():
+                if 'extensions' in instance and 'OvGME' in instance['extensions']:
+                    instance['extensions']['ModManager'] = instance['extensions'].pop('OvGME')
+                    dirty = True
+        if dirty:
+            with open(filename, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(data, outfile)
+            node.log.info("  => node.yaml auto-migrated, please check")
+        return -1
+    filename = os.path.join(node.config_dir, 'services', 'scheduler.yaml')
+    if os.path.exists(filename):
+        shutil.move(filename, os.path.join(node.config_dir, 'services', 'core.yaml'))
+    return 0
 
 
 def migrate_3(node: str):

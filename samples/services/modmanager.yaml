@@ -1,6 +1,6 @@
 DEFAULT:
-  SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'
-  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'
+  SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'
+  RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'
 DCS.release_server:
   packages:
   - name: Community_A-4E-C

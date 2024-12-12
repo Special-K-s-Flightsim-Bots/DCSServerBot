@@ -1,4 +1,4 @@
-schema;instance_ovgme_schema:
+schema;modmanager_schema:
   type: map
   mapping:
     enabled: {type: bool}

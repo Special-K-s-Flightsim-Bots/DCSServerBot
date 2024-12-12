@@ -7,27 +7,27 @@ from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallat
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from services.bot import DCSServerBot
-from services.ovgme import OvGMEService
+from services.modmanager import ModManagerService
 from typing import Optional, Literal
 
 _ = get_translation(__name__.split('.')[1])
 
-OVGME_FOLDERS = ['RootFolder', 'SavedGames']
+MOD_MANAGER_FOLDERS = ['RootFolder', 'SavedGames']
 
 
-async def get_installed_mods(service: OvGMEService, server: Server) -> list[tuple[str, str, str]]:
+async def get_installed_mods(service: ModManagerService, server: Server) -> list[tuple[str, str, str]]:
     installed = []
-    for folder in OVGME_FOLDERS:
+    for folder in MOD_MANAGER_FOLDERS:
         _mods = [(folder, x, y) for x, y in await service.get_installed_packages(server, folder)]
         if _mods:
             installed.extend(_mods)
     return sorted(installed)
 
 
-async def get_available_mods(service: OvGMEService, server: Server) -> list[tuple[str, str, str]]:
+async def get_available_mods(service: ModManagerService, server: Server) -> list[tuple[str, str, str]]:
     available = []
     config = service.get_config(server)
-    for folder in OVGME_FOLDERS:
+    for folder in MOD_MANAGER_FOLDERS:
         packages = []
         for x in os.listdir(os.path.expandvars(config[folder])):
             if x.startswith('.') or x.casefold() in ['desktop.ini']:
@@ -45,7 +45,7 @@ async def get_available_mods(service: OvGMEService, server: Server) -> list[tupl
 async def installed_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service = ServiceRegistry.get(OvGMEService)
+    service = ServiceRegistry.get(ModManagerService)
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -63,7 +63,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service = ServiceRegistry.get(OvGMEService)
+    service = ServiceRegistry.get(ModManagerService)
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -83,7 +83,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction,
                                           current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service = ServiceRegistry.get(OvGMEService)
+    service = ServiceRegistry.get(ModManagerService)
     try:
         server: Server = await utils.ServerTransformer().transform(interaction,
                                                                    utils.get_interaction_param(interaction, 'server'))
@@ -105,7 +105,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction,
 async def repo_version_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
-    service = ServiceRegistry.get(OvGMEService)
+    service = ServiceRegistry.get(ModManagerService)
     try:
         repo = utils.get_interaction_param(interaction, 'url')
 
@@ -120,27 +120,28 @@ async def repo_version_autocomplete(interaction: discord.Interaction, current: s
         interaction.client.log.exception(ex)
 
 
-class OvGME(Plugin):
+class ModManager(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        if (os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'ovgme.yaml')) and
-                not os.path.exists(os.path.join(self.node.config_dir, 'services', 'ovgme.yaml'))):
-            self.log.warning(f"  => OvGME: your ovgme.yaml belongs into {self.node.config_dir}/services/ovgme.yaml, "
-                             f"not in {self.node.config_dir}/plugins!")
-        self.service = ServiceRegistry.get(OvGMEService)
+        if (os.path.exists(os.path.join(self.node.config_dir, 'plugins', 'modmanager.yaml')) and
+                not os.path.exists(os.path.join(self.node.config_dir, 'services', 'modmanager.yaml'))):
+            self.log.warning(
+                f"  => ModManager: your modmanager.yaml belongs into {self.node.config_dir}/services/modmanager.yaml, "
+                f"not in {self.node.config_dir}/plugins!")
+        self.service = ServiceRegistry.get(ModManagerService)
         if not self.service:
-            raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
+            raise PluginInstallationError(plugin=self.plugin_name, reason='ModManager service not loaded.')
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:
-        self.log.debug('Pruning OvGME ...')
+        self.log.debug('Pruning ModManager ...')
         if server:
-            await conn.execute("DELETE FROM ovgme_packages WHERE server_name = %s", (server, ))
-        self.log.debug('OvGME pruned.')
+            await conn.execute("DELETE FROM mm_packages WHERE server_name = %s", (server, ))
+        self.log.debug('ModManager pruned.')
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
-        await conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+        await conn.execute('UPDATE mm_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     # New command group "/mods"
     mods = Group(name="mods", description=_("Commands to manage custom mods in your DCS server"))
@@ -298,7 +299,7 @@ class OvGME(Plugin):
 
                 async def download(modal: UploadModal):
                     if utils.is_valid_url(modal.url.value):
-                        folder = OVGME_FOLDERS[0 if modal.dest.value == 'R' else 1]
+                        folder = MOD_MANAGER_FOLDERS[0 if modal.dest.value == 'R' else 1]
                         if utils.is_github_repo(modal.url.value):
                             await self.service.download_from_repo(modal.url.value, folder, version=modal.version.value)
                         else:
@@ -426,16 +427,16 @@ class OvGME(Plugin):
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         ephemeral = utils.get_ephemeral(interaction)
         installed: dict[str, list[tuple[str, str]]] = dict()
-        for folder in OVGME_FOLDERS:
+        for folder in MOD_MANAGER_FOLDERS:
             installed[folder] = await self.service.get_installed_packages(server, folder)
-        if not len(installed[OVGME_FOLDERS[0]]) and not len(installed[OVGME_FOLDERS[1]]):
+        if not len(installed[MOD_MANAGER_FOLDERS[0]]) and not len(installed[MOD_MANAGER_FOLDERS[1]]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("No mod installed on server {}.").format(server.name),
                                                     ephemeral=ephemeral)
             return
         embed = discord.Embed(color=discord.Color.blue())
         embed.description = _("The following mods are installed on server {}:").format(server.name)
-        for folder in OVGME_FOLDERS:
+        for folder in MOD_MANAGER_FOLDERS:
             if installed[folder]:
                 embed.add_field(name=_("Folder"), value=folder)
                 embed.add_field(name=_("Mod"), value='\n'.join([x[0] for x in installed[folder]]))
@@ -495,4 +496,4 @@ class OvGME(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(OvGME(bot))
+    await bot.add_cog(ModManager(bot))
