@@ -483,6 +483,10 @@ class NodeImpl(Node):
             for callback in self.before_update.values():
                 await callback()
             old_branch, old_version = await self.get_dcs_branch_and_version()
+            if not branch:
+                branch = old_branch
+            if not version:
+                version = await self.get_latest_version(branch)
             rc = await do_update(branch, version)
             if rc in [0, 350]:
                 self.dcs_branch = self.dcs_version = None
