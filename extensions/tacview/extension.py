@@ -396,7 +396,7 @@ class Tacview(Extension):
 
     async def update_instance(self, force: bool) -> bool:
         version = self.get_inst_version()
-        if parse(version) < parse(self.version):
+        if parse(self.version) < parse(version):
             if force or self.config.get('autoupdate', False):
                 if not await self.uninstall():
                     return False
