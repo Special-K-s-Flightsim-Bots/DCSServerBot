@@ -1,7 +1,8 @@
 local base      = _G
 local dcsbot    = base.dcsbot
-local dcs_srs   = dcs_srs or {}
+local utils 	= base.require("DCSServerBotUtils")
 
+local dcs_srs   = dcs_srs or {}
 dcsbot.srs = dcsbot.srs or {}
 
 function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
