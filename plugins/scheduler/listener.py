@@ -227,9 +227,10 @@ class SchedulerListener(EventListener):
 
     @event(name="onServerEmpty")
     async def onServerEmpty(self, server: Server, _: dict) -> None:
-        # noinspection PyAsyncCall
-        asyncio.create_task(self.process(server, server.on_empty.copy()))
-        server.on_empty.clear()
+        if server.on_empty:
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.process(server, server.on_empty.copy()))
+            server.on_empty.clear()
 
     @chat_command(name="maintenance", aliases=["maint"], roles=['DCS Admin'], help="enable maintenance mode")
     async def maintenance(self, server: Server, player: Player, _: list[str]):
