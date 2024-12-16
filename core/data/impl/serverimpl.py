@@ -477,7 +477,7 @@ class ServerImpl(Server):
 
     async def init_extensions(self) -> list[str]:
         async with self.lock:
-            extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
+            extensions = DEFAULT_EXTENSIONS | self.node.locals.get('extensions', {}) | self.locals.get('extensions', {})
             for extension in extensions:
                 try:
                     ext: Extension = self.extensions.get(extension)

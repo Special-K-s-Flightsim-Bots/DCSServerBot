@@ -34,8 +34,11 @@
     {
       "type": "SQLField",
       "params": {
-        "sql": "SELECT SUM(points) AS \"Penalty Points\" FROM pu_events WHERE init_id = '{ucid}'",
-        "inline": false
+        "sql": "SELECT SUM(points) AS \"Penalty Points\" FROM pu_evets WHERE init_id = '{ucid}'",
+        "inline": false,
+        "on_error": {
+          "Penalty Points": 0
+        }
       }
     },
     {

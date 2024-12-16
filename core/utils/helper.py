@@ -645,7 +645,7 @@ class SettingsDict(dict):
         if self.bus:
             asyncio.create_task(self.bus.send_to_node(msg))
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value, *, sync: bool = False):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
@@ -663,7 +663,7 @@ class SettingsDict(dict):
             self.read_file()
         return super().__getitem__(item)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key, *, sync: bool = False):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()

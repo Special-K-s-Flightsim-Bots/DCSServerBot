@@ -83,12 +83,20 @@ class EmbedElement(ReportElement):
         super().__init__(env)
         self.embed = env.embed
 
-    def add_field(self, *, name, value, inline=True):
+    def add_field(self, *, name: str, value: str, inline=True):
         if len(self.embed.fields) >= 25:
             return
+        if name is None or name == '':
+            name = '_ _'
+        else:
+            name = str(name)
         if len(name) > 256:
             name = name[:252] + ' ...'
-        if isinstance(value, str) and len(value) > 1024:
+        if value is None or value == '':
+            value = '_ _'
+        else:
+            value = str(value)
+        if len(value) > 1024:
             value = value[:1020] + ' ...'
         return self.embed.add_field(name=name or '_ _', value=value or '_ _', inline=inline)
 
@@ -279,54 +287,69 @@ def _display_no_data(element: EmbedElement, no_data: Union[str, dict], inline: b
 
 
 class SQLField(EmbedElement):
-    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None):
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
-                if cursor.rowcount > 0:
-                    row = await cursor.fetchone()
-                    name = list(row.keys())[0]
-                    value = row[name]
-                    if isinstance(value, datetime):
-                        value = value.strftime('%Y-%m-%d %H:%M')
-                    self.add_field(name=name, value=value, inline=inline)
-                else:
-                    if no_data:
-                        _display_no_data(self, no_data, inline)
+    async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None,
+                     on_error: Optional[dict] = None):
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+                    if cursor.rowcount > 0:
+                        row = await cursor.fetchone()
+                        name = list(row.keys())[0]
+                        value = row[name]
+                        if isinstance(value, datetime):
+                            value = value.strftime('%Y-%m-%d %H:%M')
+                        self.add_field(name=name, value=value, inline=inline)
+                    else:
+                        if no_data:
+                            _display_no_data(self, no_data, inline)
+        except Exception as ex:
+            if on_error:
+                self.add_field(name=list(on_error.keys())[0],
+                               value=utils.format_string(str(list(on_error.values())[0]), ex=ex), inline=inline)
+            else:
+                raise
 
 
 class SQLTable(EmbedElement):
     async def render(self, sql: str, inline: Optional[bool] = True, no_data: Optional[Union[str, dict]] = None,
-                     ansi_colors: Optional[bool] = False):
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
-                if cursor.rowcount == 0:
-                    if no_data:
-                        _display_no_data(self, no_data, False)
-                    return
-                header = None
-                cols = []
-                elements = 0
-                async for row in cursor:
-                    elements = len(row)
-                    if not header:
-                        header = list(row.keys())
-                    values = list(row.values())
+                     ansi_colors: Optional[bool] = False, on_error: Optional[dict] = None):
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
+                    await cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
+                    if cursor.rowcount == 0:
+                        if no_data:
+                            _display_no_data(self, no_data, False)
+                        return
+                    header = None
+                    cols = []
+                    elements = 0
+                    async for row in cursor:
+                        elements = len(row)
+                        if not header:
+                            header = list(row.keys())
+                        values = list(row.values())
+                        for i in range(0, elements):
+                            if isinstance(values[i], datetime):
+                                value = values[i].strftime('%Y-%m-%d %H:%M')
+                            else:
+                                value = str(values[i])
+                            if len(cols) <= i:
+                                cols.append(('```ansi\n' if ansi_colors else '') + value + '\n')
+                            else:
+                                cols[i] += value + '\n'
                     for i in range(0, elements):
-                        if isinstance(values[i], datetime):
-                            value = values[i].strftime('%Y-%m-%d %H:%M')
-                        else:
-                            value = str(values[i])
-                        if len(cols) <= i:
-                            cols.append(('```ansi\n' if ansi_colors else '') + value + '\n')
-                        else:
-                            cols[i] += value + '\n'
-                for i in range(0, elements):
-                    self.add_field(name=header[i], value=cols[i] + ('```' if ansi_colors else ''), inline=inline)
-                if elements % 3 and inline:
-                    for i in range(0, 3 - elements % 3):
-                        self.add_field(name='_ _', value='_ _')
+                        self.add_field(name=header[i], value=cols[i] + ('```' if ansi_colors else ''), inline=inline)
+                    if elements % 3 and inline:
+                        for i in range(0, 3 - elements % 3):
+                            self.add_field(name='_ _', value='_ _')
+        except Exception as ex:
+            if on_error:
+                for key, value in on_error.items():
+                    self.add_field(name=key, value=utils.format_string(value, ex=ex), inline=inline)
+            else:
+                raise
 
 
 class BarChart(GraphElement):
