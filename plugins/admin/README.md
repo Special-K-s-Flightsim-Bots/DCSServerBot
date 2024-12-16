@@ -95,7 +95,7 @@ overwrite the existing ones, and depending on the file type, either the specific
 bot will be restarted (subject to a security confirmation). You also have the ability to set specific roles that are 
 permitted to upload files.
 
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > **The modifications will take place on the node which oversees the server associated with the particular admin channel!**<br>
 > If you're using a central cloud folder for your configurations, the existing configuration in that folder will be replaced.
 

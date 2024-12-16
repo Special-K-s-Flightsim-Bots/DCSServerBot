@@ -32,9 +32,9 @@ If using the "repo" parameter, the bot can download any version from this reposi
 has to be attached to the relevant releases in there, containing a zip file that matches the naming pattern 
 <package>_v<version>.zip, e.g. DCSOlympus_v1.0.3.zip and the packages has to be in the OvGME format.
 
-> ⚠️ **Attention!**<br/>
+> [!NOTE]
 > On every DCS update that is performed by the bot, this plugin will automatically __uninstall__ and __reinstall__ all
-> packages configured for the "RootFolder", so that after the update, all packages should be up-to-date and reapplied.
+> packages configured for the "RootFolder", so that after the update, all packages should be up-to-date and re-applied.
 
 ### Package Structure
 All packages must have a strict naming convention, that follows (package_name)_v(version).

@@ -42,5 +42,5 @@ backups:
       days: YYYYYYY
 ```
 
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > The backup service can't do incremental backups yet. So keep that in mind before you fill up your disk.

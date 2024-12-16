@@ -143,7 +143,7 @@ The following environment variables can be used in the "run" command:
 | /server stop           |                                          | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                                                              |
 | /server timeleft       | server                                   | all           | DCS       | Shows the time until the next scheduled restart.                                                                                                                                 |
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > If a server gets started or stopped manually (using `/server startup` or `/server shutdown`), it will be put into 
 > "maintenance" mode unless specified otherwise with the optional maintenance parameter. To clear this and give the 
 > control back to the scheduler, use `/server clear`.<br>

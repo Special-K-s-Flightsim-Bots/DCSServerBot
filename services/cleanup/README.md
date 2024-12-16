@@ -35,5 +35,5 @@ DCS.release_server:
     delete_after: 30
 ```
 These are just examples, feel free to add your own directories / channels.
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > Please keep in mind that deleting a lot of messages will take its time and can result in Discord rate limits.

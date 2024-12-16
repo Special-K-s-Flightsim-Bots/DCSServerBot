@@ -78,7 +78,7 @@ In addition, you can provide any campaign name or any mission name like so:
 - mission:Foothold
 It will do a wildcard search in all your missions.
 
-> ⚠️ **Attention!**<br/>
+> [!NOTE]
 > If a campaign is active on your server, `/statistics` and `/highscore` will display the data of that campaign only, 
 > unless you use the "all" period.
 

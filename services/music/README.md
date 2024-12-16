@@ -39,6 +39,6 @@ DEFAULT:
 ```
 You define unlimited radios per server, too.
 
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > Please keep in mind that every radio runs a dedicated process on your server. If you run a lot of radios, that can<br>
 > result in additional load, especially when a new song is decoded before playing.

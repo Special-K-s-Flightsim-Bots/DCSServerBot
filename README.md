@@ -485,9 +485,18 @@ roles:                                          # Roles mapping. The bot uses in
   DCS:                                          # Map the bots DCS role to everyone in your discord. Only everyone needs the leading @!
   - @everyone
 ```
+> [!CAUTION]
+> Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
+> for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
+
 > [!IMPORTANT]
 > The bots role needs to be above any other role in your Discord server that it has to be able to manage.<br>
 > If you want the bot to give the "Online" role for people for example, it has to be below the bot's role.
+
+> [!TIP]
+> The bot will remove the Discord token on the first startup from your bot.yaml.<br>
+> If you want to replace the token later, just re-add the line into your bot.yaml and DCSServerBot will replace the 
+> internal token with this one.
 
 ### CJK-Fonts Support
 DCSServerBot supports external fonts, especially CJK-fonts to render the graphs and show your player names using the 

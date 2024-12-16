@@ -24,8 +24,6 @@ class Test(Plugin):
 def setup(bot: DCSServerBot):
     bot.add_cog(Test(bot))
 ```
-> ⚠️ **Attention!**<br>
-> If your reports contain graphs, the created image will be returned in env.filename. You need to take care of wrapping the in a discord.File and deleting the file after it has been displayed. 
 
 ## General Report Structure
 Every report results in an Embed in Discord.<br/> 
@@ -204,7 +202,8 @@ If you want to display a single value from a database table, use the SQLField fo
       "params": {
         "sql": "SELECT points AS \"Points\" FROM sb_points WHERE player_ucid = %(ucid)s",
         "inline": false,
-        "no_data": { "Points": 0 }
+        "no_data": { "Points": 0 },
+        "on_error": { "Points": 0 }
       }
     }
 ]
@@ -219,7 +218,8 @@ Similar to the Table element but with values from an SQL query:
       "type": "SQLTable",
       "params": {
         "sql": "SELECT init_id as ucid, event, SUM(points) AS points FROM pu_events WHERE init_id = %(ucid)s GROUP BY 1,2",
-        "no_data": "You have no points yet!"
+        "no_data": "You have no points yet!",
+        "on_error": "An error occured: {ex}"
       }
     }
 ]
@@ -244,8 +244,8 @@ To display nice graphics like bar-charts or pie-charts, you need to wrap them in
   }      
 ]
 ```
-> ⚠️ **Attention!**<br>
-> Only one Graph element per report is allowed.
+> [!NOTE]
+> Only one Graph element is allowed per report.
 
 Each sub-element has at least the following parameters:
 ```json
@@ -418,5 +418,6 @@ async def test(self, ctx, period: Optional[str] = None, server_name: Optional[st
 ```
 
 Whenever you call ```.test```, you will not generate a new report but update the existing one.<br/>
-> ⚠️ **Attention!**<br>
-> The key is unique in that server. You must not use the same key for two different reports, they will replace each other otherwise.
+> [!NOTE]
+> The key is unique in that server. You must not use the same key for two different reports, they will replace each 
+> other otherwise.

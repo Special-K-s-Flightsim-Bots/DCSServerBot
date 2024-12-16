@@ -8,7 +8,7 @@ FunkMan supports the following Moose modules:
 
 For samples on how to configure FunkMan support into Moose, see the respective samples in the samples directory.</br>
 
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > You need to set the DCSServerBot port to be used by FunkMan. The default for both, 
 > DCSServeBot and Funkman is port **10042**. 
 

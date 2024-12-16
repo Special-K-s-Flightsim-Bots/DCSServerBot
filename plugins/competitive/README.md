@@ -62,7 +62,7 @@ DCS.server:
   enabled: false    # optional: disable the plugin (default: false)
   silent: false     # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)
 ```
-> ⚠️ **Attention!**<br/>
+> [!NOTE]
 > Silent mode can only be used on simple 1vs1 engagements, not on team engagements.
 
 

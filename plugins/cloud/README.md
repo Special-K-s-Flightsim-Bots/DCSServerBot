@@ -7,7 +7,7 @@ That said, DCSServerBot offers the opportunity to use a cloud based database sys
 for every active user into the cloud. Users then can use Discord commands to see their overall stats, like they are
 used to see with `/statistics`.
 
-> ⚠️ **Attention!**</br>
+> [!NOTE]
 > The Cloud statistics are meant for larger servers only. I am happy to provide you access to it, using a token, provided 
 > by me. The service comes free of charge but without any liabilities or guarantees, you can use it or leave it and so 
 > can I revoke any token at any time.

@@ -21,7 +21,6 @@ DEFAULT:
     border: white
 ```
 
-You can disable the dashboard in your main.yaml like so:
-```yaml
-use_dashboard: false  # disable the Dashboard (default: true)
-```
+> [!TIP]
+> You can disable the dashboard in your main.yaml like so:<br>
+> `use_dashboard: false  # disable the Dashboard (default: true)`
