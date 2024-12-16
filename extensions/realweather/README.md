@@ -69,14 +69,40 @@ MyNode:
           enabled: true   # optional to disable the extension, default: true
           debug: true     # see outputs of RealWeather, default: false
           options:
+            log:
+              enable: true
+              file: realweather.log
             weather:
+              enable: true
               icao: PGUM
+              runway-elevation: 160
               wind:
-                minimum: -1
-                maximum: -1
+                enable: true
+                minimum: 0
+                maximum: 50
+                gust-miniumum: 0
+                gust-maximum: 50
                 stability: 0.143
+                fixed-reference: false
+              clouds:
+                enable: true
+                fallback-to-legacy: true
+                base:
+                  minimum: 0
+                  maximum: 15000
+                presets:
+                  default: Preset7
               fog:
+                enable: true
+                mode: auto
                 thickness-minimum: 0
+                thickness-maximum: 1000
+                visibility-minimum: 0
+                visibility-maximum: 6000
+              dust:
+                enable: true
+                visibility-minimum: 300
+                visibility-maximum: 3000
               temperature:
                 enable: true
               pressure:
@@ -89,7 +115,7 @@ MyNode:
 You can find a list of supported parameters in the config.json (v1.x) or config.toml (v2.x) provided by DCS-real-weather.
 
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.
 > 
 > If you want to set a custom ICAO code (URMM in this case) per mission, you can name your mission like so:<br>

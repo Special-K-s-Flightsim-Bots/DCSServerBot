@@ -5,7 +5,7 @@ about it. It has redundant information in it, which is usually a bad idea, but I
 guys to have everything in one place.<br/>
 Coalitions are implemented by slot blocking, but can use the feature of coalition passwords in DCS, too.
 
-> ⚠️ **Attention!**</BR>
+> [!NOTE]
 > With COALITIONS enabled, some persistent displays will not appear in your server status channels (or will be changed)
 > like Player information or Mission Statistics, which would render all the work useless, if you could peek in there and 
 > see what is going on. You can still use the commands like `/player list` or `/missionstats` in your dedicated coalition 
@@ -62,7 +62,7 @@ My Fancy Server:
     blue_role: 1234123412341234 # Discord role for the blue coalition
     red_role: 43214321432143210 # Discord role for the red coalition
 ```
-> ⚠️ **Attention!**<br/>
+> [!IMPORTANT]
 > Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 
 > @everyone or the other coalition! The CHAT-channels for red and blue are similar to the general chat channel, 
 > but they only replicate chat messages that are being sent to that specific coalition in game.

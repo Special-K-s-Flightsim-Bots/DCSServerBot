@@ -116,7 +116,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | Trackfile   | Upload your track files to a Discord channel or a (cloud) drive.                                           | [README](./extensions/trackfile/README.md)   |
 | VoiceChat   | DCS VOIP system to communicate with other pilots.                                                          | [README](./extensions/voicechat/README.md)   |
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > Many of the solutions that these extensions rely on are created by talented community members. I deeply appreciate 
 > the extensive time and effort they have invested in developing these tools to their current state.<br>
 > However, please note that I am not accountable for these extensions, including any bugs or their overall 
@@ -131,7 +131,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 ### Prerequisites
 You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
 "Add python.exe to PATH" during your Python installation.<br>
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > Keep in mind, that Python 3.13 is still very new and can have bugs. I would recommend using the latest Python 3.12 for 
 > now.
 
@@ -162,14 +162,14 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 - Press "Copy" on the generated URL and paste it into the browser of your choice
 - Select the guild the bot has to be added to - and you're done!
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > For easier access to user- and channel-IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
 ### 🆕 Setup without using Discord
 If you do not want to use Discord, or if you maybe are not allowed to do so due to limitations of your Country, etc.
 you can now install DCSServerBot without the need to use Discord. Just select the respective option during the 
 installation, and you will install a variant that works without.
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > Please keep in mind that DCSServerBot was originally made for Discord and that there are some functionalities that
 > can only work, if you use it, like static graphs, greenieboards, and others.<br>
 > But you can still use a lot and there are in-game chat-commands also that you can use, without any need of Discord.
@@ -179,16 +179,17 @@ Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSSer
 the newest fixes, independent of and release version. Otherwise, download the latest release version as ZIP and extract 
 it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
 
-> ⚠️ **Attention!**<br>
+> [!CAUTION]
 > Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
-> outside via www etc. as it contains sensitive data.
+> outside via www etc. as it contains sensitive data. Do NEVER expose any of the DCSServerBot ports to the
+> outside world.
 
 ### Database
 DCSServerBot uses PostgreSQL to store all information that needs to be persistent. This consists of, but is not limited
 to: players, mission information, statistics. DCSServerBot needs a fast database to do this. Install the latest 
 available PostgreSQL version from the above-mentioned website.<br>
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
 
 ### DCSServerBot Installation (Discord)
@@ -207,7 +208,7 @@ installations, create the database user, password and database and asks whether 
 to the configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
-> ⚠️ **Attention!**<br> 
+> [!IMPORTANT] 
 > You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
 > the servers Scripts directory.<br>
 > Please keep also in mind, that a lot of configuration parameters which you find below are not needed for a 
@@ -235,7 +236,7 @@ DCSServerBot desanitizes your MissionScripting environment. That means, it chang
 of your DCS installation. If you use any other method of desanitization, DCSServerBot checks, if additional 
 desanitizations are required and conducts them.
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > DCSServerBot needs write-permissions on the DCS-installation directory.<br>
 > You can usually achieve that by giving the "User group" write permissions on it. Right-click on your DCS installation
 > folder,<br>select Properties -> Security -> Edit, select "Users (...)" and tick Modify below. Then press the OK button.
@@ -265,7 +266,7 @@ If you run the `install.cmd` script for the first time, it will generate basic f
 needs afterwards. Your bot should be ready to run already, and you can skip this section for now, if you don't want to
 bother with the bots configuration in first place.
 
-> ⚠️ **Attention!**<br>
+> [!TIP]
 > If you run more than one bot node, best is to share the configuration between all nodes. This can be done via a cloud
 > drive for instance or with some file sync tool.
 
@@ -364,7 +365,7 @@ NODENAME:                       # this will usually be your hostname
     instance2:                  # you can have an unlimited amount of instance configurations, but each instance has to have a physical representation on your disk.
       ...
 ```
-> ⚠️ **Attention!**<br>
+> [!TIP]
 > Don't forget to put apostrophes around any path, as the colon might mangle your yaml!
 
 ### config/servers.yaml
@@ -484,7 +485,7 @@ roles:                                          # Roles mapping. The bot uses in
   DCS:                                          # Map the bots DCS role to everyone in your discord. Only everyone needs the leading @!
   - @everyone
 ```
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > The bots role needs to be above any other role in your Discord server that it has to be able to manage.<br>
 > If you want the bot to give the "Online" role for people for example, it has to be below the bot's role.
 
@@ -567,7 +568,7 @@ This will be done in the servers.yaml file.<br>
 To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server 
 (see below).
 
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > DCSServerBot will autodetect all configured DCS servers on an installation and generate simple configuration files 
 > for you already. To add a new instance, you can either do that manually or use `/node add_instance` in your Discord.
 
@@ -604,7 +605,7 @@ After that, you can for instance send chat messages to the bot using
 ```
 inside a trigger or anywhere else where scripting is allowed.
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > Channel always has to be a string, encapsulated with '', **not** a number because of Integer limitations in LUA.
 
 Embeds can be sent using code similar to this snippet:
