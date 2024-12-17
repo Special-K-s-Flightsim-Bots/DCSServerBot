@@ -590,6 +590,7 @@ To add subsequent servers, just follow the steps above, and you're good, unless 
 DCSServerBot can be used to run multiple DCS servers on multiple PCs, which can even be at different locations. 
 The installation and maintenance of such a use-case is just a bit more complex than a single server 
 installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
+
 ---
 
 ## Starting the Bot
@@ -597,13 +598,17 @@ To start the bot, use the packaged ```run.cmd``` command. This creates the neces
 launches the bot afterward.<br/>
 If you want to run the bot from autostart, press Win+R, enter `shell:startup` and press ENTER, create a shortcut to your
 `run.cmd` in there.
+
 ---
+
 ## Repairing the Bot
 If you have issues starting DCSServerBot, especially after an update, it might be that some 3rd party library got 
 corrupted. In rare cases, it can also happen, that an auto-update is not possible at all, because some file got changed 
 that was not supposed to be changed, or some other corruption has occurred.<br>
 In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
+
 ---
+
 ## How to use DCSServerBot in Missions?
 
 ### How to talk to the Bot from inside Missions
