@@ -16,6 +16,7 @@ stuff at the bottom, if you for instance run multiple servers maybe even over mu
 Now let's see, what DCSServerBot can do for you (installation instructions [below](#installation))!
 
 ---
+
 ## Architecture
 DCSServerBot has a modular architecture with services, plugins and extensions that provide specific functionalities 
 like monitoring the availability of your servers, a lot of Discord slash-commands and supports common add-ons like SRS, 
@@ -131,6 +132,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 > assistance.
 
 ---
+
 ## Installation
 
 ### Prerequisites
@@ -265,6 +267,7 @@ OverlordBot or the like) or additional lines to be loaded (for instance for LotA
 MissionScripting.lua of your choice in the config directory of the bot. It will then be replaced on every bot startup.
 
 ---
+
 ## Configuration
 The bot configuration is held in several files in the **config** subdirectory.
 If you run the `install.cmd` script for the first time, it will generate basic files for you that you can amend to your 
@@ -656,6 +659,7 @@ can do that, by giving is a name like "myEmbed" in this example. The name has to
 ```
 If no embed named "myEmbed" is already there, the updateEmbed() call will generate it for you. Otherwise, it will be 
 replaced with this one.
+
 ---
 
 ## How to enhance DCSServerBot?
@@ -702,7 +706,9 @@ I have created some READMEs for you that you can start with:
 > If you decide to develop something that might be of interest for other community members, I highly encourage you to 
 > share it. You can either ask me to incorporate it in the solution (some requirements might need to be met), or you 
 > just provide it in the format and way you prefer.
+
 ---
+
 ## DGSA
 DGSA is an association of server administrators of the largest or most popular DCS servers worldwide. We founded it 
 so that we can coordinate quickly and efficiently and, for example, react to cheaters or players who generally ensure 
@@ -714,11 +720,13 @@ visited by these players in the first place. For configuration, please look [her
 If you want to be part of DGSA, feel free to contact me (see below).
 
 ---
+
 ## Contact / Support
 If you need support, if you want to chat with me or other users or if you like to contribute, jump into my [Support Discord](https://discord.gg/h2zGDH9szZ).<br>
 If you like what I do, and you want to support me, you can do that via my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
 
 ---
+
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this 
 solution. I gave my best to mark the few parts in the code to show where I copied some ideas or even code from you guys, 
