@@ -367,7 +367,7 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        num_servers = len([x for x in node.instances if x.server and x.server.status != Status.SHUTDOWN])
         if num_servers and not await utils.yn_question(
                 interaction, _("Shutdown all servers on node {} for the installation?").format(node.name),
                 ephemeral=ephemeral):
