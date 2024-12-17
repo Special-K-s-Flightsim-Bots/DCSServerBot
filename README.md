@@ -494,7 +494,7 @@ roles:                                          # Roles mapping. The bot uses in
   - @everyone
 ```
 > [!CAUTION]
-> Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
+> Never ever share your Discord TOKEN with anyone. If you plan to check-in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
 
 > [!IMPORTANT]
@@ -502,9 +502,10 @@ roles:                                          # Roles mapping. The bot uses in
 > If you want the bot to give the "Online" role for people for example, it has to be below the bot's role.
 
 > [!TIP]
-> The bot will remove the Discord token on the first startup from your bot.yaml.<br>
-> If you want to replace the token later, just re-add the line into your bot.yaml and DCSServerBot will replace the 
-> internal token with this one.
+> The bot will remove the Discord TOKEN on the first startup from your bot.yaml.<br>
+> If you want to replace the Discord TOKEN later, just re-add the line into your bot.yaml and DCSServerBot will replace 
+> the internally saved Discord TOKEN with this one.
+> `token: NEW_TOKEN`
 
 ### CJK-Fonts Support
 DCSServerBot supports external fonts, especially CJK-fonts to render the graphs and show your player names using the 
@@ -703,6 +704,7 @@ I have created some READMEs for you that you can start with:
 | Extension | An extension runs for each supported server, but on the node the server is running on. It can access all resources of that server. | [README](./extensions/README.md) |                             
 | Reports   | The reporting framework allows you to create your own customized reports for DCSServerBot or overwrite existing ones.              | [README](./reports/README.md)    |
 
+> [!NOTE]
 > If you decide to develop something that might be of interest for other community members, I highly encourage you to 
 > share it. You can either ask me to incorporate it in the solution (some requirements might need to be met), or you 
 > just provide it in the format and way you prefer.
