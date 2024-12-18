@@ -68,7 +68,9 @@ class PeriodFilter(StatisticsFilter):
             "%Y%m%d %H:%M:%S",
             "%Y%m%d %H:%M",
             "%Y%m%d %H",
-            "%Y%m%d"
+            "%Y%m%d",
+            "%Y%m",
+            "%Y"
         ]
 
         for fmt in formats:

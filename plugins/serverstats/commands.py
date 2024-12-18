@@ -1,3 +1,6 @@
+import re
+from datetime import datetime, timezone
+
 import discord
 import psycopg
 
@@ -12,6 +15,36 @@ from typing import Type, Optional, Literal, Union
 from .listener import ServerStatsListener
 from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, \
     SquadronFilter
+
+
+class ServerLoadFilter(PeriodFilter):
+
+    @staticmethod
+    def list(bot: DCSServerBot) -> list[str]:
+        return ['all', 'day', 'week', 'month', 'today', 'yesterday']
+
+    def filter(self, bot: DCSServerBot) -> str:
+        if self.period in [None, 'all']:
+            return '1 = 1'
+        elif self.period == 'yesterday':
+            return "DATE_TRUNC('day', time) = current_date - 1"
+        elif self.period == 'today':
+            return "DATE_TRUNC('day', time) = current_date"
+        elif self.period in PeriodFilter.list(bot):
+            return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {self.period}')"
+        elif '-' in self.period:
+            start, end = self.period.split('-')
+            start = start.strip()
+            end = end.strip()
+            # avoid SQL injection
+            pattern = re.compile(r'^\d+\s+(month|week|day|hour|minute)s?$')
+            if pattern.match(end):
+                return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '{end}')"
+            else:
+                start = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
+                end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
+                return (f"DATE(time) >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
+                        f"COALESCE(DATE(time), (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
 
 
 class ServerStats(Plugin):
@@ -56,11 +89,13 @@ class ServerStats(Plugin):
     @app_commands.rename(_server="server")
     async def serverload(self, interaction: discord.Interaction,
                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
-                         period: Optional[Literal['Hour', 'Day', 'Week', 'Month']] = 'Hour'):
+                         period: Optional[app_commands.Transform[
+                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])]] = PeriodFilter(),
+                         ):
         try:
             ephemeral = utils.get_ephemeral(interaction)
             if _server:
-                await self.display_report(interaction, 'serverload.json', str(period), _server, ephemeral=ephemeral)
+                await self.display_report(interaction, 'serverload.json', period, _server, ephemeral=ephemeral)
             else:
                 # noinspection PyUnresolvedReferences
                 await interaction.response.defer(ephemeral=ephemeral)
