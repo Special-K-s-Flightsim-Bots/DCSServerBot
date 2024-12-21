@@ -12,7 +12,7 @@ schema;instance_realweather_schema:
     terrains:
       type: map
       mapping:
-        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan):
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
           include: 'instance_realweather_schema'
     files:
       type: map
