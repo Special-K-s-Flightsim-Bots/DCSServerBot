@@ -11,6 +11,7 @@ import tomli_w
 from core import Plugin, command, utils, Status, Server, PluginInstallationError, MizFile, UnsupportedMizFileException
 from discord import app_commands
 from services.bot import DCSServerBot
+from typing import Optional
 
 
 class RealWeather(Plugin):
@@ -24,14 +25,20 @@ class RealWeather(Plugin):
             )
         self.version = utils.get_windows_version(os.path.join(os.path.expandvars(self.installation), 'realweather.exe'))
 
-    async def change_weather_1x(self, server: Server, filename: str, airbase: dict) -> str:
+    async def change_weather_1x(self, server: Server, filename: str, airbase: dict, config: dict) -> str:
         config = {
             "metar": {
                 "icao": airbase['code']
             },
             "options": {
-                "update-time": True,
-                "update-weather": True
+                "update-weather": True,
+                "update-time": config['time'],
+                "fog": {
+                    "enable": config['fog']
+                },
+                "dust": {
+                    "enable": config['dust']
+                }
             }
         }
         rw_home = os.path.expandvars(self.installation)
@@ -67,27 +74,33 @@ class RealWeather(Plugin):
         os.remove(tmpname)
         return new_filename
 
-    async def change_weather_2x(self, server: Server, filename: str, airbase: dict) -> str:
+    async def change_weather_2x(self, server: Server, filename: str, airbase: dict, config: dict) -> str:
         config = {
             "options": {
                 "weather": {
                     "enable": True,
                     "icao": airbase['code'],
                     "wind": {
-                        "enable": True
+                        "enable": config['wind']
                     },
                     "clouds": {
-                        "enable": True
+                        "enable": config['clouds']
                     },
                     "temperature": {
-                        "enable": True
+                        "enable": config['temperature']
                     },
                     "pressure": {
-                        "enable": True
+                        "enable": config['pressure']
+                    },
+                    "fog": {
+                        "enable": config['fog']
+                    },
+                    "dust": {
+                        "enable": config['dust']
                     }
                 },
                 "time": {
-                    "enable": True
+                    "enable": config['time']
                 }
             }
         }
@@ -135,7 +148,10 @@ class RealWeather(Plugin):
     async def realweather(self, interaction: discord.Interaction,
                           server: app_commands.Transform[Server, utils.ServerTransformer(
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                          idx: int):
+                          idx: int, wind: Optional[bool] = False, clouds: Optional[bool] = False,
+                          fog: Optional[bool] = False, dust: Optional[bool] = False,
+                          temperature: Optional[bool] = False, pressure: Optional[bool] = False,
+                          time: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status in [Status.PAUSED, Status.RUNNING]:
             question = 'Do you want to restart the server for a weather change?'
@@ -152,11 +168,20 @@ class RealWeather(Plugin):
             await server.stop()
             startup = True
         filename = await server.get_current_mission_file()
+        config = {
+            "wind": wind,
+            "clouds": clouds,
+            "fog": fog,
+            "dust": dust,
+            "temperature": temperature,
+            "pressure": pressure,
+            "time": time
+        }
         try:
             if self.version.split('.')[0] == '1':
-                new_filename = await self.change_weather_1x(server, filename, airbase)
+                new_filename = await self.change_weather_1x(server, filename, airbase, config)
             else:
-                new_filename = await self.change_weather_2x(server, filename, airbase)
+                new_filename = await self.change_weather_2x(server, filename, airbase, config)
             self.log.info(f"Realweather applied on server {server.name}.")
         except (FileNotFoundError, UnsupportedMizFileException):
             await msg.edit(content='Could not apply weather due to an error in RealWeather.')
