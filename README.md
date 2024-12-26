@@ -136,12 +136,25 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick 
-"Add python.exe to PATH" during your Python installation.<br>
+You need the following software to run DCSServerBot:
+
+#### a) Python
+You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and installed. Please make sure that you tick "Add python.exe to PATH" 
+during your Python installation.<br>
 > [!NOTE]
 > Keep in mind, that Python 3.13 is still very new and can have bugs. I would recommend using the latest Python 3.12 for 
 > now.
 
+#### b) PostgreSQL
+DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has a great performance
+and stability and allows secure remote access, which is needed for [Multi-Node](./MULTINODE.md) installations.
+> [!NOTE]
+> If you install PostgreSQL on Linux, please make sure that you install the postgresXX-contrib package also.
+
+> [!IMPORTANT]
+> If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
+
+#### c) Git (optional)
 If you want to use instant autoupdate from the master branch, you have to install [Git for Windows](https://git-scm.com/download/win) and make sure 
 the ```git```-command is in your PATH.
 
@@ -176,6 +189,7 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 If you do not want to use Discord, or if you maybe are not allowed to do so due to limitations of your Country, etc.
 you can now install DCSServerBot without the need to use Discord. Just select the respective option during the 
 installation, and you will install a variant that works without.
+
 > [!NOTE]
 > Please keep in mind that DCSServerBot was originally made for Discord and that there are some functionalities that
 > can only work, if you use it, like static graphs, greenieboards, and others.<br>
@@ -189,15 +203,7 @@ it somewhere on your PC that is running the DCS server(s) and give it write perm
 > [!CAUTION]
 > Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
 > outside via www etc. as it contains sensitive data. Do NEVER expose any of the DCSServerBot ports to the
-> outside world.
-
-### Database
-DCSServerBot uses PostgreSQL to store all information that needs to be persistent. This consists of, but is not limited
-to: players, mission information, statistics. DCSServerBot needs a fast database to do this. Install the latest 
-available PostgreSQL version from the above-mentioned website.<br>
-
-> [!IMPORTANT]
-> If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
+> outside world also.
 
 ### DCSServerBot Installation (Discord)
 Run the provided `install.cmd` script or just `run.cmd`.<br>

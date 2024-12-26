@@ -1249,19 +1249,19 @@ async def get_command(bot: DCSServerBot, *, name: str,
 
 
 class ConfigModal(Modal):
-    def __init__(self, title: str, config: dict, default: Optional[dict] = None, ephemeral: Optional[bool] = False):
+    def __init__(self, title: str, config: dict, old_values: Optional[dict] = None, ephemeral: Optional[bool] = False):
         super().__init__(title=title)
         self.ephemeral = ephemeral
         self.value = None
         self.config = config
-        if not default:
-            default = {}
+        if not old_values:
+            old_values = {}
         for k, v in self.config.items():
             self.add_item(TextInput(custom_id=k,
                                     label=v.get('label'),
                                     style=discord.TextStyle(v.get('style', 1)),
                                     placeholder=v.get('placeholder'),
-                                    default=str(default.get(k)) if default.get(k) is not None else "",
+                                    default=str(old_values.get(k)) if old_values.get(k) is not None else v.get('default', ''),
                                     required=v.get('required', False),
                                     min_length=v.get('min_length'),
                                     max_length=v.get('max_length')))
@@ -1270,6 +1270,8 @@ class ConfigModal(Modal):
     def unmap(value: str, t: str = None) -> Any:
         if not t or t == str:
             return value
+        elif not value:
+            return None
         elif t == int:
             return int(value)
         elif t == float:
@@ -1286,7 +1288,7 @@ class ConfigModal(Modal):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=self.ephemeral)
         self.value = {
-            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type')) if v.value else v.default
+            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type'))
             for v in self.children
         }
         self.stop()

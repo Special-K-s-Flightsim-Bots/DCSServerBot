@@ -18,16 +18,10 @@ class Tacview(Plugin):
                          server: Server,
                          enabled: bool = None,
                          autoupdate: bool = None) -> Optional[dict]:
-        config = server.instance.locals.get('extensions', {}).get('Tacview', {
-            "tacviewRealTimeTelemetryPort": "42674",
-            "tacviewRealTimeTelemetryPassword": "",
-            "tacviewRemoteControlEnabled": "42675",
-            "tacviewRemoteControlPassword": "",
-            "tacviewPlaybackDelay": "0"
-        })
+        config = server.instance.locals.get('extensions', {}).get('Tacview', {})
         modal = utils.ConfigModal(title=_("Tacview Configuration"),
                                   config=TacviewExt.CONFIG_DICT,
-                                  default=config)
+                                  old_values=config)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
@@ -38,16 +32,24 @@ class Tacview(Plugin):
         tacviewRemoteControlPassword = modal.value.get('tacviewRemoteControlPassword')
         if tacviewRemoteControlPassword == '.':
             tacviewRemoteControlPassword = ""
-        return {
+        ret = {
             "enabled": enabled or config.get('enabled', True),
             "autoupdate": autoupdate or config.get('autoupdate', False),
             "tacviewRealTimeTelemetryPort": modal.value.get('tacviewRealTimeTelemetryPort'),
             "tacviewRealTimeTelemetryPassword": tacviewRealTimeTelemetryPassword,
-            "tacviewRemoteControlEnabled": True if modal.value.get('tacviewRemoteControlPort') else False,
-            "tacviewRemoteControlPort": modal.value.get('tacviewRemoteControlPort'),
-            "tacviewRemoteControlPassword": tacviewRemoteControlPassword,
             "tacviewPlaybackDelay": int(modal.value.get('tacviewPlaybackDelay')),
         }
+        if modal.value.get('tacviewRemoteControlPort'):
+            ret |= {
+                "tacviewRemoteControlEnabled": True,
+                "tacviewRemoteControlPort": modal.value.get('tacviewRemoteControlPort'),
+                "tacviewRemoteControlPassword": tacviewRemoteControlPassword
+            }
+        else:
+            ret |= {
+                "tacviewRemoteControlEnabled": False
+            }
+        return ret
 
     @tacview.command(description=_('Configure Tacview'))
     @app_commands.guild_only()

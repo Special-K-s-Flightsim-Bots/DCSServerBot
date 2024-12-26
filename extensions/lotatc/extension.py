@@ -41,7 +41,8 @@ class LotAtc(Extension, FileSystemEventHandler):
             "type": int,
             "label": _("LotAtc Port"),
             "placeholder": _("Unique port number for LotAtc"),
-            "required": True
+            "required": True,
+            "default": 10310
         }
     }
 

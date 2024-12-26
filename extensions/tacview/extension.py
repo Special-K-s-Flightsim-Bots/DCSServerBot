@@ -34,28 +34,33 @@ class Tacview(Extension):
             "type": int,
             "label": _("Tacview Port"),
             "placeholder": _("Unique port number for Tacview"),
-            "required": True
+            "required": True,
+            "default": 42674
         },
         "tacviewRealTimeTelemetryPassword": {
             "type": str,
             "label": _("Tacview Password"),
             "placeholder": _("Password for Tacview, . for none"),
+            "default": ""
         },
         "tacviewRemoteControlPort": {
             "type": int,
             "label": _("Remote Control Port"),
-            "placeholder": _("Unique port number for remote control")
+            "placeholder": _("Unique port number for remote control"),
+            "default": 42675
         },
         "tacviewRemoteControlPassword": {
             "type": str,
             "label": _("Remote Control Password"),
             "placeholder": _("Password for remote control, . for none"),
+            "default": ""
         },
         "tacviewPlaybackDelay": {
             "type": int,
             "label": _("Playback Delay"),
             "placeholder": _("Playback delay time"),
-            "required": True
+            "required": True,
+            "default": 0
         }
     }
 

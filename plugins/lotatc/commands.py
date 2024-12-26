@@ -111,7 +111,7 @@ class LotAtc(Plugin):
         config = server.instance.locals.get('extensions', {}).get('LotAtc', {})
         modal = utils.ConfigModal(title=_("LotAtc Configuration"),
                                   config=LotAtcExt.CONFIG_DICT,
-                                  default=config)
+                                  old_values=config)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():
