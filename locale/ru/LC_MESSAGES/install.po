@@ -95,6 +95,9 @@ msgstr "Поиск существующих конфигураций серве�
 msgid "Please enter the path to your DCS World installation"
 msgstr "Пожалуйства введите путь до папки, где установлен DCS World"
 
+msgid "Do you want to continue without a DCS installation being set?"
+msgstr "Вы хотите продолжить без указанного пути установки DCS?"
+
 msgid "Directory not found. Please try again."
 msgstr "Папка не найдена. Попробуйте ещё раз."
 
