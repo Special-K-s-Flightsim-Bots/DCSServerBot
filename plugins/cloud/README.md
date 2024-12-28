@@ -46,3 +46,4 @@ maintaining the solutions that are out in the wild.
 | /cloud status     |                  | Admin     | Status of the connection to the cloud service.       |
 | /cloud resync     | [@member / ucid] | DCS Admin | Resync all players (or this player) with the cloud.  |
 | /cloud statistics | [@member / ucid] | DCS       | Display player cloud statistics (overall, per guild) |
+| /serverlist       | name             | DCS       | Display the DCS server list.                         |

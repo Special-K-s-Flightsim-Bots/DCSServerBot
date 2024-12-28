@@ -1442,7 +1442,7 @@ class Mission(Plugin):
             if len(unmatched) == 0:
                 await interaction.followup.send(_('No unmatched member could be matched.'), ephemeral=True)
                 return
-        n = await utils.selection_list(self.bot, interaction, unmatched, self.format_unmatched)
+        n = await utils.selection_list(interaction, unmatched, self.format_unmatched)
         if n != -1:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -1500,7 +1500,7 @@ class Mission(Plugin):
                 if len(suspicious) == 0:
                     await interaction.followup.send(_('No mislinked players found.'), ephemeral=True)
                     return
-        n = await utils.selection_list(self.bot, interaction, suspicious, self.format_suspicious)
+        n = await utils.selection_list(interaction, suspicious, self.format_suspicious)
         if n != -1:
             ephemeral = utils.get_ephemeral(interaction)
             async with self.apool.connection() as conn:

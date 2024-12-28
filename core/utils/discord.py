@@ -104,14 +104,13 @@ class PlayerType(Enum):
     HISTORY = auto()
 
 
-async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Interaction,
-                                   message: discord.Message) -> discord.Reaction:
+async def wait_for_single_reaction(interaction: discord.Interaction, message: discord.Message) -> discord.Reaction:
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == interaction.channel) & (user == member) & (react.message.id == message.id)
 
     tasks = [
-        asyncio.create_task(bot.wait_for('reaction_add', check=check_press)),
-        asyncio.create_task(bot.wait_for('reaction_remove', check=check_press))
+        asyncio.create_task(interaction.client.wait_for('reaction_add', check=check_press)),
+        asyncio.create_task(interaction.client.wait_for('reaction_remove', check=check_press))
     ]
     try:
         member = interaction.user
@@ -126,10 +125,9 @@ async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Inter
             task.cancel()
 
 
-async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
+async def selection_list(interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
     """
-    :param bot: An instance of DCSServerBot class.
     :param interaction: A discord.Interaction instance representing the interaction event.
     :param data: A list of data to display in the embeds.
     :param embed_formatter: A function that formats the data into an embed.
@@ -164,7 +162,7 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
             await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
-            react = await wait_for_single_reaction(bot, interaction, message)
+            react = await wait_for_single_reaction(interaction, message)
             await message.delete()
             if react.emoji == '◀️':
                 j -= 1

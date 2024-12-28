@@ -268,7 +268,7 @@ class DCSServerBot(commands.Bot):
             await ctx.send("An unknown exception occurred.")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        if isinstance(error, discord.app_commands.CommandNotFound) or isinstance(error, discord.app_commands.CommandInvokeError):
+        if isinstance(error, discord.app_commands.CommandNotFound):
             pass
         # noinspection PyUnresolvedReferences
         if not interaction.response.is_done():
@@ -279,11 +279,12 @@ class DCSServerBot(commands.Bot):
         elif isinstance(error, discord.app_commands.CheckFailure):
             await interaction.followup.send(f"You don't have the permission to use {interaction.command.name}!",
                                             ephemeral=True)
-        elif isinstance(error, TimeoutError) or isinstance(error, asyncio.TimeoutError):
+        elif isinstance(error, (TimeoutError, asyncio.TimeoutError)):
             await interaction.followup.send('A timeout occurred. Is the DCS server running?', ephemeral=True)
         elif isinstance(error, discord.app_commands.TransformerError):
             await interaction.followup.send(error, ephemeral=True)
         elif isinstance(error, discord.app_commands.AppCommandError):
+            self.log.exception(error)
             await interaction.followup.send(str(error))
         else:
             self.log.exception(error)

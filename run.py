@@ -212,11 +212,9 @@ if __name__ == "__main__":
         exit(-2)
 
     # Check versions
-    if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
-        log.error("You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)!")
+    if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 10:
+        log.error("You need Python 3.10 or higher to run DCSServerBot!")
         exit(-2)
-    elif int(platform.python_version_tuple()[1]) == 9:
-        log.warning("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
 
     # Add certificates
     os.environ["SSL_CERT_FILE"] = certifi.where()
