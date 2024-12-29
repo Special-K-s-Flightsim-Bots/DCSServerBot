@@ -32,7 +32,7 @@ GitPython==3.1.43
 jsonschema==4.23.0
 
 # Matplotlib: Python 2D plotting library
-matplotlib==3.10.0
+matplotlib>=3.9.4
 
 # Minidump: Windows Minidump file reader
 minidump==0.0.24; sys_platform == 'win32'
