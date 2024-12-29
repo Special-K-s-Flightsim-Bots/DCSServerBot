@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 import aiohttp
 import asyncio
 
@@ -113,4 +115,5 @@ class CloudListener(EventListener):
     async def update_registration(self):
         for server in self.bot.servers.values():
             if server.status in [Status.RUNNING, Status.PAUSED]:
-                await self.cloud_register(server)
+                with suppress(Exception):
+                    await self.cloud_register(server)
