@@ -1,1 +1,1 @@
-from .service import ModManagerService
+from .service import *

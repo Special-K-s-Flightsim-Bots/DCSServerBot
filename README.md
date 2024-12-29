@@ -105,6 +105,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 
 | Extension   | Scope                                                                                                      | Documentation                                |
 |-------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+| Cloud       | Registers your servers to the cloud server list.                                                           | [README](./plugins/cloud/README.md)          |
 | DSMC        | DSMC mission handling, should be activated when dealing with DSMC missions.                                | [README](./extensions/dsmc/README.md)        |
 | gRPC        | Support gRPC, a communication framework with DCS World.                                                    | [README](./extensions/grpc/README.md)        |
 | GitHub      | Clone / update a Git repository into a directory on your server.                                           | [README](./extensions/github/README.md)      |
@@ -139,7 +140,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 You need the following software to run DCSServerBot:
 
 #### a) Python
-You need to have [Python](https://www.python.org/downloads/) 3.9 or higher and installed. Please make sure that you tick "Add python.exe to PATH" 
+You need to have [Python](https://www.python.org/downloads/) 3.10 or higher and installed. Please make sure that you tick "Add python.exe to PATH" 
 during your Python installation.<br>
 > [!NOTE]
 > Keep in mind, that Python 3.13 is still very new and can have bugs. I would recommend using the latest Python 3.12 for 
