@@ -1,4 +1,5 @@
 from datetime import timedelta
+from urllib.parse import quote
 
 import aiohttp
 import asyncio
@@ -241,9 +242,11 @@ class Cloud(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
-            query = 'serverlist'
+            query = f'serverlist?dcs_version={self.node.dcs_version}'
             if search:
-                query += f'?wildcard={search}'
+                query += f'&wildcard={quote(search)}'
+            else:
+                query += f'guild_id={self.node.guild_id}'
             response = await self.get(query)
             if not len(response):
                 await interaction.followup.send(_('No server found.'), ephemeral=True)

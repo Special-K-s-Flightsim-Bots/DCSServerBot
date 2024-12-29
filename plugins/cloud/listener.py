@@ -83,6 +83,7 @@ class CloudListener(EventListener):
                 "dcs_version": server.node.dcs_version,
                 "num_players": len(server.get_active_players()) + 1,
                 "max_players": int(server.settings.get('maxPlayers', 16)),
+                "mission": server.current_mission.name if server.current_mission else "",
                 "time_in_mission": int(server.current_mission.mission_time if server.current_mission else 0),
                 "time_to_restart": (server.restart_time - datetime.now(tz=timezone.utc)).total_seconds() if server.restart_time else -1,
             })
