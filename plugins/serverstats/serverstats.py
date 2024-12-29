@@ -577,7 +577,7 @@ class ServerLoad(report.MultiGraphElement):
 
     async def render(self, node: str, period: StatisticsFilter, server_name: Optional[str] = None):
 
-        self.env.embed.title = f"Server Load ({period.period})"
+        self.env.embed.title = f"Server Load ({period.period.title()})"
         inner_sql = f"""
             SELECT date_trunc('minute', time) AS time, AVG(users) AS users, AVG(cpu) AS cpu, 
                    AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS mem_paged,  

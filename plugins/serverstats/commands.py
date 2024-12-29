@@ -19,18 +19,19 @@ from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, M
 
 class ServerLoadFilter(PeriodFilter):
 
+    def __init__(self, period: str = 'hour'):
+        super().__init__(period)
+
     @staticmethod
     def list(bot: DCSServerBot) -> list[str]:
-        return ['all', 'day', 'week', 'month', 'today', 'yesterday']
+        return ['hour', 'day', 'week', 'month', 'today', 'yesterday']
 
     def filter(self, bot: DCSServerBot) -> str:
-        if self.period in [None, 'all']:
-            return '1 = 1'
-        elif self.period == 'yesterday':
+        if self.period == 'yesterday':
             return "DATE_TRUNC('day', time) = current_date - 1"
         elif self.period == 'today':
             return "DATE_TRUNC('day', time) = current_date"
-        elif self.period in PeriodFilter.list(bot):
+        elif self.period in ServerLoadFilter.list(bot):
             return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {self.period}')"
         elif '-' in self.period:
             start, end = self.period.split('-')
@@ -90,7 +91,7 @@ class ServerStats(Plugin):
     async def serverload(self, interaction: discord.Interaction,
                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                          period: Optional[app_commands.Transform[
-                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])]] = PeriodFilter(),
+                             StatisticsFilter, PeriodTransformer(flt=[ServerLoadFilter])]] = ServerLoadFilter(),
                          ):
         try:
             ephemeral = utils.get_ephemeral(interaction)
