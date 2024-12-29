@@ -302,7 +302,7 @@ class PeriodTransformer(app_commands.Transformer):
                 periods.extend(flt.list(interaction.client))
             return [
                 app_commands.Choice(name=x.title(), value=x)
-                for x in sorted(periods)
+                for x in periods
                 if not current or current.casefold() in x.casefold()
             ][:25]
         except Exception as ex:

@@ -26,6 +26,10 @@ class ServerLoadFilter(PeriodFilter):
     def list(bot: DCSServerBot) -> list[str]:
         return ['hour', 'day', 'week', 'month', 'today', 'yesterday']
 
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return (period and period.startswith('period:')) or period in ServerLoadFilter.list(bot) or '-' in period
+
     def filter(self, bot: DCSServerBot) -> str:
         if self.period == 'yesterday':
             return "DATE_TRUNC('day', time) = current_date - 1"
