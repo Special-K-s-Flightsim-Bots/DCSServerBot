@@ -1,30 +1,11 @@
-from contextlib import suppress
-
 import aiohttp
 import asyncio
 
-from core import EventListener, Server, Player, Side, event, Status
-from datetime import datetime, timezone
-from discord.ext import tasks
+from core import EventListener, Server, Player, Side, event
 from psycopg.rows import dict_row
 
 
 class CloudListener(EventListener):
-
-    def __init__(self, plugin):
-        super().__init__(plugin)
-        if self.plugin.get_config().get('register', True):
-            self.update_registration.start()
-
-    async def shutdown(self) -> None:
-        if self.plugin.get_config().get('register', True):
-            self.update_registration.cancel()
-        await super().shutdown()
-
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if self.plugin.get_config().get('register', True) and data['channel'].startswith('sync'):
-            await self.cloud_register(server)
 
     async def update_cloud_data(self, server: Server, player: Player):
         if not server.current_mission:
@@ -72,48 +53,12 @@ class CloudListener(EventListener):
         # noinspection PyAsyncCall
         asyncio.create_task(self.update_cloud_data(server, player))
 
-    async def cloud_register(self, server: Server):
-        try:
-            # noinspection PyUnresolvedReferences
-            await self.plugin.post('register_server', {
-                "guild_id": self.node.guild_id,
-                "server_name": server.name,
-                "ipaddr": server.instance.dcs_host,
-                "port": server.instance.dcs_port,
-                "password": (server.settings['password'] != ""),
-                "theatre": server.current_mission.map,
-                "dcs_version": server.node.dcs_version,
-                "num_players": len(server.get_active_players()) + 1,
-                "max_players": int(server.settings.get('maxPlayers', 16)),
-                "mission": server.current_mission.name if server.current_mission else "",
-                "time_in_mission": int(server.current_mission.mission_time if server.current_mission else 0),
-                "time_to_restart": (server.restart_time - datetime.now(tz=timezone.utc)).total_seconds() if server.restart_time else -1,
-            })
-            self.log.info(f"Server {server.name} registered with the cloud.")
-        except aiohttp.ClientError as ex:
-            self.log.error(f"Could not register server {server.name} with the cloud.", exc_info=ex)
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if data['id'] != 1:
+            await server.run_on_extension(extension='Cloud', method='cloud_register')
 
-    @event(name="onSimulationStart")
-    async def onSimulationStart(self, server: Server, _: dict) -> None:
-        if self.plugin.get_config().get('register', True):
-            await self.cloud_register(server)
-
-    @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, _: dict) -> None:
-        if self.plugin.get_config().get('register', True):
-            try:
-                # noinspection PyUnresolvedReferences
-                await self.plugin.post('unregister_server', {
-                    "guild_id": self.node.guild_id,
-                    "server_name": server.name,
-                })
-                self.log.info(f"Server {server.name} unregistered from the cloud.")
-            except aiohttp.ClientError as ex:
-                self.log.error(f"Could not unregister server {server.name} from the cloud.", exc_info=ex)
-
-    @tasks.loop(minutes=5)
-    async def update_registration(self):
-        for server in self.bot.servers.values():
-            if server.status in [Status.RUNNING, Status.PAUSED]:
-                with suppress(Exception):
-                    await self.cloud_register(server)
+    @event(name="onPlayerStop")
+    async def onPlayerStop(self, server: Server, data: dict) -> None:
+        if data['id'] != 1:
+            await server.run_on_extension(extension='Cloud', method='cloud_register')

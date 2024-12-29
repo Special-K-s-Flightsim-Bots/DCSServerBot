@@ -43,7 +43,8 @@ if TYPE_CHECKING:
     from services.bot import DCSServerBot
 
 DEFAULT_EXTENSIONS = {
-    "LogAnalyser": {}
+    "LogAnalyser": {},
+    "Cloud": {}
 }
 
 __all__ = ["ServerImpl"]

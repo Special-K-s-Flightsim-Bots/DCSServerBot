@@ -228,9 +228,9 @@ class Cloud(Plugin):
 
         def format_servers(servers: list[dict], marker, marker_emoji) -> discord.Embed:
             embed = discord.Embed(title=_('DCS Servers'), color=discord.Color.blue())
-            for server in servers:
-                name = ('🔐 ' if server['password'] else '🔓 ')
-                name += f"{server['server_name']} [{server['num_players']}/{server['max_players']}]\n"
+            for idx, server in enumerate(servers):
+                name = chr(0x31 + idx) + '\u20E3' + f" {server['server_name']} [{server['num_players']}/{server['max_players']}]"
+                name += (' 🔐' if server['password'] else ' 🔓') + '\n'
                 value = f"IP/Port:  {server['ipaddr']}:{server['port']}\n"
                 value += f"Map:      {server['theatre']}\n"
                 value += f"Time:     {timedelta(seconds=server['time_in_mission'])}\n"
@@ -239,6 +239,17 @@ class Cloud(Plugin):
                 embed.add_field(name=name, value='```' + value + '```', inline=False)
             return embed
 
+        async def display_server(server: dict):
+            embed = discord.Embed(color=discord.Color.blue())
+            embed.title = f"{server['server_name']} [{server['num_players']}/{server['max_players']}]"
+            embed.add_field(name=_("Address"), value=f"{server['ipaddr']}:{server['port']}", inline=False)
+            embed.add_field(name=_("Map"), value=f"{server['theatre']}", inline=False)
+            embed.add_field(name=_("Mission"), value=f"{server['mission']}", inline=False)
+            embed.add_field(name=_("Time"), value=f"{timedelta(seconds=server['time_in_mission'])}", inline=False)
+            if server['time_to_restart'] != -1:
+                embed.add_field(name=_("Restart in"), value=f"{timedelta(seconds=server['time_to_restart'])}", inline=False)
+            await interaction.followup.send(embed=embed)
+
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         try:
@@ -246,12 +257,18 @@ class Cloud(Plugin):
             if search:
                 query += f'&wildcard={quote(search)}'
             else:
-                query += f'guild_id={self.node.guild_id}'
+                query += f'&guild_id={self.node.guild_id}'
             response = await self.get(query)
             if not len(response):
-                await interaction.followup.send(_('No server found.'), ephemeral=True)
+                if not search:
+                    await interaction.followup.send(_('No servers of this group are active.'), ephemeral=True)
+                else:
+                    await interaction.followup.send(
+                        _('No server found with the name "*{search}*".').format(search=search), ephemeral=True)
                 return
-            await utils.selection_list(interaction, response, format_servers)
+            n = await utils.selection_list(interaction, response, format_servers)
+            if n >= 0:
+                await display_server(response[n])
         except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)
 
