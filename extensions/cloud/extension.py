@@ -91,9 +91,9 @@ class Cloud(Extension):
                 "time_in_mission": int(self.server.current_mission.mission_time),
                 "time_to_restart": int((self.server.restart_time - datetime.now(tz=timezone.utc)).total_seconds()) if self.server.restart_time else -1,
             })
-            self.log.info(f"Server {self.server.name} registered with the cloud.")
+            self.log.debug(f"Server {self.server.name} registered with the cloud.")
         except aiohttp.ClientError as ex:
-            self.log.error(f"Could not register server {self.server.name} with the cloud.", exc_info=ex)
+            self.log.warning(f"Could not register server {self.server.name} with the cloud.")
 
     async def cloud_unregister(self):
         try:
@@ -102,9 +102,9 @@ class Cloud(Extension):
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
             })
-            self.log.info(f"Server {self.server.name} unregistered from the cloud.")
+            self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:
-            self.log.error(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
+            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.")
 
     async def startup(self) -> bool:
         await self.cloud_register()
