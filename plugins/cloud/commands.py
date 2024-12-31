@@ -1,6 +1,3 @@
-from datetime import timedelta
-from urllib.parse import quote
-
 import aiohttp
 import asyncio
 import certifi
@@ -15,12 +12,14 @@ import ssl
 from contextlib import suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
     get_translation, ServiceRegistry, command
+from datetime import timedelta
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot, BotService
 from services.bot.dummy import DummyBot
 from typing import Type, Any, Optional, Union
+from urllib.parse import quote
 
 from .listener import CloudListener
 from .logger import CloudLoggingHandler
@@ -229,7 +228,7 @@ class Cloud(Plugin):
         def format_servers(servers: list[dict], marker, marker_emoji) -> discord.Embed:
             embed = discord.Embed(title=_('DCS Servers'), color=discord.Color.blue())
             for idx, server in enumerate(servers):
-                name = chr(0x31 + idx) + '\u20E3' + f" {server['server_name']} [{server['num_players']}/{server['max_players']}]"
+                name = chr(0x31 + idx) + '\u20E3' + f" {utils.escape_string(server['server_name'])} [{server['num_players']}/{server['max_players']}]"
                 name += (' 🔐' if server['password'] else ' 🔓') + '\n'
                 value = f"IP/Port:  {server['ipaddr']}:{server['port']}\n"
                 value += f"Map:      {server['theatre']}\n"
@@ -241,10 +240,10 @@ class Cloud(Plugin):
 
         async def display_server(server: dict):
             embed = discord.Embed(color=discord.Color.blue())
-            embed.title = f"{server['server_name']} [{server['num_players']}/{server['max_players']}]"
+            embed.title = f"{utils.escape_string(server['server_name'])} [{server['num_players']}/{server['max_players']}]"
             embed.add_field(name=_("Address"), value=f"{server['ipaddr']}:{server['port']}", inline=False)
             embed.add_field(name=_("Map"), value=f"{server['theatre']}", inline=False)
-            embed.add_field(name=_("Mission"), value=f"{server['mission']}", inline=False)
+            embed.add_field(name=_("Mission"), value=f"{utils.escape_string(server['mission'])}", inline=False)
             embed.add_field(name=_("Time"), value=f"{timedelta(seconds=server['time_in_mission'])}", inline=False)
             if server['time_to_restart'] != -1:
                 embed.add_field(name=_("Restart in"), value=f"{timedelta(seconds=server['time_to_restart'])}", inline=False)
