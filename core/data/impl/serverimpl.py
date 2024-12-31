@@ -27,6 +27,7 @@ from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Union, Any
@@ -621,6 +622,9 @@ class ServerImpl(Server):
                     await asyncio.sleep(1)
             await self._terminate()
         self.status = Status.SHUTDOWN
+        shutil.copy2(os.path.join(self.instance.home, 'Logs', 'dcs.log'),
+                     os.path.join(self.instance.home, 'Logs',
+                                  f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
 
     async def is_running(self) -> bool:
         async with self.lock:

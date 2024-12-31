@@ -98,7 +98,7 @@ class Cloud(Extension):
     async def cloud_unregister(self):
         try:
             # noinspection PyUnresolvedReferences
-            await self.plugin.post('unregister_server', {
+            await self.post('unregister_server', {
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
             })
