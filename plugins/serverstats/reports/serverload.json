@@ -1,6 +1,5 @@
 {
   "color": "blue",
-  "title": "Server Load ({period})",
   "input": [
     {
       "name": "ruler_length",

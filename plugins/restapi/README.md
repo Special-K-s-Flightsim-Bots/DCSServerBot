@@ -29,5 +29,5 @@ The following commands are available through the API
 | /topkdr    | GET        |                          | {"fullNickname": string, "AAkills": int, "deaths": int, "AAKDR": float}                                                                                                                                                                              | Same as /topkills but ordered by AAKDR descending.                  |
 | /missilepk | POST       | nick: string, date: date | {"weapon": {"weapon-name": string, "pk": float}}                                                                                                                                                                                                     | Probability of kill for each weapon per given user.                 |
 
-> ⚠️ **Attention!**<br>
+> [!IMPORTANT]
 > It is advisable to use a reverse proxy like nginx and maybe an SSL encryption between your webserver and this endpoint. 

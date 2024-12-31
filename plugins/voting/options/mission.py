@@ -11,14 +11,14 @@ class Mission(VotableItem):
     def __init__(self, server: Server, config: dict, params: Optional[list[str]] = None):
         super().__init__('mission', server, config, params)
 
-    def print(self) -> str:
+    async def print(self) -> str:
         return ("You can now vote to change the mission of this server.\n"
                 "If you vote for the current mission, the mission will be restarted!\n"
                 "If you do not want any change, vote for \"No Change\".")
 
-    def get_choices(self) -> list[str]:
+    async def get_choices(self) -> list[str]:
         return ['No Change'] + self.config.get('choices', [
-            os.path.basename(x) for x in self.server.settings['missionList']
+            os.path.basename(x) for x in await self.server.getMissionList()
         ])
 
     async def execute(self, winner: str):

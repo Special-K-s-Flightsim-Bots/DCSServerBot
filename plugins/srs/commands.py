@@ -86,7 +86,7 @@ class SRS(Plugin):
         config = server.instance.locals.get('extensions', {}).get('SRS', {})
         modal = utils.ConfigModal(title=_("SRS Configuration"),
                                   config=SRSExt.CONFIG_DICT,
-                                  default=config)
+                                  old_values=config)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(modal)
         if await modal.wait():

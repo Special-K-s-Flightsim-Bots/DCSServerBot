@@ -59,6 +59,7 @@ class Node:
         self.locals = None
         self.config = self.read_config(os.path.join(config_dir, 'main.yaml'))
         self.guild_id: int = int(self.config['guild_id'])
+        self.dcs_version = None
         self.slow_system: bool = False
 
     def __repr__(self):
@@ -133,7 +134,7 @@ class Node:
     async def upgrade(self):
         raise NotImplemented()
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
         raise NotImplemented()
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
@@ -146,6 +147,9 @@ class Node:
         raise NotImplemented()
 
     async def get_available_modules(self) -> list[str]:
+        raise NotImplemented()
+
+    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
         raise NotImplemented()
 
     async def get_latest_version(self, branch: str) -> Optional[str]:

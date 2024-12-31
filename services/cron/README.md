@@ -1,13 +1,9 @@
-# Scheduler Service
+# Cron Service
 This will be a possible future replacement / enhancement of the [Scheduler-plugin](../../plugins/scheduler/README.md) 
 and some things that are implemented in scheduled functions in other plugins or even complete services like cleanup and 
 backup and maybe monitoring.<br>
 
-You can use it to run pre-defined actions at specific times. For now, this can be:
-- report - generate reports with the [Reporting Framework](../../reports/README.md)
-- restart - restart your DCS servers or rotate missions (no user warning implemented yet!)
-- cmd - run a shell command
- 
+You can use it to run pre-defined actions at specific times. See [here](#actions) for examples.
 More to come.
 
 ## Configuration

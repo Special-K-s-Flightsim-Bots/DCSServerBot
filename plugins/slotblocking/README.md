@@ -137,6 +137,7 @@ DEFAULT:
     activation_threshold: 10  # do not balance, if the number of players is below this threshold
     message: You need to take a slot of the opposite coalition to keep the balance!
 ``` 
-Balancing will **not** be checked
-- if a user selects another slot on the same side (if you are on blue, you can stay on blue)
-- if a user jumps in a CA (Artillery Commander, etc.) or carrier slot (LSO, Airboss)
+> [!NOTE]
+> Balancing will **not** be checked
+> - if a user selects another slot on the same side (if you are on blue, you can stay on blue)
+> - if a user jumps in a CA (Artillery Commander, etc.) or carrier slot (LSO, Airboss)

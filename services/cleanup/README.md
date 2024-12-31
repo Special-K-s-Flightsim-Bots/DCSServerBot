@@ -16,6 +16,11 @@ DEFAULT:
     directory: "{instance.home}/Tracks/Multiplayer"
     pattern: "*.trk"
     delete_after: 30
+  channels:                 # channels have to be defined in the DEFAULT section
+    channel:                # delete all messages from these channels ...
+      - 112233445566778899
+      - 998877665544332211
+    delete_after: 7         # ... which are older than 7 days (default: 0)
 DCS.release_server:
   greenieboard:
     directory: "{instance.home}/airboss"
@@ -28,12 +33,7 @@ DCS.release_server:
     pattern: "*.acmi"
     recursive: true                       # If true, subdirectories will be included
     delete_after: 30
-  channels:
-    channel:                # delete all messages from these channels ...
-      - 112233445566778899
-      - 998877665544332211
-    delete_after: 7         # ... which are older than 7 days (default: 0)
 ```
 These are just examples, feel free to add your own directories / channels.
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > Please keep in mind that deleting a lot of messages will take its time and can result in Discord rate limits.

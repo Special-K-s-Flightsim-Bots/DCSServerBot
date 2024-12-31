@@ -20,7 +20,7 @@ __all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: "NodeImpl", name: str, public_ip: str):
+    def __init__(self, local_node: "NodeImpl", name: str, public_ip: str, dcs_version: str):
         from services.servicebus import ServiceBus
 
         super().__init__(name, local_node.config_dir)
@@ -32,6 +32,7 @@ class NodeProxy(Node):
         self.locals = self.read_locals()
         self.bus = ServiceRegistry.get(ServiceBus)
         self.slow_system = self.locals.get('slow_system', False)
+        self.dcs_version = dcs_version
 
     @property
     def master(self) -> bool:
@@ -102,14 +103,15 @@ class NodeProxy(Node):
             "method": "upgrade"
         }, node=self.name)
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "update",
             "params": {
                 "warn_times": warn_times,
-                "branch": branch or ""
+                "branch": branch or "",
+                "version": version or ""
             }
         }, node=self.name, timeout=600)
         return data['return']
@@ -154,6 +156,20 @@ class NodeProxy(Node):
             "method": "get_available_modules"
         }, node=self.name, timeout=timeout)
         return data['return']
+
+    @cache_with_expiration(expiration=60)
+    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+        timeout = 60 if not self.slow_system else 120
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "get_available_dcs_versions",
+            "params": {
+                "branch": branch
+            }
+        }, node=self.name, timeout=timeout)
+        return data['return']
+
 
     @cache_with_expiration(expiration=60)
     async def get_latest_version(self, branch: str) -> Optional[str]:

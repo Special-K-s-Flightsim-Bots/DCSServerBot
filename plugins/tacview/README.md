@@ -1,6 +1,6 @@
 # Plugin "Tacview"
 [Tacview](https://www.tacview.net/) is a famous flight analysis tool for DCS World.<br>
-DCSServerBot supports it as an [extension](../../extensions/lotatc/README.md), to manage and display the 
+DCSServerBot supports it as an [extension](../../extensions/tacview/README.md), to manage and display the 
 configuration in your servers and a plugin, to install or uninstall Tacview in/from your servers. 
 
 ## Configuration

@@ -46,7 +46,7 @@ The following Discord commands are available through the LotAtc plugin:
 | /gci list         | server blue\|red     | all     | DCS       | List all active GCIs for that coalition.                               |
 | /gci info         | server blue\|red gci | all     | DCS       | Shows information about this GCI incl. SRS frequencies, if available.  |
 
-> ⚠️ **Attention!**<br> 
+> [!NOTE]
 > If [Coalitions](../../COALITIONS.md) are enabled in this server, you can only display information about GCIs of your 
 > coalition!
 

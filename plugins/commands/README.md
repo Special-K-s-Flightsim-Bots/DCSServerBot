@@ -37,7 +37,7 @@ commands:
     shell: true
   hidden: true      # the .dir command will not apply in the help command
 ```
-> ⚠️ **Attention:**</br>
+> [!NOTE]
 > * DCSServerBot needs to have the permissions to launch the respective executable!
 > * Do not run long-running shell scripts!
 > + These commands are NO slash commands, so they start with another prefix, set in the configuration!

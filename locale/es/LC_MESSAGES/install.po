@@ -98,6 +98,9 @@ msgstr "Buscando configuraciones de servidores de DCS existentes..."
 msgid "Please enter the path to your DCS World installation"
 msgstr "Por favor introduzca la ruta de su instalación de DCS"
 
+msgid "Do you want to continue without a DCS installation being set?"
+msgstr "¿Desea continuar sin configurar una instalación de DCS?"
+
 msgid "Directory not found. Please try again."
 msgstr "Directorio no encontrado. Por favor, inténtelo de nuevo."
 

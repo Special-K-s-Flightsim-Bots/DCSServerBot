@@ -6,6 +6,7 @@ in your status channels and ATIS like information for the missions' airports.
 It is recommended that your users link their Discord ID to their UCID (DCS World ID). The bot can try to do that by 
 itself (bot.yaml: `automatch: true`), but might fail, especially, when the in-game names and Discord names of users 
 differ a lot.
+> [!NOTE]
 > Users can generate a unique TOKEN that is being sent as a DM with the ```/linkme``` command.<br>
 > The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
 

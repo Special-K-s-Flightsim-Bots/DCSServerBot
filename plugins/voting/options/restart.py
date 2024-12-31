@@ -14,7 +14,7 @@ class Restart(VotableItem):
         return True
         # return not self.server.restart_pending
 
-    def print(self) -> str:
+    async def print(self) -> str:
         self.server.restart_pending = True
         message = "You can now vote for a mission restart.\n"
         if self.config.get('run_extensions', False):
@@ -23,7 +23,7 @@ class Restart(VotableItem):
             message += "The mission will be reset to its initial time."
         return message
 
-    def get_choices(self) -> list[str]:
+    async def get_choices(self) -> list[str]:
         return ["Restart", "Don't restart"]
 
     async def execute(self, winner: str):

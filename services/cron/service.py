@@ -10,11 +10,11 @@ from ..bot import BotService
 from ..servicebus import ServiceBus
 
 
-@ServiceRegistry.register(plugin="scheduler")
-class SchedulerService(Service):
+@ServiceRegistry.register()
+class CronService(Service):
 
     def __init__(self, node):
-        super().__init__(node=node, name="Scheduler")
+        super().__init__(node=node, name="Cron")
         self.bus = None
 
     async def start(self, *args, **kwargs):
@@ -52,7 +52,7 @@ class SchedulerService(Service):
                     return func(**kwargs)
                 await asyncio.to_thread(_aux_func)
         except Exception as ex:
-            self.log.error(f"Scheduler: error while processing action {action}", exc_info=ex)
+            self.log.error(f"Cron: error while processing action {action}", exc_info=ex)
 
     @tasks.loop(minutes=1)
     async def schedule(self):

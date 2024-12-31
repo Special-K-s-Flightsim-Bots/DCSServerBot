@@ -33,19 +33,19 @@ class VotingHandler:
         for task in self.tasks:
             task.cancel()
 
-    def get_leading_vote(self) -> str:
+    async def get_leading_vote(self) -> str:
         if self.votes:
             win_id = max(self.votes, key=self.votes.get) - 1
-            winner = next(islice(self.item.get_choices(), win_id, None))
+            winner = next(islice(await self.item.get_choices(), win_id, None))
             if winner:
                 return "\n" + _('Current leading vote: "{}"').format(winner)
         return ""
 
     async def print(self, player: Optional[Player] = None):
-        message = self.item.print() + '\n'
-        for idx, element in enumerate(self.item.get_choices()):
+        message = (await self.item.print()) + '\n'
+        for idx, element in enumerate(await self.item.get_choices()):
             message += f'{idx + 1}. {element}\n'
-        message += self.get_leading_vote()
+        message += await self.get_leading_vote()
         message += "\n" + _("Use {prefix}{command} <number> to vote for the change.").format(
             prefix=self.config['prefix'], command=self.listener.vote.name) + "\n"
         if player:
@@ -80,7 +80,7 @@ class VotingHandler:
 
     async def remind(self, remaining: int):
         message = _("A voting is now open for another {time}!").format(time=utils.format_time(remaining))
-        message += self.get_leading_vote()
+        message += await self.get_leading_vote()
         await self.server.sendPopupMessage(Coalition.ALL, message)
 
     def _get_possible_voters(self) -> int:
@@ -127,7 +127,7 @@ class VotingHandler:
 
         win_id = await self.check_vote()
         if win_id > -1:
-            winner = next(islice(self.item.get_choices(), win_id, None))
+            winner = next(islice(await self.item.get_choices(), win_id, None))
             message = f"\"{winner}\" won with {self.votes[win_id + 1]} votes!"
             await self.server.sendChatMessage(Coalition.ALL, message)
             await self.server.sendPopupMessage(Coalition.ALL, message)

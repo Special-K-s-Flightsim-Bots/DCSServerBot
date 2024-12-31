@@ -10,6 +10,7 @@ if not exist "%VENV%" (
     echo Creating the Python Virtual Environment
     python -m pip install --upgrade pip
     python -m venv "%VENV%"
+    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
     "%VENV%\Scripts\python.exe" -m pip install -r requirements.txt
 )
 "%VENV%\Scripts\python" update.py --no-restart %*

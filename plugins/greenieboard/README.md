@@ -2,10 +2,10 @@
 This plugin allows you to have a (optional: persistent) greenieboard for the top x (default: 10) players and to give 
 players the opportunity to analyse their carrier landings.
 
-> ⚠️ **Attention!**<br/> 
+> [!NOTE]
 > The landing quality marks will only be generated for landings\* on the DCS Super Carrier module unless you use MOOSE 
 > AIRBOSS (see below).</br>
-> MISSION_STATISTICS = true has to be enabled for your server.**
+> missionstats have to be enabled for your server.**
 <p></p>
 *Not all landings generate a mark for whatever reason and some are off from what you might have experienced in game.
 
@@ -22,9 +22,9 @@ Both are being stored in CSV files, usually somewhere below your Saved Games\<in
 this folder and the format of your files in the greenieboard.json, see the example below. 
 **I would recommend to use separate files per carrier.**<br>
 
-> ⚠️ **Attention!**<br>
+> [!NOTE]
 > Moose.AIRBOSS stores a CSV file for every trap in the "basedir" you configured for your servers. 
-> I will add a cleanup to prune in the future, but currently, there is no auto-cleanup.
+> You can add the directory to your Cleanup-service to get rid of these files after a while. 
 
 ### Code Changes
 To integrate DCSServerBot into your lua code using Moose AIRBOSS, you need to send the following structure to the bot
@@ -67,11 +67,6 @@ there for convenience reasons and just because they are nice and funkyfranky put
 community collaboration though!</br>
 For enabling the FunkMan functionality, you need to enable that in your Moose lua code (samples yet to come, see Moose
 documentation for now) and you need to link the place where you downloaded FunkMan to your greenieboard.json (see below).
-
-> ⚠️ **Attention!**<br>
-> FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
-> (Saved Games\DCS.release_server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
-> there is no auto-cleanup.
 
 ## Configuration
 As GreenieBoard is an optional plugin, you need to activate it in main.yaml first like so:

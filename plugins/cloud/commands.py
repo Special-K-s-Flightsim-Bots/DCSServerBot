@@ -11,13 +11,15 @@ import ssl
 
 from contextlib import suppress
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
-    get_translation, ServiceRegistry
+    get_translation, ServiceRegistry, command
+from datetime import timedelta
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot, BotService
 from services.bot.dummy import DummyBot
 from typing import Type, Any, Optional, Union
+from urllib.parse import quote
 
 from .listener import CloudListener
 from .logger import CloudLoggingHandler
@@ -218,6 +220,58 @@ class Cloud(Plugin):
         except aiohttp.ClientError:
             await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)
 
+    @command(description=_('List registered DCS servers'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin') # TODO: change that to DCS
+    async def serverlist(self, interaction: discord.Interaction, search: Optional[str] = None):
+
+        def format_servers(servers: list[dict], marker, marker_emoji) -> discord.Embed:
+            embed = discord.Embed(title=_('DCS Servers'), color=discord.Color.blue())
+            for idx, server in enumerate(servers):
+                name = chr(0x31 + idx) + '\u20E3' + f" {utils.escape_string(server['server_name'])} [{server['num_players']}/{server['max_players']}]"
+                name += (' 🔐' if server['password'] else ' 🔓') + '\n'
+                value = f"IP/Port:  {server['ipaddr']}:{server['port']}\n"
+                value += f"Map:      {server['theatre']}\n"
+                value += f"Time:     {timedelta(seconds=server['time_in_mission'])}\n"
+                if server['time_to_restart'] != -1:
+                    value += f"Restart:  {timedelta(seconds=server['time_to_restart'])}\n"
+                embed.add_field(name=name, value='```' + value + '```', inline=False)
+            return embed
+
+        async def display_server(server: dict):
+            embed = discord.Embed(color=discord.Color.blue())
+            embed.title = f"{utils.escape_string(server['server_name'])} [{server['num_players']}/{server['max_players']}]"
+            embed.add_field(name=_("Address"), value=f"{server['ipaddr']}:{server['port']}", inline=False)
+            embed.add_field(name=_("Map"), value=f"{server['theatre']}", inline=False)
+            embed.add_field(name=_("Mission"), value=f"{utils.escape_string(server['mission'])}", inline=False)
+            embed.add_field(name=_("Time"), value=f"{timedelta(seconds=server['time_in_mission'])}", inline=False)
+            if server['time_to_restart'] != -1:
+                embed.add_field(name=_("Restart in"), value=f"{timedelta(seconds=server['time_to_restart'])}", inline=False)
+            await interaction.followup.send(embed=embed)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        try:
+            query = f'serverlist?dcs_version={self.node.dcs_version}'
+            if search:
+                query += f'&wildcard={quote(search)}'
+            else:
+                query += f'&guild_id={self.node.guild_id}'
+            response = await self.get(query)
+            if not len(response):
+                if not search:
+                    await interaction.followup.send(_('No servers of this group are active.'), ephemeral=True)
+                else:
+                    await interaction.followup.send(
+                        _('No server found with the name "*{search}*".').format(search=search), ephemeral=True)
+                return
+            n = await utils.selection_list(interaction, response, format_servers)
+            if n >= 0:
+                await display_server(response[n])
+        except aiohttp.ClientError:
+            await interaction.followup.send(_('Cloud not connected!'), ephemeral=True)
+
+
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
         try:
@@ -263,8 +317,8 @@ class Cloud(Plugin):
                 for user in users_to_ban - banned_users - {self.bot.owner_id}:
                     reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
                     await guild.ban(user, reason='DGSA: ' + reason)
-        except Exception as ex:
-            self.log.exception(ex)
+        except aiohttp.ClientError:
+            self.log.warning("Cloud service unavailable.")
 
     @cloud_bans.before_loop
     async def before_cloud_bans(self):

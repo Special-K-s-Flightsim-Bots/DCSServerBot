@@ -110,7 +110,8 @@ class ServiceBus(Service):
                 "method": "register_remote_node",
                 "params": {
                     "name": self.node.name,
-                    "public_ip": self.node.public_ip
+                    "public_ip": self.node.public_ip,
+                    "dcs_version": self.node.dcs_version
                 }
             })
 
@@ -193,7 +194,8 @@ class ServiceBus(Service):
                 "options": server.options,
                 "channels": server.locals.get('channels', {}),
                 "node": self.node.name,
-                "dcs_version": dcs_version,
+                "dcs_port": server.instance.dcs_port,
+                "webgui_port": server.instance.webgui_port,
                 "maintenance": server.maintenance
             }
         }, timeout=timeout)
@@ -254,11 +256,11 @@ class ServiceBus(Service):
         }, node=node.name)
         self.log.info(f"- Remote node {node.name} registered.")
 
-    async def register_remote_node(self, name: str, public_ip: str):
+    async def register_remote_node(self, name: str, public_ip: str, dcs_version: str):
         from core import NodeProxy
 
         self.log.info(f"- Registering remote node {name} ...")
-        node = NodeProxy(self.node, name, public_ip)
+        node = NodeProxy(self.node, name, public_ip, dcs_version)
         self.node.all_nodes[node.name] = node
         while not self.bot:
             await asyncio.sleep(1)
@@ -297,7 +299,6 @@ class ServiceBus(Service):
             server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
-        server.dcs_version = self.node.dcs_version or data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:
             if 'current_mission' in data:
@@ -426,8 +427,8 @@ class ServiceBus(Service):
                 return await cursor.fetchone()
 
     async def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
-                                 settings: dict, options: dict, node: Node, channels: dict, dcs_version: str,
-                                 maintenance: bool) -> None:
+                                 settings: dict, options: dict, node: Node, channels: dict, dcs_port: int,
+                                 webgui_port: int, maintenance: bool) -> None:
         from core import InstanceProxy
 
         # init event for an unregistered remote node received, ignoring
@@ -444,8 +445,9 @@ class ServiceBus(Service):
                 _instance = next(x for x in node.instances if x.name == instance)
                 cast(InstanceProxy, _instance).home = home
                 server.instance = _instance
+                server.instance.locals['dcs_port'] = dcs_port
+                server.instance.locals['webgui_port'] = webgui_port
                 self.servers[server_name] = server
-            server.dcs_version = dcs_version
             server.maintenance = maintenance
             server.status = Status(status)
             server.settings = settings

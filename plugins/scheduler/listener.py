@@ -167,25 +167,13 @@ class SchedulerListener(EventListener):
             asyncio.create_task(player.sendChatMessage(
                 "Server will restart {}".format(restart_time)))
 
-    @event(name="onSimulationPause")
-    async def onSimulationPause(self, server: Server, _: dict) -> None:
-        if server.on_empty:
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.process(server, server.on_empty.copy()))
-            server.on_empty.clear()
-
     @event(name="onSimulationResume")
     async def onSimulationResume(self, server: Server, _: dict) -> None:
         self.set_restart_time(server)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
-        if data['eventName'] == 'disconnect':
-            if not server.is_populated() and server.on_empty:
-                # noinspection PyAsyncCall
-                asyncio.create_task(self.process(server, server.on_empty.copy()))
-                server.on_empty.clear()
-        elif data['eventName'] == 'mission_end':
+        if data['eventName'] == 'mission_end':
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.bus.send_to_node({"command": "onMissionEnd", "server_name": server.name}))
             if server.on_mission_end:
@@ -236,6 +224,13 @@ class SchedulerListener(EventListener):
     @event(name="getMissionUpdate")
     async def getMissionUpdate(self, server: Server, _: dict) -> None:
         self.set_restart_time(server)
+
+    @event(name="onServerEmpty")
+    async def onServerEmpty(self, server: Server, _: dict) -> None:
+        if server.on_empty:
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.process(server, server.on_empty.copy()))
+            server.on_empty.clear()
 
     @chat_command(name="maintenance", aliases=["maint"], roles=['DCS Admin'], help="enable maintenance mode")
     async def maintenance(self, server: Server, player: Player, _: list[str]):

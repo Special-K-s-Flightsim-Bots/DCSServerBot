@@ -51,7 +51,10 @@ class Install:
         dcs_installation = None
         while dcs_installation is None:
             dcs_installation = Prompt.ask(prompt=_("Please enter the path to your DCS World installation"))
-            if not os.path.exists(dcs_installation):
+            if not dcs_installation:
+                if Confirm.ask(_("Do you want to continue without a DCS installation being set?"), default=False):
+                    return None
+            elif not os.path.exists(dcs_installation):
                 print(_("Directory not found. Please try again."))
                 dcs_installation = None
         return dcs_installation
@@ -335,125 +338,124 @@ If you need any further assistance, please visit the support discord, listed in 
             dcs_installation = Install.get_dcs_installation_win32() or '<see documentation>'
         else:
             dcs_installation = Install.get_dcs_installation_linux()
-        if not dcs_installation:
-            self.log.error(_("Aborted: No DCS installation found."))
-            exit(-1)
         node = nodes[self.node] = {
             "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
-            "DCS": {
-                "installation": dcs_installation
-            },
             "database": {
                 "url": database_url
             }
         }
-        if Confirm.ask(_("Do you want your DCS installation being auto-updated by the bot?"), default=True):
-            node["DCS"]["autoupdate"] = True
-        # Check for SRS
-        srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
-        if not os.path.exists(srs_path):
-            srs_path = Prompt.ask(_("Please enter the path to your DCS-SRS installation.\n"
-                                    "Press ENTER, if there is none."))
-        if srs_path:
-            self.log.info(_("DCS-SRS installation path: {}").format(srs_path))
-            node['extensions'] = {
-                'SRS': {
-                    'installation': srs_path
-                }
+        if dcs_installation:
+            node["DCS"] = {
+                "installation": dcs_installation
             }
-        else:
-            self.log.info(_("DCS-SRS not configured."))
 
-        print(_("\n{}. [u]DCS Server Setup[/]").format(i+3))
-        scheduler = schedulers[self.node] = {}
-        node['instances'] = {}
-        # calculate unique bot ports
-        bot_port = max([
-            i.get('bot_port', 6665 + idx)
-            for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
-        ]) + 1 if nodes else 6666
-        # calculate unique SRS ports
-        srs_port = max([
-            i.get('extensions', {}).get('SRS', {}).get('port', 5001 + idx)
-            for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
-        ]) + 1 if nodes else 5002
-        print(_("Searching for existing DCS server configurations ..."))
-        instances = utils.findDCSInstances()
-        if not instances:
-            print(_("No configured DCS servers found."))
-        for name, instance in instances:
-            if Confirm.ask(_('\n[i]DCS server "{}" found.[/i]\n'
-                             'Would you like to manage this server through DCSServerBot?').format(name), default=True):
-                self.log.info(_("Adding instance {instance} with server {name} ...").format(instance=instance,
-                                                                                            name=name))
-                node['instances'][instance] = {
-                    "bot_port": bot_port,
-                    "home": os.path.join(SAVED_GAMES, instance)
+            if Confirm.ask(_("Do you want your DCS installation being auto-updated by the bot?"), default=True):
+                node["DCS"]["autoupdate"] = True
+            # Check for SRS
+            srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
+            if not os.path.exists(srs_path):
+                srs_path = Prompt.ask(_("Please enter the path to your DCS-SRS installation.\n"
+                                        "Press ENTER, if there is none."))
+            if srs_path:
+                self.log.info(_("DCS-SRS installation path: {}").format(srs_path))
+                node['extensions'] = {
+                    'SRS': {
+                        'installation': srs_path
+                    }
                 }
-                if srs_path:
-                    srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
-                    node['instances'][instance]['extensions'] = {
-                        "SRS": {
-                            "config": srs_config,
-                            "port": srs_port
-                        }
-                    }
-                    if not os.path.exists(os.path.expandvars(srs_config)):
-                        if os.path.exists(os.path.join(srs_path, "server.cfg")):
-                            shutil.copy2(os.path.join(srs_path, "server.cfg"), os.path.expandvars(srs_config))
-                        else:
-                            print(_("[red]SRS configuration could not be created.\n"
-                                    "Please copy your server.cfg to {} manually.[/]").format(srs_config))
-                            self.log.warning(_("SRS configuration could not be created, manual setup necessary."))
-                bot_port += 1
-                srs_port += 2
+            else:
+                self.log.info(_("DCS-SRS not configured."))
 
-                # we only set up channels, if we configure a discord bot
-                if not bot.get('no_discord', False):
-                    channels = {
-                        "Status Channel": _("To display the mission and player status."),
-                        "Chat Channel": _("[bright_black]Optional:[/]: An in-game chat replication.")
+            print(_("\n{}. [u]DCS Server Setup[/]").format(i+3))
+            scheduler = schedulers[self.node] = {}
+            node['instances'] = {}
+            # calculate unique bot ports
+            bot_port = max([
+                i.get('bot_port', 6665 + idx)
+                for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
+            ]) + 1 if nodes else 6666
+            # calculate unique SRS ports
+            srs_port = max([
+                i.get('extensions', {}).get('SRS', {}).get('port', 5001 + idx)
+                for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
+            ]) + 1 if nodes else 5002
+            print(_("Searching for existing DCS server configurations ..."))
+            instances = utils.findDCSInstances()
+            if not instances:
+                print(_("No configured DCS servers found."))
+            for name, instance in instances:
+                if Confirm.ask(_('\n[i]DCS server "{}" found.[/i]\n'
+                                 'Would you like to manage this server through DCSServerBot?').format(name), default=True):
+                    self.log.info(_("Adding instance {instance} with server {name} ...").format(instance=instance,
+                                                                                                name=name))
+                    node['instances'][instance] = {
+                        "bot_port": bot_port,
+                        "home": os.path.join(SAVED_GAMES, instance)
                     }
-                    if not bot.get('channels', {}).get('admin'):
-                        channels['Admin Channel'] = _("For admin commands.")
-                    print(_("DCSServerBot uses up to {} channels per supported server:").format(len(channels)))
-                    print(channels)
-                    print(_("\nThe Status Channel should be readable by everyone and only writable by the bot.\n"
-                            "The Chat Channel should be readable and writable by everyone.\n"
-                            "The Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\n"
-                            "You can create these channels now, as I will ask for the IDs in a bit.\n"
-                            "DCSServerBot needs the following permissions on them to work:\n\n"
-                            "    - View Channel\n"
-                            "    - Send Messages\n"
-                            "    - Read Messages\n"
-                            "    - Read Message History\n"
-                            "    - Add Reactions\n"
-                            "    - Attach Files\n"
-                            "    - Embed Links\n"
-                            "    - Manage Messages\n\n"))
+                    if srs_path:
+                        srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
+                        node['instances'][instance]['extensions'] = {
+                            "SRS": {
+                                "config": srs_config,
+                                "port": srs_port
+                            }
+                        }
+                        if not os.path.exists(os.path.expandvars(srs_config)):
+                            if os.path.exists(os.path.join(srs_path, "server.cfg")):
+                                shutil.copy2(os.path.join(srs_path, "server.cfg"), os.path.expandvars(srs_config))
+                            else:
+                                print(_("[red]SRS configuration could not be created.\n"
+                                        "Please copy your server.cfg to {} manually.[/]").format(srs_config))
+                                self.log.warning(_("SRS configuration could not be created, manual setup necessary."))
+                    bot_port += 1
+                    srs_port += 2
 
-                    servers[name] = {
-                        "channels": {
-                            "status": IntPrompt.ask(_("Please enter the ID of your [bold]Status Channel[/]")),
-                            "chat": IntPrompt.ask(_("Please enter the ID of your [bold]Chat Channel[/] (optional)"),
-                                                  default=-1)
+                    # we only set up channels, if we configure a discord bot
+                    if not bot.get('no_discord', False):
+                        channels = {
+                            "Status Channel": _("To display the mission and player status."),
+                            "Chat Channel": _("[bright_black]Optional:[/]: An in-game chat replication.")
                         }
-                    }
-                    if not bot.get('channels', {}).get('admin'):
-                        servers[name]['channels']['admin'] = IntPrompt.ask(
-                            _("Please enter the ID of your [bold]Admin Channel[/]"))
-                else:
-                    servers[name] = {}
-                if Prompt.ask(_("Do you want DCSServerBot to autostart this server?"), choices=['y', 'n'],
-                              default='y') == 'y':
-                    scheduler[instance] = {
-                        "schedule": {
-                            "00-24": "YYYYYYY"
+                        if not bot.get('channels', {}).get('admin'):
+                            channels['Admin Channel'] = _("For admin commands.")
+                        print(_("DCSServerBot uses up to {} channels per supported server:").format(len(channels)))
+                        print(channels)
+                        print(_("\nThe Status Channel should be readable by everyone and only writable by the bot.\n"
+                                "The Chat Channel should be readable and writable by everyone.\n"
+                                "The Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\n"
+                                "You can create these channels now, as I will ask for the IDs in a bit.\n"
+                                "DCSServerBot needs the following permissions on them to work:\n\n"
+                                "    - View Channel\n"
+                                "    - Send Messages\n"
+                                "    - Read Messages\n"
+                                "    - Read Message History\n"
+                                "    - Add Reactions\n"
+                                "    - Attach Files\n"
+                                "    - Embed Links\n"
+                                "    - Manage Messages\n\n"))
+
+                        servers[name] = {
+                            "channels": {
+                                "status": IntPrompt.ask(_("Please enter the ID of your [bold]Status Channel[/]")),
+                                "chat": IntPrompt.ask(_("Please enter the ID of your [bold]Chat Channel[/] (optional)"),
+                                                      default=-1)
+                            }
                         }
-                    }
-                else:
-                    scheduler[instance] = {}
-                self.log.info(_("Instance {} configured.").format(instance))
+                        if not bot.get('channels', {}).get('admin'):
+                            servers[name]['channels']['admin'] = IntPrompt.ask(
+                                _("Please enter the ID of your [bold]Admin Channel[/]"))
+                    else:
+                        servers[name] = {}
+                    if Prompt.ask(_("Do you want DCSServerBot to autostart this server?"), choices=['y', 'n'],
+                                  default='y') == 'y':
+                        scheduler[instance] = {
+                            "schedule": {
+                                "00-24": "YYYYYYY"
+                            }
+                        }
+                    else:
+                        scheduler[instance] = {}
+                    self.log.info(_("Instance {} configured.").format(instance))
         print(_("\n\nAll set. Writing / updating your config files now..."))
         if master:
             os.makedirs(config_dir, exist_ok=True)

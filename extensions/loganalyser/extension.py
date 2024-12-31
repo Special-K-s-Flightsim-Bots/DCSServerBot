@@ -143,26 +143,33 @@ class LogAnalyser(Extension):
         await self.node.audit("restart due to unlisting from the ED server list", server=self.server)
         await self.server.restart(modify_mission=False)
 
-    async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context=5):
+    async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context: int = 5):
         if not filename.strip('.') or not os.path.exists(filename):
-            return
-        marked_lines = []
-        try:
-            async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
-                lines = await file.readlines()
+            kwargs = {
+                "code": filename
+            }
+        else:
+            kwargs = {
+                "file": filename
+            }
+            marked_lines = []
+            try:
+                async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
+                    lines = await file.readlines()
 
-            print_lines = lines[target_line - context - 1: target_line + context]
-            starting_line_number = target_line - context
-            for i, line in enumerate(print_lines, starting_line_number):
-                if i == target_line:
-                    marked_lines.append(f"> {i}: {line.rstrip()}")
-                else:
-                    marked_lines.append(f"{i}: {line.rstrip()}")
-        except PermissionError:
-            self.log.debug(f"Can't open file {filename} for reading!")
-        code_content = "\n".join(marked_lines)
-        await self.node.audit("A LUA error occurred!", server=self.server, file=filename,
-                              error=f"Line {target_line}: {error_message}", code=f"```lua\n{code_content}\n```")
+                print_lines = lines[target_line - context - 1: target_line + context]
+                starting_line_number = target_line - context
+                for i, line in enumerate(print_lines, starting_line_number):
+                    if i == target_line:
+                        marked_lines.append(f"> {i}: {line.rstrip()}")
+                    else:
+                        marked_lines.append(f"{i}: {line.rstrip()}")
+                code_content = "\n".join(marked_lines)
+                kwargs['code'] = f"```lua\n{code_content}\n```"
+            except PermissionError:
+                self.log.debug(f"Can't open file {filename} for reading!")
+        kwargs['error'] = f"Line {target_line}: {error_message}"
+        await self.node.audit("A LUA error occurred!", server=self.server, **kwargs)
 
     async def script_error(self, idx: int, line: str, match: re.Match):
         filename, line_number, error_message = match.groups()

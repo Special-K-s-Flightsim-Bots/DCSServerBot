@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v3.11') ON CONFLICT (version) DO NOTHING;
+INSERT INTO version (version) VALUES ('v3.12') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS cluster (guild_id BIGINT primary key, master TEXT NOT NULL, version TEXT NOT NULL, UPDATE_PENDING BOOLEAN NOT NULL DEFAULT FALSE);
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS message_persistence (server_name TEXT NOT NULL, embed_name TEXT NOT NULL, embed BIGINT NOT NULL, thread BIGINT NULL, PRIMARY KEY (server_name, embed_name));

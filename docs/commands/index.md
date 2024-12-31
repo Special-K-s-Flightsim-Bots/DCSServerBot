@@ -104,7 +104,7 @@ These commands can be used to administrate the bot itself.
 | .modulestats / .modstats  | [@member / Player Name] [period] | all                         | DCS  | Display module and weapon statistics per module.                                                    |
 | .refuelings / .refuel     | [@member / Player Name] [period] | all                         | DCS  | Display refuelings per module.                                                                      |
 
-## Plugin OvGME
+## Plugin ModManager
 
 | Command         | Parameter                | Channel       | Role             | Description                                                                     |
 |-----------------|--------------------------|---------------|------------------|---------------------------------------------------------------------------------|

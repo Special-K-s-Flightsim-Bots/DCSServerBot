@@ -306,7 +306,7 @@ class Scheduler(Plugin):
                         return
                     filename = utils.format_string(filename, instance=server.instance, server=server)
                     if not mission_id:
-                        for idx, mission in enumerate(server.settings['missionList']):
+                        for idx, mission in enumerate(await server.getMissionList()):
                             if os.path.basename(mission).lower() == filename.lower():
                                 mission_id = idx + 1
                                 break

@@ -44,19 +44,22 @@ class SRS(Extension, FileSystemEventHandler):
             "type": int,
             "label": _("SRS Port"),
             "placeholder": _("Unique port number for SRS"),
-            "required": True
+            "required": True,
+            "default": 5002
         },
         "blue_password": {
             "type": str,
             "label": _("Blue Password"),
             "placeholder": _("Password for blue GCI, . for none"),
-            "required": True
+            "required": True,
+            "default": "blue"
           },
         "red_password": {
             "type": str,
             "label": _("Red Password"),
             "placeholder": _("Password for red GCI, . for none"),
-            "required": True
+            "required": True,
+            "default": "red"
         }
     }
 

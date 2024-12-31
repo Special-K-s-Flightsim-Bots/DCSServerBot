@@ -9,6 +9,8 @@ import shutil
 import sys
 
 if sys.platform == 'win32':
+    import win32api
+    import win32con
     import win32gui
     import win32process
     from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
@@ -128,6 +130,20 @@ class MonitoringService(Service):
         ]:
             handle = win32gui.FindWindowEx(None, None, None, title)
             if handle:
+                if title == "Mission script error":
+                    def callback(hwnd, extra):
+                        if win32gui.GetWindowText(hwnd) == "OK":  # Find the child with "OK" text
+                            extra.append(hwnd)
+
+                    child_windows = []
+                    win32gui.EnumChildWindows(handle, callback, child_windows)
+
+                    if child_windows:
+                        # Press the OK button
+                        ok_button_handle = child_windows[0]
+                        win32api.SendMessage(ok_button_handle, win32con.BM_CLICK, 0, 0)
+                        return
+
                 _, pid = win32process.GetWindowThreadProcessId(handle)
                 for server in [x for x in self.bus.servers.values() if not x.is_remote]:
                     if server.process and server.process.pid == pid:

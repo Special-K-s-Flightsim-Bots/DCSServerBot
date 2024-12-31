@@ -24,7 +24,7 @@ from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
 from migrate import migrate
-from packaging import version
+from packaging.version import parse
 from pathlib import Path
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, NotNullViolation, OperationalError
 from psycopg.rows import dict_row
@@ -90,7 +90,6 @@ class NodeImpl(Node):
         self.is_shutdown = asyncio.Event()
         self.rc = 0
         self.dcs_branch = None
-        self.dcs_version = None
         self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
         self.suspect: dict[str, Node] = {}
         self.instances: list[Instance] = []
@@ -129,6 +128,7 @@ class NodeImpl(Node):
         await self.close_db()
 
     async def post_init(self):
+        await self.get_dcs_branch_and_version()
         self.pool, self.apool = await self.init_db()
         try:
             self._master = await self.heartbeat()
@@ -276,12 +276,12 @@ class NodeImpl(Node):
         return db_pool, db_apool
 
     async def close_db(self):
-        if not self.pool.closed:
+        if self.pool and not self.pool.closed:
             try:
                 self.pool.close()
             except Exception as ex:
                 self.log.exception(ex)
-        if not self.apool.closed:
+        if self.apool and not self.apool.closed:
             try:
                 await self.apool.close()
             except Exception as ex:
@@ -388,7 +388,7 @@ class NodeImpl(Node):
                     current_version = re.sub('^v', '', __version__)
                     latest_version = re.sub('^v', '', result[0]["tag_name"])
 
-                    if version.parse(latest_version) > version.parse(current_version):
+                    if parse(latest_version) > parse(current_version):
                         return True
         except aiohttp.ClientResponseError as ex:
             # ignore rate limits
@@ -435,9 +435,9 @@ class NodeImpl(Node):
                                "Use /dcs update if you want to switch to the release branch.")
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: Optional[str] = None) -> int:
+    async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
 
-        async def do_update(branch: Optional[str] = None) -> int:
+        async def do_update(branch: str, version: Optional[str] = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
@@ -450,7 +450,9 @@ class NodeImpl(Node):
             def run_subprocess() -> int:
                 try:
                     cmd = [os.path.join(self.installation, 'bin', 'dcs_updater.exe'), '--quiet', 'update']
-                    if branch:
+                    if version:
+                        cmd.append(f"{version}@{branch}")
+                    else:
                         cmd.append(f"@{branch}")
 
                     process = subprocess.run(
@@ -481,15 +483,20 @@ class NodeImpl(Node):
             for callback in self.before_update.values():
                 await callback()
             old_branch, old_version = await self.get_dcs_branch_and_version()
-            rc = await do_update(branch)
+            if not branch:
+                branch = old_branch
+            if not version:
+                version = await self.get_latest_version(branch)
+            rc = await do_update(branch, version)
             if rc in [0, 350]:
                 self.dcs_branch = self.dcs_version = None
                 dcs_branch, dcs_version = await self.get_dcs_branch_and_version()
                 # if only the updater updated itself, run the update again
                 if old_branch == dcs_branch and old_version == dcs_version:
                     self.log.info("dcs_updater.exe updated to the latest version, now updating DCS World ...")
-                    rc = await do_update(branch)
+                    rc = await do_update(branch, version)
                     self.dcs_branch = self.dcs_version = None
+                    await self.get_dcs_branch_and_version()
                     if rc not in [0, 350]:
                         return rc
                 if self.locals['DCS'].get('desanitize', True):
@@ -564,15 +571,15 @@ class NodeImpl(Node):
                         pass
             return list(licenses)
 
-    async def get_latest_version(self, branch: str) -> Optional[str]:
-        async def _get_latest_version_no_auth():
+    async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
+        async def _get_latest_versions_no_auth() -> Optional[list[str]]:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(UPDATER_URL.format(branch)) as response:
                     if response.status == 200:
-                        return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
+                        return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
 
-        async def _get_latest_version_auth():
+        async def _get_latest_versions_auth() -> Optional[list[str]]:
             user = self.locals['DCS'].get('user')
             password = utils.get_password('DCS', self.config_dir)
             headers = {
@@ -584,7 +591,7 @@ class NodeImpl(Node):
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
-                                data = json.loads(gzip.decompress(await r2.read()))['versions2'][-1]['version']
+                                data = [x['version'] for x in json.loads(gzip.decompress(await r2.read()))['versions2']]
                             else:
                                 data = None
                         async with await session.get(LOGOUT_URL):
@@ -592,9 +599,14 @@ class NodeImpl(Node):
                         return data
 
         if not self.locals['DCS'].get('user'):
-            return await _get_latest_version_no_auth()
+            return await _get_latest_versions_no_auth()
         else:
-            return await _get_latest_version_auth()
+            return await _get_latest_versions_auth()
+
+
+    async def get_latest_version(self, branch: str) -> Optional[str]:
+        versions = await self.get_available_dcs_versions(branch)
+        return versions[-1] if versions else None
 
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
@@ -679,8 +691,8 @@ class NodeImpl(Node):
                                         # noinspection PyAsyncCall
                                         asyncio.create_task(self.upgrade())
                                         return True
-                                elif version.parse(cluster['version']) != version.parse(__version__):
-                                    if version.parse(cluster['version']) > version.parse(__version__):
+                                elif parse(cluster['version']) != parse(__version__):
+                                    if parse(cluster['version']) > parse(__version__):
                                         self.log.warning(
                                             f"Bot version downgraded from {cluster['version']} to {__version__}. "
                                             f"This could lead to unexpected behavior if there have been database "
@@ -723,7 +735,7 @@ class NodeImpl(Node):
                                                      (self.name, self.guild_id))
                                 return True
                             # we have a version mismatch on the agent, a cloud sync might still be pending
-                            if version.parse(__version__) < version.parse(cluster['version']):
+                            if parse(__version__) < parse(cluster['version']):
                                 self.log.error(f"We are running version {__version__} where the master is on version "
                                                f"{cluster['version']} already. Trying to upgrade ...")
                                 # TODO: we might not have bus access here yet, so be our own bus (dirty)
@@ -736,7 +748,7 @@ class NodeImpl(Node):
                                     INSERT INTO intercom (guild_id, node, data) VALUES (%s, %s, %s)
                                 """, (self.guild_id, self.name, Json(data)))
                                 return False
-                            elif version.parse(__version__) > version.parse(cluster['version']):
+                            elif parse(__version__) > parse(cluster['version']):
                                 self.log.warning(
                                     f"This node is running on version {__version__} where the master still runs on "
                                     f"{cluster['version']}. You need to upgrade your master node!")
@@ -906,7 +918,7 @@ class NodeImpl(Node):
             except aiohttp.ClientError:
                 self.log.warning("Update check failed, possible server outage at ED.")
                 return
-            if new_version and old_version != new_version:
+            if new_version and parse(old_version) < parse(new_version):
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
                 if rc == 0:

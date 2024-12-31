@@ -13,7 +13,7 @@ from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
 from services.bot import DCSServerBot
-from services.scheduler.actions import purge_channel
+from services.cron.actions import purge_channel
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -128,7 +128,7 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     ]
 
 
-async def get_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def get_dcs_branches(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     current_branch, _ = await interaction.client.node.get_dcs_branch_and_version()
     if 'dcs_server' not in current_branch:
         branches = [('Release', 'release')]
@@ -138,6 +138,17 @@ async def get_branches(interaction: discord.Interaction, current: str) -> list[a
         app_commands.Choice(name=x[0], value=x[1])
         for x in branches
         if not current or current.casefold() in x[0].casefold()
+    ]
+
+
+async def get_dcs_versions(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    versions = await interaction.client.node.get_available_dcs_versions(interaction.client.node.dcs_branch)
+    return [
+        app_commands.Choice(name=x, value=x)
+        for x in versions[::-1][:25]
+        if not current or current.casefold() in x.casefold()
     ]
 
 
@@ -277,25 +288,28 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(warn_time=_("Time in seconds to warn users before shutdown"))
-    @app_commands.autocomplete(branch=get_branches)
+    @app_commands.autocomplete(branch=get_dcs_branches)
+    @app_commands.autocomplete(version=get_dcs_versions)
     async def update(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer],
                      warn_time: app_commands.Range[int, 0] = 60,
-                     branch: Optional[str] = None, force: Optional[bool] = False):
+                     branch: Optional[str] = None,
+                     version: Optional[str] = None,
+                     force: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         _branch, old_version = await node.get_dcs_branch_and_version()
         if not branch:
             branch = _branch
+        try:
+            new_version = version or await node.get_latest_version(branch)
+        except Exception:
+            await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
+                                            ephemeral=True)
+            return
 
         if not force:
-            try:
-                new_version = await node.get_latest_version(branch)
-            except Exception:
-                await interaction.followup.send(_("Can't get version information from ED, possible auth-server outage!"),
-                                                ephemeral=True)
-                return
             if old_version == new_version and branch == _branch:
                 await interaction.followup.send(
                     _('Your installed version {version} is the latest on branch {branch}.').format(version=old_version,
@@ -317,31 +331,32 @@ class Admin(Plugin):
                 return
 
         await self.bot.audit(f"started an update of all DCS servers on node {node.name}.", user=interaction.user)
-        msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
-                                              ephemeral=ephemeral)
+        await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
+                                        ephemeral=ephemeral)
         try:
-            rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch)
+            rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version)
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
-                await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."
-                                         ).format(version=new_version, branch=branch, name=node.name))
+                await interaction.followup.send(content=_("DCS updated to version {version}@{branch} on node {name}."
+                                                          ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
             elif rc in [2, 112]:
-                await msg.edit(
+                await interaction.followup.send(
                     content=_("DCS World could not be updated on node {name} due to missing disk space!").format(
                         name=node.name))
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
-                await msg.edit(content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
-                                         "The updater has requested a **reboot** of the system!").format(
+                await interaction.followup.send(
+                    content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
+                              "The updater has requested a **reboot** of the system!").format(
                     version=new_version, branch=branch, name=node.name))
             else:
-                await msg.edit(
+                await interaction.followup.send(
                     content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc))
         except (TimeoutError, asyncio.TimeoutError):
-            await msg.edit(content=_("The update takes longer than 10 minutes, please check back regularly, "
-                                     "if it has finished."))
+            await interaction.followup.send(
+                content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."))
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
@@ -352,16 +367,17 @@ class Admin(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        num_servers = len([x for x in node.instances if x.server and x.server.status != Status.SHUTDOWN])
         if num_servers and not await utils.yn_question(
                 interaction, _("Shutdown all servers on node {} for the installation?").format(node.name),
                 ephemeral=ephemeral):
             return
-        msg = await interaction.followup.send(
+        await interaction.followup.send(
             _("Installing module {module} on node {node}, please wait ...").format(module=module, node=node.name),
             ephemeral=ephemeral)
         await node.handle_module('install', module)
-        await msg.edit(content=_("Module {module} installed on node {node}.").format(module=module, node=node.name))
+        await interaction.followup.send(content=_("Module {module} installed on node {node}.").format(
+            module=module, node=node.name))
 
     @dcs.command(name='uninstall', description=_('Uninstall modules from your DCS server'))
     @app_commands.guild_only()

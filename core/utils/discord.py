@@ -104,14 +104,13 @@ class PlayerType(Enum):
     HISTORY = auto()
 
 
-async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Interaction,
-                                   message: discord.Message) -> discord.Reaction:
+async def wait_for_single_reaction(interaction: discord.Interaction, message: discord.Message) -> discord.Reaction:
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == interaction.channel) & (user == member) & (react.message.id == message.id)
 
     tasks = [
-        asyncio.create_task(bot.wait_for('reaction_add', check=check_press)),
-        asyncio.create_task(bot.wait_for('reaction_remove', check=check_press))
+        asyncio.create_task(interaction.client.wait_for('reaction_add', check=check_press)),
+        asyncio.create_task(interaction.client.wait_for('reaction_remove', check=check_press))
     ]
     try:
         member = interaction.user
@@ -126,10 +125,9 @@ async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Inter
             task.cancel()
 
 
-async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
+async def selection_list(interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
     """
-    :param bot: An instance of DCSServerBot class.
     :param interaction: A discord.Interaction instance representing the interaction event.
     :param data: A list of data to display in the embeds.
     :param embed_formatter: A function that formats the data into an embed.
@@ -164,7 +162,7 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
             await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
-            react = await wait_for_single_reaction(bot, interaction, message)
+            react = await wait_for_single_reaction(interaction, message)
             await message.delete()
             if react.emoji == '◀️':
                 j -= 1
@@ -1037,7 +1035,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         base_dir = await server.get_missions_dir()
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=get_name(base_dir, x), value=idx)
-            for idx, x in enumerate(server.settings['missionList'])
+            for idx, x in enumerate(await server.getMissionList())
             if not current or current.casefold() in get_name(base_dir, x).casefold()
         ]
         return sorted(choices, key=lambda choice: choice.name)[:25]
@@ -1249,19 +1247,19 @@ async def get_command(bot: DCSServerBot, *, name: str,
 
 
 class ConfigModal(Modal):
-    def __init__(self, title: str, config: dict, default: Optional[dict] = None, ephemeral: Optional[bool] = False):
+    def __init__(self, title: str, config: dict, old_values: Optional[dict] = None, ephemeral: Optional[bool] = False):
         super().__init__(title=title)
         self.ephemeral = ephemeral
         self.value = None
         self.config = config
-        if not default:
-            default = {}
+        if not old_values:
+            old_values = {}
         for k, v in self.config.items():
             self.add_item(TextInput(custom_id=k,
                                     label=v.get('label'),
                                     style=discord.TextStyle(v.get('style', 1)),
                                     placeholder=v.get('placeholder'),
-                                    default=str(default.get(k)) if default.get(k) is not None else "",
+                                    default=str(old_values.get(k)) if old_values.get(k) is not None else v.get('default', ''),
                                     required=v.get('required', False),
                                     min_length=v.get('min_length'),
                                     max_length=v.get('max_length')))
@@ -1270,6 +1268,8 @@ class ConfigModal(Modal):
     def unmap(value: str, t: str = None) -> Any:
         if not t or t == str:
             return value
+        elif not value:
+            return None
         elif t == int:
             return int(value)
         elif t == float:
@@ -1286,7 +1286,7 @@ class ConfigModal(Modal):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=self.ephemeral)
         self.value = {
-            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type')) if v.value else v.default
+            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type'))
             for v in self.children
         }
         self.stop()
@@ -1554,7 +1554,7 @@ class ServerUploadHandler(NodeUploadHandler):
         from services.servicebus import ServiceBus
 
         bot = ServiceRegistry.get(BotService).bot
-        server = bot.get_server(message)
+        server = bot.get_server(message, admin_only=True)
         if not server and message.channel.id == bot.locals.get('channels', {}).get('admin'):
             bus = ServiceRegistry.get(ServiceBus)
             ctx = await bot.get_context(message)

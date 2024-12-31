@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 from psycopg.rows import dict_row
 from typing import Optional
 
-from plugins.userstats.filter import StatisticsFilter
+from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 
 # ignore pandas warnings (log scale et al)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -575,9 +575,10 @@ class ServerLoadHeader(EmbedElement):
 
 class ServerLoad(report.MultiGraphElement):
 
-    async def render(self, node: str, period: str, server_name: Optional[str] = None):
+    async def render(self, node: str, period: StatisticsFilter, server_name: Optional[str] = None):
 
-        inner_sql = """
+        self.env.embed.title = f"Server Load ({period.period.title()})"
+        inner_sql = f"""
             SELECT date_trunc('minute', time) AS time, AVG(users) AS users, AVG(cpu) AS cpu, 
                    AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS mem_paged,  
                    AVG(mem_ram)/(1024*1024) AS mem_ram, 
@@ -588,7 +589,7 @@ class ServerLoad(report.MultiGraphElement):
                    ROUND(AVG(fps), 2) AS fps, 
                    ROUND(AVG(ping), 2) AS ping 
             FROM serverstats 
-            WHERE time > ((NOW() AT TIME ZONE 'UTC') - ('1 ' || %(period)s)::interval)
+            WHERE {period.filter(self.env.bot)}
             AND node = %(node)s 
         """
         if server_name:
@@ -610,7 +611,7 @@ class ServerLoad(report.MultiGraphElement):
             """
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"node": node, "server_name": server_name, "period": period})
+                await cursor.execute(sql, {"node": node, "server_name": server_name})
                 if cursor.rowcount == 0:
                     for i in range(0, 4):
                         self.axes[i].bar([], [])
@@ -692,6 +693,23 @@ class ServerLoad(report.MultiGraphElement):
         series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='red')
         ax4.legend(['Ping'], loc='upper right')
 
+        # find the right time span the data covers
+        series['time'] = pd.to_datetime(series['time'])
+        time_start = series['time'].min()
+        time_end = series['time'].max()
+        time_span = time_end - time_start
+
+        if time_span <= pd.Timedelta(hours=1):
+            _period = "Hour"
+        elif time_span <= pd.Timedelta(days=1):
+            _period = "Day"
+        elif time_span <= pd.Timedelta(weeks=1):
+            _period = "Week"
+        elif time_span <= pd.Timedelta(days=31):
+            _period = "Month"
+        else:
+            _period = "Month"
+
         settings = {
             "Hour": {
                 "major_locator": mdates.MinuteLocator(),
@@ -713,9 +731,9 @@ class ServerLoad(report.MultiGraphElement):
             }
         }
         for ax in [self.axes[x] for x in range(0, 4)] + [ax2, ax3, ax4]:
-            ax.xaxis.set_major_locator(settings[period]['major_locator'])
-            if 'minor_locator' in settings[period]:
-                ax.xaxis.set_minor_locator(settings[period]['minor_locator'])
+            ax.xaxis.set_major_locator(settings[_period]['major_locator'])
+            if 'minor_locator' in settings[_period]:
+                ax.xaxis.set_minor_locator(settings[_period]['minor_locator'])
                 ax.tick_params(axis='x', which='minor', length=6)
-            ax.xaxis.set_major_formatter(settings[period]['formatter'])
+            ax.xaxis.set_major_formatter(settings[_period]['formatter'])
             ax.tick_params(axis='x', which='major', rotation=30)

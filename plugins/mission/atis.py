@@ -32,7 +32,7 @@ class Main(report.EmbedElement):
                        value='{}° @ {} kts'.format(data['wind']['dir'],
                                                    int(data['wind']['speed'] * const.METER_PER_SECOND_IN_KNOTS)))
         visibility = weather['visibility']['distance']
-        if weather['enable_fog'] is True:
+        if weather.get('enable_fog', False) is True:
             visibility = weather['fog']['visibility']
         self.add_field(name='Visibility', value='{:,} m'.format(
             int(visibility)) if visibility < 10000 else '10 km / 6 SM (+)')

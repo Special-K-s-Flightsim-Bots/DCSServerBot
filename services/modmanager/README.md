@@ -1,27 +1,27 @@
-# OvGME Service
+# ModManager Service
 
-This is the OvGME service, which lets you install packaged modifications (mods) to your DCS server.
+This is the ModManager service, which lets you install packaged modifications (mods) to your DCS server.
 
 ## Configuration
-To activate the OvGME service, you need to add an optional plugin in your main.yaml first like so:
+To activate the ModManager service, you need to add an optional plugin in your main.yaml first like so:
 ```yaml
 opt_plugins:
-  - ovgme
+  - modmanager
 ```
 
-The service itself is configured via yaml. There is an additional [plugin](../../plugins/ovgme/README.md) to provide Discord
-commands to operate the service.
+The service itself is configured via yaml. There is an additional [plugin](../../plugins/modmanager/README.md) to 
+provide Discord commands to operate the service.
 
 ```yaml
 DEFAULT:
-  SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'  # folder to store plugins that should be installed into Saved Games
-  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'  # folder to store plugins that should go into the base game directories
+  SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'  # folder to store plugins that should be installed into Saved Games
+  RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'  # folder to store plugins that should go into the base game directories
 DCS.release_server:
   packages:
-  - name: Community_A-4E-C    # The community A-4E-C model can be used out of the box with this service
-    version: latest           # we will always use the latest available version on disk
-    source: SavedGames        # the mod will be placed inside the Saved Games folder structure
-    repo: https://github.com/heclak/community-a4e-c  # optional: if specified with "latest", the bot will auto-update your versions from GitHub
+    - name: Community_A-4E-C    # The community A-4E-C model can be used out of the box with this service
+      version: latest           # we will always use the latest available version on disk
+      source: SavedGames        # the mod will be placed inside the Saved Games folder structure
+      repo: https://github.com/heclak/community-a4e-c  # optional: if specified with "latest", the bot will auto-update your versions from GitHub
 ```
 "latest" means, that the package with the highest version number will be installed. If a newer package is provided, it
 will be automatically taken on the next restart of the bot or reload of this plugin.<br/>
@@ -32,9 +32,22 @@ If using the "repo" parameter, the bot can download any version from this reposi
 has to be attached to the relevant releases in there, containing a zip file that matches the naming pattern 
 <package>_v<version>.zip, e.g. DCSOlympus_v1.0.3.zip and the packages has to be in the OvGME format.
 
-> ⚠️ **Attention!**<br/>
-> On every DCS update that is performed by the bot, this plugin will automatically __uninstall__ and __reinstall__ all
-> packages configured for the "RootFolder", so that after the update, all packages should be up-to-date and reapplied.
+> [!IMPORTANT]
+> Root packages will be installed into your DCS installation and are active in any instance that you run on this node.
+> Therefore, you need to define the root packages either in your DEFAULT tag, to make them available on the whole node
+> or - if you run a multi-node system - you need to define the YAML structure with Node + Instance like so:
+> ```yaml
+> DEFAULT:
+>   xx
+> NodeName:
+>   InstanceName:
+>     packages:
+>       - xxx
+> ```
+
+> [!NOTE]
+> On every DCS update (that is performed by the bot!), this plugin will automatically __uninstall__ and __reinstall__ all
+> packages configured for the "RootFolder", so that after the update, all packages should be up-to-date and re-applied.
 
 ### Package Structure
 All packages must have a strict naming convention, that follows (package_name)_v(version).

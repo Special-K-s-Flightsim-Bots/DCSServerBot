@@ -19,7 +19,7 @@ class MissionUploadHandler(ServerUploadHandler):
     async def handle_attachment(self, directory: str, att: discord.Attachment) -> UploadStatus:
         ctx = await self.bot.get_context(self.message)
         rc = await self.server.uploadMission(att.filename, att.url, force=False, missions_dir=directory)
-        if rc == UploadStatus.FILE_IN_USE:
+        if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
             if not await utils.yn_question(ctx, _('A mission is currently active.\n'
                                                   'Do you want me to stop the DCS-server to replace it?')):
                 await self.channel.send(_('Upload aborted.'))

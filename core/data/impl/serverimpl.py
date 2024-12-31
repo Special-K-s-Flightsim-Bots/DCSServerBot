@@ -27,6 +27,7 @@ from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from core.utils.performance import performance_log
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Union, Any
@@ -43,7 +44,8 @@ if TYPE_CHECKING:
     from services.bot import DCSServerBot
 
 DEFAULT_EXTENSIONS = {
-    "LogAnalyser": {}
+    "LogAnalyser": {},
+    "Cloud": {}
 }
 
 __all__ = ["ServerImpl"]
@@ -478,7 +480,7 @@ class ServerImpl(Server):
     async def init_extensions(self) -> list[str]:
         async with self.lock:
             extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
-            for extension in extensions:
+            for extension in extensions.keys():
                 try:
                     ext: Extension = self.extensions.get(extension)
                     if not ext:
@@ -620,6 +622,9 @@ class ServerImpl(Server):
                     await asyncio.sleep(1)
             await self._terminate()
         self.status = Status.SHUTDOWN
+        shutil.copy2(os.path.join(self.instance.home, 'Logs', 'dcs.log'),
+                     os.path.join(self.instance.home, 'Logs',
+                                  f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
 
     async def is_running(self) -> bool:
         async with self.lock:
@@ -889,6 +894,9 @@ class ServerImpl(Server):
         else:
             return True
         return False
+
+    async def getMissionList(self) -> list[str]:
+        return self.settings.get('missionList', [])
 
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
         ext = self.extensions.get(extension)

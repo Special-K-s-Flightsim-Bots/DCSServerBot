@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from core import Server, Status, utils, Coalition
-from core.utils.helper import async_cache
+from core.utils.helper import async_cache, cache_with_expiration
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from typing import Optional, Union, Any
@@ -279,14 +279,10 @@ class ServerProxy(Server):
                 "autostart": autostart
             }
         }, timeout=timeout, node=self.node.name)
-        # wait for the missionList sync
-        while path not in self.settings['missionList']:
-            await asyncio.sleep(1)
         return data['return']
 
     async def deleteMission(self, mission_id: int) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
-        path = self.settings['missionList'][mission_id - 1]
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
@@ -296,9 +292,6 @@ class ServerProxy(Server):
                 "mission_id": mission_id
             }
         }, timeout=timeout, node=self.node.name)
-        # wait for the missionList sync
-        while path in self.settings['missionList']:
-            await asyncio.sleep(1)
         return data['return']
 
     async def replaceMission(self, mission_id: int, path: str) -> list[str]:
@@ -339,6 +332,17 @@ class ServerProxy(Server):
             "params": {
                 "modify_mission": modify_mission
             }
+        }, timeout=timeout, node=self.node.name)
+        return data['return']
+
+    @cache_with_expiration(expiration=10)
+    async def getMissionList(self) -> list[str]:
+        timeout = 180 if not self.node.slow_system else 300
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "getMissionList",
+            "server_name": self.name
         }, timeout=timeout, node=self.node.name)
         return data['return']
 

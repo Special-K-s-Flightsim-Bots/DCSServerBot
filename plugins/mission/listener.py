@@ -637,6 +637,7 @@ class MissionEventListener(EventListener):
         # if the last player left, the server is considered idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
+            await self.bot.bus.send_to_node({"command": "onServerEmpty", "server_name": server.name})
         if player.member:
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
             if autorole:

@@ -96,7 +96,7 @@ every node, the installation of an additional node is quite straight forward.<br
 You just need to run `run.cmd` or `install.cmd` on your new node and the installer will guide you through your 
 installation. If not specified otherwise, the node-name will be the hostname of the respective node.
 
-> ⚠️ **Attention!**<br>
+> [!TIP]
 > If you use multiple nodes on multiple PCs, you might get to the moment where instances are named identical. 
 > This will start with the first instance already, if you keep the default name "DCS.release_server".<br>
 > As many configuration files only use the instance name per default, you might need to add the node name as well.

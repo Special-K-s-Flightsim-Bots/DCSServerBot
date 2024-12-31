@@ -4,11 +4,11 @@ from core import Extension, MizFile, Server, UnsupportedMizFileException
 from typing import Optional
 
 __all__ = [
-    "OvGME"
+    "ModManager"
 ]
 
 
-class OvGME(Extension):
+class ModManager(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.modules: dict[str, list[str]] = {}

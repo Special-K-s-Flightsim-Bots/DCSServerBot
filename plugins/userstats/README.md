@@ -45,17 +45,20 @@ instance2:
 
 ## Discord Commands
 
-| Command            | Parameter         | Channel       | Role           | Description                                                                                       |
-|--------------------|-------------------|---------------|----------------|---------------------------------------------------------------------------------------------------|
-| /statistics        | [user] [period]   | all           | DCS            | Display your own statistics or that of a specific user. A period can be supplied.                 |
-| /highscore         | [server] [period] | all           | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship) |
-| /reset_statistics  | [server]          | admin-channel | Admin          | Deletes the statistics. If a server is provided, only this server is affected.                    |
-| /delete_statistics | [user]            | all           | DCS, DCS Admin | Lets a user delete their own statistics, or an DCS Admin do it for any user.                      |
-| /squadron create   | <name> [role]     | all           | DCS Admin      | Create a new squadron and give it an optional auto-role.                                          |
-| /squadron delete   | <name>            | all           | DCS Admin      | Deletes a squadron and removes all players from that squadron mapping.                            |
-| /squadron join     | <name>            | all           | DCS            | Join a squadron (and get the optional auto role).                                                 |
-| /squadron leave    | <name>            | all           | DCS            | Leave a squadron (and remove the optional auto role).                                             |
-| /squadron list     | <name>            | all           | DCS            | Lists the members of a squadron.                                                                  |
+| Command            | Parameter                        | Channel       | Role           | Description                                                                                       |
+|--------------------|----------------------------------|---------------|----------------|---------------------------------------------------------------------------------------------------|
+| /statistics        | [user] [period]                  | all           | DCS            | Display your own statistics or that of a specific user. A period can be supplied.                 |
+| /highscore         | [server] [period]                | all           | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship) |
+| /reset_statistics  | [server]                         | admin-channel | Admin          | Deletes the statistics. If a server is provided, only this server is affected.                    |
+| /delete_statistics | [user]                           | all           | DCS, DCS Admin | Lets a user delete their own statistics, or an DCS Admin do it for any user.                      |
+| /squadron create   | <name> <locked> [role] [channel] | all           | DCS Admin      | Create a new squadron and give it an optional auto-role and persistent channel.                   |
+| /squadron add      | <name> <user>                    | all           | DCS Admin      | Adds a user to a squadron.                                                                        |
+| /squadron delete   | <name> [user]                    | all           | DCS Admin      | Deletes a user from a squadron or a whole squadron.                                               |
+| /squadron lock     | <name>                           | all           | DCS Admin      | Locks a squadron (no users can join or leave anymore on their own).                               |
+| /squadron unlock   | <name>                           | all           | DCS Admin      | Unlocks a squadron again.                                                                         |
+| /squadron join     | <name>                           | all           | DCS            | Join a squadron (and get the optional auto role).                                                 |
+| /squadron leave    | <name>                           | all           | DCS            | Leave a squadron (and remove the optional auto role).                                             |
+| /squadron list     | <name>                           | all           | DCS            | Lists the members of a squadron.                                                                  |
 
 ### Periods
 Periods can be used to specify, if you only want to see statistics for a specific time-period.
@@ -78,7 +81,7 @@ In addition, you can provide any campaign name or any mission name like so:
 - mission:Foothold
 It will do a wildcard search in all your missions.
 
-> ⚠️ **Attention!**<br/>
+> [!NOTE]
 > If a campaign is active on your server, `/statistics` and `/highscore` will display the data of that campaign only, 
 > unless you use the "all" period.
 
@@ -131,3 +134,20 @@ end
 | landings           | INTEGER DEFAULT 0   | Number of landings. Subsequent landings inbetween one minute are counted as one landing (workaround DCS bug).                  |
 | #hop_on            | TIMESTAMP NOT NULL  | Time the player occupied this unit.                                                                                            |
 | hop_off            | TIMESTAMP           | Time, the player left this unit or the server.                                                                                 |
+
+### Squadrons
+| Column      | Type                           | Description                                            |
+|-------------|--------------------------------|--------------------------------------------------------|
+| #id         | INTEGER NOT NULL               | Unique ID of this squadron. PK to the squadrons table. |
+| name        | TEXT NOT NULL                  | Name of the squadron.                                  |
+| description | TEXT                           | Description of the squadron.                           |
+| role        | BIGINT                         | Optional: Role ID of a squadron-role                   |
+| image_url   | TEXT                           | Optional: URL of the squadron-logo                     |
+| channel     | BIGINT                         | Optional: ID of a squadron channel                     |
+| locked      | BOOLEAN NOT NULL DEFAULT FALSE | True: Squadron is locked.                              |
+
+### Squadron_Members
+| Column       | Type             | Description                                            |
+|--------------|------------------|--------------------------------------------------------|
+| #squadron_id | INTEGER NOT NULL | Unique ID of this squadron. FK to the squadrons table. |
+| player_ucid  | TEXT NOT NULL    | UCID of a squadron member.                             |
