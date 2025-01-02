@@ -108,7 +108,6 @@ class BotService(Service):
                             locals=self.locals)
         else:
             # Create the Bot
-            proxy = self.locals.get('proxy', {}).get('url')
             return DCSServerBot(version=self.node.bot_version,
                                 sub_version=self.node.sub_version,
                                 command_prefix=get_prefix,
