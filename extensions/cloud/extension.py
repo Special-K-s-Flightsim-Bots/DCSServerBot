@@ -87,7 +87,7 @@ class Cloud(Extension):
                 "max_players": int(self.server.settings.get('maxPlayers', 16)),
                 "mission": self.server.current_mission.name,
                 "date": self.server.current_mission.date.strftime("%Y-%m-%d") if isinstance(self.server.current_mission.date, datetime) else self.server.current_mission.date,
-                "start_time": self.server.current_mission.start_time,
+                "start_time": int(self.server.current_mission.start_time),
                 "time_in_mission": int(self.server.current_mission.mission_time),
                 "time_to_restart": int((self.server.restart_time - datetime.now(tz=timezone.utc)).total_seconds()) if self.server.restart_time else -1,
             }
