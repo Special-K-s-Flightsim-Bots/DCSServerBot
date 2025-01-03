@@ -65,8 +65,7 @@ class MissionUploadHandler(ServerUploadHandler):
     async def _load_mission(self, filename: str):
         ctx = await self.bot.get_context(self.message)
         name = utils.escape_string(os.path.basename(filename)[:-4])
-        if (self.server.status != Status.SHUTDOWN and self.server.current_mission and
-                self.server.current_mission.filename != filename and
+        if (self.server.status != Status.SHUTDOWN and
                 await utils.yn_question(ctx, _('Do you want to load mission {}?').format(name))):
             extensions = [
                 x.name for x in self.server.extensions.values()
