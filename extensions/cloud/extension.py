@@ -108,7 +108,7 @@ class Cloud(Extension):
             })
             self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:
-            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.")
+            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
 
     async def startup(self) -> bool:
         await self.cloud_register()
