@@ -61,6 +61,7 @@ class Node:
         self.guild_id: int = int(self.config['guild_id'])
         self.dcs_version = None
         self.slow_system: bool = False
+        self.is_remote: bool = False
 
     def __repr__(self):
         return self.name

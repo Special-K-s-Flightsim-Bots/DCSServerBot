@@ -71,7 +71,8 @@ class Cloud(Extension):
 
     async def cloud_register(self):
         # we do not send cloud updates if we are not allowed and for non-public servers
-        if not self.config.get('register', True) or not self.server.settings['isPublic']:
+        if (not self.server.current_mission or not self.config.get('register', True) or
+                not self.server.settings.get('isPublic', True)):
             return
         payload = {}
         try:
@@ -107,7 +108,7 @@ class Cloud(Extension):
             })
             self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:
-            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.")
+            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
 
     async def startup(self) -> bool:
         await self.cloud_register()
