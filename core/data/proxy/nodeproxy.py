@@ -33,6 +33,7 @@ class NodeProxy(Node):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.slow_system = self.locals.get('slow_system', False)
         self.dcs_version = dcs_version
+        self.is_remote = True
 
     @property
     def master(self) -> bool:
