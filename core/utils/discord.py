@@ -933,7 +933,7 @@ class NodeTransformer(app_commands.Transformer):
     """
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Node:
         if value:
-            return next((x.node for x in interaction.client.servers.values() if x.node.name == value), None)
+            return interaction.client.node.all_nodes.get(value)
         else:
             return interaction.client.node
 
