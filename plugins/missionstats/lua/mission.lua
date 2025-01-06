@@ -220,7 +220,11 @@ function onEvent(event)
 					msg.target.unit_name = 'n/a'
 				end
                 msg.target.coalition = coalition.side.NEUTRAL
-				msg.target.unit_type = msg.target.unit:getTypeName()
+				if msg.target.unit.getTypeName ~= nil then
+					msg.target.unit_type = msg.target.unit:getTypeName()
+				else
+					msg.target.unit_type = 'n/a'
+				end
 			elseif category == Object.Category.CARGO then
 				msg.target.type = 'CARGO'
 				msg.target.unit = event.target

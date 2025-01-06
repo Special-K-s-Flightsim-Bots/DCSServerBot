@@ -100,15 +100,18 @@ class Cloud(Extension):
             self.log.debug(payload)
 
     async def cloud_unregister(self):
+        payload = {}
         try:
-            # noinspection PyUnresolvedReferences
-            await self.post('unregister_server', {
+            payload = {
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
-            })
+            }
+            # noinspection PyUnresolvedReferences
+            await self.post('unregister_server', payload)
             self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:
             self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
+            self.log.debug(payload)
 
     async def startup(self) -> bool:
         await self.cloud_register()
