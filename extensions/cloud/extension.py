@@ -71,7 +71,8 @@ class Cloud(Extension):
 
     async def cloud_register(self):
         # we do not send cloud updates if we are not allowed and for non-public servers
-        if not self.config.get('register', True) or not self.server.settings['isPublic']:
+        if (not self.server.current_mission or not self.config.get('register', True) or
+                not self.server.settings.get('isPublic', True)):
             return
         payload = {}
         try:
