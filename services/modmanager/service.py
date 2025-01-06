@@ -306,6 +306,9 @@ class ModManagerService(Service):
                             continue
                     else:
                         _name = name
+                    # ignore all Thumbs.db files
+                    if os.path.basename(_name).lower() == 'thumbs.db':
+                        continue
                     orig = os.path.join(target, _name)
                     if os.path.exists(orig) and os.path.isfile(orig):
                         log_entries.append(f"x {_name}\n")
@@ -325,8 +328,13 @@ class ModManagerService(Service):
 
         def copy_tree():
             def backup(p, names) -> list[str]:
+                ignore_list = []
                 _dir = p[len(os.path.join(path, package_name + '_v' + version)):].lstrip(os.path.sep)
                 for name in names:
+                    # ignore all Thumbs.db files
+                    if name.lower() == 'thumbs.db':
+                        ignore_list.append(name)
+                        continue
                     source = os.path.join(p, name)
                     if len(_dir):
                         name = os.path.join(_dir, name)
@@ -338,7 +346,7 @@ class ModManagerService(Service):
                         shutil.copy2(orig, dest)
                     else:
                         log_entries.append("w {}\n".format(name.replace('\\', '/')))
-                return []
+                return ignore_list
 
             shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
 
