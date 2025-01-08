@@ -22,7 +22,7 @@ An extension for DCSBattleground will be created at a later stage, so it can't b
 | /battleground recon | \<name\> \<mgrs\> Attachment: screenshots  | coalition chat channels | DCS  | Add recon data with screenshots to DCSBattleground. Coordinates needs to be in MGRS-format and screeshots in JPEG, GIF or PNG. |
 
 ## Tables
-### BG_GEOMETRY
+### BG_GEOMETRY ---> DEPRECATED
 | Column       | Type             | Description                                                                       |
 |--------------|------------------|-----------------------------------------------------------------------------------|
 | #id          | INTEGER NOT NULL | Auto-increment ID.                                                                |
@@ -38,3 +38,36 @@ An extension for DCSBattleground will be created at a later stage, so it can't b
 | radius       | NUMERIC          | Used by DCSBattlegound to store circles                                           |
 | discordname  | TEXT NOT NULL    | Discord user that added the screenshots or draw in DCSBattleground                |
 | avatar       | TEXT NOT NULL    | Discord avatar of the user that added the screenshots or draw in DCSBattleground. |
+
+### BG_GEOMETRY2
+| Column       | Type             | Description                                                                       |
+|--------------|------------------|-----------------------------------------------------------------------------------|
+| #id          | INTEGER NOT NULL | Auto-increment ID.  
+| node         | TEXT NOT NULL    | server_name of the server the screenshots should be published to.
+| data         | JSON NOT NULL    | Raw data of the geometry (Title, author, fields)
+| time         | TIMESTAMP        | Timestamp of the created / updated object
+
+### BG_MISSION
+| Column       | Type             | Description                                                                       |
+|--------------|------------------|-----------------------------------------------------------------------------------|
+| #id          | INTEGER NOT NULL | Auto-increment ID.  
+| node         | TEXT NOT NULL    | server_name of the server associated to the mission
+| data         | JSON NOT NULL    | Raw data of the mission (Title, author, fields)
+| time         | TIMESTAMP        | Timestamp of the created / updated object
+
+### BG_TASK
+| Column       | Type             | Description                                                                       |
+|--------------|------------------|-----------------------------------------------------------------------------------|
+| #id          | INTEGER NOT NULL | Auto-increment ID.  
+| #id_mission  | INTEGER NOT NULL | ID of mission associated to the task
+| node         | TEXT NOT NULL    | server_name of the server associated to the mission
+| data         | JSON NOT NULL    | Raw data of the task (Title, author, fields)
+| time         | TIMESTAMP        | Timestamp of the created / updated object
+
+### BG_TASK_USER_RLTN
+| Column       | Type             | Description                                                                       |
+|--------------|------------------|-----------------------------------------------------------------------------------|
+| #id          | INTEGER NOT NULL | Auto-increment ID.  
+| #id_task     | INTEGER NOT NULL | ID of task associated to the the enrollment
+| discord_id   | BIGINT NOT NULL  | Discord id of the enrollated player
+| time         | TIMESTAMP        | Timestamp of the created / updated object

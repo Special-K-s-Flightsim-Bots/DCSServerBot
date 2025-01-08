@@ -1,10 +1,12 @@
 import discord
 import psycopg
+import json
 from discord import app_commands
 from discord.app_commands import Group
 
 from core import Plugin, utils, Channel, Coalition, Server, get_translation
 from services.bot import DCSServerBot
+from .listener import BattlegroundEventListener
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -12,7 +14,7 @@ _ = get_translation(__name__.split('.')[1])
 class Battleground(Plugin):
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
-        await conn.execute("UPDATE bg_geometry SET server = %s WHERE server= %s", (new_name, old_name))
+        await conn.execute("UPDATE bg_geometry2 SET server = %s WHERE server= %s", (new_name, old_name))
 
     battleground = Group(name="battleground", description=_("DCSBattleground commands"))
 
@@ -39,13 +41,38 @@ class Battleground(Plugin):
                 continue
             done = True
             screenshots = [att.url for att in [screenshot]]  # TODO: add multiple ones
+            data = {}
+            author = {}
+            fields = {}
+            author['name'] = interaction.user.name
+            author['icon_url'] = interaction.user.display_avatar.url
+            fields['posPoint'] = []
+            fields['posMGRS'] = mgrs
+            fields['position_type'] = "MGRS"
+            fields['screenshot'] = screenshots
+            fields['description'] = []
+            fields['side'] = side
+            fields['color'] = "#e4e70a"
+            fields['status'] = "Shared"
+            fields['type'] = "recon"
+            fields['clickable'] = True
+            fields['points'] = []
+            fields['center'] = []
+            fields['radius'] = 0
+            data['title'] = name
+            data['author'] = author
+            data['fields'] = fields
             async with self.apool.connection() as conn:
                 async with conn.transaction():
+                    #await conn.execute("""
+                    #    INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
+                    #    VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
+                    #""", (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
+                    #      side, server.name))
                     await conn.execute("""
-                        INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
-                        VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
-                    """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
-                          side, server.name))
+                        INSERT INTO bg_geometry2(node, data) 
+                        VALUES (%s, %s)
+                    """, (server.name, json.dumps(data)))
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 _("Recon data added - {side} side - {server}").format(side=side, server=server.name))
@@ -62,11 +89,11 @@ class Battleground(Plugin):
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         async with self.apool.connection() as conn:
             async with conn.transation():
-                await conn.execute("DELETE FROM bg_geometry WHERE server = %s", (server.name, ))
+                await conn.execute("DELETE FROM bg_geometry2 WHERE server = %s", (server.name, ))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Recon data deleted for server {}.").format(server.name),
                                                 ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(Battleground(bot))
+    await bot.add_cog(Battleground(bot, BattlegroundEventListener))
