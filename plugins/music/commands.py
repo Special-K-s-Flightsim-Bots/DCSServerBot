@@ -98,11 +98,11 @@ async def subfolder_autocomplete(interaction: discord.Interaction, current: str)
         return []
     try:
         service = ServiceRegistry.get(MusicService)
-        # music_dir = await service.get_music_dir()
-        # playlist = await Playlist.create(utils.get_interaction_param(interaction, 'playlist'))
+        music_dir = await service.get_music_dir()
+        _, file_list = await interaction.client.node.list_directory(music_dir, is_dir=True, traverse=True)
         ret: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=folder.name, value=folder.name)
-            for folder in Path(await service.get_music_dir()).iterdir() if folder.is_dir()
+            app_commands.Choice(name=os.path.relpath(folder, music_dir), value=folder)
+            for folder in file_list
         ]
         return ret[:25]
     except Exception as ex:
@@ -239,35 +239,30 @@ class Music(Plugin):
     @app_commands.autocomplete(subfolder=subfolder_autocomplete)
     async def add_all(self, interaction: discord.Interaction, playlist: str, subfolder: Optional[str] = None):
         ephemeral = utils.get_ephemeral(interaction)
+        music_dir = await self.service.get_music_dir()
         if subfolder:
-            if not await utils.yn_question(interaction, _(f'Do you really want to add ALL songs from the `{subfolder}` folder to the playlist?'),
-                                       ephemeral=ephemeral):
-                return
-        else:
-            if not await utils.yn_question(interaction, _('Do you really want to add ALL songs to the playlist?'),
-                                       ephemeral=ephemeral):
-                return
-        p = await Playlist.create(playlist)
-        
-         # If a subfolder name is given, return the subfolder path
-        final_path: Path = None
-        if subfolder:
+            message = _('Do you really want to add ALL songs from the `{}` folder to the playlist?').format(
+                os.path.relpath(subfolder, music_dir))
             final_path = Path(await self.service.get_music_dir()) / subfolder
         else:
+            message = _('Do you really want to add ALL songs to the playlist?')
             final_path = Path(await self.service.get_music_dir())
-            
-        # for song in [file for file in Path(await self.service.get_music_dir()).glob('*.mp3')]:
-        for song in [file for file in final_path.glob('*.mp3')]:
-            if subfolder:
-                await p.add(f"{subfolder}\{song.name}")
-            else:
-                await p.add(song.name)
 
-            title = get_tag(song).title or song.name
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            return
+
+        p = await Playlist.create(playlist)
+        
+        x, file_list = await interaction.client.node.list_directory(final_path, pattern=['*.mp3', '*.ogg'])
+        for song in file_list:
+            await p.add(os.path.relpath(song, music_dir))
+            title = get_tag(song).title or os.path.basename(song)
             await interaction.followup.send(
                 _('{title} has been added to playlist {playlist}.').format(title=utils.escape_string(title),
                                                                            playlist=playlist),
                 ephemeral=ephemeral)
+
+        await interaction.followup.send(_('Playlist {} updated.').format(playlist), ephemeral=ephemeral)
 
     @plgroup.command(description=_("Remove a song from a playlist"))
     @utils.app_has_role('DCS Admin')
