@@ -4,5 +4,6 @@ from .cpu import *
 from .dcs import *
 from .discord import *
 from .helper import *
+from .mizedit import *
 from .os import *
 from .performance import *

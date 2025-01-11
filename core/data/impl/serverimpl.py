@@ -671,9 +671,6 @@ class ServerImpl(Server):
             dirty = False
             for ext in self.extensions.values():
                 if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
-                    # make an initial backup, if there is none
-                    if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-                        shutil.copy2(filename, filename + '.orig')
                     new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
                     if _dirty:
                         self.log.info(f'  => {ext.name} applied on {new_filename}.')
@@ -741,6 +738,9 @@ class ServerImpl(Server):
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
+        # make an initial backup, if there is none
+        if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
+            shutil.copy2(filename, filename + '.orig')
         # write new mission
         new_filename = utils.create_writable_mission(filename)
         await asyncio.to_thread(miz.save, new_filename)
