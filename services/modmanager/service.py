@@ -223,7 +223,7 @@ class ModManagerService(Service):
         for _, _version in available:
             if not max_version or version.parse(_version) > version.parse(max_version):
                 max_version = _version
-        return max_version.strip('v')
+        return max_version.strip('v') if max_version else None
 
     async def get_latest_version(self, package: dict) -> str:
         if 'repo' in package:
