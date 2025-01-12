@@ -78,11 +78,13 @@ class SkyEye(Extension):
         return False
 
     async def prepare(self) -> bool:
-        whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
-        if not os.path.exists(whisper_path):
-            self.log.info(f"  => {self.name}: Downloading whisper model...")
-            await self.download_whisper_file(self.config.get('whisper-model', 'ggml-small.en.bin'))
-            self.log.info(f"  => {self.name}: Whisper model downloaded.")
+        # make sure we have a local model, unless configured otherwise
+        if self.config.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
+            whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
+            if not os.path.exists(whisper_path):
+                self.log.info(f"  => {self.name}: Downloading whisper model...")
+                await self.download_whisper_file(self.config.get('whisper-model', 'ggml-small.en.bin'))
+                self.log.info(f"  => {self.name}: Whisper model downloaded.")
 
         dirty = False
         dirty |= self._maybe_update_config('recognizer', self.config.get('recognizer', 'openai-whisper-local'))

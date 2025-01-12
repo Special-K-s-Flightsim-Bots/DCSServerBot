@@ -11,8 +11,9 @@ schema;instance_skyeye_schema:
     debug: {type: bool}
     config: {type: str, required: true}
     coalition: {type: str, required: true, enum: ['blue', 'red']}
-    recognizer: {type: str}
+    recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api']}
     whisper-model: {type: str}
+    openai-api-key: {type: str}
     callsign: {type: str}
     callsigns:
       type: seq

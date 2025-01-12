@@ -33,8 +33,13 @@ MyNode:
           # No need to provide SRS, Tacview and gRPC configuration, as long as they are configured in nodes.yaml
 ```
 > [!NOTE]
-> It is recommended to have your SkyEye configuration below your DCS server configuration, as that allows the
-> auto-detection of the process and is a clean way of having all your instance configurations at one place.
+> It is recommended to have your SkyEye configuration in your instance-specific Saved Games\instance\Config directory, 
+> as that allows the auto-detection of the process and is a clean way of having all your instance configurations at one 
+> place.
+
+> [!NOTE]
+> DCSServerBot uses the local Whisper model per default, if not configured otherwise. If you see performance issues,
+> try the (paid) API version instead.
 
 > [!IMPORTANT]
 > SkyEye can be very heavy on your CPU, if you use local (free) whisper models. It is recommended to separate SkyEye
