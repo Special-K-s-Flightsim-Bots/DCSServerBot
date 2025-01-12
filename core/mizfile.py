@@ -528,10 +528,8 @@ class MizFile:
             elif isinstance(value, str):
                 if value.startswith('$'):
                     kwargs[name] = utils.evaluate(value, **kwargs)
-                elif '/' in value:
-                    kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
                 else:
-                    kwargs[name] = value
+                    kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
             else:
                 self.log.error(f"Variable '{name}' has an unsupported value: {value}")
 

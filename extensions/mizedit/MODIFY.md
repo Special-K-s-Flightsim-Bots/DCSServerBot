@@ -124,6 +124,7 @@ MyFancyPreset:
     variables:
       theatre: theatre                          # fills the missions theatre into the {theatre} variable
       temperature: weather/season/temperature   # fills the mission temperature in the {temperature} variable
+      speed: 40                                 # sets a fixed value for speed
       rand: '$random.randint(1, 10)'            # fills some random number between 1 and 10 into ${rand}
       mylist: '$list(range(1, {rand}))'         # creates a list ${mylist} of numbers starting from 1 to the result of the random pick above
 ```
