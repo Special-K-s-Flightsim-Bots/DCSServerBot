@@ -117,6 +117,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | ModManager  | Use mods within your DCS World servers.                                                                    | [README](./extensions/modmanager/README.md)  |
 | Pretense    | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
 | RealWeather | Real weather for your missions using DCS Real Weather.                                                     | [README](./extensions/realweather/README.md) |
+| SkyEye      | AI Powered GCI Bot for DCS                                                                                 | [README](./extensions/skyeye/README.md)      |
 | Sneaker     | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! | [README](./extensions/sneaker/README.md)     |
 | SRS         | DCS-SRS, "market leader" in DCS VOIP integration.                                                          | [README](./extensions/srs/README.md)         |
 | Tacview     | Well known flight data capture and analysis tool.                                                          | [README](./extensions/tacview/README.md)     |

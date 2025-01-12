@@ -17,7 +17,6 @@ import tempfile
 if sys.platform == 'win32':
     import ctypes
 
-from aiohttp import ClientConnectionError
 from configparser import RawConfigParser
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
@@ -446,7 +445,7 @@ class SRS(Extension, FileSystemEventHandler):
                             return version
                         else:
                             return None
-        except ClientConnectionError:
+        except aiohttp.ClientConnectionError:
             return None
 
     def do_update(self):
