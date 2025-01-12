@@ -523,10 +523,17 @@ class MizFile:
 
         # do we need to pre-set variables to work with?
         for name, value in config.get('variables', {}).items():
-            if value.startswith('$'):
-                kwargs[name] = utils.evaluate(value, **kwargs)
+            if isinstance(value, (int, float, dict, list)):
+                kwargs[name] = value
+            elif isinstance(value, str):
+                if value.startswith('$'):
+                    kwargs[name] = utils.evaluate(value, **kwargs)
+                elif '/' in value:
+                    kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
+                else:
+                    kwargs[name] = value
             else:
-                kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
+                self.log.error(f"Variable '{name}' has an unsupported value: {value}")
 
         # run the processing
         try:
