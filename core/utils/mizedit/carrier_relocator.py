@@ -101,9 +101,9 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     wind = kwargs.get('wind', {})
     carrier = group.units[0]
     deck_angle = 0 if carrier.type == 'LHA_Tarawa' else -9.12
-    cruise = get_carrier_cruise(wind, deck_angle, Speed.from_knots(25))
+    cruise = get_carrier_cruise(wind, deck_angle, Speed.from_knots(kwargs.get('speed', 25)))
 
-    radius = Distance.from_nautical_miles(50)
+    radius = Distance.from_nautical_miles(kwargs.get('radius', 50))
     carrier_start_pos = point_from_heading(group.x, group.y, cruise.heading.opposite.degrees, radius.meters)
     carrier_end_pos = point_from_heading(group.x, group.y, cruise.heading.degrees, radius.meters)
 
