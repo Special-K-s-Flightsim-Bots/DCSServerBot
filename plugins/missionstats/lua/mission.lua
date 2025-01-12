@@ -125,7 +125,6 @@ function onEvent(event)
 				msg.initiator.name = msg.initiator.unit:getPlayerName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
-				msg.initiator.category = msg.initiator.unit
 				msg.initiator.category = msg.initiator.unit:getDesc().category
 			elseif category == Object.Category.WEAPON then
 				msg.initiator.type = 'WEAPON'

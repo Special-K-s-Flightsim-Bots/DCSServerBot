@@ -318,20 +318,29 @@ If you need any further assistance, please visit the support discord, listed in 
             master = False
             i = 0
 
-        print(_("\n{}. [u]Database Setup[/]").format(i+1))
+        print(_("\n{}. [u]Database Setup[/]").format(i + 1))
         if master:
             database_url = Install.get_database_url(user, database)
             if not database_url:
                 self.log.error(_("Aborted: No valid Database URL provided."))
                 exit(-1)
         else:
-            try:
-                database_url = next(node['database']['url'] for node in nodes.values() if node.get('database'))
+            if 'database' in main:
+                database_url = main['database']['url']
+            else:
+                try:
+                    database_url = next(node['database']['url'] for node in nodes.values() if node.get('database'))
+                except StopIteration:
+                    database_url = None
+            if database_url:
                 url = urlparse(database_url)
                 hostname, port = self.get_database_host(url.hostname, url.port)
                 database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
-            except StopIteration:
+            else:
                 database_url = Install.get_database_url(user, database)
+                if not database_url:
+                    self.log.error(_("Aborted: No valid Database URL provided."))
+                    exit(-1)
 
         print(_("\n{}. [u]Node Setup[/]").format(i+2))
         if sys.platform == 'win32':
@@ -340,10 +349,11 @@ If you need any further assistance, please visit the support discord, listed in 
             dcs_installation = Install.get_dcs_installation_linux()
         node = nodes[self.node] = {
             "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
-            "database": {
+        }
+        if 'database' not in main:
+            node["database"]: {
                 "url": database_url
             }
-        }
         if dcs_installation:
             node["DCS"] = {
                 "installation": dcs_installation

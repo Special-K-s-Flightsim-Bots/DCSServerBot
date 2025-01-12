@@ -172,3 +172,5 @@ function dcsbot.setFogAnimation(animation, channel)
     }
     dcsbot.sendBotTable(msg, channel)
 end
+
+env.setErrorMessageBoxEnabled(false)
