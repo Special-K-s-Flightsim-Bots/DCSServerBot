@@ -69,7 +69,7 @@ def get_carrier_cruise(wind: dict, deck_angle: float, desired_apparent_wind: Spe
     )
     # Quick hack for Tarawa
     if deck_angle == 0:
-        wind_heading = Heading( wind.get('dir', 0))
+        wind_heading = Heading(wind.get('dir', 0))
         heading = wind_heading.opposite.degrees
 
     solution = HeadingAndSpeed(
@@ -104,10 +104,8 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     cruise = get_carrier_cruise(wind, deck_angle, Speed.from_knots(25))
 
     radius = Distance.from_nautical_miles(50)
-    carrier_start_pos = point_from_heading(
-        group['x'], group['y'], cruise.heading.opposite.degrees, radius.meters
-    )
-    carrier_end_pos = point_from_heading(reference['x'], reference['y'], cruise.heading.degrees, radius.meters)
+    carrier_start_pos = point_from_heading(group.x, group.y, cruise.heading.opposite.degrees, radius.meters)
+    carrier_end_pos = point_from_heading(group.x, group.y, cruise.heading.degrees, radius.meters)
 
     group_heading_before_change = heading_between_points(
         route.points[0].x, route.points[0].y, route.points[1].x, route.points[1].y
@@ -146,8 +144,8 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
         carrier_start_pos[1] - group_position_before_change[1]
     )
     for unit in group.units:
-        unit.x = unit.x + position_change[0]
-        unit.y = unit.y + position_change[1]
+        unit.x += position_change[0]
+        unit.y += position_change[1]
 
     heading_change = cruise.heading.degrees - group_heading_before_change
     rotate_group_around(
