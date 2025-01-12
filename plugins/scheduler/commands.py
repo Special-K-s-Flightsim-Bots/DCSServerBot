@@ -171,9 +171,9 @@ class Scheduler(Plugin):
             if server.status == Status.RUNNING:
                 if isinstance(times, dict):
                     warn_text = times[warn_time]
-                await server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
-                                                                              when=utils.format_time(warn_time)),
-                                              server.locals.get('message_timeout', 10))
+                message = warn_text.format(item=item, what=what, when=utils.format_time(warn_time))
+                await server.sendPopupMessage(Coalition.ALL, message, server.locals.get('message_timeout', 10))
+                await server.sendChatMessage(Coalition.ALL, message)
                 if 'sound' in config['warn']:
                     await server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
                                                                               time=warn_time))
