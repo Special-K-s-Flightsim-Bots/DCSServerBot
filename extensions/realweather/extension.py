@@ -138,9 +138,9 @@ class RealWeather(Extension):
         cwd = await self.server.get_missions_dir()
 
         if self.version.split('.')[0] == '1':
-            await self.generate_config_1_0(filename, tmpname, cwd)
+            await self.generate_config_1_0(utils.get_orig_file(filename), tmpname, cwd)
         else:
-            await self.generate_config_2_0(filename, tmpname, cwd)
+            await self.generate_config_2_0(utils.get_orig_file(filename), tmpname, cwd)
         rw_home = os.path.expandvars(self.config['installation'])
 
         def run_subprocess():
@@ -166,10 +166,6 @@ class RealWeather(Extension):
         await asyncio.to_thread(MizFile, tmpname)
 
         # mission is good, take it
-        # make an initial backup, if there is none
-        if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-            shutil.copy2(filename, filename + '.orig')
-
         new_filename = utils.create_writable_mission(filename)
         shutil.copy2(tmpname, new_filename)
         os.remove(tmpname)

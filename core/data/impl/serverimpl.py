@@ -59,14 +59,10 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
+        # ignore non-mission files and such that are in the .dcssb folder
         if not path.endswith('.miz') or '.dcssb' in path:
             return
-        if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "addMission", "path": path}),
-                                             self.loop)
-        else:
-            missions = self.server.settings['missionList']
-            missions.append(path)
+        asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
         self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def on_moved(self, event: FileSystemMovedEvent):
@@ -75,21 +71,17 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
+        # ignore non-mission files
         if not path.endswith('.miz'):
             return
         missions = self.server.settings['missionList']
+        if '.dcssb' not in path:
+            secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+            if secondary in missions:
+                path = secondary
         if path in missions:
-            if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                idx = missions.index(path) + 1
-                if idx == self.server.mission_id:
-                    self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
-                    return
-                else:
-                    asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "deleteMission", "id": idx}),
-                                                     self.loop)
-            else:
-                missions.remove(path)
-                self.server.settings['missionList'] = missions
+            idx = missions.index(path) + 1
+            asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
         else:
             self.log.debug(f"Mission file {path} got deleted from disk.")
@@ -229,7 +221,7 @@ class ServerImpl(Server):
         mission_list = data['missionList']
         if mission_list != self.settings['missionList']:
             for m in set(self.settings['missionList']) - set(mission_list):
-                self.log.warning(f"Removed unsupported mission file from the list: {m}")
+                self.log.warning(f"Removed non-existing/unsupported mission from the list: {m}")
             self.settings['missionList'] = mission_list
 
     def set_status(self, status: Union[Status, str]):
@@ -713,34 +705,30 @@ class ServerImpl(Server):
                 """, (self.node.name, self.name))
 
     async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
-        stopped = False
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
+        secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
         for idx, name in enumerate(self.settings['missionList']):
-            if (os.path.normpath(name) == filename) or (os.path.normpath(name) == os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))):
+            if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
                 if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
                     if not force:
                         return UploadStatus.FILE_IN_USE
-                    await self.stop()
-                    stopped = True
-                filename = name
+                add = True
                 break
+        else:
+            add = self.locals.get('autoadd', True)
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
-        if not self.locals.get('autoscan', False) and self.locals.get('autoadd', True):
+        if (force or not self.locals.get('autoscan', False)) and add:
             await self.addMission(filename)
-        if stopped:
-            await self.start()
         return UploadStatus.OK
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
-        miz = await asyncio.to_thread(MizFile, filename)
+        # apply preset
+        miz = await asyncio.to_thread(MizFile, utils.get_orig_file(filename))
         await asyncio.to_thread(miz.apply_preset, preset)
-        # make an initial backup, if there is none
-        if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-            shutil.copy2(filename, filename + '.orig')
         # write new mission
         new_filename = utils.create_writable_mission(filename)
         await asyncio.to_thread(miz.save, new_filename)
@@ -810,12 +798,17 @@ class ServerImpl(Server):
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
-        if '.dcssb' in path:
-            secondary = os.path.join(os.path.dirname(os.path.dirname(path)), os.path.basename(path))
-        else:
-            secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        orig = path + '.orig'
+        if os.path.exists(orig):
+            os.remove(orig)
+        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         missions = self.settings['missionList']
         if path in missions or secondary in missions:
+            # the mission is already in the list. check if we need to reset a .dcssb copy
+            if secondary in missions:
+                await self.replaceMission(missions.index(secondary) + 1, path)
+                with suppress(Exception):
+                    os.remove(secondary)
             return missions
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})

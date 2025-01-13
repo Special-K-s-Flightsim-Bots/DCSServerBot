@@ -18,6 +18,7 @@ __all__ = [
     "dd_to_dms",
     "get_active_runways",
     "create_writable_mission",
+    "get_orig_file",
     "lua_pattern_to_python_regex",
     "format_frequency"
 ]
@@ -153,6 +154,18 @@ def create_writable_mission(filename: str) -> str:
             os.makedirs(dirname, exist_ok=True)
             new_filename = os.path.join(dirname, os.path.basename(filename))
     return new_filename
+
+
+def get_orig_file(filename: str) -> str:
+    if '.dcssb' in filename:
+        orig_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                 os.path.basename(filename)) + '.orig'
+    else:
+        orig_file = filename + '.orig'
+        # make an initial backup, if there is none
+        if not os.path.exists(orig_file):
+            shutil.copy2(filename, orig_file)
+    return orig_file
 
 
 def lua_pattern_to_python_regex(lua_pattern):

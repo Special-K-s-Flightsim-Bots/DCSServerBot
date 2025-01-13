@@ -20,10 +20,11 @@ class MissionUploadHandler(ServerUploadHandler):
         ctx = await self.bot.get_context(self.message)
         rc = await self.server.uploadMission(att.filename, att.url, force=False, missions_dir=directory)
         if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
-            if not await utils.yn_question(ctx, _('A mission is currently active.\n'
+            if not await utils.yn_question(ctx, _('This mission is currently active.\n'
                                                   'Do you want me to stop the DCS-server to replace it?')):
                 await self.channel.send(_('Upload aborted.'))
                 return rc
+            await self.server.stop()
         elif rc == UploadStatus.FILE_EXISTS:
             self.log.debug("File exists, asking for overwrite.")
             if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):
@@ -41,7 +42,7 @@ class MissionUploadHandler(ServerUploadHandler):
             await self.channel.send(_('Mission "{mission}" uploaded to server {server} and NOT added.').format(
                 mission=name, server=self.server.display_name))
             return rc
-        if self.server.locals.get('autoscan', False):
+        if self.server.status != Status.STOPPED and self.server.locals.get('autoscan', False):
             self.log.debug("Autoscan enabled, waiting for mission to be auto-added.")
             await self.channel.send(
                 _('Mission "{mission}" uploaded to server {server}.\n'
@@ -97,7 +98,6 @@ class MissionUploadHandler(ServerUploadHandler):
             self.log.error(msg)
             await self.channel.send(_(msg))
             return
-        stopped = False
         if self.server.is_populated():
             ctx = await self.bot.get_context(self.message)
             if not await utils.yn_question(ctx, _("People are flying on this server.\n"
@@ -105,7 +105,7 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.channel.send("Aborted.")
                 return
             await self.server.stop()
-            stopped = True
-        await self._load_mission(filename)
-        if stopped:
+        if filename != await self.server.get_current_mission_file():
+            await self._load_mission(filename)
+        if self.server.status == Status.STOPPED:
             await self.server.start()
