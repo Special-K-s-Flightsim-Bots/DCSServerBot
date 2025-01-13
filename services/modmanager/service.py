@@ -67,7 +67,7 @@ class ModManagerService(Service):
         # uninstall all RootFolder-packages
         self.log.debug("  => Uninstalling any Mods from the DCS installation folder ...")
         for package_name, _version in await self.get_installed_packages(self.node, Folder.RootFolder):
-            await self.uninstall_package(self.node, Folder.RootFolder, package_name, _version)
+            await self.uninstall_root_package(self.node, package_name, _version)
 
     async def after_dcs_update(self):
         self.log.debug("  => Re-installing any Mods into the DCS installation folder ...")
@@ -372,14 +372,16 @@ class ModManagerService(Service):
         return True
 
     @proxy
-    async def install_package(self, reference: Union[Server, Node], folder: Folder, package_name: str, version: str,
+    async def install_package(self, server: Server, folder: Folder, package_name: str, version: str,
                               repo: Optional[str] = None) -> bool:
         self.log.info(f"Installing package {package_name}_v{version} ...")
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         if folder == Folder.SavedGames:
+            reference = server
             os.makedirs(os.path.join(path, '.' + reference.instance.name), exist_ok=True)
         else:
+            reference = server.node
             os.makedirs(os.path.join(path, '.' + reference.name), exist_ok=True)
         try:
             filename = str(next(Path(path).glob(f"{package_name}*{version}*")))
@@ -426,20 +428,35 @@ class ModManagerService(Service):
         return True
 
     @proxy
-    async def uninstall_package(self, reference: Union[Server, Node], folder: Folder, package_name: str, version: str) -> bool:
+    async def uninstall_package(self, server: Server, folder: Folder, package_name: str, version: str) -> bool:
+        if folder == Folder.RootFolder:
+            return await self.uninstall_root_package(server.node, folder, package_name, version)
         self.log.info(f"Uninstalling package {package_name}_v{version} ...")
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
-        if folder == Folder.SavedGames:
-            packages_path = os.path.join(path, '.' + reference.instance.name, package_name + '_v' + version)
-        else:
-            packages_path = os.path.join(path, '.' + reference.name, package_name + '_v' + version)
+        packages_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         if not os.path.exists(os.path.join(packages_path, 'install.log')):
             self.log.warning(f"- Can't find {os.path.join(packages_path, 'install.log')}. Trying to recreate ...")
             # try to recreate it
-            if not await self.recreate_install_log(reference, folder, package_name, version):
+            if not await self.recreate_install_log(server, folder, package_name, version):
                 self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
                 return False
             else:
                 self.log.info("- Recreation successful.")
-        return await self.do_uninstall(reference, folder, package_name, version, packages_path)
+        return await self.do_uninstall(server, folder, package_name, version, packages_path)
+
+    async def uninstall_root_package(self, node: Node, package_name: str, version: str) -> bool:
+        self.log.info(f"Uninstalling root-package {package_name}_v{version} ...")
+        folder = Folder.RootFolder
+        config = self.get_config()
+        path = os.path.expandvars(config[folder.value])
+        packages_path = os.path.join(path, '.' + node.name, package_name + '_v' + version)
+        if not os.path.exists(os.path.join(packages_path, 'install.log')):
+            self.log.warning(f"- Can't find {os.path.join(packages_path, 'install.log')}. Trying to recreate ...")
+            # try to recreate it
+            if not await self.recreate_install_log(node, folder, package_name, version):
+                self.log.error(f"- Recreation failed. Can't uninstall {package_name}.")
+                return False
+            else:
+                self.log.info("- Recreation successful.")
+        return await self.do_uninstall(node, folder, package_name, version, packages_path)
