@@ -265,7 +265,7 @@ class SkyEye(Extension):
         return {
             "name": self.__class__.__name__,
             "version": self.version,
-            "value": '\n'.join([x.strip() for x in self.locals.get('srs-frequencies').split(',')])
+            "value": '\n'.join([x.strip() for x in self.locals.get('srs-frequencies', '').split(',')])
         }
 
     def is_installed(self) -> bool:
