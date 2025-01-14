@@ -43,7 +43,10 @@ class SkyEye(Extension):
     def load_config(self) -> Optional[dict]:
         path = os.path.expandvars(self.config['config'])
         if not os.path.exists(path):
-            shutil.copy2(os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml"), path)
+            base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
+            if not os.path.exists(base_config):
+                return {}
+            shutil.copy2(base_config, path)
         return yaml.load(Path(path).read_text(encoding='utf-8'))
 
     def set_affinity(self, affinity: Union[list[int], str]):
