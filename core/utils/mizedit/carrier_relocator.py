@@ -90,7 +90,7 @@ def rotate_group_around(group: DictWrapper, pivot: tuple[float, float], degrees_
     for unit in group.units:
         distance = distance_to_point(pivot[0], pivot[1], unit.x, unit.y)
         heading = heading_between_points(pivot[0], pivot[1], unit.x, unit.y)
-        new_heading = Heading.from_degrees(heading + degrees_change).radians
+        new_heading = Heading.from_degrees(heading + degrees_change).degrees
 
         unit.x, unit.y = point_from_heading(pivot[0], pivot[1], new_heading, distance)
         unit.heading = Heading.from_degrees(unit.heading + degrees_change).radians
@@ -115,12 +115,9 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     )
     group_position_before_change = (route.points[0].x, route.points[0].y)
 
+    # we need at least 4 waypoints for the group
     while len(route.points) < 4:
         route.points.append(route.points[-1].clone())
-
-    # update the groups position
-    reference['x'] = carrier_start_pos[0]
-    reference['y'] = carrier_start_pos[1]
 
     # change the waypoints
     route.points[0].x = carrier_start_pos[0]
@@ -159,5 +156,7 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     )
 
     # change the real thing
+    reference['x'] = carrier_start_pos[0]
+    reference['y'] = carrier_start_pos[1]
     reference['route'] = route.to_dict()
     reference['units'] = [unit.to_dict() for unit in group.units]
