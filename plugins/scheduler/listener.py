@@ -130,7 +130,7 @@ class SchedulerListener(EventListener):
             if not server.locals.get('mission_rewrite', True):
                 await server.stop()
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(utils.get_orig_file(filename),
+            new_filename = await server.modifyMission(filename,
                                                       [utils.get_preset(self.node, x) for x in what['preset']])
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")

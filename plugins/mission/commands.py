@@ -610,8 +610,7 @@ class Mission(Plugin):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(utils.get_orig_file(filename),
-                                                      [utils.get_preset(self.node, x) for x in view.result])
+            new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
             message = _('The following preset were applied: {}.').format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")

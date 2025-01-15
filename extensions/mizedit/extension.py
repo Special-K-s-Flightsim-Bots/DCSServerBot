@@ -81,7 +81,8 @@ class MizEdit(Extension):
                 modifications.append(value)
         return modifications
 
-    async def apply_presets(self, filename: str, preset: Union[list, dict]) -> str:
+    @staticmethod
+    async def apply_presets(filename: str, preset: Union[list, dict]) -> str:
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
         # write new mission

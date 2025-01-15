@@ -34,7 +34,6 @@ from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer
 
-
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
@@ -45,8 +44,7 @@ if TYPE_CHECKING:
 
 DEFAULT_EXTENSIONS = {
     "LogAnalyser": {},
-    "Cloud": {},
-    "MizEdit": {}
+    "Cloud": {}
 }
 
 __all__ = ["ServerImpl"]
@@ -729,7 +727,9 @@ class ServerImpl(Server):
         return UploadStatus.OK
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
-        return await self.extensions['MizEdit'].apply_presets(filename, preset)
+        from extensions.mizedit import MizEdit
+
+        return await MizEdit.apply_presets(utils.get_orig_file(filename), preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
