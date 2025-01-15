@@ -39,11 +39,11 @@ class Init(report.EmbedElement):
 
 class ServerInfo(report.EmbedElement):
 
-    async def render(self, server: Server, show_password: Optional[bool] = True):
+    async def render(self, server: Server, show_password: Optional[bool] = True, host: Optional[str] = None,):
         name = value = ""
         if server.node.public_ip:
             name = "Server-IP / Port"
-            value = f"{server.node.public_ip}:{server.settings['port']}"
+            value = f"{host or server.node.public_ip}:{server.settings['port']}"
         if server.settings['password']:
             if value:
                 value += '\n\n**Password**\n'
