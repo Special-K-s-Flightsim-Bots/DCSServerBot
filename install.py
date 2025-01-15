@@ -487,7 +487,7 @@ If you need any further assistance, please visit the support discord, listed in 
         print(_("- Created {}").format(os.path.join(config_dir, "servers.yaml")))
         self.log.info(_("{} written.").format(os.path.join(config_dir, "servers.yaml")))
         # write plugin configuration
-        if scheduler:
+        if schedulers:
             os.makedirs(os.path.join(config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(config_dir, 'plugins', 'scheduler.yaml'), mode='w', encoding='utf-8') as out:
                 yaml.dump(schedulers, out)
