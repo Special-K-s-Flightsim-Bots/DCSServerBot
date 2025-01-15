@@ -1,4 +1,5 @@
 # Credits to magwo (Magnus Wolffelt)
+import logging
 import math
 
 from core.utils.helper import DictWrapper
@@ -6,6 +7,8 @@ from .trigonometric_carrier_cruise import get_ship_course_and_speed
 from .me_utils import Speed, Distance, Heading, knots, HeadingAndSpeed
 
 __all__ = ['relocate_carrier']
+
+logger = logging.getLogger(__name__)
 
 
 #
@@ -103,7 +106,7 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     deck_angle = 0 if carrier.type == 'LHA_Tarawa' else -9.12
     cruise = get_carrier_cruise(wind, deck_angle, Speed.from_knots(25))
 
-    radius = Distance.from_nautical_miles(kwargs.get('radius', 30))
+    radius = Distance.from_nautical_miles(kwargs.get('radius', 50))
     carrier_start_pos = point_from_heading(group.x, group.y, cruise.heading.opposite.degrees, radius.meters)
     carrier_end_pos = point_from_heading(group.x, group.y, cruise.heading.degrees, radius.meters)
 
@@ -113,7 +116,7 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     group_position_before_change = (route.points[0].x, route.points[0].y)
 
     if len(route.points) < 4:
-        print(f"Carrier group {reference['name']} missing waypoint")
+        logger.error(f"Carrier group {reference['name']} missing waypoint")
         return
         # TODO
 
