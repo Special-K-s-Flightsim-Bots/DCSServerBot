@@ -1,6 +1,7 @@
 schema;master_schema:
   type: map
   allowempty: true
+  required: true
   mapping:
     install: {type: str}
     CHANNELID_MAIN: {type: text}    # TODO: change this to int some day
