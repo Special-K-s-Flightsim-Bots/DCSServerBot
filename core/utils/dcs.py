@@ -3,6 +3,7 @@ import math
 import os
 import shutil
 import stat
+import sys
 
 from contextlib import suppress
 from core.const import SAVED_GAMES
@@ -32,6 +33,8 @@ class ParseError(Exception):
 
 
 def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]:
+    if sys.platform != 'win32':
+        return []
     instances = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
