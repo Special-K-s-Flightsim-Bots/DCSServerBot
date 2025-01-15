@@ -633,7 +633,7 @@ class NodeImpl(Node):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
-        if self.locals['DCS'].get('autoupdate', False):
+        if 'DCS' in self.locals and self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 

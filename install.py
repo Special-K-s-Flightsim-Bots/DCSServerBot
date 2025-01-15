@@ -351,7 +351,7 @@ If you need any further assistance, please visit the support discord, listed in 
             "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
         }
         if 'database' not in main:
-            node["database"]: {
+            node["database"] = {
                 "url": database_url
             }
         if dcs_installation:
@@ -498,11 +498,15 @@ If you need any further assistance, please visit the support discord, listed in 
                 os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
             except PermissionError:
                 print(_("[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]").format(dcs_installation))
-        print(_("\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
-                "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
-                "There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
-                "You can start DCSServerBot with:\n\n"
-                "    [bright_black]run.cmd[/]\n\n"))
+        if sys.platform == 'win32':
+            run_script = 'run.cmd'
+        else:
+            run_script = 'run.sh'
+        print(_(f"\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
+                f"You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
+                f"There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
+                f"You can start DCSServerBot with:\n\n"
+                f"    [bright_black]{run_script}[/]\n\n"))
         self.log.info(_("Installation finished."))
 
 
