@@ -20,10 +20,13 @@ class FunkManEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.config = self.get_config()
-        path = self.config['install']
-        if not os.path.exists(path):
-            self.log.error(f"FunkMan install path is not correct in your {self.plugin_name}.yaml! "
-                           f"FunkMan will not work.")
+        path = self.config.get('install')
+        if not path:
+            self.log.error(f"FunkMan install path is not set correct in the DEFAULT-section of your "
+                           f"{self.plugin_name}.yaml! FunkMan will not work.")
+            return
+        elif not os.path.exists(path):
+            self.log.error(f"FunkMan is not installed in {path}! FunkMan will not work.")
             return
         sys.path.append(path)
         from funkman.utils.utils import _GetVal

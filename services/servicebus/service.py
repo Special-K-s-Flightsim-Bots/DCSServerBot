@@ -46,7 +46,7 @@ class ServiceBus(Service):
         self.servers: dict[str, Server] = ThreadSafeDict()
         self.udp_server = None
         self.executor = None
-        if self.node.locals['DCS'].get('desanitize', True):
+        if 'DCS' in self.locals and self.node.locals['DCS'].get('desanitize', True):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
