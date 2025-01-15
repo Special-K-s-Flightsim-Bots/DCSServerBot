@@ -120,8 +120,8 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
         return
         # TODO
 
-    route.points[0].x = group.x = carrier_start_pos[0]
-    route.points[0].y = group.y = carrier_start_pos[1]
+    route.points[0].x = reference['x'] = carrier_start_pos[0]
+    route.points[0].y = reference['y'] = carrier_start_pos[1]
     route.points[0].speed = cruise.speed.meters_per_second
 
     route.points[1].x = carrier_end_pos[0]
