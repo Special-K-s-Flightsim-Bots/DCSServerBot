@@ -1025,7 +1025,7 @@ class MissionEventListener(EventListener):
                 filename = await server.get_current_mission_file()
                 if not server.locals.get('mission_rewrite', True):
                     await server.stop()
-                new_filename = await server.modifyMission(filename, preset)
+                new_filename = await server.modifyMission(utils.get_orig_file(filename), preset)
                 if new_filename != filename:
                     await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
                 await server.restart(modify_mission=False)

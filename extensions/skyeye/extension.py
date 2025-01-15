@@ -85,7 +85,7 @@ class SkyEye(Extension):
 
         # make sure we have a local model, unless configured otherwise
         if self.config.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
-            self.log.warning("  => {self.name}: Local Whisper model configured. This has a performance impact on your system!")
+            self.log.warning(f"  => {self.name}: Local Whisper model configured. This has a performance impact on your system!")
             whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
             if not os.path.exists(whisper_path):
                 self.log.info(f"  => {self.name}: Downloading whisper model...")

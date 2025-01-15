@@ -138,9 +138,9 @@ class RealWeather(Extension):
         cwd = await self.server.get_missions_dir()
 
         if self.version.split('.')[0] == '1':
-            await self.generate_config_1_0(utils.get_orig_file(filename), tmpname, cwd)
+            await self.generate_config_1_0(filename, tmpname, cwd)
         else:
-            await self.generate_config_2_0(utils.get_orig_file(filename), tmpname, cwd)
+            await self.generate_config_2_0(filename, tmpname, cwd)
         rw_home = os.path.expandvars(self.config['installation'])
 
         def run_subprocess():

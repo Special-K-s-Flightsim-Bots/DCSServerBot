@@ -45,7 +45,8 @@ if TYPE_CHECKING:
 
 DEFAULT_EXTENSIONS = {
     "LogAnalyser": {},
-    "Cloud": {}
+    "Cloud": {},
+    "MizEdit": {}
 }
 
 __all__ = ["ServerImpl"]
@@ -478,6 +479,8 @@ class ServerImpl(Server):
     async def init_extensions(self) -> list[str]:
         async with self.lock:
             extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
+            if 'MizEdit' not in extensions:
+                extensions['MizEdit'] = {}
             for extension in extensions.keys():
                 try:
                     ext: Extension = self.extensions.get(extension)
@@ -657,7 +660,7 @@ class ServerImpl(Server):
             if not filename:
                 self.log.warning("No mission found. Is your mission list empty?")
                 return filename
-        new_filename = filename
+        new_filename = utils.get_orig_file(filename)
         try:
             # process all mission modifications
             dirty = False
@@ -726,13 +729,7 @@ class ServerImpl(Server):
         return UploadStatus.OK
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
-        # apply preset
-        miz = await asyncio.to_thread(MizFile, utils.get_orig_file(filename))
-        await asyncio.to_thread(miz.apply_preset, preset)
-        # write new mission
-        new_filename = utils.create_writable_mission(filename)
-        await asyncio.to_thread(miz.save, new_filename)
-        return new_filename
+        return await self.extensions['MizEdit'].apply_presets(filename, preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')

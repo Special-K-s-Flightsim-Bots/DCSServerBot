@@ -145,6 +145,8 @@ def get_active_runways(runways, wind):
 
 
 def create_writable_mission(filename: str) -> str:
+    if filename.endswith('.orig'):
+        filename = filename[:-5]
     try:
         with open(filename, mode='a'):
             new_filename = filename
