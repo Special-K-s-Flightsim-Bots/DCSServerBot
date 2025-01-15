@@ -90,10 +90,10 @@ def rotate_group_around(group: DictWrapper, pivot: tuple[float, float], degrees_
     for unit in group.units:
         distance = distance_to_point(pivot[0], pivot[1], unit.x, unit.y)
         heading = heading_between_points(pivot[0], pivot[1], unit.x, unit.y)
-        new_heading = Heading.from_degrees(heading + degrees_change).degrees
+        new_heading = Heading.from_degrees(heading + degrees_change).radians
 
         unit.x, unit.y = point_from_heading(pivot[0], pivot[1], new_heading, distance)
-        unit.heading = Heading.from_degrees(unit.heading + degrees_change).degrees
+        unit.heading = Heading.from_degrees(unit.heading + degrees_change).radians
 
 
 def relocate_carrier(_: dict, reference: dict, **kwargs):
@@ -115,13 +115,16 @@ def relocate_carrier(_: dict, reference: dict, **kwargs):
     )
     group_position_before_change = (route.points[0].x, route.points[0].y)
 
-    if len(route.points) < 4:
-        logger.error(f"Carrier group {reference['name']} missing waypoint")
-        return
-        # TODO
+    while len(route.points) < 4:
+        route.points.append(route.points[-1].clone())
 
-    route.points[0].x = reference['x'] = carrier_start_pos[0]
-    route.points[0].y = reference['y'] = carrier_start_pos[1]
+    # update the groups position
+    reference['x'] = carrier_start_pos[0]
+    reference['y'] = carrier_start_pos[1]
+
+    # change the waypoints
+    route.points[0].x = carrier_start_pos[0]
+    route.points[0].y = carrier_start_pos[1]
     route.points[0].speed = cruise.speed.meters_per_second
 
     route.points[1].x = carrier_end_pos[0]

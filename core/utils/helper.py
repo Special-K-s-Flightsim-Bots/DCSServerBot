@@ -24,6 +24,7 @@ import unicodedata
 import random
 import math
 
+from copy import deepcopy
 from croniter import croniter
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -1001,3 +1002,7 @@ class DictWrapper:
         elif isinstance(self._data, list):
             return _unwrap_list(self._data)
         return self._data
+
+    def clone(self):
+        """Deeply clone the DictWrapper object."""
+        return DictWrapper(deepcopy(self.to_dict()))
