@@ -81,34 +81,38 @@ class SkyEye(Extension):
         return False
 
     async def prepare(self) -> bool:
+        dirty = False
+
         # make sure we have a local model, unless configured otherwise
         if self.config.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
+            self.log.warning("  => {self.name}: Local Whisper model configured. This has a performance impact on your system!")
             whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
             if not os.path.exists(whisper_path):
                 self.log.info(f"  => {self.name}: Downloading whisper model...")
                 await self.download_whisper_file(self.config.get('whisper-model', 'ggml-small.en.bin'))
                 self.log.info(f"  => {self.name}: Whisper model downloaded.")
+            dirty |= self._maybe_update_config('recognizer', 'openai-whisper-local')
+        else:
+            dirty |= self._maybe_update_config('openai-api-key', self.config['openai-api-key'])
 
-        dirty = False
-        dirty |= self._maybe_update_config('recognizer', self.config.get('recognizer', 'openai-whisper-local'))
         dirty |= self._maybe_update_config('whisper-model', self.config.get('whisper-model', 'ggml-small.en.bin'))
-        dirty |= self._maybe_update_config('coalition', self.config['coalition'])
+        dirty |= self._maybe_update_config('coalition', self.config.get('coalition'))
         if 'callsign' in self.config:
             dirty |= self._maybe_update_config('callsign', self.config['callsign'])
         elif 'callsigns' in self.config:
             dirty |= self._maybe_update_config('callsigns', self.config['callsigns'])
         else:
             dirty |= self._maybe_update_config('callsign', 'Focus')
-        dirty |= self._maybe_update_config('voice', self.config.get('voice', 'feminine'))
-        dirty |= self._maybe_update_config('voice-playback-speed', self.config.get('voice-playback-speed', 1.0))
-        dirty |= self._maybe_update_config('voice-playback-pause', self.config.get('voice-playback-pause', '0.3s'))
-        dirty |= self._maybe_update_config('auto-picture', self.config.get('auto-picture', True))
-        dirty |= self._maybe_update_config('auto-picture-interval', self.config.get('auto-picture-interval', '2m'))
-        dirty |= self._maybe_update_config('threat-monitoring', self.config.get('threat-monitoring', True))
+        dirty |= self._maybe_update_config('voice', self.config.get('voice'))
+        dirty |= self._maybe_update_config('voice-playback-speed', self.config.get('voice-playback-speed'))
+        dirty |= self._maybe_update_config('voice-playback-pause', self.config.get('voice-playback-pause'))
+        dirty |= self._maybe_update_config('auto-picture', self.config.get('auto-picture'))
+        dirty |= self._maybe_update_config('auto-picture-interval', self.config.get('auto-picture-interval'))
+        dirty |= self._maybe_update_config('threat-monitoring', self.config.get('threat-monitoring'))
         dirty |= self._maybe_update_config(
-            'threat-monitoring-interval', self.config.get('threat-monitoring-interval', '3m'))
+            'threat-monitoring-interval', self.config.get('threat-monitoring-interval'))
         dirty |= self._maybe_update_config(
-            'mandatory-threat-radius', self.config.get('mandatory-threat-radius', 25))
+            'mandatory-threat-radius', self.config.get('mandatory-threat-radius'))
         dirty |= self._maybe_update_config('log-format', 'json')
         if self.config.get('discord-webhook-id'):
             dirty |= self._maybe_update_config('discord-webhook-id', self.config['discord-webhook-id'])
@@ -119,10 +123,14 @@ class SkyEye(Extension):
         if tacview:
             tacview_port = tacview.locals.get('tacviewRealTimeTelemetryPort', 42674)
             dirty |= self._maybe_update_config('telemetry-address', f"localhost:{tacview_port}")
-            if tacview.locals.get('tacviewRealTimeTelemetryPassword'):
-                dirty |= self._maybe_update_config(
-                    'telemetry-password', tacview.locals.get('tacviewRealTimeTelemetryPassword')
-                )
+            dirty |= self._maybe_update_config(
+                'telemetry-password', tacview.locals.get('tacviewRealTimeTelemetryPassword')
+            )
+        else:
+            # we definitely need Tacview, so if no Tacview extension is configured, expect the values to be in the config
+            dirty |= self._maybe_update_config(
+                'telemetry-address', self.config.get('telemetry-address', f"localhost:42674"))
+            dirty |= self._maybe_update_config('telemetry-password', self.config.get('telemetry-password'))
 
         # Configure SRS
         srs = self.server.extensions.get('SRS')

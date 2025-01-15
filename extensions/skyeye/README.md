@@ -42,6 +42,7 @@ MyNode:
 > try the (paid) API version instead.
 
 > [!IMPORTANT]
-> SkyEye can be very heavy on your CPU, if you use local (free) whisper models. It is recommended to separate SkyEye
-> from your running DCS servers. You can use the affinity setting in your instance configuration (see above) and in 
-> the SkyEye configuration to separate the cores from each other.
+> SkyEye can be very heavy on your CPU, if you use local (free) whisper models. The recommended way of running it, is
+> to use the external model with an API-key. If you still decide to run SkyEye locally, it is recommended to separate 
+> SkyEye from your running DCS servers. You can use the affinity setting in your instance configuration (see above) and 
+> in the SkyEye configuration to separate the cores from each other.
