@@ -493,10 +493,11 @@ If you need any further assistance, please visit the support discord, listed in 
                 yaml.dump(schedulers, out)
             print(_("- Created {}").format(os.path.join(config_dir, 'plugins', 'scheduler.yaml')))
             self.log.info(_("{} written.").format(os.path.join(config_dir, 'plugins', 'scheduler.yaml')))
-        try:
-            os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
-        except PermissionError:
-            print(_("[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]").format(dcs_installation))
+        if dcs_installation:
+            try:
+                os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
+            except PermissionError:
+                print(_("[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]").format(dcs_installation))
         print(_("\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
                 "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
                 "There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
