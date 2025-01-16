@@ -477,8 +477,6 @@ class ServerImpl(Server):
     async def init_extensions(self) -> list[str]:
         async with self.lock:
             extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
-            if 'MizEdit' not in extensions:
-                extensions['MizEdit'] = {}
             for extension in extensions.keys():
                 try:
                     ext: Extension = self.extensions.get(extension)
