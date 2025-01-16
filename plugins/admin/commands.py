@@ -448,7 +448,7 @@ class Admin(Plugin):
             dm_channel = await interaction.user.create_dm()
             for channel in [dm_channel, interaction.channel]:
                 try:
-                    await channel.send(file=discord.File(fp=BytesIO(file), filename=filename))
+                    await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
                     if channel == dm_channel:
                         await interaction.followup.send(_('File sent as a DM.'), ephemeral=ephemeral)
                     else:
@@ -463,7 +463,7 @@ class Admin(Plugin):
         elif target.startswith('<'):
             channel = self.bot.get_channel(int(target[4:-1]))
             try:
-                await channel.send(file=discord.File(fp=BytesIO(file), filename=filename))
+                await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
             except discord.HTTPException:
                 await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
                                                 ephemeral=ephemeral)
@@ -472,7 +472,8 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
         else:
-            async with aiofiles.open(os.path.join(os.path.expandvars(target), filename), mode='wb') as outfile:
+            async with aiofiles.open(
+                    os.path.join(os.path.expandvars(target), os.path.basename(filename)), mode='wb') as outfile:
                 await outfile.write(file)
             await interaction.followup.send(_('File copied to the specified location.'), ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
