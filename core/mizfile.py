@@ -52,7 +52,7 @@ class MizFile:
                 except FileNotFoundError:
                     pass
         except Exception:
-            self.log.warning(exc_info=True)
+            self.log.warning(f"Error while processing mission {self.filename}", exc_info=True)
             raise UnsupportedMizFileException(self.filename)
 
     def save(self, new_filename: Optional[str] = None):
