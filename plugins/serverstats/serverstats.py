@@ -699,16 +699,20 @@ class ServerLoad(report.MultiGraphElement):
         time_end = series['time'].max()
         time_span = time_end - time_start
 
-        if time_span <= pd.Timedelta(hours=1):
-            _period = "Hour"
-        elif time_span <= pd.Timedelta(days=1):
-            _period = "Day"
-        elif time_span <= pd.Timedelta(weeks=1):
-            _period = "Week"
-        elif time_span <= pd.Timedelta(days=31):
-            _period = "Month"
+
+        if period.period is None:
+            if time_span <= pd.Timedelta(hours=1):
+                _period = "Hour"
+            elif time_span <= pd.Timedelta(days=1):
+                _period = "Day"
+            elif time_span <= pd.Timedelta(weeks=1):
+                _period = "Week"
+            elif time_span <= pd.Timedelta(days=31):
+                _period = "Month"
+            else:
+                _period = "Month"
         else:
-            _period = "Month"
+            _period = period.period.title()
 
         settings = {
             "Hour": {
