@@ -94,7 +94,7 @@ class PeriodFilter(StatisticsFilter):
         elif period == 'today':
             return "DATE_TRUNC('day', s.hop_on) = current_date"
         elif period in PeriodFilter.list(bot):
-            return f"DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
+            return f"s.hop_on > ((now() AT TIME ZONE 'utc') - interval '1 {period}')"
         elif '-' in period:
             start, end = period.split('-')
             start = start.strip()
@@ -102,12 +102,12 @@ class PeriodFilter(StatisticsFilter):
             # avoid SQL injection
             pattern = re.compile(r'^\d+\s+(year|month|week|day|hour|minute)s?$')
             if pattern.match(end):
-                return f"DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '{end}')"
+                return f"s.hop_on > ((now() AT TIME ZONE 'utc') - interval '{end}')"
             else:
                 start = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
                 end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
-                return (f"DATE(s.hop_on) >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
-                        f"COALESCE(DATE(s.hop_off), (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
+                return (f"s.hop_on >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
+                        f"COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
 
 
     def format(self, bot: DCSServerBot) -> str:
@@ -260,7 +260,7 @@ class MissionStatisticsFilter(PeriodFilter):
         if self.period in [None, 'all']:
             return '1 = 1'
         elif self.period in self.list(bot):
-            return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {self.period}')"
+            return f"time > ((now() AT TIME ZONE 'utc') - interval '1 {self.period}')"
 
 
 class StatsPagination(Pagination):
