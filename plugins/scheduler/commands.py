@@ -243,6 +243,11 @@ class Scheduler(Plugin):
             if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
+                    if method == 'load':
+                        if 'mission_id' in rconf:
+                            server.on_empty['mission_id'] = rconf['mission_id']
+                        elif 'mission_file' in rconf:
+                            server.on_empty['mission_file'] = rconf['mission_file']
                     self.log.debug("Scheduler: Setting on_empty trigger.")
                 server.restart_pending = True
                 return
