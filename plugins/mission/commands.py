@@ -199,7 +199,7 @@ class Mission(Plugin):
             "z": airbase['position']['z']
         })
         report = Report(self.bot, self.plugin_name, 'atis.json')
-        env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
+        env = await report.render(airbase=airbase, data=data, server=server)
         await interaction.followup.send(embed=env.embed)
 
     @mission.command(description=_('Shows briefing of the active mission'))

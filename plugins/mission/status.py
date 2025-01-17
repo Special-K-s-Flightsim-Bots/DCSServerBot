@@ -116,9 +116,13 @@ class WeatherInfo(report.EmbedElement):
                 self.add_field(name='Weather', value='Dynamic\n**Clouds**\nn/a')
 
             visibility = weather['visibility']['distance']
-            if weather.get('enable_fog', False) is True:
-                visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
-            value = "{:,} ft".format(int(visibility)) if visibility < 30000 else "10 km / 6 SM (+)"
+            ret = await server.send_to_dcs_sync({
+                "command": "getFog"
+            })
+            if ret['visibility']:
+                visibility = int(ret['visibility'])
+            value = "{:,} m / {:.2f} SM".format(int(visibility), visibility / const.METERS_IN_SM) \
+                if visibility < 30000 else "10 km / 6 SM (+)"
             value += ("\n\n**Wind**\n"
                       "\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts").format(
                 int(weather['wind']['atGround']['dir'] + 180) % 360,

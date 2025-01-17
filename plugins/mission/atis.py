@@ -1,10 +1,11 @@
 import itertools
 import re
-from core import report, utils, const
+
+from core import report, utils, const, Server
 
 
 class Main(report.EmbedElement):
-    async def render(self, airbase: dict, data: dict):
+    async def render(self, airbase: dict, data: dict, server: Server):
         d, m, s, f = utils.dd_to_dms(airbase['lat'])
         lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
         d, m, s, f = utils.dd_to_dms(airbase['lng'])
@@ -32,10 +33,15 @@ class Main(report.EmbedElement):
                        value='{}° @ {} kts'.format(data['wind']['dir'],
                                                    int(data['wind']['speed'] * const.METER_PER_SECOND_IN_KNOTS)))
         visibility = weather['visibility']['distance']
-        if weather.get('enable_fog', False) is True:
-            visibility = weather['fog']['visibility']
-        self.add_field(name='Visibility', value='{:,} m'.format(
-            int(visibility)) if visibility < 10000 else '10 km / 6 SM (+)')
+        ret = await server.send_to_dcs_sync({
+            "command": "getFog"
+        })
+        if ret['visibility']:
+            visibility = int(ret['visibility'])
+        self.add_field(
+            name='Visibility',
+            value='{:,} m / {:.2f} SM'.format(int(visibility), visibility / const.METERS_IN_SM)
+            if visibility < 10000 else '10 km (+) / 6 SM (+)')
         if 'clouds' in data:
             if 'preset' in data['clouds']:
                 readable_name = data['clouds']['preset']['readableName']
