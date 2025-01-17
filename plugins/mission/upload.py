@@ -105,7 +105,6 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.channel.send("Aborted.")
                 return
             await self.server.stop()
-        if filename != await self.server.get_current_mission_file():
-            await self._load_mission(filename)
+        await self._load_mission(filename)
         if self.server.status == Status.STOPPED:
             await self.server.start()
