@@ -189,7 +189,7 @@ c) Permutations
 d) Map-specific Settings
 ```yaml
         MizEdit:
-          theatre:
+          terrains:
             Caucasus:
               settings:
               - Winter, Morning, Slight Breeze, Halo
