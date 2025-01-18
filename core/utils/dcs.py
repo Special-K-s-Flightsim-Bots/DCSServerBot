@@ -161,15 +161,20 @@ def create_writable_mission(filename: str) -> str:
     return new_filename
 
 
-def get_orig_file(filename: str) -> str:
+def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
     if '.dcssb' in filename:
-        orig_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
-                                 os.path.basename(filename)) + '.orig'
+        mission_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                    os.path.basename(filename))
     else:
-        orig_file = filename + '.orig'
-        # make an initial backup, if there is none
-        if not os.path.exists(orig_file):
-            shutil.copy2(filename, orig_file)
+        mission_file = filename
+    orig_file = mission_file + '.orig'
+    if not os.path.exists(orig_file):
+        if create_file:
+            # make an initial backup, if there is none
+            if not os.path.exists(orig_file):
+                shutil.copy2(filename, orig_file)
+        else:
+            return None
     return orig_file
 
 

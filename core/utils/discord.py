@@ -345,14 +345,14 @@ class PopulatedQuestionView(View):
         self.stop()
 
 
-async def populated_question(interaction: discord.Interaction, question: str, message: Optional[str] = None,
+async def populated_question(ctx: Union[commands.Context, discord.Interaction], question: str, message: Optional[str] = None,
                              ephemeral: Optional[bool] = True) -> Optional[str]:
     """
     Same as yn_question, but adds an option "Later". The usual use-case of this function would be
     if people are flying atm, and you want to ask to trigger an action that would affect their experience (aka stop
     the server).
 
-    :param interaction: The discord interaction object.
+    :param ctx: The discord context or interaction object.
     :param question: The question to be displayed in the embed.
     :param message: An optional message to be displayed in the embed.
     :param ephemeral: Whether the interaction response should be ephemeral. Default is True.
@@ -361,14 +361,10 @@ async def populated_question(interaction: discord.Interaction, question: str, me
     embed = discord.Embed(title='People are flying!', description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
+    if isinstance(ctx, discord.Interaction):
+        ctx = await ctx.client.get_context(ctx)
     view = PopulatedQuestionView()
-    # noinspection PyUnresolvedReferences
-    if interaction.response.is_done():
-        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
-    else:
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
-        msg = await interaction.original_response()
+    msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
         if await view.wait():
             return None

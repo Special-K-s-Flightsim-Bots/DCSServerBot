@@ -45,7 +45,8 @@ __all__ = [
     "set_password",
     "get_password",
     "delete_password",
-    "CloudRotatingFileHandler"
+    "CloudRotatingFileHandler",
+    "sanitize_filename"
 ]
 
 logger = logging.getLogger(__name__)
@@ -232,6 +233,38 @@ def delete_password(key: str, config_dir='config'):
         os.remove(os.path.join(config_dir, '.secret', f'{key}.pkl'))
     except FileNotFoundError:
         raise ValueError(key)
+
+
+def sanitize_filename(filename: str, base_directory: str) -> str:
+    """
+    Sanitizes an input filename to prevent relative path injection.
+    Ensures the file path is within the `base_directory`.
+
+    Args:
+        filename (str): The input filename to sanitize.
+        base_directory (str): The base directory where all downloads should be stored.
+
+    Returns:
+        str: A sanitized, safe file path.
+
+    Raises:
+        ValueError: If the filename contains invalid patterns or escapes the base directory.
+    """
+    # Ensure the base_directory is absolute
+    base_directory = os.path.abspath(base_directory)
+
+    # Resolve the filename into an absolute path
+    resolved_path = os.path.abspath(os.path.join(base_directory, filename))
+
+    # Ensure the resolved path is within the base directory
+    if not os.path.commonpath([base_directory, resolved_path]) == base_directory:
+        raise ValueError(f"Relative path injection attempt detected: {filename}")
+
+    # Optional: Check file name for illegal characters (e.g., reject ../)
+    if ".." in filename or filename.startswith(("/")):
+        raise ValueError(f"Invalid filename detected: {filename}")
+
+    return resolved_path
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

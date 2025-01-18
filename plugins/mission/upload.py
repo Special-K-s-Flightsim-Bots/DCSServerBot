@@ -20,11 +20,22 @@ class MissionUploadHandler(ServerUploadHandler):
         ctx = await self.bot.get_context(self.message)
         rc = await self.server.uploadMission(att.filename, att.url, force=False, missions_dir=directory)
         if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
-            if not await utils.yn_question(ctx, _('This mission is currently active.\n'
-                                                  'Do you want me to stop the DCS-server to replace it?')):
+            if self.server.is_populated():
+                what = await utils.populated_question(ctx, _('This mission is currently active.\n'
+                                                             'Do you want me to stop the DCS-server to replace it?'))
+            else:
+                what = 'yes'
+            if what == 'yes':
+                await self.server.stop()
+            elif what == 'later':
+                await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
+                    mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
+                # we return the old rc (file in use), to not force a mission load
+                return rc
+            else:
                 await self.channel.send(_('Upload aborted.'))
                 return rc
-            await self.server.stop()
         elif rc == UploadStatus.FILE_EXISTS:
             self.log.debug("File exists, asking for overwrite.")
             if not await utils.yn_question(ctx, _('File exists. Do you want to overwrite it?')):

@@ -358,10 +358,14 @@ class Server(DataObject):
     async def getMissionList(self) -> list[str]:
         raise NotImplemented()
 
+    async def getAllMissionFiles(self) -> list[str]:
+        raise NotImplemented()
+
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
+                            orig = False) -> UploadStatus:
         raise NotImplemented()
 
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:

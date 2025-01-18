@@ -427,13 +427,16 @@ class ServerImpl(Server):
         missions = []
         for mission in self.settings['missionList']:
             if '.dcssb' in mission:
-                secondary = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
+                _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
             else:
-                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
-            if os.path.exists(mission):
+                _mission = mission
+            # check if the orig file has been updated
+            orig = _mission + '.orig'
+            if os.path.exists(orig) and os.path.getmtime(orig) > os.path.getmtime(mission):
+                shutil.copy2(orig, _mission)
+                missions.append(_mission)
+            elif os.path.exists(mission):
                 missions.append(mission)
-            elif os.path.exists(secondary):
-                missions.append(secondary)
             else:
                 self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
         if len(missions) != len(self.settings['missionList']):
@@ -724,20 +727,25 @@ class ServerImpl(Server):
                     WHERE node = %s AND server_name = %s
                 """, (self.node.name, self.name))
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
+                            orig = False) -> UploadStatus:
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
-        secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
-        for idx, name in enumerate(self.settings['missionList']):
-            if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
-                if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
-                    if not force:
-                        return UploadStatus.FILE_IN_USE
-                add = True
-                break
+        if orig:
+            filename += '.orig'
+            add = False
         else:
-            add = self.locals.get('autoadd', True)
+            secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
+            for idx, name in enumerate(self.settings['missionList']):
+                if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
+                    if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
+                        if not force:
+                            return UploadStatus.FILE_IN_USE
+                    add = True
+                    break
+            else:
+                add = self.locals.get('autoadd', True)
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
@@ -859,6 +867,24 @@ class ServerImpl(Server):
         return self.settings['missionList']
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
+        # check if we re-load the running mission
+        start_index = int(self.settings['listStartIndex'])
+        if ((isinstance(mission, int) and mission == start_index) or
+            (isinstance(mission, str) and mission == self._get_current_mission_file())):
+            mission = self.settings['missionList'][start_index - 1]
+            # now determine the original mission name
+            _mission = utils.get_orig_file(mission)
+            # check if the orig file has been replaced
+            if os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
+                new_filename = utils.create_writable_mission(mission)
+                # we can't write the original one, so use the copy
+                if new_filename != mission:
+                    shutil.copy2(_mission, new_filename)
+                    await self.replaceMission(start_index, new_filename)
+                    return await self.loadMission(start_index, modify_mission=modify_mission)
+                else:
+                    return await self.loadMission(start_index, modify_mission=modify_mission)
+
         if isinstance(mission, int):
             if mission > len(self.settings['missionList']):
                 mission = 1
@@ -878,7 +904,7 @@ class ServerImpl(Server):
         else:
             try:
                 idx = self.settings['missionList'].index(filename) + 1
-                if idx == int(self.settings['listStartIndex']):
+                if idx == start_index:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
                 else:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})
@@ -971,3 +997,30 @@ class ServerImpl(Server):
     async def cleanup(self) -> None:
         tempdir = os.path.join(tempfile.gettempdir(), self.instance.name)
         await asyncio.to_thread(utils.safe_rmtree, tempdir)
+
+    async def getAllMissionFiles(self) -> list[tuple[str, str]]:
+        def shorten_filename(file: str) -> str:
+            if file.endswith('.orig'):
+                return file[:-5]
+            if '.dcssb' in file:
+                return file.replace(os.path.sep + '.dcssb', '')
+            return file
+
+        result = []
+        base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir, pattern="*.miz",
+                                                                ignore=['.dcssb', 'Scripts', 'Saves'], traverse=True)
+        for mission in all_missions:
+            orig = utils.get_orig_file(mission, create_file=False)
+            secondary = os.path.join(
+                os.path.dirname(mission), '.dcssb', os.path.basename(mission)
+            )
+            if orig and os.path.getmtime(orig) > os.path.getmtime(mission):
+                file = orig
+            else:
+                file = mission
+            if os.path.exists(secondary) and os.path.getmtime(secondary) > os.path.getmtime(file):
+                file = secondary
+
+            result.append((shorten_filename(file), file))
+
+        return result
