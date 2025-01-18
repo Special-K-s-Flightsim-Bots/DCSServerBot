@@ -104,6 +104,8 @@ class WeatherInfo(report.EmbedElement):
                 if 'preset' in clouds:
                     value = clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n')
                     value += f"\n\n**Cloudbase**\n{int(clouds['base'] * const.METER_IN_FEET + 0.5):,} ft"
+                elif 'density' in clouds and clouds['density'] == 0:
+                    value = "Clear"
                 else:
                     value = "Dynamic"
                     value += ("\n\n**Cloudbase**\n"
