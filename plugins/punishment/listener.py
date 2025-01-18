@@ -60,7 +60,7 @@ class PunishmentEventListener(EventListener):
         self.log.debug("### _provide_forgiveness_window()")
         try:
             await asyncio.wait_for(asyncio.Future(), timeout=window)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             self.log.debug("### Timeout => punish!")
             # noinspection PyAsyncCall
             asyncio.create_task(self._punish(data))

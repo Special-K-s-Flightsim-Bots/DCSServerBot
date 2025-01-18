@@ -1531,11 +1531,13 @@ class NodeUploadHandler:
         ]
         # run all uploads in parallel
         tasks = [self.handle_attachment(directory, att) for att in attachments]
-        ret_vals = await asyncio.gather(*tasks)
+        ret_vals = await asyncio.gather(*tasks, return_exceptions=True)
 
         uploaded = []
         for idx, ret in enumerate(ret_vals):
-            if ret == UploadStatus.OK:
+            if isinstance(ret, Exception):
+                self.log.error(f"Error during upload of {attachments[idx].filename}: {ret}")
+            elif ret == UploadStatus.OK:
                 uploaded.append(attachments[idx])
 
         # handle aftermath
