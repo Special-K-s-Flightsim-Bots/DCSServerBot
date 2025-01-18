@@ -7,8 +7,8 @@ schema;master_schema:
         - type: map
           mapping:
             label: {type: str, required: true}
-            directory: {type: str, required: true}
-            pattern: {type: str, required: true}
+            directory: {type: str}
+            pattern: {type: str}
             target: {type: str}
             discord:
               type: seq

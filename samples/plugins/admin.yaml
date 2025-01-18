@@ -13,10 +13,8 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: DCSServerBot Logs
     directory: logs
     pattern: 'dcssb-*.log*'
-  # This is for your missions. If you use a central mission directory, you might want to amend that.
+  # This is for your missions. The bot knows where all your missions are, so nothing more to do here.
   - label: Missions
-    directory: '{server.instance.home}\Missions'
-    pattern: '*.miz'
   # This is for DCS Trackfiles. Please keep in mind that these files can get really huge
   - label: Trackfiles
     directory: '{server.instance.home}\Tracks'
