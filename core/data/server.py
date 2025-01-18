@@ -313,12 +313,8 @@ class Server(DataObject):
             "sound": sound
         })
 
-    @performance_log()
     async def stop(self) -> None:
-        if self.status in [Status.PAUSED, Status.RUNNING]:
-            timeout = 120 if self.node.locals.get('slow_system', False) else 60
-            await self.send_to_dcs({"command": "stop_server"})
-            await self.wait_for_status_change([Status.STOPPED], timeout)
+        raise NotImplemented()
 
     @performance_log()
     async def start(self) -> bool:

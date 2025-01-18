@@ -647,6 +647,27 @@ class ServerImpl(Server):
             self.process = None
 
     @performance_log()
+    async def stop(self) -> None:
+        async def wait_for_file_release(timeout: int):
+            mission_file = self._get_current_mission_file()
+            if not mission_file:
+                return
+            for i in range(0, timeout * 2):
+                try:
+                    with open(mission_file, mode='a'):
+                        return
+                except PermissionError:
+                    await asyncio.sleep(0.5)
+            else:
+                raise TimeoutError()
+
+        if self.status in [Status.PAUSED, Status.RUNNING]:
+            timeout = 120 if self.node.locals.get('slow_system', False) else 60
+            await self.send_to_dcs({"command": "stop_server"})
+            await self.wait_for_status_change([Status.STOPPED], timeout)
+            await wait_for_file_release(10)
+
+    @performance_log()
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
         # disable autoscan
         if self.locals.get('autoscan', False):

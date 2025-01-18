@@ -111,6 +111,15 @@ class ServerProxy(Server):
             }, node=self.node.name, timeout=timeout)
             self.status = Status.SHUTDOWN
 
+    async def stop(self) -> None:
+        timeout = 180 if not self.node.slow_system else 300
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "stop",
+            "server_name": self.name
+        }, node=self.node.name, timeout=timeout)
+
     async def init_extensions(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
