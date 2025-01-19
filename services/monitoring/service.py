@@ -243,22 +243,38 @@ class MonitoringService(Service):
         self.apool.pop_stats()
 
     def _pull_load_params(self, server: Server) -> dict:
-        cpu = server.process.cpu_percent()
-        memory = server.process.memory_full_info()
-        io_counters = server.process.io_counters()
-        if server.process.pid not in self.io_counters:
+        process = server.process
+        pid = process.pid
+
+        # Fetch process resource statistics
+        cpu = process.cpu_percent()
+        memory = process.memory_full_info()
+
+        io_counters = process.io_counters()
+
+        # Calculate I/O metrics (read_bytes, write_bytes)
+        previous_io = self.io_counters.get(pid)  # Get previous I/O counters, if available.
+        if previous_io is None:  # If no previous data, assume no I/O activity.
             write_bytes = read_bytes = 0
         else:
-            write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
-            read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
-        self.io_counters[server.process.pid] = io_counters
+            write_bytes = io_counters.write_bytes - previous_io.write_bytes
+            read_bytes = io_counters.read_bytes - previous_io.read_bytes
+
+        # Update the stored I/O counters for the current process.
+        self.io_counters[pid] = io_counters
+
+        # Network I/O counters (bytes sent/recv logic with batching interval optimization)
         net_io_counters = psutil.net_io_counters(pernic=False)
-        if not self.net_io_counters:
+        if not self.net_io_counters:  # No previous data, assume 0 activity.
             bytes_sent = bytes_recv = 0
         else:
-            bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
-            bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
+            interval_inverse = 1 / 7200
+            bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) * interval_inverse)
+            bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) * interval_inverse)
+
+        # Update the stored network I/O counters.
         self.net_io_counters = net_io_counters
+
         return {
             "command": "serverLoad",
             "cpu": cpu,
@@ -268,23 +284,33 @@ class MonitoringService(Service):
             "write_bytes": write_bytes,
             "bytes_recv": bytes_recv,
             "bytes_sent": bytes_sent,
-            "server_name": server.name
+            "server_name": server.name,
         }
 
     async def serverload(self):
-        for server in self.bus.servers.values():
+        async def process_server(server):
             if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
-                continue
-            if not server.process or not server.process.is_running():
+                return
+            elif not server.process or not server.process.is_running():
                 self.log.warning(f"DCSServerBot is not attached to a DCS.exe or DCS_Server.exe process on "
                                  f"server {server.name}, skipping server load gathering.")
-                continue
+                return
+
             try:
-                await self.bus.send_to_node(await asyncio.to_thread(self._pull_load_params, server))
+                # Offload `_pull_load_params` to a thread (CPU-bound operation)
+                load_params = await asyncio.to_thread(self._pull_load_params, server)
+                await self.bus.send_to_node(load_params)
             except (psutil.AccessDenied, PermissionError):
-                self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
+                self.log.debug(
+                    f"Server {server.name} was not started by the bot, skipping server load gathering."
+                )
             except psutil.NoSuchProcess:
-                self.log.debug(f"Server {server.name} died, skipping server load gathering.")
+                self.log.debug(
+                    f"Server {server.name} died, skipping server load gathering."
+                )
+
+        tasks = [process_server(server) for server in self.bus.servers.values()]
+        await asyncio.gather(*tasks)
 
     @staticmethod
     def convert_bytes(size_bytes: int) -> str:
@@ -319,14 +345,25 @@ class MonitoringService(Service):
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
+            tasks = []
+
+            # Run `check_popups` only on Windows
             if sys.platform == 'win32':
-                await self.check_popups()
-            await self.heartbeat()
-            await self.drive_check()
+                tasks.append(self.check_popups())
+
+            tasks.extend([
+                self.heartbeat(),
+                self.drive_check(),
+            ])
+
             if 'serverstats' in self.node.config.get('opt_plugins', []):
-                await self.serverload()
+                tasks.append(self.serverload())
+
             if self.node.locals.get('nodestats', True):
-                await self.nodestats()
+                tasks.append(self.nodestats())
+
+            # Run all tasks concurrently
+            await asyncio.gather(*tasks)
         except Exception as ex:
             self.log.exception(ex)
 

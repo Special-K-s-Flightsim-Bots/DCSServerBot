@@ -623,9 +623,13 @@ class NodeImpl(Node):
                 branch, old_version = await self.get_dcs_branch_and_version()
                 try:
                     new_version = await self.get_latest_version(branch)
-                    if new_version and old_version != new_version:
-                        self.log.warning(
-                            f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+                    if new_version:
+                        if parse(old_version) < parse(new_version):
+                            self.log.warning(
+                                f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+                        elif parse(old_version) > parse(new_version):
+                            self.log.critical(
+                                f"- The DCS World version you are using has been rolled back to version {new_version}.!")
                 except Exception:
                     self.log.warning("Version check failed, possible auth-server outage.")
 

@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import os
 import psycopg
@@ -534,47 +535,73 @@ class UserStatistics(Plugin):
         await interaction.followup.send(embed=embed)
 
     async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
-                               mission_end: Optional[bool] = False):
+                               mission_end: bool = False):
+        # Handle the case where highscore is a list.
         if isinstance(highscore, list):
-            for h in highscore:
-                await self.render_highscore(h, server=server, mission_end=mission_end)
+            # Use asyncio.gather to process multiple items concurrently
+            tasks = [
+                self.render_highscore(h, server=server, mission_end=mission_end)
+                for h in highscore
+            ]
+            await asyncio.gather(*tasks)
             return
-        kwargs = deepcopy(highscore.get('params', {}))
-        if ((not mission_end and kwargs.get('mission_end', False)) or
-                (mission_end and not kwargs.get('mission_end', False))):
+
+        # Extract and validate parameters
+        kwargs = highscore.get('params', {}).copy()  # Use a shallow copy instead of deepcopy
+
+        if mission_end != kwargs.get('mission_end', False):
             return
+
+        # Evaluate 'period' and handle exceptions for missing keys
         try:
-            if not mission_end:
-                period = kwargs['period'] = utils.format_string(kwargs.get('period'), server=server, params=kwargs)
-            else:
-                period = kwargs['period'] = kwargs.get('period') or f'mission_id:{server.mission_id}'
+            period = kwargs.get('period') or (f"mission_id:{server.mission_id}" if mission_end else None)
+            if not mission_end and period:
+                period = utils.format_string(period, server=server, params=kwargs)
+            kwargs['period'] = period
         except KeyError as ex:
-            self.log.warning(f'Skipping wrong highscore element due to missing key: {ex}')
+            self.log.warning(f"Skipping faulty highscore element due to missing key: {ex}")
             return
+
+        # Detect the stats filter to use, if necessary
         flt = StatisticsFilter.detect(self.bot, period) if period else None
+
+        # Determine the report file and embed name
         file = highscore.get('report',
                              'highscore-campaign.json' if isinstance(flt, CampaignFilter) else 'highscore.json')
-        embed_name = 'highscore-' + period
-        channel_id = highscore.get('channel')
-        if not channel_id and server:
-            channel_id = server.channels[Channel.STATUS]
-        if not mission_end:
-            report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
-                                      channel_id=channel_id)
-            await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
-        else:
-            report = Report(self.bot, self.plugin_name, file)
-            channel = self.bot.get_channel(channel_id)
-            if not channel:
-                self.log.warning(f"Can't generate highscore, channel {channel_id} does not exist.")
-                return
-            env = await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
-            try:
-                file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else discord.utils.MISSING
-                await channel.send(embed=env.embed, file=file)
-            finally:
-                if env.buffer:
-                    env.buffer.close()
+        embed_name = f'highscore-{period}'
+
+        # Resolve the channel ID
+        channel_id = highscore.get('channel') or (server.channels[Channel.STATUS] if server else None)
+        if not channel_id:
+            self.log.warning(f"Channel ID missing for highscore '{period}'")
+            return
+
+        # Handle report rendering based on mission_end flag
+        try:
+            if not mission_end:
+                # Persistent highscore rendering
+                report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
+                                          channel_id=channel_id)
+                await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
+            else:
+                # Mission-end report rendering
+                report = Report(self.bot, self.plugin_name, file)
+                channel = self.bot.get_channel(channel_id)
+                if not channel:
+                    self.log.warning(f"Highscore generation failed: Channel {channel_id} does not exist.")
+                    return
+
+                env = await report.render(interaction=None, server_name=server.name if server else None, flt=flt,
+                                          **kwargs)
+                try:
+                    file_attachment = discord.File(fp=env.buffer,
+                                                   filename=env.filename) if env.filename else discord.utils.MISSING
+                    await channel.send(embed=env.embed, file=file_attachment)
+                finally:
+                    if env.buffer:
+                        env.buffer.close()
+        except Exception as ex:
+            self.log.exception(f"Failed to render highscore '{period}' with error: {ex}")
 
     async def render_squadron_list(self, squadron_id: int):
         embed = discord.Embed(color=discord.Color.blue())
@@ -638,29 +665,43 @@ class UserStatistics(Plugin):
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
         try:
-            # global highscore
-            if self.locals.get(DEFAULT_TAG):
-                if self.locals[DEFAULT_TAG].get('highscore'):
-                    await self.render_highscore(self.locals[DEFAULT_TAG]['highscore'])
-                if self.locals[DEFAULT_TAG].get('squadrons', {}).get('highscore'):
+            # Cache global config
+            default_config = self.locals.get(DEFAULT_TAG)
+            if default_config:
+                # Render global highscore
+                global_highscore = default_config.get('highscore')
+                if global_highscore:
+                    await self.render_highscore(global_highscore)
+
+                # Render global squadrons highscore if applicable
+                squadrons_highscore = default_config.get('squadrons', {}).get('highscore')
+                if squadrons_highscore:
                     async with self.node.apool.connection() as conn:
-                        async for row in await conn.execute("""
+                        query = """
                             SELECT name, channel FROM squadrons WHERE channel IS NOT NULL
-                        """):
-                            config = deepcopy(self.locals[DEFAULT_TAG]['squadrons']['highscore'])
-                            config['channel'] = row[1]
-                            config['params'] = {
-                                "period": f"squadron:{row[0]}"
-                            } | config.get('params', {})
-                            config['channel'] = row[1]
+                        """
+                        async for row in await conn.execute(query):
+                            # Avoid redundant deepcopy calls and modify a single config object.
+                            config = deepcopy(squadrons_highscore)
+                            config.update({
+                                'channel': row[1],
+                                'params': {
+                                              "period": f"squadron:{row[0]}"
+                                          } | config.get('params', {})
+                            })
                             await self.render_highscore(config)
-            for server in list(self.bus.servers.values()):
-                config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
-                if not config or not config.get('highscore'):
+
+            # Render server-specific highscores
+            for server in self.bus.servers.values():
+                # Avoid repeated nested lookups
+                server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
+                if not (server_config and server_config.get('highscore')):
                     continue
-                await self.render_highscore(config['highscore'], server=server)
+                await self.render_highscore(server_config['highscore'], server=server)
+
         except Exception as ex:
-            self.log.exception(ex)
+            # Improved logging with context
+            self.log.exception("Error while rendering persistent highscores: %s", ex)
 
     @persistent_highscore.before_loop
     async def before_persistent_highscore(self):

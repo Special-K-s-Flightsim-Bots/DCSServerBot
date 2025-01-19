@@ -76,35 +76,35 @@ class LogAnalyser(Extension):
             logfile = os.path.expandvars(
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
+
+            combined_pattern = re.compile(
+                '|'.join(f'(?P<pattern{i}>{pat})' for i, pat in enumerate(self.pattern.keys())))
+            callback_map = {f'pattern{i}': cb for i, (pat, cb) in enumerate(self.pattern.items())}
+
+            self.log_pos = 0
             while not self.stop_event.is_set():
-                while not os.path.exists(logfile):
+                if not os.path.exists(logfile):
                     self.log_pos = 0
                     await asyncio.sleep(1)
-                async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
-                    max_pos = os.fstat(file.fileno()).st_size
-                    if self.log_pos == -1 or max_pos == self.log_pos:
-                        self.log_pos = max_pos
-                        await asyncio.sleep(1)
-                        continue
-                    # if the logfile was rotated, seek to the beginning of the file
-                    elif max_pos < self.log_pos:
-                        self.log_pos = 0
+                    continue
 
-                    self.log_pos = await file.seek(self.log_pos, 0)
-                    lines = await file.readlines()
-                    for idx, line in enumerate(lines):
+                async with aiofiles.open(logfile, mode='r', encoding='utf-8', errors='ignore') as file:
+                    await file.seek(self.log_pos, 0)
+                    async for line in file:
                         if '=== Log closed.' in line:
                             self.log_pos = -1
                             return
-                        for pattern, callback in self.pattern.items():
-                            match = pattern.search(line)
-                            if match:
-                                if asyncio.iscoroutinefunction(callback):
-                                    # noinspection PyAsyncCall
-                                    asyncio.create_task(callback(self.log_pos + idx, line, match))
-                                else:
-                                    self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
-                    self.log_pos = await file.tell()
+                        match = combined_pattern.search(line)
+                        if match:
+                            for key, value in match.groupdict().items():
+                                if value:
+                                    callback = callback_map[key]
+                                    if asyncio.iscoroutinefunction(callback):
+                                        asyncio.create_task(callback(self.log_pos, line, match))
+                                    else:
+                                        self.loop.run_in_executor(None, callback, self.log_pos, line, match)
+                        self.log_pos = await file.tell()
+
         except Exception as ex:
             self.log.exception(ex)
         finally:

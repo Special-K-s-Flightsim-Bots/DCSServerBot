@@ -64,83 +64,123 @@ class Report:
                     )[1]
         return filename, report_def
 
-
     async def render(self, *args, **kwargs) -> ReportEnv:
-        if 'input' in self.report_def:
-            self.env.params = await parse_input(self, kwargs, self.report_def['input'])
+        # Cache the `report_def` locally for faster lookups and readability
+        report_def = self.report_def
+        env = self.env
+
+        # Parse input parameters or copy kwargs
+        if 'input' in report_def:
+            env.params = await parse_input(self, kwargs, report_def['input'])
         else:
-            self.env.params = kwargs.copy()
-        # add the bot to be able to access the whole environment from inside the report
-        self.env.params['bot'] = self.bot
-        # format the embed
-        if 'color' in self.report_def:
-            self.env.embed = discord.Embed(color=getattr(discord.Color, self.report_def.get('color', 'blue'))())
+            env.params = kwargs.copy()
+
+        # Add bot reference to params
+        env.params['bot'] = self.bot
+
+        # Create an embed with optional color
+        embed_color = getattr(discord.Color, report_def.get('color', 'blue'), discord.Color.blue)()
+        env.embed = discord.Embed(color=embed_color)
+
+        # Predefine keys that need formatting and apply transformations
+        formatted_keys = {
+            'title': {'max_length': 256, 'setter': lambda val: setattr(env.embed, 'title', val)},
+            'description': {'max_length': 4096, 'setter': lambda val: setattr(env.embed, 'description', val)},
+            'url': {'setter': lambda val: setattr(env.embed, 'url', val)},
+            'img': {'setter': lambda val: env.embed.set_thumbnail(url=val)},
+            'footer': {
+                'setter': lambda val: env.embed.set_footer(
+                    text=f"{env.embed.footer.text or ''}\n{val}"[:2048]
+                )
+            },
+        }
+
+        for key, config in formatted_keys.items():
+            if value := report_def.get(key):
+                formatted_value = utils.format_string(value, **env.params)
+                if 'max_length' in config:
+                    formatted_value = formatted_value[:config['max_length']]
+                config['setter'](formatted_value)
+
+        # Process mentions
+        if mention := report_def.get('mention'):
+            if isinstance(mention, int):
+                env.mention = f"<@&{mention}>"
+            else:
+                env.mention = ''.join([f"<@&{x}>" for x in mention])
+
+        # Handle the 'elements' section
+        if elements := report_def.get('elements'):
+            for element in elements:
+                await self._process_element(element, env.params)
+
+        return env
+
+    async def _process_element(self, element, params):
+        """
+        Helper function to process individual elements sequentially.
+        """
+        # Resolve the element's class and arguments
+        element_class, element_args = self._resolve_element_class_and_args(element, params)
+
+        if not element_class:
+            return  # Skip if the class couldn't be resolved
+
+        # Filter arguments for the __init__ method
+        init_args = self._filter_args(element_args, element_class.__init__)
+        instance = element_class(self.env, **init_args)
+
+        if not isinstance(instance, ReportElement):
+            raise UnknownReportElement(element.get('class', str(element)))
+
+        # Filter arguments for the render method
+        render_args = self._filter_args(element_args, instance.render)
+
+        # Render the element and handle exceptions
+        try:
+            await instance.render(**render_args)
+        except (TimeoutError, asyncio.TimeoutError):
+            self.log.error(f"Timeout while processing report {self.filename}! Some elements might be empty.")
+        except psycopg.OperationalError:
+            self.log.error(f"Database error while processing report {self.filename}! Some elements might be empty.")
+        except Exception:
+            self.log.error(f"Error while processing report {self.filename}! Some elements might be empty.",
+                           exc_info=True)
+            raise
+
+    def _resolve_element_class_and_args(self, element, params):
+        """
+        Resolves the class and arguments for a given element.
+        """
+        if isinstance(element, dict):
+            element_args = parse_params(params, element.get('params', params.copy()))
+            class_name = element.get('class') or element.get('type')
+            element_class = None
+
+            # Dynamically retrieve the class instance
+            if class_name:
+                element_class = (
+                    utils.str_to_class(class_name)
+                    if 'class' in element
+                    else getattr(sys.modules['core.report.elements'], class_name, None)
+                )
+        elif isinstance(element, str):
+            element_class = getattr(sys.modules['core.report.elements'], element, None)
+            element_args = params.copy()
         else:
-            self.env.embed = discord.Embed()
-        for name, item in self.report_def.items():
-            # parse report parameters
-            if name == 'title':
-                self.env.embed.title = utils.format_string(item, **self.env.params)[:256]
-            elif name == 'mention':
-                if isinstance(item, int):
-                    self.env.mention = f'<@&{item}>'
-                else:
-                    self.env.mention = ''.join([f"<@&{x}>" for x in item])
-            elif name == 'description':
-                self.env.embed.description = utils.format_string(item, **self.env.params)[:4096]
-            elif name == 'url':
-                self.env.embed.url = utils.format_string(item, **self.env.params)
-            elif name == 'img':
-                self.env.embed.set_thumbnail(url=utils.format_string(item, **self.env.params))
-            elif name == 'footer':
-                footer = self.env.embed.footer.text or ''
-                text = utils.format_string(item, **self.env.params)
-                if footer is None:
-                    footer = text
-                else:
-                    footer += '\n' + text
-                self.env.embed.set_footer(text=footer[:2048])
-            elif name == 'elements':
-                for element in item:
-                    if isinstance(element, dict):
-                        if 'params' in element:
-                            element_args = parse_params(self.env.params, element['params'])
-                        else:
-                            element_args = self.env.params.copy()
-                        element_class = utils.str_to_class(element['class']) if 'class' in element else None
-                        if not element_class and 'type' in element:
-                            element_class = getattr(sys.modules['core.report.elements'], element['type'])
-                    elif isinstance(element, str):
-                        element_class = getattr(sys.modules['core.report.elements'], element)
-                        element_args = self.env.params.copy()
-                    else:
-                        raise UnknownReportElement(str(element))
-                    if element_class:
-                        # remove parameters, that are not in the class __init__ signature
-                        signature = inspect.signature(element_class.__init__).parameters.keys()
-                        class_args = {name: value for name, value in element_args.items() if name in signature}
-                        element_class = element_class(self.env, **class_args)
-                        if isinstance(element_class, ReportElement):
-                            # remove parameters, that are not in the render classes signature
-                            signature = inspect.signature(element_class.render).parameters.keys()
-                            render_args = {name: value for name, value in element_args.items() if name in signature}
-                            try:
-                                await element_class.render(**render_args)
-                            except (TimeoutError, asyncio.TimeoutError):
-                                self.log.error(f"Timeout while processing report {self.filename}! "
-                                               f"Some elements might be empty.")
-                            except psycopg.OperationalError:
-                                self.log.error(f"Database error while processing report {self.filename}! "
-                                               f"Some elements might be empty.")
-                            except Exception:
-                                self.log.error(f"Error while processing report {self.filename}! "
-                                               f"Some elements might be empty.", exc_info=True)
-                                raise
-                        else:
-                            raise UnknownReportElement(element['class'])
-                    else:
-                        raise ClassNotFound(element['class'])
-        return self.env
+            raise UnknownReportElement(str(element))
+
+        if not element_class:
+            raise ClassNotFound(str(element.get('class', element)))
+
+        return element_class, element_args
+
+    def _filter_args(self, args, method):
+        """
+        Filters arguments based on a method's signature, ensuring compatibility.
+        """
+        signature = inspect.signature(method).parameters
+        return {name: value for name, value in args.items() if name in signature}
 
 
 class Pagination(ABC):
