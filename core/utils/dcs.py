@@ -3,6 +3,7 @@ import math
 import os
 import shutil
 import stat
+import sys
 
 from contextlib import suppress
 from core.const import SAVED_GAMES
@@ -18,6 +19,7 @@ __all__ = [
     "dd_to_dms",
     "get_active_runways",
     "create_writable_mission",
+    "get_orig_file",
     "lua_pattern_to_python_regex",
     "format_frequency"
 ]
@@ -31,6 +33,8 @@ class ParseError(Exception):
 
 
 def findDCSInstances(server_name: Optional[str] = None) -> list[tuple[str, str]]:
+    if sys.platform != 'win32':
+        return []
     instances = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
@@ -141,6 +145,8 @@ def get_active_runways(runways, wind):
 
 
 def create_writable_mission(filename: str) -> str:
+    if filename.endswith('.orig'):
+        filename = filename[:-5]
     try:
         with open(filename, mode='a'):
             new_filename = filename
@@ -153,6 +159,23 @@ def create_writable_mission(filename: str) -> str:
             os.makedirs(dirname, exist_ok=True)
             new_filename = os.path.join(dirname, os.path.basename(filename))
     return new_filename
+
+
+def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
+    if '.dcssb' in filename:
+        mission_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                    os.path.basename(filename))
+    else:
+        mission_file = filename
+    orig_file = mission_file + '.orig'
+    if not os.path.exists(orig_file):
+        if create_file:
+            # make an initial backup, if there is none
+            if not os.path.exists(orig_file):
+                shutil.copy2(filename, orig_file)
+        else:
+            return None
+    return orig_file
 
 
 def lua_pattern_to_python_regex(lua_pattern):

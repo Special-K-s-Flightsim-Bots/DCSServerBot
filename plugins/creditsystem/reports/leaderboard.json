@@ -1,0 +1,13 @@
+{
+  "color": "blue",
+  "title": "Leaderboard - TOP {limit}",
+  "elements":
+  [
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "SELECT p.name AS \"Name\", c.points AS \"Credits\" FROM players p JOIN credits c ON p.ucid = c.player_ucid ORDER BY 2 DESC LIMIT {limit}"
+      }
+    }
+  ]
+}

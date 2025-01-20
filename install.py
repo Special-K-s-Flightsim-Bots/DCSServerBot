@@ -112,8 +112,10 @@ class Install:
     def get_database_url(user: str, database: str) -> Optional[str]:
         host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
-            passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user=postgres)'))
-            url = f'postgres://postgres:{quote(passwd)}@{host}:{port}/postgres?sslmode=prefer'
+            master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')
+            master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'), default='postgres')
+            master_passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
+            url = f'postgres://{master_user}:{quote(master_passwd)}@{host}:{port}/{master_db}?sslmode=prefer'
             try:
                 with psycopg.connect(url, autocommit=True) as conn:
                     with closing(conn.cursor()) as cursor:
@@ -318,20 +320,29 @@ If you need any further assistance, please visit the support discord, listed in 
             master = False
             i = 0
 
-        print(_("\n{}. [u]Database Setup[/]").format(i+1))
+        print(_("\n{}. [u]Database Setup[/]").format(i + 1))
         if master:
             database_url = Install.get_database_url(user, database)
             if not database_url:
                 self.log.error(_("Aborted: No valid Database URL provided."))
                 exit(-1)
         else:
-            try:
-                database_url = next(node['database']['url'] for node in nodes.values() if node.get('database'))
+            if 'database' in main:
+                database_url = main['database']['url']
+            else:
+                try:
+                    database_url = next(node['database']['url'] for node in nodes.values() if node.get('database'))
+                except StopIteration:
+                    database_url = None
+            if database_url:
                 url = urlparse(database_url)
                 hostname, port = self.get_database_host(url.hostname, url.port)
                 database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
-            except StopIteration:
+            else:
                 database_url = Install.get_database_url(user, database)
+                if not database_url:
+                    self.log.error(_("Aborted: No valid Database URL provided."))
+                    exit(-1)
 
         print(_("\n{}. [u]Node Setup[/]").format(i+2))
         if sys.platform == 'win32':
@@ -340,10 +351,11 @@ If you need any further assistance, please visit the support discord, listed in 
             dcs_installation = Install.get_dcs_installation_linux()
         node = nodes[self.node] = {
             "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
-            "database": {
+        }
+        if 'database' not in main:
+            node["database"] = {
                 "url": database_url
             }
-        }
         if dcs_installation:
             node["DCS"] = {
                 "installation": dcs_installation
@@ -477,21 +489,26 @@ If you need any further assistance, please visit the support discord, listed in 
         print(_("- Created {}").format(os.path.join(config_dir, "servers.yaml")))
         self.log.info(_("{} written.").format(os.path.join(config_dir, "servers.yaml")))
         # write plugin configuration
-        if scheduler:
+        if schedulers:
             os.makedirs(os.path.join(config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(config_dir, 'plugins', 'scheduler.yaml'), mode='w', encoding='utf-8') as out:
                 yaml.dump(schedulers, out)
             print(_("- Created {}").format(os.path.join(config_dir, 'plugins', 'scheduler.yaml')))
             self.log.info(_("{} written.").format(os.path.join(config_dir, 'plugins', 'scheduler.yaml')))
-        try:
-            os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
-        except PermissionError:
-            print(_("[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]").format(dcs_installation))
-        print(_("\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
-                "You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
-                "There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
-                "You can start DCSServerBot with:\n\n"
-                "    [bright_black]run.cmd[/]\n\n"))
+        if dcs_installation:
+            try:
+                os.chmod(os.path.join(dcs_installation, 'Scripts', 'MissionScripting.lua'), stat.S_IWUSR)
+            except PermissionError:
+                print(_("[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]").format(dcs_installation))
+        if sys.platform == 'win32':
+            run_script = 'run.cmd'
+        else:
+            run_script = 'run.sh'
+        print(_(f"\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
+                f"You can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
+                f"There is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
+                f"You can start DCSServerBot with:\n\n"
+                f"    [bright_black]{run_script}[/]\n\n"))
         self.log.info(_("Installation finished."))
 
 

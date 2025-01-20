@@ -34,7 +34,6 @@ from typing import Optional, TYPE_CHECKING, Union, Any
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from watchdog.observers import Observer
 
-
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
@@ -59,14 +58,10 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
+        # ignore non-mission files and such that are in the .dcssb folder
         if not path.endswith('.miz') or '.dcssb' in path:
             return
-        if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "addMission", "path": path}),
-                                             self.loop)
-        else:
-            missions = self.server.settings['missionList']
-            missions.append(path)
+        asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
         self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def on_moved(self, event: FileSystemMovedEvent):
@@ -75,21 +70,17 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
+        # ignore non-mission files
         if not path.endswith('.miz'):
             return
         missions = self.server.settings['missionList']
+        if '.dcssb' not in path:
+            secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+            if secondary in missions:
+                path = secondary
         if path in missions:
-            if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                idx = missions.index(path) + 1
-                if idx == self.server.mission_id:
-                    self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
-                    return
-                else:
-                    asyncio.run_coroutine_threadsafe(self.server.send_to_dcs({"command": "deleteMission", "id": idx}),
-                                                     self.loop)
-            else:
-                missions.remove(path)
-                self.server.settings['missionList'] = missions
+            idx = missions.index(path) + 1
+            asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
         else:
             self.log.debug(f"Mission file {path} got deleted from disk.")
@@ -229,7 +220,7 @@ class ServerImpl(Server):
         mission_list = data['missionList']
         if mission_list != self.settings['missionList']:
             for m in set(self.settings['missionList']) - set(mission_list):
-                self.log.warning(f"Removed unsupported mission file from the list: {m}")
+                self.log.warning(f"Removed non-existing/unsupported mission from the list: {m}")
             self.settings['missionList'] = mission_list
 
     def set_status(self, status: Union[Status, str]):
@@ -436,13 +427,16 @@ class ServerImpl(Server):
         missions = []
         for mission in self.settings['missionList']:
             if '.dcssb' in mission:
-                secondary = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
+                _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
             else:
-                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
-            if os.path.exists(mission):
+                _mission = mission
+            # check if the orig file has been updated
+            orig = _mission + '.orig'
+            if os.path.exists(orig) and os.path.getmtime(orig) > os.path.getmtime(mission):
+                shutil.copy2(orig, _mission)
+                missions.append(_mission)
+            elif os.path.exists(mission):
                 missions.append(mission)
-            elif os.path.exists(secondary):
-                missions.append(secondary)
             else:
                 self.log.warning(f"Removing mission {mission} from serverSettings.lua as it could not be found!")
         if len(missions) != len(self.settings['missionList']):
@@ -458,6 +452,12 @@ class ServerImpl(Server):
                 self.set_priority(self.locals.get('priority'))
             if 'affinity' in self.locals:
                 self.set_affinity(self.locals.get('affinity'))
+            else:
+                # make sure, we only use P-cores for DCS servers
+                p_core_affinity = utils.get_p_core_affinity()
+                if p_core_affinity:
+                    self.log.info(f"  => P/E-Core CPU detected.")
+                    self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
             self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
@@ -650,24 +650,42 @@ class ServerImpl(Server):
             self.process = None
 
     @performance_log()
+    async def stop(self) -> None:
+        async def wait_for_file_release(timeout: int):
+            mission_file = self._get_current_mission_file()
+            if not mission_file:
+                return
+            for i in range(0, timeout * 2):
+                try:
+                    with open(mission_file, mode='a'):
+                        return
+                except PermissionError:
+                    await asyncio.sleep(0.5)
+            else:
+                raise TimeoutError()
+
+        if self.status in [Status.PAUSED, Status.RUNNING]:
+            timeout = 120 if self.node.locals.get('slow_system', False) else 60
+            await self.send_to_dcs({"command": "stop_server"})
+            await self.wait_for_status_change([Status.STOPPED], timeout)
+            await wait_for_file_release(10)
+
+    @performance_log()
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
-        # disable autoscan
-        if self.locals.get('autoscan', False):
-            self._disable_autoscan()
-        if not filename:
-            filename = await self.get_current_mission_file()
-            if not filename:
-                self.log.warning("No mission found. Is your mission list empty?")
-                return filename
-        new_filename = filename
         try:
+            # disable autoscan
+            if self.locals.get('autoscan', False):
+                self._disable_autoscan()
+            if not filename:
+                filename = await self.get_current_mission_file()
+                if not filename:
+                    self.log.warning("No mission found. Is your mission list empty?")
+                    return filename
+            new_filename = utils.get_orig_file(filename)
             # process all mission modifications
             dirty = False
             for ext in self.extensions.values():
                 if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
-                    # make an initial backup, if there is none
-                    if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
-                        shutil.copy2(filename, filename + '.orig')
                     new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
                     if _dirty:
                         self.log.info(f'  => {ext.name} applied on {new_filename}.')
@@ -709,36 +727,36 @@ class ServerImpl(Server):
                     WHERE node = %s AND server_name = %s
                 """, (self.node.name, self.name))
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
-        stopped = False
+    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
+                            orig = False) -> UploadStatus:
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
-        for idx, name in enumerate(self.settings['missionList']):
-            if (os.path.normpath(name) == filename) or (os.path.normpath(name) == os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))):
-                if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
-                    if not force:
-                        return UploadStatus.FILE_IN_USE
-                    await self.stop()
-                    stopped = True
-                filename = name
-                break
+        if orig:
+            filename += '.orig'
+            add = False
+        else:
+            secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
+            for idx, name in enumerate(self.settings['missionList']):
+                if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
+                    if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
+                        if not force:
+                            return UploadStatus.FILE_IN_USE
+                    add = True
+                    break
+            else:
+                add = self.locals.get('autoadd', True)
         rc = await self.node.write_file(filename, url, force)
         if rc != UploadStatus.OK:
             return rc
-        if not self.locals.get('autoscan', False) and self.locals.get('autoadd', True):
+        if (force or not self.locals.get('autoscan', False)) and add:
             await self.addMission(filename)
-        if stopped:
-            await self.start()
         return UploadStatus.OK
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
-        miz = await asyncio.to_thread(MizFile, filename)
-        await asyncio.to_thread(miz.apply_preset, preset)
-        # write new mission
-        new_filename = utils.create_writable_mission(filename)
-        await asyncio.to_thread(miz.save, new_filename)
-        return new_filename
+        from extensions.mizedit import MizEdit
+
+        return await MizEdit.apply_presets(utils.get_orig_file(filename), preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -804,12 +822,17 @@ class ServerImpl(Server):
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
-        if '.dcssb' in path:
-            secondary = os.path.join(os.path.dirname(os.path.dirname(path)), os.path.basename(path))
-        else:
-            secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        orig = path + '.orig'
+        if os.path.exists(orig):
+            os.remove(orig)
+        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         missions = self.settings['missionList']
         if path in missions or secondary in missions:
+            # the mission is already in the list. check if we need to reset a .dcssb copy
+            if secondary in missions:
+                await self.replaceMission(missions.index(secondary) + 1, path)
+                with suppress(Exception):
+                    os.remove(secondary)
             return missions
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
@@ -844,6 +867,24 @@ class ServerImpl(Server):
         return self.settings['missionList']
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
+        # check if we re-load the running mission
+        start_index = int(self.settings['listStartIndex'])
+        if ((isinstance(mission, int) and mission == start_index) or
+            (isinstance(mission, str) and mission == self._get_current_mission_file())):
+            mission = self.settings['missionList'][start_index - 1]
+            # now determine the original mission name
+            _mission = utils.get_orig_file(mission)
+            # check if the orig file has been replaced
+            if os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
+                new_filename = utils.create_writable_mission(mission)
+                # we can't write the original one, so use the copy
+                if new_filename != mission:
+                    shutil.copy2(_mission, new_filename)
+                    await self.replaceMission(start_index, new_filename)
+                    return await self.loadMission(start_index, modify_mission=modify_mission)
+                else:
+                    return await self.loadMission(start_index, modify_mission=modify_mission)
+
         if isinstance(mission, int):
             if mission > len(self.settings['missionList']):
                 mission = 1
@@ -863,7 +904,7 @@ class ServerImpl(Server):
         else:
             try:
                 idx = self.settings['missionList'].index(filename) + 1
-                if idx == int(self.settings['listStartIndex']):
+                if idx == start_index:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
                 else:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "id": idx})
@@ -956,3 +997,30 @@ class ServerImpl(Server):
     async def cleanup(self) -> None:
         tempdir = os.path.join(tempfile.gettempdir(), self.instance.name)
         await asyncio.to_thread(utils.safe_rmtree, tempdir)
+
+    async def getAllMissionFiles(self) -> list[tuple[str, str]]:
+        def shorten_filename(file: str) -> str:
+            if file.endswith('.orig'):
+                return file[:-5]
+            if '.dcssb' in file:
+                return file.replace(os.path.sep + '.dcssb', '')
+            return file
+
+        result = []
+        base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir, pattern="*.miz",
+                                                                ignore=['.dcssb', 'Scripts', 'Saves'], traverse=True)
+        for mission in all_missions:
+            orig = utils.get_orig_file(mission, create_file=False)
+            secondary = os.path.join(
+                os.path.dirname(mission), '.dcssb', os.path.basename(mission)
+            )
+            if orig and os.path.getmtime(orig) > os.path.getmtime(mission):
+                file = orig
+            else:
+                file = mission
+            if os.path.exists(secondary) and os.path.getmtime(secondary) > os.path.getmtime(file):
+                file = secondary
+
+            result.append((shorten_filename(file), file))
+
+        return result

@@ -62,7 +62,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
             dcsbot.banList[ipaddr] = ucid
             local msg = {
                 command = 'sendMessage',
-                message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
+                message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ', ipaddr=' .. ipaddr .. ') rejected.'
             }
             utils.sendBotTable(msg, dcsbot.params['mission']['channels']['admin'])
         else
@@ -73,7 +73,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         local old_ucid = dcsbot.banList[ipaddr]
         local msg = {
             command = 'sendMessage',
-            message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') connected from the same IP as banned player (ucid=' .. old_ucid .. ')!',
+            message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') connected from the same IP (ipaddr=' .. ipaddr .. ') as banned player (ucid=' .. old_ucid .. ')!',
             mention = 'DCS Admin'
         }
         utils.sendBotTable(msg, config['channels']['admin'])

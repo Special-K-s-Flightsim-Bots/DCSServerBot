@@ -3,7 +3,8 @@ import psycopg
 
 from datetime import timezone
 from discord import app_commands, SelectOption
-from core import utils, Plugin, PluginRequiredError, Group, get_translation
+from discord.ext import tasks
+from core import utils, Plugin, PluginRequiredError, Group, get_translation, PersistentReport
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Optional, cast, Union
@@ -15,6 +16,18 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class CreditSystem(Plugin):
+
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        config = self.get_config()
+        if config.get('leaderboard'):
+            self.update_leaderboard.start()
+
+    async def cog_unload(self) -> None:
+        config = self.get_config()
+        if config.get('leaderboard'):
+            self.update_leaderboard.cancel()
+        await super().cog_unload()
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:
@@ -331,6 +344,18 @@ class CreditSystem(Plugin):
                 await interaction.followup.send(
                     to.mention + _(', you just received {donation} credit points from {member}!').format(
                         donation=donation, member=utils.escape_string(interaction.user.display_name)))
+
+    @tasks.loop(minutes=5)
+    async def update_leaderboard(self):
+        config = self.get_config().get('leaderboard', {})
+        report = PersistentReport(self.bot, self.plugin_name, "leaderboard.json",
+                                  embed_name="credits_leaderboard",
+                                  channel_id=config['channel'])
+        await report.render(limit=config.get('limit', 10))
+
+    @update_leaderboard.before_loop
+    async def before_check(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot: DCSServerBot):

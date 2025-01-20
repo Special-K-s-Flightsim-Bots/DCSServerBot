@@ -46,7 +46,7 @@ class ServiceBus(Service):
         self.servers: dict[str, Server] = ThreadSafeDict()
         self.udp_server = None
         self.executor = None
-        if self.node.locals['DCS'].get('desanitize', True):
+        if 'DCS' in self.locals and self.node.locals['DCS'].get('desanitize', True):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
@@ -219,7 +219,7 @@ class ServiceBus(Service):
                         await self.send_init(server)
                     if server.maintenance:
                         self.log.warning(f'  => Maintenance mode enabled for Server {server.name}')
-                    if (utils.is_open(server.instance.dcs_host, server.instance.dcs_port) or
+                    if (utils.is_open(server.instance.dcs_host, server.instance.webgui_port) or
                             utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)):
                         calls[server.name] = asyncio.create_task(
                             server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout)
@@ -625,34 +625,60 @@ class ServiceBus(Service):
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
-            func = attrgetter(data.get('method'))(obj)
+            method_name = data['method']
+            func = getattr(obj, method_name, None)
             if not func:
-                return
-            kwargs = deepcopy(data.get('params', {}))
-            parameters = inspect.signature(func).parameters
-            # servers will be passed by name
-            if kwargs.get('server') and parameters.get('server').annotation != 'str':
-                kwargs['server'] = self.servers.get(kwargs['server'])
-            if kwargs.get('instance') and parameters.get('instance').annotation != 'str':
-                kwargs['instance'] = next((x for x in self.node.instances if x.name == kwargs['instance']), None)
+                return None
+
+            kwargs = data.get('params', {}).copy()
+
+            func_signature = None
+            if callable(func):
+                func_signature = inspect.signature(func).parameters
+
+            server_key = kwargs.get('server')
+            if server_key and func_signature and func_signature.get('server', None).annotation != 'str':
+                kwargs['server'] = self.servers.get(server_key, None)
+
+            instance_key = kwargs.get('instance')
+            if instance_key and func_signature and func_signature.get('instance', None).annotation != 'str':
+                instance_lookup = {inst.name: inst for inst in self.node.instances}
+                kwargs['instance'] = instance_lookup.get(instance_key, None)
+
+            # Handle master-specific mappings
             if self.master:
-                if kwargs.get('member'):
-                    kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))
-                if kwargs.get('user') and kwargs['user'].startswith('<@'):
-                    kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
-                if kwargs.get('node') and parameters.get('node').annotation != 'str':
-                    kwargs['node'] = self.node.all_nodes.get(kwargs['node'])
-            with PerformanceLog(f"RPC: {obj.__class__.__name__}.{data['method']}()"):
+                member_key = kwargs.get('member')
+                if member_key:
+                    try:
+                        kwargs['member'] = self.bot.guilds[0].get_member(int(member_key.strip('<@>')))
+                    except ValueError:
+                        kwargs['member'] = None
+
+                user_key = kwargs.get('user')
+                if user_key and user_key.startswith('<@'):
+                    try:
+                        kwargs['user'] = self.bot.guilds[0].get_member(int(user_key.strip('<@>')))
+                    except ValueError:
+                        kwargs['user'] = None
+
+                node_key = kwargs.get('node')
+                if node_key and func_signature and func_signature.get('node', None).annotation != 'str':
+                    kwargs['node'] = self.node.all_nodes.get(node_key, None)
+
+            # Log performance and execute function
+            with PerformanceLog(f"RPC: {obj.__class__.__name__}.{method_name}()"):
                 if asyncio.iscoroutinefunction(func):
-                    rc = await func(**kwargs)
+                    # If the function is asynchronous, await it directly
+                    return await func(**kwargs)
                 else:
-                    def _aux_func():
-                        return func(**kwargs)
-                    rc = await asyncio.to_thread(_aux_func)
-                return rc
+                    # For synchronous functions, move execution to a separate thread
+                    return await asyncio.to_thread(func, **kwargs)
+
         elif 'params' in data:
             for key, value in data['params'].items():
                 setattr(obj, key, value)
+
+        return None
 
     async def propagate_event(self, command: str, data: dict, server: Optional[Server] = None):
         tasks = [
@@ -674,11 +700,12 @@ class ServiceBus(Service):
                 except json.JSONDecodeError:
                     self.log.warning(f"Invalid request received on port {self.node.listen_port} - ignoring.")
                     return
+                server_name = data.get('server_name')
                 # ignore messages not containing server names
-                if 'server_name' not in data:
+                if not server_name:
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
-                server_name = data['server_name']
+
                 self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
                 server = self.servers.get(server_name)
                 if not server:

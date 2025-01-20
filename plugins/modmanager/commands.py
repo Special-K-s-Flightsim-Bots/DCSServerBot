@@ -379,10 +379,10 @@ class ModManager(Plugin):
             msg = await interaction.followup.send(
                 _("Updating mod {mod} from {current_version} to {new_version}, please wait ...").format(
                     mod=package, current_version=current, new_version=version), ephemeral=ephemeral)
-            if not await self.service.uninstall_package(reference, folder, package, current):
+            if not await self.service.uninstall_package(server, folder, package, current):
                 await msg.edit(content=_("Mod {mod}_v{version} could not be uninstalled!").format(
                     mod=package, version=version))
-            elif not await self.service.install_package(reference, folder, package, version):
+            elif not await self.service.install_package(server, folder, package, version):
                 await msg.edit(content=_("Mod {mod}_v{version} could not be installed!").format(
                     mod=package, version=version))
             else:
@@ -391,7 +391,7 @@ class ModManager(Plugin):
         else:
             msg = await interaction.followup.send(_("Installing mod {}, please wait ...").format(package),
                                                   ephemeral=ephemeral)
-            if not await self.service.install_package(reference, folder, package, version):
+            if not await self.service.install_package(server, folder, package, version):
                 await msg.edit(content=_("Installation of mod {} failed.").format(package))
             else:
                 await msg.edit(content=_("Mod {mod} installed with version {version}.").format(

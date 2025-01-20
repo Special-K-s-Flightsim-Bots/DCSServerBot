@@ -159,8 +159,14 @@ msgstr "Bitte gebe den Hostnamen des PostgreSQL-Datenbankservers an"
 msgid "Enter the port to your PostgreSQL-database"
 msgstr "Bitte gebe den Datenbank-Port an"
 
-msgid "Please enter your PostgreSQL master password (user=postgres)"
-msgstr "Bitte gebe das Passwort für den postgres-Benutzer ein"
+msgid "Please enter the name of your PostgreSQL master database"
+msgstr "Bitte gebe den Namen der PostgreSQL Master-Datenbank ein"
+
+msgid "Please enter your PostgreSQL master user name"
+msgstr "Bitte gebe den Namen des PostgreSQL Master Benutzers ein"
+
+msgid "Please enter your PostgreSQL master password (user={})"
+msgstr "Bitte gebe das Passwort für den Benutzer \"{}\" ein"
 
 msgid "[yellow]Existing {} user found![/]"
 msgstr "[yellow]Der Benutzer {} existiert bereits![/]"

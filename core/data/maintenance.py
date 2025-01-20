@@ -30,7 +30,7 @@ class ServerMaintenanceManager:
         tasks = []
         for instance in self.node.instances:
             server = instance.server
-            if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            if not server or server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                 continue
             if server.maintenance:
                 self.in_maintenance.append(server)

@@ -41,7 +41,10 @@ DEFAULT:              # valid for all servers
     playtime: 50
     combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
     role: Ace
-DCS.release_server:  # valid for a specific server
+  leaderboard:        # Simple leaderboard, persistent, displayed in a channel of your choice
+    channel: 112233445566778899
+    limit: 10         # max number of entries to be shown
+DCS.server:           # valid for a specific server
   initial_points:     # different initial points can be specified for different Discord roles
   - discord: Donator
     points: 15

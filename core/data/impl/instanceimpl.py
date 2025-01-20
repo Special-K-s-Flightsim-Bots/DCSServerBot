@@ -90,6 +90,8 @@ class InstanceImpl(Instance):
         self.update_server(server)
 
     def prepare(self):
+        if 'DCS' not in self.node.locals:
+            return
         # desanitisation of Slmod (if there)
         if self.node.locals['DCS'].get('desanitize', True):
             # check for SLmod and desanitize its MissionScripting.lua

@@ -86,17 +86,17 @@ class BackupService(Service):
         for server_name, server in ServiceRegistry.get(ServiceBus).servers.items():
             self.log.info(f'Backing up server "{server_name}" ...')
             filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
-            zf = ZipFile(os.path.join(target, filename), mode="w")
-            try:
-                root_dir = server.instance.home
-                for directory in config.get('directories', ['Config', 'Missions', 'Scripts']):
-                    self.zip_path(zf, root_dir, directory)
-                self.log.info(f'Backup of server "{server_name}" complete.')
-            except Exception:
-                self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
-                rc = False
-            finally:
-                zf.close()
+            with ZipFile(os.path.join(target, filename), mode="w") as zf:
+                try:
+                    root_dir = server.instance.home
+                    for directory in config.get('directories', ['Config', 'Scripts']):
+                        self.zip_path(zf, root_dir, directory)
+                    mission_dir = os.path.normpath(server.instance.missions_dir).rstrip(os.sep)
+                    self.zip_path(zf, os.path.dirname(mission_dir), os.path.basename(mission_dir))
+                    self.log.info(f'Backup of server "{server_name}" complete.')
+                except Exception:
+                    self.log.error(f'Backup of server "{server_name}" failed.', exc_info=True)
+                    rc = False
         return rc
 
     def backup_database(self) -> bool:

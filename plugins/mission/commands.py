@@ -199,7 +199,7 @@ class Mission(Plugin):
             "z": airbase['position']['z']
         })
         report = Report(self.bot, self.plugin_name, 'atis.json')
-        env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
+        env = await report.render(airbase=airbase, data=data, server=server)
         await interaction.followup.send(embed=env.embed)
 
     @mission.command(description=_('Shows briefing of the active mission'))
@@ -379,7 +379,7 @@ class Mission(Plugin):
             if mission_id and result == 'later':
                 # make sure, we load that mission, independently on what happens to the server
                 await server.setStartIndex(mission_id + 1)
-                server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
+                server.on_empty = {"command": "load", "mission_id": mission_id + 1, "user": interaction.user}
                 await interaction.followup.send(
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(name),
                     ephemeral=ephemeral)

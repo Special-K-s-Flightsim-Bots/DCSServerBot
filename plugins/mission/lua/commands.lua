@@ -287,7 +287,10 @@ end
 function dcsbot.replaceMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: replaceMission()')
 	local current_missions = net.missionlist_get()
-    current_missions["missionList"][tonumber(json.index)] = json.path
+    net.missionlist_delete(tonumber(json.index))
+    net.missionlist_append(json.path)
+    net.missionlist_move(#current_missions["missionList"], tonumber(json.index))
+	current_missions = net.missionlist_get()
 	utils.saveSettings({
         missionList = current_missions["missionList"]
     })

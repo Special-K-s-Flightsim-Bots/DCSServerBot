@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import importlib
 import io
 import logging
 import luadata
@@ -50,6 +52,7 @@ class MizFile:
                 except FileNotFoundError:
                     pass
         except Exception:
+            self.log.warning(f"Error while processing mission {self.filename}", exc_info=True)
             raise UnsupportedMizFileException(self.filename)
 
     def save(self, new_filename: Optional[str] = None):
@@ -461,6 +464,20 @@ class MizFile:
                         for _what in element.copy():
                             if utils.evaluate(config['delete'], **_what):
                                 element.remove(_what)
+                elif 'run' in config:
+                    if debug:
+                        self.log.debug(f"Processing {config['run']}() ...")
+                    module_name, func_name = config['run'].rsplit(".", 1)
+                    try:
+                        module = importlib.import_module(module_name)
+                        func = getattr(module, func_name)
+                        func(element, reference, **kwargs)
+                    except AttributeError:
+                        self.log.error(f"Function {func_name} not found in module {module_name}.")
+                        raise
+                    except ModuleNotFoundError:
+                        self.log.error(f"Module {module_name} not found.")
+                        raise
 
         def check_where(reference: dict, config: Union[list, str], debug: bool, **kwargs: dict) -> bool:
             if isinstance(config, str):
@@ -479,7 +496,11 @@ class MizFile:
             for cfg in config:
                 self.modify(cfg)
             return
+
+        # enable debug logging
         debug = config.get('debug', False)
+
+        # which file has to be changed?
         file = config.get('file', 'mission')
         if file == 'mission':
             source = self.mission
@@ -490,13 +511,30 @@ class MizFile:
         else:
             self.log.error(f"File {file} can not be changed.")
             return
+
         kwargs = {}
-        if 'variables' in config:
-            for name, value in config['variables'].items():
+        # check if we need to import stuff
+        for imp in config.get('imports', []):
+            try:
+                importlib.import_module(imp)
+            except ModuleNotFoundError:
+                self.log.error(f"Module '{imp}' could not be imported.")
+            except Exception as ex:
+                self.log.error(f"An error occurred while importing module '{imp}': {ex}")
+
+        # do we need to pre-set variables to work with?
+        for name, value in config.get('variables', {}).items():
+            if isinstance(value, (int, float, dict, list)):
+                kwargs[name] = value
+            elif isinstance(value, str):
                 if value.startswith('$'):
                     kwargs[name] = utils.evaluate(value, **kwargs)
                 else:
                     kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
+            else:
+                self.log.error(f"Variable '{name}' has an unsupported value: {value}")
+
+        # run the processing
         try:
             for_each = config['for-each'].lstrip('/')
         except KeyError:

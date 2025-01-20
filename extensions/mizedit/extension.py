@@ -1,9 +1,11 @@
+import asyncio
 import os
 import random
 
-from core import Extension, utils, Server, YAMLError, DEFAULT_TAG
+from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile
 from datetime import datetime
 from pathlib import Path
+from typing import Union
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -79,8 +81,17 @@ class MizEdit(Extension):
                 modifications.append(value)
         return modifications
 
+    @staticmethod
+    async def apply_presets(filename: str, preset: Union[list, dict]) -> str:
+        miz = await asyncio.to_thread(MizFile, filename)
+        await asyncio.to_thread(miz.apply_preset, preset)
+        # write new mission
+        new_filename = utils.create_writable_mission(filename)
+        await asyncio.to_thread(miz.save, new_filename)
+        return new_filename
+
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
-        return await self.server.modifyMission(filename, await self.get_presets(self.config)), True
+        return (await self.apply_presets(filename, await self.get_presets(self.config))), True
 
     def is_running(self) -> bool:
         return True

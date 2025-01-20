@@ -313,12 +313,8 @@ class Server(DataObject):
             "sound": sound
         })
 
-    @performance_log()
     async def stop(self) -> None:
-        if self.status in [Status.PAUSED, Status.RUNNING]:
-            timeout = 120 if self.node.locals.get('slow_system', False) else 60
-            await self.send_to_dcs({"command": "stop_server"})
-            await self.wait_for_status_change([Status.STOPPED], timeout)
+        raise NotImplemented()
 
     @performance_log()
     async def start(self) -> bool:
@@ -362,10 +358,14 @@ class Server(DataObject):
     async def getMissionList(self) -> list[str]:
         raise NotImplemented()
 
+    async def getAllMissionFiles(self) -> list[str]:
+        raise NotImplemented()
+
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
+                            orig = False) -> UploadStatus:
         raise NotImplemented()
 
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:

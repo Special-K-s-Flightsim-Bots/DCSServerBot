@@ -39,11 +39,13 @@ class Init(report.EmbedElement):
 
 class ServerInfo(report.EmbedElement):
 
-    async def render(self, server: Server, show_password: Optional[bool] = True):
+    async def render(self, server: Server, show_password: Optional[bool] = True, host: Optional[str] = None,):
+        if not server.locals.get('show_passwords', True):
+            show_password = False
         name = value = ""
         if server.node.public_ip:
             name = "Server-IP / Port"
-            value = f"{server.node.public_ip}:{server.settings['port']}"
+            value = f"{host or server.node.public_ip}:{server.settings['port']}"
         if server.settings['password']:
             if value:
                 value += '\n\n**Password**\n'
@@ -104,6 +106,8 @@ class WeatherInfo(report.EmbedElement):
                 if 'preset' in clouds:
                     value = clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n')
                     value += f"\n\n**Cloudbase**\n{int(clouds['base'] * const.METER_IN_FEET + 0.5):,} ft"
+                elif 'density' in clouds and clouds['density'] == 0:
+                    value = "Clear"
                 else:
                     value = "Dynamic"
                     value += ("\n\n**Cloudbase**\n"
@@ -116,9 +120,16 @@ class WeatherInfo(report.EmbedElement):
                 self.add_field(name='Weather', value='Dynamic\n**Clouds**\nn/a')
 
             visibility = weather['visibility']['distance']
-            if weather.get('enable_fog', False) is True:
-                visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
-            value = "{:,} ft".format(int(visibility)) if visibility < 30000 else "10 km / 6 SM (+)"
+            try:
+                ret = await server.send_to_dcs_sync({
+                    "command": "getFog"
+                })
+                if ret['visibility']:
+                    visibility = int(ret['visibility'])
+            except (TimeoutError, asyncio.TimeoutError):
+                pass
+            value = "{:,} m / {:.2f} SM".format(int(visibility), visibility / const.METERS_IN_SM) \
+                if visibility < 30000 else "10 km / 6 SM (+)"
             value += ("\n\n**Wind**\n"
                       "\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts").format(
                 int(weather['wind']['atGround']['dir'] + 180) % 360,

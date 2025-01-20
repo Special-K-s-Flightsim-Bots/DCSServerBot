@@ -20,8 +20,20 @@ class MissionUploadHandler(ServerUploadHandler):
         ctx = await self.bot.get_context(self.message)
         rc = await self.server.uploadMission(att.filename, att.url, force=False, missions_dir=directory)
         if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
-            if not await utils.yn_question(ctx, _('A mission is currently active.\n'
-                                                  'Do you want me to stop the DCS-server to replace it?')):
+            if self.server.is_populated():
+                what = await utils.populated_question(ctx, _('This mission is currently active.\n'
+                                                             'Do you want me to stop the DCS-server to replace it?'))
+            else:
+                what = 'yes'
+            if what == 'yes':
+                await self.server.stop()
+            elif what == 'later':
+                await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
+                    mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
+                # we return the old rc (file in use), to not force a mission load
+                return rc
+            else:
                 await self.channel.send(_('Upload aborted.'))
                 return rc
         elif rc == UploadStatus.FILE_EXISTS:
@@ -41,7 +53,7 @@ class MissionUploadHandler(ServerUploadHandler):
             await self.channel.send(_('Mission "{mission}" uploaded to server {server} and NOT added.').format(
                 mission=name, server=self.server.display_name))
             return rc
-        if self.server.locals.get('autoscan', False):
+        if self.server.status != Status.STOPPED and self.server.locals.get('autoscan', False):
             self.log.debug("Autoscan enabled, waiting for mission to be auto-added.")
             await self.channel.send(
                 _('Mission "{mission}" uploaded to server {server}.\n'
@@ -65,8 +77,7 @@ class MissionUploadHandler(ServerUploadHandler):
     async def _load_mission(self, filename: str):
         ctx = await self.bot.get_context(self.message)
         name = utils.escape_string(os.path.basename(filename)[:-4])
-        if (self.server.status != Status.SHUTDOWN and self.server.current_mission and
-                self.server.current_mission.filename != filename and
+        if (self.server.status != Status.SHUTDOWN and
                 await utils.yn_question(ctx, _('Do you want to load mission {}?').format(name))):
             extensions = [
                 x.name for x in self.server.extensions.values()
@@ -98,7 +109,6 @@ class MissionUploadHandler(ServerUploadHandler):
             self.log.error(msg)
             await self.channel.send(_(msg))
             return
-        stopped = False
         if self.server.is_populated():
             ctx = await self.bot.get_context(self.message)
             if not await utils.yn_question(ctx, _("People are flying on this server.\n"
@@ -106,7 +116,6 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.channel.send("Aborted.")
                 return
             await self.server.stop()
-            stopped = True
         await self._load_mission(filename)
-        if stopped:
+        if self.server.status == Status.STOPPED:
             await self.server.start()

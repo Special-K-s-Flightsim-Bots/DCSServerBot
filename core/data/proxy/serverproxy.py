@@ -111,6 +111,15 @@ class ServerProxy(Server):
             }, node=self.node.name, timeout=timeout)
             self.status = Status.SHUTDOWN
 
+    async def stop(self) -> None:
+        timeout = 180 if not self.node.slow_system else 300
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "stop",
+            "server_name": self.name
+        }, node=self.node.name, timeout=timeout)
+
     async def init_extensions(self) -> list[str]:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
@@ -130,7 +139,8 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=timeout)
 
-    async def uploadMission(self, filename: str, url: str, force: bool = False, missions_dir: str = None) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
+                            orig = False) -> UploadStatus:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -139,8 +149,9 @@ class ServerProxy(Server):
             "params": {
                 "filename": filename,
                 "url": url,
+                "missions_dir": missions_dir,
                 "force": force,
-                "missions_dir": missions_dir
+                "orig": orig
             },
             "server_name": self.name
         }, timeout=timeout, node=self.node.name)
@@ -407,3 +418,13 @@ class ServerProxy(Server):
             "method": "cleanup",
             "server_name": self.name
         }, timeout=timeout, node=self.node.name)
+
+    async def getAllMissionFiles(self) -> list[str]:
+        timeout = 180 if not self.node.slow_system else 300
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "getAllMissionFiles",
+            "server_name": self.name
+        }, timeout=timeout, node=self.node.name)
+        return data['return']

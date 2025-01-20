@@ -6,6 +6,7 @@ import ssl
 from aiohttp import BasicAuth
 from core import Extension, Server, utils, DEFAULT_TAG
 from datetime import datetime, timezone
+from http import HTTPStatus
 from pathlib import Path
 from typing import Optional, Any
 
@@ -60,7 +61,17 @@ class Cloud(Extension):
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with self.session.post(url, json=element, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+            async with (self.session.post(url, json=element, proxy=self.proxy, proxy_auth=self.proxy_auth,
+                                         raise_for_status=False) as response):
+                if response.status > 299:
+                    body = await response.text()
+                    raise aiohttp.ClientResponseError(
+                        request_info=response.request_info,
+                        history=(),
+                        status=response.status,
+                        message=f"{HTTPStatus(response.status).phrase}: {body}",
+                        headers=response.headers
+                    )
                 return await response.json()
 
         if isinstance(data, list):
@@ -79,7 +90,6 @@ class Cloud(Extension):
             payload = {
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
-                "ipaddr": self.server.instance.dcs_host,
                 "port": self.server.instance.dcs_port,
                 "password": (self.server.settings['password'] != ""),
                 "theatre": self.server.current_mission.map,
@@ -100,15 +110,18 @@ class Cloud(Extension):
             self.log.debug(payload)
 
     async def cloud_unregister(self):
+        payload = {}
         try:
-            # noinspection PyUnresolvedReferences
-            await self.post('unregister_server', {
+            payload = {
                 "guild_id": self.node.guild_id,
-                "server_name": self.server.name,
-            })
+                "server_name": self.server.name
+            }
+            # noinspection PyUnresolvedReferences
+            await self.post('unregister_server', payload)
             self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:
-            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.")
+            self.log.warning(f"Could not unregister server {self.server.name} from the cloud.", exc_info=ex)
+            self.log.debug(payload)
 
     async def startup(self) -> bool:
         await self.cloud_register()

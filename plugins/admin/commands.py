@@ -89,6 +89,21 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
     except Exception as ex:
         interaction.client.log.exception(ex)
 
+async def _mission_file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        server: Server = await utils.ServerTransformer().transform(
+            interaction, utils.get_interaction_param(interaction, 'server'))
+        file_list = await server.getAllMissionFiles()
+        exp_base = await server.get_missions_dir()
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=os.path.relpath(x[0], exp_base), value=os.path.relpath(x[1], exp_base))
+            for x in file_list
+            if not current or current.casefold() in os.path.relpath(x[0], exp_base).casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
@@ -99,15 +114,16 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         if not server:
             return []
         label = utils.get_interaction_param(interaction, "what")
+        # missions will be handled differently
+        if label == 'Missions':
+            return await _mission_file_autocomplete(interaction, current)
         config = interaction.client.cogs['Admin'].get_config(server)
         try:
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
             return []
         base_dir = config['directory'].format(server=server)
-        exp_base, file_list = await server.node.list_directory(
-                base_dir, pattern=config['pattern'], traverse=True, ignore=['.dcssb']
-            )
+        exp_base, file_list = await server.node.list_directory(base_dir, pattern=config['pattern'], traverse=True)
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
             for x in file_list
@@ -427,12 +443,27 @@ class Admin(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
-        path = os.path.join(config['directory'].format(server=server), filename)
+        # double-check if that user can really download these files
+        if config.get('discord') and not utils.check_roles(config['discord'], interaction.user):
+            raise app_commands.CheckFailure()
+        # make sure nobody injected a wrong path
+        base_dir = config['directory'].format(server=server)
+        try:
+            path = utils.sanitize_filename(os.path.join(base_dir, filename), base_dir)
+        except ValueError:
+            await self.bot.audit("User attempted a relative file injection!",
+                                 user=interaction.user, base_dir=base_dir, file=filename)
+            await interaction.followup.send(_("You have been reported for trying to inject a relative path!"))
+            return
+        # now continue to download
+        if filename.endswith('.orig'):
+            filename = filename[:-5]
         try:
             file = await server.node.read_file(path)
         except FileNotFoundError:
-            await interaction.followup.send(_("File {file} not found in directory {dir}.").format(
-                file=filename, dir=config['directory'].format(server=server)))
+            self.log.error(f"File {path} not found.")
+            await interaction.followup.send(content=_("File {file} not found.").format(file=filename),
+                                            ephemeral=True)
             return
         target = config.get('target')
         if target:
@@ -448,7 +479,7 @@ class Admin(Plugin):
             dm_channel = await interaction.user.create_dm()
             for channel in [dm_channel, interaction.channel]:
                 try:
-                    await channel.send(file=discord.File(fp=BytesIO(file), filename=filename))
+                    await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
                     if channel == dm_channel:
                         await interaction.followup.send(_('File sent as a DM.'), ephemeral=ephemeral)
                     else:
@@ -463,7 +494,7 @@ class Admin(Plugin):
         elif target.startswith('<'):
             channel = self.bot.get_channel(int(target[4:-1]))
             try:
-                await channel.send(file=discord.File(fp=BytesIO(file), filename=filename))
+                await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
             except discord.HTTPException:
                 await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
                                                 ephemeral=ephemeral)
@@ -472,7 +503,8 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
         else:
-            async with aiofiles.open(os.path.join(os.path.expandvars(target), filename), mode='wb') as outfile:
+            async with aiofiles.open(
+                    os.path.join(os.path.expandvars(target), os.path.basename(filename)), mode='wb') as outfile:
                 await outfile.write(file)
             await interaction.followup.send(_('File copied to the specified location.'), ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)

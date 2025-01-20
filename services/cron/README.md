@@ -1,13 +1,9 @@
 # Cron Service
-This will be a possible future replacement / enhancement of the [Scheduler-plugin](../../plugins/scheduler/README.md) 
-and some things that are implemented in scheduled functions in other plugins or even complete services like cleanup and 
-backup and maybe monitoring.<br>
-
-You can use it to run pre-defined actions at specific times. See [here](#actions) for examples.
+You can use this service to run pre-defined actions at specific times. See [here](#actions) for examples.
 More to come.
 
 ## Configuration
-As per usual, the service is configured with a yaml file, in this case config/services/scheduler.yaml:
+As per usual, the service is configured with a yaml file, in this case config/services/cron.yaml:
 ```yaml
 DEFAULT:
   actions:
@@ -15,7 +11,7 @@ DEFAULT:
       action:
         type: report                    # generate a report
         params:
-          file: mysample.json           # using this template in reports/scheduler
+          file: mysample.json           # using this template in reports/cron
           channel: 1122334455667788     # channel to post the report in
           persistent: true              # is it a persistent report? (default = true)
     - cron: '0 3 * * 0,2-6'             # reboot the server each night but Monday at 03:00
@@ -64,7 +60,7 @@ DEFAULT:
       action:
         type: report                    # generate a report
         params:
-          file: mysample.json           # using this template in reports/scheduler
+          file: mysample.json           # using this template in reports/cron
           channel: 1122334455667788     # channel to post the report in
           persistent: true              # is it a persistent report? (default = true)
 ```

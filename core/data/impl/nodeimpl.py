@@ -128,7 +128,8 @@ class NodeImpl(Node):
         await self.close_db()
 
     async def post_init(self):
-        await self.get_dcs_branch_and_version()
+        if 'DCS' in self.locals:
+            await self.get_dcs_branch_and_version()
         self.pool, self.apool = await self.init_db()
         try:
             self._master = await self.heartbeat()
@@ -229,11 +230,12 @@ class NodeImpl(Node):
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
                     dirty = True
                     self.log.info("Database password found, removing it from config.")
-            password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
-            if password:
-                node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
-                utils.set_password('DCS', password, self.config_dir)
-                dirty = True
+            if 'DCS' in node:
+                password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
+                if password:
+                    node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
+                    utils.set_password('DCS', password, self.config_dir)
+                    dirty = True
             if dirty:
                 with open(config_file, 'w', encoding='utf-8') as f:
                     yaml.dump(data, f)
@@ -613,24 +615,29 @@ class NodeImpl(Node):
         if not self._public_ip:
             self._public_ip = await utils.get_public_ip()
             self.log.info(f"- Public IP registered as: {self.public_ip}")
-        if self.locals['DCS'].get('autoupdate', False):
-            if not self.locals['DCS'].get('cloud', False) or self.master:
-                self.autoupdate.start()
-        else:
-            branch, old_version = await self.get_dcs_branch_and_version()
-            try:
-                new_version = await self.get_latest_version(branch)
-                if new_version and old_version != new_version:
-                    self.log.warning(
-                        f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
-            except Exception:
-                self.log.warning("Version check failed, possible auth-server outage.")
+        if 'DCS' in self.locals:
+            if self.locals['DCS'].get('autoupdate', False):
+                if not self.locals['DCS'].get('cloud', False) or self.master:
+                    self.autoupdate.start()
+            else:
+                branch, old_version = await self.get_dcs_branch_and_version()
+                try:
+                    new_version = await self.get_latest_version(branch)
+                    if new_version:
+                        if parse(old_version) < parse(new_version):
+                            self.log.warning(
+                                f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
+                        elif parse(old_version) > parse(new_version):
+                            self.log.critical(
+                                f"- The DCS World version you are using has been rolled back to version {new_version}.!")
+                except Exception:
+                    self.log.warning("Version check failed, possible auth-server outage.")
 
     async def unregister(self):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
-        if self.locals['DCS'].get('autoupdate', False):
+        if 'DCS' in self.locals and self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
 

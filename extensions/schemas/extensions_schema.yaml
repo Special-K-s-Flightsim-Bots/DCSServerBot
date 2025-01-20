@@ -10,6 +10,8 @@ schema;node_extensions_schema:
       include: 'node_olympus_schema'
     RealWeather:
       include: 'node_realweather_schema'
+    SkyEye:
+      include: 'node_skyeye_schema'
     Sneaker:
       include: 'node_sneaker_schema'
     SRS:
@@ -42,6 +44,8 @@ schema;instance_extensions_schema:
       include: 'pretense_schema'
     RealWeather:
       include: 'instance_realweather_schema'
+    SkyEye:
+      include: 'instance_skyeye_schema'
     Sneaker:
       include: 'instance_sneaker_schema'
     SRS:

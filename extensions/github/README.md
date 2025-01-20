@@ -12,6 +12,7 @@ MyNode:
       extensions:
         GitHub:
           repo: 'https://github.com/mrSkortch/MissionScriptingTools.git'
+          branch: master  # optional branch, default is the repositories default branch (e. g. main or master)
           target: '{server.instance.home}\Missions\Scripts'
           filter: '*.lua'
 ```

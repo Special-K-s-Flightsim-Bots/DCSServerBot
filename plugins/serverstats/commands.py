@@ -36,7 +36,7 @@ class ServerLoadFilter(PeriodFilter):
         elif self.period == 'today':
             return "DATE_TRUNC('day', time) = current_date"
         elif self.period in ServerLoadFilter.list(bot):
-            return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {self.period}')"
+            return f"time > ((now() AT TIME ZONE 'utc') - interval '1 {self.period}')"
         elif '-' in self.period:
             start, end = self.period.split('-')
             start = start.strip()
@@ -44,12 +44,12 @@ class ServerLoadFilter(PeriodFilter):
             # avoid SQL injection
             pattern = re.compile(r'^\d+\s+(month|week|day|hour|minute)s?$')
             if pattern.match(end):
-                return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '{end}')"
+                return f"time > ((now() AT TIME ZONE 'utc') - interval '{end}')"
             else:
                 start = self.parse_date(start) if start else datetime(year=1970, month=1, day=1)
                 end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
-                return (f"DATE(time) >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
-                        f"COALESCE(DATE(time), (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
+                return (f"time >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
+                        f"COALESCE(time, (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
 
 
 class ServerStats(Plugin):

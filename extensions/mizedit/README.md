@@ -21,6 +21,7 @@ So - why not do that on our own, without the need of the editor?
 Each mission change is represented in a small data-structure in yaml. I've called these "presets", as they usually will
 work as a fixed setting for any mission you have, like any weather preset you know already from the recent DCS versions.
 
+> [!NOTE]
 > If you want to look up the presets used in DCS, you can take a look at 
 > `C:\Program Files\Eagle Dynamics\DCS World\Config\Effects\clouds.lua`.
 
@@ -28,6 +29,7 @@ work as a fixed setting for any mission you have, like any weather preset you kn
 As you usually want to re-use your presets, they are bundled together in a larger configuration file. Each preset has
 a name. Presets can be chained to create a combination of presets as a separate preset.
 
+> [!TIP]
 > You can create any other file named presets*.yaml to better structure your presets.
 > If you want to use presets from another yaml file, you can specify that in your MizEdit-Extension.
 > You can mix several presets files by specifying them as a list (see example below).
@@ -130,206 +132,8 @@ nested or even dependent on another parts of your mission file. This is for inst
 frequencies, TACAN codes or similar items.
 Therefore, I developed some SQL-like query language, where you can search and change values in your mission.
 
-To use the "modify"-Preset, you need to understand some of the concepts first. 
-As we need to "navigate" all around the mission file inside your miz file, we need some kind of path description first,
-that helps us find the respective elements that we want to change:
-
-| Character | Description                                                                             |
-|-----------|-----------------------------------------------------------------------------------------|
-| /node     | Select this element from the datastructure at this point.                               |
-| *         | Walk over all elements in a list or table.                                              |
-| $         | Whatever comes after this is evaluated as Python code.                                  |
-| \[x\]     | Select the n-th element from a list (starts with 1) or a specific element from a table. |
-| \[x,y\]   | Selects these elements from a list (starts with 1) or from a table.                     |
-| '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string.                 |
-
-
-Let me show you an example:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission  # default, can be any of "mission", "options" or "warehouses"
-    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-```
-This selects some carriers from your blue coalition. Now let's write the same thing a bit different:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-```
-In theory, this does the very same. It processes over some carriers on the blue coalition. The difference is that
-the "reference" element, meaning the element on which we will work in a bit, is a carrier unit in the first example
-and all groups **containing** any of the carriers in the second example.
-
-Now lets see, why we might need that difference:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
-```
-So this does the following:
-- Find any blue group ... 
-- ... that contains a carrier of the listed type.
-- Then select all task parameters of that group (!) where the task id == "WrappedAction", and the action id is "ActivateBeacon".
-
-And now, we can work on these task parameters like so:
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
-    replace:
-      modeChannel: X
-      channel: $'{reference[units][0][type]}'[-2:]
-      frequency:
-        $'{reference[units][0][type]}'[-2:] == '72': 1158000000
-        $'{reference[units][0][type]}'[-2:] == '73': 1160000000
-```
-So this replaces the "modeChannel" parameter with "X". Then, we replace the channel using a built-in variable 
-"reference", which in our case points to one of each "group" returned by the for-each statement.
-Inside of this group, we select the units, the first one of them with [0], its type, which is one of CVN_71 ... 75.
-Then we cut out the last 2 characters from that type name, which is the carrier number (71 ... 75). Then we set this as
-our TACAN channel.
-Next we set the frequency. We are using one of the possible ways of doing it - a list of options, where only one is true
-at a time. In our case, we calculate the carrier number again (like above) and then match it with one of the possible 
-numbers (I was lazy and only added 2 carrier types 72 and 73 in here). Then we select the respective frequency for that
-specific carrier.
-
-If we now look at CVN_73 for instance, this will be the result:
-```lua
-["params"] = 
-{
-    ["modeChannel"] = "X"
-    ["channel"] = "73"
-    ["frequency"] = 1160000000
-}
-```
-
-Besides "replace", you can also use: 
-- delete: delete something from your mission, a unit type for instance, random failures, a whole coalition, etc.
-- merge: merge two parts of your mission file, like blue and neutral countries to create a new blue. 
-
-Sometimes it might be necessary to use some variables ({xxx}) inside your code. Some are preset already, like 
-{reference} or one of the results of the selected element, some can be set on your own like so:
-```yaml
-MyFancyPreset:
-  modify:
-    variables:
-      theatre: theatre                          # fills the missions theatre into the {theatre} variable
-      temperature: weather/season/temperature   # fills the mission temperature in the {temperature} variable
-      rand: '$random.randint(1, 10)'            # fills some random number between 1 and 10 into ${rand}
-      mylist: '$list(range(1, {rand}))'         # creates a list ${mylist} of numbers starting from 1 to the result of the random pick above
-```
-You can work with these variables then later on, to for instance create some randomness in your mission.
-
-#### Example 1: Search all CVN carriers in your mission:
-> coalition/[blue,red]/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-
-will walk the mission tree like so:
-```
-|_ coalition
-   |_ blue
-      |_ country
-         |_ ... all countries ...
-            |_ ship
-               |_ group
-                   |_ ... all groups ...
-                       |_ units
-                             |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-   |_ red
-      |_ country
-         |_ ... all countries ...
-            |_ ship
-               |_ group
-                   |_ ... all groups ...
-                       |_ units
-                             |_ elements where ["type"] is one of ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-```
-
-#### Example 2a: Change the carrier's frequency for the blue coalition to 3 + carrier type + 000000 (w. g. CVN-71 => 371000000)
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    replace:
-      frequency: 
-        "$'{type}' == 'CVN_71'": 371000000
-        "$'{type}' == 'CVN_72'": 372000000
-        "$'{type}' == 'CVN_73'": 373000000
-        "$'{type}' == 'CVN_74'": 374000000
-        "$'{type}' == 'CVN_75'": 375000000
-```
-
-#### Example 2b: Shorter version of the above, using a Python calculation
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission  
-    for-each: coalition/blue/country/*/ship/group/*/units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    replace: 
-      frequency: $int('3' + '{type}'[-2:] + '000000')
-```
-
-#### Example 3: Changing the TACAN Frequency
-This is more complex, as we either need to search the carrier but to change the TACAN, we need to change some different
-structure in the mission file.
-```yaml
-MyFancyPreset:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/ship/group/*
-    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
-    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}' == 'ActivateBeacon'/params
-    replace:
-      modeChannel: X
-      channel: $'{reference[units][0][type]}'[-2:]
-      frequency:
-        $'{reference[units][0][type]}'[-2:] == '72': 1158000000
-        $'{reference[units][0][type]}'[-2:] == '73': 1160000000
-```
-
-#### Example 4: Set the 1st radio-preset of all blue F-14Bs to 243
-```yaml
-ChangeRadios:
-  modify:
-    file: mission
-    for-each: coalition/blue/country/*/plane/group/*/units/$'{type}' in ['F-14B']
-    select: Radio/[1]/channels
-    replace:
-      1: 243
-    insert:
-      Radio:
-        - channels:
-            - 243
-```
-
-#### Example 5: Delete all Hornets from your mission
-```yaml
-DeleteAllHornets:
-  modify:
-    file: mission
-    for-each: coalition/[blue,red]/country/*/plane/group/*/units
-    delete: $'{type}' == 'FA-18C_hornet'
-```
-
-#### Example 6: Change all blue warehouses to dynamic cargo
-```yaml
-EnableDynamicCargo:
-  modify:
-    file: warehouses
-    debug: true
-    for-each: airports/*/$'{coalition}' == 'BLUE'
-    replace:
-      dynamicCargo: true
-```
+> [!NOTE]
+> As this is complex and very (!) powerful, I decided to move the documentation in a separate file [here](MODIFY.md).
 
 ## Usage
 MizEdit is used like any other extension. It is added to your nodes.yaml and configured through it.
@@ -385,7 +189,7 @@ c) Permutations
 d) Map-specific Settings
 ```yaml
         MizEdit:
-          theatre:
+          terrains:
             Caucasus:
               settings:
               - Winter, Morning, Slight Breeze, Halo

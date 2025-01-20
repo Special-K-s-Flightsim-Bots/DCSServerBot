@@ -24,6 +24,7 @@ import unicodedata
 import random
 import math
 
+from copy import deepcopy
 from croniter import croniter
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -70,7 +71,8 @@ __all__ = [
     "hash_password",
     "evaluate",
     "for_each",
-    "YAMLError"
+    "YAMLError",
+    "DictWrapper"
 ]
 
 logger = logging.getLogger(__name__)
@@ -923,3 +925,84 @@ class YAMLError(Exception):
     """
     def __init__(self, file: str, ex: Union[MarkedYAMLError, ValueError, SchemaError]):
         super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))
+
+
+class DictWrapper:
+    """A wrapper for dictionaries enabling both attribute and key-based access."""
+
+    def __init__(self, data):
+        """Initialize with a dictionary or a list."""
+        if isinstance(data, dict):
+            self._data = {k: self._wrap(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            self._data = [self._wrap(v) for v in data]
+        else:
+            self._data = data  # Handle non-dict types (e.g., primitive values)
+
+    @staticmethod
+    def _wrap(value):
+        """Wrap nested dictionaries or lists inside DictWrapper."""
+        if isinstance(value, dict):
+            return DictWrapper(value)
+        elif isinstance(value, list):
+            return [DictWrapper._wrap(v) for v in value]
+        return value
+
+    def __getattr__(self, name):
+        """Access dictionary keys as attributes."""
+        try:
+            return self._data[name]
+        except KeyError:
+            raise AttributeError(f"Attribute '{name}' not found")
+
+    def __setattr__(self, name, value):
+        """Set dictionary keys as attributes."""
+        if name == "_data":
+            super().__setattr__(name, value)
+        else:
+            self._data[name] = self._wrap(value)
+
+    def __delattr__(self, name):
+        """Delete keys like attributes."""
+        try:
+            del self._data[name]
+        except KeyError:
+            raise AttributeError(f"Attribute '{name}' not found")
+
+    def __getitem__(self, key):
+        """Support list-style or dictionary-style key/item access."""
+        return self._data[key]
+
+    def __setitem__(self, key, value):
+        """Set items using key."""
+        self._data[key] = self._wrap(value)
+
+    def __delitem__(self, key):
+        """Support item deletion."""
+        del self._data[key]
+
+    def __iter__(self):
+        """Allow iteration."""
+        return iter(self._data)
+
+    def __repr__(self):
+        """Pretty representation."""
+        return repr(self._data)
+
+    def to_dict(self):
+        def _unwrap_list(value):
+            if isinstance(value, list):
+                return [(v.to_dict() if isinstance(v, DictWrapper) else _unwrap_list(v)) for v in value]
+            return value
+
+        if isinstance(self._data, dict):
+            return {
+                k: (v.to_dict() if isinstance(v, DictWrapper) else _unwrap_list(v)) for k, v in self._data.items()
+            }
+        elif isinstance(self._data, list):
+            return _unwrap_list(self._data)
+        return self._data
+
+    def clone(self):
+        """Deeply clone the DictWrapper object."""
+        return DictWrapper(deepcopy(self.to_dict()))

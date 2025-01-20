@@ -378,7 +378,10 @@ class Cloud(Plugin):
                     num_bots = row[0]
                     num_servers = row[1]
         try:
-            _, dcs_version = await self.node.get_dcs_branch_and_version()
+            if 'DCS' in self.node.locals:
+                _, dcs_version = await self.node.get_dcs_branch_and_version()
+            else:
+                dcs_version = ""
             # noinspection PyUnresolvedReferences
             bot = {
                 "guild_id": self.bot.guilds[0].id,

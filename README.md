@@ -117,6 +117,7 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 | ModManager  | Use mods within your DCS World servers.                                                                    | [README](./extensions/modmanager/README.md)  |
 | Pretense    | Dynamic campaign framework by Dzsek.                                                                       | [README](./extensions/pretense/README.md)    |
 | RealWeather | Real weather for your missions using DCS Real Weather.                                                     | [README](./extensions/realweather/README.md) |
+| SkyEye      | AI Powered GCI Bot for DCS                                                                                 | [README](./extensions/skyeye/README.md)      |
 | Sneaker     | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! | [README](./extensions/sneaker/README.md)     |
 | SRS         | DCS-SRS, "market leader" in DCS VOIP integration.                                                          | [README](./extensions/srs/README.md)         |
 | Tacview     | Well known flight data capture and analysis tool.                                                          | [README](./extensions/tacview/README.md)     |
@@ -283,7 +284,7 @@ bother with the bots configuration in first place.
 
 > [!TIP]
 > If you run more than one bot node, best is to share the configuration between all nodes. This can be done via a cloud
-> drive for instance or with some file sync tool.
+> drive for instance or with some file sync tool (see [Multi-Node](./MULTINODE.md)).
 
 The following samples will show you what you can configure in DCSServerBot. For most of the configuration, default 
 values will apply, so you don't need to define all these values explicitly. I printed them here for completeness and 
@@ -413,6 +414,7 @@ DEFAULT:
   accept_rules_on_join: true    # True, if rules have to be acknowledged (players will be moved to spectators otherwise, default: false)
 My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
+  show_passwords: true          # Do you want the password to be displayed in the server status embed? (default: true)
   smooth_pause: 5               # Servers that are configured to PAUSE on startup will run for this amount of seconds until they are paused again (default 0 = off)
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
@@ -514,6 +516,39 @@ roles:                                          # Roles mapping. The bot uses in
 > the internally saved Discord TOKEN with this one.
 > `token: NEW_TOKEN`
 
+### Mission File Handling
+As DCSServerBot can change your missions by using specific extensions (MizEdit, DCS RealWeather, etc.) it can always 
+happen, that a mission gets replaced by something else. DCS locks the running mission, so I had to find a way of 
+creating a new mission without touching the running one, allowing smart mission changes during runtime (players should
+not be kicked on mission changes) and rollbacks to the original, not changed version of that mission.<br>
+To do so, DCSServerBot creates special mission files and even its own directory to handle mission changes.
+
+#### .orig files
+Whenever a mission is changed, the original one is copied into a file with the .orig extension. If you see any such file
+in your Missions-directory, there is nothing to worry about. These are your backups in case you want to roll back.
+
+#### .dcssb sub-directory
+DCSServerBot creates its own directory below your Missions-directory. This is needed, to allow changes of .miz files,
+that are locked by DCS. Whenever a Missions\}x.miz file is locked, a similar file is created in Missions\.dcssb\x.miz. 
+This file is then changed and loaded. Whenever you change the mission again, the earlier file (Missions\x.miz) is 
+changed again. This happens in a round-robin way.
+
+#### Example
+You upload test.miz to your Missions directory and run it. Your server now locks the mission "test.miz."<br>
+Now you change the mission, lets say the start-time. You use `/mission modify` and load the respective preset.
+First, a backup is created by copying test.miz to test.miz.orig. Then, it gets changed, but can not be written, as 
+test.miz is locked by DCS. So, DCSServerBot creates .dcssb\test.miz, writes the new mission and loads .dcssb\test.miz 
+to your DCS server.<br>
+After this process, you end up with test.miz, test.miz.orig and .dcssb\test.miz. Sounds like a lot of copies? Well,
+it's what you get when you want to change things at runtime.<br>
+DCSServerBot is smart enough to be able to replace the missions again on upload, load the correct mission on 
+`/mission load` and provide the correct mission on `/download <Missions>` also.
+
+> [!NOTE]
+> When changing missions with `/mission modify` or the [MizEdit](./extensions/mizedit/README.md) extension, the change 
+> will always use the .orig mission as a startpoint. This means, if you apply some preset that is not re-entrant, a 
+> subsequent call will not change the changed mission again, but will always run against the .orig mission.
+
 ### CJK-Fonts Support
 DCSServerBot supports external fonts, especially CJK-fonts to render the graphs and show your player names using the 
 real characters of your language. Unfortunately, I can not auto-download the respective fonts from Google Fonts
@@ -527,7 +562,7 @@ Then press "Get font" and "Download all". Copy the ZIP file into a folder "fonts
 installation directory. The bot will take this ZIP on its next startup, unpack it and delete the ZIP file. From then
 on, the bot will use the respective font(s) without further configurations.
 
-#### Auto Matching (default: enabled)
+### Auto Matching (default: enabled)
 To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 
 and you can see a variety of statistics yourself as well. The bot offers a linking system between Discord and DCS accounts 
 to enable this.
@@ -537,14 +572,14 @@ commands. The bot will try to match the Discord username to DCS player name. Thi
 match! It can generate false links though, which is why I prefer (or recommend) the /linkme command. People still seem 
 to like the auto-matching, that is why it is in and you can use it (enabled per default).
 
-#### Auto-Banning (default: disabled)
+### Auto-Banning (default: disabled)
 DCSServerBot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join 
 your Discord guild. If you like that feature, set `autoban: true` in services/bot.yaml (default: false).
 
 However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from 
 all your configured DCS servers independent of that setting. You can prevent this by setting `no_dcs_autoban: true`.
 
-#### Roles (Discord and non-Discord)
+### Roles (Discord and non-Discord)
 The bot uses the following **internal** roles to apply specific permissions to commands.<br>
 You can map your Discord roles to these internal roles like described in the example above or for the non-Discord
 variant, you just add your UCIDs as a list below each group.<br>
@@ -559,7 +594,7 @@ Non-Discord installations usually only need the Admin and DCS Admin roles.
 
 See [Coalitions](./COALITIONS.md) for coalition roles.
 
-#### Profanity Filter
+### Profanity Filter
 DCSServerBot support profanity filtering of your in-game chat. Per default, that is not enabled, but you can just set 
 `profanity_filter: true` in your servers.yaml to activate it. It will then copy one of the prepared lists from 
 samples/wordlists to config/profanity.txt, which you then can amend to your needs on your own. The language is 
@@ -600,7 +635,7 @@ To add subsequent servers, just follow the steps above, and you're good, unless 
 ### How to set up a Multi-Node-System?
 DCSServerBot can be used to run multiple DCS servers on multiple PCs, which can even be at different locations. 
 The installation and maintenance of such a use-case is just a bit more complex than a single server 
-installation. Please refer to [Multi-Node-Setup](./MULTINODE.md) for further information.
+installation. Please refer to [Multi-Node](./MULTINODE.md) for further information.
 
 ---
 
@@ -719,20 +754,23 @@ I have created some READMEs for you that you can start with:
 ---
 
 ## DGSA
-DGSA is an association of server administrators of the largest or most popular DCS servers worldwide. We founded it 
-so that we can coordinate quickly and efficiently and, for example, react to cheaters or players who generally ensure 
-hat DCS is not enjoyable for everyone.<br>
-One result is two ban lists, one for DCS and one for Discord, in which we include players who fit into the 
-above-mentioned scheme. DCSServerBot supports these ban lists and can therefore ensure that your servers cannot be 
-visited by these players in the first place. For configuration, please look [here](./plugins/cloud/README.md).
+DGSA (DCS Global Server Admins) is an association of server administrators managing the largest and most popular DCS 
+servers worldwide. We established this group to enable quick and efficient coordination, ensuring a smooth experience 
+for players by addressing issues such as cheaters or disruptive individuals who negatively impact the enjoyment of DCS.
 
-If you want to be part of DGSA, feel free to contact me (see below).
+One of the outcomes of this collaboration is the creation of two ban lists: one for DCS and one for Discord. These 
+lists include players who fall under the above-mentioned criteria. The **DCSServerBot** integrates with these ban lists, 
+ensuring that such players are automatically prevented from accessing your servers. For details on configuring this 
+feature, please visit [this guide](./plugins/cloud/README.md).
+
+If you’re interested in becoming a member of DGSA, don’t hesitate to reach out to me (contact details right below).
 
 ---
 
 ## Contact / Support
-If you need support, if you want to chat with me or other users or if you like to contribute, jump into my [Support Discord](https://discord.gg/h2zGDH9szZ).<br>
-If you like what I do, and you want to support me, you can do that via my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
+If you need support, want to chat with me or other users, or are interested in contributing, feel free to join 
+my [Support Discord](https://discord.gg/h2zGDH9szZ).<br>
+If you enjoy what I do and would like to support me, you can do so on my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
 
 ---
 
