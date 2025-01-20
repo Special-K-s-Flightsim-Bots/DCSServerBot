@@ -447,9 +447,9 @@ class Admin(Plugin):
         if config.get('discord') and not utils.check_roles(config['discord'], interaction.user):
             raise app_commands.CheckFailure()
         # make sure nobody injected a wrong path
-        base_dir = config['directory'].format(server=server)
+        base_dir = os.path.expandvars(config['directory'].format(server=server))
         try:
-            path = utils.sanitize_filename(os.path.join(base_dir, filename), base_dir)
+            path = utils.sanitize_filename(os.path.abspath(os.path.join(base_dir, filename)), base_dir)
         except ValueError:
             await self.bot.audit("User attempted a relative file injection!",
                                  user=interaction.user, base_dir=base_dir, file=filename)
@@ -503,8 +503,9 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
         else:
-            async with aiofiles.open(
-                    os.path.join(os.path.expandvars(target), os.path.basename(filename)), mode='wb') as outfile:
+            target_file = os.path.join(os.path.expandvars(target), os.path.basename(filename))
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
+            async with aiofiles.open(target_file, mode='wb') as outfile:
                 await outfile.write(file)
             await interaction.followup.send(_('File copied to the specified location.'), ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
