@@ -40,6 +40,8 @@ class Init(report.EmbedElement):
 class ServerInfo(report.EmbedElement):
 
     async def render(self, server: Server, show_password: Optional[bool] = True, host: Optional[str] = None,):
+        if not server.locals.get('show_passwords', True):
+            show_password = False
         name = value = ""
         if server.node.public_ip:
             name = "Server-IP / Port"

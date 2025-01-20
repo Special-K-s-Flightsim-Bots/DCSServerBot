@@ -67,6 +67,7 @@ mapping:
       display_ai_chat: {type: bool}
       profanity_filter: { type: bool }
       server_user: {type: str}
+      show_passwords: {type: bool}
       afk:
         type: map
         mapping:

@@ -414,6 +414,7 @@ DEFAULT:
   accept_rules_on_join: true    # True, if rules have to be acknowledged (players will be moved to spectators otherwise, default: false)
 My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
   server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
+  show_passwords: true          # Do you want the password to be displayed in the server status embed? (default: true)
   smooth_pause: 5               # Servers that are configured to PAUSE on startup will run for this amount of seconds until they are paused again (default 0 = off)
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
