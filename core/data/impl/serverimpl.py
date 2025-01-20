@@ -672,16 +672,16 @@ class ServerImpl(Server):
 
     @performance_log()
     async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
-        # disable autoscan
-        if self.locals.get('autoscan', False):
-            self._disable_autoscan()
-        if not filename:
-            filename = await self.get_current_mission_file()
-            if not filename:
-                self.log.warning("No mission found. Is your mission list empty?")
-                return filename
-        new_filename = utils.get_orig_file(filename)
         try:
+            # disable autoscan
+            if self.locals.get('autoscan', False):
+                self._disable_autoscan()
+            if not filename:
+                filename = await self.get_current_mission_file()
+                if not filename:
+                    self.log.warning("No mission found. Is your mission list empty?")
+                    return filename
+            new_filename = utils.get_orig_file(filename)
             # process all mission modifications
             dirty = False
             for ext in self.extensions.values():

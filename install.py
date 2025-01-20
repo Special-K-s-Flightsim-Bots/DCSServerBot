@@ -112,8 +112,10 @@ class Install:
     def get_database_url(user: str, database: str) -> Optional[str]:
         host, port = Install.get_database_host('127.0.0.1', 5432)
         while True:
-            passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user=postgres)'))
-            url = f'postgres://postgres:{quote(passwd)}@{host}:{port}/postgres?sslmode=prefer'
+            master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')
+            master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'), default='postgres')
+            master_passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
+            url = f'postgres://{master_user}:{quote(master_passwd)}@{host}:{port}/{master_db}?sslmode=prefer'
             try:
                 with psycopg.connect(url, autocommit=True) as conn:
                     with closing(conn.cursor()) as cursor:
