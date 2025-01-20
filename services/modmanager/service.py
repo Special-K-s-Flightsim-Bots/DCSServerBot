@@ -430,7 +430,7 @@ class ModManagerService(Service):
     @proxy
     async def uninstall_package(self, server: Server, folder: Folder, package_name: str, version: str) -> bool:
         if folder == Folder.RootFolder:
-            return await self.uninstall_root_package(server.node, folder, package_name, version)
+            return await self.uninstall_root_package(server.node, package_name, version)
         self.log.info(f"Uninstalling package {package_name}_v{version} ...")
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
