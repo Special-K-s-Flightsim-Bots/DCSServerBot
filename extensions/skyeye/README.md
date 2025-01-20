@@ -26,7 +26,7 @@ MyNode:
       extensions:
         SkyEye:
           debug: true                   # Replicate the SkyEye console log into the DCSSB log
-          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SkyEye.yaml' # your SkyEye config file.
+          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SkyEye.yaml' # your SkyEye config file (default path)
           affinity: 14,15               # Set the core affinity for SkyEye (recommended!)
           coalition: blue               # Which coalition should SkyEye be active on   
           any-other-skyeye-config: xxx  # See the SkyEye documentation. 
