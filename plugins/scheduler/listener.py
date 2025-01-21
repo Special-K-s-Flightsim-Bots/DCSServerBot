@@ -118,8 +118,17 @@ class SchedulerListener(EventListener):
             asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                                f"{server.current_mission.display_name}", server=server))
         elif what['command'] == 'load':
-            if not await server.loadMission(what.get('mission_id', what.get('mission_file'))):
-                self.log.warning(f"Mission {server.current_mission.display_name} NOT loaded.")
+            if 'mission_id' in what:
+                _mission = what['mission_id']
+            elif 'mission_file' in what:
+                _mission = what['mission_file']
+                if not os.path.isabs(_mission):
+                    _mission = os.path.join(await server.get_missions_dir(), _mission)
+            else:
+                self.log.error(f"No mission_id or mission_file specified in {what}")
+                return
+            if not await server.loadMission(_mission):
+                self.log.warning(f"Mission {_mission} NOT loaded.")
             else:
                 message = f'loaded mission {server.current_mission.display_name}'
                 if 'user' not in what:

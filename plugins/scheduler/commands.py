@@ -303,20 +303,20 @@ class Scheduler(Plugin):
                 try:
                     mission_id = rconf.get('mission_id')
                     if not mission_id:
-                        filename = rconf.get('mission_file')
-                    else:
-                        filename = None
-                    if not mission_id and not filename:
-                        self.log.error("You need to provide either mission_id or filename to your load configuration!")
-                        return
-                    filename = utils.format_string(filename, instance=server.instance, server=server)
-                    if not mission_id:
+                        filename = utils.format_string(rconf.get('mission_file'),
+                                                       instance=server.instance, server=server)
+                        if not filename:
+                            self.log.error(
+                                "You need to provide either mission_id or mission_file to your load configuration!")
+                            return
+                        if not os.path.isabs(filename):
+                            filename = os.path.join(await server.get_missions_dir(), filename)
                         for idx, mission in enumerate(await server.getMissionList()):
-                            if os.path.basename(mission).lower() == filename.lower():
+                            if os.path.normpath(mission).lower() == os.path.normpath(filename).lower():
                                 mission_id = idx + 1
                                 break
                         else:
-                            self.log.error(f"No mission with name {filename} found in your serverSettings.lua!")
+                            self.log.error(f"Mission {filename} not found in your serverSettings.lua!")
                             return
                     self.log.debug(f"Scheduler: Loading mission {mission_id} on server {server.name} ...")
                     modify_mission = rconf.get('run_extensions', True)
