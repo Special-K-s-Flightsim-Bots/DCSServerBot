@@ -312,7 +312,17 @@ class Scheduler(Plugin):
                         if not os.path.isabs(filename):
                             filename = os.path.join(await server.get_missions_dir(), filename)
                         for idx, mission in enumerate(await server.getMissionList()):
-                            if os.path.normpath(mission).lower() == os.path.normpath(filename).lower():
+                            if '.dcssb' in mission:
+                                secondary = mission
+                                primary = os.path.join(os.path.dirname(mission).replace('.dcssb', ''),
+                                                       os.path.basename(mission))
+                            else:
+                                primary = mission
+                                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.bath.basename(mission))
+                            if os.path.normpath(filename).lower() in [
+                                os.path.normpath(primary).lower(),
+                                os.path.normpath(secondary).lower()
+                            ]:
                                 mission_id = idx + 1
                                 break
                         else:
