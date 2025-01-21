@@ -120,14 +120,15 @@ class WeatherInfo(report.EmbedElement):
                 self.add_field(name='Weather', value='Dynamic\n**Clouds**\nn/a')
 
             visibility = weather['visibility']['distance']
-            try:
-                ret = await server.send_to_dcs_sync({
-                    "command": "getFog"
-                })
-                if ret['visibility']:
-                    visibility = int(ret['visibility'])
-            except (TimeoutError, asyncio.TimeoutError):
-                pass
+            if server.status == Status.RUNNING:
+                try:
+                    ret = await server.send_to_dcs_sync({
+                        "command": "getFog"
+                    })
+                    if ret['visibility']:
+                        visibility = int(ret['visibility'])
+                except (TimeoutError, asyncio.TimeoutError):
+                    pass
             value = "{:,} m / {:.2f} SM".format(int(visibility), visibility / const.METERS_IN_SM) \
                 if visibility < 30000 else "10 km / 6 SM (+)"
             value += ("\n\n**Wind**\n"
