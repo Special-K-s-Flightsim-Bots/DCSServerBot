@@ -526,7 +526,8 @@ class Scheduler(Plugin):
                     await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             except Exception as ex:
                 self.log.error(ex)
-                await interaction.followup.send(ex, ephemeral=ephemeral)
+                await interaction.followup.send(f"Can't launch server {server.display_name}:\n```\n{ex}n```",
+                                                ephemeral=ephemeral)
             finally:
                 try:
                     await msg.delete()

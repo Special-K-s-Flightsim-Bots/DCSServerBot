@@ -54,7 +54,8 @@ class LogAnalyser(Extension):
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:
-        os.remove(self.logfile)
+        if os.path.exists(self.logfile):
+            os.remove(self.logfile)
         await self.do_startup()
         self.running = True
         return await super().startup()
