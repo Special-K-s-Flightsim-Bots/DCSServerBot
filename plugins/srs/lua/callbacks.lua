@@ -22,14 +22,4 @@ function dcs_srs.onPlayerTryChangeSlot(playerID, side, slotID)
     end
 end
 
-function dcs_srs.onPlayerChangeSlot(id)
-    local side = net.get_player_info(id, 'side')
-    local slot = net.get_player_info(id, 'slot')
-
-    -- workaround for non-working onPlayerTryChangeSlot calls on dynamic spawns
-    if utils.isDynamic(id) and dcs_srs.onPlayerTryChangeSlot(id, side, slot) == false then
-        net.force_player_slot(id, side, 1)
-    end
-end
-
 DCS.setUserCallbacks(dcs_srs)

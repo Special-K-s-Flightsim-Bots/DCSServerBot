@@ -303,9 +303,7 @@ class DCSServerBot(commands.Bot):
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional["Server"] = None, **kwargs):
         if not self.audit_channel:
-            audit_channel = self.locals.get('channels', {}).get('audit')
-            if audit_channel:
-                self.audit_channel = self.get_channel(int(audit_channel))
+            self.audit_channel = self.get_channel(self.locals.get('channels', {}).get('audit', -1))
         if self.audit_channel:
             if not user:
                 member = self.member
@@ -344,10 +342,13 @@ class DCSServerBot(commands.Bot):
                       user.id if isinstance(user, discord.Member) else None,
                       user if isinstance(user, str) else None))
 
-    def get_admin_channel(self, server: "Server") -> discord.TextChannel:
+    def get_admin_channel(self, server: Optional["Server"]) -> Optional[discord.TextChannel]:
         admin_channel = self.locals.get('channels', {}).get('admin')
         if not admin_channel:
-            admin_channel = int(server.channels.get(Channel.ADMIN, -1))
+            if server:
+                admin_channel = int(server.channels.get(Channel.ADMIN, -1))
+            else:
+                return None
         return self.get_channel(admin_channel)
 
     async def get_ucid_by_name(self, name: str) -> tuple[Optional[str], Optional[str]]:
