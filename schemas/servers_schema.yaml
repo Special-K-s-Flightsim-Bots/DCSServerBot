@@ -104,6 +104,7 @@ mapping:
         sequence:
           - type: str
       autoadd: {type: bool}
+      validate_missions: {type: bool}
       autorole: {type: text}
       smooth_pause: {type: int}
       force_voice: {type: bool}

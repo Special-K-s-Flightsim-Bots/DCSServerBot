@@ -239,7 +239,8 @@ class ServerImpl(Server):
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
                 # only check the mission list, if we started that server
                 if self._status == Status.LOADING:
-                    asyncio.create_task(self._load_mission_list())
+                    if self.locals.get('validate_missions', True):
+                        asyncio.create_task(self._load_mission_list())
                 asyncio.create_task(self.init_extensions())
                 asyncio.create_task(self._startup_extensions(status))
             elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and new_status in [Status.STOPPED, Status.SHUTDOWN]:
@@ -617,7 +618,7 @@ class ServerImpl(Server):
                 await self.do_shutdown()
                 # wait 30/60s for the process to terminate
                 for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
-                    if not self.process.is_running():
+                    if not self.process or not self.process.is_running():
                         break
                     await asyncio.sleep(1)
             await self._terminate()
@@ -634,7 +635,7 @@ class ServerImpl(Server):
 
     async def _terminate(self) -> None:
         try:
-            if not self.process.is_running():
+            if not self.process or not self.process.is_running():
                 return
             self.process.terminate()
             # wait 30/60s for the process to terminate
