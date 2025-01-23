@@ -87,11 +87,6 @@ class LogAnalyser(Extension):
                 self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
             )
 
-            combined_pattern = re.compile(
-                '|'.join(f'(?P<pattern{i}>{pat})' for i, pat in enumerate(self.pattern.keys())))
-            callback_map = {f'pattern{i}': cb for i, (pat, cb) in enumerate(self.pattern.items())}
-
-            self.log_pos = 0
             while not self.stop_event.is_set():
                 try:
                     if not os.path.exists(logfile):
@@ -108,22 +103,19 @@ class LogAnalyser(Extension):
                             self.log_pos = 0
 
                         self.log_pos = await file.seek(self.log_pos, 0)
-                        await file.seek(self.log_pos, 0)
-                        async for line in file:
+                        lines = await file.readlines()
+                        for idx, line in enumerate(lines):
                             if '=== Log closed.' in line:
                                 self.log_pos = -1
                                 return
-                            match = combined_pattern.search(line)
-                            if match:
-                                for key, value in match.groupdict().items():
-                                    if value:
-                                        callback = callback_map[key]
-                                        if asyncio.iscoroutinefunction(callback):
-                                            asyncio.create_task(callback(self.log_pos, line, match))
-                                        else:
-                                            self.loop.run_in_executor(None, callback, self.log_pos, line, match)
-                        self.log_pos = await file.tell()
-                except FileNotFoundError as ex:
+                            for pattern, callback in self.pattern.items():
+                                match = pattern.search(line)
+                                if match:
+                                    if asyncio.iscoroutinefunction(callback):
+                                        asyncio.create_task(callback(self.log_pos + idx, line, match))
+                                    else:
+                                        self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
+                except FileNotFoundError:
                     pass
                 finally:
                     await asyncio.sleep(1)
