@@ -166,6 +166,8 @@ def create_writable_mission(filename: str) -> str:
 
 
 def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
+    if filename.endswith('.orig'):
+        return filename
     if '.dcssb' in filename:
         mission_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
                                     os.path.basename(filename))

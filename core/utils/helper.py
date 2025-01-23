@@ -24,6 +24,7 @@ import unicodedata
 import random
 import math
 
+from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
 from datetime import datetime, timedelta
@@ -68,6 +69,7 @@ __all__ = [
     "SettingsDict",
     "RemoteSettingsDict",
     "tree_delete",
+    "deep_merge",
     "hash_password",
     "evaluate",
     "for_each",
@@ -779,6 +781,18 @@ def tree_delete(d: dict, key: str, debug: Optional[bool] = False):
             del curr_element[keys[-1]]
     else:  # if it's a list
         curr_element.pop(int(keys[-1]))
+
+
+def deep_merge(dict1, dict2):
+    result = dict(dict1)  # Create a shallow copy of dict1
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], Mapping) and isinstance(value, Mapping):
+            # Recursively merge dictionaries
+            result[key] = deep_merge(result[key], value)
+        else:
+            # Overwrite or add the new key-value pair
+            result[key] = value
+    return result
 
 
 def hash_password(password: str) -> str:
