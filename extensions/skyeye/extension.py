@@ -182,9 +182,11 @@ class SkyEye(Extension):
             out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
             args = [
                 self.get_exe_path(),
-                '--config-file', self.get_config(),
-                '--whisper-model', 'whisper.bin'
+                '--config-file', self.get_config()
             ]
+            if self.locals.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
+                args.extend(['--whisper-model', 'whisper.bin'])
+
             self.log.debug("Launching {}".format(' '.join(args)))
             proc = subprocess.Popen(
                 args, cwd=os.path.dirname(self.get_exe_path()), stdout=out, stderr=subprocess.STDOUT, close_fds=True
