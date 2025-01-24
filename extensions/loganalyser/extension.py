@@ -3,6 +3,7 @@ import asyncio
 import os
 import re
 
+from contextlib import suppress
 from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec
 from datetime import datetime
 from services.bot import BotService
@@ -54,7 +55,9 @@ class LogAnalyser(Extension):
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:
-        os.remove(self.logfile)
+        with suppress(Exception):
+            if os.path.exists(self.logfile):
+                os.remove(self.logfile)
         await self.do_startup()
         self.running = True
         return await super().startup()
@@ -112,6 +115,7 @@ class LogAnalyser(Extension):
                                         asyncio.create_task(callback(self.log_pos + idx, line, match))
                                     else:
                                         self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
+                        self.log_pos = await file.tell()
                 except FileNotFoundError:
                     pass
                 finally:
