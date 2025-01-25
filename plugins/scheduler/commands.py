@@ -318,7 +318,7 @@ class Scheduler(Plugin):
                                                        os.path.basename(mission))
                             else:
                                 primary = mission
-                                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.bath.basename(mission))
+                                secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
                             if os.path.normpath(filename).lower() in [
                                 os.path.normpath(primary).lower(),
                                 os.path.normpath(secondary).lower()
