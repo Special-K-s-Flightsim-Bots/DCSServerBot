@@ -41,9 +41,13 @@ class RealWeather(Extension):
 
     def load_config(self) -> Optional[dict]:
         try:
-            with open(self.config_path, mode='rb') as infile:
-                return tomli.load(infile)
-        except tomli.TOMLDecodeError as ex:
+            if self.version.split('.')[0] == '1':
+                with open(self.config_path, mode='r', encoding='utf-8') as infile:
+                    return json.load(infile)
+            else:
+                with open(self.config_path, mode='rb') as infile:
+                    return tomli.load(infile)
+        except Exception as ex:
             raise RealWeatherException(f"Error while reading {self.config_path}: {ex}")
 
     def get_config(self, filename: str) -> dict:
