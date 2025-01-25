@@ -111,11 +111,18 @@ class MissionUploadHandler(ServerUploadHandler):
             return
         if self.server.is_populated():
             ctx = await self.bot.get_context(self.message)
-            if not await utils.yn_question(ctx, _("People are flying on this server.\n"
-                                                  "Do you want to stop it and load the new mission?")):
+            rc = await utils.populated_question(ctx, _("Do you want to stop the server and load the new mission?"))
+            if not rc:
                 await self.channel.send("Aborted.")
                 return
-            await self.server.stop()
+            elif rc == 'later':
+                mission_id = (await self.server.getMissionList()).index(filename)
+                await self.server.setStartIndex(mission_id)
+                self.server.on_empty = {"command": "load", "mission_id": mission_id, "user": self.message.author}
+                await self.channel.send(
+                    _('Mission {} will be loaded when server is empty or on the next restart.').format(filename))
+            else:
+                await self.server.stop()
         await self._load_mission(filename)
         if self.server.status == Status.STOPPED:
             await self.server.start()
