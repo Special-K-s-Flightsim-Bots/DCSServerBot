@@ -24,7 +24,7 @@ class MOTDListener(EventListener):
                 players = [p async for p in self.plugin.get_recipients(server, config)]
                 if player not in players:
                     return None
-            return utils.format_string(config['message'])
+            return utils.format_string(config['message'], server=server, player=player)
 
     async def on_birth(self, config: dict, server: Server, player: Player) -> tuple[Optional[str], Optional[dict]]:
         if 'messages' in config:
