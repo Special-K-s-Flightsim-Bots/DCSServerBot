@@ -57,10 +57,10 @@ __all__ = [
 ]
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
-LOGIN_URL = 'https://www.digitalcombatsimulator.com/gameapi/login/'
-LOGOUT_URL = 'https://www.digitalcombatsimulator.com/gameapi/logout/'
-UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
-LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
+LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
+LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
+UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
+LICENSES_URL = 'https://api.digitalcombatsimulator.com/checklicenses.php'
 
 # Internationalisation
 _ = get_translation('core')

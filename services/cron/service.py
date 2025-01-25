@@ -68,9 +68,10 @@ class CronService(Service):
                 asyncio.create_task(self.do_actions(cfg, server))
 
         try:
-            config = self.get_config()
             # run all default tasks
-            await check_run(config)
+            config = self.get_config()
+            if config:
+                await check_run(config)
             # do the servers
             for server in [x for x in self.bus.servers.values() if not x.is_remote and x.status != Status.UNREGISTERED]:
                 config = self.get_config(server)
