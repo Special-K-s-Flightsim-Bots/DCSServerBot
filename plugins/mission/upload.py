@@ -29,7 +29,8 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.server.stop()
             elif what == 'later':
                 await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
-                await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server}\n'
+                                          'It will be loaded when server is empty or on the next restart.').format(
                     mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
                 # we return the old rc (file in use), to not force a mission load
                 return rc
