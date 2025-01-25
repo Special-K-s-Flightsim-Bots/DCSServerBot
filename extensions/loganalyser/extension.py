@@ -115,6 +115,7 @@ class LogAnalyser(Extension):
                                         asyncio.create_task(callback(self.log_pos + idx, line, match))
                                     else:
                                         self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
+                        self.log_pos = await file.tell()
                 except FileNotFoundError:
                     pass
                 finally:
