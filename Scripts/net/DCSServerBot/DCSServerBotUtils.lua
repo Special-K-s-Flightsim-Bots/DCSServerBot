@@ -179,7 +179,26 @@ function getIP(s)
     return nil
 end
 
-function isDynamic(id)
-	local _, _slot, _ = getMulticrewAllParameters(id)
-	return _slot > 1000000
+function isDynamic(slotId)
+    if not(string.find(slotId, 'red') or string.find(slotId, 'blue')) then
+        -- Player took model
+        _master_slot = slotId
+        _sub_slot = 0
+
+        if (not tonumber(slotId)) then
+            -- If this is multiseat slot parse master slot and look for seat number
+            _t_start, _t_end = string.find(slotId, '_%d+')
+
+            if _t_start then
+                -- This is co-player
+                _master_slot = tonumber(string.sub(slotId, 0 , _t_start -1 ))
+                _sub_slot = tonumber(string.sub(slotId, _t_start + 1, _t_end ))
+            end
+        else
+            _master_slot = tonumber(slotId)
+        end
+        return _master_slot > 1000000
+    else
+        return false
+    end
 end

@@ -71,7 +71,7 @@ function restrict_slots(playerID, side, slotID)
     local points
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
-        local is_unit_type_match = (unit['unit_type'] and unit['unit_type'] == unit_type) or (unit['unit_type'] == 'dynamic' and utils.isDynamic(playerID))
+        local is_unit_type_match = (unit['unit_type'] and unit['unit_type'] == unit_type) or (unit['unit_type'] == 'dynamic' and utils.isDynamic(slotID))
         local is_unit_name_match = unit['unit_name'] and string.match(unit_name, unit['unit_name'])
         local is_group_name_match = unit['group_name'] and string.match(group_name, unit['group_name'])
         local is_side = (tonumber(unit['side']) or side) == side
