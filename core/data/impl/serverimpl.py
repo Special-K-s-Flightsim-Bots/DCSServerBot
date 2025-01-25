@@ -239,7 +239,8 @@ class ServerImpl(Server):
             elif self._status in [Status.UNREGISTERED, Status.LOADING] and new_status in [Status.RUNNING, Status.PAUSED]:
                 # only check the mission list, if we started that server
                 if self._status == Status.LOADING:
-                    asyncio.create_task(self._load_mission_list())
+                    if self.locals.get('validate_missions', True):
+                        asyncio.create_task(self._load_mission_list())
                 asyncio.create_task(self.init_extensions())
                 asyncio.create_task(self._startup_extensions(status))
             elif self._status in [Status.RUNNING, Status.PAUSED, Status.SHUTTING_DOWN] and new_status in [Status.STOPPED, Status.SHUTDOWN]:
@@ -432,7 +433,7 @@ class ServerImpl(Server):
                 _mission = mission
             # check if the orig file has been updated
             orig = _mission + '.orig'
-            if os.path.exists(orig) and os.path.getmtime(orig) > os.path.getmtime(mission):
+            if os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
@@ -617,7 +618,7 @@ class ServerImpl(Server):
                 await self.do_shutdown()
                 # wait 30/60s for the process to terminate
                 for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
-                    if not self.process.is_running():
+                    if not self.process or not self.process.is_running():
                         break
                     await asyncio.sleep(1)
             await self._terminate()
@@ -634,7 +635,7 @@ class ServerImpl(Server):
 
     async def _terminate(self) -> None:
         try:
-            if not self.process.is_running():
+            if not self.process or not self.process.is_running():
                 return
             self.process.terminate()
             # wait 30/60s for the process to terminate
@@ -681,37 +682,39 @@ class ServerImpl(Server):
                 if not filename:
                     self.log.warning("No mission found. Is your mission list empty?")
                     return filename
+
             new_filename = utils.get_orig_file(filename)
-            # process all mission modifications
-            dirty = False
-            for ext in self.extensions.values():
-                if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
-                    new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
-                    if _dirty:
-                        self.log.info(f'  => {ext.name} applied on {new_filename}.')
-                    dirty |= _dirty
-            # we did not change anything in the mission
-            if not dirty:
+            try:
+                # process all mission modifications
+                dirty = False
+                for ext in self.extensions.values():
+                    if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
+                        new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
+                        if _dirty:
+                            self.log.info(f'  => {ext.name} applied on {new_filename}.')
+                        dirty |= _dirty
+                # we did not change anything in the mission
+                if not dirty:
+                    return filename
+                # check if the original mission can be written
+                if filename != new_filename:
+                    missions: list[str] = self.settings['missionList']
+                    try:
+                        index = missions.index(filename) + 1
+                        await self.replaceMission(index, new_filename)
+                    except ValueError:
+                        # we should not be here, but just in case
+                        if new_filename not in missions:
+                            await self.addMission(new_filename)
+                return new_filename
+            except Exception as ex:
+                if isinstance(ex, UnsupportedMizFileException):
+                    self.log.error(ex)
+                else:
+                    self.log.exception(ex)
+                if filename != new_filename and os.path.exists(new_filename):
+                    os.remove(new_filename)
                 return filename
-            # check if the original mission can be written
-            if filename != new_filename:
-                missions: list[str] = self.settings['missionList']
-                try:
-                    index = missions.index(filename) + 1
-                    await self.replaceMission(index, new_filename)
-                except ValueError:
-                    # we should not be here, but just in case
-                    if new_filename not in missions:
-                        await self.addMission(new_filename)
-            return new_filename
-        except Exception as ex:
-            if isinstance(ex, UnsupportedMizFileException):
-                self.log.error(ex)
-            else:
-                self.log.exception(ex)
-            if filename != new_filename and os.path.exists(new_filename):
-                os.remove(new_filename)
-            return filename
         finally:
             # enable autoscan
             if self.locals.get('autoscan', False):

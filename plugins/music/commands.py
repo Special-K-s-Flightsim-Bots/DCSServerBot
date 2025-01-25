@@ -48,10 +48,11 @@ async def all_songs_autocomplete(interaction: discord.Interaction, current: str)
         for song in file_list:
             if os.path.isdir(song):
                 continue
-            title = get_tag(song).title or os.path.relpath(song, music_dir)
+            song_path = os.path.relpath(song, music_dir)
+            title = os.path.join(os.path.dirname(song_path), get_tag(song).title or os.path.basename(song))
             if current and current.casefold() not in title.casefold():
                 continue
-            ret.append(app_commands.Choice(name=title[:100], value=os.path.relpath(song, music_dir)))
+            ret.append(app_commands.Choice(name=title[:100], value=song_path))
         return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
@@ -171,7 +172,7 @@ class Music(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(radio_name=radios_autocomplete)
-    @app_commands.autocomplete(song=songs_autocomplete)
+    @app_commands.autocomplete(song=all_songs_autocomplete)
     async def play(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                           Status.PAUSED])],

@@ -164,7 +164,8 @@ class Mission(Plugin):
     @mission.command(description=_('Manage the active mission'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def manage(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
+    async def manage(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])]):
         view = ServerView(server)
         embed = await view.render(interaction)
         # noinspection PyUnresolvedReferences

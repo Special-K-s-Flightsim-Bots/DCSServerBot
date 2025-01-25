@@ -1,6 +1,9 @@
 # Plugin "FunkMan"
-This plugin adds support for the Moose Funkman protocol. You need to install [FunkMan](https://github.com/funkyfranky/FunkMan) for it to work.<br/>
-And no, you don't need to run two bots, I just use some modules from FunkMan, just because they are nice :).
+This plugin adds support for the Moose Funkman protocol. You need to install [FunkMan](https://github.com/funkyfranky/FunkMan) for it to work.
+
+> [!IMPORTANT]
+> You do not need to run the FunkMan bot! 
+> I just use some modules from FunkMan, so all you need is to tell the bot where it finds the files.
 
 FunkMan supports the following Moose modules:
 * AIRBOSS
@@ -40,17 +43,16 @@ DEFAULT:
 
 If you want to use different channels for your different servers, you can add a section for each server:
 ```yaml
-DCS.release_server:
+DEFAULT:
   install: ../FunkMan
+  IMAGEPATH: ../FunkMan/funkpics/
+DCS.release_server:
   CHANNELID_MAIN: 1122334455667788
   CHANNELID_RANGE: 8877665544332211
   CHANNELID_AIRBOSS: 1188227733664455
-  IMAGEPATH: ../FunkMan/funkpics/
 DCS.release_server02:
   CHANNELID_MAIN: 1234567812345678
   CHANNELID_RANGE: 8765432187654321
-  CHANNELID_AIRBOSS: 1112223334445555
-  IMAGEPATH: ../FunkMan/funkpics/
 ```
 
 ### Rangeboards for Strafing and Bombing

@@ -419,6 +419,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
   autoadd: true                 # Enable auto-adding of uploaded missions (default: true)
+  validate_missions: true       # Check, if your missions can be loaded or not (missing maps, etc). Default: true.
   ignore_dirs:                  # Optional: ignore directories from mission upload / mission add (already ignored are .dcssb, Scripts and Saves)
     - archive
   autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).

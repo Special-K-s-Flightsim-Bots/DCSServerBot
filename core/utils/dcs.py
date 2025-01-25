@@ -1,3 +1,4 @@
+import filecmp
 import luadata
 import math
 import os
@@ -110,7 +111,10 @@ def desanitize(self, _filename: str = None) -> None:
 
 
 def is_desanitized(node: Node) -> bool:
+    alt_filename = os.path.join(node.config_dir, 'MissionScripting.lua')
     filename = os.path.join(node.installation, 'Scripts', 'MissionScripting.lua')
+    if os.path.exists(alt_filename):
+        return filecmp.cmp(filename, alt_filename, shallow=False)
     with open(filename, mode='r', encoding='utf-8') as infile:
         for line in infile.readlines():
             if line.lstrip().startswith('--'):
@@ -162,6 +166,8 @@ def create_writable_mission(filename: str) -> str:
 
 
 def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
+    if filename.endswith('.orig'):
+        return filename
     if '.dcssb' in filename:
         mission_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
                                     os.path.basename(filename))

@@ -8,9 +8,10 @@ schema;instance_skyeye_schema:
   type: map
   mapping:
     enabled: {type: bool}
+    affinity: {type: any}
     debug: {type: bool}
-    config: {type: str, required: true}
-    coalition: {type: str, required: true, enum: ['blue', 'red']}
+    config: {type: str}
+    coalition: {type: str, enum: ['blue', 'red']}
     recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api']}
     whisper-model: {type: str}
     openai-api-key: {type: str}

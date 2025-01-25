@@ -153,18 +153,16 @@ class BotService(Service):
             await self.bot.close()
         await super().stop()
 
-    async def alert(self, title: str, message: str, server: Optional[Server] = None,
-                    node: Optional[Node] = None) -> None:
+    async def alert(self, title: str, message: str, server: Optional[Server] = None) -> None:
         mentions = ''.join([self.bot.get_role(role).mention for role in self.bot.roles['Alert'] if role is not None])
         embed = utils.create_warning_embed(title=title, text=utils.escape_string(message))
-        if not server and node:
-            try:
-                server = next(server for server in self.bot.servers.values() if server.node.name == node.name)
-            except StopIteration:
-                server = None
         admin_channel = self.bot.get_admin_channel(server)
-        if admin_channel:
-            await admin_channel.send(content=mentions, embed=embed)
+        audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
+        channel = admin_channel or audit_channel
+        if channel:
+            await channel.send(content=mentions, embed=embed)
+        else:
+            self.log.critical(f"{title}: {message}")
 
     async def install_fonts(self):
         font_dir = Path('fonts')

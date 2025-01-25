@@ -15,6 +15,7 @@ class ServerView(View):
         super().__init__()
         self.server: Server = server
         self.env: Optional[ReportEnv] = None
+        self.modify_mission = True
 
     async def render(self, interaction: discord.Interaction) -> discord.Embed:
         report = Report(interaction.client, 'mission', 'serverStatus.json')
@@ -53,6 +54,10 @@ class ServerView(View):
             button: Button = Button(style=discord.ButtonStyle.primary, emoji='🔁')
             button.callback = self.reload
             self.add_item(button)
+        button: Button = Button(style=discord.ButtonStyle.primary if self.modify_mission else discord.ButtonStyle.gray,
+                                emoji='⛅' if self.modify_mission else '🚫')
+        button.callback = self.toggle_modify
+        self.add_item(button)
         button: Button = Button(label='Quit', style=discord.ButtonStyle.red)
         button.callback = self.quit
         self.add_item(button)
@@ -63,7 +68,8 @@ class ServerView(View):
         await interaction.response.defer()
         self.env.embed.set_footer(text="Loading mission, please wait ...")
         await interaction.edit_original_response(embed=self.env.embed)
-        if not await self.server.loadMission(int(interaction.data['values'][0]) + 1):
+        if not await self.server.loadMission(int(interaction.data['values'][0]) + 1,
+                                             modify_mission=self.modify_mission):
             self.env.embed.set_footer(text="Mission loading failed.")
             await interaction.edit_original_response(embed=self.env.embed)
         else:
@@ -114,6 +120,13 @@ class ServerView(View):
         # wait for a possible resume
         with suppress(TimeoutError, asyncio.TimeoutError):
             await self.server.wait_for_status_change([Status.RUNNING], 2)
+        await self.render(interaction)
+        await interaction.edit_original_response(embed=self.env.embed, view=self)
+
+    async def toggle_modify(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.modify_mission = not self.modify_mission
         await self.render(interaction)
         await interaction.edit_original_response(embed=self.env.embed, view=self)
 
