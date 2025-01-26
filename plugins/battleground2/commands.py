@@ -2,11 +2,12 @@ import discord
 import psycopg
 import json
 
+from core import Plugin, utils, Channel, Coalition, Server, get_translation
 from discord import app_commands
 from discord.app_commands import Group
-
-from core import Plugin, utils, Channel, Coalition, Server, get_translation
 from services.bot import DCSServerBot
+from typing import Optional
+
 from .listener import BattlegroundEventListener
 
 _ = get_translation(__name__.split('.')[1])
@@ -24,7 +25,12 @@ class Battleground(Plugin):
     @battleground.command(description=_('Push MGRS coordinates with screenshots to DCS Battleground'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, screenshot: discord.Attachment):
+    async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, screenshot1: discord.Attachment,
+                    screenshot2: Optional[discord.Attachment], screenshot3: Optional[discord.Attachment],
+                    screenshot4: Optional[discord.Attachment], screenshot5: Optional[discord.Attachment],
+                    screenshot6: Optional[discord.Attachment], screenshot7: Optional[discord.Attachment],
+                    screenshot8: Optional[discord.Attachment], screenshot9: Optional[discord.Attachment],
+                    screenshot10: Optional[discord.Attachment]):
         mgrs = mgrs.replace(' ', '')
         if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
             # noinspection PyUnresolvedReferences
@@ -43,7 +49,10 @@ class Battleground(Plugin):
             else:
                 continue
             done = True
-            screenshots = [att.url for att in [screenshot]]  # TODO: add multiple ones
+            screenshots = [att.url for att in list(filter(lambda item: item is not None,[
+                screenshot1,screenshot2,screenshot3,screenshot4,screenshot5,screenshot6,screenshot7,screenshot8,
+                screenshot9,screenshot10
+            ]))]
             author = {
                 "name": interaction.user.name,
                 "icon_url": interaction.user.display_avatar.url
@@ -87,7 +96,7 @@ class Battleground(Plugin):
     async def reset(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         async with self.apool.connection() as conn:
-            async with conn.transation():
+            async with conn.transaction():
                 await conn.execute("DELETE FROM bg_geometry2 WHERE server_name = %s", (server.name, ))
                 await conn.execute("DELETE FROM bg_missions WHERE server_name = %s", (server.name,))
                 await conn.execute("DELETE FROM bg_task WHERE server_name = %s", (server.name,))
