@@ -184,3 +184,8 @@ class Lardoon(Extension):
                     await asyncio.to_thread(run_subprocess, ["prune", "--no-dry-run"])
             except Exception as ex:
                 self.log.exception(ex)
+
+    async def get_ports(self) -> dict:
+        return {
+            "Lardoon": self.config['bind'].split(':')[1]
+        }

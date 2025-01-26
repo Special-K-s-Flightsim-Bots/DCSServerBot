@@ -124,3 +124,8 @@ class gRPC(Extension):
             self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")
             return False
         return True
+
+    async def get_ports(self) -> dict:
+        return {
+            "gRPC": self.locals.get('port', 50051)
+        }

@@ -275,3 +275,9 @@ class Olympus(Extension):
     def shutdown(self) -> bool:
         super().shutdown()
         return self.terminate()
+
+    def get_ports(self) -> dict:
+        return {
+            "Olympus " + self.backend_tag.capitalize(): self.config.get(self.backend_tag, {}).get('port', 3001),
+            "Olympus " + self.frontend_tag.capitalize(): self.config.get(self.frontend_tag, {}).get('port', 3000)
+        }

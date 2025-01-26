@@ -380,21 +380,12 @@ _ _
                 'Bot Port': server.instance.bot_port
             }
 
+            if not server.extensions:
+                await server.init_extensions()
             for ext in server.extensions.values():
-                if ext.name == 'SRS':
-                    server_dict['SRS Port'] = ext.locals['Server Settings'].get('SERVER_PORT', 5002)
-                elif ext.name == 'Tacview':
-                    server_dict['Tacview Port'] = ext.locals.get('tacviewRealTimeTelemetryPort', 42674)
-                    if ext.locals.get('tacviewRemoteControlEnabled', False):
-                        server_dict['Tacview Remote Control'] = ext.locals.get('tacviewRemoteControlPort', 42675)
-                elif ext.name == 'LotAtc':
-                    server_dict['LotAtc Port'] = ext.locals.get('port', 10310)
-                elif ext.name == 'DCS Olympus':
-                    server_dict['Olympus Client'] = ext.config.get(ext.frontend_tag, {}).get('port', 3000)
-                    server_dict['Olympus Server'] = ext.config.get(ext.backend_tag, {}).get('port', 3001)
-                elif ext.name == 'Sneaker':
-                    port = ext.config['bind'].split(':')[1]
-                    server_dict['Sneaker Port'] = port
+                rc = await server.run_on_extension(ext.name, 'get_ports')
+                for key, value in rc.items():
+                    server_dict[key] = value
 
             data_df = pd.DataFrame([server_dict])
             df = pd.concat([df, data_df], ignore_index=True)
@@ -405,6 +396,7 @@ _ _
     async def generate_server_docs(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
+        await interaction.followup.send("Generating server documentation... Please wait a moment.")
         server_info = (await self.server_info_to_df()).sort_values(['Node', 'Instance'])
         output = BytesIO()
         with pd.ExcelWriter(output) as writer:

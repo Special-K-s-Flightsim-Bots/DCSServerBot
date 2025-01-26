@@ -185,3 +185,8 @@ class Sneaker(Extension):
             "version": self.version or 'n/a',
             "value": value
         }
+
+    def get_ports(self) -> dict:
+        return {
+            "Sneaker": self.config['bind'].split(':')[1]
+        }

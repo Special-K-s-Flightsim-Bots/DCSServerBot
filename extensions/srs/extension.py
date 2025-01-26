@@ -514,3 +514,11 @@ class SRS(Extension, FileSystemEventHandler):
 
         except Exception as ex:
             self.log.exception(ex)
+
+    async def get_ports(self) -> dict:
+        rc = {
+            "SRS Port": self.locals['Server Settings']['SERVER_PORT']
+        }
+        if self.locals['General Settings'].get('LOTATC_EXPORT_ENABLED', False):
+            rc["LotAtc Export Port"] = self.locals['General Settings'].get('LOTATC_EXPORT_PORT', 10712)
+        return rc
