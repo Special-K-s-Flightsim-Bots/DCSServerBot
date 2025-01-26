@@ -2,7 +2,7 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status
 from discord import app_commands, Interaction
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from functools import cache
@@ -380,12 +380,15 @@ _ _
                 'Bot Port': server.instance.bot_port
             }
 
-            if not server.extensions:
+            if server.status == Status.SHUTDOWN:
                 await server.init_extensions()
-            for ext in server.extensions.values():
-                rc = await server.run_on_extension(ext.name, 'get_ports')
-                for key, value in rc.items():
-                    server_dict[key] = value
+            for ext in server.instance.locals.get('extensions').keys():
+                try:
+                    rc = await server.run_on_extension(ext, 'get_ports')
+                    for key, value in rc.items():
+                        server_dict[key] = value
+                except ValueError:
+                    pass
 
             data_df = pd.DataFrame([server_dict])
             df = pd.concat([df, data_df], ignore_index=True)
