@@ -418,6 +418,7 @@ class MizFile:
                 elif 'replace' in config:
                     sort = False
                     for _what, _with in config['replace'].items():
+                        _with = utils.format_string(_with, reference=reference, **kwargs)
                         if debug:
                             self.log.debug(f"Replacing {_what} with {_with}")
                         if isinstance(_what, int) and isinstance(element, (list, dict)):
@@ -536,11 +537,15 @@ class MizFile:
 
         # run the processing
         try:
-            for_each = config['for-each'].lstrip('/')
+            for_each = config.get('for-each', '').lstrip('/')
         except KeyError:
             self.log.error("MizEdit: for-each missing in modify preset, skipping!")
             return
-        for reference in utils.for_each(source, for_each.split('/'), debug=debug, **kwargs):
+        if for_each:
+            all_elements = utils.for_each(source, for_each.split('/'), debug=debug, **kwargs)
+        else:
+            all_elements = [source]
+        for reference in all_elements:
             if 'where' in config:
                 if debug:
                     self.log.debug("Processing WHERE ...")
