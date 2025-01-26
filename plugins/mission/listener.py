@@ -832,7 +832,7 @@ class MissionEventListener(EventListener):
                     "z": airbase['position']['z']
                 })
                 report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
-                env = await report.render(airbase=airbase, data=response)
+                env = await report.render(airbase=airbase, data=response, server=server)
                 message = utils.embed_to_simpletext(env.embed)
                 await player.sendUserMessage(message, 30)
                 return
