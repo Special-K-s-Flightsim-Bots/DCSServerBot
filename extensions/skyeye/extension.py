@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import os
 import psutil
@@ -212,6 +213,7 @@ class SkyEye(Extension):
             p = await asyncio.to_thread(run_subprocess)
             try:
                 self.process = psutil.Process(p.pid)
+                atexit.register(self.terminate)
                 if self.config.get('affinity'):
                     self.set_affinity(self.config['affinity'])
                 else:
