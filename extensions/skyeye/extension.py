@@ -100,6 +100,7 @@ class SkyEye(Extension):
                 self.log.info(f"  => {self.name}: Whisper model downloaded.")
             dirty |= self._maybe_update_config('recognizer', 'openai-whisper-local')
         else:
+            dirty |= self._maybe_update_config('recognizer', 'openai-whisper-api')
             dirty |= self._maybe_update_config('openai-api-key', self.config['openai-api-key'])
 
         dirty |= self._maybe_update_config('whisper-model', self.config.get('whisper-model', 'ggml-small.en.bin'))
@@ -108,8 +109,6 @@ class SkyEye(Extension):
             dirty |= self._maybe_update_config('callsign', self.config['callsign'])
         elif 'callsigns' in self.config:
             dirty |= self._maybe_update_config('callsigns', self.config['callsigns'])
-        else:
-            dirty |= self._maybe_update_config('callsign', 'Focus')
         dirty |= self._maybe_update_config('voice', self.config.get('voice'))
         dirty |= self._maybe_update_config('voice-playback-speed', self.config.get('voice-playback-speed'))
         dirty |= self._maybe_update_config('voice-playback-pause', self.config.get('voice-playback-pause'))
