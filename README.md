@@ -180,7 +180,6 @@ The bot needs a unique Token per installation. This one can be obtained at http:
     - Attach Files
     - Read Message History
     - Add Reactions
-    - Use Slash Commands
 - Press "Copy" on the generated URL and paste it into the browser of your choice
 - Select the guild the bot has to be added to - and you're done!
 
