@@ -45,13 +45,13 @@ end
 
 dcsbot.debugEventHandler = {}
 function dcsbot.debugEventHandler:onEvent(event)
-	status, err = pcall(onEvent, event)
+	status, err = pcall(onDebugEvent, event)
 	if not status then
 		env.warning("DCSServerBot - Error during Debug:onEvent(): " .. err)
 	end
 end
 
-function onEvent(event)
+function onDebugEvent(event)
     if not event then
         return
     end
