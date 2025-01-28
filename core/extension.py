@@ -41,6 +41,8 @@ class Extension(ABC):
         self.config: dict = config
         self.server: Server = server
         self.running = False
+        if not self.enabled:
+            return
         self.locals: dict = self.load_config()
         if self.__class__.__name__ not in Extension.started_schedulers:
             schedule = getattr(self, 'schedule', None)
@@ -85,11 +87,15 @@ class Extension(ABC):
     def version(self) -> Optional[str]:
         return None
 
+    @property
+    def enabled(self) -> bool:
+        return self.config.get('enabled', True)
+
     async def render(self, param: Optional[dict] = None) -> dict:
         raise NotImplementedError()
 
     def is_installed(self) -> bool:
-        return self.config.get('enabled', True)
+        return self.enabled
 
     async def install(self):
         ...
