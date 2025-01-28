@@ -623,9 +623,10 @@ class ServerImpl(Server):
                     await asyncio.sleep(1)
             await self._terminate()
         self.status = Status.SHUTDOWN
-        shutil.copy2(os.path.join(self.instance.home, 'Logs', 'dcs.log'),
-                     os.path.join(self.instance.home, 'Logs',
-                                  f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
+        logfile = os.path.join(self.instance.home, 'Logs', 'dcs.log')
+        if os.path.exists(logfile):
+            shutil.copy2(logfile, os.path.join(self.instance.home, 'Logs',
+                                               f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
 
     async def is_running(self) -> bool:
         async with self.lock:
