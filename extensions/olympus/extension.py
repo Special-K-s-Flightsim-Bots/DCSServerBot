@@ -57,8 +57,8 @@ class Olympus(Extension):
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
+        self.nodejs = os.path.join(os.path.expandvars(config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         super().__init__(server, config)
-        self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         # check if there is an olympus process running already
         self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
                                                                     self.server.instance.name)
