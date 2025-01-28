@@ -40,8 +40,10 @@ class Extension(ABC):
         self.loop = asyncio.get_event_loop()
         self.config: dict = config
         self.server: Server = server
-        self.locals: dict = self.load_config()
         self.running = False
+        if not self.is_installed():
+            return
+        self.locals: dict = self.load_config()
         if self.__class__.__name__ not in Extension.started_schedulers:
             schedule = getattr(self, 'schedule', None)
             if schedule:

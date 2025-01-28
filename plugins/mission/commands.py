@@ -394,7 +394,7 @@ class Mission(Plugin):
                                                  ).format(name))
                     else:
                         message = _('Mission {} loaded.').format(name)
-                        if not mission_id:
+                        if mission_id is None:
                             message += _('\nThis mission is NOT in the mission list and will not auto-load on server '
                                          'or mission restarts.\n'
                                          'If you want it to auto-load, use {}').format(
