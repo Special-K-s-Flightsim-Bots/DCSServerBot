@@ -597,7 +597,8 @@ class MissionEventListener(EventListener):
                 if admin_channel:
                     # noinspection PyAsyncCall
                     asyncio.create_task(admin_channel.send(
-                        f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
+                        f"{server.display_name}: Player {player.display_name} (ucid={player.ucid}) can't be matched "
+                        f"to a discord user."))
             if not isinstance(self.bot, DummyBot):
                 # noinspection PyAsyncCall
                 asyncio.create_task(player.sendChatMessage(
