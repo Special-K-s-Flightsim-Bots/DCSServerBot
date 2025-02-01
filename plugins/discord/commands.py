@@ -30,7 +30,7 @@ class Discord(Plugin):
 
     @command(name='addrole', description=_('Adds a role to a member'))
     @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
+    @utils.app_has_role('Admin')
     async def addrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
         ephemeral = utils.get_ephemeral(interaction)
         if role in member.roles:
@@ -53,7 +53,7 @@ class Discord(Plugin):
 
     @command(name='delrole', description=_('Removes a role from a member'))
     @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
+    @utils.app_has_role('Admin')
     async def delrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
         ephemeral = utils.get_ephemeral(interaction)
         if role not in member.roles:
