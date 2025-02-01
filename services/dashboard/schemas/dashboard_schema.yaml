@@ -3,6 +3,7 @@ mapping:
   DEFAULT:
     type: map
     mapping:
+      hide_remote_servers: {type: bool}
       regex;(header|servers|nodes|log):
         type: map
         mapping:

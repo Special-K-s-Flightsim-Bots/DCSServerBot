@@ -47,34 +47,46 @@ class Scheduler(Plugin):
         return config
 
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        if new_version == '3.1':
-            def _change_instance(instance: dict):
-                if 'restart' in instance:
-                    instance['action'] = instance.pop('restart')
-                    if isinstance(instance['action'], list):
-                        for action in instance['action']:
-                            if action['method'] == 'restart_with_shutdown':
-                                action['method'] = 'restart'
-                                action['shutdown'] = True
-                    else:
-                        if instance['action']['method'] == 'restart_with_shutdown':
-                            instance['action']['method'] = 'restart'
-                            instance['action']['shutdown'] = True
+        def change_instance_3_1(instance: dict):
+            if 'restart' in instance:
+                instance['action'] = instance.pop('restart')
+                if isinstance(instance['action'], list):
+                    for action in instance['action']:
+                        if action['method'] == 'restart_with_shutdown':
+                            action['method'] = 'restart'
+                            action['shutdown'] = True
+                else:
+                    if instance['action']['method'] == 'restart_with_shutdown':
+                        instance['action']['method'] = 'restart'
+                        instance['action']['shutdown'] = True
 
-            config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
-            if self.node.name in data.keys():
-                for name, node in data.items():
-                    if name == DEFAULT_TAG:
-                        _change_instance(node)
-                        continue
-                    for instance in node.values():
-                        _change_instance(instance)
-            else:
-                for instance in data.values():
-                    _change_instance(instance)
-            with open(config, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+        def change_instance_3_2(instance: dict):
+            if 'onMissionStart' in instance:
+                instance['onSimulationStart'] = instance.pop('onMissionStart')
+            if 'onMissionEnd' in instance:
+                instance['onSimulationStop'] = instance.pop('onMissionEnd')
+
+        if new_version == '3.1':
+            change_instance = change_instance_3_1
+        elif new_version == '3.2':
+            change_instance = change_instance_3_2
+        else:
+            return
+
+        config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+        data = yaml.load(Path(config).read_text(encoding='utf-8'))
+        if self.node.name in data.keys():
+            for name, node in data.items():
+                if name == DEFAULT_TAG:
+                    change_instance(node)
+                    continue
+                for instance in node.values():
+                    change_instance(instance)
+        else:
+            for instance in data.values():
+                change_instance(instance)
+        with open(config, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:

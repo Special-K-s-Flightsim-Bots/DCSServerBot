@@ -70,7 +70,7 @@ class SchedulerListener(EventListener):
                 else:
                     return None
 
-    async def run(self, server: Server, method: str) -> None:
+    async def run(self, server: Server, method: str, **kwargs) -> None:
         if method.startswith('load:'):
             await server.send_to_dcs({
                 "command": "do_script_file",
@@ -87,9 +87,7 @@ class SchedulerListener(EventListener):
             })
         elif method.startswith('run:'):
             cmd = method[4:].strip()
-            dcs_installation = os.path.normpath(os.path.expandvars(self.node.locals['DCS']['installation']))
-            dcs_home = os.path.normpath(server.instance.home)
-            cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server)
+            cmd = utils.format_string(cmd, server=server, **kwargs)
             # noinspection PyAsyncCall
             asyncio.create_task(self.node.shell_command(cmd))
 
@@ -183,8 +181,18 @@ class SchedulerListener(EventListener):
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'mission_end':
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.bot.bus.send_to_node({"command": "onMissionEnd", "server_name": server.name}))
+            if data['arg1'] != 'TODO':
+                asyncio.create_task(self.bot.bus.send_to_node({
+                    "command": "onMissionEnd",
+                    "arg1": data['arg1'],
+                    "arg2": data['arg2'],
+                    "server_name": server.name
+                }))
+            else:
+                asyncio.create_task(self.bot.bus.send_to_node({
+                    "command": "onServerStop",
+                    "server_name": server.name
+                }))
             if server.on_mission_end:
                 self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_mission_end.copy()))
                 server.on_mission_end.clear()
@@ -192,9 +200,9 @@ class SchedulerListener(EventListener):
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
-        if config and 'onMissionStart' in config:
+        if config and 'onSimulationStart' in config:
             # noinspection PyAsyncCall
-            asyncio.create_task(self.run(server, config['onMissionStart']))
+            asyncio.create_task(self.run(server, config['onSimulationStart']))
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, _: dict) -> None:
@@ -206,11 +214,18 @@ class SchedulerListener(EventListener):
         server.on_mission_end.clear()
 
     @event(name="onMissionEnd")
-    async def onMissionEnd(self, server: Server, _: dict) -> None:
+    async def onMissionEnd(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             # noinspection PyAsyncCall
-            asyncio.create_task(self.run(server, config['onMissionEnd']))
+            asyncio.create_task(self.run(server, config['onMissionEnd'], winner=data['arg1'], msg=data['arg2']))
+
+    @event(name="onSimulationStop")
+    async def onSimulationStop(self, server: Server, _: dict) -> None:
+        config = self.plugin.get_config(server)
+        if config and 'onSimulationStop' in config:
+            # noinspection PyAsyncCall
+            asyncio.create_task(self.run(server, config['onSimulationStop']))
 
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, _: dict) -> None:

@@ -23,7 +23,8 @@ instance2:
     - 08:00
     method: rotate                                # .. it will rotate ..
     populated: true                               # .. independently if players are flying or not.
-  # onMissionStart: load:Scripts/net/start.lua    # We will run a specific lua script on mission start
+  # onSimulationStart: load:Scripts/net/start.lua # We will run a specific lua script on server start
+  # onSimulationStop: load:Scripts/net/stop.lua   # We will run a specific lua script on server stop (restart will trigger stop and start!)
   # onMissionEnd: load:Scripts/net/end.lua        # We will run a specific lua script on mission end
   # onShutdown: run:shutdown /r                   # if the DCS server is shut down, the real PC will restart
 instance3:
