@@ -129,21 +129,7 @@ class Main:
 
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
-            if registry.services():
-                self.log.info("- Loading Services ...")
-            services = [registry.new(cls) for cls in registry.services().keys() if registry.can_run(cls)]
-            ret = await asyncio.gather(*[service.start() for service in services], return_exceptions=True)
-            for idx in range(0, len(ret)):
-                name = services[idx].name
-                if isinstance(ret[idx], (ServiceInstallationError, FatalException)):
-                    self.log.error(f"  - {ret[idx].__str__()}")
-                    self.log.error(f"  => Service {name} NOT started.")
-                    if isinstance(ret[idx], FatalException):
-                        return
-                else:
-                    self.log.debug(f"  => Service {name} started.")
-            if not self.node.master:
-                self.log.info("DCSServerBot AGENT started.")
+            self.log.info("DCSServerBot {} started.".format("MASTER" if self.node.master else "AGENT"))
             try:
                 while True:
                     # wait until the master changes
@@ -154,7 +140,7 @@ class Main:
                     # switch master
                     self.node.master = not self.node.master
                     if self.node.master:
-                        self.log.info("Taking over the Master node ...")
+                        self.log.info("Taking over as the MASTER node ...")
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
                                 try:
@@ -167,7 +153,7 @@ class Main:
                                 if service:
                                     await service.switch()
                     else:
-                        self.log.info("Second Master found, stepping back to Agent configuration.")
+                        self.log.info("Second MASTER found, stepping back to AGENT configuration.")
                         for cls in registry.services().keys():
                             if registry.master_only(cls):
                                 await registry.get(cls).stop()
@@ -175,7 +161,7 @@ class Main:
                                 service = registry.get(cls)
                                 if service:
                                     await service.switch()
-                    self.log.info(f"I am the {'Master' if self.node.master else 'Agent'} now.")
+                    self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
             except Exception as ex:
                 self.log.exception(ex)
                 self.log.warning("Aborting the main loop.")
@@ -265,4 +251,6 @@ if __name__ == "__main__":
         console.print_exception(show_locals=True, max_frames=1)
         # restart on unknown errors
         exit(-1)
+    finally:
+        log.info("DCSServerBot stopped.")
     exit(rc)

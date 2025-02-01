@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -82,7 +83,13 @@ class Service(ABC):
         self._config = dict[str, dict]()
 
     async def start(self, *args, **kwargs):
+        from .registry import ServiceRegistry
+
         self.log.info(f'  => Starting Service {self.name} ...')
+        if self.dependencies:
+            for dependency in self.dependencies:
+                while not ServiceRegistry.get(dependency).is_running():
+                    await asyncio.sleep(.1)
         self.running = True
 
     async def stop(self, *args, **kwargs):

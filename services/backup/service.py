@@ -10,10 +10,12 @@ from discord.ext import tasks
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
+from ..servicebus.service import ServiceBus
+
 __all__ = ["BackupService"]
 
 
-@ServiceRegistry.register(plugin="backup")
+@ServiceRegistry.register(plugin="backup", depends_on=[ServiceBus])
 class BackupService(Service):
     def __init__(self, node):
         super().__init__(node=node, name="Backup")
@@ -46,6 +48,7 @@ class BackupService(Service):
         delete_after = self.locals.get('delete_after', 'never')
         if isinstance(delete_after, int) or delete_after.isnumeric():
             self.delete.stop()
+        await super().stop()
 
     def mkdir(self) -> str:
         target = os.path.expandvars(self.locals.get('target'))
@@ -77,8 +80,6 @@ class BackupService(Service):
             zf.close()
 
     def backup_servers(self) -> bool:
-        from services.servicebus import ServiceBus
-
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
         rc = True

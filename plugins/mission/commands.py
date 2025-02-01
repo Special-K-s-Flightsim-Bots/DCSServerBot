@@ -556,23 +556,32 @@ class Mission(Plugin):
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
             return
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         try:
+            try:
+                next((x for x in presets.values() if 'terrain' in x or 'terrains' in x), None)
+                terrain = await server.get_current_mission_theatre()
+            except StopIteration:
+                terrain = ''
             options = [
                 discord.SelectOption(label=k)
                 for k, v in presets.items()
-                if not isinstance(v, dict) or not v.get('hidden', False)
+                if not isinstance(v, dict) or (
+                        not v.get('hidden', False)
+                        and v.get('terrain', terrain) == terrain
+                        and terrain in v.get('terrains', [terrain])
+                )
             ]
         except AttributeError:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 _("There is an error in your {}. Please check the file structure.").format(presets_file),
                 ephemeral=True)
             return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
         elif not options:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("There are no presets to chose from."), ephemeral=True)
+            await interaction.followup.send(_("There are no presets to chose from."), ephemeral=True)
 
         result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:

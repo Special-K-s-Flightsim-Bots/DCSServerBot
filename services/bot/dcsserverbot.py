@@ -49,7 +49,7 @@ class DCSServerBot(commands.Bot):
             pass
         self.log.info('- Unloading Plugins ...')
         await super().close()
-        self.log.info("- Stopping Services ...")
+        self.log.info("- Plugins unloaded.")
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
@@ -190,19 +190,19 @@ class DCSServerBot(commands.Bot):
         try:
             await self.wait_until_ready()
             if not self.synced:
-                self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
+                self.log.info(f'- Preparing Discord Bot "{self.user.name}" ...')
                 if len(self.guilds) > 1:
                     self.log.warning('  => Your bot can only be installed in ONE Discord server!')
                     for guild in self.guilds:
-                        self.log.warning(f'     - {guild.name}')
-                    self.log.warning('  => Remove it from one guild and restart the bot.')
+                        self.log.warning(f'    - {guild.name}')
+                    self.log.warning(f'  => Remove it from {len(self.guilds) - 1} Discord servers and restart the bot.')
                     raise FatalException()
                 elif not self.guilds:
                     raise FatalException("You need to invite your bot to a Discord server.")
                 self.member = self.guilds[0].get_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
-                self.log.debug('- Checking Roles & Channels ...')
+                self.log.debug('  => Checking Roles & Channels ...')
                 roles = set()
                 for role in ['Admin', 'DCS Admin', 'Alert', 'DCS', 'GameMaster']:
                     roles |= set(self.roles[role])
@@ -219,9 +219,9 @@ class DCSServerBot(commands.Bot):
                     try:
                         self.check_channels(server)
                     except KeyError:
-                        self.log.error(f"Mandatory channel(s) missing for server {server.name} in servers.yaml!")
+                        self.log.error(f"  => Mandatory channel(s) missing for server {server.name} in servers.yaml!")
 
-                self.log.info('- Registering Discord Commands (this might take a bit) ...')
+                self.log.info('  => Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
                 app_cmds = await self.tree.sync(guild=self.guilds[0])
                 app_ids: dict[str, int] = {}
@@ -236,8 +236,8 @@ class DCSServerBot(commands.Bot):
                         cmd.mention = f"</{cmd.name}:{app_ids[cmd.name]}>"
 
                 self.synced = True
-                self.log.info('- Discord Commands registered.')
-                self.log.info('DCSServerBot MASTER started, accepting commands.')
+                self.log.info('  => Discord Commands registered.')
+                self.log.info('- Discord Bot started, accepting commands.')
                 await self.audit(message="Discord Bot started.")
             else:
                 self.log.warning('- Discord connection re-established.')

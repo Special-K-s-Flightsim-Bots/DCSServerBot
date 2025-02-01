@@ -53,7 +53,8 @@ yaml = YAML()
 
 
 __all__ = [
-    "NodeImpl"
+    "NodeImpl",
+    "DEFAULT_PLUGINS"
 ]
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
@@ -1110,7 +1111,7 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         await server.node.unregister_server(server)
-        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name, bus=self)
         instance.server = server
         ServiceRegistry.get(ServiceBus).servers[server.name] = server
         if not self.master:
@@ -1123,3 +1124,44 @@ class NodeImpl(Node):
         instance = server.instance
         instance.server = None
         ServiceRegistry.get(ServiceBus).servers.pop(server.name)
+
+    async def install_plugin(self, plugin: str) -> bool:
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
+
+        if not self.master or plugin in self.plugins:
+            return False
+
+        # amend the main.yaml
+        main_yaml = os.path.join(self.config_dir, 'main.yaml')
+        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        if 'opt_plugins' not in data:
+            data['opt_plugins'] = []
+        data['opt_plugins'].append(plugin)
+        with Path(main_yaml).open("w", encoding="utf-8") as file:
+            yaml.dump(data, file)
+        self.plugins.append(plugin)
+
+        # install the plugin into all DCS servers
+        if os.path.exists(os.path.join('plugins', plugin, 'lua')):
+            for server in ServiceRegistry.get(ServiceBus).servers.values():
+                await server.install_plugin(plugin)
+
+        # load the plugin
+        await ServiceRegistry.get(BotService).bot.load_plugin(plugin)
+        return True
+
+    async def uninstall_plugin(self, plugin: str) -> bool:
+        from services.bot import BotService
+
+        if not self.master or plugin not in self.plugins:
+            return False
+        main_yaml = os.path.join(self.config_dir, 'main.yaml')
+        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        data['opt_plugins'].remove(plugin)
+        with Path(main_yaml).open("w", encoding="utf-8") as file:
+            yaml.dump(data, file)
+        bot = ServiceRegistry.get(BotService).bot
+        await bot.unload_plugin(plugin)
+        self.plugins.remove(plugin)
+        return True

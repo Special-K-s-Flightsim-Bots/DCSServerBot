@@ -5,7 +5,6 @@ import inspect
 import json
 import uuid
 
-from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
@@ -23,15 +22,13 @@ from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Callable, Optional, cast, Union, Any, TYPE_CHECKING
 
-from ..bot.service import BotService
-from ..bot.dcsserverbot import DCSServerBot
-
 __all__ = [
     "ServiceBus"
 ]
 
 if TYPE_CHECKING:
     from core import EventListener
+    from ..bot.dcsserverbot import DCSServerBot
 
 
 @ServiceRegistry.register()
@@ -44,6 +41,7 @@ class ServiceBus(Service):
         self.listeners: dict[str, asyncio.Future] = dict()
         self.eventListeners: list[EventListener] = []
         self.servers: dict[str, Server] = ThreadSafeDict()
+        self.init_servers()
         self.udp_server = None
         self.executor = None
         if 'DCS' in self.locals and self.node.locals['DCS'].get('desanitize', True):
@@ -82,14 +80,15 @@ class ServiceBus(Service):
             asyncio.create_task(self.intercom_channel.subscribe())
             # noinspection PyAsyncCall
             asyncio.create_task(self.broadcasts_channel.subscribe())
-
-            await self.init_servers()
+            # check master
             await self.switch()
 
         except Exception as ex:
             self.log.exception(ex)
 
     async def switch(self):
+        from ..bot.service import BotService
+
         if self.master:
             self.bot = ServiceRegistry.get(BotService).bot
             while not self.bot:
@@ -158,19 +157,19 @@ class ServiceBus(Service):
         self.eventListeners.remove(listener)
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
-    async def init_servers(self):
+    def init_servers(self):
         for instance in self.node.instances:
             try:
-                async with self.apool.connection() as conn:
-                    cursor = await conn.execute("""
+                with self.pool.connection() as conn:
+                    cursor = conn.execute("""
                         SELECT server_name FROM instances 
                         WHERE node=%s AND instance=%s AND server_name IS NOT NULL
                     """, (self.node.name, instance.name))
-                    row = await cursor.fetchone()
+                    row = cursor.fetchone()
                 # was there a server bound to this instance?
                 if row:
                     server: ServerImpl = DataObjectFactory().new(
-                        ServerImpl, node=self.node, port=instance.bot_port, name=row[0])
+                        ServerImpl, node=self.node, port=instance.bot_port, name=row[0], bus=self)
                     instance.server = server
                     self.servers[server.name] = server
                 else:
@@ -258,6 +257,7 @@ class ServiceBus(Service):
 
     async def register_remote_node(self, name: str, public_ip: str, dcs_version: str):
         from core import NodeProxy
+        from ..bot.service import BotService
 
         self.log.info(f"- Registering remote node {name} ...")
         node = NodeProxy(self.node, name, public_ip, dcs_version)
@@ -440,7 +440,8 @@ class ServiceBus(Service):
                 server = ServerProxy(
                     node=node,
                     port=-1,
-                    name=server_name
+                    name=server_name,
+                    bus=self
                 )
                 _instance = next(x for x in node.instances if x.name == instance)
                 cast(InstanceProxy, _instance).home = home

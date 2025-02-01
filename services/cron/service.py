@@ -10,7 +10,7 @@ from ..bot import BotService
 from ..servicebus import ServiceBus
 
 
-@ServiceRegistry.register()
+@ServiceRegistry.register(depends_on=[ServiceBus])
 class CronService(Service):
 
     def __init__(self, node):

@@ -280,11 +280,7 @@ class ServerImpl(Server):
             self.log.exception(ex)
         self.log.debug(f"  - Installing Plugin luas into {self.instance.name} ...")
         for plugin_name in self.node.plugins:
-            source_path = f'./plugins/{plugin_name}/lua'
-            if os.path.exists(source_path):
-                target_path = os.path.join(bot_home, f'{plugin_name}')
-                shutil.copytree(source_path, target_path, dirs_exist_ok=True)
-                self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
+            self._install_plugin(plugin_name)
         self.log.debug(f'  - Luas installed into {self.instance.name}.')
 
     def prepare(self):
@@ -1028,3 +1024,19 @@ class ServerImpl(Server):
             result.append((shorten_filename(file), file))
 
         return result
+
+    def _install_plugin(self, plugin: str) -> None:
+        source_path = f'./plugins/{plugin}/lua'
+        if os.path.exists(source_path):
+            target_path = os.path.join(self.instance.home, 'Scripts', 'net', 'DCSServerBot', plugin)
+            shutil.copytree(source_path, target_path, dirs_exist_ok=True)
+            self.log.debug(f'    => Plugin {plugin.capitalize()} installed.')
+
+    async def install_plugin(self, plugin: str) -> None:
+        self._install_plugin(plugin)
+
+    async def uninstall_plugin(self, plugin: str) -> None:
+        target_path = os.path.join(self.instance.home, 'Scripts', 'net', 'DCSServerBot', plugin)
+        if os.path.exists(target_path):
+            utils.safe_rmtree(target_path)
+            self.log.debug(f'    => Plugin {plugin.capitalize()} uninstalled.')

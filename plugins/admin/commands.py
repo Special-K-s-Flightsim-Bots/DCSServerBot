@@ -6,14 +6,13 @@ import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, TEventListener, DISCORD_FILE_SIZE_LIMIT
+    PaginationReport, get_translation, TEventListener, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
 from services.bot import DCSServerBot
-from services.cron.actions import purge_channel
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -138,8 +137,31 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     return [
-        app_commands.Choice(name=x, value=x)
-        for x in interaction.client.cogs
+        app_commands.Choice(name=x, value=x.lower())
+        for x in sorted(interaction.client.cogs)
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
+async def uninstallable_plugins(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    installed = set([x for x in interaction.client.node.plugins]) - set(DEFAULT_PLUGINS)
+    return [
+        app_commands.Choice(name=x, value=x.lower())
+        for x in sorted(installed)
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
+async def installable_plugins(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    installed = set([x for x in interaction.client.node.plugins])
+    all = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
+    return [
+        app_commands.Choice(name=x.capitalize(), value=x)
+        for x in sorted(all - installed)
         if not current or current.casefold() in x.casefold()
     ]
 
@@ -446,9 +468,12 @@ class Admin(Plugin):
         # double-check if that user can really download these files
         if config.get('discord') and not utils.check_roles(config['discord'], interaction.user):
             raise app_commands.CheckFailure()
-        # make sure nobody injected a wrong path
-        base_dir = os.path.expandvars(config['directory'].format(server=server))
+        if what == 'Missions':
+            base_dir = await server.get_missions_dir()
+        else:
+            base_dir = os.path.expandvars(config['directory'].format(server=server))
         try:
+            # make sure nobody injected a wrong path
             path = utils.sanitize_filename(os.path.abspath(os.path.join(base_dir, filename)), base_dir)
         except ValueError:
             await self.bot.audit("User attempted a relative file injection!",
@@ -606,24 +631,6 @@ class Admin(Plugin):
                         await interaction.followup.send(_("All data older than {} days pruned.").format(days),
                                                         ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
-
-    @command(name='clear', description=_('Clear Discord messages'))
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    @app_commands.describe(older_than=_('Delete messages older than x days (0 = all)'))
-    @app_commands.describe(ignore=_('Messages from this member will be ignored'))
-    async def clear(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None,
-                    older_than: Optional[int] = None, ignore: Optional[discord.Member] = None,
-                    after_id: Optional[str] = None, before_id: Optional[str] = None):
-        if not channel:
-            channel = interaction.channel
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        msg = await interaction.followup.send(_("Deleting messages ..."))
-        await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
-                            ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
-                            before_id=int(before_id) if before_id else None)
-        await msg.edit(content=_("All messages deleted."))
 
     node_group = Group(name="node", description=_("Commands to manage your nodes"))
 
@@ -839,7 +846,7 @@ class Admin(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
-            if await self.bot.reload(plugin.lower()):
+            if await self.bot.reload(plugin):
                 await interaction.followup.send(_('Plugin {} reloaded.').format(plugin), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
@@ -976,6 +983,42 @@ Please make sure you forward the following ports:
             await interaction.followup.send(
                 _("Instance {} could not be renamed, because the directory is in use.").format(old_name),
                 ephemeral=ephemeral)
+
+    dcssb = Group(name="dcssb", description=_("Commands to manage your DCSServerBot installation"))
+
+    @dcssb.command(name='install', description=_("Install Plugin"))
+    @app_commands.guild_only()
+    @app_commands.autocomplete(plugin=installable_plugins)
+    @utils.app_has_role('Admin')
+    async def _install(self, interaction: discord.Interaction, plugin: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not await self.node.install_plugin(plugin):
+            await interaction.followup.send(
+                _("Plugin {} could not be installed, check the log for details.").format(plugin), ephemeral=ephemeral)
+            return
+        message = _("Plugin {} installed.").format(plugin)
+        if os.path.exists(os.path.join('plugins', plugin.lower(), 'lua')):
+            message += _('\nPlease restart your DCS servers to apply the change.')
+        await interaction.followup.send(message, ephemeral=ephemeral)
+
+    @dcssb.command(name='uninstall', description=_("Uninstall Plugin"))
+    @app_commands.guild_only()
+    @app_commands.autocomplete(plugin=uninstallable_plugins)
+    @utils.app_has_role('Admin')
+    async def _uninstall(self, interaction: discord.Interaction, plugin: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not await self.node.uninstall_plugin(plugin):
+            await interaction.followup.send(
+                _("Plugin {} could not be uninstalled, check the log for details.").format(plugin),
+                ephemeral=ephemeral)
+            return
+        await interaction.followup.send(
+            _("Plugin {} uninstalled. Please restart your DCS servers to apply the change!").format(plugin),
+            ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

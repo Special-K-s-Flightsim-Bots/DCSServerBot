@@ -200,3 +200,9 @@ class Node:
 
     async def unregister_server(self, server: "Server") -> None:
         raise NotImplemented()
+
+    async def install_plugin(self, plugin: str) -> bool:
+        raise NotImplemented()
+
+    async def uninstall_plugin(self, plugin: str) -> bool:
+        raise NotImplemented()

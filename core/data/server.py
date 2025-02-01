@@ -38,6 +38,7 @@ _ = get_translation('core')
 @dataclass
 class Server(DataObject):
     port: int
+    bus: ServiceBus = field(compare=False)
     _instance: Instance = field(compare=False, default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
@@ -56,7 +57,6 @@ class Server(DataObject):
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
-    bus: ServiceBus = field(compare=False, init=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
     idle_since: datetime = field(compare=False, default=None)
@@ -65,7 +65,6 @@ class Server(DataObject):
         from services.servicebus import ServiceBus
 
         super().__post_init__()
-        self.bus = ServiceRegistry.get(ServiceBus)
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 
@@ -432,4 +431,10 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def cleanup(self) -> None:
+        raise NotImplemented()
+
+    async def install_plugin(self, plugin: str) -> None:
+        raise NotImplemented()
+
+    async def uninstall_plugin(self, plugin: str) -> None:
         raise NotImplemented()

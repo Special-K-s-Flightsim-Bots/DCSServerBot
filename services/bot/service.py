@@ -20,6 +20,7 @@ from typing import Optional, Union, TYPE_CHECKING
 
 from .dcsserverbot import DCSServerBot
 from .dummy import DummyBot
+from ..servicebus import ServiceBus
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 __all__ = ["BotService"]
 
 
-@ServiceRegistry.register(master_only=True)
+@ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
 class BotService(Service):
 
     def _migrate_autorole(self) -> bool:
@@ -127,12 +128,8 @@ class BotService(Service):
                                 proxy_auth=self.proxy_auth)
 
     async def start(self, *, reconnect: bool = True) -> None:
-        from services.servicebus import ServiceBus
-
         await super().start()
         try:
-            while not ServiceRegistry.get(ServiceBus):
-                await asyncio.sleep(1)
             self.bot = self.init_bot()
             await self.install_fonts()
             await self.bot.login(self.token)

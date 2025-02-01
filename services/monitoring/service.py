@@ -32,7 +32,7 @@ __all__ = [
 last_wait_time = 0
 
 
-@ServiceRegistry.register()
+@ServiceRegistry.register(depends_on=[ServiceBus])
 class MonitoringService(Service):
     def __init__(self, node):
         super().__init__(node, name="Monitoring")
