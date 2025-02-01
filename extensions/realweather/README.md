@@ -5,6 +5,7 @@ DCSServerBot.
 
 > [!IMPORTANT]
 > DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.
+> It is highly recommended to use version 2 or above because of issues in former versions.
 
 ## Configuration
 The configuration for RealWeather goes into your nodes.yaml. There are 2 versions available at the moment, v1.x.x and 

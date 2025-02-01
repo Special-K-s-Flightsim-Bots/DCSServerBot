@@ -1,73 +1,176 @@
 schema;node_realweather_schema:
   type: map
+  allowempty: true
   mapping:
     installation: {type: str, required: true, nullable: false}
+    realweather:
+      type: map
+      mapping:
+        log:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            file: {type: str, required: false}
+        mission.brief:
+          type: map
+          mapping:
+            add-metar: {type: bool}
+            insert-key: {type: str}
+            remarks: {type: str}
+    api:
+      type: map
+      mapping:
+        provider-priority:
+          type: seq
+          sequence:
+            - type: str
+              enum: ['aviationweather', 'checkwx', 'custom']
+        aviationweather:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+        checkwx:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            key: {type: str, required: false}
+        custom:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            file: {type: str, required: false}
+            override: {type: bool, required: true}
+        openmeteo:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
 
 schema;instance_realweather_schema:
   type: map
   mapping:
     enabled: {type: bool}
     debug: {type: bool}
-    api-key: {type: str}
     terrains:
       type: map
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
           include: 'instance_realweather_schema'
-    files:
+    realweather:
       type: map
       mapping:
-        log: { type: str }
-    metar:
+        log:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            file: {type: str, required: false}
+        mission.brief:
+          type: map
+          mapping:
+            add-metar: {type: bool}
+            insert-key: {type: str}
+            remarks: {type: str}
+    api:
       type: map
-      allowempty: true  # allow the author to change values
       mapping:
-        icao: {type: str, required: true, pattern: '^[A-Za-z]{4}$'}
-        runway-elevation: {type: int, range: {min: 0}}
-        remarks: {type: str}
-        add-to-brief: {type: bool}
-        use-custom-data: {type: bool}
+        provider-priority:
+          type: seq
+          sequence:
+            - type: str
+              enum: ['aviationweather', 'checkwx', 'custom']
+        aviationweather:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+        checkwx:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            key: {type: str, required: false}
+        custom:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            file: {type: str, required: false}
+            override: {type: bool, required: true}
+        openmeteo:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
     options:
       type: map
       allowempty: true
       mapping:
-        update-time: {type: bool}
-        update-weather: {type: bool}
-        time-offset: {type: str, pattern: '^[+-]?\d+h\d+m$'}
-        wind:
+        time:
           type: map
-          allowempty: true
           mapping:
-            minimum: {type: int}
-            maximum: {type: int}
-            gust-minimum: {type: int}
-            gust-maximum: {type: int}
-            open-meteo: {type: bool}
-            stability: {type: float}
-            fixed-reference: {type: bool}
-        clouds:
+            enable: {type: bool, required: true}
+            system-time: {type: bool, required: true}
+            offset: {type: str, pattern: '^[+-]?\d+h(\d+m)?$'}
+        date:
           type: map
-          allowempty: true
           mapping:
-            disallowed-presets:
+            enable: {type: bool, required: true}
+            system-date: {type: bool, required: true}
+            offset: {type: str}
+        weather:
+          type: map
+          mapping:
+            enable: {type: bool, required: true}
+            icao: {type: str, required: false, pattern: '^[A-Z]{4}$'}
+            icao-list:
               type: seq
               sequence:
                 - type: str
-            fallback-to-no-preset: {type: bool}
-            default-preset: {type: str}
-        fog:
-          type: map
-          allowempty: true
-          mapping:
-            enable: {type: bool}
-            thickness-minimum: {type: int, range: {min: 0}}
-            thickness-maximum: {type: int, range: {max: 1000}}
-            visibility-minimum: {type: int, range: {min: 0}}
-            visibility-maximum: {type: int, range: {max: 6000}}
-        dust:
-          type: map
-          allowempty: true
-          mapping:
-            enable: {type: bool}
-            visibility-minimum: {type: int, range: {min: 300}}
-            visibility-maximum: {type: int, range: {max: 3000}}
+                  pattern: '^[A-Z]{4}$'
+            runway-elevation: {type: int, range: {min: 0}}
+            wind:
+              type: map
+              mapping:
+                enable: {type: bool, required: true}
+                minimum: {type: int, range: {min: 0}}
+                maximum: {type: int, range: {max: 50}}
+                gust-minimum: {type: int, range: {min: 0}}
+                gust-maximum: {type: int, range: {max: 50}}
+                stability: {type: float}
+                fixed-reference: {type: bool}
+            clouds:
+              type: map
+              mapping:
+                enable: {type: bool, required: true}
+                fallback-to-legacy: {type: bool}
+                base:
+                  type: map
+                  mapping:
+                    minimum: {type: int, required: true, range: {min: 0}}
+                    maximum: {type: int, required: true, range: {max: 15000}}
+                presets:
+                  type: map
+                  mapping:
+                    default: {type: str, required: true}
+                    disallowed:
+                      type: seq
+                      sequence:
+                        - type: str
+            fog:
+              type: map
+              mapping:
+                enable: {type: bool, required: true}
+                mode: {type: str, required: true, enum: ["auto", "manual", "legacy"]}
+                thickness-minimum: {type: int, range: {min: 0}}
+                thickness-maximum: {type: int, range: {min: 0, max: 1000}}
+                visibility-minimum: {type: int, range: {min: 0}}
+                visibility-maximum: {type: int, range: {max: 6000}}
+            dust:
+              type: map
+              mapping:
+                enable: {type: bool, required: true}
+                visibility-minimum: {type: int, range: {min: 300}, required: true}
+                visibility-maximum: {type: int, range: {max: 3000}, required: true}
+            temperature:
+              type: map
+              mapping:
+                enable: {type: bool, required: true}
+            pressure:
+              type: map
+              mapping:
+                enable: {type: bool, required: true}
