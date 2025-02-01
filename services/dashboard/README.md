@@ -7,11 +7,11 @@ dcssb-_node_.log file.
 You can configure the colors of the dashboard in the respective config/services/dashboard.yaml like so:
 ```yaml
 DEFAULT:
-  hide_remote_servers: true         # show only local servers on the MASTER node (default: false)
   header:
     background: white on navy_blue
     border: white
   servers:
+    hide_remote_servers: true         # show only local servers on the MASTER node (default: false)
     background: white on dark_blue
     border: white
   nodes:

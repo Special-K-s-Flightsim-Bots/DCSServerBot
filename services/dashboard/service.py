@@ -35,7 +35,7 @@ class HeaderWidget:
         self.log = service.log
 
     def __rich__(self) -> Panel:
-        config = self.service.get_config()
+        config = self.service.get_config().get('header', {})
         grid = Table.grid(expand=True)
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
@@ -48,8 +48,8 @@ class HeaderWidget:
         message += (f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version} | "
                     f"DCS Version {self.service.dcs_version}[/]")
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
-        return Panel(grid, style=config.get("header", {}).get("background", "white on navy_blue"),
-                     border_style=config.get("header", {}).get("border", "white"))
+        return Panel(grid, style=config.get("background", "white on navy_blue"),
+                     border_style=config.get("border", "white"))
 
 
 class ServersWidget:
@@ -61,7 +61,7 @@ class ServersWidget:
         self.bus = service.bus
 
     def __rich__(self) -> Panel:
-        config = self.service.get_config()
+        config = self.service.get_config().get("servers", {})
         table = Table(expand=True, show_edge=False)
         table.add_column("Status", justify="center", min_width=8)
         table.add_column("Server Name", justify="left", no_wrap=True)
@@ -82,8 +82,8 @@ class ServersWidget:
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
         return Panel(table, padding=1,
-                     style=config.get("servers", {}).get("background", "white on dark_blue"),
-                     border_style=config.get("servers", {}).get("border", "white"))
+                     style=config.get("background", "white on dark_blue"),
+                     border_style=config.get("border", "white"))
 
 
 class NodeWidget:
@@ -97,7 +97,7 @@ class NodeWidget:
         self.log = service.log
 
     def __rich__(self) -> Panel:
-        config = self.service.get_config()
+        config = self.service.get_config().get("nodes", {})
         table = Table(expand=True, show_edge=False)
         table.add_column("Node ([green]Master[/])", justify="left")
         table.add_column("Servers", justify="left")
@@ -117,8 +117,8 @@ class NodeWidget:
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
         return Panel(table, padding=1,
-                     style=config.get("nodes", {}).get("background", "white on dark_blue"),
-                     border_style=config.get("nodes", {}).get("border", "white"))
+                     style=config.get("background", "white on dark_blue"),
+                     border_style=config.get("border", "white"))
 
 
 class LogWidget:
@@ -130,10 +130,10 @@ class LogWidget:
         self.buffer: list[tuple[int, "ConsoleRenderable"]] = []
         self.handler = service.old_handler
         self.console = Console(record=True)
-        config = self.service.get_config()
+        config = self.service.get_config().get("log", {})
         self.panel = Panel("", height=self.console.options.max_height,
-                           style=config.get("log", {}).get("background", "white on grey15"),
-                           border_style=config.get("log", {}).get("border", "white"))
+                           style=config.get("background", "white on grey15"),
+                           border_style=config.get("border", "white"))
         self.previous_size = self.console.size
 
     def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
