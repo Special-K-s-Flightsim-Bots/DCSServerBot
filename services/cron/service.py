@@ -51,6 +51,8 @@ class CronService(Service):
                 async def _aux_func():
                     return func(**kwargs)
                 await asyncio.to_thread(_aux_func)
+        except AttributeError:
+            self.log.error(f"Cron: Action {action} needs to be defined in the DFAULT section.")
         except Exception as ex:
             self.log.error(f"Cron: error while processing action {action}", exc_info=ex)
 

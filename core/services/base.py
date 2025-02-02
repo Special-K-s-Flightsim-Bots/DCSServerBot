@@ -88,8 +88,15 @@ class Service(ABC):
         self.log.info(f'  => Starting Service {self.name} ...')
         if self.dependencies:
             for dependency in self.dependencies:
-                while not ServiceRegistry.get(dependency).is_running():
+                for i in range(30):
+                    if ServiceRegistry.get(dependency).is_running():
+                        break
+                    self.log.debug(f"Waiting for service {dependency} ...")
                     await asyncio.sleep(.1)
+                else:
+                    raise TimeoutError(f"Timeout during start of Service {self.__class__.__name__}, "
+                                       f"dependent service {dependency} is not running.")
+                self.log.debug(f"Dependent service {dependency} is running.")
         self.running = True
 
     async def stop(self, *args, **kwargs):

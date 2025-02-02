@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from core.data.node import FatalException
-from core.services.base import Service, ServiceInstallationError
+from core.services.base import Service
 from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -97,9 +97,8 @@ class ServiceRegistry:
         ret = await asyncio.gather(*[service.start() for service in services], return_exceptions=True)
         for idx in range(0, len(ret)):
             name = services[idx].name
-            if isinstance(ret[idx], (ServiceInstallationError, FatalException)):
-                logger.error(f"  - {ret[idx].__str__()}")
-                logger.error(f"  => Service {name} NOT started.")
+            if isinstance(ret[idx], Exception):
+                logger.error(f"  => Service {name} NOT started.", exc_info=ret[idx])
                 if isinstance(ret[idx], FatalException):
                     raise
             else:

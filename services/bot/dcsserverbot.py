@@ -1,7 +1,7 @@
 import asyncio
 import discord
 
-from core import Channel, utils, Status, PluginError, Group
+from core import Channel, utils, Status, PluginError, Group, DEFAULT_PLUGINS
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -75,9 +75,11 @@ class DCSServerBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
-        for plugin in self.plugins:
-            if not await self.load_plugin(plugin.lower()):
-                self.log.info(f'  => {plugin.title()} NOT loaded.')
+        # we need to keep the order for our default plugins...
+        for plugin in DEFAULT_PLUGINS:
+            await self.load_plugin(plugin.lower())
+        # now load the rest in parallel
+        await asyncio.gather(*(self.load_plugin(plugin.lower()) for plugin in set(self.plugins) - set(DEFAULT_PLUGINS)))
         # cleanup remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)
@@ -100,6 +102,7 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f'  - Plugin "{plugin.title()} not loaded! {ex.name}: {exc}', exc_info=exc)
         except Exception as ex:
             self.log.exception(ex)
+        self.log.warning(f'  => {plugin.title()} NOT loaded.')
         return False
 
     async def unload_plugin(self, plugin: str) -> bool:

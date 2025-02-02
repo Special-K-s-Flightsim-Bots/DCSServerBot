@@ -137,7 +137,7 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     return [
-        app_commands.Choice(name=x, value=x.lower())
+        app_commands.Choice(name=x.capitalize(), value=x.lower())
         for x in sorted(interaction.client.cogs)
         if not current or current.casefold() in x.casefold()
     ]
@@ -148,7 +148,7 @@ async def uninstallable_plugins(interaction: discord.Interaction, current: str) 
         return []
     installed = set([x for x in interaction.client.node.plugins]) - set(DEFAULT_PLUGINS)
     return [
-        app_commands.Choice(name=x, value=x.lower())
+        app_commands.Choice(name=x.capitalize(), value=x.lower())
         for x in sorted(installed)
         if not current or current.casefold() in x.casefold()
     ]
@@ -376,25 +376,28 @@ class Admin(Plugin):
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
                 await interaction.followup.send(content=_("DCS updated to version {version}@{branch} on node {name}."
-                                                          ).format(version=new_version, branch=branch, name=node.name))
+                                                          ).format(version=new_version, branch=branch, name=node.name),
+                                                ephemeral=ephemeral)
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
             elif rc in [2, 112]:
                 await interaction.followup.send(
                     content=_("DCS World could not be updated on node {name} due to missing disk space!").format(
-                        name=node.name))
+                        name=node.name), ephemeral=True)
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
                 await interaction.followup.send(
                     content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
                               "The updater has requested a **reboot** of the system!").format(
-                    version=new_version, branch=branch, name=node.name))
+                    version=new_version, branch=branch, name=node.name), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc))
+                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc),
+                    ephemeral=True)
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
-                content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."))
+                content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."),
+                ephemeral=True)
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()

@@ -143,7 +143,7 @@ class MissionStatisticsEventListener(EventListener):
             unit_name = initiator['unit_name']
             if initiator['type'] == 'UNIT':
                 category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
-                if category not in stats['coalitions'][coalition.name]['units']:
+                if not stats['coalitions'][coalition.name]['units'].get(category):
                     # lua does initialize the empty dict as an array
                     if len(stats['coalitions'][coalition.name]['units']) == 0:
                         stats['coalitions'][coalition.name]['units'] = {}
