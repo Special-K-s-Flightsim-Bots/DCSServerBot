@@ -428,8 +428,8 @@ class ServerImpl(Server):
             else:
                 _mission = mission
             # check if the orig file has been updated
-            orig = _mission + '.orig'
-            if os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
+            orig = utils.get_orig_file(_mission, create_file=False)
+            if orig and os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
@@ -637,7 +637,7 @@ class ServerImpl(Server):
             self.process.terminate()
             # wait 30/60s for the process to terminate
             for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
-                if not self.process.is_running():
+                if not self.process or not self.process.is_running():
                     return
                 await asyncio.sleep(1)
             else:
@@ -732,11 +732,11 @@ class ServerImpl(Server):
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
+        secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
         if orig:
-            filename += '.orig'
+            filename = secondary + '.orig'
             add = False
         else:
-            secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
             for idx, name in enumerate(self.settings['missionList']):
                 if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
                     if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
@@ -822,10 +822,10 @@ class ServerImpl(Server):
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
-        orig = path + '.orig'
+        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        orig = secondary + '.orig'
         if os.path.exists(orig):
             os.remove(orig)
-        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         missions = self.settings['missionList']
         if path in missions or secondary in missions:
             # the mission is already in the list. check if we need to reset a .dcssb copy
@@ -1003,7 +1003,7 @@ class ServerImpl(Server):
             if file.endswith('.orig'):
                 return file[:-5]
             if '.dcssb' in file:
-                return file.replace(os.path.sep + '.dcssb', '')
+                return os.path.join(os.path.dirname(file).replace('.dcssb', ''), os.path.basename(file))
             return file
 
         result = []

@@ -25,7 +25,8 @@ world.event.S_EVENT_ECW_TROOP_PICKUP = world.event.S_EVENT_MAX + 1052
 
 dcsbot.mission_stats_enabled = false
 
-dcsbot.eventHandler = {}
+dcsbot.eventHandler = dcsbot.eventHandler or {}
+
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
 	if not status then
@@ -162,8 +163,12 @@ function onMissionEvent(event)
 				else
 					msg.initiator.unit_name = 'n/a'
 				end
+				if msg.initiator.unit.getTypeName ~= nil then
+					msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+                else
+					msg.initiator.unit_type = "SCENERY"
+				end
 				msg.initiator.coalition = coalition.side.NEUTRAL
-				msg.initiator.unit_type = event.initiator:isExist() and msg.initiator.unit:getTypeName() or "SCENERY"
 			elseif category == Object.Category.CARGO then
 				msg.initiator.type = 'CARGO'
 				msg.initiator.unit = event.initiator

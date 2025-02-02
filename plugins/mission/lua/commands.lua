@@ -512,3 +512,13 @@ function dcsbot.setFogAnimation(json)
     animation = animation .. '}'
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFogAnimation(' .. animation .. ',"' .. json.channel .. '")') .. ')')
 end
+
+function dcsbot.createMenu(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: createMenu()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.createMenu(' .. json.playerID .. ',' .. json.groupID .. ',' .. utils.basicSerialize(net.lua2json(json.menu)) .. ')') .. ')')
+end
+
+function dcsbot.deleteMenu(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: deleteMenu()')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.deleteMenu(' .. json.groupID .. ')') .. ')')
+end

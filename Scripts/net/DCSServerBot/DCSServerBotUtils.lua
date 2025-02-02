@@ -21,8 +21,6 @@ local Tools     	= require('tools')
 local U 			= require('me_utilities')
 local config		= require('DCSServerBotConfig')
 
-local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
-
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
@@ -37,8 +35,7 @@ function sendBotTable(tbl, channel)
 	end
 	tbl.server_name = server_name
 	tbl.channel = channel or "-1"
-	local tbl_json_txt = JSON:encode(tbl)
-	socket.try(UDPSendSocket:sendto(tbl_json_txt, config.BOT_HOST, config.BOT_PORT))
+	socket.try(UDPSendSocket:sendto(net.lua2json(tbl), config.BOT_HOST, config.BOT_PORT))
 end
 
 function loadSettingsRaw()

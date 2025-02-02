@@ -524,24 +524,24 @@ creating a new mission without touching the running one, allowing smart mission 
 not be kicked on mission changes) and rollbacks to the original, not changed version of that mission.<br>
 To do so, DCSServerBot creates special mission files and even its own directory to handle mission changes.
 
-#### .orig files
-Whenever a mission is changed, the original one is copied into a file with the .orig extension. If you see any such file
-in your Missions-directory, there is nothing to worry about. These are your backups in case you want to roll back.
-
 #### .dcssb sub-directory
 DCSServerBot creates its own directory below your Missions-directory. This is needed, to allow changes of .miz files,
 that are locked by DCS. Whenever a Missions\}x.miz file is locked, a similar file is created in Missions\.dcssb\x.miz. 
 This file is then changed and loaded. Whenever you change the mission again, the earlier file (Missions\x.miz) is 
 changed again. This happens in a round-robin way.
 
+#### .orig files
+Whenever a mission is changed, the original one is copied into a file with the .orig extension. If you see any such file
+in your .dcssb-directory, there is nothing to worry about. These are your backups in case you want to roll back.
+
 #### Example
 You upload test.miz to your Missions directory and run it. Your server now locks the mission "test.miz."<br>
 Now you change the mission, lets say the start-time. You use `/mission modify` and load the respective preset.
-First, a backup is created by copying test.miz to test.miz.orig. Then, it gets changed, but can not be written, as 
-test.miz is locked by DCS. So, DCSServerBot creates .dcssb\test.miz, writes the new mission and loads .dcssb\test.miz 
+First, a backup is created by copying test.miz to .dcssb/test.miz.orig. Then, it gets changed, but can not be written, 
+as test.miz is locked by DCS. So, DCSServerBot creates .dcssb\test.miz, writes the new mission and loads .dcssb\test.miz 
 to your DCS server.<br>
-After this process, you end up with test.miz, test.miz.orig and .dcssb\test.miz. Sounds like a lot of copies? Well,
-it's what you get when you want to change things at runtime.<br>
+After this process, you end up with test.miz, .dcssb\test.miz.orig and .dcssb\test.miz. Sounds like a lot of copies? 
+Well, it's what you get when you want to change things at runtime.<br>
 DCSServerBot is smart enough to be able to replace the missions again on upload, load the correct mission on 
 `/mission load` and provide the correct mission on `/download <Missions>` also.
 

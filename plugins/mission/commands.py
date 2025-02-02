@@ -477,13 +477,13 @@ class Mission(Plugin):
                     try:
                         await server.node.remove_file(filename)
                         if '.dcssb' in filename:
-                            origname = filename.replace(os.path.sep + '.dcssb', '')
-                            await server.node.remove_file(origname)
+                            secondary = filename
+                            primary = filename.replace(os.path.sep + '.dcssb', '')
+                            await server.node.remove_file(primary)
                         else:
-                            origname = filename
                             secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
                             await server.node.remove_file(secondary)
-                        await server.node.remove_file(origname + '.orig')
+                        await server.node.remove_file(secondary + '.orig')
                         await interaction.followup.send(_('Mission "{}" deleted.').format(os.path.basename(filename)),
                                                         ephemeral=ephemeral)
                     except FileNotFoundError:
@@ -623,6 +623,7 @@ class Mission(Plugin):
             new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
             message = _('The following preset were applied: {}.').format(','.join(view.result))
             if new_filename != filename:
+                self.log.info(f"  => {message}")
                 self.log.info(f"  => New mission written: {new_filename}")
                 await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
             else:
@@ -699,12 +700,15 @@ class Mission(Plugin):
             await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
                                             ephemeral=True)
             return
-        mission_folder = await server.get_missions_dir()
-        miz_file = os.path.basename(filename)
+        if '.dcssb' in filename:
+            new_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                    os.path.basename(filename))
+            orig_file = filename + '.orig'
+        else:
+            new_file = filename
+            orig_file = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename)) + '.orig'
         try:
-            new_file = os.path.join(mission_folder, miz_file)
-            old_file = new_file + '.orig'
-            await server.node.rename_file(old_file, new_file, force=True)
+            await server.node.rename_file(orig_file, new_file, force=True)
         except FileNotFoundError:
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file there, the mission was never changed.'),
@@ -712,7 +716,7 @@ class Mission(Plugin):
             return
         if new_file != filename:
             await server.replaceMission(mission_id + 1, new_file)
-        await interaction.followup.send(_("Mission {} has been rolled back.").format(miz_file[:-4]),
+        await interaction.followup.send(_("Mission {} has been rolled back.").format(os.path.basename(filename)[:-4]),
                                         ephemeral=ephemeral)
 
     @mission.command(description=_('Sets fog in the running mission'))

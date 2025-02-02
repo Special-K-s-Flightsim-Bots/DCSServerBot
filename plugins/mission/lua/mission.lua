@@ -1,6 +1,8 @@
 local base	= _G
 dcsbot 		= base.dcsbot
 
+dcsbot.menuItems = {}
+
 -- deprecated
 function dcsbot.sendPopupMessage(to, message, time)
 	env.info('DCSServerBot - Popup Message')
@@ -171,6 +173,50 @@ function dcsbot.setFogAnimation(animation, channel)
         visibility = world.weather.getFogVisibilityDistance()
     }
     dcsbot.sendBotTable(msg, channel)
+end
+
+-- Function to send an event to the bot
+local function sendEventToBot(playerID, eventData)
+    local msg = {
+        command = eventData.command,
+        subcommand = eventData.subcommand,
+        params = eventData.params or {},
+        from = playerID
+    }
+    dcsbot.sendBotTable(msg, "-1")
+end
+
+local function buildMenu(playerID, groupID, menuTable, parentMenu)
+    for menuName, menuData in pairs(menuTable) do
+        if type(menuData) == "table" and menuData.command then
+            -- If it's a valid command at this level, create a menu command
+            missionCommands.addCommandForGroup(groupID, menuName, parentMenu, function()
+                sendEventToBot(playerID, menuData)
+            end)
+        elseif type(menuData) == "table" then
+            -- Otherwise, assume it's a submenu
+            local subMenu = missionCommands.addSubMenuForGroup(groupID, menuName, parentMenu)
+            buildMenu(playerID, groupID, menuData, subMenu)  -- Recursively handle submenus
+        end
+    end
+end
+
+function dcsbot.createMenu(playerID, groupID, data)
+    if not dcsbot.menuItems[groupID] then
+        parsedData = net.json2lua(data)
+        for rootMenuName, rootMenuData in pairs(parsedData) do
+            dcsbot.menuItems[groupID] = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
+            buildMenu(playerID, groupID, rootMenuData, dcsbot.menuItems[groupID])
+        end
+    end
+end
+
+function dcsbot.deleteMenu(groupID)
+    menu = dcsbot.menuItems[groupID]
+    if menu then
+        missionCommands.removeItemForGroup(groupID, menu)
+        dcsbot.menuItems[groupID] = nil
+    end
 end
 
 env.setErrorMessageBoxEnabled(false)

@@ -8,7 +8,6 @@ local loadfile	= base.loadfile
 
 local lfs		= require('lfs')
 local config	= require("DCSServerBotConfig")
-local JSON 		= loadfile("Scripts\\JSON.lua")()
 
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
@@ -30,7 +29,7 @@ local function createSimulationFrameHandler()
         repeat
             msg, err = UDPRecvSocket:receive()
             if not err then
-                local decoded = JSON:decode(msg)
+                local decoded = net.json2lua(msg)
                 local commandFunc = dcsbot[decoded.command]
                 if commandFunc then
                     commandFunc(decoded)

@@ -104,13 +104,13 @@ schema;instance_realweather_schema:
           type: map
           mapping:
             enable: {type: bool, required: true}
-            system-time: {type: bool, required: true}
+            system-time: {type: bool}
             offset: {type: str, pattern: '^[+-]?\d+h(\d+m)?$'}
         date:
           type: map
           mapping:
             enable: {type: bool, required: true}
-            system-date: {type: bool, required: true}
+            system-date: {type: bool}
             offset: {type: str}
         weather:
           type: map
@@ -164,8 +164,8 @@ schema;instance_realweather_schema:
               type: map
               mapping:
                 enable: {type: bool, required: true}
-                visibility-minimum: {type: int, range: {min: 300}, required: true}
-                visibility-maximum: {type: int, range: {max: 3000}, required: true}
+                visibility-minimum: {type: int, range: {min: 300}}
+                visibility-maximum: {type: int, range: {max: 3000}}
             temperature:
               type: map
               mapping:

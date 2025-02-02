@@ -14,6 +14,8 @@ from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 
+from .menu import read_menu_config, filter_menu
+
 
 if TYPE_CHECKING:
     from core import Server
@@ -799,6 +801,27 @@ class MissionEventListener(EventListener):
                 'roles': []
             }))
 
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
+        if data['eventName'] == 'S_EVENT_BIRTH':
+            _player = data.get('initiator', {}).get('name')
+            if not _player:
+                return
+            player = server.get_player(name=_player)
+            menu = await filter_menu(self, read_menu_config(self, server), server, player)
+            if menu:
+                await server.send_to_dcs({
+                    "command": "createMenu",
+                    "playerID": player.id,
+                    "groupID": data['initiator']['group']['id_'],
+                    "menu": menu
+                })
+        elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
+            await server.send_to_dcs({
+                "command": "deleteMenu",
+                "groupID": data['initiator']['group']['id_']
+            })
+
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
     async def pause(self, server: Server, player: Player, params: list[str]):
         if server.status == Status.PAUSED:
@@ -1044,8 +1067,11 @@ class MissionEventListener(EventListener):
                            f"(mission might be restarted!)"
                 await player.sendUserMessage(message, 30)
             else:
-                n = int(params[0]) - 1
-                # noinspection PyAsyncCall
-                asyncio.create_task(change_preset(presets[n]))
+                if params[0].isnumeric():
+                    n = int(params[0]) - 1
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(change_preset(presets[n]))
+                else:
+                    asyncio.create_task(change_preset(params[0]))
         else:
             await player.sendChatMessage(f"There are no presets available to select.")

@@ -1,0 +1,23 @@
+########################################
+# This file is used to create a custom #
+# F10-menu inside of DCS World.        #
+########################################
+DEFAULT:
+  DCSServerBot:                 # This is the name of the F10-Root menu
+    Help:                       # Top-Level Command
+      command: onChatCommand
+      subcommand: help          # call the "help" command
+    GameMaster:                 # Sub-section
+      Launch AWACS:             # command inside of the subsection
+        command: onChatCommand
+        subcommand: flag        # call the command "flag 1 1", which sets flag 1 to value 1
+        params: [ 1, 1 ]
+    Weather:
+      Morning:
+        command: onChatCommand
+        subcommand: preset      # Select the preset "Morning" (needs to exist!)
+        params: [ 'Morning' ]
+      Night:
+        command: onChatCommand
+        subcommand: preset      # Select the preset "Night" (needs to exist!)
+        params: [ 'Night' ]
