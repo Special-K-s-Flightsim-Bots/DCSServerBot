@@ -28,9 +28,9 @@ class InstanceImpl(Instance):
         os.makedirs(self.missions_dir, exist_ok=True)
         os.makedirs(os.path.join(self.missions_dir, 'Scripts'), exist_ok=True)
         autoexec = Autoexec(instance=self)
-        webgui_port = int(self.locals.get('webgui_port', 8088))
-        if autoexec.webgui_port != webgui_port:
-            autoexec.webgui_port = webgui_port
+        webgui_port = self.locals.get('webgui_port')
+        if webgui_port and autoexec.webgui_port != int(webgui_port):
+            autoexec.webgui_port = int(webgui_port)
         server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
