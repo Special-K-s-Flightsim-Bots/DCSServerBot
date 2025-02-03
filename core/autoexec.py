@@ -69,7 +69,7 @@ class Autoexec:
     def __setattr__(self, key, value):
         if key in ['bot', 'instance', 'values']:
             super(Autoexec, self).__setattr__(key, value)
-        else:
+        elif self.values.get(key) != value:
             self.values[key] = value
             self.update()
 
