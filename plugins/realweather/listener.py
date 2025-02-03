@@ -35,7 +35,7 @@ class RealWeatherEventListener(EventListener[RealWeather]):
         else:
             return self.generate_config_2_0(icao)
 
-    @chat_command(name="realweather", help=_("applies real weather"))
+    @chat_command(name="realweather", help=_("applies real weather"), roles=['DCS Admin'], usage="<icao|airport>")
     async def penalty(self, server: Server, player: Player, params: list[str]):
         if len(params):
             icao = next(
