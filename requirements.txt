@@ -31,6 +31,9 @@ GitPython==3.1.44
 # jsonschema: An implementation of JSON Schema for Python
 jsonschema==4.23.0
 
+# Fast LUA parser
+lupa==2.4
+
 # Matplotlib: Python 2D plotting library
 matplotlib>=3.9.4
 
@@ -97,6 +100,9 @@ tomli_w==1.2.0
 
 # TrueSkill: Python module implementing the TrueSkill rating system
 trueskill==0.4.5
+
+# Twitch IO: Python interface to the Twitch API
+twitchio==3.0.0b2
 
 # Uvicorn: ASGI server implemented using asyncio and uvloop
 uvicorn==0.34.0
