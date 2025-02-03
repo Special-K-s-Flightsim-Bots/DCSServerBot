@@ -810,17 +810,21 @@ class MissionEventListener(EventListener):
             player = server.get_player(name=_player)
             menu = await filter_menu(self, read_menu_config(self, server), server, player)
             if menu:
-                await server.send_to_dcs({
-                    "command": "createMenu",
-                    "playerID": player.id,
-                    "groupID": data['initiator']['group']['id_'],
-                    "menu": menu
-                })
+                group_id = data['initiator'].get('group', {}).get('id_')
+                if group_id is not None:
+                    await server.send_to_dcs({
+                        "command": "createMenu",
+                        "playerID": player.id,
+                        "groupID": group_id,
+                        "menu": menu
+                    })
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
-            await server.send_to_dcs({
-                "command": "deleteMenu",
-                "groupID": data['initiator']['group']['id_']
-            })
+            group_id = data['initiator'].get('group', {}).get('id_')
+            if group_id is not None:
+                await server.send_to_dcs({
+                    "command": "deleteMenu",
+                    "groupID": group_id
+                })
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
     async def pause(self, server: Server, player: Player, params: list[str]):
