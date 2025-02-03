@@ -8,8 +8,8 @@ from typing import Optional
 
 
 class RealWeather(Plugin):
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
         self.installation = self.node.locals.get('extensions', {}).get('RealWeather', {}).get('installation')
         if not self.installation:
             raise PluginInstallationError(
@@ -147,4 +147,6 @@ class RealWeather(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(RealWeather(bot))
+    from .listener import RealWeatherEventListener
+
+    await bot.add_cog(RealWeather(bot, RealWeatherEventListener))

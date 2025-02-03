@@ -1,0 +1,33 @@
+type: map
+mapping:
+  regex;(.+):
+    type: map
+    mapping:
+      regex;(.+):
+        type: map
+        mapping:
+          command: {type: str}
+          subcommand: {type: str}
+          params:
+            type: seq
+            sequence:
+              - type: text
+          regex;(.+):
+            type: map
+            mapping:
+              command: {type: str}
+              subcommand: {type: str}
+              params:
+                type: seq
+                sequence:
+                  - type: text
+              regex;(.+):
+                type: map
+                matching-rule: 'any' # allow deeper nesting without checking
+                mapping:
+                  command: {type: str}
+                  subcommand: {type: str}
+                  params:
+                    type: seq
+                    sequence:
+                      - type: text
