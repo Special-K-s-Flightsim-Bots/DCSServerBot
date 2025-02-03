@@ -10,13 +10,21 @@ schema;node_realweather_schema:
           type: map
           mapping:
             enable: {type: bool, required: true}
-            file: {type: str, required: false}
-        mission.brief:
+            file: {type: str}
+            max-size: {type: int}
+            max-backups: {type: int}
+            max-age: {type: int}
+            compress: {type: bool}
+            level: {type: str, enum: ['debug', 'info', 'warn', 'error']}
+        mission:
           type: map
           mapping:
-            add-metar: {type: bool}
-            insert-key: {type: str}
-            remarks: {type: str}
+            brief:
+              type: map
+              mapping:
+                add-metar: {type: bool}
+                insert-key: {type: str}
+                remarks: {type: str}
     api:
       type: map
       mapping:
@@ -63,12 +71,20 @@ schema;instance_realweather_schema:
           mapping:
             enable: {type: bool, required: true}
             file: {type: str, required: false}
-        mission.brief:
+            max-size: {type: int}
+            max-backups: {type: int}
+            max-age: {type: int}
+            compress: {type: bool}
+            level: {type: str, enum: ['debug', 'info', 'warn', 'error']}
+        mission:
           type: map
           mapping:
-            add-metar: {type: bool}
-            insert-key: {type: str}
-            remarks: {type: str}
+            brief:
+              type: map
+              mapping:
+                add-metar: {type: bool}
+                insert-key: {type: str}
+                remarks: {type: str}
     api:
       type: map
       mapping:
@@ -151,6 +167,13 @@ schema;instance_realweather_schema:
                       type: seq
                       sequence:
                         - type: str
+                custom:
+                  type: map
+                  mapping:
+                    enable: {type: bool, required: true}
+                    allow-precipitation: {type: bool}
+                    density-minimum: {type: int, range: {min: 0}}
+                    density-maximum: {type: int, range: {min: 0, max: 10}}
             fog:
               type: map
               mapping:
