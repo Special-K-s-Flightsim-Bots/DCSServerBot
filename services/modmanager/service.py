@@ -321,13 +321,13 @@ class ModManagerService(Service):
                         shutil.copy2(orig, dest)
                     else:
                         log_entries.append(f"w {_name}\n")
-                    if name.endswith('/'):
-                        os.makedirs(os.path.join(target, _name), exist_ok=True)
-                    else:
-                        with zfile.open(name) as infile:
-                            self.log.debug(f"Extracting file {name} to {target}/{_name}")
-                            with open(os.path.join(target, _name), mode='wb') as outfile:
-                                outfile.write(infile.read())
+                    os.makedirs(os.path.dirname(orig), exist_ok=True)
+                    if orig.endswith('/'):
+                        continue
+                    with zfile.open(name) as infile:
+                        self.log.debug(f"Extracting file {name} to {target}/{_name}")
+                        with open(orig, mode='wb') as outfile:
+                            outfile.write(infile.read())
             return log_entries
 
         def copy_tree():
