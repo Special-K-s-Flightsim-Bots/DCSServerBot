@@ -162,8 +162,12 @@ function onEvent(event)
 				else
 					msg.initiator.unit_name = 'n/a'
 				end
+				if msg.initiator.unit.getTypeName ~= nil then
+					msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+                		else
+					msg.initiator.unit_type = "SCENERY"
+				end
 				msg.initiator.coalition = coalition.side.NEUTRAL
-				msg.initiator.unit_type = event.initiator:isExist() and msg.initiator.unit:getTypeName() or "SCENERY"
 			elseif category == Object.Category.CARGO then
 				msg.initiator.type = 'CARGO'
 				msg.initiator.unit = event.initiator
