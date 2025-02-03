@@ -43,7 +43,7 @@ class Sneaker(Extension):
 
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
-        if not process or not process.is_running():
+        if self.enabled and (not process or not process.is_running()):
             cmd = self.config.get('cmd')
             if not cmd:
                 return

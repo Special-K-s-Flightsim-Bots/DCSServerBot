@@ -59,11 +59,12 @@ class Olympus(Extension):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
         self.nodejs = os.path.join(os.path.expandvars(config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         super().__init__(server, config)
-        # check if there is an olympus process running already
-        self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
-                                                                    self.server.instance.name)
-        if self.process:
-            self.log.debug("- Running Olympus process found.")
+        if self.enabled:
+            # check if there is an olympus process running already
+            self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
+                                                                        self.server.instance.name)
+            if self.process:
+                self.log.debug("- Running Olympus process found.")
 
         if self.version == '1.0.3.0':
             self.backend_tag = 'server'

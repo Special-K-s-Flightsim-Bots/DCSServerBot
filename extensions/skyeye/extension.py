@@ -37,9 +37,10 @@ class SkyEye(Extension):
     def __init__(self, server, config):
         super().__init__(server, config)
         self._version = None
-        self.process: Optional[psutil.Process] = utils.find_process(self.get_exe_path(), self.server.instance.name)
-        if self.process:
-            self.log.info(f"  => {self.name}: Running SkyEye server detected.")
+        if self.enabled:
+            self.process: Optional[psutil.Process] = utils.find_process(self.get_exe_path(), self.server.instance.name)
+            if self.process:
+                self.log.info(f"  => {self.name}: Running SkyEye server detected.")
 
     def get_config(self) -> str:
         return os.path.expandvars(utils.format_string(
