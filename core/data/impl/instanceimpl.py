@@ -32,7 +32,7 @@ class InstanceImpl(Instance):
         if webgui_port:
             autoexec.webgui_port = webgui_port
         else:
-            self.locals['webgui_port'] = autoexec.webgui_port
+            self.locals['webgui_port'] = autoexec.webgui_port or 8088
         server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
