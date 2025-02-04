@@ -271,24 +271,33 @@ class DCSServerBot(commands.Bot):
         if isinstance(error, discord.app_commands.CommandNotFound):
             pass
         # noinspection PyUnresolvedReferences
-        if not interaction.response.is_done():
-            # noinspection PyUnresolvedReferences
-            await interaction.response.defer(ephemeral=True)
-        if isinstance(error, discord.app_commands.NoPrivateMessage):
-            await interaction.followup.send(f"{interaction.command.name} can't be used in a DM.")
-        elif isinstance(error, discord.app_commands.CheckFailure):
-            await interaction.followup.send(f"You don't have the permission to use {interaction.command.name}!",
-                                            ephemeral=True)
-        elif isinstance(error, (TimeoutError, asyncio.TimeoutError)):
-            await interaction.followup.send('A timeout occurred. Is the DCS server running?', ephemeral=True)
-        elif isinstance(error, discord.app_commands.TransformerError):
-            await interaction.followup.send(error, ephemeral=True)
-        elif isinstance(error, discord.app_commands.AppCommandError):
-            self.log.exception(error)
-            await interaction.followup.send(str(error))
+        if interaction.response.is_done():
+            send = interaction.followup.send
         else:
-            self.log.exception(error)
-            await interaction.followup.send("An unknown exception occurred.", ephemeral=True)
+            # noinspection PyUnresolvedReferences
+            send = interaction.response.send_message
+        try:
+            if isinstance(error, discord.app_commands.NoPrivateMessage):
+                await send(f"{interaction.command.name} can't be used in a DM.")
+            elif isinstance(error, discord.app_commands.CheckFailure):
+                await send(f"You don't have the permission to use {interaction.command.name}!", ephemeral=True)
+            elif isinstance(error, (TimeoutError, asyncio.TimeoutError)):
+                await send('A timeout occurred. Is the DCS server running?', ephemeral=True)
+            elif isinstance(error, discord.app_commands.TransformerError):
+                await send(error, ephemeral=True)
+            elif isinstance(error, discord.app_commands.CommandInvokeError):
+                await send(error, ephemeral=True)
+            elif isinstance(error, discord.NotFound):
+                await send("Command not found. Did you try it too early?", ephemeral=True)
+            elif isinstance(error, discord.app_commands.AppCommandError):
+                self.log.exception(error)
+                await send(str(error))
+            else:
+                self.log.exception(error)
+                await send("An unknown exception occurred.", ephemeral=True)
+        except discord.NotFound:
+            self.log.debug(f"Errormessage ignored, no interaction found: {error}")
+            pass
 
     async def reload(self, plugin: Optional[str] = None) -> bool:
         if plugin:

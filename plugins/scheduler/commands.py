@@ -507,11 +507,9 @@ class Scheduler(Plugin[SchedulerListener]):
         elif server.status == Status.SHUTDOWN:
             ephemeral = utils.get_ephemeral(interaction)
             # noinspection PyUnresolvedReferences
-            if not interaction.response.is_done():
-                # noinspection PyUnresolvedReferences
-                await interaction.response.defer(ephemeral=ephemeral)
-            msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
-                                                  ephemeral=ephemeral)
+            await interaction.response.send_message(
+                f"Starting DCS server \"{server.display_name}\", please wait ...", ephemeral=ephemeral)
+            msg = await interaction.original_response()
             # set maintenance flag. default is true to prevent auto stops of this server if configured to be stopped.
             server.maintenance = maintenance
             try:
