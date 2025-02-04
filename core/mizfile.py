@@ -414,30 +414,30 @@ class MizFile:
                     if reference and 'insert' in config:
                         if debug:
                             self.log.debug(f"Inserting new value: {config['insert']}")
-                        reference |= utils.evaluate(config['insert'], reference=reference, **kkwargs)
+                        reference |= utils.evaluate(config['insert'], reference=reference, **kkwargs, **kwargs)
                 elif 'replace' in config:
                     sort = False
                     for _what, _with in config['replace'].items():
                         if isinstance(_with, str):
-                            _with = utils.format_string(_with, reference=reference, **kwargs)
+                            _with = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                         if debug:
                             self.log.debug(f"Replacing {_what} with {_with}")
                         if isinstance(_what, int) and isinstance(element, (list, dict)):
                             if isinstance(element, list):
                                 try:
-                                    element[_what - 1] = utils.evaluate(_with, reference=reference, **kkwargs)
+                                    element[_what - 1] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                                 except IndexError:
-                                    element.append(utils.evaluate(_with, reference=reference, **kkwargs))
+                                    element.append(utils.evaluate(_with, reference=reference, **kkwargs, **kwargs))
                             elif isinstance(element, dict) and any(isinstance(key, (int, float)) for key in element.keys()):
-                                element[_what] = utils.evaluate(_with, reference=reference, **kkwargs)
+                                element[_what] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                                 sort = True
                         elif isinstance(_with, dict) and isinstance(element[_what], (int, str, float, bool)):
                             for key, value in _with.items():
                                 if utils.evaluate(key, reference=reference):
-                                    element[_what] = utils.evaluate(value, reference=reference, **kkwargs)
+                                    element[_what] = utils.evaluate(value, reference=reference, **kkwargs, **kwargs)
                                     break
                         else:
-                            element[_what] = utils.evaluate(_with, reference=reference, **kkwargs)
+                            element[_what] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                     if sort:
                         sort_dict(element)
                 elif 'merge' in config:
