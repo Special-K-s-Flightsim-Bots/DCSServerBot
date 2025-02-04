@@ -1,7 +1,7 @@
 import discord
 
-from core import Plugin, PluginRequiredError, TEventListener, PluginInstallationError, Group, get_translation, utils, \
-    Server, Coalition, Status
+from core import (Plugin, PluginRequiredError, PluginInstallationError, Group, get_translation, utils, Server,
+                  Coalition, Status)
 from discord import app_commands
 from extensions.srs import SRS as SRSExt
 from services.bot import DCSServerBot
@@ -12,9 +12,9 @@ from .listener import SRSEventListener
 _ = get_translation(__name__.split('.')[1])
 
 
-class SRS(Plugin):
+class SRS(Plugin[SRSEventListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[SRSEventListener] = None):
         super().__init__(bot, eventlistener)
         if not self.get_config(plugin_name='missionstats').get('enabled', True):
             raise PluginInstallationError(plugin=self.plugin_name, reason="MissionStats not enabled!")

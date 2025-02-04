@@ -1,16 +1,19 @@
 import asyncio
 
 from core import EventListener, event, Server, Player, Plugin, get_translation, Side
-from typing import Optional, cast
+from typing import Optional, cast, TYPE_CHECKING
 
 from plugins.mission.commands import Mission
+
+if TYPE_CHECKING:
+    from .commands import SRS
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class SRSEventListener(EventListener):
+class SRSEventListener(EventListener["SRS"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "SRS"):
         super().__init__(plugin)
         self.mission: Mission = cast(Mission, self.bot.cogs['Mission'])
         self.srs_users: dict[str, dict[str, dict]] = {}

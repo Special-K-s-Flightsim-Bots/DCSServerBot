@@ -14,7 +14,7 @@ from .listener import CompetitiveListener
 _ = get_translation(__name__.split('.')[1])
 
 
-class Competitive(Plugin):
+class Competitive(Plugin[CompetitiveListener]):
 
     async def install(self) -> bool:
         if not await super().install():

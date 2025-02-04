@@ -3,11 +3,15 @@ import psycopg_pool
 
 from core import EventListener, Plugin, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
 from discord.ext import tasks
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import MissionStatistics
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class MissionStatisticsEventListener(EventListener):
+class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
     COALITION = {
         0: Coalition.NEUTRAL,
@@ -37,7 +41,7 @@ class MissionStatisticsEventListener(EventListener):
         }
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "MissionStatistics"):
         super().__init__(plugin)
         self.mission_stats = {}
         self.update: dict[str, bool] = {}

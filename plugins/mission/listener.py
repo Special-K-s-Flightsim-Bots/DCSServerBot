@@ -16,12 +16,12 @@ from typing import TYPE_CHECKING, Callable, Coroutine
 
 from .menu import read_menu_config, filter_menu
 
-
 if TYPE_CHECKING:
     from core import Server
+    from .commands import Mission
 
 
-class MissionEventListener(EventListener):
+class MissionEventListener(EventListener["Mission"]):
     EVENT_TEXTS = {
         Side.BLUE: {
             'takeoff': '```ansi\n\u001b[0;34mBLUE player {} took off from {}.```',
@@ -83,7 +83,7 @@ class MissionEventListener(EventListener):
         }
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "Mission"):
         super().__init__(plugin)
         self.queue: dict[int, asyncio.Queue[str]] = {}
         self.player_embeds: dict[str, bool] = {}

@@ -4,8 +4,8 @@ import os
 import psycopg
 
 from contextlib import suppress
-from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
-    Instance, DEFAULT_TAG
+from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
+                  DEFAULT_TAG)
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -24,9 +24,9 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-class Scheduler(Plugin):
+class Scheduler(Plugin[SchedulerListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[SchedulerListener] = None):
         super().__init__(bot, eventlistener)
         self.check_state.start()
 

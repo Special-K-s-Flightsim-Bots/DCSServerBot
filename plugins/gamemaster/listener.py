@@ -14,14 +14,15 @@ from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Player, Server, Plugin
+    from .commands import GameMaster
 
 _ = get_translation(__name__.split('.')[1])
 INTERNAL_CAMPAIGN = '_internal_'
 
 
-class GameMasterEventListener(EventListener):
+class GameMasterEventListener(EventListener["GameMaster"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "GameMaster"):
         super().__init__(plugin)
         self.chat_log = dict()
         self.tasks: dict[str, asyncio.TimerHandle] = {}

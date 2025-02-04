@@ -10,7 +10,7 @@ import shutil
 import ssl
 
 from contextlib import suppress
-from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
+from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
     get_translation, ServiceRegistry, command
 from datetime import timedelta
 from discord import app_commands, DiscordServerError
@@ -27,9 +27,9 @@ from .logger import CloudLoggingHandler
 _ = get_translation(__name__.split('.')[1])
 
 
-class Cloud(Plugin):
+class Cloud(Plugin[CloudListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[CloudListener] = None):
         super().__init__(bot, eventlistener)
         if not len(self.locals):
             raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.yaml available."))

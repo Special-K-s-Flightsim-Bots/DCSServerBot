@@ -12,12 +12,15 @@ from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
 from contextlib import suppress
-from typing import Optional, cast
+from typing import Optional, cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import GreenieBoard
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class GreenieBoardEventListener(EventListener):
+class GreenieBoardEventListener(EventListener["GreenieBoard"]):
 
     EVENT_TEXTS = {
         Side.BLUE: {
@@ -32,7 +35,7 @@ class GreenieBoardEventListener(EventListener):
         }
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "GreenieBoard"):
         super().__init__(plugin)
         config = self.get_config()
         if 'FunkMan' in config:
@@ -176,7 +179,6 @@ class GreenieBoardEventListener(EventListener):
         if not data['grade'].startswith("WO"):
             filename = self.get_trapsheet(config, server, player, data)
             if filename and os.path.exists(filename):
-                # noinspection PyUnresolvedReferences
                 data['trapsheet'] = self.plugin.plot_trapheet(filename)
                 with suppress(Exception):
                     os.remove(filename)

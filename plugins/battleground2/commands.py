@@ -13,7 +13,7 @@ from .listener import BattlegroundEventListener
 _ = get_translation(__name__.split('.')[1])
 
 
-class Battleground(Plugin):
+class Battleground(Plugin[BattlegroundEventListener]):
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str) -> None:
         await conn.execute("UPDATE bg_geometry2 SET server_name = %s WHERE server_name = %s", (new_name, old_name))

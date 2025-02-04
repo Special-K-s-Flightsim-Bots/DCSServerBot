@@ -4,6 +4,10 @@ import discord
 from core import EventListener, event, Server, Plugin, Coalition, Player, get_translation, chat_command, ChatCommand, \
     Side, Channel, utils
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import LotAtc
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -17,7 +21,7 @@ class GCI:
     lotatc: bool = field(default=False)
 
 
-class LotAtcEventListener(EventListener):
+class LotAtcEventListener(EventListener["LotAtc"]):
     COALITION_MARKUP = {
         Coalition.BLUE: "```ansi\n\u001b[0;34mBLUE {}```",
         Coalition.RED: "```ansi\n\u001b[0;31mRED {}```"
@@ -27,7 +31,7 @@ class LotAtcEventListener(EventListener):
         'on_gci_leave': _("GCI {} offline.")
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "LotAtc"):
         super().__init__(plugin)
         self.on_station: dict[str, dict[Coalition, dict[str, GCI]]] = {}
 

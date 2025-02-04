@@ -4,11 +4,13 @@ import os
 from core import Plugin, command, utils, Status, Server, PluginInstallationError, UnsupportedMizFileException
 from discord import app_commands
 from services.bot import DCSServerBot
-from typing import Optional
+from typing import Optional, Type
+
+from .listener import RealWeatherEventListener
 
 
-class RealWeather(Plugin):
-    def __init__(self, bot, listener):
+class RealWeather(Plugin[RealWeatherEventListener]):
+    def __init__(self, bot: DCSServerBot, listener: Type[RealWeatherEventListener] = None):
         super().__init__(bot, listener)
         self.installation = self.node.locals.get('extensions', {}).get('RealWeather', {}).get('installation')
         if not self.installation:
@@ -147,6 +149,4 @@ class RealWeather(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    from .listener import RealWeatherEventListener
-
     await bot.add_cog(RealWeather(bot, RealWeatherEventListener))

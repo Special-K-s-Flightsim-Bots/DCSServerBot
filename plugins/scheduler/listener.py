@@ -3,10 +3,13 @@ import os
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Scheduler
 
 
-class SchedulerListener(EventListener):
+class SchedulerListener(EventListener["Scheduler"]):
 
     def get_next_restart(self, server: Server, restart: Union[dict, list]) -> Optional[tuple[int, dict]]:
         if isinstance(restart, list):

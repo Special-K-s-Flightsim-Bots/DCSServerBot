@@ -19,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Type
 
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
@@ -92,9 +92,9 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
         interaction.client.log.exception(ex)
 
 
-class Mission(Plugin):
+class Mission(Plugin[MissionEventListener]):
 
-    def __init__(self, bot, listener):
+    def __init__(self, bot: DCSServerBot, listener: Type[MissionEventListener] = None):
         super().__init__(bot, listener)
         self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.start()

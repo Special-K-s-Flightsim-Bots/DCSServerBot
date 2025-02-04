@@ -6,7 +6,7 @@ import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, TEventListener, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -206,8 +206,8 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
 
 class Admin(Plugin):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
+    def __init__(self, bot: DCSServerBot):
+        super().__init__(bot)
         self.cleanup.add_exception_type(psycopg.DatabaseError)
         self.cleanup.start()
 

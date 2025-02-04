@@ -2,7 +2,9 @@ import json
 
 from core import EventListener, event, Server
 
+
 class BattlegroundEventListener(EventListener):
+
     @event(name="sendMission")
     async def sendMission(self, server: Server, data: dict) -> None:
         async with self.apool.connection() as conn:

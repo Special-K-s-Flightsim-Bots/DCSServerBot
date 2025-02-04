@@ -38,7 +38,7 @@ async def gci_autocomplete(interaction: discord.Interaction, current: str) -> li
         interaction.client.log.exception(ex)
 
 
-class LotAtc(Plugin):
+class LotAtc(Plugin[LotAtcEventListener]):
 
     @staticmethod
     def lotatc_server_filter(server: Server) -> bool:

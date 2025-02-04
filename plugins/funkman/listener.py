@@ -3,21 +3,23 @@ import discord
 import sys
 import uuid
 import matplotlib.figure
-import os
 
 from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel, get_translation
 from io import BytesIO
 from matplotlib import pyplot as plt
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
 from .const import StrafeQuality, BombQuality
+
+if TYPE_CHECKING:
+    from .commands import FunkMan
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class FunkManEventListener(EventListener):
+class FunkManEventListener(EventListener["FunkMan"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "FunkMan"):
         super().__init__(plugin)
         self.config = self.get_config()
         path = self.config.get('install')

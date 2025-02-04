@@ -2,14 +2,17 @@ import asyncio
 
 from core import EventListener, Plugin, Server, Player, event, chat_command, get_translation, ChatCommand, Channel
 from plugins.competitive.commands import Competitive
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Punishment
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class PunishmentEventListener(EventListener):
+class PunishmentEventListener(EventListener["Punishment"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "Punishment"):
         super().__init__(plugin)
         self.lock = asyncio.Lock()
         self.active_servers: set[str] = set()

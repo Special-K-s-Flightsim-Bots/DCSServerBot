@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Server, Player
+    from .commands import Help
 
 
-class HelpListener(EventListener):
+class HelpListener(EventListener["Help"]):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:

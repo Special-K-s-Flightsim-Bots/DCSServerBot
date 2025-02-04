@@ -3,10 +3,13 @@ import psycopg
 
 from core import EventListener, Plugin, Status, Server, Side, Player, event
 from psycopg import Connection
-from typing import Union
+from typing import Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import UserStatistics
 
 
-class UserStatisticsEventListener(EventListener):
+class UserStatisticsEventListener(EventListener["UserStatistics"]):
 
     SQL_EVENT_UPDATES = {
         'takeoff': 'UPDATE statistics SET takeoffs = takeoffs + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
@@ -42,7 +45,7 @@ class UserStatisticsEventListener(EventListener):
         'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "UserStatistics"):
         super().__init__(plugin)
         self.active_servers: set[str] = set()
 

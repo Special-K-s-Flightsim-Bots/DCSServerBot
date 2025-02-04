@@ -44,7 +44,7 @@ async def trap_users_autocomplete(interaction: discord.Interaction, current: str
         interaction.client.log.exception(ex)
 
 
-class GreenieBoard(Plugin):
+class GreenieBoard(Plugin[GreenieBoardEventListener]):
 
     def read_locals(self) -> dict:
         config = super().read_locals()

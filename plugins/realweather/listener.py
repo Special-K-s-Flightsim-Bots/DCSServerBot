@@ -1,14 +1,16 @@
 import re
 
 from core import EventListener, chat_command, Server, Player, get_translation, Status
+from typing import TYPE_CHECKING
 
-from .commands import RealWeather
+if TYPE_CHECKING:
+    from .commands import RealWeather
 
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class RealWeatherEventListener(EventListener[RealWeather]):
+class RealWeatherEventListener(EventListener["RealWeather"]):
 
     @staticmethod
     def generate_config_1_0(icao: str) -> dict:
@@ -41,7 +43,7 @@ class RealWeatherEventListener(EventListener[RealWeather]):
             icao = next(
                 (
                     airbase['code'] for airbase in server.current_mission.airbases
-                    if airbase['name'].casefold() == params[0].casefold()
+                    if params[0].casefold() in airbase['name'].casefold()
                 ), None
             )
             if not icao:

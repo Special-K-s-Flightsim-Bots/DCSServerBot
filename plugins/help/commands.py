@@ -46,7 +46,7 @@ async def commands_autocomplete(interaction: discord.Interaction, current: str) 
         interaction.client.log.exception(ex)
 
 
-class Help(Plugin):
+class Help(Plugin[HelpListener]):
 
     class HelpView(View):
         def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, options: list[discord.SelectOption]):

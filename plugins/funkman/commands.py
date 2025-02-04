@@ -13,7 +13,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-class FunkMan(Plugin):
+class FunkMan(Plugin[FunkManEventListener]):
 
     def read_locals(self) -> dict:
         config = super().read_locals()

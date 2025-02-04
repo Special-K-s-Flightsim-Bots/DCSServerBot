@@ -12,7 +12,7 @@ from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Union, Optional
+from typing import Union, Optional, Type
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter
 from .listener import UserStatisticsEventListener
@@ -66,9 +66,9 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
         interaction.client.log.exception(ex)
 
 
-class UserStatistics(Plugin):
+class UserStatistics(Plugin[UserStatisticsEventListener]):
 
-    def __init__(self, bot, listener):
+    def __init__(self, bot: DCSServerBot, listener: Type[UserStatisticsEventListener]):
         super().__init__(bot, listener)
         if self.locals:
             self.persistent_highscore.start()

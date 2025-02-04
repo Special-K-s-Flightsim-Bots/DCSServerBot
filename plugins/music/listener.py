@@ -2,11 +2,15 @@ import asyncio
 
 from core import EventListener, Server, event, ServiceRegistry, Plugin
 from services.music.service import MusicService
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Music
 
 
-class MusicEventListener(EventListener):
+class MusicEventListener(EventListener["Music"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "Music"):
         super().__init__(plugin)
         self.service = ServiceRegistry.get(MusicService)
 

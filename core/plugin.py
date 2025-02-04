@@ -21,7 +21,7 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, TypeVar, Generic
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
@@ -229,7 +229,7 @@ class Group(app_commands.Group):
         return decorator
 
 
-class Plugin(commands.Cog):
+class Plugin(commands.Cog, Generic[TEventListener]):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         from services.servicebus import ServiceBus

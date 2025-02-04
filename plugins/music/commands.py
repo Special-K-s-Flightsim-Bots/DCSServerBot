@@ -110,9 +110,9 @@ async def subfolder_autocomplete(interaction: discord.Interaction, current: str)
         interaction.client.log.exception(ex)
 
 
-class Music(Plugin):
+class Music(Plugin[MusicEventListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[MusicEventListener] = None):
         super().__init__(bot, eventlistener)
         self.service = ServiceRegistry.get(MusicService)
         if not self.service:
