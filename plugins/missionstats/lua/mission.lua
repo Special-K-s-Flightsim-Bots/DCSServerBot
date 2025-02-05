@@ -245,7 +245,7 @@ function onMissionEvent(event)
 		if event.weapon and event.weapon:isExist() then
 			msg.weapon = {}
 			msg.weapon.name = event.weapon:getTypeName()
-			msg.weapon.category = event.weapon:getDesc().category
+			-- msg.weapon.category = event.weapon:getDesc().category
 			if msg.weapon.name == nil or msg.weapon.name == '' then
 			    msg.weapon.name = 'Gun'
 			end
