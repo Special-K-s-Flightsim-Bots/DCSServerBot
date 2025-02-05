@@ -1,9 +1,6 @@
-import logging
 import math
 
 from lupa.lua51 import LuaRuntime, lua_type
-
-logger = logging.getLogger(__name__)
 
 
 def _unserialize(raw, encoding="utf-8", multival=False, verbose=False):
@@ -378,7 +375,6 @@ def _lua_table_to_dict(lua_table):
 
 def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
     lua = LuaRuntime(unpack_returned_tuples=multival, encoding=encoding)
-    logger.debug(raw)
     lua.execute(raw)
     variable = raw.split("=")[0].strip()
     lua_table = lua.globals()[variable]
