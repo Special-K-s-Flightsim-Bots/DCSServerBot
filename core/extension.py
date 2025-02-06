@@ -38,6 +38,7 @@ class Extension(ABC):
         self.log = logging.getLogger(__name__)
         self.pool = self.node.pool
         self.loop = asyncio.get_event_loop()
+        self.lock = asyncio.Lock()
         self.config: dict = config
         self.server: Server = server
         self.running = False

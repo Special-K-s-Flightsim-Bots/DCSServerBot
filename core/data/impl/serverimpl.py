@@ -683,7 +683,12 @@ class ServerImpl(Server):
                     self.log.warning("No mission found. Is your mission list empty?")
                     return filename
 
-            new_filename = utils.get_orig_file(filename)
+            # create a writable mission
+            new_filename = utils.create_writable_mission(filename)
+            # get the orig file
+            orig_filename = utils.get_orig_file(new_filename)
+            # and copy the orig file over
+            shutil.copy2(orig_filename, new_filename)
             try:
                 # process all mission modifications
                 dirty = False

@@ -197,36 +197,40 @@ class SkyEye(Extension):
             return proc
 
         try:
-            # waiting for SRS to be started
-            self.log.debug(f"{self.name}: Waiting for SRS to start ...")
-            ip, port = self.locals.get('srs-server-address').split(':')
-            # Give the SkyEye server 10s to start
-            for _ in range(0, 10):
-                if utils.is_open(ip, port):
-                    break
-                await asyncio.sleep(1)
-            else:
-                self.log.warning(f"  => {self.name}: SRS is not running, skipping SkyEye.")
-                return False
-            self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
-            # Start the SkyEye server
-            p = await asyncio.to_thread(run_subprocess)
-            try:
-                self.process = psutil.Process(p.pid)
-                atexit.register(self.terminate)
-                if self.config.get('affinity'):
-                    self.set_affinity(self.config['affinity'])
+            # avoid race conditions on startup
+            async with self.lock:
+                if self.is_running():
+                    return True
+                # waiting for SRS to be started
+                self.log.debug(f"{self.name}: Waiting for SRS to start ...")
+                ip, port = self.locals.get('srs-server-address').split(':')
+                # Give the SRS server 10s to start
+                for _ in range(0, 10):
+                    if utils.is_open(ip, port):
+                        break
+                    await asyncio.sleep(1)
                 else:
-                    p_core_affinity = utils.get_p_core_affinity()
-                    if p_core_affinity:
-                        self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
-                        self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
+                    self.log.warning(f"  => {self.name}: SRS is not running, skipping SkyEye.")
+                    return False
+                self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
+                # Start the SkyEye server
+                p = await asyncio.to_thread(run_subprocess)
+                try:
+                    self.process = psutil.Process(p.pid)
+                    atexit.register(self.terminate)
+                    if self.config.get('affinity'):
+                        self.set_affinity(self.config['affinity'])
                     else:
-                        self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
+                        p_core_affinity = utils.get_p_core_affinity()
+                        if p_core_affinity:
+                            self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
+                            self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
+                        else:
+                            self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
 
-            except (AttributeError, psutil.NoSuchProcess):
-                self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")
-                return False
+                except (AttributeError, psutil.NoSuchProcess):
+                    self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")
+                    return False
         except OSError as ex:
             self.log.error("Error while starting SkyEye: " + str(ex))
             return False
