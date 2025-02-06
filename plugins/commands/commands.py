@@ -17,7 +17,7 @@ class Commands(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
         self.commands: dict[str, dict] = dict()
-        self.prefix = self.bot.command_prefix
+        self.prefix = self.bot.locals.get('command_prefix', '.')
         self.register_commands()
 
     async def cog_unload(self):
