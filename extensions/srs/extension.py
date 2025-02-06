@@ -65,13 +65,13 @@ class SRS(Extension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
-        super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
         self.first_run = True
         self._inst_path: Optional[str] = None
         self.clients: dict[str, set[int]] = {}
+        super().__init__(server, config)
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:

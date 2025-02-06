@@ -469,10 +469,13 @@ class ServerImpl(Server):
         if not _ext:
             self.log.error(f"Extension {name} could not be found!")
             return None
-        return _ext(
-            self,
-            self.node.locals.get('extensions', {}).get(name, {}) | (DEFAULT_EXTENSIONS | self.locals.get('extensions', {}))[name]
-        )
+        try:
+            return _ext(
+                self,
+                self.node.locals.get('extensions', {}).get(name, {}) | (DEFAULT_EXTENSIONS | self.locals.get('extensions', {}))[name]
+            )
+        except InstallException:
+            return None
 
     async def init_extensions(self) -> list[str]:
         async with self.lock:

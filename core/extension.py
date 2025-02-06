@@ -41,8 +41,8 @@ class Extension(ABC):
         self.config: dict = config
         self.server: Server = server
         self.running = False
-        if not self.enabled:
-            return
+        if not self.enabled or not self.is_installed():
+            raise InstallException()
         self.locals: dict = self.load_config()
         if self.__class__.__name__ not in Extension.started_schedulers:
             schedule = getattr(self, 'schedule', None)

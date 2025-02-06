@@ -171,7 +171,7 @@ class Sneaker(Extension):
             return False
         # check if Sneaker is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
-            self.log.warning("Sneaker executable not found!")
+            self.log.warning("  => Sneaker: can't run extension, executable not found!")
             return False
         return True
 
