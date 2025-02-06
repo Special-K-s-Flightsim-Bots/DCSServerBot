@@ -231,7 +231,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                         period: Optional[app_commands.Transform[
                             StatisticsFilter, PeriodTransformer(
                                 flt=[PeriodFilter, CampaignFilter, MissionFilter, SquadronFilter]
-                            )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3]] = None):
+                            )]] = PeriodFilter(), limit: Optional[app_commands.Range[int, 3, 20]] = None):
         file = 'highscore-campaign.json' if isinstance(period, CampaignFilter) else 'highscore.json'
         if not _server:
             report = PaginationReport(interaction, self.plugin_name, file)

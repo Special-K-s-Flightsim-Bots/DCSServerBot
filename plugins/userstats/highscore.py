@@ -147,7 +147,7 @@ class HighscoreElement(report.GraphElement):
         if values and bar_labels:
             num_bars = len(labels)
             fontsize = compute_font_size(num_bars)
-            bar_height = max(0.75, 3 / num_bars)  # Adjust bar height
+            bar_height = max(0.75, 3 / num_bars)
 
             color_map = cm.get_cmap('viridis', num_bars)
             colors = color_map(np.linspace(0, 1, num_bars))
