@@ -14,7 +14,6 @@ class AdminEventListener(EventListener["Admin"]):
         # do we need to initialise the extension?
         try:
             await server.run_on_extension(extension=extension, method='enable')
-            return
         except ValueError:
             await server.init_extensions()
             await server.run_on_extension(extension=extension, method='prepare')

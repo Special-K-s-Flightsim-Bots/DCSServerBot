@@ -977,7 +977,7 @@ class ServerImpl(Server):
         self.locals |= self.node.locals['instances'][self.instance.name]
         self.instance.locals |= self.node.locals['instances'][self.instance.name]
         if name in self.extensions:
-            self.extensions[name].config = self.locals['extensions'][name]
+            self.extensions[name].config = self.node.locals.get('extensions', {}).get(name, {}) | self.locals['extensions'][name]
 
     async def install_extension(self, name: str, config: dict) -> None:
         if name in self.extensions:
