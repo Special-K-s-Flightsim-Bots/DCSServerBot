@@ -155,6 +155,8 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 if unit_name not in stats['coalitions'][coalition.name]['units'][category]:
                     stats['coalitions'][coalition.name]['units'][category].append(unit_name)
             elif initiator['type'] == 'STATIC':
+                if not stats['coalitions'][coalition.name].get('statics'):
+                    stats['coalitions'][coalition.name]['statics'] = []
                 stats['coalitions'][coalition.name]['statics'].append(unit_name)
             update = True
         elif data['eventName'] == 'S_EVENT_KILL':
