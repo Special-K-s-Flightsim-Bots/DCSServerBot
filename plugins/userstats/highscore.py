@@ -1,8 +1,10 @@
 import discord
 import math
+import numpy as np
 
 from core import report, utils, Side, Server, Coalition
 from decimal import Decimal
+from matplotlib import cm
 from psycopg.rows import dict_row
 from typing import Optional
 
@@ -53,14 +55,28 @@ class HighscorePlaytime(report.GraphElement):
                     labels.insert(0, name)
                     values.insert(0, row['playtime'] / 3600)
 
-        self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
-        self.axes.set_xlabel('hours')
-        if bar_labels:
-            for c in self.axes.containers:
-                self.axes.bar_label(c, fmt='%.1f h', label_type='edge', padding=2)
-            self.axes.margins(x=0.1)
+        num_bars = len(labels)
         self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
-        if len(values) == 0:
+
+        if num_bars > 0:  # Only calculate and plot if there's data
+            base_fontsize = 10
+            font_scale = max(1.0, math.sqrt(10 / num_bars))  # Scale based on the number of bars
+            bar_height = max(0.75, 3 / num_bars)  # Adjust bar height
+
+            color_map = cm.get_cmap('viridis', num_bars)
+            colors = color_map(np.linspace(0, 1, num_bars))
+
+            self.axes.barh(labels, values, color=colors, height=bar_height)
+            self.axes.set_xlabel('hours', fontsize=int(base_fontsize * font_scale))
+
+            if bar_labels:
+                for c in self.axes.containers:
+                    self.axes.bar_label(c, fmt='%.1f h', label_type='edge', padding=2,
+                                        fontsize=int(base_fontsize * font_scale))
+                self.axes.margins(x=0.1)
+            self.axes.tick_params(axis='y', labelsize=max(8, int(base_fontsize * font_scale)))
+
+        else:
             self.axes.set_xticks([])
             self.axes.set_yticks([])
             self.axes.text(0, 0, 'No data available.', ha='center', va='center', size=15)
@@ -93,7 +109,6 @@ class HighscoreElement(report.GraphElement):
             'Most Efficient Killers': 'kills / h',
             'Most Wasteful Pilots': 'airframes wasted / h'
         }
-        colors = ['#CD7F32', 'silver', 'gold']
         sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
@@ -119,18 +134,26 @@ class HighscoreElement(report.GraphElement):
                     labels.insert(0, name)
                     values.insert(0, row['value'])
 
-        self.axes.barh(labels, values, color=colors, label=kill_type, height=0.75)
-        if values and bar_labels:
-            for c in self.axes.containers:
-                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], Decimal) else '%d', label_type='edge',
-                                    padding=2)
-            self.axes.margins(x=0.125)
         self.axes.set_title(kill_type, color='white', fontsize=25)
         self.axes.set_xlabel(xlabels[kill_type])
-        if len(values) == 0:
+        if values and bar_labels:
+            num_bars = len(labels)
+            base_fontsize = 10
+            font_scale = max(1.0, math.sqrt(10 / num_bars))  # Scale based on the number of bars
+            bar_height = max(0.75, 3 / num_bars)  # Adjust bar height
+
+            color_map = cm.get_cmap('viridis', num_bars)
+            colors = color_map(np.linspace(0, 1, num_bars))
+
+            self.axes.barh(labels, values, color=colors, label=kill_type, height=bar_height)
+            for c in self.axes.containers:
+                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], Decimal) else '%d', label_type='edge',
+                                    padding=2, fontsize=int(base_fontsize * font_scale))
+            self.axes.margins(x=0.125)
+            scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
+            self.axes.tick_params(axis='y', labelsize=max(8, int(base_fontsize * font_scale)))
+            self.axes.set_xticks(scale)
+        else:
             self.axes.set_xticks([])
             self.axes.set_yticks([])
             self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-        else:
-            scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
-            self.axes.set_xticks(scale)
