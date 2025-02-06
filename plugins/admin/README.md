@@ -84,7 +84,11 @@ download to the current channel. Discord limits may apply.</br>
 | /node add_instance | <node> [template]                   | admin-channel | Admin     | Adds another instance to your node. You can either add an existing one or you create a new one by specifying a an existing one as a template.    |
 | /download          |                                     | admin-channel | DCS Admin | Download a dcs.log, dcssb-*.log, bot config file, missions and more (see above) into a DM, path or configured channel.                           |
 | /prune             |                                     | all           | Admin     | Runs a cleanup on the DCSServerBot database. You can specify which data should be deleted.                                                       |
-| /reload            | plugin                              | all           | Admin     | Reloads a DCSServerBot plugin.                                                                                                                   |
+| /plugin install    | plugin                              | all           | Admin     | Install a plugin into your DCSServerBot installation.                                                                                            |
+| /plugin uninstall  | plugin                              | all           | Admin     | Uninstalls a plugin from your DCSServerBot installation.                                                                                         |
+| /plugin reload     | plugin                              | all           | Admin     | Reloads a DCSServerBot plugin.                                                                                                                   |
+| /extension enable  | extension                           | all           | Admin     | Enables a (configured) extension.                                                                                                                |
+| /extension disable | extension                           | all           | Admin     | Disables an extension.                                                                                                                           |
 
 ## Config File Uploads
 All configuration files utilized by the bot itself (such as `main.yaml`) or by various plugins (like `<plugin>.yaml`) 

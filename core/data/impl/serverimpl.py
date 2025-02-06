@@ -954,9 +954,7 @@ class ServerImpl(Server):
         if asyncio.iscoroutinefunction(_method):
             result = await _method(**kwargs)
         else:
-            async def _aux_func():
-                return _method(**kwargs)
-            result = await asyncio.to_thread(_aux_func)
+            result = await asyncio.to_thread(_method, **kwargs)
         return result
 
     async def config_extension(self, name: str, config: dict) -> None:
@@ -976,7 +974,7 @@ class ServerImpl(Server):
         self.locals |= self.node.locals['instances'][self.instance.name]
         self.instance.locals |= self.node.locals['instances'][self.instance.name]
         if name in self.extensions:
-            self.extensions[name].config = config
+            self.extensions[name].config = self.locals['extensions'][name]
 
     async def install_extension(self, name: str, config: dict) -> None:
         if name in self.extensions:

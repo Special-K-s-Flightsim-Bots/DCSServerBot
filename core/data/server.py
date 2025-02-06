@@ -6,7 +6,6 @@ import uuid
 from core import utils
 from core.const import DEFAULT_TAG
 from core.utils.performance import PerformanceLog, performance_log
-from core.services.registry import ServiceRegistry
 from core.translations import get_translation
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,7 +15,7 @@ from typing import Optional, Union, TYPE_CHECKING, Any
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
-from ..utils.helper import YAMLError
+from ..utils.helper import YAMLError, async_cache
 
 # ruamel YAML support
 from pykwalify.errors import SchemaError
@@ -438,3 +437,7 @@ class Server(DataObject):
 
     async def uninstall_plugin(self, plugin: str) -> None:
         raise NotImplemented()
+
+    @async_cache
+    async def list_extension(self) -> list[str]:
+        return self.locals.get('extensions', [])

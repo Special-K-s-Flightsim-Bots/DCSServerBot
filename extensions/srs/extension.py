@@ -69,9 +69,9 @@ class SRS(Extension, FileSystemEventHandler):
         self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
+        self.first_run = True
         self._inst_path: Optional[str] = None
         self.clients: dict[str, set[int]] = {}
-        atexit.register(self.stop_observer)
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
@@ -333,6 +333,9 @@ class SRS(Extension, FileSystemEventHandler):
             self.observer = Observer()
             self.observer.schedule(self, path=os.path.dirname(path))
             self.observer.start()
+            if self.first_run:
+                atexit.register(self.stop_observer)
+                self.first_run = False
 
     def stop_observer(self):
         if self.observer:

@@ -91,6 +91,14 @@ class Extension(ABC):
     def enabled(self) -> bool:
         return self.config.get('enabled', True)
 
+    async def enable(self):
+        self.config['enabled'] = True
+
+    async def disable(self):
+        if self.is_running():
+            await asyncio.to_thread(self.shutdown)
+        self.config['enabled'] = False
+
     async def render(self, param: Optional[dict] = None) -> dict:
         raise NotImplementedError()
 

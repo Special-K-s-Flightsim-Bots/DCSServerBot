@@ -37,6 +37,23 @@ dcsbot.sendBotTable = dcsbot.sendBotTable or function (tbl, channel)
 	socket.try(dcsbot.UDPSendSocket:sendto(net.lua2json(tbl), config.BOT_HOST, config.BOT_PORT))
 end
 
+dcsbot.enableExtension = dcsbot.enableExtension or function (extension, config)
+    local msg = {
+        command = 'enableExtension',
+        extension = extension,
+        config = config
+    }
+	dcsbot.sendBotTable(msg, "-1")
+end
+
+dcsbot.disableExtension = dcsbot.disableExtension or function (extension)
+    local msg = {
+        command = 'disableExtension',
+        extension = extension
+    }
+	dcsbot.sendBotTable(msg, "-1")
+end
+
 do
 	if not base.mission_hook then
 		-- MISSION HOOK REGISTRATION
