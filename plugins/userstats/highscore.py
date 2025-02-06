@@ -26,6 +26,15 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
     return sides
 
 
+def compute_font_size(num_bars):
+    if num_bars <= 10:
+        return 10  # Default font size for 10 or fewer bars
+    elif num_bars <= 20:
+        return 10 - (num_bars - 10) * (3 / 10)  # Linear reduction
+    else:
+        return 7  # Minimum font size for 20 or more bars
+
+
 class HighscorePlaytime(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
@@ -58,23 +67,22 @@ class HighscorePlaytime(report.GraphElement):
         num_bars = len(labels)
         self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
 
-        if num_bars > 0:  # Only calculate and plot if there's data
-            base_fontsize = 10
-            font_scale = max(1.0, math.sqrt(10 / num_bars))  # Scale based on the number of bars
-            bar_height = max(0.75, 3 / num_bars)  # Adjust bar height
+        if num_bars > 0:
+            fontsize = compute_font_size(num_bars)
+            bar_height = max(0.75, 3 / num_bars)
 
             color_map = cm.get_cmap('viridis', num_bars)
             colors = color_map(np.linspace(0, 1, num_bars))
 
             self.axes.barh(labels, values, color=colors, height=bar_height)
-            self.axes.set_xlabel('hours', fontsize=int(base_fontsize * font_scale))
+            self.axes.set_xlabel('hours', fontsize=fontsize)
 
             if bar_labels:
                 for c in self.axes.containers:
                     self.axes.bar_label(c, fmt='%.1f h', label_type='edge', padding=2,
-                                        fontsize=int(base_fontsize * font_scale))
+                                        fontsize=fontsize)
                 self.axes.margins(x=0.1)
-            self.axes.tick_params(axis='y', labelsize=max(8, int(base_fontsize * font_scale)))
+            self.axes.tick_params(axis='y', labelsize=fontsize)
 
         else:
             self.axes.set_xticks([])
@@ -138,8 +146,7 @@ class HighscoreElement(report.GraphElement):
         self.axes.set_xlabel(xlabels[kill_type])
         if values and bar_labels:
             num_bars = len(labels)
-            base_fontsize = 10
-            font_scale = max(1.0, math.sqrt(10 / num_bars))  # Scale based on the number of bars
+            fontsize = compute_font_size(num_bars)
             bar_height = max(0.75, 3 / num_bars)  # Adjust bar height
 
             color_map = cm.get_cmap('viridis', num_bars)
@@ -148,10 +155,10 @@ class HighscoreElement(report.GraphElement):
             self.axes.barh(labels, values, color=colors, label=kill_type, height=bar_height)
             for c in self.axes.containers:
                 self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], Decimal) else '%d', label_type='edge',
-                                    padding=2, fontsize=int(base_fontsize * font_scale))
+                                    padding=2, fontsize=fontsize)
             self.axes.margins(x=0.125)
             scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
-            self.axes.tick_params(axis='y', labelsize=max(8, int(base_fontsize * font_scale)))
+            self.axes.tick_params(axis='y', labelsize=fontsize)
             self.axes.set_xticks(scale)
         else:
             self.axes.set_xticks([])
