@@ -336,6 +336,7 @@ class SkyEye(Extension):
             if version:
                 self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
                 await self.do_update(version)
+                self._version = version.lstrip('v')
                 self.log.info("SkyEye updated.")
                 bus = ServiceRegistry.get(ServiceBus)
                 await bus.send_to_node({
