@@ -162,7 +162,7 @@ schema;instance_realweather_schema:
                 presets:
                   type: map
                   mapping:
-                    default: {type: str, required: true}
+                    default: {type: str}
                     disallowed:
                       type: seq
                       sequence:
