@@ -550,6 +550,8 @@ class ServerImpl(Server):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
             else:
                 utils.desanitize(self)
+        else:
+            self.log.debug("MissionScripting.lua is already desanitized.")
         self.status = Status.LOADING
         await self.init_extensions()
         await self.prepare_extensions()

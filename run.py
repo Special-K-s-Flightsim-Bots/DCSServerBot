@@ -141,17 +141,18 @@ class Main:
                     self.node.master = not self.node.master
                     if self.node.master:
                         self.log.info("Taking over as the MASTER node ...")
-                        for cls in registry.services().keys():
-                            if registry.master_only(cls):
-                                try:
-                                    await registry.new(cls).start()
-                                except ServiceInstallationError as ex:
-                                    self.log.error(f"  - {ex.__str__()}")
-                                    self.log.error(f"  => {cls.__name__} NOT loaded.")
-                            else:
-                                service = registry.get(cls)
-                                if service:
-                                    await service.switch()
+                        # start all master only services
+                        for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
+                            try:
+                                await registry.new(cls).start()
+                            except ServiceInstallationError as ex:
+                                self.log.error(f"  - {ex.__str__()}")
+                                self.log.error(f"  => {cls.__name__} NOT loaded.")
+                        # now switch all others
+                        for cls in [x for x in registry.services().keys() if not registry.master_only(x)]:
+                            service = registry.get(cls)
+                            if service:
+                                await service.switch()
                     else:
                         self.log.info("Second MASTER found, stepping back to AGENT configuration.")
                         for cls in registry.services().keys():
