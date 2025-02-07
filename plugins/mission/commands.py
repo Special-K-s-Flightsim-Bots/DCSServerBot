@@ -614,6 +614,7 @@ class Mission(Plugin[MissionEventListener]):
             server.restart_pending = True
             await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
         else:
+            server.on_empty = dict()
             startup = False
             msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
             if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
