@@ -2,6 +2,8 @@ import aiohttp
 import asyncio
 import atexit
 import certifi
+import json
+import logging
 import os
 import psutil
 import re
@@ -13,6 +15,7 @@ import zipfile
 from contextlib import suppress
 from core import Extension, utils, ServiceRegistry, get_translation
 from discord.ext import tasks
+from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
 from pathlib import Path
@@ -175,12 +178,23 @@ class SkyEye(Extension):
         return await super().prepare()
 
     async def startup(self) -> bool:
-        def log_output(proc: subprocess.Popen):
-            for line in iter(proc.stdout.readline, b''):
-                self.log.debug(line.decode('utf-8').rstrip())
-
         def run_subprocess():
-            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
+            # Set up the logger
+            log_file = self.config.get('log')
+            logger = logging.getLogger(self.name)
+            logger.setLevel(logging.DEBUG)
+
+            handler = RotatingFileHandler(
+                log_file,
+                maxBytes=10 * 1024 * 1024,
+                backupCount=5
+            )
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s - %(extra_data)s')
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            logger.propagate = False
+
+            # Define the subprocess command
             args = [
                 self.get_exe_path(),
                 '--config-file', self.get_config()
@@ -189,11 +203,41 @@ class SkyEye(Extension):
                 args.extend(['--whisper-model', 'whisper.bin'])
 
             self.log.debug("Launching {}".format(' '.join(args)))
+
+            # Launch the subprocess and capture stdout/stderr
             proc = subprocess.Popen(
-                args, cwd=os.path.dirname(self.get_exe_path()), stdout=out, stderr=subprocess.STDOUT, close_fds=True
+                args,
+                cwd=os.path.dirname(self.get_exe_path()),
+                stdout=subprocess.PIPE if log_file else subprocess.DEVNULL,
+                stderr=subprocess.PIPE if log_file else subprocess.DEVNULL,
+                close_fds=True,
+                universal_newlines=True  # Ensure text mode for captured output
             )
-            if self.config.get('debug', False):
-                Thread(target=log_output, args=(proc,), daemon=True).start()
+
+            debug = self.config.get('debug', False)
+
+            def log_output(pipe):
+                def get_remaining_values(data: dict) -> dict:
+                    return {key: value for key, value in data.items() if key not in ['level', 'message', 'time']}
+
+                for line in iter(pipe.readline, ''):
+                    if line.startswith('{'):
+                        try:
+                            data = json.loads(line)
+                            level = logging.getLevelNamesMapping()[data['level'].upper()]
+                            message = data['message']
+                            logger.log(level, message, extra={"extra_data": get_remaining_values(data)})
+                            continue
+                        except json.JSONDecodeError:
+                            pass
+                    elif debug:
+                        self.log.debug(f"{self.name}: {line.rstrip()}")
+                pipe.close()
+
+            if log_file:
+                Thread(target=log_output, args=(proc.stdout,), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr,), daemon=True).start()
+
             return proc
 
         try:

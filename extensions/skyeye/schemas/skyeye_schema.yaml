@@ -8,6 +8,7 @@ schema;instance_skyeye_schema:
   type: map
   mapping:
     enabled: {type: bool}
+    log: {type: str}
     affinity: {type: any}
     debug: {type: bool}
     config: {type: str}

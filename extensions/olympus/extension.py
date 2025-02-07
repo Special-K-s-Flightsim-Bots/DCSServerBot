@@ -1,10 +1,11 @@
+import aiofiles
 import asyncio
 import atexit
 import hashlib
 import json
+import logging
 import os
-
-import aiofiles
+import re
 import psutil
 import stat
 import subprocess
@@ -17,6 +18,7 @@ from typing import Optional
 _ = get_translation(__name__.split('.')[1])
 
 OLYMPUS_EXPORT_LINE = r"pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\Services\Olympus\Scripts\OlympusCameraControl.lua]]); end,nil)"
+ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 server_ports: dict[int, str] = dict()
 client_ports: dict[int, str] = dict()
@@ -217,12 +219,14 @@ class Olympus(Extension):
 
     async def startup(self) -> bool:
 
-        def log_output(proc: subprocess.Popen):
-            for line in iter(proc.stdout.readline, b''):
-                self.log.debug(line.decode('utf-8').rstrip())
+        def log_output(pipe, level=logging.INFO):
+            for line in iter(pipe.readline, ''):
+                self.log.log(level, "{name}: {message}".format(
+                    name=self.name, message=ANSI_ESCAPE_RE.sub('', line.rstrip())))
 
         def run_subprocess():
             out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
+            err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
             if not os.path.exists(os.path.join(path, 'bin', 'www')):
@@ -233,9 +237,17 @@ class Olympus(Extension):
                 args.append('--config')
                 args.append(self.config_path)
             self.log.debug("Launching {}".format(' '.join(args)))
-            proc = subprocess.Popen(args, cwd=path, stdout=out, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen(
+                args,
+                cwd=path,
+                stdout=out,
+                stderr=err,
+                close_fds=True,
+                universal_newlines=True
+            )
             if self.config.get('debug', False):
-                Thread(target=log_output, args=(proc,), daemon=True).start()
+                Thread(target=log_output, args=(proc.stdout,logging.DEBUG), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr,logging.ERROR), daemon=True).start()
             return proc
 
         try:
