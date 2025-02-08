@@ -7,11 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, cast
 
+from ..realweather import RealWeather
+
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-
-from extensions.realweather import RealWeather
 
 yaml = YAML()
 
@@ -90,21 +90,21 @@ class MizEdit(Extension):
             try:
                 await server.run_on_extension('RealWeather', 'is_running')
                 filename = await server.run_on_extension('RealWeather', 'apply_realweather',
-                                                         filename=filename, config=preset[0]['RealWeather'])
+                                                             filename=filename, config=preset[0]['RealWeather'])
             except ValueError:
                 # TODO: this is really dirty
                 await server.config_extension("RealWeather", {"enabled": True})
                 ext = cast(ServerImpl, server).load_extension('RealWeather')
-                await cast(RealWeather, ext).apply_realweather(filename, preset[0]['RealWeather'])
+                filename = await cast(RealWeather, ext).apply_realweather(filename, preset[0]['RealWeather'])
                 await server.config_extension("RealWeather", {"enabled": False})
 
             preset.pop(0)
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
         # write new mission
-        new_filename = utils.create_writable_mission(filename)
-        await asyncio.to_thread(miz.save, new_filename)
-        return new_filename
+        filename = utils.create_writable_mission(filename)
+        await asyncio.to_thread(miz.save, filename)
+        return filename
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         return (await self.apply_presets(self.server, filename, await self.get_presets(self.config))), True
