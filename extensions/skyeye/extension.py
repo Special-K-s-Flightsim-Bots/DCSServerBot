@@ -179,21 +179,6 @@ class SkyEye(Extension):
 
     async def startup(self) -> bool:
         def run_subprocess():
-            # Set up the logger
-            log_file = self.config.get('log')
-            logger = logging.getLogger(self.name)
-            logger.setLevel(logging.DEBUG)
-
-            handler = RotatingFileHandler(
-                log_file,
-                maxBytes=10 * 1024 * 1024,
-                backupCount=5
-            )
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s - %(extra_data)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.propagate = False
-
             # Define the subprocess command
             args = [
                 self.get_exe_path(),
@@ -216,6 +201,21 @@ class SkyEye(Extension):
 
             debug = self.config.get('debug', False)
 
+            def setup_logging(log_file: str):
+                # Set up the logger
+                logger = logging.getLogger(self.name)
+                logger.setLevel(logging.DEBUG)
+
+                handler = RotatingFileHandler(
+                    log_file,
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=5
+                )
+                formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s - %(extra_data)s')
+                handler.setFormatter(formatter)
+                logger.addHandler(handler)
+                logger.propagate = False
+
             def log_output(pipe):
                 def get_remaining_values(data: dict) -> dict:
                     return {key: value for key, value in data.items() if key not in ['level', 'message', 'time']}
@@ -234,7 +234,9 @@ class SkyEye(Extension):
                         self.log.debug(f"{self.name}: {line.rstrip()}")
                 pipe.close()
 
+            log_file = self.config.get('log')
             if log_file:
+                setup_logging(log_file)
                 Thread(target=log_output, args=(proc.stdout,), daemon=True).start()
                 Thread(target=log_output, args=(proc.stderr,), daemon=True).start()
 
