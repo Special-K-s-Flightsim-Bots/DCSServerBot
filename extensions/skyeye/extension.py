@@ -179,6 +179,9 @@ class SkyEye(Extension):
 
     async def startup(self) -> bool:
         def run_subprocess():
+            debug = self.config.get('debug', False)
+            log_file = self.config.get('log')
+
             # Define the subprocess command
             args = [
                 self.get_exe_path(),
@@ -199,9 +202,7 @@ class SkyEye(Extension):
                 universal_newlines=True  # Ensure text mode for captured output
             )
 
-            debug = self.config.get('debug', False)
-
-            def setup_logging(log_file: str):
+            def setup_logging():
                 # Set up the logger
                 logger = logging.getLogger(self.name)
                 logger.setLevel(logging.DEBUG)
@@ -234,9 +235,8 @@ class SkyEye(Extension):
                         self.log.debug(f"{self.name}: {line.rstrip()}")
                 pipe.close()
 
-            log_file = self.config.get('log')
             if log_file:
-                setup_logging(log_file)
+                setup_logging()
                 Thread(target=log_output, args=(proc.stdout,), daemon=True).start()
                 Thread(target=log_output, args=(proc.stderr,), daemon=True).start()
 
