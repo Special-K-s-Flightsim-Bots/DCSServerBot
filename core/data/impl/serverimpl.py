@@ -460,7 +460,7 @@ class ServerImpl(Server):
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
-    def _load_extension(self, name: str) -> Optional[Extension]:
+    def load_extension(self, name: str) -> Optional[Extension]:
         if '.' not in name:
             _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
@@ -484,7 +484,7 @@ class ServerImpl(Server):
                 try:
                     ext: Extension = self.extensions.get(extension)
                     if not ext:
-                        ext = self._load_extension(extension)
+                        ext = self.load_extension(extension)
                         if not ext:
                             continue
                         if ext.is_installed():
@@ -766,7 +766,7 @@ class ServerImpl(Server):
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         from extensions.mizedit import MizEdit
 
-        return await MizEdit.apply_presets(utils.get_orig_file(filename), preset)
+        return await MizEdit.apply_presets(self, utils.get_orig_file(filename), preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -990,7 +990,7 @@ class ServerImpl(Server):
         if name in self.extensions:
             raise InstallException(f"Extension {name} is already installed!")
         await self.config_extension(name, config)
-        ext = self._load_extension(name)
+        ext = self.load_extension(name)
         await ext.install()
         self.extensions[name] = ext
 
