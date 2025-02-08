@@ -187,16 +187,20 @@ local function sendEventToBot(playerID, eventData)
 end
 
 local function buildMenu(playerID, groupID, menuTable, parentMenu)
-    for menuName, menuData in pairs(menuTable) do
-        if type(menuData) == "table" and menuData.command then
-            -- If it's a valid command at this level, create a menu command
-            missionCommands.addCommandForGroup(groupID, menuName, parentMenu, function()
-                sendEventToBot(playerID, menuData)
-            end)
-        elseif type(menuData) == "table" then
-            -- Otherwise, assume it's a submenu
-            local subMenu = missionCommands.addSubMenuForGroup(groupID, menuName, parentMenu)
-            buildMenu(playerID, groupID, menuData, subMenu)  -- Recursively handle submenus
+    for _, menuEntry in ipairs(menuTable) do
+        for menuName, menuData in pairs(menuEntry) do
+            if type(menuData) == "table" then
+                if menuData.command then
+                    -- Add a command if the menuData contains "command"
+                    missionCommands.addCommandForGroup(groupID, menuName, parentMenu, function()
+                        sendEventToBot(playerID, menuData) -- Call the function with menuData
+                    end)
+                else
+                    -- Create a submenu if it's a nested structure
+                    local subMenu = missionCommands.addSubMenuForGroup(groupID, menuName, parentMenu)
+                    buildMenu(playerID, groupID, menuData, subMenu) -- Process the submenu recursively
+                end
+            end
         end
     end
 end
@@ -204,9 +208,17 @@ end
 function dcsbot.createMenu(playerID, groupID, data)
     if not dcsbot.menuItems[groupID] then
         parsedData = net.json2lua(data)
-        for rootMenuName, rootMenuData in pairs(parsedData) do
-            dcsbot.menuItems[groupID] = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
-            buildMenu(playerID, groupID, rootMenuData, dcsbot.menuItems[groupID])
+        dcsbot.menuItems[groupID] = {}
+
+        for _, rootMenuEntry in ipairs(parsedData) do
+            for rootMenuName, rootMenuData in pairs(rootMenuEntry) do
+                -- Create the root menu
+                local rootMenu = missionCommands.addSubMenuForGroup(groupID, rootMenuName)
+                -- Add the root menu to dcsbot.menuItems[groupID] list
+                dcsbot.menuItems[groupID][rootMenuName] = rootMenu
+                -- Process all children of the root menu recursively
+                buildMenu(playerID, groupID, rootMenuData, rootMenu)
+            end
         end
     end
 end
@@ -214,7 +226,11 @@ end
 function dcsbot.deleteMenu(groupID)
     menu = dcsbot.menuItems[groupID]
     if menu then
-        missionCommands.removeItemForGroup(groupID, menu)
+        -- Iterate through each root menu in the table and delete it
+        for _, menuItem in pairs(menu) do
+            missionCommands.removeItemForGroup(groupID, menuItem)
+        end
+        -- Clear the menu items for this group
         dcsbot.menuItems[groupID] = nil
     end
 end

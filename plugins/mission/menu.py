@@ -1,6 +1,7 @@
+import logging
 import os
 
-from core import EventListener, Server, DEFAULT_TAG, Player
+from core import EventListener, Server, DEFAULT_TAG, Player, utils
 from pathlib import Path
 from pykwalify.core import Core
 from pykwalify.errors import SchemaError
@@ -10,6 +11,8 @@ from typing import Optional
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, YAMLError
 yaml = YAML()
+
+logger = logging.getLogger(__name__)
 
 
 def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
@@ -31,25 +34,32 @@ def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
             raise YAMLError(menu_file, ex)
 
 
-def filter_menu_items(menu: dict, usable_commands: list[str]) -> dict:
-    filtered_menu = {}
+def filter_menu_items(menu: list, usable_commands: list[str], player: Player) -> list:
+    def is_valid_menu_item(menu_value: dict) -> bool:
+        if 'command' not in menu_value:
+            logger.error(f"menus.yaml: illegal block {menu_value}")
+            return False
+        if 'subcommand' in menu_value and menu_value['subcommand'] not in usable_commands:
+            return False
+        if 'ucid' in menu_value and player.ucid not in menu_value['ucid']:
+            return False
+        if 'discord' in menu_value and not utils.check_roles(menu_value['discord'], player.member):
+            return False
+        return True
 
-    for key, value in menu.items():
-        if isinstance(value, dict):
-            # If this is a command block with a 'subcommand'
-            if "subcommand" in value:
-                if value["subcommand"] in usable_commands:
-                    filtered_menu[key] = value
-            else:
-                # If it's a nested menu, recursively filter it
-                filtered_submenu = filter_menu_items(value, usable_commands)
-                if filtered_submenu:  # Only include non-empty submenus
-                    filtered_menu[key] = filtered_submenu
+    filtered_menu = []
+
+    for item in menu:
+        for key, value in item.items():
+            if isinstance(value, list):
+                filtered_menu.append({key: filter_menu_items(value, usable_commands, player)})
+            elif isinstance(value, dict) and is_valid_menu_item(value):
+                filtered_menu.append({key: value})
 
     return filtered_menu
 
 
-async def filter_menu(listener: EventListener, menu: dict, server: Server, player: Player) -> Optional[dict]:
+async def filter_menu(listener: EventListener, menu: list, server: Server, player: Player) -> Optional[list]:
     if not menu:
         return None
     usable_commands = []
@@ -58,4 +68,4 @@ async def filter_menu(listener: EventListener, menu: dict, server: Server, playe
             if await listener.can_run(cmd, server, player):
                 usable_commands.append(cmd.name)
 
-    return filter_menu_items(menu, usable_commands)
+    return filter_menu_items(menu, usable_commands, player)
