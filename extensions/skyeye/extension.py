@@ -190,8 +190,9 @@ class SkyEye(Extension):
                     maxBytes=10 * 1024 * 1024,
                     backupCount=5
                 )
-                formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s - %(extra_data)s')
+                formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s%(extra_data)s')
                 handler.setFormatter(formatter)
+                handler.doRollover()
                 logger.addHandler(handler)
                 logger.propagate = False
 
@@ -225,7 +226,8 @@ class SkyEye(Extension):
                             data = json.loads(line)
                             level = logging.getLevelNamesMapping()[data['level'].upper()]
                             message = data['message']
-                            logger.log(level, message, extra={"extra_data": get_remaining_values(data)})
+                            extra_data = get_remaining_values(data)
+                            logger.log(level, message, extra={"extra_data": f"- {extra_data}" if extra_data else ""})
                             continue
                         except json.JSONDecodeError:
                             pass
@@ -296,8 +298,17 @@ class SkyEye(Extension):
             return False
 
     def shutdown(self) -> bool:
-        super().shutdown()
-        return self.terminate()
+        def close_log_handlers(self):
+            logger = logging.getLogger(self.name)
+            while logger.handlers:  # Remove and close all handlers
+                handler = logger.handlers[0]
+                handler.close()
+                logger.removeHandler(handler)
+        try:
+            super().shutdown()
+            return self.terminate()
+        finally:
+            close_log_handlers(self)
 
     def is_running(self) -> bool:
         return self.process is not None and self.process.is_running()
