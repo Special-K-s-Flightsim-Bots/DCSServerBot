@@ -59,6 +59,8 @@ schema;instance_schema:
         basedir: {type: str, nullable: false, range: {min: 1}}
         grades: {type: str, nullable: false, range: {min: 1}}
         trapsheets: {type: str, nullable: false, range: {min: 1}}
+    regex;(.+):
+      include: 'instance_schema'
 
 type: map
 nullable: false
@@ -69,5 +71,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'instance_schema'
-    regex;(.+):
-      include: 'instance_schema'

@@ -33,6 +33,15 @@ schema;master_schema:
             playtime: {type: int, range: {min: 0}, nullable: false}
             combined: {type: bool, nullable: false}
             role: {type: text, nullable: false}
+    leaderboard:
+      type: map
+      nullable: false
+      mapping:
+        channel: {type: int, nullable: false, required: true}
+        limit: {type: int, nullable: false}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -43,5 +52,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

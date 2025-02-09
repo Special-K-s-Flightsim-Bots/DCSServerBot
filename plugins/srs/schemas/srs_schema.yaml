@@ -5,6 +5,9 @@ schema;master_schema:
     message_no_srs: {type: str, nullable: false, range: {min: 1}}
     enforce_srs: {type: bool, nullable: false}
     move_to_spec: {type: bool, nullable: false}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -15,5 +18,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

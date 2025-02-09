@@ -63,6 +63,9 @@ schema;master_schema:
           sequence:
             - type: text
               nullable: false
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -73,5 +76,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

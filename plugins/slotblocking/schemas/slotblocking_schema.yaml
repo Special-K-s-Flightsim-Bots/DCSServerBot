@@ -29,6 +29,23 @@ schema;master_schema:
             VIP: {type: bool, nullable: false}
             side: {type: int, nullable: false, enum: [0, 1, 2]}
     payback: {type: bool, nullable: false}
+    balancing:
+      type: map
+      nullable: false
+      mapping:
+        blue_vs_red: {type: float, nullable: false, required: true}
+        threshold: {type: float, nullable: false, required: true}
+        activation_threshold: {type: int, nullable: false}
+        message: {type: str, nullable: false, range: {min: 1}}
+    messages:
+      type: map
+      nullable: false
+      mapping:
+        credits_taken: {type: str, nullable: false, range: {min: 1}}
+        payback: {type: str, nullable: false, range: {min: 1}}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -39,5 +56,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

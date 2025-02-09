@@ -19,6 +19,9 @@ schema;master_schema:
                 params:
                   nullable: false
                   type: any
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 mapping:
@@ -26,5 +29,3 @@ mapping:
     include: 'master_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

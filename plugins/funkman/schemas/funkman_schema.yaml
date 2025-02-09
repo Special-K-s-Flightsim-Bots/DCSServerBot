@@ -1,7 +1,6 @@
 schema;master_schema:
   type: map
   nullable: false
-  required: true
   mapping:
     install: {type: str, nullable: false, range: {min: 1}, func: file_exists}
     CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
@@ -12,6 +11,9 @@ schema;master_schema:
     strafe_channel: {type: int, nullable: false}
     bomb_board: {type: bool, nullable: false}
     bomb_channel: {type: int, nullable: false}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -20,5 +22,3 @@ mapping:
     include: 'master_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

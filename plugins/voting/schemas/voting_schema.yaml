@@ -32,6 +32,9 @@ schema;master_schema:
     voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute'], nullable: false}
     welcome_message: {type: str, nullable: false, range: {min: 1}}
     credits: {type: int, nullable: false}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -42,5 +45,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

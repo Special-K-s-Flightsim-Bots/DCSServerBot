@@ -102,11 +102,12 @@ Here you can provide a mission_id to be started on server startup.
 
 ### on-commands
 
-| Parameter      | Description                                                                                  |
-|----------------|----------------------------------------------------------------------------------------------|
-| onMissionStart | Called at the start of a mission (onSimulationStart).                                        |
-| onMissionEnd   | Called, when the Scheduler (!) ends a mission. Not if the mission is ended in any other way. |
-| onShutdown     | Called, when the DCS server is being shut down.                                              |
+| Parameter         | Description                                                           |
+|-------------------|-----------------------------------------------------------------------|
+| onSimulationStart | Called at the start of a mission.                                     |
+| onSimulationEnd   | Called, when the server stops.                                        |
+| onMissionEnd      | Called, when the mission has ended with a win for either blue or red. |
+| onShutdown        | Called, when the DCS server is being shut down.                       |
 
 Commands can be executed in different ways:
 

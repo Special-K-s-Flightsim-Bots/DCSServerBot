@@ -13,6 +13,9 @@ schema;master_schema:
         persistent: {type: bool, nullable: false}
         channel: {type: int, nullable: false}
         title: {type: str, nullable: false, range: {min: 1}}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -23,5 +26,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

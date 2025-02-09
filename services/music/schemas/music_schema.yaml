@@ -23,6 +23,9 @@ schema;master_schema:
             display_name: {type: str, nullable: false, range: {min: 1}}
             popup: {type: str, nullable: false, range: {min: 1}}
             chat: {type: str, nullable: false, range: {min: 1}}
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -31,5 +34,3 @@ mapping:
     include: 'master_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'

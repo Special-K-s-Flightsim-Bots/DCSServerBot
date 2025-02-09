@@ -20,6 +20,9 @@ schema;master_schema:
               mapping:
                 limit: {type: int, nullable: false, range: {min: 3, max: 20}}
     highscore: {type: any, nullable: false} # todo
+    # Allow deep nesting for Node/Instance declaration
+    regex;(.+):
+      include: 'master_schema'
 
 type: map
 nullable: false
@@ -30,5 +33,3 @@ mapping:
     include: 'commands_schema'
   regex;(.+):
     include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
