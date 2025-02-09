@@ -1,13 +1,14 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    min_fps: {type: int, range: {min: 0}}
-    period: {type: int, range: {min: 3}}
-    mentioning: {type: bool}
-    message: {type: str}
+    min_fps: {type: int, range: {min: 0}, nullable: false}
+    period: {type: int, range: {min: 3}, nullable: false}
+    mentioning: {type: bool, nullable: false}
+    message: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

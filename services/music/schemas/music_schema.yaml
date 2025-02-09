@@ -1,28 +1,31 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    music_dir: {type: str}
-    popup: {type: str}
-    chat: {type: str}
-    pause_without_players: {type: bool}
+    music_dir: {type: str, nullable: false, range: {min: 1}}
+    popup: {type: str, nullable: false, range: {min: 1}}
+    chat: {type: str, nullable: false, range: {min: 1}}
+    pause_without_players: {type: bool, nullable: false}
     radios:
       type: map
+      nullable: false
       mapping:
         regex;(.+):
           type: map
+          nullable: false
           mapping:
-            type: {type: str, enum: ['SRSRadio'], required: true}
-            mode: {type: int, enum: [1, 2], required: true}
-            frequency: {type: text, required: true}
-            modulation: {type: str, enum: ['AM', 'FM'], required: true}
-            coalition: {type: int, enum: [1, 2, 3], required: true}
-            volume: {type: text}
-            display_name: {type: str}
-            popup: {type: str}
-            chat: {type: str}
+            type: {type: str, enum: ['SRSRadio'], required: true, nullable: false}
+            mode: {type: int, enum: [1, 2], required: true, nullable: false}
+            frequency: {type: text, required: true, nullable: false}
+            modulation: {type: str, enum: ['AM', 'FM'], required: true, nullable: false}
+            coalition: {type: int, enum: [1, 2, 3], required: true, nullable: false}
+            volume: {type: text, nullable: false}
+            display_name: {type: str, nullable: false, range: {min: 1}}
+            popup: {type: str, nullable: false, range: {min: 1}}
+            chat: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

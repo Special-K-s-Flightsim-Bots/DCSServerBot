@@ -1,58 +1,65 @@
 schema;on_join:
   type: map
+  nullable: false
   mapping:
-    message: {type: str}
-    recipients: {type: str}
-    display_type: {type: str, enum: ['chat', 'popup']}
-    display_time: {type: int, range: {min: 1}}
-    sound: {type: str}
+    message: {type: str, nullable: false, range: {min: 1}}
+    recipients: {type: str, nullable: false, range: {min: 1}}
+    display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
+    display_time: {type: int, range: {min: 1}, nullable: false}
+    sound: {type: str, nullable: false, range: {min: 1}}
 
 schema;on_birth:
   type: map
+  nullable: false
   mapping:
-    recipients: {type: str}
-    message: {type: str}
-    report: {type: str}
-    display_type: {type: str, enum: ['chat', 'popup']}
-    display_time: {type: int, range: {min: 1}}
-    sound: {type: str}
+    recipients: {type: str, nullable: false, range: {min: 1}}
+    message: {type: str, nullable: false, range: {min: 1}}
+    report: {type: str, nullable: false, range: {min: 1}}
+    display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
+    display_time: {type: int, range: {min: 1}, nullable: false}
+    sound: {type: str, nullable: false, range: {min: 1}}
 
 schema;nudge:
   type: map
+  nullable: false
   mapping:
-    message: {type: str}
-    recipients: {type: str}
-    display_type: {type: str, enum: ['chat', 'popup']}
-    display_time: {type: int, range: {min: 1}}
-    sound: {type: str}
+    message: {type: str, nullable: false, range: {min: 1}}
+    recipients: {type: str, nullable: false, range: {min: 1}}
+    display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
+    display_time: {type: int, range: {min: 1}, nullable: false}
+    sound: {type: str, nullable: false, range: {min: 1}}
 
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
     on_join:
       type: map
+      nullable: false
       mapping:
-        message: {type: str}
-        recipients: {type: str}
-        display_type: {type: str, enum: ['chat', 'popup']}
-        display_time: {type: int, range: {min: 1}}
-        sound: {type: str}
+        message: {type: str, nullable: false, range: {min: 1}}
+        recipients: {type: str, nullable: false, range: {min: 1}}
+        display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
+        display_time: {type: int, range: {min: 1}, nullable: false}
+        sound: {type: str, nullable: false, range: {min: 1}}
         messages:
           type: seq
+          nullable: false
           sequence:
             - include: 'on_join'
     on_birth:
       type: map
+      nullable: false
       mapping:
-        recipients: {type: str}
-        message: {type: str}
-        report: {type: str}
-        display_type: {type: str, enum: ['chat', 'popup']}
-        display_time: {type: int, range: {min: 1}}
-        sound: {type: str}
+        recipients: {type: str, nullable: false, range: {min: 1}}
+        message: {type: str, nullable: false, range: {min: 1}}
+        report: {type: str, nullable: false, range: {min: 1}}
+        display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
+        display_time: {type: int, range: {min: 1}, nullable: false}
+        sound: {type: str, nullable: false, range: {min: 1}}
         messages:
           type: seq
+          nullable: false
           sequence:
             - include: 'on_birth'
     nudge:
@@ -70,6 +77,7 @@ schema;master_schema:
 #            - include: 'nudge'
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

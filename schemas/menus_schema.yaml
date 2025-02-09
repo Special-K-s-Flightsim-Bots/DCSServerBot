@@ -2,10 +2,14 @@ type: map
 mapping:
   regex;(.+):
     type: seq
+    nullable: false
     sequence:
       - type: map
+        nullable: false
         mapping:
           regex;(.+):
             type: seq
+            nullable: false
             sequence:
               - type: any
+                nullable: false

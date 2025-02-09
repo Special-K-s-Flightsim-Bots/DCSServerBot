@@ -1,20 +1,28 @@
 schema;master_schema:
   type: map
+  nullable: false
   mapping:
-    kick_gci: {type: bool}
+    kick_gci: {type: bool, nullable: false}
     exemptions:
       type: map
+      nullable: false
       mapping:
         ucid:
           type: seq
+          nullable: false
           sequence:
             - type: str
+              nullable: false
+              unique: true
         discord:
           type: seq
+          nullable: false
           sequence:
-            - type: str
+            - type: text
+              nullable: false
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

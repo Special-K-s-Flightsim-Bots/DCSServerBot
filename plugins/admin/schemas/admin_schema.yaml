@@ -1,30 +1,36 @@
 schema;master_schema:
   type: map
+  nullable: false
   mapping:
     downloads:
       type: seq
       sequence:
         - type: map
           mapping:
-            label: {type: str, required: true}
-            directory: {type: str}
-            pattern: {type: str}
-            target: {type: str}
+            label: {type: str, required: true, nullable: false, range: {min: 1}}
+            directory: {type: str, nullable: false, range: {min: 1}}
+            pattern: {type: str, nullable: false, range: {min: 1}}
+            target: {type: str, nullable: false, range: {min: 1}}
             discord:
               type: seq
+              nullable: false
               sequence:
                 - type: text
-            audit: {type: bool}
+                  nullable: false
+            audit: {type: bool, nullable: false}
     uploads:
       type: map
+      nullable: false
       mapping:
-        enabled: {type: bool}
+        enabled: {type: bool, nullable: false}
         discord:
           type: seq
+          nullable: false
           sequence:
             - type: text
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

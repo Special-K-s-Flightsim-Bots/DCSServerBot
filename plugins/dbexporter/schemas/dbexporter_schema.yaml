@@ -1,10 +1,15 @@
 type: map
+nullable: false
 mapping:
   DEFAULT:
     type: map
+    nullable: false
     mapping:
-      autoexport: {type: bool}
+      autoexport: {type: bool, nullable: false}
       tablefilter:
         type: seq
+        nullable: false
         sequence:
           - type: str
+            nullable: false
+            unique: true

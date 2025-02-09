@@ -1,36 +1,41 @@
 schema;master_schema:
   type: map
-  allowempty: true  # we need to set this here, because we might have got an instance name instead (node/instance mapping)
+  nullable: false
   mapping:
-    initial_points: {type: any}
-    max_points: {type: int, range: {min: 1}}
-    multiplier: {type: float}
+    initial_points: {type: any, nullable: false}
+    max_points: {type: int, range: {min: 1}, nullable: false}
+    multiplier: {type: float, nullable: false}
     points_per_kill:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            default: {type: int, range: {min: 0}}
+            default: {type: int, range: {min: 0}, nullable: false}
             category: {type: str, enum: [
               'Planes', 'Helicopters', 'Ships', 'Fortifications', 'LTAvehicles', 'WWII structures', 'Animal',
               'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Infantry', 'Locomotive', 'Carriage', 'MissilesSS'
-            ]}
-            type: {type: str, enum: ['AI', 'Player']}
-            unit_type: {type: str}
-            unit_name: {type: str}
-            group_name: {type: str}
-            points: {type: int}
+            ], nullable: false}
+            type: {type: str, enum: ['AI', 'Player'], nullable: false}
+            unit_type: {type: str, nullable: false, range: {min: 1}}
+            unit_name: {type: str, nullable: false, range: {min: 1}}
+            group_name: {type: str, nullable: false, range: {min: 1}}
+            points: {type: int, nullable: false}
     achievements:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            credits: {type: int, range: {min: 0}}
-            playtime: {type: int, range: {min: 0}}
-            combined: {type: bool}
-            role: {type: text}
+            credits: {type: int, range: {min: 0}, nullable: false}
+            playtime: {type: int, range: {min: 0}, nullable: false}
+            combined: {type: bool, nullable: false}
+            role: {type: text, nullable: false}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

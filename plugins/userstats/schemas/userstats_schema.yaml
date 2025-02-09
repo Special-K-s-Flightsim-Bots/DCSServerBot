@@ -1,26 +1,28 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    wipe_stats_on_leave: {type: bool}
+    enabled: {type: bool, nullable: false}
+    wipe_stats_on_leave: {type: bool, nullable: false}
     squadrons:
       type: map
+      nullable: false
       mapping:
-        self_join: {type: bool}
-        persist_list: {type: bool}
+        self_join: {type: bool, nullable: false}
+        persist_list: {type: bool, nullable: false}
         highscore:
           type: map
+          nullable: false
           mapping:
             params:
               type: map
+              nullable: false
               mapping:
-                limit: {type: int}
-    highscore:
-      type: any
-      # todo
+                limit: {type: int, nullable: false}
+    highscore: {type: any, nullable: false} # todo
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

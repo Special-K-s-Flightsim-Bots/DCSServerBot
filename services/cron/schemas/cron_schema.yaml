@@ -1,0 +1,30 @@
+schema;master_schema:
+  type: map
+  nullable: false
+  mapping:
+    actions:
+      type: seq
+      nullable: false
+      sequence:
+        - type: map
+          nullable: false
+          mapping:
+            cron: {type: str, nullable: false, range: {min: 1}} # a proper cron syntax is needed, but the regex for that would be huge
+            mission_time: {type: int, range: {min: 0}, nullable: false}
+            action:
+              type: map
+              nullable: false
+              mapping:
+                type: {type: str, nullable: false, range: {min: 1}}
+                params:
+                  nullable: false
+                  type: any
+
+type: map
+mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
+    regex;(.+):
+      include: 'master_schema'

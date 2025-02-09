@@ -1,21 +1,22 @@
 schema;grpc_schema:
   type: map
-  allowempty: true  # we might want to specify additional tacview parameters, which are then not validated
+  nullable: false
+  allowempty: true  # we might want to specify additional parameters
   mapping:
-    enabled: {type: bool}
-    port: {type: int, range: {min: 80, max: 65535}}
-    evalEnabled: {type: bool}
-    host: {type: str}
-    debug: {type: bool}
-    throughputLimit: {type: int}
-    integrityCheckDisabled: {type: bool}
-    tts.defaultProvider: {type: str}
-    tts.provider.azure.key: {type: str}
-    tts.provider.azure.region: {type: str}
-    tts.provider.azure.defaultVoice: {type: str}
-    tts.provider.aws.key: {type: str}
-    tts.provider.aws.region: {type: str}
-    tts.provider.aws.defaultVoice: {type: str}
-    tts.provider.gcloud.key: {type: str}
-    tts.provider.gcloud.defaultVoice: {type: str}
-    tts.provider.win.defaultVoice: {type: str}
+    enabled: {type: bool, nullable: false}
+    port: {type: int, range: {min: 80, max: 65535}, nullable: false}
+    evalEnabled: {type: bool, nullable: false}
+    host: {type: str, nullable: false, range: {min: 1}}
+    debug: {type: bool, nullable: false}
+    throughputLimit: {type: int, nullable: false}
+    integrityCheckDisabled: {type: bool, nullable: false}
+    tts.defaultProvider: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.azure.key: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.azure.region: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.azure.defaultVoice: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.aws.key: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.aws.region: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.aws.defaultVoice: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.gcloud.key: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.gcloud.defaultVoice: {type: str, nullable: false, range: {min: 1}}
+    tts.provider.win.defaultVoice: {type: str, nullable: false, range: {min: 1}}

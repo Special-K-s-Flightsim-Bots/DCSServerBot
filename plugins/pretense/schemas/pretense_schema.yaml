@@ -1,12 +1,13 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    update_interval: {type: int, range: {min: 60}}
-    json_file_path: {type: str}
-    channel: {type: int}
+    update_interval: {type: int, range: {min: 60}, nullable: false}
+    json_file_path: {type: str, nullable: false, range: {min: 1}}
+    channel: {type: int, nullable: false}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

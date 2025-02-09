@@ -1,16 +1,18 @@
 schema;master_schema:
   type: map
+  nullable: false
   mapping:
     regex;(.+):
       type: map
-      allowempty: true
+      nullable: false
       mapping:
-        directory: {type: str}
-        pattern: {type: any}
-        recursive: {type: bool}
-        delete_after: {type: int, range: {min: 1}}
+        directory: {type: str, nullable: false, range: {min: 1}}
+        pattern: {type: any, nullable: false}
+        recursive: {type: bool, nullable: false}
+        delete_after: {type: int, range: {min: 1}, nullable: false}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

@@ -386,15 +386,14 @@ class Admin(Plugin[AdminEventListener]):
                 return
 
         await self.bot.audit(f"started an update of all DCS servers on node {node.name}.", user=interaction.user)
-        await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
+        msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
                                         ephemeral=ephemeral)
         try:
             rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version)
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
-                await interaction.followup.send(content=_("DCS updated to version {version}@{branch} on node {name}."
-                                                          ).format(version=new_version, branch=branch, name=node.name),
-                                                ephemeral=ephemeral)
+                await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."
+                                         ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
             elif rc in [2, 112]:

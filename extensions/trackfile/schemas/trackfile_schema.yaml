@@ -1,5 +1,6 @@
 schema;trackfile_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    target: {type: str}
+    enabled: {type: bool, nullable: false}
+    target: {type: str, required: true, nullable: false, range: {min: 1}}

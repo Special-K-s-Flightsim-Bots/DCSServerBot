@@ -1,33 +1,37 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
     VIP:
       type: map
+      nullable: false
       mapping:
-        audit: {type: bool}
-        discord: {type: any}
-        ucid: {type: any}
-        slots: {type: int, range: {min: 1}}
-        message_server_full: { type: str }
+        audit: {type: bool, nullable: false}
+        discord: {type: any, nullable: false}
+        ucid: {type: any, nullable: false}
+        slots: {type: int, range: {min: 1}, nullable: false}
+        message_server_full: {type: str, nullable: false, range: {min: 1}}
     restricted:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            unit_type: {type: str}
-            unit_name: {type: str}
-            group_name: {type: str}
-            discord: {type: any}
-            message: {type: str}
-            points: {type: int}
-            costs: {type: int}
-            crew: {type: int}
-            VIP: {type: bool}
-            side: {type: int}
-    payback: {type: bool}
+            unit_type: {type: str, nullable: false, range: {min: 1}}
+            unit_name: {type: str, nullable: false, range: {min: 1}}
+            group_name: {type: str, nullable: false, range: {min: 1}}
+            discord: {type: any, nullable: false}
+            message: {type: str, nullable: false, range: {min: 1}}
+            points: {type: int, nullable: false}
+            costs: {type: int, nullable: false}
+            crew: {type: int, nullable: false}
+            VIP: {type: bool, nullable: false}
+            side: {type: int, nullable: false}
+    payback: {type: bool, nullable: false}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

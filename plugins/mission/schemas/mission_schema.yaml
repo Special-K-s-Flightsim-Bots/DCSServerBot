@@ -1,17 +1,20 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
     uploads:
       type: map
+      nullable: false
       mapping:
-        enabled: {type: bool}
+        enabled: {type: bool, nullable: false}
         discord:
           type: seq
           sequence:
             - type: text
+              nullable: false
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

@@ -1,19 +1,20 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   required: true
   mapping:
-    install: {type: str}
-    CHANNELID_MAIN: {type: text}    # TODO: change this to int some day
-    CHANNELID_RANGE: {type: text}   # s.s.
-    CHANNELID_AIRBOSS: {type: text} # s.s.
-    IMAGEPATH: {type: str}
-    strafe_board: {type: bool}
-    strafe_channel: {type: int}
-    bomb_board: {type: bool}
-    bomb_channel: {type: int}
+    install: {type: str, nullable: false, range: {min: 1}}
+    CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
+    CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
+    CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
+    IMAGEPATH: {type: str, nullable: false, range: {min: 1}}
+    strafe_board: {type: bool, nullable: false}
+    strafe_channel: {type: int, nullable: false}
+    bomb_board: {type: bool, nullable: false}
+    bomb_channel: {type: int, nullable: false}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

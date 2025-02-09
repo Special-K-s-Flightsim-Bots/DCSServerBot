@@ -1,10 +1,11 @@
 schema;master_schema:
-  allowempty: true
+  nullable: false
   type: map
   mapping:
     options:
       type: map
-      allowempty: true
+      nullable: false
+      allowempty: true  # allow other options
       mapping:
         preset:
           include: 'preset_schema'
@@ -16,20 +17,24 @@ schema;master_schema:
           include: 'kick_schema'
         tempban:
           include: 'tempban_schema'
-    creator: {type: any}
-    voter: {type: any}
-    mission_time: {type: int, range: {min: 1}}
-    time: {type: int, range: {min: 60}}
+    creator: {type: any, nullable: false}
+    voter: {type: any, nullable: false}
+    mission_time: {type: int, range: {min: 1}, nullable: false}
+    time: {type: int, range: {min: 60}, nullable: false}
     reminder:
       type: seq
+      nullable: false
       sequence:
         - type: int
-    voting_threshold: {type: float}
-    voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute']}
-    welcome_message: {type: str}
-    credits: {type: int}
+          nullable: false
+          unique: true
+    voting_threshold: {type: float, nullable: false}
+    voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute'], nullable: false}
+    welcome_message: {type: str, nullable: false, range: {min: 1}}
+    credits: {type: int, nullable: false}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'

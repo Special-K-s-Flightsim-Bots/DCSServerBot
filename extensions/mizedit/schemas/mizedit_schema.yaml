@@ -4,20 +4,27 @@ schema;settings_schema:
 
 schema;mizedit_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
+    enabled: {type: bool, nullable: false}
     presets:
       type: seq
+      nullable: false
       sequence:
         - type: str
           unique: true
+          nullable: false
+          range: {min: 1}
     settings:
       include: 'settings_schema'
     terrains:
       type: map
+      nullable: false
+      allowempty: true
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
           type: map
+          nullable: false
           mapping:
             settings:
               include: 'settings_schema'

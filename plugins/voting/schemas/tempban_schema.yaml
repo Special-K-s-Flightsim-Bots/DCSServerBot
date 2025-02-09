@@ -1,5 +1,5 @@
 schema;tempban_schema:
   type: map
+  nullable: false
   mapping:
-    duration: {type: int, range: {min: 1}}
-
+    duration: {type: int, range: {min: 1}, nullable: false}

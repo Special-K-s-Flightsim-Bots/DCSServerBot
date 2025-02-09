@@ -1,4 +1,5 @@
 type: map
+nullable: false
 mapping:
   commands:
     include: 'commands_schema'

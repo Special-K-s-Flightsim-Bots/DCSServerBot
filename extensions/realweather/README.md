@@ -89,7 +89,7 @@ MyNode:
                 enable: true
                 minimum: 0
                 maximum: 50
-                gust-miniumum: 0
+                gust-minimum: 0
                 gust-maximum: 50
                 stability: 0.143
                 fixed-reference: false

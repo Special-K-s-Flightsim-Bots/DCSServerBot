@@ -1,19 +1,21 @@
 schema;master_schema:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    display: {type: bool}
-    persistence: {type: bool}
-    persist_ai_statistics: {type: bool}
+    enabled: {type: bool, nullable: false}
+    display: {type: bool, nullable: false}
+    persistence: {type: bool, nullable: false}
+    persist_ai_statistics: {type: bool, nullable: false}
     mission_end:
       type: map
+      nullable: false
       mapping:
-        persistent: {type: bool}
-        channel: {type: int}
-        title: {type: str}
+        persistent: {type: bool, nullable: false}
+        channel: {type: int, nullable: false}
+        title: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+nullable: false
 mapping:
   DEFAULT:
     include: 'master_schema'
