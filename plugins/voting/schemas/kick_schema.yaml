@@ -1,5 +1,2 @@
 schema;kick_schema:
-  type: map
-  nullable: false
-  mapping:
-    type: any
+  type: any
