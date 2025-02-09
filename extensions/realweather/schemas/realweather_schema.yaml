@@ -14,7 +14,7 @@ schema;node_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
             file: {type: str, nullable: false, range: {min: 1}}
             max-size: {type: int, nullable: false}
             max-backups: {type: int, nullable: false}
@@ -52,7 +52,7 @@ schema;node_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
         checkwx:
           type: map
           nullable: false
@@ -73,7 +73,7 @@ schema;node_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
 
 schema;instance_realweather_schema:
   type: map
@@ -98,7 +98,7 @@ schema;instance_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
             file: {type: str, nullable: false, range: {min: 1}}
             max-size: {type: int, nullable: false}
             max-backups: {type: int, nullable: false}
@@ -134,7 +134,7 @@ schema;instance_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
         checkwx:
           type: map
           nullable: false
@@ -149,13 +149,13 @@ schema;instance_realweather_schema:
           mapping:
             enable: {type: bool, required: true, nullable: false}
             file: {type: str, nullable: false, range: {min: 1}}
-            override: {type: bool, required: true, nullable: false}
+            override: {type: bool, nullable: false}
         openmeteo:
           type: map
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
     options:
       type: map
       nullable: false
@@ -166,7 +166,7 @@ schema;instance_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
             system-time: {type: bool, nullable: false}
             offset: {type: str, pattern: '^[+-]?\d+h(\d+m)?$', nullable: false, range: {min: 1}}
         date:
@@ -174,7 +174,7 @@ schema;instance_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
             system-date: {type: bool, nullable: false}
             offset: {type: str, nullable: false, range: {min: 1}}
         weather:
@@ -182,7 +182,7 @@ schema;instance_realweather_schema:
           nullable: false
           allowempty: true
           mapping:
-            enable: {type: bool, required: true, nullable: false}
+            enable: {type: bool, nullable: false}
             icao: {type: str, pattern: '^[A-Z]{4}$', nullable: false, range: {min: 1}}
             icao-list:
               type: seq
@@ -198,7 +198,7 @@ schema;instance_realweather_schema:
               nullable: false
               allowempty: true
               mapping:
-                enable: {type: bool, required: true, nullable: false}
+                enable: {type: bool, nullable: false}
                 minimum: {type: int, range: {min: 0}, nullable: false}
                 maximum: {type: int, range: {max: 50}, nullable: false}
                 gust-minimum: {type: int, range: {min: 0}, nullable: false}
@@ -210,15 +210,15 @@ schema;instance_realweather_schema:
               nullable: false
               allowempty: true
               mapping:
-                enable: {type: bool, required: true, nullable: false}
+                enable: {type: bool, nullable: false}
                 fallback-to-legacy: {type: bool, nullable: false}
                 base:
                   type: map
                   nullable: false
                   allowempty: true
                   mapping:
-                    minimum: {type: int, required: true, range: {min: 0}, nullable: false}
-                    maximum: {type: int, required: true, range: {max: 15000}, nullable: false}
+                    minimum: {type: int, range: {min: 0}, nullable: false}
+                    maximum: {type: int, range: {max: 15000}, nullable: false}
                 presets:
                   type: map
                   nullable: false
@@ -238,7 +238,7 @@ schema;instance_realweather_schema:
                   allowempty: true
                   nullable: false
                   mapping:
-                    enable: {type: bool, required: true, nullable: false}
+                    enable: {type: bool, nullable: false}
                     allow-precipitation: {type: bool, nullable: false}
                     density-minimum: {type: int, range: {min: 0}, nullable: false}
                     density-maximum: {type: int, range: {min: 0, max: 10}, nullable: false}
@@ -247,8 +247,8 @@ schema;instance_realweather_schema:
               nullable: false
               allowempty: true
               mapping:
-                enable: {type: bool, required: true, nullable: false}
-                mode: {type: str, required: true, enum: ["auto", "manual", "legacy"], nullable: false}
+                enable: {type: bool, nullable: false}
+                mode: {type: str, enum: ["auto", "manual", "legacy"], nullable: false}
                 thickness-minimum: {type: int, range: {min: 0}, nullable: false}
                 thickness-maximum: {type: int, range: {min: 0, max: 1000}, nullable: false}
                 visibility-minimum: {type: int, range: {min: 0}, nullable: false}
@@ -258,7 +258,7 @@ schema;instance_realweather_schema:
               allowempty: true
               nullable: false
               mapping:
-                enable: {type: bool, required: true, nullable: false}
+                enable: {type: bool, nullable: false}
                 visibility-minimum: {type: int, range: {min: 300}, nullable: false}
                 visibility-maximum: {type: int, range: {max: 3000}, nullable: false}
             temperature:
@@ -266,10 +266,10 @@ schema;instance_realweather_schema:
               nullable: false
               allowempty: true
               mapping:
-                enable: {type: bool, required: true, nullable: false}
+                enable: {type: bool, nullable: false}
             pressure:
               type: map
               nullable: false
               allowempty: true
               mapping:
-                enable: {type: bool, required: true, nullable: false}
+                enable: {type: bool, nullable: false}
