@@ -205,7 +205,8 @@ class NodeImpl(Node):
             try:
                 schema_files = ['schemas/nodes_schema.yaml']
                 schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
-                c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8')
+                c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8',
+                         extensions=['core/utils/validators.py'])
                 try:
                     c.validate(raise_exception=True)
                 except SchemaError as ex:

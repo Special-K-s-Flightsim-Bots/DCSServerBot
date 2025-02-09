@@ -35,7 +35,7 @@ mapping:
     type: map
     nullable: false
     mapping:
-      url: {type: str, nullable: false, range: {min: 1}}
+      url: {type: url, nullable: false}
       username: {type: str, nullable: false, range: {min: 1}}
       password: {type: str, nullable: false}
   roles:

@@ -27,7 +27,7 @@ schema;master_schema:
             costs: {type: int, nullable: false}
             crew: {type: int, nullable: false}
             VIP: {type: bool, nullable: false}
-            side: {type: int, nullable: false}
+            side: {type: int, nullable: false, enum: [0, 1, 2]}
     payback: {type: bool, nullable: false}
 
 type: map

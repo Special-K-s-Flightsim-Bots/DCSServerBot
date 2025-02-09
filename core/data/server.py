@@ -74,7 +74,8 @@ class Server(DataObject):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         if os.path.exists(config_file):
             try:
-                c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8')
+                c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8',
+                         extensions=['core/utils/validators.py'])
                 try:
                     c.validate(raise_exception=True)
                 except SchemaError as ex:

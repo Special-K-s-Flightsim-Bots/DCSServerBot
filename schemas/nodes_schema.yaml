@@ -17,7 +17,7 @@ mapping:
         type: map
         nullable: false
         mapping:
-          url: {type: str, nullable: false, range: {min: 1}}
+          url: {type: str, required: true, nullable: false, range: {min: 1}}
           pool_min: {type: int, range: {min: 2}, nullable: false}
           pool_max: {type: int, range: {min: 5}, nullable: false}
           max_idle: {type: int, nullable: false}
@@ -25,7 +25,7 @@ mapping:
         type: map
         nullable: false
         mapping:
-          installation: {type: str, required: true, nullable: false, range: {min: 1}}
+          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
           autoupdate: {type: any, nullable: false}
           desanitize: {type: bool, nullable: false}
           minimized: {type: bool, nullable: false}
@@ -41,8 +41,8 @@ mapping:
             type: map
             nullable: false
             mapping:
-              home: {type: str, nullable: false, range: {min: 1}}
-              missions_dir: {type: str, nullable: false, range: {min: 1}}
+              home: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+              missions_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
               bot_port: {type: int, range: {min: 1025, max: 65535}, required: true, nullable: false}

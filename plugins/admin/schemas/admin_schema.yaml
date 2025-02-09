@@ -8,7 +8,7 @@ schema;master_schema:
         - type: map
           mapping:
             label: {type: str, required: true, nullable: false, range: {min: 1}}
-            directory: {type: str, nullable: false, range: {min: 1}}
+            directory: {type: str, nullable: false, range: {min: 1}, func: file_exists}
             pattern: {type: str, nullable: false, range: {min: 1}}
             target: {type: str, nullable: false, range: {min: 1}}
             discord:

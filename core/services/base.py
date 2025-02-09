@@ -118,7 +118,8 @@ class Service(ABC):
             path = os.path.join('services', self.name.lower(), 'schemas')
             if os.path.exists(path):
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
+                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8',
+                         extensions=['core/utils/validators.py'])
                 try:
                     c.validate(raise_exception=True)
                 except SchemaError as ex:

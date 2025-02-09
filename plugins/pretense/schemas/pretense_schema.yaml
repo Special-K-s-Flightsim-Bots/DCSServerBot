@@ -3,7 +3,7 @@ schema;master_schema:
   nullable: false
   mapping:
     update_interval: {type: int, range: {min: 60}, nullable: false}
-    json_file_path: {type: str, nullable: false, range: {min: 1}}
+    json_file_path: {type: str, nullable: false, range: {min: 1}, func: file_exists}
     channel: {type: int, nullable: false}
 
 type: map

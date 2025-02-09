@@ -2,7 +2,7 @@ schema;node_skyeye_schema:
   type: map
   nullable: false
   mapping:
-    installation: {type: str, required: true, nullable: false, range: {min: 1}}
+    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
     autoupdate: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
 schema;instance_skyeye_schema:

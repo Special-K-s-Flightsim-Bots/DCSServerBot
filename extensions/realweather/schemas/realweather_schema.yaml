@@ -3,7 +3,7 @@ schema;node_realweather_schema:
   nullable: false
   allowempty: true
   mapping:
-    installation: {type: str, required: true, nullable: false, range: {min: 1}}
+    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
     realweather:
       type: map
       nullable: false

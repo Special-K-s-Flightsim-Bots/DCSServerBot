@@ -3,11 +3,11 @@ schema;master_schema:
   nullable: false
   required: true
   mapping:
-    install: {type: str, nullable: false, range: {min: 1}}
+    install: {type: str, nullable: false, range: {min: 1}, func: file_exists}
     CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
     CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
     CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
-    IMAGEPATH: {type: str, nullable: false, range: {min: 1}}
+    IMAGEPATH: {type: str, nullable: false, range: {min: 1}, func: file_exists}
     strafe_board: {type: bool, nullable: false}
     strafe_channel: {type: int, nullable: false}
     bomb_board: {type: bool, nullable: false}

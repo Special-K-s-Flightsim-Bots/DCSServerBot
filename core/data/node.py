@@ -88,7 +88,8 @@ class Node:
 
     def read_config(self, file: str) -> dict:
         try:
-            c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8')
+            c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8',
+                     extensions=['core/utils/validators.py'])
             try:
                 c.validate(raise_exception=True)
             except SchemaError as ex:

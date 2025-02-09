@@ -6,7 +6,7 @@ schema;master_schema:
       type: map
       nullable: false
       mapping:
-        directory: {type: str, nullable: false, range: {min: 1}}
+        directory: {type: str, nullable: false, range: {min: 1}, func: file_exists}
         pattern: {type: any, nullable: false}
         recursive: {type: bool, nullable: false}
         delete_after: {type: int, range: {min: 1}, nullable: false}
