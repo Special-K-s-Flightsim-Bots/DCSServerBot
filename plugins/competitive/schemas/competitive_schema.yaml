@@ -1,5 +1,18 @@
+schema;master_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    silent: {type: bool, nullable: false}
+    regex;(.+):
+      include: 'master_schema'
+
 type: map
 nullable: false
 mapping:
+  DEFAULT:
+    include: 'master_schema'
+  regex;(.+):
+    include: 'master_schema'
   commands:
     include: 'commands_schema'
