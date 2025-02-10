@@ -1,5 +1,6 @@
 schema;master_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     music_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}

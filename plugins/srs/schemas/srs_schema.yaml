@@ -1,5 +1,6 @@
 schema;master_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     message_no_srs: {type: str, nullable: false, range: {min: 1}}

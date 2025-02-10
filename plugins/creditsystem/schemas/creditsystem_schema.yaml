@@ -11,6 +11,7 @@ schema;initiator:
 
 schema;master_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     initial_points: {type: any, nullable: false, func: int_or_list, enum: ['initiator']}

@@ -47,6 +47,7 @@ schema;warn_seq:
 
 schema;master_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     startup_delay: {type: int, range: {min: 0}, nullable: false}

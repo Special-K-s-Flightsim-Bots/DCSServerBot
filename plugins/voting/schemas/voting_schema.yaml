@@ -1,6 +1,7 @@
 schema;master_schema:
-  nullable: false
   type: map
+  func: is_node_or_instance
+  nullable: false
   mapping:
     options:
       type: map

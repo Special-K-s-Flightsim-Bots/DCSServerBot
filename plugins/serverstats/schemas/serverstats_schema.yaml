@@ -1,5 +1,6 @@
 schema;master_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     min_fps: {type: int, range: {min: 0}, nullable: false}

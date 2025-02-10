@@ -37,6 +37,7 @@ schema;default_schema:
 
 schema;instance_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     num_landings: {type: int, range: {min: 1, max: 10}, nullable: false}

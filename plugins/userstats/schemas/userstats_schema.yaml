@@ -25,6 +25,7 @@ schema;highscore:
 
 schema;master_schema:
   type: map
+  func: is_node_or_instance
   nullable: false
   mapping:
     enabled: {type: bool, nullable: false}
