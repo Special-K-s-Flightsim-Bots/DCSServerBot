@@ -192,9 +192,11 @@ class MonitoringService(Service):
                     return
                 # only escalate, if the server was not stopped (maybe the process was manually shut down)
                 if server.status != Status.STOPPED:
-                    now = datetime.now(timezone.utc)
-                    shutil.copy2(os.path.join(server.instance.home, 'Logs', 'dcs.log'),
-                                 os.path.join(server.instance.home, 'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"))
+                    logfile = os.path.join(server.instance.home, 'Logs', 'dcs.log')
+                    if os.path.exists(logfile):
+                        now = datetime.now(timezone.utc)
+                        shutil.copy2(logfile, os.path.join(server.instance.home,
+                                                           'Logs', f"dcs-{now.strftime('%Y%m%d-%H%M%S')}.log"))
                     title = f'Server "{server.name}" died!'
                     message = 'Setting state to SHUTDOWN.'
                     self.log.warning(title + ' ' + message)
