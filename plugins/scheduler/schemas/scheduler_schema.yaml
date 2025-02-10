@@ -27,10 +27,6 @@ schema;action_map:
     mission_end: { type: bool, nullable: false }
     shutdown: { type: bool, nullable: false }
     run_extensions: { type: bool, nullable: false }
-    onSimulationStart: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
-    onSimulationStop: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
-    onMissionEnd: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
-    onShutdown: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
 
 schema;action_seq:
   type: seq
@@ -76,6 +72,10 @@ schema;master_schema:
       nullable: false
       func: seq_or_map
       enum: ['action_seq', 'action_map']
+    onSimulationStart: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onSimulationStop: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onMissionEnd: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onShutdown: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
     # Allow deep nesting for Node/Instance declaration
     regex;(.+):
       include: 'master_schema'
