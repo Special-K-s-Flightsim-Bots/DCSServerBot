@@ -6,6 +6,7 @@ schema;master_schema:
     pattern: {type: any, nullable: false}
     recursive: {type: bool, nullable: false}
     delete_after: {type: int, range: {min: 1}, nullable: false}
+    channel: {type: any, nullable: false}
     # Allow deep nesting for Node/Instance declaration
     regex;(.+):
       include: 'master_schema'
