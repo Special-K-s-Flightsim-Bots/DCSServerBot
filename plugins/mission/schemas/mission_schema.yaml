@@ -23,6 +23,8 @@ mapping:
     include: 'master_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
     include: 'master_schema'
 

@@ -7,8 +7,8 @@ schema;master_schema:
       nullable: false
       mapping:
         audit: {type: bool, nullable: false}
-        discord: {type: any, nullable: false}
-        ucid: {type: any, nullable: false}
+        discord: {type: any, nullable: false, func: text_or_list}
+        ucid: {type: any, nullable: false, func: str_or_list}
         slots: {type: int, range: {min: 1}, nullable: false}
         message_server_full: {type: str, nullable: false, range: {min: 1}}
     restricted:
@@ -21,7 +21,7 @@ schema;master_schema:
             unit_type: {type: str, nullable: false, range: {min: 1}}
             unit_name: {type: str, nullable: false, range: {min: 1}}
             group_name: {type: str, nullable: false, range: {min: 1}}
-            discord: {type: any, nullable: false}
+            discord: {type: any, nullable: false, func: text_or_list}
             message: {type: str, nullable: false, range: {min: 1}}
             points: {type: int, nullable: false}
             costs: {type: int, nullable: false}
@@ -54,5 +54,7 @@ mapping:
     include: 'master_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
     include: 'master_schema'

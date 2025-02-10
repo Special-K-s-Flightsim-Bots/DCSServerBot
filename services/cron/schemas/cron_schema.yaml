@@ -17,8 +17,8 @@ schema;master_schema:
               mapping:
                 type: {type: str, nullable: false, range: {min: 1}}
                 params:
-                  nullable: false
                   type: any
+                  nullable: false
     # Allow deep nesting for Node/Instance declaration
     regex;(.+):
       include: 'master_schema'

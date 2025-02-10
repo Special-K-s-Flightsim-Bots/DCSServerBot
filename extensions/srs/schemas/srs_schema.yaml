@@ -4,7 +4,7 @@ schema;node_srs_schema:
   allowempty: true
   mapping:
     installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-    autoupdate: {type: any, nullable: false}
+    autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
     autostart: {type: bool, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
     minimized: {type: bool, nullable: false}

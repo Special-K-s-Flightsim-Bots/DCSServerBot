@@ -720,8 +720,8 @@ commands:
     bans:
       roles:
       - Admin
+      enabled: false # disable a command
       name: prohibiciones
-      brief: lista de prohibiciones
       description: mostrar una lista de todas las prohibiciones en sus servidores
 ```
 If you add this to your admin.yaml, it will rename the command `/dcs bans` to `/dcs prohibiciones`, change the 

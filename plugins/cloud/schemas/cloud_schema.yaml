@@ -16,3 +16,5 @@ mapping:
       token: {type: str, nullable: false, range: {min: 1}}
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'

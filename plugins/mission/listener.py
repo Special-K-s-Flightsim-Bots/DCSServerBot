@@ -637,6 +637,10 @@ class MissionEventListener(EventListener["Mission"]):
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
         server.afk.pop(player.ucid, None)
+        await server.send_to_dcs({
+            "command": "deleteMenu",
+            "groupID": player.group_id
+        })
         # if the last player left, the server is considered idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
@@ -819,7 +823,7 @@ class MissionEventListener(EventListener["Mission"]):
                         "menu": menu
                     })
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
-            group_id = data['initiator'].get('group', {}).get('id_')
+            group_id = data.get('initiator', {}).get('group', {}).get('id_')
             if group_id is not None:
                 await server.send_to_dcs({
                     "command": "deleteMenu",

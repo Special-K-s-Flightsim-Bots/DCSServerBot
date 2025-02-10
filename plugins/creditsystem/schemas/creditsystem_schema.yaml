@@ -1,8 +1,19 @@
+schema;initiator:
+  type: seq
+  nullable: false
+  sequence:
+    - type: map
+      nullable: false
+      mapping:
+        default: {type: int, nullable: false}
+        discord: {type: text, nullable: false}
+        points: {type: int, nullable: false}
+
 schema;master_schema:
   type: map
   nullable: false
   mapping:
-    initial_points: {type: any, nullable: false}
+    initial_points: {type: any, nullable: false, func: int_or_list, enum: ['initiator']}
     max_points: {type: int, range: {min: 1}, nullable: false}
     multiplier: {type: float, nullable: false}
     points_per_kill:
@@ -50,5 +61,7 @@ mapping:
     include: 'master_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
     include: 'master_schema'

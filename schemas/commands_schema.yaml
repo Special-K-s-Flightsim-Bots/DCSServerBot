@@ -1,3 +1,33 @@
 schema;commands_schema:
-  type: any
-  # todo
+  type: map
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
+    description: {type: str, nullable: false, range: {min: 1}}
+    roles:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: text, nullable: false}
+    regex;(.+):
+      include: 'commands_schema'
+
+schema;chat_commands_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
+    aliases:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: str, nullable: false, range: {min: 1}}
+    roles:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: text, nullable: false}
+    usage: {type: str, nullable: false, range: {min: 1}}
+    help: {type: str, nullable: false, range: {min: 1}}

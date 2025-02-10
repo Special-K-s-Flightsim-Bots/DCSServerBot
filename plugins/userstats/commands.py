@@ -693,11 +693,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
             # Render server-specific highscores
             for server in self.bus.servers.values():
-                # Avoid repeated nested lookups
-                server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
+                server_config = self.get_config(server)
                 if not (server_config and server_config.get('highscore')):
                     continue
-                await self.render_highscore(server_config['highscore'], server=server)
+                await self.render_highscore(deepcopy(server_config['highscore']), server=server)
 
         except Exception as ex:
             # Improved logging with context

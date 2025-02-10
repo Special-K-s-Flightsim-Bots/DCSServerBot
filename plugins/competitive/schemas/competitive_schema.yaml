@@ -14,5 +14,7 @@ mapping:
     include: 'master_schema'
   regex;(.+):
     include: 'master_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   commands:
     include: 'commands_schema'

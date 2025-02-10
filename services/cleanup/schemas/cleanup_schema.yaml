@@ -3,10 +3,10 @@ schema;master_schema:
   nullable: false
   mapping:
     directory: {type: str, nullable: false, range: {min: 1}}
-    pattern: {type: any, nullable: false}
+    pattern: {type: any, nullable: false, func: str_or_list}
     recursive: {type: bool, nullable: false}
     delete_after: {type: int, range: {min: 1}, nullable: false}
-    channel: {type: any, nullable: false}
+    channel: {type: any, nullable: false, func: int_or_list}
     # Allow deep nesting for Node/Instance declaration
     regex;(.+):
       include: 'master_schema'

@@ -1,3 +1,28 @@
+schema;highscore_map:
+  type: map
+  nullable: false
+  mapping:
+    channel: {type: int, nullable: false}
+    params:
+      type: map
+      nullable: false
+      mapping:
+        period: {type: str, nullable: false, range: {min: 1}}
+        limit: {type: int, nullable: false, range: {min: 3, max: 20}}
+        mission_end: {type: bool, nullable: false}
+
+schema;highscore_seq:
+  type: seq
+  nullable: false
+  sequence:
+    - include: 'highscore_map'
+
+schema;highscore:
+  type: any
+  nullable: false
+  func: seq_or_map
+  enum: ['highscore_seq', 'highscore_map']
+
 schema;master_schema:
   type: map
   nullable: false
@@ -11,15 +36,9 @@ schema;master_schema:
         self_join: {type: bool, nullable: false}
         persist_list: {type: bool, nullable: false}
         highscore:
-          type: map
-          nullable: false
-          mapping:
-            params:
-              type: map
-              nullable: false
-              mapping:
-                limit: {type: int, nullable: false, range: {min: 3, max: 20}}
-    highscore: {type: any, nullable: false} # todo
+          include: 'highscore'
+    highscore:
+      include: 'highscore'
     # Allow deep nesting for Node/Instance declaration
     regex;(.+):
       include: 'master_schema'
@@ -31,5 +50,7 @@ mapping:
     include: 'master_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
     include: 'master_schema'

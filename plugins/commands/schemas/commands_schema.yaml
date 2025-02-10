@@ -37,7 +37,7 @@ mapping:
             sequence:
               - type: text
                 nullable: false
-          server: {type: any, nullable: false} # can be str or list[str]
+          server: {type: any, nullable: false, func: str_or_list} # can be str or list[str]
           server_only: {type: bool, nullable: false}
           execute:
             include: 'cmd_execute_schema'

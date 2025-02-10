@@ -17,8 +17,8 @@ schema;master_schema:
           include: 'kick_schema'
         tempban:
           include: 'tempban_schema'
-    creator: {type: any, nullable: false}
-    voter: {type: any, nullable: false}
+    creator: {type: any, nullable: false, func: text_or_list}
+    voter: {type: any, nullable: false, func: text_or_list}
     mission_time: {type: int, range: {min: 1}, nullable: false}
     time: {type: int, range: {min: 30}, nullable: false}
     reminder:
@@ -43,5 +43,7 @@ mapping:
     include: 'master_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
     include: 'master_schema'

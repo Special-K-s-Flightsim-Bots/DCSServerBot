@@ -19,7 +19,8 @@ def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
     menu_file = os.path.join(listener.node.config_dir, 'menus.yaml')
     if os.path.exists(menu_file):
         try:
-            c = Core(source_file=menu_file, schema_files=['schemas/menus_schema.yaml'], file_encoding='utf-8')
+            c = Core(source_file=menu_file, schema_files=['schemas/menus_schema.yaml'], file_encoding='utf-8',
+                     extensions=['core/utils/validators.py'])
             try:
                 c.validate(raise_exception=True)
             except SchemaError as ex:

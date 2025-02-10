@@ -1,15 +1,29 @@
+schema;command_elememt:
+  type: map
+  nullable: false
+  mapping:
+    command: {type: str, nullable: false, range: {min: 1}}
+    subcommand: {type: str, nullable: false, range: {min: 1}}
+    params:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: str, nullable: false, range: {min: 1}}
+    discord: {type: any, nullable: false, func: text_or_list}
+    ucid: {type: any, nullable: false, func: str_or_list}
+
+schema;list_menu_element:
+  type: seq
+  nullable: false
+  sequence:
+    - include: 'menu_element'
+
+schema;menu_element:
+  type: any
+  nullable: false
+  func: seq_or_map
+  enum: ['list_menu_element', 'command_menu_element']
+
 type: map
 mapping:
-  regex;(.+):
-    type: seq
-    nullable: false
-    sequence:
-      - type: map
-        nullable: false
-        mapping:
-          regex;(.+):
-            type: seq
-            nullable: false
-            sequence:
-              - type: any
-                nullable: false
+  include: 'menu_element'

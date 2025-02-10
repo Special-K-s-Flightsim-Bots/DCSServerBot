@@ -12,7 +12,7 @@ schema;instance_skyeye_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     log: {type: str, nullable: false, range: {min: 1}}
-    affinity: {type: any, nullable: false}
+    affinity: {type: any, nullable: false, func: int_or_list}
     debug: {type: bool, nullable: false}
     config: {type: str, nullable: false, range: {min: 1}}
     coalition: {type: str, enum: ['blue', 'red'], nullable: false}
@@ -41,7 +41,7 @@ schema;instance_skyeye_schema:
     telemetry-address: {type: str, nullable: false, range: {min: 1}}
     srs-server-address: {type: str, nullable: false, range: {min: 1}}
     srs-eam-password: {type: str, nullable: false, range: {min: 1}}
-    srs-frequencies: {type: any, nullable: false}
+    srs-frequencies: {type: str, nullable: false}
     enable-grpc: {type: bool, nullable: false}
     grpc-address: {type: str, nullable: false, range: {min: 1}}
     grpc-password: {type: str, nullable: false, range: {min: 1}}

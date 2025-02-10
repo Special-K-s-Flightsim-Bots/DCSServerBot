@@ -157,8 +157,7 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
                     self.__all_commands__[cmd.name] = cmd
                 if 'aliases' in params:
                     # remove old aliases
-                    for alias in cmd.aliases:
-                        self.__all_commands__.pop(alias, None)
+                    self.__all_commands__.clear()
                     cmd.aliases = params['aliases']
                     # re-add new aliases
                     for alias in cmd.aliases:

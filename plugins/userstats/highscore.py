@@ -87,7 +87,14 @@ class HighscorePlaytime(report.GraphElement):
         else:
             self.axes.set_xticks([])
             self.axes.set_yticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', size=15)
+            xlim = self.axes.get_xlim()
+            ylim = self.axes.get_ylim()
+            self.axes.text(
+                (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
+                (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
+                'No data available.',
+                ha='center', va='center', size=15
+            )
 
 
 class HighscoreElement(report.GraphElement):
@@ -163,4 +170,11 @@ class HighscoreElement(report.GraphElement):
         else:
             self.axes.set_xticks([])
             self.axes.set_yticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+            xlim = self.axes.get_xlim()
+            ylim = self.axes.get_ylim()
+            self.axes.text(
+                (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
+                (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
+                'No data available.',
+                ha='center', va='center', size=15, rotation=45
+            )
