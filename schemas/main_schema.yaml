@@ -8,6 +8,7 @@ mapping:
   chat_command_prefix: {type: str, range: {min: 1, max: 1}, nullable: false}
   mission_rewrite: {type: bool, nullable: false}
   language: {type: str, enum: ['en', 'de', 'es', 'ru', 'cn'], nullable: false}
+  validation: {type: str, enum: ['none', 'strict', 'lazy']}
   database:
     type: map
     nullable: false
@@ -24,6 +25,7 @@ mapping:
       loglevel: {type: str, enum: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL'], nullable: false}
       logrotate_count: {type: int, nullable: false}
       logrotate_size: {type: int, nullable: false}
+      utc: {type: bool, nullable: false}
   filter:
     type: map
     nullable: false

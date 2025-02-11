@@ -28,7 +28,7 @@ from .listener import TEventListener
 from .utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
+from pykwalify.errors import SchemaError, PyKwalifyException
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -425,16 +425,23 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
         try:
+            validation = self.node.config.get('validation', 'lazy')
             path = f'./plugins/{self.plugin_name}/schemas'
-            if os.path.exists(path):
+            if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
                 schema_files.append('schemas/commands_schema.yaml')
                 c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8',
                          extensions=['core/utils/validators.py'])
                 try:
                     c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {filename}:\n{ex}')
+                except PyKwalifyException as ex:
+                    if validation == 'strict':
+                        raise
+                    elif validation == 'lazy':
+                        if isinstance(ex, SchemaError):
+                            self.log.warning(f'Error while parsing {filename}:\n{ex}')
+                        else:
+                            self.log.error(f'Error while parsing {filename}:\n{ex}', exc_info=ex)
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
             raise YAMLError(filename, ex)

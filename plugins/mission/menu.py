@@ -4,7 +4,7 @@ import os
 from core import EventListener, Server, DEFAULT_TAG, Player, utils
 from pathlib import Path
 from pykwalify.core import Core
-from pykwalify.errors import SchemaError
+from pykwalify.errors import PyKwalifyException
 from typing import Optional
 
 # ruamel YAML support
@@ -23,7 +23,7 @@ def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
                      extensions=['core/utils/validators.py'])
             try:
                 c.validate(raise_exception=True)
-            except SchemaError as ex:
+            except PyKwalifyException as ex:
                 listener.log.warning(f'Error while parsing {menu_file}:\n{ex}')
 
             menu = yaml.load(Path(menu_file).read_text(encoding='utf-8'))

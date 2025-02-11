@@ -45,7 +45,7 @@ from core.services.registry import ServiceRegistry
 from core.utils.helper import SettingsDict, YAMLError, async_cache
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
+from pykwalify.errors import SchemaError, PyKwalifyException
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -203,14 +203,23 @@ class NodeImpl(Node):
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         if os.path.exists(config_file):
             try:
-                schema_files = ['schemas/nodes_schema.yaml']
-                schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
-                c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8',
-                         extensions=['core/utils/validators.py'])
-                try:
-                    c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
+                validation = self.node.config.get('validation', 'lazy')
+                if validation in ['strict', 'lazy']:
+                    schema_files = ['schemas/nodes_schema.yaml']
+                    schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
+                    c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8',
+                             extensions=['core/utils/validators.py'])
+                    try:
+                        c.validate(raise_exception=True)
+                    except PyKwalifyException as ex:
+                        if validation == 'strict':
+                            raise
+                        elif validation == 'lazy':
+                            if isinstance(ex, SchemaError):
+                                self.log.warning(f'Error while parsing nodes.yaml:\n{ex}')
+                            else:
+                                self.log.error(f'Error while parsing nodes.yaml:\n{ex}', exc_info=ex)
+
                 data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)

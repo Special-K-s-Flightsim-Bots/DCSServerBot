@@ -14,7 +14,7 @@ from ..const import DEFAULT_TAG
 from ..data.dataobject import DataObject
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
+from pykwalify.errors import SchemaError, PyKwalifyException
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -116,14 +116,22 @@ class Service(ABC):
         self.log.debug(f'  - Reading service configuration from {filename} ...')
         try:
             path = os.path.join('services', self.name.lower(), 'schemas')
-            if os.path.exists(path):
+            validation = self.node.config.get('validation', 'lazy')
+            if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
                 c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8',
                          extensions=['core/utils/validators.py'])
                 try:
                     c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {filename}:\n{ex}')
+                except PyKwalifyException as ex:
+                    if validation == 'strict':
+                        raise
+                    elif validation == 'lazy':
+                        if isinstance(ex, SchemaError):
+                            self.log.warning(f'Error while parsing {filename}:\n{ex}')
+                        else:
+                            self.log.error(f'Error while parsing {filename}:\n{ex}', exc_info=ex)
+
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except (MarkedYAMLError, SchemaError) as ex:
             raise ServiceInstallationError(self.name, ex.__str__())

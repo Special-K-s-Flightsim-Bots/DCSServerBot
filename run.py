@@ -62,10 +62,11 @@ class Main:
         fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{node}.log'), encoding='utf-8',
                                       maxBytes=config.get('logrotate_size', 10485760),
                                       backupCount=config.get('logrotate_count', 5))
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(logging.getLevelNamesMapping()[config.get('loglevel', 'DEBUG')])
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
-        formatter.converter = time.gmtime
+        if config.get('utc', True):
+            formatter.converter = time.gmtime
         fh.setFormatter(formatter)
         fh.doRollover()
 
@@ -83,13 +84,14 @@ class Main:
 
         # Performance logging
         perf_logger = logging.getLogger(name='performance_log')
-        perf_logger.setLevel(logging.DEBUG)
+        perf_logger.setLevel(logging.getLevelNamesMapping()[config.get('loglevel', 'DEBUG')])
         perf_logger.propagate = False
         pfh = CloudRotatingFileHandler(os.path.join('logs', f'perf-{node}.log'), encoding='utf-8',
                                        maxBytes=config.get('logrotate_size', 10485760),
                                        backupCount=config.get('logrotate_count', 5))
         pff = logging.Formatter('%(asctime)s\t%(levelname)s\t%(message)s')
-        pff.converter = time.gmtime
+        if config.get('utc', True):
+            pff.converter = time.gmtime
         pfh.setFormatter(pff)
         pfh.doRollover()
         perf_logger.addHandler(pfh)

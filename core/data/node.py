@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, CoreError
+from pykwalify.errors import SchemaError, CoreError, PyKwalifyException
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -88,13 +88,23 @@ class Node:
 
     def read_config(self, file: str) -> dict:
         try:
-            c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8',
-                     extensions=['core/utils/validators.py'])
-            try:
-                c.validate(raise_exception=True)
-            except SchemaError as ex:
-                self.log.warning(f'Error while parsing {file}:\n{ex}')
+            # we need to read first, otherwise we would not know the validation settings
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
+            validation = config.get('validation', 'lazy')
+            if validation in ['strict', 'lazy']:
+                c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8',
+                         extensions=['core/utils/validators.py'])
+                try:
+                    c.validate(raise_exception=True)
+                except PyKwalifyException as ex:
+                    if validation == 'strict':
+                        raise
+                    elif validation == 'lazy':
+                        if isinstance(ex, SchemaError):
+                            self.log.warning(f'Error while parsing main.yaml:\n{ex}')
+                        else:
+                            self.log.error(f'Error while parsing main.yaml:\n{ex}', exc_info=ex)
+
             # check if we need to secure the database URL
             database_url = config.get('database', {}).get('url')
             if database_url:
@@ -114,9 +124,10 @@ class Node:
             config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
             config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
             config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
+            config['logging']['utc'] = config['logging'].get('utc', True)
             config['chat_command_prefix'] = config.get('chat_command_prefix', '-')
             return config
-        except (FileNotFoundError, CoreError):
+        except FileNotFoundError:
             raise FatalException()
         except MarkedYAMLError as ex:
             raise YAMLError(file, ex)

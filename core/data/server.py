@@ -18,7 +18,7 @@ from .const import Status, Coalition, Channel, Side
 from ..utils.helper import YAMLError, async_cache
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
+from pykwalify.errors import SchemaError, PyKwalifyException
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -74,12 +74,20 @@ class Server(DataObject):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         if os.path.exists(config_file):
             try:
-                c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8',
-                         extensions=['core/utils/validators.py'])
-                try:
-                    c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
+                validation = self.node.config.get('validation', 'lazy')
+                if validation in ['strict', 'lazy']:
+                    c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8',
+                             extensions=['core/utils/validators.py'])
+                    try:
+                        c.validate(raise_exception=True)
+                    except PyKwalifyException as ex:
+                        if validation == 'strict':
+                            raise
+                        elif validation == 'lazy':
+                            if isinstance(ex, SchemaError):
+                                self.log.warning(f'Error while parsing {config_file}:\n{ex}')
+                            else:
+                                self.log.error(f'Error while parsing {config_file}:\n{ex}', exc_info=ex)
 
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
