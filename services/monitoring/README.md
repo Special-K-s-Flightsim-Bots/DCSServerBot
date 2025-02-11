@@ -16,7 +16,7 @@ DEFAULT:
   drive_alert_threshold: 5  # Send an alert and ping admins, if your DCS drive (or your C: drive) gets below 5%
 ```
 
-To configure the DCS server monitoring, you can change these values in your nodes.yaml and servers.yaml:
+To configure the DCS server monitoring, you can change these values in your nodes.yaml and scheduler.yaml:
 
 ### nodes.yaml
 ```yaml
@@ -25,9 +25,9 @@ MyNode:
     max_hung_minutes: 5   # maximum heartbeats a server can miss (default: 3)
 ```
 
-### servers.yaml
+### plugins/scheduler.yaml
 ```yaml
-MyFancyServer:
+DCS.release_server:
   schedule:
     00-24: YYYYYYY  # the server (and its DCS_server.exe process) should run 24x7
 ```

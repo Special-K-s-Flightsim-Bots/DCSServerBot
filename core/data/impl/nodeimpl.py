@@ -23,6 +23,7 @@ from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
+from gzip import BadGzipFile
 from migrate import migrate
 from packaging.version import parse
 from pathlib import Path
@@ -604,12 +605,13 @@ class NodeImpl(Node):
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
-                                data = [x['version'] for x in json.loads(gzip.decompress(await r2.read()))['versions2']]
-                            else:
-                                data = None
+                                result = await r2.read()
+                                try:
+                                    return [x['version'] for x in json.loads(gzip.decompress(result))['versions2']]
+                                except BadGzipFile:
+                                    self.log.warning(f"ED response is not a GZIP: {result.decode('utf8')}")
                         async with await session.get(LOGOUT_URL):
                             pass
-                        return data
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_versions_no_auth()
