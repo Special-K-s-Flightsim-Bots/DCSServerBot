@@ -300,6 +300,7 @@ autoupdate: true          # use the bots autoupdate functionality, default is fa
 use_dashboard: true       # Use the dashboard display for your node. Default is true.
 chat_command_prefix: '-'  # The command prefix to be used for in-game chat commands. Default is "-"
 language: de              # Change the bots language to German. This is WIP, several languages are in the making, including DE, ES, RU and more
+validation: lazy          # YAML schema validation. One of none, lazy, strict. none = disabled, lazy = display warnings / errors in log (default), strict = fail on error
 database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
   pool_min: 5           # min size of the DB pool, default is 5
