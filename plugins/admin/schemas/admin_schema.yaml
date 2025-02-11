@@ -1,6 +1,5 @@
-schema;master_schema:
+schema;element_schema:
   type: map
-  func: is_node_or_instance
   nullable: false
   mapping:
     downloads:
@@ -29,18 +28,13 @@ schema;master_schema:
           nullable: false
           sequence:
             - type: text
-    # Allow deep nesting for Node/Instance declaration
-    regex;(.+):
-      include: 'master_schema'
 
 type: map
 nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
   chat_commands:
     include: 'chat_commands_schema'
-  regex;(.+):
-    include: 'master_schema'

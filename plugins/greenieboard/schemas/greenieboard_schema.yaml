@@ -37,7 +37,14 @@ schema;default_schema:
 
 schema;instance_schema:
   type: map
-  func: is_node_or_instance
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
   nullable: false
   mapping:
     num_landings: {type: int, range: {min: 1, max: 10}, nullable: false}
@@ -60,10 +67,9 @@ schema;instance_schema:
         basedir: {type: str, nullable: false, range: {min: 1}}
         grades: {type: str, nullable: false, range: {min: 1}}
         trapsheets: {type: str, nullable: false, range: {min: 1}}
-    regex;(.+):
-      include: 'instance_schema'
 
 type: map
+func: check_main_structure
 nullable: false
 mapping:
   DEFAULT:
@@ -73,4 +79,7 @@ mapping:
   chat_commands:
     include: 'chat_commands_schema'
   regex;(.+):
-    include: 'instance_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

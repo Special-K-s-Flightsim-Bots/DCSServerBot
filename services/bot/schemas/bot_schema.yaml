@@ -41,7 +41,6 @@ mapping:
   roles:
     type: map
     nullable: false
-    allowempty: true
     mapping:
       Admin:
         type: seq
@@ -77,6 +76,13 @@ mapping:
         type: seq
         nullable: false
         required: true
+        sequence:
+          - type: text
+            nullable: false
+            unique: true
+      regex;(.*):
+        type: seq
+        nullable: false
         sequence:
           - type: text
             nullable: false

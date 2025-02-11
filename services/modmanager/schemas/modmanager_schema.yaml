@@ -5,9 +5,16 @@ schema;default_schema:
     SavedGames: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
     RootFolder: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
 
-schema;master_schema:
+schema;instance_schema:
   type: map
-  func: is_node_or_instance
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
   nullable: false
   mapping:
     packages:
@@ -21,14 +28,15 @@ schema;master_schema:
             version: {type: text, required: true, nullable: false}
             source: {type: str, enum: ['SavedGames', 'RootFolder'], required: true, nullable: false}
             repo: {type: url, nullable: false}
-    # Allow deep nesting for Node/Instance declaration
-    regex;(.+):
-      include: 'master_schema'
 
 type: map
+func: check_main_structure
 nullable: false
 mapping:
   DEFAULT:
     include: 'default_schema'
   regex;(.+):
-    include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

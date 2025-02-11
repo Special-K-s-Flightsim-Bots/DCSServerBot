@@ -1,6 +1,13 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  func: is_node_or_instance
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
   nullable: false
   mapping:
     VIP:
@@ -44,18 +51,19 @@ schema;master_schema:
       mapping:
         credits_taken: {type: str, nullable: false, range: {min: 1}}
         payback: {type: str, nullable: false, range: {min: 1}}
-    # Allow deep nesting for Node/Instance declaration
-    regex;(.+):
-      include: 'master_schema'
 
 type: map
+func: check_main_structure
 nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
   chat_commands:
     include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

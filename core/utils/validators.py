@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import re
 import threading
 
 from core.const import DEFAULT_TAG
@@ -38,7 +39,8 @@ __all__ = [
     "text_or_list",
     "int_csv_or_list",
     "str_csv_or_list",
-    "is_node_or_instance",
+    "check_main_structure",
+    "is_node",
     "validate"
 ]
 
@@ -109,6 +111,26 @@ def _validate_schema(schema, value, path):
         c.validate()
     except SchemaError as ex:
         raise SchemaError(msg=ex.msg, path=path)
+
+def any_of(value, rule_obj, path):
+    errors = []
+    for include_name in rule_obj.schema_str.get('enum', []):
+        try:
+            _validate_schema(_load_schema(include_name, path), value, path)
+            break
+        except SchemaError as ex:
+            errors.append(ex)
+        except CoreError:
+            pass
+    else:
+        msg = []
+        new_path = []
+        for error in errors:
+            new_path.append(re.findall(r"Path: '([^']*)'\.", error.msg)[0])
+            msg.append(re.sub(r"Path: '[^']*'\.", "", error.msg).strip())
+        raise SchemaError(msg='\n'.join(msg), path='\n'.join([f"{path}{p}" for p in new_path]))
+    rule_obj.enum = None
+    return True
 
 def seq_or_map(value, rule_obj, path):
     if isinstance(value, list):
@@ -212,33 +234,33 @@ def str_csv_or_list(value, rule_obj, path):
     rule_obj.pattern = r"^\[?[a-zA-Z0-9]+(,[a-zA-Z0-9]+)*\]?$"
     return _csv_or_list(str, value, rule_obj, path)
 
-def is_node_or_instance(value, rule_obj, path):
-    elements = path.split("/")
-    if not elements:
-        return True
+def is_node(value, rule_obj, path):
     node_data = get_node_data()
-    elements = elements[1:]
-    if elements[0] == DEFAULT_TAG and len(elements) > 1:
-        raise SchemaError(msg=f"The DEFAULT tag must not have any instances!", path=path)
-    elif len(elements) == 1:
-        if elements[0] != DEFAULT_TAG and elements[0] not in node_data.nodes:
-            if elements[0] in node_data.all_instances:
-                if node_data.all_instances[elements[0]] > 1:
-                    raise SchemaError(
-                        msg=f"Instance name {elements[0]} is ambiguous. You must add a node name to your yaml structure!",
-                        path=path
-                    )
-            else:
-                raise SchemaError(msg=f"{elements[0]} is neither a node nor an instance name!", path=path)
-    elif len(elements) == 2:
-        if elements[0] not in node_data.nodes:
-            raise SchemaError(msg=f"{elements[0]} is not a node name!", path=path)
-        if elements[1] not in node_data.instances[elements[0]]:
-            raise SchemaError(msg=f"{elements[1]} is not an instance name of node {elements[0]}!", path=path)
-    else:
-        raise SchemaError(msg=f"Path {path} is not a valid instance representation!", path=path)
+    for instance in value.keys():
+        if instance not in node_data.all_instances:
+            return False
     return True
 
+def check_main_structure(value, rule_obj, _):
+    node_data = get_node_data()
+    for element in value.keys():
+        if element == 'DEFAULT':
+            if any(item in value[element].keys() for item in node_data.instances):
+                raise SchemaError(msg=f"The DEFAULT tag must not have any instances!")
+        elif element in node_data.nodes:
+            for instance in value[element].keys():
+                if instance not in node_data.instances[element]:
+                    raise SchemaError(msg=f"{instance} is not an instance name of node {element}!")
+        elif element in node_data.all_instances:
+            if node_data.all_instances[element] > 1:
+                raise SchemaError(
+                    msg=f"Instance name {element} is ambiguous. You must add a node name to your yaml structure!"
+                )
+        elif element in ['commands', 'chat_commands']:
+            continue
+        else:
+            raise SchemaError(msg=f"{element} is neither a node nor an instance name!")
+    return True
 
 def validate(source_file: str, schema_files: list[str], *, raise_exception: bool = False):
     c = Core(source_file=source_file, schema_files=schema_files, file_encoding='utf-8',
