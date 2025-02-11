@@ -64,7 +64,7 @@ mapping:
               dcs_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
               server_user: {type: str, nullable: false, range: {min: 1}}
               max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
-              affinity: {type: any, nullable: false, func: int_or_list}
+              affinity: {type: any, nullable: false, func: str_or_list}
               priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime'], nullable: false}
               extensions:
                 include: 'instance_extensions_schema'
