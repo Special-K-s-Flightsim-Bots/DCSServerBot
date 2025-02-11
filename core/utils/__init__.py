@@ -7,3 +7,4 @@ from .helper import *
 from .mizedit import *
 from .os import *
 from .performance import *
+from .validators import *

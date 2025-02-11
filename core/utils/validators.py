@@ -3,11 +3,12 @@ import logging
 import os
 import threading
 
-from core import DEFAULT_TAG, COMMAND_LINE_ARGS
+from core.const import DEFAULT_TAG
+from core.commandline import COMMAND_LINE_ARGS
 from pathlib import Path
 from pykwalify import partial_schemas
 from pykwalify.core import Core
-from pykwalify.errors import SchemaError, CoreError
+from pykwalify.errors import SchemaError, CoreError, PyKwalifyException
 from pykwalify.rule import Rule
 from typing import Any, Type, Union, Optional
 
@@ -24,6 +25,22 @@ _types: dict[Type, str] = {
     datetime.date: "date",
     Text: "text"
 }
+
+__all__ = [
+    "file_exists",
+    "seq_or_map",
+    "bool_or_map",
+    "str_or_map",
+    "int_or_map",
+    "bool_or_list",
+    "str_or_list",
+    "int_or_list",
+    "text_or_list",
+    "int_csv_or_list",
+    "str_csv_or_list",
+    "is_node_or_instance",
+    "validate"
+]
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -126,14 +143,23 @@ def _scalar_or_list(t: Type, value: Any, rule_obj: Rule, path: str):
         if rule_obj.enum:
             schema = _load_schema(rule_obj.enum[0], path)
         else:
+            _type = {
+                'type': _types[t],
+            }
+            if rule_obj.nullable is not None:
+                _type['nullable'] = rule_obj.nullable
+            if rule_obj.pattern is not None:
+                _type['pattern'] = rule_obj.pattern
             schema = {
                 'type': 'seq',
                 'nullable': False,
                 'sequence': [
-                    {'type': _types[t], 'nullable': False}
+                    _type
                 ]
             }
         _validate_schema(schema, value, path)
+        rule_obj.pattern = None
+        rule_obj.patten_regexp = None
     elif not isinstance(value, t):
         raise SchemaError(msg=f'Value is not a {t.__name__} or list', path=path)
     rule_obj.enum = None
@@ -150,6 +176,41 @@ def int_or_list(value, rule_obj, path):
 
 def text_or_list(value, rule_obj, path):
     return _scalar_or_list(Text, value, rule_obj, path)
+
+def _csv_or_list(t, value, rule_obj, path):
+    if isinstance(value, list):
+        if rule_obj.enum:
+            schema = _load_schema(rule_obj.enum[0], path)
+        else:
+            _type = {
+                'type': _types[t],
+            }
+            if rule_obj.nullable is not None:
+                _type['nullable'] = rule_obj.nullable
+            if rule_obj.pattern is not None:
+                _type['pattern'] = rule_obj.pattern
+            schema = {
+                'type': 'seq',
+                'nullable': False,
+                'sequence': [
+                    _type
+                ]
+            }
+        _validate_schema(schema, value, path)
+        rule_obj.pattern = None
+        rule_obj.patten_regexp = None
+    elif not isinstance(value, str):
+        raise SchemaError(msg=f'Value is not a string or list', path=path)
+    rule_obj.enum = None
+    return True
+
+def int_csv_or_list(value, rule_obj, path):
+    rule_obj.pattern = "^(\\d+)(,\\d+)*$"
+    return _csv_or_list(int, value, rule_obj, path)
+
+def str_csv_or_list(value, rule_obj, path):
+    rule_obj.pattern = r"^\[?[a-zA-Z0-9]+(,[a-zA-Z0-9]+)*\]?$"
+    return _csv_or_list(str, value, rule_obj, path)
 
 def is_node_or_instance(value, rule_obj, path):
     elements = path.split("/")
@@ -177,3 +238,17 @@ def is_node_or_instance(value, rule_obj, path):
     else:
         raise SchemaError(msg=f"Path {path} is not a valid instance representation!", path=path)
     return True
+
+
+def validate(source_file: str, schema_files: list[str], *, raise_exception: bool = False):
+    c = Core(source_file=source_file, schema_files=schema_files, file_encoding='utf-8',
+             extensions=['core/utils/validators.py'])
+    try:
+        c.validate(raise_exception=True)
+    except PyKwalifyException as ex:
+        if raise_exception:
+            raise
+        if isinstance(ex, SchemaError):
+            logger.warning(f'Error while parsing {source_file}:\n{ex}')
+        else:
+            logger.error(f'Error while parsing {source_file}:\n{ex}', exc_info=ex)

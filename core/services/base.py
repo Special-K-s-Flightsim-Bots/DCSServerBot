@@ -5,6 +5,7 @@ import logging
 import os
 
 from abc import ABC
+from core import utils
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -14,8 +15,7 @@ from ..const import DEFAULT_TAG
 from ..data.dataobject import DataObject
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, PyKwalifyException
-from pykwalify.core import Core
+from pykwalify.errors import PyKwalifyException
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -119,21 +119,10 @@ class Service(ABC):
             validation = self.node.config.get('validation', 'lazy')
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
-                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8',
-                         extensions=['core/utils/validators.py'])
-                try:
-                    c.validate(raise_exception=True)
-                except PyKwalifyException as ex:
-                    if validation == 'strict':
-                        raise
-                    elif validation == 'lazy':
-                        if isinstance(ex, SchemaError):
-                            self.log.warning(f'Error while parsing {filename}:\n{ex}')
-                        else:
-                            self.log.error(f'Error while parsing {filename}:\n{ex}', exc_info=ex)
+                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
 
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
-        except (MarkedYAMLError, SchemaError) as ex:
+        except (MarkedYAMLError, PyKwalifyException) as ex:
             raise ServiceInstallationError(self.name, ex.__str__())
 
     def save_config(self):

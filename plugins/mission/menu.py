@@ -3,11 +3,10 @@ import os
 
 from core import EventListener, Server, DEFAULT_TAG, Player, utils
 from pathlib import Path
-from pykwalify.core import Core
-from pykwalify.errors import PyKwalifyException
 from typing import Optional
 
 # ruamel YAML support
+from pykwalify.errors import PyKwalifyException
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, YAMLError
 yaml = YAML()
@@ -19,13 +18,7 @@ def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
     menu_file = os.path.join(listener.node.config_dir, 'menus.yaml')
     if os.path.exists(menu_file):
         try:
-            c = Core(source_file=menu_file, schema_files=['schemas/menus_schema.yaml'], file_encoding='utf-8',
-                     extensions=['core/utils/validators.py'])
-            try:
-                c.validate(raise_exception=True)
-            except PyKwalifyException as ex:
-                listener.log.warning(f'Error while parsing {menu_file}:\n{ex}')
-
+            utils.validate(menu_file, ['schemas/menus_schema.yaml'], raise_exception=True)
             menu = yaml.load(Path(menu_file).read_text(encoding='utf-8'))
             if server.instance.name in menu:
                 return menu[server.instance.name]
@@ -33,6 +26,8 @@ def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
                 return menu.get(DEFAULT_TAG)
         except MarkedYAMLError as ex:
             raise YAMLError(menu_file, ex)
+        except PyKwalifyException as ex:
+            logger.error(f"Schema validation failed for file menus.yaml:\n{ex}")
 
 
 def filter_menu_items(menu: list, usable_commands: list[str], player: Player) -> list:

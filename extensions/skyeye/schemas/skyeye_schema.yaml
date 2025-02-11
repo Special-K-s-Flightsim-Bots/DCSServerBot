@@ -12,7 +12,7 @@ schema;instance_skyeye_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     log: {type: str, nullable: false, range: {min: 1}}
-    affinity: {type: any, nullable: false, func: str_or_list}
+    affinity: {type: any, nullable: false, func: int_csv_or_list}
     debug: {type: bool, nullable: false}
     config: {type: str, nullable: false, range: {min: 1}}
     coalition: {type: str, enum: ['blue', 'red'], nullable: false}

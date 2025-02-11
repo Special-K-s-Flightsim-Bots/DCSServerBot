@@ -21,15 +21,13 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, TypeVar, Generic
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Generic
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
 from .utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, PyKwalifyException
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -430,18 +428,8 @@ class Plugin(commands.Cog, Generic[TEventListener]):
             if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
                 schema_files.append('schemas/commands_schema.yaml')
-                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8',
-                         extensions=['core/utils/validators.py'])
-                try:
-                    c.validate(raise_exception=True)
-                except PyKwalifyException as ex:
-                    if validation == 'strict':
-                        raise
-                    elif validation == 'lazy':
-                        if isinstance(ex, SchemaError):
-                            self.log.warning(f'Error while parsing {filename}:\n{ex}')
-                        else:
-                            self.log.error(f'Error while parsing {filename}:\n{ex}', exc_info=ex)
+                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
             raise YAMLError(filename, ex)

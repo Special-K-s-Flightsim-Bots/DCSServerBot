@@ -11,8 +11,6 @@ from urllib.parse import urlparse
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, CoreError, PyKwalifyException
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -92,18 +90,7 @@ class Node:
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
             validation = config.get('validation', 'lazy')
             if validation in ['strict', 'lazy']:
-                c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8',
-                         extensions=['core/utils/validators.py'])
-                try:
-                    c.validate(raise_exception=True)
-                except PyKwalifyException as ex:
-                    if validation == 'strict':
-                        raise
-                    elif validation == 'lazy':
-                        if isinstance(ex, SchemaError):
-                            self.log.warning(f'Error while parsing main.yaml:\n{ex}')
-                        else:
-                            self.log.error(f'Error while parsing main.yaml:\n{ex}', exc_info=ex)
+                utils.validate(file, ['schemas/main_schema.yaml'], raise_exception=(validation == 'strict'))
 
             # check if we need to secure the database URL
             database_url = config.get('database', {}).get('url')
