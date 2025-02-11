@@ -23,9 +23,11 @@ schema;element_schema:
               type: map
               nullable: false
               mapping:
-                type: {type: str, nullable: false, range: {min: 1}}
+                type: {type: str, nullable: false, enum: [
+                  'report', 'restart', 'halt', 'cmd', 'popup', 'purge_channel', 'dcs_update'
+                ]}
                 params:
-                  type: any
+                  type: any # TODO: add separate schemas
                   nullable: false
 
 type: map

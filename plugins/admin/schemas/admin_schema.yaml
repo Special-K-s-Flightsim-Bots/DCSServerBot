@@ -1,39 +1,38 @@
-schema;element_schema:
-  type: map
-  nullable: false
-  mapping:
-    downloads:
-      type: seq
-      sequence:
-        - type: map
-          mapping:
-            label: {type: str, required: true, nullable: false, range: {min: 1}}
-            directory: {type: str, nullable: false, range: {min: 1}}
-            pattern: {type: str, nullable: false, range: {min: 1}}
-            target: {type: str, nullable: false, range: {min: 1}}
-            discord:
-              type: seq
-              nullable: false
-              sequence:
-                - type: text
-                  nullable: false
-            audit: {type: bool, nullable: false}
-    uploads:
-      type: map
-      nullable: false
-      mapping:
-        enabled: {type: bool, nullable: false}
-        discord:
-          type: seq
-          nullable: false
-          sequence:
-            - type: text
-
 type: map
+func: check_main_structure
 nullable: false
 mapping:
   DEFAULT:
-    include: 'element_schema'
+    type: map
+    nullable: false
+    required: true
+    mapping:
+      downloads:
+        type: seq
+        sequence:
+          - type: map
+            mapping:
+              label: {type: str, required: true, nullable: false, range: {min: 1}}
+              directory: {type: str, nullable: false, range: {min: 1}}
+              pattern: {type: str, nullable: false, range: {min: 1}}
+              target: {type: str, nullable: false, range: {min: 1}}
+              discord:
+                type: seq
+                nullable: false
+                sequence:
+                  - type: text
+                    nullable: false
+              audit: {type: bool, nullable: false}
+      uploads:
+        type: map
+        nullable: false
+        mapping:
+          enabled: {type: bool, nullable: false}
+          discord:
+            type: seq
+            nullable: false
+            sequence:
+              - type: text
   commands:
     include: 'commands_schema'
   chat_commands:
