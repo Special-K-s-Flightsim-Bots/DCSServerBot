@@ -60,6 +60,10 @@ class CloudLoggingHandler(logging.Handler):
 
         file, line, trace = self.format_traceback(exc.__traceback__) \
             if exc else (record.filename, record.lineno, [record.funcName])
+        # ignore errors without a line number
+        if line == -1:
+            return
+        # log the error to the central database
         with suppress(Exception):
             async with aiohttp.ClientSession() as session:
                 # noinspection PyUnresolvedReferences
