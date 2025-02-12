@@ -1079,7 +1079,12 @@ Please make sure you forward the following ports:
                 await server.run_on_extension(extension=extension, method='enable')
             except ValueError:
                 await server.init_extensions()
-                await server.run_on_extension(extension=extension, method='prepare')
+                try:
+                    await server.run_on_extension(extension=extension, method='prepare')
+                except ValueError as ex:
+                    await interaction.followup.send(_("Failed enabling extension {} on server {}: {}").format(
+                        extension, server.display_name, ex), ephemeral=ephemeral)
+                    return
             is_running = await server.run_on_extension(extension=extension, method='is_running')
             if not is_running:
                 await server.run_on_extension(extension=extension, method='startup')

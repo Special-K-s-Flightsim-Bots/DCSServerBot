@@ -16,7 +16,11 @@ class AdminEventListener(EventListener["Admin"]):
             await server.run_on_extension(extension=extension, method='enable')
         except ValueError:
             await server.init_extensions()
-            await server.run_on_extension(extension=extension, method='prepare')
+            try:
+                await server.run_on_extension(extension=extension, method='prepare')
+            except ValueError as ex:
+                self.log.error(f"Extension {extension} could not be enabled: {ex}")
+                return
         is_running = await server.run_on_extension(extension=extension, method='is_running')
         if not is_running:
             await server.run_on_extension(extension=extension, method='startup')
