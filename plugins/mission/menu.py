@@ -14,7 +14,7 @@ yaml = YAML()
 logger = logging.getLogger(__name__)
 
 
-def read_menu_config(listener: EventListener, server: Server) -> Optional[dict]:
+def read_menu_config(listener: EventListener, server: Server) -> Optional[list]:
     menu_file = os.path.join(listener.node.config_dir, 'menus.yaml')
     if os.path.exists(menu_file):
         try:
