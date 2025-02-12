@@ -6,8 +6,7 @@ import os
 import zipfile
 
 from aiohttp import BasicAuth
-
-from core import utils, FatalException, Node
+from core import utils, FatalException
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import commands
@@ -27,7 +26,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Server, Plugin
+    from core import Server, Plugin, Node
 
 __all__ = ["BotService"]
 
@@ -98,17 +97,17 @@ class BotService(Service):
             return BasicAuth(username, password)
 
     def init_bot(self):
-        def get_prefix(client, message):
-            prefixes = [self.locals.get('command_prefix', '.')]
-            # Allow users to @mention the bot instead of using a prefix
-            return commands.when_mentioned_or(*prefixes)(client, message)
-
         if self.locals.get('no_discord', False):
             return DummyBot(version=self.node.bot_version,
                             sub_version=self.node.sub_version,
                             node=self.node,
                             locals=self.locals)
         else:
+            def get_prefix(client, message):
+                prefixes = [self.locals.get('command_prefix', '.')]
+                # Allow users to @mention the bot instead of using a prefix
+                return commands.when_mentioned_or(*prefixes)(client, message)
+
             # Create the Bot
             return DCSServerBot(version=self.node.bot_version,
                                 sub_version=self.node.sub_version,
@@ -132,7 +131,7 @@ class BotService(Service):
         try:
             self.bot = self.init_bot()
             await self.install_fonts()
-            await self.bot.login(self.token)
+            await self.bot.login(token=self.token)
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.connect(reconnect=reconnect))
         except Exception as ex:
@@ -204,8 +203,8 @@ class BotService(Service):
         await _channel.send(content=content, file=file, embed=_embed)
 
     async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional[Server] = None, **kwargs):
-        await self.bot.audit(message, user=user, server=server, **kwargs)
+                    server: Optional[Server] = None, node: Optional[Node] = None, **kwargs):
+        await self.bot.audit(message, user=user, server=server, node=node, **kwargs)
 
     async def rename_server(self, server: Server, new_name: str):
         async with self.apool.connection() as conn:

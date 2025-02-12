@@ -628,7 +628,7 @@ class ServiceBus(Service):
             method_name = data['method']
             func = getattr(obj, method_name, None)
             if not func:
-                return None
+                raise ValueError(f"Call to non-existing function {method_name}()")
 
             kwargs = data.get('params', {}).copy()
 
@@ -636,14 +636,21 @@ class ServiceBus(Service):
             if callable(func):
                 func_signature = inspect.signature(func).parameters
 
+            # check function signature
+            invalid_keys = set(kwargs.keys()) - set(func_signature.keys())
+            if invalid_keys:
+                raise ValueError("RPC call {} onto non-matching function {}!".format(
+                    "{}({})".format(method_name, ','.join(kwargs.keys())),
+                    "{}({})".format(method_name, ','.join(func_signature.keys())))
+                )
+
             server_key = kwargs.get('server')
-            if server_key and func_signature and func_signature.get('server', None).annotation != 'str':
+            if server_key and func_signature and func_signature['server'].annotation != 'str':
                 kwargs['server'] = self.servers.get(server_key, None)
 
             instance_key = kwargs.get('instance')
-            if instance_key and func_signature and func_signature.get('instance', None).annotation != 'str':
-                instance_lookup = {inst.name: inst for inst in self.node.instances}
-                kwargs['instance'] = instance_lookup.get(instance_key, None)
+            if instance_key and func_signature and func_signature['instance'].annotation != 'str':
+                kwargs['instance'] = next((inst for inst in self.node.instances if inst.name == instance_key), None)
 
             # Handle master-specific mappings
             if self.master:
@@ -662,7 +669,7 @@ class ServiceBus(Service):
                         kwargs['user'] = None
 
                 node_key = kwargs.get('node')
-                if node_key and func_signature and func_signature.get('node', None).annotation != 'str':
+                if node_key and func_signature and func_signature['node'].annotation != 'str':
                     kwargs['node'] = self.node.all_nodes.get(node_key, None)
 
             # Log performance and execute function

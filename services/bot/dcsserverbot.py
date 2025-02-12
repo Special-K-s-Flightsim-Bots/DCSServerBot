@@ -1,7 +1,7 @@
 import asyncio
 import discord
 
-from core import Channel, utils, Status, PluginError, Group, DEFAULT_PLUGINS
+from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_PLUGINS
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -310,7 +310,7 @@ class DCSServerBot(commands.Bot):
             return rc
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
-                    server: Optional["Server"] = None, **kwargs):
+                    server: Optional["Server"] = None, node: Optional[Node] = None, **kwargs):
         if not self.audit_channel:
             self.audit_channel = self.get_channel(self.locals.get('channels', {}).get('audit', -1))
         if self.audit_channel:
@@ -337,6 +337,8 @@ class DCSServerBot(commands.Bot):
                 embed.add_field(name='UCID', value=user)
             if server:
                 embed.add_field(name='Server', value=server.display_name)
+            if not node:
+                node = self.node
             if kwargs:
                 for name, value in kwargs.items():
                     embed.add_field(name=name.title(), value=value, inline=False)
@@ -347,7 +349,7 @@ class DCSServerBot(commands.Bot):
                 await conn.execute("""
                     INSERT INTO audit (node, event, server_name, discord_id, ucid)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (self.node.name, message, server.name if server else None,
+                """, (node.name, message, server.name if server else None,
                       user.id if isinstance(user, discord.Member) else None,
                       user if isinstance(user, str) else None))
 
