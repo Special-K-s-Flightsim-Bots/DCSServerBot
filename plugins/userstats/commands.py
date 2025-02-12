@@ -693,7 +693,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
 
             # Render server-specific highscores
             for server in self.bus.servers.values():
-                server_config = self.get_config(server)
+                server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if not (server_config and server_config.get('highscore')):
                     continue
                 await self.render_highscore(deepcopy(server_config['highscore']), server=server)
