@@ -6,7 +6,7 @@ import re
 import string
 import sys
 
-from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation, utils
+from core import EventListener, Server, Player, Channel, Side, PersistentReport, event, get_translation, utils
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
@@ -222,7 +222,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             return
         config = self.plugin.get_config(server)
         # ignore SC / Moose.AIRBOSS events, if FunkMan is enabled
-        if 'FunkMan' in config:
+        if 'FunkMan' in config and config['FunkMan'].get('enabled', True):
             return
         player: Player = server.get_player(name=data['initiator']['name']) if 'name' in data['initiator'] else None
         if player:

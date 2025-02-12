@@ -67,6 +67,11 @@ schema;element_schema:
         basedir: {type: str, nullable: false, range: {min: 1}}
         grades: {type: str, nullable: false, range: {min: 1}}
         trapsheets: {type: str, nullable: false, range: {min: 1}}
+    FunkMan:
+      type: map
+      nullable: false
+      mapping:
+        enabled: {type: bool, nullable: false}
 
 type: map
 func: check_main_structure

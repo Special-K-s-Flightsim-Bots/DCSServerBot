@@ -15,19 +15,22 @@ DEFAULT:
     OWO: 2
     WO: 1
     C: 0
+  credits: true                   # People should get credits for their landings (see CreditSystem)
   Moose.AIRBOSS:
-    basedir: airboss        # Trapsheets will be stored in Saved Games\<instance>\airboss
-  FunkMan:                 # if you want to use the FunkMan integration
+    basedir: airboss              # Trapsheets will be stored in Saved Games\<instance>\airboss
+  FunkMan:                        # if you want to use the FunkMan integration
     IMAGEPATH: ../FunkMan/funkpics/
     install: ../FunkMan
-DCS.release_server:        # our server uses Moose.AIRBOSS
-  num_rows: 5               # Overwrite the number of rows to display (default: 10)
+DCS.release_server:               # our server uses Moose.AIRBOSS
+  num_rows: 5                     # Overwrite the number of rows to display (default: 10)
   Moose.AIRBOSS:
-    basedir: airboss        # overwrite the default in here, if you like
+    basedir: airboss              # overwrite the default in here, if you like
     grades: AIRBOSS-{carrier}_LSOGrades.csv
     trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'
-  persistent_board: true    # if true, a persistent board will be uploaded into persistent_channel
-  persistent_channel: 123456789 # Optional: in which channel to post the board (default: status channel)
+  FunkMan:
+    enabled: false                # We need to disable FunkMan, if we want SC or Moose.AIRBOSS instead
+  persistent_board: true          # if true, a persistent board will be uploaded into persistent_channel
+  persistent_channel: 123456789   # Optional: in which channel to post the board (default: status channel)
   squadrons:
     - name: 'My Fancy Squadron 1' # Optional: display boards for these squadrons
       channel: 1234567890         # Optional: channel ID (default, persistent_channel above)

@@ -124,9 +124,11 @@ def any_of(value, rule_obj, path):
             pass
     else:
         msg = []
-        new_path = []
+        new_path = set()
         for error in errors:
-            new_path.append(re.findall(r"Path: '([^']*)'\.", error.msg)[0])
+            path_part = re.findall(r"Path: '([^']*)'\.", error.msg)
+            if path_part:
+                new_path.add(path_part[0])
             msg.append(re.sub(r"Path: '[^']*'\.", "", error.msg).strip())
         raise SchemaError(msg='\n'.join(msg), path='\n'.join([f"{path}{p}" for p in new_path]))
     rule_obj.enum = None

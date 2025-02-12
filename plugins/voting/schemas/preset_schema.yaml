@@ -4,7 +4,7 @@ schema;preset_schema:
   mapping:
     choices:
       type: seq
-      nullable: false
+      nullable: true
       sequence:
         - type: str
           nullable: false
