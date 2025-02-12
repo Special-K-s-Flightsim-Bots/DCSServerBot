@@ -1,5 +1,6 @@
 import asyncio
 import os
+import random
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
@@ -121,8 +122,12 @@ class SchedulerListener(EventListener["Scheduler"]):
         elif what['command'] == 'load':
             if 'mission_id' in what:
                 _mission = what['mission_id']
+                if isinstance(_mission, list):
+                    _mission = random.choice(_mission)
             elif 'mission_file' in what:
                 _mission = what['mission_file']
+                if isinstance(_mission, list):
+                    _mission = random.choice(_mission)
                 if not os.path.isabs(_mission):
                     _mission = os.path.join(await server.get_missions_dir(), _mission)
             else:

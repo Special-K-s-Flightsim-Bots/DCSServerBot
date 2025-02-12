@@ -2,6 +2,7 @@ import asyncio
 import discord
 import os
 import psycopg
+import random
 
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
@@ -256,10 +257,16 @@ class Scheduler(Plugin[SchedulerListener]):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
                     if method == 'load':
-                        if 'mission_id' in rconf:
-                            server.on_empty['mission_id'] = rconf['mission_id']
-                        elif 'mission_file' in rconf:
-                            server.on_empty['mission_file'] = rconf['mission_file']
+                        mission_id = rconf.get('mission_id')
+                        mission_file = rconf.get('mission_file')
+                        if isinstance(mission_id, list):
+                            server.on_empty['mission_id'] = random.choice(mission_id)
+                        elif isinstance(mission_id, int):
+                            server.on_empty['mission_id'] = mission_id
+                        elif isinstance(mission_file, list):
+                            server.on_empty['mission_file'] = random.choice(mission_file)
+                        elif isinstance(mission_file, str):
+                            server.on_empty['mission_file'] = mission_file
                     self.log.debug("Scheduler: Setting on_empty trigger.")
                 server.restart_pending = True
                 return
@@ -315,8 +322,10 @@ class Scheduler(Plugin[SchedulerListener]):
                 try:
                     mission_id = rconf.get('mission_id')
                     if not mission_id:
-                        filename = utils.format_string(rconf.get('mission_file'),
-                                                       instance=server.instance, server=server)
+                        mission_file = rconf.get('mission_file')
+                        if isinstance(mission_file, list):
+                            mission_file = random.choice(mission_file)
+                        filename = utils.format_string(mission_file, instance=server.instance, server=server)
                         if not filename:
                             self.log.error(
                                 "You need to provide either mission_id or mission_file to your load configuration!")
@@ -340,6 +349,8 @@ class Scheduler(Plugin[SchedulerListener]):
                         else:
                             self.log.error(f"Mission {filename} not found in your serverSettings.lua!")
                             return
+                    elif isinstance(mission_id, list):
+                        mission_id = random.choice(mission_id)
                     self.log.debug(f"Scheduler: Loading mission {mission_id} on server {server.name} ...")
                     modify_mission = rconf.get('run_extensions', True)
                     if server.status == Status.SHUTDOWN:
@@ -429,8 +440,11 @@ class Scheduler(Plugin[SchedulerListener]):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         server.status = Status.LOADING
-                        if config.get('startup') and config['startup'].get('mission_id'):
-                            await server.setStartIndex(config['startup']['mission_id'])
+                        mission_id = config.get('startup') and config['startup'].get('mission_id')
+                        if isinstance(mission_id, list):
+                            await server.setStartIndex(random.choice(mission_id))
+                        elif isinstance(mission_id, int):
+                            await server.setStartIndex(mission_id)
                         self.loop.call_later(
                             delay=next_startup, callback=partial(asyncio.create_task,
                                                                  self.launch_dcs(server, ignore_exception=True)))

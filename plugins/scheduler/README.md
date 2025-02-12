@@ -24,7 +24,7 @@ DCS.release_server:
   schedule:                                       # Server "DCS.release_server" will run 24x7
     00-24: YYYYYYY
   startup:
-    mission_id: 3                                 # Load mission #3 from the mission list on startup
+    mission_id: 3                                 # Load mission #3 from the mission list on startup (could be a list also / random pick)
 instance2:
   schedule:                                       # Server "instance2" will run every day from 0h-12h in the specified time zone
     timezone: Europe/Berlin                       # optional: timezone (default: local time)
@@ -94,8 +94,8 @@ Here you can provide a mission_id to be started on server startup.
 | idle_time        | Time in minutes, the server was not in use (no people in the server)                                                                                                                                                                                                   |
 | local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                      |
 | utc_times        | Like local_times but UTC.                                                                                                                                                                                                                                              |
-| mission_id       | For load only: the mission_id to load (1 = first from the mission list).                                                                                                                                                                                               |
-| mission_file     | For load only: the mission file name to load (has to be in the mission list).                                                                                                                                                                                          |
+| mission_id       | For load only: the mission_id to load (1 = first from the mission list). Can be an integer or a list of integers for random pick.                                                                                                                                      |
+| mission_file     | For load only: the mission file name to load (has to be in the mission list). Can be a single mission or list of missions for random pick.                                                                                                                             |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                        |
 | mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                              |
 | run_extensions   | If true, extensions will be applied to the mission prior to the restart / rotation (default: true) .                                                                                                                                                                   |

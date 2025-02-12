@@ -95,8 +95,8 @@ class Service(ABC):
                     await asyncio.sleep(.1)
                 else:
                     raise TimeoutError(f"Timeout during start of Service {self.__class__.__name__}, "
-                                       f"dependent service {dependency} is not running.")
-                self.log.debug(f"Dependent service {dependency} is running.")
+                                       f"dependent service {dependency.__name__} is not running.")
+                self.log.debug(f"Dependent service {dependency.__name__} is running.")
         self.running = True
 
     async def stop(self, *args, **kwargs):
