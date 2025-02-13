@@ -15,6 +15,7 @@ schema;instance_schema:
 
 schema;element_schema:
   type: map
+  func: is_element
   nullable: false
   mapping:
     packages:

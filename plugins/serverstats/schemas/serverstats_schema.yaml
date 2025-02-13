@@ -8,6 +8,7 @@ schema;instance_schema:
 
 schema;element_schema:
   type: map
+  func: is_element
   nullable: false
   mapping:
     min_fps: {type: int, range: {min: 0}, nullable: false}

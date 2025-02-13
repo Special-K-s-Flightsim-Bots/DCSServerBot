@@ -8,6 +8,7 @@ schema;instance_schema:
 
 schema;element_schema:
   type: map
+  func: is_element
   nullable: false
   mapping:
     message_no_srs: {type: str, nullable: false, range: {min: 1}}
