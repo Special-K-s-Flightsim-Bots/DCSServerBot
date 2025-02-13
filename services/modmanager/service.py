@@ -221,7 +221,10 @@ class ModManagerService(Service):
 
     async def _get_latest_file_version(self, package: dict):
         config = self.get_config()
-        path = os.path.expandvars(config[package['source'].value])
+        source = package['source']
+        if isinstance(source, Folder):
+            source = source.value
+        path = os.path.expandvars(config[source])
         available = [self.parse_filename(x) for x in os.listdir(path) if package['name'] in x]
         max_version = None
         for _, _version in available:
