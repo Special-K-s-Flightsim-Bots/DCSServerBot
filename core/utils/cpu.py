@@ -296,7 +296,7 @@ def log_cpu():
     processor_info = get_processor_info()
     efficiency_classes = sorted({entry[0] for entry in processor_info})
     if len(efficiency_classes) > 1:
-        logger.info(f"CPU cores have different efficiency classes: {efficiency_classes}")
+        logger.info(f"CPU cores have different efficiency classes: [{efficiency_classes[0]}-{efficiency_classes[-1]}]")
         for efficiency_class in sorted(efficiency_classes, reverse=True):
             for eclass, pclass, mask in processor_info:
                 if eclass != efficiency_class:
@@ -306,7 +306,7 @@ def log_cpu():
         logger.debug(f"all CPU cores have the same efficiency class {efficiency_classes[0]}")
     performance_classes = sorted({entry[1] for entry in processor_info})
     if len(performance_classes) > 1:
-        logger.debug(f"CPU cores have different performance classes: {performance_classes}")
+        logger.info(f"CPU cores have different efficiency classes: [{performance_classes[0]}-{performance_classes[-1]}]")
         for performance_class in sorted(performance_classes, reverse=True):
             for eclass, pclass, mask in processor_info:
                 if pclass != performance_class:

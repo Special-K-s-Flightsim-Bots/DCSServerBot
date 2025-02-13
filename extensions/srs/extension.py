@@ -273,7 +273,7 @@ class SRS(Extension, FileSystemEventHandler):
                             self.log.warning(f"  => Please move your SRS configuration to "
                                              f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
                 except Exception as ex:
-                    self.log.error(f'Error during shutdown of SRS: {str(ex)}')
+                    self.log.error(f'Error during shutdown of SRS', exc_info=ex)
                     return False
                 finally:
                     if self.observer:

@@ -5,7 +5,7 @@ import shutil
 import uvicorn
 
 from core import Plugin, DEFAULT_TAG
-from datetime import datetime, timezone
+from datetime import datetime
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
