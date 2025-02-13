@@ -34,6 +34,15 @@ SKYEYE_GITHUB_URL = "https://github.com/dharmab/skyeye/releases/latest"
 SKYEYE_DOWNLOAD_URL = "https://github.com/dharmab/skyeye/releases/download/{}/skyeye-windows-amd64.zip"
 WHISPER_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}"
 
+LOGLEVEL = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL,
+    'FATAL': logging.FATAL
+}
+
 
 class SkyEye(Extension):
 
@@ -224,7 +233,7 @@ class SkyEye(Extension):
                     if line.startswith('{'):
                         try:
                             data = json.loads(line)
-                            level = logging.getLevelNamesMapping()[data['level'].upper()]
+                            level = LOGLEVEL[data.get('level', 'INFO').upper()]
                             message = data['message']
                             extra_data = get_remaining_values(data)
                             logger.log(level, message, extra={"extra_data": f"- {extra_data}" if extra_data else ""})

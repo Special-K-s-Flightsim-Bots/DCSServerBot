@@ -62,7 +62,7 @@ class Main:
         fh = CloudRotatingFileHandler(os.path.join('logs', f'dcssb-{node}.log'), encoding='utf-8',
                                       maxBytes=config.get('logrotate_size', 10485760),
                                       backupCount=config.get('logrotate_count', 5))
-        fh.setLevel(logging.getLevelNamesMapping()[config.get('loglevel', 'DEBUG')])
+        fh.setLevel(LOGLEVEL[config.get('loglevel', 'DEBUG')])
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         if config.get('utc', True):
@@ -84,7 +84,7 @@ class Main:
 
         # Performance logging
         perf_logger = logging.getLogger(name='performance_log')
-        perf_logger.setLevel(logging.getLevelNamesMapping()[config.get('loglevel', 'DEBUG')])
+        perf_logger.setLevel(LOGLEVEL[config.get('loglevel', 'DEBUG')])
         perf_logger.propagate = False
         pfh = CloudRotatingFileHandler(os.path.join('logs', f'perf-{node}.log'), encoding='utf-8',
                                        maxBytes=config.get('logrotate_size', 10485760),
