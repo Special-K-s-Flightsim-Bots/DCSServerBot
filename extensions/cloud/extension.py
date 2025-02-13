@@ -1,6 +1,7 @@
 import aiohttp
 import certifi
 import os
+import shutil
 import ssl
 
 from aiohttp import BasicAuth
@@ -28,7 +29,11 @@ class Cloud(Extension):
         return yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
 
     def read_config(self):
-        return yaml.load(Path(os.path.join(self.node.config_dir, 'plugins', 'cloud.yaml')).read_text(encoding='utf-8'))
+        config_file = os.path.join(self.node.config_dir, 'plugins', 'cloud.yaml')
+        if not os.path.exists(config_file):
+            self.log.info('No cloud.yaml found, copying the sample.')
+            shutil.copyfile('samples/plugins/cloud.yaml', config_file)
+        return yaml.load(Path(config_file).read_text(encoding='utf-8'))
 
     @property
     def proxy(self) -> Optional[str]:
