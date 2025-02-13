@@ -45,6 +45,7 @@ schema;instance_schema:
 
 schema;element_schema:
   type: map
+  func: is_element
   nullable: false
   mapping:
     num_landings: {type: int, range: {min: 1, max: 10}, nullable: false}

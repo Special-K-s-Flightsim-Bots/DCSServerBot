@@ -112,7 +112,7 @@ def _validate_schema(schema, value, path):
     try:
         c.validate()
     except SchemaError as ex:
-        raise SchemaError(msg=ex.msg, path=path)
+        raise SchemaError(msg=ex.msg, path=path + '/' + ex.path.lstrip('/'))
 
 def any_of(value, rule_obj, path):
     errors = []
@@ -129,10 +129,12 @@ def any_of(value, rule_obj, path):
         new_path = set()
         for error in errors:
             path_part = re.findall(r"Path: '([^']*)'\.", error.msg)
-            if path_part:
-                new_path.add(path_part[0])
+            if path_part and path_part[0]:
+                new_path.add(error.path + path_part[0].lstrip('/'))
+            else:
+                new_path.add(error.path)
             msg.append(re.sub(r"Path: '[^']*'\.", "", error.msg).strip())
-        raise SchemaError(msg='\n'.join(msg), path='\n'.join([f"{path}{p}" for p in new_path]))
+        raise SchemaError(msg='\n'.join(msg), path='\n'.join(new_path))
     rule_obj.enum = None
     return True
 
@@ -142,7 +144,7 @@ def seq_or_map(value, rule_obj, path):
     elif isinstance(value, dict):
         include_name = rule_obj.schema_str.get('enum')[1]
     else:
-        raise SchemaError(msg=f'Value is not a list or dict', path=path)
+        raise SchemaError(msg=f"Value {value} is not list or dict.", path=path)
     _validate_schema(_load_schema(include_name, path), value, path)
     rule_obj.enum = None
     return True
@@ -151,7 +153,7 @@ def _scalar_or_map(t: Type, value: Any, rule_obj: Rule, path: str):
     if isinstance(value, dict):
         _validate_schema(_load_schema(rule_obj.schema_str.get('enum')[0], path), value, path)
     elif not isinstance(value, t):
-        raise SchemaError(msg=f'Value is not a {t.__name__} or dict', path=path)
+        raise SchemaError(msg=f"Value {value} is not {t.__name__} or dict.", path=path)
     rule_obj.enum = None
     return True
 
@@ -187,7 +189,7 @@ def _scalar_or_list(t: Type, value: Any, rule_obj: Rule, path: str):
         rule_obj.pattern = None
         rule_obj.patten_regexp = None
     elif not isinstance(value, t):
-        raise SchemaError(msg=f'Value is not a {t.__name__} or list', path=path)
+        raise SchemaError(msg=f"Value {value} is not {t.__name__} or list.", path=path)
     rule_obj.enum = None
     return True
 
@@ -226,7 +228,7 @@ def _csv_or_list(t, value, rule_obj, path):
         rule_obj.pattern = None
         rule_obj.patten_regexp = None
     elif not isinstance(value, str):
-        raise SchemaError(msg=f'Value is not a string or list', path=path)
+        raise SchemaError(msg=f"Value {value} is not string or list.", path=path)
     rule_obj.enum = None
     return True
 
@@ -245,25 +247,36 @@ def is_node(value, rule_obj, path):
             return False
     return True
 
-def check_main_structure(value, rule_obj, _):
+def is_element(value, rule_obj, path):
+    node_data = get_node_data()
+    for instance in value.keys():
+        if instance in node_data.all_instances:
+            return False
+    return True
+
+def check_main_structure(value, rule_obj, path):
     node_data = get_node_data()
     for element in value.keys():
         if element == 'DEFAULT':
             if any(item in value[element].keys() for item in node_data.instances):
-                raise SchemaError(msg=f"The DEFAULT tag must not have any instances!")
+                raise SchemaError(msg="The DEFAULT tag must not have any instances!", path=path)
         elif element in node_data.nodes:
             for instance in value[element].keys():
                 if instance not in node_data.instances[element]:
-                    raise SchemaError(msg=f"{instance} is not an instance name of node {element}!")
+                    raise SchemaError(
+                        msg=f"{instance} is not an instance name of node {element}!",
+                        path=path + '/' + element
+                    )
         elif element in node_data.all_instances:
             if node_data.all_instances[element] > 1:
                 raise SchemaError(
-                    msg=f"Instance name {element} is ambiguous. You must add a node name to your yaml structure!"
+                    msg=f"Instance name {element} is ambiguous. You must add a node name to your yaml structure!",
+                    path=path
                 )
         elif element in ['commands', 'chat_commands']:
             continue
         else:
-            raise SchemaError(msg=f"{element} is neither a node nor an instance name!")
+            raise SchemaError(msg=f"{element} is neither a node nor an instance name!", path=path)
     return True
 
 def validate(source_file: str, schema_files: list[str], *, raise_exception: bool = False):

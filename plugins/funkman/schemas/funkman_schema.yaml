@@ -8,6 +8,7 @@ schema;instance_schema:
 
 schema;element_schema:
   type: map
+  func: is_element
   nullable: false
   mapping:
     install: {type: str, nullable: false, range: {min: 1}, func: file_exists}
