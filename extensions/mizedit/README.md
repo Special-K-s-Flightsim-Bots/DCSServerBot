@@ -126,7 +126,17 @@ manual_fog: # set a manual fog animation
 The key is the time in seconds after which the specific thickness and visibility should appear. DCS will then animate
 the fog changes in-between for you.
 
-#### d) Complex Modifications
+#### d) DCS RealWeather
+You can run DCS RealWeather from MizEdit now:
+```yaml
+realweather:
+    RealWeather:
+        options:
+            weather:
+                icao: UGKO
+```
+
+#### e) Complex Modifications
 Sometimes, only changing the weather is not enough, and you want to change some parts in the mission that are deeply 
 nested or even dependent on another parts of your mission file. This is for instance true, if you want to change
 frequencies, TACAN codes or similar items.
