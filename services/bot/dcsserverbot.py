@@ -311,6 +311,8 @@ class DCSServerBot(commands.Bot):
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional["Server"] = None, node: Optional[Node] = None, **kwargs):
+        if not node:
+            node = self.node
         if not self.audit_channel:
             self.audit_channel = self.get_channel(self.locals.get('channels', {}).get('audit', -1))
         if self.audit_channel:
@@ -337,8 +339,6 @@ class DCSServerBot(commands.Bot):
                 embed.add_field(name='UCID', value=user)
             if server:
                 embed.add_field(name='Server', value=server.display_name)
-            if not node:
-                node = self.node
             if kwargs:
                 for name, value in kwargs.items():
                     embed.add_field(name=name.title(), value=value, inline=False)
