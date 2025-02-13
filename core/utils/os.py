@@ -1,3 +1,5 @@
+import getpass
+
 import aiohttp
 import ipaddress
 import logging
@@ -67,16 +69,22 @@ async def get_public_ip():
 
 
 def find_process(proc: str, instance: Optional[str] = None):
+    proc_set = {name.casefold() for name in proc.split("|")}
+
     for p in psutil.process_iter(['cmdline']):
         try:
-            if os.path.basename(p.info['cmdline'][0]).casefold() in [proc.casefold() for proc in proc.split("|")]:
-                if instance:
-                    for c in p.info['cmdline']:
-                        if instance in c.replace('\\', '/').split('/'):
-                            return p
-                else:
+            if p.name().casefold() not in proc_set:
+                continue
+            if instance:
+                cmdline = p.info['cmdline']
+                if not cmdline:
+                    continue
+                # Check if `instance` is part of any cmdline parameter (case-insensitive)
+                if any(instance.casefold() in c.replace('\\', '/').casefold() for c in cmdline):
                     return p
-        except Exception:
+            else:
+                return p
+        except (psutil.AccessDenied, psutil.NoSuchProcess, IndexError):
             continue
     return None
 

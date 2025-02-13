@@ -98,8 +98,13 @@ class RestAPI(Plugin):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT name AS \"nick\", last_seen AS \"date\" FROM players WHERE name ILIKE %s ORDER BY 2 DESC
-                """, ('%' + nick + '%', ))
+                    SELECT 
+                        name AS "nick", 
+                        DATE_TRUNC('second', last_seen) AS "date" 
+                    FROM players 
+                    WHERE name ILIKE %s 
+                    ORDER BY 2 DESC
+                """, ('%' + nick + '%',))
                 return await cursor.fetchall()
 
     async def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):
@@ -123,23 +128,30 @@ class RestAPI(Plugin):
                 }
 
     async def stats(self, nick: str = Form(default=None), date: str = Form(default=None)):
+        self.log.debug(f'Calling /stats with nick="{nick}", date="{date}"')
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT ucid FROM players WHERE name = %s AND last_seen = %s",
-                                     (nick, datetime.fromisoformat(date)))
+                await cursor.execute("""
+                    SELECT ucid
+                    FROM players
+                    WHERE name = %s
+                      AND DATE_TRUNC('second', last_seen) = DATE_TRUNC('second', %s)
+                """, (nick, datetime.fromisoformat(date)))
                 row = await cursor.fetchone()
                 if row:
                     ucid = row['ucid']
+                    self.log.debug(f'Found UCID: {ucid}')
                 else:
+                    self.log.debug("No UCID found.")
                     return {}
                 await cursor.execute("""
-                    SELECT overall.deaths, overall.aakills, 
+                    SELECT overall.kills, overall.deaths, overall.aakills, 
                            ROUND(CASE WHEN overall.deaths = 0 
                                       THEN overall.aakills 
                                       ELSE overall.aakills/overall.deaths::DECIMAL END, 2) AS "aakdr", 
                            lastsession.kills AS "lastSessionKills", lastsession.deaths AS "lastSessionDeaths"
                     FROM (
-                        SELECT SUM(deaths) AS "deaths", SUM(pvp) AS "aakills"
+                        SELECT SUM(kills) as "kills", SUM(deaths) AS "deaths", SUM(pvp) AS "aakills"
                         FROM statistics
                         WHERE player_ucid = %s
                     ) overall, (

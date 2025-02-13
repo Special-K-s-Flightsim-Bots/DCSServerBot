@@ -6,7 +6,6 @@ import uuid
 from core import utils
 from core.const import DEFAULT_TAG
 from core.utils.performance import PerformanceLog, performance_log
-from core.services.registry import ServiceRegistry
 from core.translations import get_translation
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,11 +15,9 @@ from typing import Optional, Union, TYPE_CHECKING, Any
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
-from ..utils.helper import YAMLError
+from ..utils.helper import YAMLError, async_cache
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -38,6 +35,7 @@ _ = get_translation('core')
 @dataclass
 class Server(DataObject):
     port: int
+    bus: ServiceBus = field(compare=False)
     _instance: Instance = field(compare=False, default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
@@ -56,7 +54,6 @@ class Server(DataObject):
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
-    bus: ServiceBus = field(compare=False, init=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
     idle_since: datetime = field(compare=False, default=None)
@@ -65,7 +62,6 @@ class Server(DataObject):
         from services.servicebus import ServiceBus
 
         super().__post_init__()
-        self.bus = ServiceRegistry.get(ServiceBus)
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
 
@@ -76,11 +72,10 @@ class Server(DataObject):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         if os.path.exists(config_file):
             try:
-                c = Core(source_file=config_file, schema_files=['schemas/servers_schema.yaml'], file_encoding='utf-8')
-                try:
-                    c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
+                validation = self.node.config.get('validation', 'lazy')
+                if validation in ['strict', 'lazy']:
+                    utils.validate(config_file, ['schemas/servers_schema.yaml'],
+                                   raise_exception=(validation == 'strict'))
 
                 data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
@@ -433,3 +428,13 @@ class Server(DataObject):
 
     async def cleanup(self) -> None:
         raise NotImplemented()
+
+    async def install_plugin(self, plugin: str) -> None:
+        raise NotImplemented()
+
+    async def uninstall_plugin(self, plugin: str) -> None:
+        raise NotImplemented()
+
+    @async_cache
+    async def list_extension(self) -> list[str]:
+        return self.locals.get('extensions', [])

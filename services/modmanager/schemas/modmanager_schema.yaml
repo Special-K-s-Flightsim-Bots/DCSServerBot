@@ -1,0 +1,42 @@
+schema;default_schema:
+  type: map
+  nullable: false
+  mapping:
+    SavedGames: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    RootFolder: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+
+schema;instance_schema:
+  type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    packages:
+      type: seq
+      nullable: false
+      sequence:
+        - type: map
+          nullable: false
+          mapping:
+            name: {type: str, required: true, nullable: false, range: {min: 1}}
+            version: {type: text, required: true, nullable: false}
+            source: {type: str, enum: ['SavedGames', 'RootFolder'], required: true, nullable: false}
+            repo: {type: url, nullable: false}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'default_schema'
+  regex;(.+):
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

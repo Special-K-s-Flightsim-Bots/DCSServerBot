@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import os.path
 import re
 import shutil
@@ -26,7 +27,7 @@ class Autoexec:
         exp = re.compile('(?P<key>.*)=(?P<value>.*)')
         mydict = dict()
         with open(file, mode='r', encoding='utf-8') as cfg:
-            for line in [x.strip() for x in cfg.readlines()]:
+            for line in [x.strip() for x in cfg.readlines()]:   # type: str
                 if line.startswith('if ') or line.startswith('--'):
                     continue
                 if '--' in line:
@@ -69,7 +70,7 @@ class Autoexec:
     def __setattr__(self, key, value):
         if key in ['bot', 'instance', 'values']:
             super(Autoexec, self).__setattr__(key, value)
-        else:
+        elif self.values.get(key) != value:
             self.values[key] = value
             self.update()
 
@@ -83,8 +84,8 @@ class Autoexec:
             return False
         else:
             try:
-                return eval(value)
-            except:
+                return ast.literal_eval(value)
+            except (ValueError, SyntaxError):
                 return value
 
     @staticmethod

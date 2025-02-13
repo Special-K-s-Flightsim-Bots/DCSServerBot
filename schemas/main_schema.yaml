@@ -1,33 +1,43 @@
 type: map
+nullable: false
 mapping:
-  guild_id: {type: int, required: true}
-  guild_name: {type: str}
-  autoupdate: {type: bool}
-  use_dashboard: {type: bool}
-  chat_command_prefix: {type: str, range: {min: 1, max: 1}}
-  mission_rewrite: {type: bool}
-  language: {type: str, enum: ['en', 'de', 'es', 'ru', 'cn']}
+  guild_id: {type: int, required: true, nullable: false}
+  guild_name: {type: str, nullable: false, range: {min: 1}}
+  autoupdate: {type: bool, nullable: false}
+  use_dashboard: {type: bool, nullable: false}
+  chat_command_prefix: {type: str, range: {min: 1, max: 1}, nullable: false}
+  mission_rewrite: {type: bool, nullable: false}
+  language: {type: str, enum: ['en', 'de', 'es', 'ru', 'cn'], nullable: false}
+  validation: {type: str, enum: ['none', 'strict', 'lazy']}
   database:
     type: map
+    nullable: false
     mapping:
-      url: {type: str, required: true}
-      pool_min: {type: int, range: {min: 2}}
-      pool_max: {type: int, range: {min: 5}}
-      max_reties: {type: int, range: {min: 1}}
-      max_idle: {type: int, range: {min: 0}}
+      url: {type: str, required: true, nullable: false, range: {min: 1}}
+      pool_min: {type: int, range: {min: 2}, nullable: false}
+      pool_max: {type: int, range: {min: 5}, nullable: false}
+      max_reties: {type: int, range: {min: 1}, nullable: false}
+      max_idle: {type: int, range: {min: 0}, nullable: false}
   logging:
     type: map
+    nullable: false
     mapping:
-      loglevel: {type: str, enum: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL']}
-      logrotate_count: {type: int}
-      logrotate_size: {type: int}
+      loglevel: {type: str, enum: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL'], nullable: false}
+      logrotate_count: {type: int, nullable: false}
+      logrotate_size: {type: int, nullable: false}
+      utc: {type: bool, nullable: false}
   filter:
     type: map
+    nullable: false
     mapping:
-      server_name: {type: str}
-      mission_name: {type: str}
-      tag: {type: str}
+      server_name: {type: str, nullable: false, range: {min: 1}}
+      mission_name: {type: str, nullable: false, range: {min: 1}}
+      tag: {type: str, nullable: false, range: {min: 1}}
   opt_plugins:
     type: seq
+    nullable: false
     sequence:
       - type: str
+        nullable: false
+        range: {min: 1}
+        unique: true

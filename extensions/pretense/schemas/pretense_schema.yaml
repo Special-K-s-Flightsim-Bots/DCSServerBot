@@ -1,5 +1,6 @@
 schema;pretense_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    randomize: {type: bool}
+    enabled: {type: bool, nullable: false}
+    randomize: {type: bool, nullable: false}

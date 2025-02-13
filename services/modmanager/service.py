@@ -41,7 +41,7 @@ class Folder(Enum):
         return NotImplemented
 
 
-@ServiceRegistry.register(plugin='modmanager')
+@ServiceRegistry.register(plugin='modmanager', depends_on=[ServiceBus])
 class ModManagerService(Service):
 
     def __init__(self, node):
@@ -53,6 +53,9 @@ class ModManagerService(Service):
 
     async def start(self):
         await super().start()
+        config = self.get_config()
+        for folder in Folder:
+            os.makedirs(os.path.expandvars(config[folder.value]), exist_ok=True)
         self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
         self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
         # noinspection PyAsyncCall
@@ -85,11 +88,12 @@ class ModManagerService(Service):
                 return
 
             for package in config.get('packages', []):
+                folder = Folder(package['source'])
                 if package.get('version', 'latest') == 'latest':
                     _version = await self.get_latest_version(package)
                 else:
                     _version = package['version']
-                installed = await self.get_installed_package(server, package['source'], package['name'])
+                installed = await self.get_installed_package(server, folder, package['name'])
                 if (not installed or installed != _version) and \
                         server.status != Status.SHUTDOWN:
                     self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
@@ -98,7 +102,7 @@ class ModManagerService(Service):
                 server.maintenance = True
                 try:
                     if not installed:
-                        if not await self.install_package(server, package['source'], package['name'], _version,
+                        if not await self.install_package(server, folder, package['name'], _version,
                                                           package.get('repo')):
                             self.log.warning(f"- Package {package['name']}_v{_version} not found!")
                     elif installed != _version:
@@ -106,10 +110,10 @@ class ModManagerService(Service):
                             self.log.debug(f"- Installed package {package['name']}_v{installed} is newer than the "
                                            f"configured version. Skipping.")
                             continue
-                        if not await self.uninstall_package(server, package['source'], package['name'], installed):
+                        if not await self.uninstall_package(server, folder, package['name'], installed):
                             self.log.warning(f"- Package {package['name']}_v{installed} could not be uninstalled on "
                                              f"server {server.name}!")
-                        elif not await self.install_package(server, package['source'], package['name'], _version):
+                        elif not await self.install_package(server, folder, package['name'], _version):
                             self.log.warning(f"- Package {package['name']}_v{_version} could not be installed on "
                                              f"server {server.name}!")
                         else:
@@ -217,7 +221,10 @@ class ModManagerService(Service):
 
     async def _get_latest_file_version(self, package: dict):
         config = self.get_config()
-        path = os.path.expandvars(config[package['source'].value])
+        source = package['source']
+        if isinstance(source, Folder):
+            source = source.value
+        path = os.path.expandvars(config[source])
         available = [self.parse_filename(x) for x in os.listdir(path) if package['name'] in x]
         max_version = None
         for _, _version in available:

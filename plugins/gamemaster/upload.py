@@ -3,17 +3,20 @@ import discord
 import json
 import os
 
-from core import utils, get_translation, Plugin, Server, ServerUploadHandler
+from core import utils, get_translation, Server, ServerUploadHandler
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import validate
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import GameMaster
 
 _ = get_translation(__name__.split('.')[1])
 
 
 class GameMasterUploadHandler(ServerUploadHandler):
 
-    def __init__(self, plugin: Plugin, server: Server, message: discord.Message, pattern: list[str]):
+    def __init__(self, plugin: "GameMaster", server: Server, message: discord.Message, pattern: list[str]):
         super().__init__(server, message, pattern)
         self.plugin = plugin
         self.log = plugin.log

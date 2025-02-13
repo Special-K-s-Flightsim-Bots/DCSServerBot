@@ -4,11 +4,15 @@ import asyncio
 from core import EventListener, Server, Player, Side, event, Plugin
 from datetime import datetime, timezone
 from psycopg.rows import dict_row
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Cloud
 
 
-class CloudListener(EventListener):
+class CloudListener(EventListener["Cloud"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "Cloud"):
         super().__init__(plugin)
         self.updates: dict[str, datetime] = {}
 
@@ -35,10 +39,8 @@ class CloudListener(EventListener):
                 """, (player.ucid, server.current_mission.map, player.unit_type))
                 row = await cursor.fetchone()
         if row:
-            # noinspection PyUnresolvedReferences
             row['client'] = self.plugin.client
             try:
-                # noinspection PyUnresolvedReferences
                 await self.plugin.post('upload', row)
             except aiohttp.ClientError:
                 self.log.warn('Cloud service not available atm, skipping statistics upload.')

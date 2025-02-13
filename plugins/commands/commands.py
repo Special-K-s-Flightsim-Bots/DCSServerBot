@@ -6,7 +6,7 @@ import shlex
 import subprocess
 import traceback
 
-from core import Plugin, TEventListener, utils, Server, Status, Report, DEFAULT_TAG
+from core import Plugin, utils, Server, Status, Report
 from discord.ext import commands
 from discord.ext.commands import Command
 from services.bot import DCSServerBot
@@ -14,10 +14,10 @@ from typing import Type, Optional
 
 
 class Commands(Plugin):
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
+    def __init__(self, bot: DCSServerBot):
+        super().__init__(bot)
         self.commands: dict[str, dict] = dict()
-        self.prefix = self.locals.get(DEFAULT_TAG, {}).get('command_prefix', '.')
+        self.prefix = self.bot.locals.get('command_prefix', '.')
         self.register_commands()
 
     async def cog_unload(self):

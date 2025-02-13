@@ -1,56 +1,102 @@
-schema;master_schema:
+schema;action_map:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    startup_delay: {type: int, range: {min: 0}}
+    local_times:
+      type: seq
+      nullable: false
+      sequence:
+        - type: str
+          pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
+          unique: true
+    utc_times:
+      type: seq
+      nullable: false
+      sequence:
+        - type: str
+          pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
+          unique: false
+    mission_time: { type: int, range: { min: 1 }, nullable: false }
+    max_mission_time: { type: int, range: { min: 1 }, nullable: false }
+    real_time: { type: int, range: { min: 1 }, nullable: false }
+    idle_time: { type: int, range: { min: 1 }, nullable: false }
+    method: { type: str, enum: [ 'restart', 'rotate', 'shutdown', 'load' ], nullable: false }
+    mission_id: { type: any, nullable: false, func: int_or_list }
+    mission_file: { type: any, nullable: false, func: str_or_list }
+    populated: { type: bool, nullable: false }
+    mission_end: { type: bool, nullable: false }
+    shutdown: { type: bool, nullable: false }
+    run_extensions: { type: bool, nullable: false }
+
+schema;action_seq:
+  type: seq
+  sequence:
+    - include: 'action_map'
+
+schema;warn_map:
+  type: map
+  nullable: false
+  mapping:
+    regex;(^\d+$): {type: str, nullable: false, range: {min: 1}}
+
+schema;warn_seq:
+  type: seq
+  nullable: false
+  sequence:
+    - {type: int, unique: true, nullable: false}
+
+schema;instance_schema:
+  type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    startup_delay: {type: int, range: {min: 0}, nullable: false}
     warn:
       type: map
+      nullable: false
       mapping:
-        text: {type: str}
-        sound: {type: str}
+        text: {type: str, nullable: false}
+        sound: {type: str, nullable: false}
         times:
           type: any
-          # todo - we allow lists and a map in here atm
+          nullable: false
+          func: seq_or_map
+          enum: ['warn_seq', 'warn_map']
     schedule:
       type: map
+      nullable: false
       mapping:
-        timezone: {type: str}
-        regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): {type: str, pattern: '^[YNP]{7}$'}
+        timezone: {type: str, nullable: false, range: {min: 1}}
+        regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): {type: str, pattern: '^[YNP]{7}$', nullable: false}
     action:
       type: any
-#      mapping:
-#        local_times:
-#          type: seq
-#          sequence:
-#            - type: str
-#              pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
-#        utc_times:
-#          type: seq
-#          sequence:
-#            - type: str
-#              pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
-#        mission_time: {type: int, range: {min: 1}}
-#        max_mission_time: {type: int, range: {min: 1}}
-#        real_time: {type: int, range: {min: 1}}
-#        idle_time: {type: int, range: {min: 1}}
-#        method: {type: str, enum: ['restart', 'rotate', 'shutdown', 'load']}
-#        shutdown: {type: bool}
-#        run_extensions: {type: bool}
-#        populated: {type: bool}
-#        mission_end: {type: bool}
-#        mission_id: {type: int}
-#        mission_file: {type: str}
-#        onMissionStart: {type: str}
-#        onMissionEnd: {type: str}
-#        onShutdown: {type: str}
+      nullable: false
+      func: seq_or_map
+      enum: ['action_seq', 'action_map']
+    onSimulationStart: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onSimulationStop: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onMissionEnd: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
+    onShutdown: { type: str, nullable: false, pattern: '^(load|lua|call|run):.+$' }
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

@@ -1,7 +1,12 @@
 schema;mission_schema:
   type: map
+  nullable: false
   mapping:
     choices:
       type: seq
+      nullable: false
       sequence:
         - type: str
+          nullable: false
+          unique: true
+          range: {min: 1}

@@ -104,7 +104,6 @@ class DummyBot:
         # cleanup remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)
-        self.log.info('DCSServerBot MASTER started.')
         self.setup.set()
 
     async def audit(self, message, *, user: Any = None, server: Optional[Server] = None, **kwargs):

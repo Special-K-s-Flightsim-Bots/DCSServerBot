@@ -24,10 +24,10 @@ schema;instance_extensions_schema:
   mapping:
     DSMC:
       include: 'dsmc_schema'
-    gRPC:
-      include: 'grpc_schema'
     GitHub:
       include: 'github_schema'
+    gRPC:
+      include: 'grpc_schema'
     Lardoon:
       include: 'instance_lardoon_schema'
     LogAnalyser:
@@ -36,10 +36,10 @@ schema;instance_extensions_schema:
       include: 'instance_lotatc_schema'
     MizEdit:
       include: 'mizedit_schema'
-    Olympus:
-      include: 'instance_olympus_schema'
     ModManager:
       include: 'modmanager_schema'
+    Olympus:
+      include: 'instance_olympus_schema'
     Pretense:
       include: 'pretense_schema'
     RealWeather:

@@ -1,5 +1,6 @@
 schema;restart_schema:
   type: map
+  nullable: false
   mapping:
-    run_extensions: {type: bool}
-    shutdown: {type: bool}
+    run_extensions: {type: bool, nullable: false}
+    shutdown: {type: bool, nullable: false}

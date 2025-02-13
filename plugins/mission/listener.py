@@ -14,12 +14,14 @@ from services.servicebus import ServiceBus
 from services.bot.dummy import DummyBot
 from typing import TYPE_CHECKING, Callable, Coroutine
 
+from .menu import read_menu_config, filter_menu
 
 if TYPE_CHECKING:
     from core import Server
+    from .commands import Mission
 
 
-class MissionEventListener(EventListener):
+class MissionEventListener(EventListener["Mission"]):
     EVENT_TEXTS = {
         Side.BLUE: {
             'takeoff': '```ansi\n\u001b[0;34mBLUE player {} took off from {}.```',
@@ -81,7 +83,7 @@ class MissionEventListener(EventListener):
         }
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "Mission"):
         super().__init__(plugin)
         self.queue: dict[int, asyncio.Queue[str]] = {}
         self.player_embeds: dict[str, bool] = {}
@@ -597,7 +599,8 @@ class MissionEventListener(EventListener):
                 if admin_channel:
                     # noinspection PyAsyncCall
                     asyncio.create_task(admin_channel.send(
-                        f"Player {player.display_name} (ucid={player.ucid}) can't be matched to a discord user."))
+                        f"{server.display_name}: Player {player.display_name} (ucid={player.ucid}) can't be matched "
+                        f"to a discord user."))
             if not isinstance(self.bot, DummyBot):
                 # noinspection PyAsyncCall
                 asyncio.create_task(player.sendChatMessage(
@@ -634,6 +637,10 @@ class MissionEventListener(EventListener):
     async def _stop_player(self, server: Server, player: Player):
         player.active = False
         server.afk.pop(player.ucid, None)
+        await server.send_to_dcs({
+            "command": "deleteMenu",
+            "groupID": player.group_id
+        })
         # if the last player left, the server is considered idle
         if not server.is_populated():
             server.idle_since = datetime.now(tz=timezone.utc)
@@ -797,6 +804,31 @@ class MissionEventListener(EventListener):
                 'ucid': player.ucid,
                 'roles': []
             }))
+
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
+        if data['eventName'] == 'S_EVENT_BIRTH':
+            _player = data.get('initiator', {}).get('name')
+            if not _player:
+                return
+            player = server.get_player(name=_player)
+            menu = await filter_menu(self, read_menu_config(self, server), server, player)
+            if menu:
+                group_id = data['initiator'].get('group', {}).get('id_')
+                if group_id is not None:
+                    await server.send_to_dcs({
+                        "command": "createMenu",
+                        "playerID": player.id,
+                        "groupID": group_id,
+                        "menu": menu
+                    })
+        elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
+            group_id = data.get('initiator', {}).get('group', {}).get('id_')
+            if group_id is not None:
+                await server.send_to_dcs({
+                    "command": "deleteMenu",
+                    "groupID": group_id
+                })
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
     async def pause(self, server: Server, player: Player, params: list[str]):
@@ -1043,8 +1075,11 @@ class MissionEventListener(EventListener):
                            f"(mission might be restarted!)"
                 await player.sendUserMessage(message, 30)
             else:
-                n = int(params[0]) - 1
-                # noinspection PyAsyncCall
-                asyncio.create_task(change_preset(presets[n]))
+                if params[0].isnumeric():
+                    n = int(params[0]) - 1
+                    # noinspection PyAsyncCall
+                    asyncio.create_task(change_preset(presets[n]))
+                else:
+                    asyncio.create_task(change_preset(params[0]))
         else:
             await player.sendChatMessage(f"There are no presets available to select.")

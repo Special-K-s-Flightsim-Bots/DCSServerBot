@@ -11,8 +11,6 @@ from urllib.parse import urlparse
 from ..utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, CoreError
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -88,12 +86,12 @@ class Node:
 
     def read_config(self, file: str) -> dict:
         try:
-            c = Core(source_file=file, schema_files=['schemas/main_schema.yaml'], file_encoding='utf-8')
-            try:
-                c.validate(raise_exception=True)
-            except SchemaError as ex:
-                self.log.warning(f'Error while parsing {file}:\n{ex}')
+            # we need to read first, otherwise we would not know the validation settings
             config = yaml.load(Path(file).read_text(encoding='utf-8'))
+            validation = config.get('validation', 'lazy')
+            if validation in ['strict', 'lazy']:
+                utils.validate(file, ['schemas/main_schema.yaml'], raise_exception=(validation == 'strict'))
+
             # check if we need to secure the database URL
             database_url = config.get('database', {}).get('url')
             if database_url:
@@ -113,9 +111,10 @@ class Node:
             config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
             config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
             config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
+            config['logging']['utc'] = config['logging'].get('utc', True)
             config['chat_command_prefix'] = config.get('chat_command_prefix', '-')
             return config
-        except (FileNotFoundError, CoreError):
+        except FileNotFoundError:
             raise FatalException()
         except MarkedYAMLError as ex:
             raise YAMLError(file, ex)
@@ -199,4 +198,10 @@ class Node:
         raise NotImplemented()
 
     async def unregister_server(self, server: "Server") -> None:
+        raise NotImplemented()
+
+    async def install_plugin(self, plugin: str) -> bool:
+        raise NotImplemented()
+
+    async def uninstall_plugin(self, plugin: str) -> bool:
         raise NotImplemented()

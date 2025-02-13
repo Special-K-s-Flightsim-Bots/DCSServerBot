@@ -80,7 +80,7 @@ async def campaign_servers_autocomplete(interaction: discord.Interaction, curren
         interaction.client.log.exception(ex)
 
 
-class GameMaster(Plugin):
+class GameMaster(Plugin[GameMasterEventListener]):
 
     async def install(self) -> bool:
         init = await super().install()

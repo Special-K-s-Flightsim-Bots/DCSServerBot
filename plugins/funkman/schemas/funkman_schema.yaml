@@ -1,23 +1,33 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  allowempty: true
-  required: true
+  func: is_node
+  nullable: false
   mapping:
-    install: {type: str}
-    CHANNELID_MAIN: {type: text}    # TODO: change this to int some day
-    CHANNELID_RANGE: {type: text}   # s.s.
-    CHANNELID_AIRBOSS: {type: text} # s.s.
-    IMAGEPATH: {type: str}
-    strafe_board: {type: bool}
-    strafe_channel: {type: int}
-    bomb_board: {type: bool}
-    bomb_channel: {type: int}
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    install: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
+    CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
+    CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
+    IMAGEPATH: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    strafe_board: {type: bool, nullable: false}
+    strafe_channel: {type: int, nullable: false}
+    bomb_board: {type: bool, nullable: false}
+    bomb_channel: {type: int, nullable: false}
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

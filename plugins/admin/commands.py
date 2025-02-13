@@ -6,17 +6,18 @@ import psycopg
 import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
-    PaginationReport, get_translation, TEventListener, DISCORD_FILE_SIZE_LIMIT
+    PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
+from pathlib import Path
 from services.bot import DCSServerBot
-from services.cron.actions import purge_channel
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from .listener import AdminEventListener
 from .views import CleanupView
 from ..scheduler.views import ConfigView
 
@@ -138,8 +139,31 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
     if not await interaction.command._check_can_run(interaction):
         return []
     return [
-        app_commands.Choice(name=x, value=x)
-        for x in interaction.client.cogs
+        app_commands.Choice(name=x.capitalize(), value=x.lower())
+        for x in sorted(interaction.client.cogs)
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
+async def uninstallable_plugins(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    installed = set([x for x in interaction.client.node.plugins]) - set(DEFAULT_PLUGINS)
+    return [
+        app_commands.Choice(name=x.capitalize(), value=x.lower())
+        for x in sorted(installed)
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
+async def installable_plugins(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    installed = set([x for x in interaction.client.node.plugins])
+    all = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
+    return [
+        app_commands.Choice(name=x.capitalize(), value=x)
+        for x in sorted(all - installed)
         if not current or current.casefold() in x.casefold()
     ]
 
@@ -182,10 +206,25 @@ async def all_servers_autocomplete(interaction: discord.Interaction, current: st
         return choices[:25]
 
 
-class Admin(Plugin):
+async def extensions_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    server: Server = await utils.ServerTransformer().transform(
+        interaction, utils.get_interaction_param(interaction, 'server'))
+    extensions = await server.list_extension()
+    current = current.casefold()
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x, value=x)
+        for x in extensions
+        if not current or current in x.casefold()
+    ]
+    return choices[:25]
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
+
+class Admin(Plugin[AdminEventListener]):
+
+    def __init__(self, bot: DCSServerBot, listener: Type[AdminEventListener]):
+        super().__init__(bot, listener)
         self.cleanup.add_exception_type(psycopg.DatabaseError)
         self.cleanup.start()
 
@@ -347,32 +386,34 @@ class Admin(Plugin):
                 return
 
         await self.bot.audit(f"started an update of all DCS servers on node {node.name}.", user=interaction.user)
-        await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
+        msg = await interaction.followup.send(_("Updating DCS World to the newest version, please wait ..."),
                                         ephemeral=ephemeral)
         try:
             rc = await node.update(warn_times=[warn_time] or [120, 60], branch=branch, version=new_version)
             if rc == 0:
                 branch, new_version = await node.get_dcs_branch_and_version()
-                await interaction.followup.send(content=_("DCS updated to version {version}@{branch} on node {name}."
-                                                          ).format(version=new_version, branch=branch, name=node.name))
+                await msg.edit(content=_("DCS updated to version {version}@{branch} on node {name}."
+                                         ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
             elif rc in [2, 112]:
                 await interaction.followup.send(
                     content=_("DCS World could not be updated on node {name} due to missing disk space!").format(
-                        name=node.name))
+                        name=node.name), ephemeral=True)
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
                 await interaction.followup.send(
                     content=_("DCS World updated to version {version}@{branch} on node {name}.\n"
                               "The updater has requested a **reboot** of the system!").format(
-                    version=new_version, branch=branch, name=node.name))
+                    version=new_version, branch=branch, name=node.name), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc))
+                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc),
+                    ephemeral=True)
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
-                content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."))
+                content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."),
+                ephemeral=True)
 
     @dcs.command(name='install', description=_('Install modules in your DCS server'))
     @app_commands.guild_only()
@@ -446,9 +487,12 @@ class Admin(Plugin):
         # double-check if that user can really download these files
         if config.get('discord') and not utils.check_roles(config['discord'], interaction.user):
             raise app_commands.CheckFailure()
-        # make sure nobody injected a wrong path
-        base_dir = os.path.expandvars(config['directory'].format(server=server))
+        if what == 'Missions':
+            base_dir = await server.get_missions_dir()
+        else:
+            base_dir = os.path.expandvars(config['directory'].format(server=server))
         try:
+            # make sure nobody injected a wrong path
             path = utils.sanitize_filename(os.path.abspath(os.path.join(base_dir, filename)), base_dir)
         except ValueError:
             await self.bot.audit("User attempted a relative file injection!",
@@ -606,24 +650,6 @@ class Admin(Plugin):
                         await interaction.followup.send(_("All data older than {} days pruned.").format(days),
                                                         ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
-
-    @command(name='clear', description=_('Clear Discord messages'))
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    @app_commands.describe(older_than=_('Delete messages older than x days (0 = all)'))
-    @app_commands.describe(ignore=_('Messages from this member will be ignored'))
-    async def clear(self, interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None,
-                    older_than: Optional[int] = None, ignore: Optional[discord.Member] = None,
-                    after_id: Optional[str] = None, before_id: Optional[str] = None):
-        if not channel:
-            channel = interaction.channel
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        msg = await interaction.followup.send(_("Deleting messages ..."))
-        await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
-                            ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
-                            before_id=int(before_id) if before_id else None)
-        await msg.edit(content=_("All messages deleted."))
 
     node_group = Group(name="node", description=_("Commands to manage your nodes"))
 
@@ -830,31 +856,6 @@ class Admin(Plugin):
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(_("Timeout during shell command."))
 
-    @command(description=_('Reloads a plugin'))
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    @app_commands.autocomplete(plugin=plugins_autocomplete)
-    async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
-        ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer(ephemeral=ephemeral)
-        if plugin:
-            if await self.bot.reload(plugin.lower()):
-                await interaction.followup.send(_('Plugin {} reloaded.').format(plugin), ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(
-                    _('Plugin {} could not be reloaded, check the log for details.').format(plugin),
-                    ephemeral=ephemeral)
-        else:
-            if await self.bot.reload():
-                await interaction.followup.send(_('All plugins reloaded.'), ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(
-                    _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
-        # for server in self.bus.servers.values():
-        #    if server.status == Status.STOPPED:
-        #        await server.send_to_dcs({"command": "reloadScripts"})
-
     @node_group.command(description=_("Add/create an instance\n"))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
@@ -977,6 +978,165 @@ Please make sure you forward the following ports:
                 _("Instance {} could not be renamed, because the directory is in use.").format(old_name),
                 ephemeral=ephemeral)
 
+    plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
+
+    @plug.command(name='install', description=_("Install Plugin"))
+    @app_commands.guild_only()
+    @app_commands.autocomplete(plugin=installable_plugins)
+    @utils.app_has_role('Admin')
+    async def _install(self, interaction: discord.Interaction, plugin: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not await self.node.install_plugin(plugin):
+            await interaction.followup.send(
+                _("Plugin {} could not be installed, check the log for details.").format(plugin), ephemeral=ephemeral)
+            return
+        message = _("Plugin {} installed.").format(plugin)
+        if os.path.exists(os.path.join('plugins', plugin.lower(), 'lua')):
+            message += _('\nPlease restart your DCS servers to apply the change.')
+        await interaction.followup.send(message, ephemeral=ephemeral)
+
+    @plug.command(name='uninstall', description=_("Uninstall Plugin"))
+    @app_commands.guild_only()
+    @app_commands.autocomplete(plugin=uninstallable_plugins)
+    @utils.app_has_role('Admin')
+    async def _uninstall(self, interaction: discord.Interaction, plugin: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if not await self.node.uninstall_plugin(plugin):
+            await interaction.followup.send(
+                _("Plugin {} could not be uninstalled, check the log for details.").format(plugin),
+                ephemeral=ephemeral)
+            return
+        await interaction.followup.send(
+            _("Plugin {} uninstalled. Please restart your DCS servers to apply the change!").format(plugin),
+            ephemeral=ephemeral)
+
+    @plug.command(description=_('Reload Plugin'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(plugin=plugins_autocomplete)
+    async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        if plugin:
+            if await self.bot.reload(plugin):
+                await interaction.followup.send(_('Plugin {} reloaded.').format(plugin), ephemeral=ephemeral)
+            else:
+                await interaction.followup.send(
+                    _('Plugin {} could not be reloaded, check the log for details.').format(plugin),
+                    ephemeral=ephemeral)
+        else:
+            if await self.bot.reload():
+                await interaction.followup.send(_('All plugins reloaded.'), ephemeral=ephemeral)
+            else:
+                await interaction.followup.send(
+                    _('One or more plugins could not be reloaded, check the log for details.'), ephemeral=ephemeral)
+        # for server in self.bus.servers.values():
+        #    if server.status == Status.STOPPED:
+        #        await server.send_to_dcs({"command": "reloadScripts"})
+
+    ext = Group(name="extension", description=_("Commands to manage your DCSServerBot extensions"))
+
+    @ext.command(description=_('Enable Extension'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(extension=extensions_autocomplete)
+    async def enable(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer], extension: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
+        # set enabled in the nodes.yaml
+        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
+            config_file_path = Path(os.path.join(interaction.client.node.config_dir, 'nodes.yaml'))
+            async with aiofiles.open(config_file_path, encoding='utf-8') as file:
+                config_data = yaml.load(await file.read())
+            ext = config_data[server.node.name].get('instances', {}).get(server.instance.name, {}).get('extensions', {}).get(extension)
+            if not ext:
+                await interaction.followup.send(_("You need to add a configuration for extension {} first.").format(
+                    extension), ephemeral=ephemeral)
+                return
+            if not ext.get('enabled', True):
+                ext['enabled'] = True
+                with open(config_file_path, mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(config_data, outfile)
+                await interaction.followup.send(_("Extension {} enabled on server {}.").format(
+                    extension, server.display_name), ephemeral=ephemeral)
+            else:
+                await interaction.followup.send(_("Extension {} is already enabled on server {}.").format(
+                    extension, server.display_name), ephemeral=ephemeral)
+                return
+
+        elif server.status in [Status.RUNNING, Status.PAUSED]:
+            await server.config_extension(extension, {"enabled": True})
+            # do we need to initialise the extension?
+            try:
+                await server.run_on_extension(extension=extension, method='enable')
+            except ValueError:
+                await server.init_extensions()
+                try:
+                    await server.run_on_extension(extension=extension, method='prepare')
+                except ValueError as ex:
+                    await interaction.followup.send(_("Failed enabling extension {} on server {}: {}").format(
+                        extension, server.display_name, ex), ephemeral=ephemeral)
+                    return
+            is_running = await server.run_on_extension(extension=extension, method='is_running')
+            if not is_running:
+                await server.run_on_extension(extension=extension, method='startup')
+            await interaction.followup.send(_("Extension {} enabled on server {} and started.").format(
+                extension, server.display_name), ephemeral=ephemeral)
+
+    @ext.command(description=_('Enable Extension'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(extension=extensions_autocomplete)
+    async def disable(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer], extension: str):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        await interaction.followup.send(_("Disabling extension {}...").format(extension), ephemeral=ephemeral)
+        # unset enabled in the nodes.yaml
+        if server.status in [Status.STOPPED, Status.SHUTDOWN]:
+            config_file_path = Path(os.path.join(interaction.client.node.config_dir, 'nodes.yaml'))
+            async with aiofiles.open(config_file_path, encoding='utf-8') as file:
+                config_data = yaml.load(await file.read())
+            ext = config_data[server.node.name].get('instances', {}).get(server.instance.name, {}).get('extensions', {}).get(extension)
+            if not ext:
+                await interaction.followup.send(_("You need to add a configuration for extension {} first.").format(
+                    extension), ephemeral=ephemeral)
+                return
+            if ext.get('enabled', True):
+                ext['enabled'] = False
+                with open(config_file_path, mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(config_data, outfile)
+                await interaction.followup.send(_("Extension {} disabled in nodes.yaml").format(extension),
+                                                ephemeral=ephemeral)
+                return
+            else:
+                await interaction.followup.send(_("Extension {} is already disabled.").format(extension),
+                                                ephemeral=ephemeral)
+                return
+
+        elif server.status in [Status.RUNNING, Status.PAUSED]:
+            try:
+                is_running = await server.run_on_extension(extension=extension, method='is_running')
+                if not is_running:
+                    await interaction.followup.send(_("Extension {} is not running on server {}.").format(
+                        extension, server.name), ephemeral=True)
+                    return
+                await server.config_extension(extension, {"enabled": False})
+                await server.run_on_extension(extension=extension, method='disable')
+                await interaction.followup.send(_("Extension {} disabled and stopped on server {}.").format(
+                    extension, server.display_name), ephemeral=ephemeral)
+            except ValueError:
+                await interaction.followup.send(_("Extension {} not found.").format(extension), ephemeral=True)
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # ignore bot messages or messages that do not contain yaml attachments
@@ -1072,4 +1232,4 @@ Please make sure you forward the following ports:
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(Admin(bot))
+    await bot.add_cog(Admin(bot, AdminEventListener))

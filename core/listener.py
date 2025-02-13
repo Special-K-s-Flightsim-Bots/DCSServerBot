@@ -2,7 +2,7 @@ from __future__ import annotations
 import inspect
 
 from dataclasses import MISSING
-from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable, Union
+from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable, Union, Generic
 
 if TYPE_CHECKING:
     from core import Plugin, Server, Player
@@ -16,6 +16,8 @@ __all__ = [
     "EventListener",
     "TEventListener"
 ]
+
+TPlugin = TypeVar("TPlugin", bound="Plugin")
 
 
 def event(name: str = MISSING, cls: Type[Event] = MISSING, **attrs) -> Callable[[Any], Event]:
@@ -89,7 +91,7 @@ class EventListenerMeta(type):
         return new_cls
 
 
-class EventListener(metaclass=EventListenerMeta):
+class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
     __events__: dict[str, Event]
     __chat_commands__: dict[str, ChatCommand]
     __all_commands__: dict[str, ChatCommand]
@@ -105,8 +107,8 @@ class EventListener(metaclass=EventListenerMeta):
                 self.__all_commands__[alias] = value
         return self
 
-    def __init__(self, plugin: Plugin):
-        self.plugin: Plugin = plugin
+    def __init__(self, plugin: TPlugin):
+        self.plugin: TPlugin = plugin
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.bot: DCSServerBot = plugin.bot
         self.node = plugin.node
@@ -155,8 +157,7 @@ class EventListener(metaclass=EventListenerMeta):
                     self.__all_commands__[cmd.name] = cmd
                 if 'aliases' in params:
                     # remove old aliases
-                    for alias in cmd.aliases:
-                        self.__all_commands__.pop(alias, None)
+                    self.__all_commands__.clear()
                     cmd.aliases = params['aliases']
                     # re-add new aliases
                     for alias in cmd.aliases:

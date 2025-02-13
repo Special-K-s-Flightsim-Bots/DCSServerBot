@@ -65,13 +65,13 @@ class SRS(Extension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
-        super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
         self.process: Optional[psutil.Process] = None
         self.observer: Optional[Observer] = None
+        self.first_run = True
         self._inst_path: Optional[str] = None
         self.clients: dict[str, set[int]] = {}
-        atexit.register(self.stop_observer)
+        super().__init__(server, config)
 
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
@@ -235,11 +235,14 @@ class SRS(Extension, FileSystemEventHandler):
                     f"-cfg={os.path.expandvars(self.config['config'])}"
                 ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
 
-            p = await asyncio.to_thread(run_subprocess)
             try:
-                self.process = psutil.Process(p.pid)
-                if not self.observer:
-                    self.start_observer()
+                async with self.lock:
+                    if self.is_running():
+                        return True
+                    p = await asyncio.to_thread(run_subprocess)
+                    self.process = psutil.Process(p.pid)
+                    if not self.observer:
+                        self.start_observer()
             except psutil.NoSuchProcess:
                 self.log.error(f"Error during launch of {self.get_exe_path()}!")
                 return False
@@ -270,7 +273,7 @@ class SRS(Extension, FileSystemEventHandler):
                             self.log.warning(f"  => Please move your SRS configuration to "
                                              f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
                 except Exception as ex:
-                    self.log.error(f'Error during shutdown of SRS: {str(ex)}')
+                    self.log.error(f'Error during shutdown of SRS', exc_info=ex)
                     return False
                 finally:
                     if self.observer:
@@ -333,6 +336,9 @@ class SRS(Extension, FileSystemEventHandler):
             self.observer = Observer()
             self.observer.schedule(self, path=os.path.dirname(path))
             self.observer.start()
+            if self.first_run:
+                atexit.register(self.stop_observer)
+                self.first_run = False
 
     def stop_observer(self):
         if self.observer:
@@ -514,3 +520,11 @@ class SRS(Extension, FileSystemEventHandler):
 
         except Exception as ex:
             self.log.exception(ex)
+
+    async def get_ports(self) -> dict:
+        rc = {
+            "SRS Port": self.locals['Server Settings']['SERVER_PORT']
+        }
+        if self.locals['General Settings'].get('LOTATC_EXPORT_ENABLED', False):
+            rc["LotAtc Export Port"] = self.locals['General Settings'].get('LOTATC_EXPORT_PORT', 10712)
+        return rc

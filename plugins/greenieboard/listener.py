@@ -6,18 +6,21 @@ import re
 import string
 import sys
 
-from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event, get_translation, utils
+from core import EventListener, Server, Player, Channel, Side, PersistentReport, event, get_translation, utils
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
 from contextlib import suppress
-from typing import Optional, cast
+from typing import Optional, cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import GreenieBoard
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class GreenieBoardEventListener(EventListener):
+class GreenieBoardEventListener(EventListener["GreenieBoard"]):
 
     EVENT_TEXTS = {
         Side.BLUE: {
@@ -32,7 +35,7 @@ class GreenieBoardEventListener(EventListener):
         }
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "GreenieBoard"):
         super().__init__(plugin)
         config = self.get_config()
         if 'FunkMan' in config:
@@ -176,7 +179,6 @@ class GreenieBoardEventListener(EventListener):
         if not data['grade'].startswith("WO"):
             filename = self.get_trapsheet(config, server, player, data)
             if filename and os.path.exists(filename):
-                # noinspection PyUnresolvedReferences
                 data['trapsheet'] = self.plugin.plot_trapheet(filename)
                 with suppress(Exception):
                     os.remove(filename)
@@ -220,7 +222,7 @@ class GreenieBoardEventListener(EventListener):
             return
         config = self.plugin.get_config(server)
         # ignore SC / Moose.AIRBOSS events, if FunkMan is enabled
-        if 'FunkMan' in config:
+        if 'FunkMan' in config and config['FunkMan'].get('enabled', True):
             return
         player: Player = server.get_player(name=data['initiator']['name']) if 'name' in data['initiator'] else None
         if player:

@@ -38,10 +38,13 @@ class Extension(ABC):
         self.log = logging.getLogger(__name__)
         self.pool = self.node.pool
         self.loop = asyncio.get_event_loop()
+        self.lock = asyncio.Lock()
         self.config: dict = config
         self.server: Server = server
-        self.locals: dict = self.load_config()
         self.running = False
+        if not self.enabled or not self.is_installed():
+            return
+        self.locals: dict = self.load_config()
         if self.__class__.__name__ not in Extension.started_schedulers:
             schedule = getattr(self, 'schedule', None)
             if schedule:
@@ -85,14 +88,32 @@ class Extension(ABC):
     def version(self) -> Optional[str]:
         return None
 
+    @property
+    def enabled(self) -> bool:
+        return self.config.get('enabled', True)
+
+    async def enable(self):
+        self.config['enabled'] = True
+
+    async def disable(self):
+        if self.is_running():
+            await asyncio.to_thread(self.shutdown)
+        self.config['enabled'] = False
+
     async def render(self, param: Optional[dict] = None) -> dict:
         raise NotImplementedError()
 
     def is_installed(self) -> bool:
-        return self.config.get('enabled', True)
+        return self.enabled
 
     async def install(self):
         ...
 
     async def uninstall(self):
         ...
+
+    async def get_config(self) -> dict:
+        return self.locals
+
+    async def get_ports(self) -> dict:
+        return {}

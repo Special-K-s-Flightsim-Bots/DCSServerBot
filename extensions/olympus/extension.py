@@ -1,10 +1,11 @@
+import aiofiles
 import asyncio
 import atexit
 import hashlib
 import json
+import logging
 import os
-
-import aiofiles
+import re
 import psutil
 import stat
 import subprocess
@@ -17,6 +18,7 @@ from typing import Optional
 _ = get_translation(__name__.split('.')[1])
 
 OLYMPUS_EXPORT_LINE = r"pcall(function() local olympusLFS=require('lfs');dofile(olympusLFS.writedir()..[[Mods\Services\Olympus\Scripts\OlympusCameraControl.lua]]); end,nil)"
+ANSI_ESCAPE_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 server_ports: dict[int, str] = dict()
 client_ports: dict[int, str] = dict()
@@ -57,13 +59,14 @@ class Olympus(Extension):
 
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'Olympus')
+        self.nodejs = os.path.join(os.path.expandvars(config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
         super().__init__(server, config)
-        self.nodejs = os.path.join(os.path.expandvars(self.config.get('nodejs', '%ProgramFiles%\\nodejs')), 'node.exe')
-        # check if there is an olympus process running already
-        self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
-                                                                    self.server.instance.name)
-        if self.process:
-            self.log.debug("- Running Olympus process found.")
+        if self.enabled:
+            # check if there is an olympus process running already
+            self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
+                                                                        self.server.instance.name)
+            if self.process:
+                self.log.debug("- Running Olympus process found.")
 
         if self.version == '1.0.3.0':
             self.backend_tag = 'server'
@@ -216,12 +219,14 @@ class Olympus(Extension):
 
     async def startup(self) -> bool:
 
-        def log_output(proc: subprocess.Popen):
-            for line in iter(proc.stdout.readline, b''):
-                self.log.debug(line.decode('utf-8').rstrip())
+        def log_output(pipe, level=logging.INFO):
+            for line in iter(pipe.readline, ''):
+                self.log.log(level, "{name}: {message}".format(
+                    name=self.name, message=ANSI_ESCAPE_RE.sub('', line.rstrip())))
 
         def run_subprocess():
             out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
+            err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
             if not os.path.exists(os.path.join(path, 'bin', 'www')):
@@ -232,19 +237,30 @@ class Olympus(Extension):
                 args.append('--config')
                 args.append(self.config_path)
             self.log.debug("Launching {}".format(' '.join(args)))
-            proc = subprocess.Popen(args, cwd=path, stdout=out, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen(
+                args,
+                cwd=path,
+                stdout=out,
+                stderr=err,
+                close_fds=True,
+                universal_newlines=True
+            )
             if self.config.get('debug', False):
-                Thread(target=log_output, args=(proc,), daemon=True).start()
+                Thread(target=log_output, args=(proc.stdout,logging.DEBUG), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr,logging.ERROR), daemon=True).start()
             return proc
 
         try:
-            p = await asyncio.to_thread(run_subprocess)
-            try:
-                self.process = psutil.Process(p.pid)
-            except (AttributeError, psutil.NoSuchProcess):
-                self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
-                return False
-            atexit.register(self.terminate)
+            async with self.lock:
+                if self.is_running():
+                    return True
+                p = await asyncio.to_thread(run_subprocess)
+                try:
+                    self.process = psutil.Process(p.pid)
+                except (AttributeError, psutil.NoSuchProcess):
+                    self.log.error(f"Failed to start Olympus server, enable debug in the extension.")
+                    return False
+                atexit.register(self.terminate)
         except OSError as ex:
             self.log.error("Error while starting Olympus: " + str(ex))
             return False
@@ -275,3 +291,9 @@ class Olympus(Extension):
     def shutdown(self) -> bool:
         super().shutdown()
         return self.terminate()
+
+    def get_ports(self) -> dict:
+        return {
+            "Olympus " + self.backend_tag.capitalize(): self.config.get(self.backend_tag, {}).get('port', 3001),
+            "Olympus " + self.frontend_tag.capitalize(): self.config.get(self.frontend_tag, {}).get('port', 3000)
+        }

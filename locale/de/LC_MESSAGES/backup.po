@@ -10,6 +10,9 @@ msgstr ""
 msgid "Backup your data"
 msgstr "Erstelle ein Backup"
 
+msgid "Backup of {} started ..."
+msgstr "Backup von {} gestartet ..."
+
 msgid "Backup of {} completed."
 msgstr "Backup von {} abgeschlossen."
 

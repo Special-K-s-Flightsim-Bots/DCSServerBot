@@ -2,7 +2,7 @@ import discord
 import os
 import pandas as pd
 
-from core import Plugin, Report, ReportEnv, command, utils, get_translation
+from core import Plugin, Report, ReportEnv, command, utils, get_translation, Status
 from discord import app_commands, Interaction
 from discord.ui import View, Select, Button, Modal, TextInput, Item
 from functools import cache
@@ -46,7 +46,7 @@ async def commands_autocomplete(interaction: discord.Interaction, current: str) 
         interaction.client.log.exception(ex)
 
 
-class Help(Plugin):
+class Help(Plugin[HelpListener]):
 
     class HelpView(View):
         def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, options: list[discord.SelectOption]):
@@ -380,21 +380,15 @@ _ _
                 'Bot Port': server.instance.bot_port
             }
 
-            for ext in server.extensions.values():
-                if ext.name == 'SRS':
-                    server_dict['SRS Port'] = ext.locals['Server Settings'].get('SERVER_PORT', 5002)
-                elif ext.name == 'Tacview':
-                    server_dict['Tacview Port'] = ext.locals.get('tacviewRealTimeTelemetryPort', 42674)
-                    if ext.locals.get('tacviewRemoteControlEnabled', False):
-                        server_dict['Tacview Remote Control'] = ext.locals.get('tacviewRemoteControlPort', 42675)
-                elif ext.name == 'LotAtc':
-                    server_dict['LotAtc Port'] = ext.locals.get('port', 10310)
-                elif ext.name == 'DCS Olympus':
-                    server_dict['Olympus Client'] = ext.config.get(ext.frontend_tag, {}).get('port', 3000)
-                    server_dict['Olympus Server'] = ext.config.get(ext.backend_tag, {}).get('port', 3001)
-                elif ext.name == 'Sneaker':
-                    port = ext.config['bind'].split(':')[1]
-                    server_dict['Sneaker Port'] = port
+            if server.status == Status.SHUTDOWN:
+                await server.init_extensions()
+            for ext in server.instance.locals.get('extensions').keys():
+                try:
+                    rc = await server.run_on_extension(ext, 'get_ports')
+                    for key, value in rc.items():
+                        server_dict[key] = value
+                except ValueError:
+                    pass
 
             data_df = pd.DataFrame([server_dict])
             df = pd.concat([df, data_df], ignore_index=True)
@@ -405,6 +399,7 @@ _ _
     async def generate_server_docs(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
+        await interaction.followup.send("Generating server documentation... Please wait a moment.")
         server_info = (await self.server_info_to_df()).sort_values(['Node', 'Instance'])
         output = BytesIO()
         with pd.ExcelWriter(output) as writer:

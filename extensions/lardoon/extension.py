@@ -49,7 +49,7 @@ class Lardoon(Extension):
 
         super().__init__(server, config)
         # find a running process, if there is any
-        if not process or not process.is_running():
+        if self.enabled and (not process or not process.is_running()):
             cmd = self.config.get('cmd')
             if not cmd:
                 return
@@ -184,3 +184,8 @@ class Lardoon(Extension):
                     await asyncio.to_thread(run_subprocess, ["prune", "--no-dry-run"])
             except Exception as ex:
                 self.log.exception(ex)
+
+    async def get_ports(self) -> dict:
+        return {
+            "Lardoon": self.config['bind'].split(':')[1]
+        }

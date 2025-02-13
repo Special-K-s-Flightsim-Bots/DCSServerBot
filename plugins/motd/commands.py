@@ -2,7 +2,7 @@ import asyncio
 import discord
 import random
 
-from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
+from core import Plugin, PluginRequiredError, utils, Server, Player, Status, Coalition, \
     PluginInstallationError, command
 from discord import app_commands
 from discord.ext import tasks
@@ -12,9 +12,9 @@ from typing import Optional, Type, Literal, AsyncGenerator
 from .listener import MOTDListener
 
 
-class MOTD(Plugin):
+class MOTD(Plugin[MOTDListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[MOTDListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)

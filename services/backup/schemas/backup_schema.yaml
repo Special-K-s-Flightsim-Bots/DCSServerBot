@@ -1,51 +1,80 @@
 type: map
+nullable: false
 mapping:
-  target: {type: str}
-  delete_after: {type: text}
+  target: {type: str, nullable: false, range: {min: 1}}
+  delete_after: {type: text, nullable: false}
   backups:
     type: map
+    nullable: false
     mapping:
       database:
         type: map
+        nullable: false
         mapping:
-          path: {type: str, required: true}
-          password: {type: str}
+          path: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+          password: {type: str, nullable: false}
           schedule:
             type: map
+            nullable: false
             mapping:
               times:
                 type: seq
+                nullable: false
                 sequence:
                   - type: str
-              days: {type: str, pattern: '^[YN]{7}$'}
+                    nullable: false
+                    range: {min: 1}
+                    unique: true
+              days: {type: str, pattern: '^[YN]{7}$', nullable: false, range: {min: 1}}
       servers:
         type: map
+        nullable: false
         mapping:
           directories:
             type: seq
+            nullable: false
             sequence:
               - type: str
+                nullable: false
+                range: {min: 1}
+                unique: true
           schedule:
             type: map
+            nullable: false
             mapping:
               times:
                 type: seq
+                nullable: false
                 sequence:
                   - type: str
-              days: {type: str, pattern: '^[YN]{7}$'}
+                    nullable: false
+                    range: {min: 1}
+                    unique: true
+              days: {type: str, pattern: '^[YN]{7}$', nullable: false, range: {min: 1}}
       bot:
         type: map
+        nullable: false
         mapping:
           directories:
             type: seq
+            nullable: false
             sequence:
               - type: str
+                nullable: false
+                range: {min: 1}
+                unique: true
+                func: file_exists
           schedule:
             type: map
+            nullable: false
             mapping:
               times:
                 type: seq
+                nullable: false
                 sequence:
                   - type: str
                     pattern: '^([0-9]|0[0-9]|1[0-9]|2[0-3]):([0-9]|[0-5][0-9])$'
-              days: {type: str, pattern: '^[YN]{7}$'}
+                    nullable: false
+                    range: {min: 1}
+                    unique: true
+              days: {type: str, pattern: '^[YN]{7}$', nullable: false, range: {min: 1}}

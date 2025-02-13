@@ -1,32 +1,45 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  allowempty: true
+  func: is_node
+  nullable: false
   mapping:
-    music_dir: {type: str}
-    popup: {type: str}
-    chat: {type: str}
-    pause_without_players: {type: bool}
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    music_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    popup: {type: str, nullable: false, range: {min: 1}}
+    chat: {type: str, nullable: false, range: {min: 1}}
+    pause_without_players: {type: bool, nullable: false}
     radios:
       type: map
+      nullable: false
       mapping:
         regex;(.+):
           type: map
+          nullable: false
           mapping:
-            type: {type: str, enum: ['SRSRadio'], required: true}
-            mode: {type: int, enum: [1, 2], required: true}
-            frequency: {type: text, required: true}
-            modulation: {type: str, enum: ['AM', 'FM'], required: true}
-            coalition: {type: int, enum: [1, 2, 3], required: true}
-            volume: {type: text}
-            display_name: {type: str}
-            popup: {type: str}
-            chat: {type: str}
+            type: {type: str, enum: ['SRSRadio'], required: true, nullable: false}
+            mode: {type: int, enum: [1, 2], required: true, nullable: false}
+            frequency: {type: text, required: true, nullable: false}
+            modulation: {type: str, enum: ['AM', 'FM'], required: true, nullable: false}
+            coalition: {type: int, enum: [1, 2], required: true, nullable: false}
+            volume: {type: text, nullable: false}
+            display_name: {type: str, nullable: false, range: {min: 1}}
+            popup: {type: str, nullable: false, range: {min: 1}}
+            chat: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

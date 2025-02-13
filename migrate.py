@@ -8,7 +8,7 @@ from configparser import ConfigParser
 from contextlib import suppress
 from copy import deepcopy
 from core import utils
-from core.const import DEFAULT_TAG
+from core.const import DEFAULT_TAG, SAVED_GAMES
 from core.plugin import BACKUP_FOLDER
 from core.data.node import Node
 from pathlib import Path
@@ -136,6 +136,8 @@ def migrate(node: Node, old_version: str, new_version: str) -> int:
         return migrate_3_11(node)
     elif old_version == 'v3.11' and new_version == 'v3.12':
         return migrate_3_12(node)
+    elif old_version == 'v3.12' and new_version == 'v3.13':
+        return migrate_3_13(node)
     return 0
 
 def migrate_3_11(node: Node) -> int:
@@ -198,6 +200,21 @@ def migrate_3_12(node: Node) -> int:
         shutil.move(filename, os.path.join(node.config_dir, 'services', 'core.yaml'))
     return 0
 
+
+def migrate_3_13(node: Node) -> int:
+    ignore = ['.dcssb']
+    nodes = yaml.load(Path(os.path.join(node.config_dir, 'nodes.yaml')).read_text(encoding='utf-8'))
+    for node in nodes:
+        for name, instance in nodes[node].get('instances', {}).items():
+            home = os.path.expandvars(instance.get('home', os.path.join(SAVED_GAMES, name)))
+            missions_dir = instance.get('missions_dir', os.path.join(home, 'Missions'))
+            for file in Path(missions_dir).rglob('*.orig'):
+                if file.name in ignore or os.path.basename(file.parent) in ignore:
+                    continue
+                new_file = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
+                os.makedirs(os.path.dirname(new_file), exist_ok=True)
+                shutil.move(file, new_file)
+    return 0
 
 def migrate_3(node: str):
     cfg = ConfigParser()

@@ -1,25 +1,39 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  allowempty: true
+  func: is_node
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    display: {type: bool}
-    persistence: {type: bool}
-    persist_ai_statistics: {type: bool}
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    display: {type: bool, nullable: false}
+    persistence: {type: bool, nullable: false}
+    persist_ai_statistics: {type: bool, nullable: false}
     mission_end:
       type: map
+      nullable: false
       mapping:
-        persistent: {type: bool}
-        channel: {type: int}
-        title: {type: str}
+        persistent: {type: bool, nullable: false}
+        channel: {type: int, nullable: false}
+        title: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

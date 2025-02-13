@@ -35,6 +35,7 @@ class HeaderWidget:
         self.log = service.log
 
     def __rich__(self) -> Panel:
+        config = self.service.get_config().get('header', {})
         grid = Table.grid(expand=True)
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
@@ -47,8 +48,8 @@ class HeaderWidget:
         message += (f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version} | "
                     f"DCS Version {self.service.dcs_version}[/]")
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
-        return Panel(grid, style=self.service.get_config().get("header", {}).get("background", "white on navy_blue"),
-                     border_style=self.service.get_config().get("header", {}).get("border", "white"))
+        return Panel(grid, style=config.get("background", "white on navy_blue"),
+                     border_style=config.get("border", "white"))
 
 
 class ServersWidget:
@@ -60,6 +61,7 @@ class ServersWidget:
         self.bus = service.bus
 
     def __rich__(self) -> Panel:
+        config = self.service.get_config().get("servers", {})
         table = Table(expand=True, show_edge=False)
         table.add_column("Status", justify="center", min_width=8)
         table.add_column("Server Name", justify="left", no_wrap=True)
@@ -68,6 +70,8 @@ class ServersWidget:
         if self.service.node.master and self.service.is_multinode():
             table.add_column("Node", justify="left", min_width=8)
         for server_name, server in self.bus.servers.items():
+            if config.get('hide_remote_servers', False) and server.is_remote:
+                continue
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
             mission_name = re.sub(self.bus.filter['mission_name'], '',
                                   server.current_mission.name).strip() if server.current_mission else "n/a"
@@ -78,8 +82,8 @@ class ServersWidget:
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
         return Panel(table, padding=1,
-                     style=self.service.get_config().get("servers", {}).get("background", "white on dark_blue"),
-                     border_style=self.service.get_config().get("servers", {}).get("border", "white"))
+                     style=config.get("background", "white on dark_blue"),
+                     border_style=config.get("border", "white"))
 
 
 class NodeWidget:
@@ -93,6 +97,7 @@ class NodeWidget:
         self.log = service.log
 
     def __rich__(self) -> Panel:
+        config = self.service.get_config().get("nodes", {})
         table = Table(expand=True, show_edge=False)
         table.add_column("Node ([green]Master[/])", justify="left")
         table.add_column("Servers", justify="left")
@@ -112,8 +117,8 @@ class NodeWidget:
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
         return Panel(table, padding=1,
-                     style=self.service.get_config().get("nodes", {}).get("background", "white on dark_blue"),
-                     border_style=self.service.get_config().get("nodes", {}).get("border", "white"))
+                     style=config.get("background", "white on dark_blue"),
+                     border_style=config.get("border", "white"))
 
 
 class LogWidget:
@@ -125,9 +130,10 @@ class LogWidget:
         self.buffer: list[tuple[int, "ConsoleRenderable"]] = []
         self.handler = service.old_handler
         self.console = Console(record=True)
+        config = self.service.get_config().get("log", {})
         self.panel = Panel("", height=self.console.options.max_height,
-                           style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
-                           border_style=self.service.get_config().get("log", {}).get("border", "white"))
+                           style=config.get("background", "white on grey15"),
+                           border_style=config.get("border", "white"))
         self.previous_size = self.console.size
 
     def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
@@ -182,6 +188,8 @@ class LogWidget:
 
     def __rich_console__(self, _: Console, options: ConsoleOptions) -> RenderResult:
         if not self.queue.empty() or self._check_size_change():
+            config = self.service.get_config()
+
             max_displayable_height = options.max_height - 2
             available_height = max_displayable_height
 
@@ -200,13 +208,13 @@ class LogWidget:
 
             log_content = Group(*(renderable for _, renderable in self.buffer))
             self.panel = Panel(log_content, height=options.max_height,
-                        style=self.service.get_config().get("log", {}).get("background", "white on grey15"),
-                        border_style=self.service.get_config().get("log", {}).get("border", "white"))
+                        style=config.get("log", {}).get("background", "white on grey15"),
+                        border_style=config.get("log", {}).get("border", "white"))
 
         yield self.panel
 
 
-@ServiceRegistry.register()
+@ServiceRegistry.register(depends_on=[ServiceBus])
 class Dashboard(Service):
 
     def __init__(self, node):

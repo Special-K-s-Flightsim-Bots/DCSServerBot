@@ -1,4 +1,5 @@
 schema;instance_voicechat_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
+    enabled: {type: bool, nullable: false}

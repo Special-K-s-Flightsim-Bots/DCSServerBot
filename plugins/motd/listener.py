@@ -2,10 +2,13 @@ import asyncio
 import random
 
 from core import EventListener, utils, Server, Report, Player, event
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import MOTD
 
 
-class MOTDListener(EventListener):
+class MOTDListener(EventListener["MOTD"]):
 
     async def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
         if 'messages' in config:
@@ -20,11 +23,10 @@ class MOTDListener(EventListener):
                 return None
         else:
             if 'recipients' in config:
-                # noinspection PyUnresolvedReferences
                 players = [p async for p in self.plugin.get_recipients(server, config)]
                 if player not in players:
                     return None
-            return utils.format_string(config['message'])
+            return utils.format_string(config['message'], server=server, player=player)
 
     async def on_birth(self, config: dict, server: Server, player: Player) -> tuple[Optional[str], Optional[dict]]:
         if 'messages' in config:
@@ -40,7 +42,6 @@ class MOTDListener(EventListener):
         else:
             message = None
             if 'recipients' in config:
-                # noinspection PyUnresolvedReferences
                 players = [p async for p in self.plugin.get_recipients(server, config)]
                 if player not in players:
                     return None, None
@@ -84,6 +85,5 @@ class MOTDListener(EventListener):
                 return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
-                # noinspection PyUnresolvedReferences
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.plugin.send_message(message, server, cfg, player))

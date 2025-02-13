@@ -419,3 +419,9 @@ class Tacview(Extension):
                 self.log.info(f"  => {self.name}: Instance {self.server.instance.name} is running version "
                               f"{self.version}, where {version} is available!")
         return False
+
+    async def get_ports(self) -> dict:
+        return {
+            "tacviewRealTimeTelemetryPort": self.locals.get('tacviewRealTimeTelemetryPort', 42674),
+            "tacviewRemoteControlPort": self.locals.get('tacviewRemoteControlPort', 42675)
+        }

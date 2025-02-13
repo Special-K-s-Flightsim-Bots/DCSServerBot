@@ -1,39 +1,69 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  allowempty: true
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
   mapping:
     VIP:
       type: map
+      nullable: false
       mapping:
-        audit: {type: bool}
-        discord: {type: any}
-        ucid: {type: any}
-        slots: {type: int, range: {min: 1}}
-        message_server_full: { type: str }
+        audit: {type: bool, nullable: false}
+        discord: {type: any, nullable: false, func: text_or_list}
+        ucid: {type: any, nullable: false, func: str_or_list}
+        slots: {type: int, range: {min: 1}, nullable: false}
+        message_server_full: {type: str, nullable: false, range: {min: 1}}
     restricted:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            unit_type: {type: str}
-            unit_name: {type: str}
-            group_name: {type: str}
-            discord: {type: any}
-            message: {type: str}
-            points: {type: int}
-            costs: {type: int}
-            crew: {type: int}
-            VIP: {type: bool}
-            side: {type: int}
-    payback: {type: bool}
+            unit_type: {type: str, nullable: false, range: {min: 1}}
+            unit_name: {type: str, nullable: false, range: {min: 1}}
+            group_name: {type: str, nullable: false, range: {min: 1}}
+            discord: {type: any, nullable: false, func: text_or_list}
+            message: {type: str, nullable: false, range: {min: 1}}
+            points: {type: int, nullable: false}
+            costs: {type: int, nullable: false}
+            crew: {type: int, nullable: false}
+            VIP: {type: bool, nullable: false}
+            side: {type: int, nullable: false, enum: [0, 1, 2]}
+    payback: {type: bool, nullable: false}
+    balancing:
+      type: map
+      nullable: false
+      mapping:
+        blue_vs_red: {type: float, nullable: false, required: true}
+        threshold: {type: float, nullable: false, required: true}
+        activation_threshold: {type: int, nullable: false}
+        message: {type: str, nullable: false, range: {min: 1}}
+    messages:
+      type: map
+      nullable: false
+      mapping:
+        credits_taken: {type: str, nullable: false, range: {min: 1}}
+        payback: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

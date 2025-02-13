@@ -15,6 +15,54 @@ You can upload .miz files in the configured admin channel of your server(s). Exi
 security question) and if the server is running with that mission, it will be restarted (another security question 
 will apply). Newly added missions will be auto-added to the mission list.<br>
 
+## Custom User Menus
+DCSServerBot allows you to create custom user menus, that people can use via the F10 menu. The default usecase is to
+call chat commands with them.<br>
+To configure the menu, you need to create a file "config/menus.yaml" in your configuration directory like so:
+```yaml
+DEFAULT:
+  - DCSServerBot:                   # This is the name of the F10-Root menu (multiple possible)
+      - Help:                       # Top-Level command below the root menu
+          command: onChatCommand
+          subcommand: help          # Call the "help" chat-command
+      - GameMaster:                 # Sub-menu section
+        - Launch AWACS:             # Command inside of the subsection
+            command: onChatCommand
+            subcommand: flag        # Call the chat-command "flag 1 1", which sets flag 1 to value 1
+            params: [ 1, 1 ]
+        - Disable Punishments:      # Call a game event "disablePunishments"
+            command: disablePunishments
+            discord:                # This menu option will only be available for the DCS Admin role
+              - DCS Admin
+        - Start Campaign:
+            command: startCampaign  # Call a game event "startCampaign" 
+            ucid:                   # This command will only be available for this UCID
+              - aabbccddeeffgghhiijjkkllmmnnoopp
+        - Stop Campaign:
+            command: stopCampaign
+            ucid:
+              - aabbccddeeffgghhiijjkkllmmnnoopp
+      - Weather:
+        - Morning:
+            command: onChatCommand
+            subcommand: preset      # Select the preset "Morning" (needs to exist!)
+            params: [ 'Morning' ]
+        - Night:
+            command: onChatCommand
+            subcommand: preset      # Select the preset "Night" (needs to exist!)
+            params: [ 'Night' ]
+        - RealWeather:
+            command: onChatCommand
+            subcommand: realweather # Run "DCS RealWeather" with a specified airport
+            params: ['UGKO']
+```
+> [!NOTE]
+> DCS World can only create menus for groups. This means, that you should create groups that contain single units only,
+> especially, if you use commands that can only be called by specific roles.
+> 
+> Roles are checked twice though: once, when the menu gets created. You should not see any command, that your role can
+> not use. A second check is done, when the command is being executed (onChatCommand only).
+
 ## Configuration
 You can configure the behaviour of the mission plugin with an optional config/plugins/mission.yaml:
 ```yaml

@@ -21,15 +21,13 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from packaging.version import parse
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Generic
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
 from .utils.helper import YAMLError
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -229,7 +227,7 @@ class Group(app_commands.Group):
         return decorator
 
 
-class Plugin(commands.Cog):
+class Plugin(commands.Cog, Generic[TEventListener]):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         from services.servicebus import ServiceBus
@@ -425,15 +423,13 @@ class Plugin(commands.Cog):
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
         try:
+            validation = self.node.config.get('validation', 'lazy')
             path = f'./plugins/{self.plugin_name}/schemas'
-            if os.path.exists(path):
+            if os.path.exists(path) and validation in ['strict', 'lazy']:
                 schema_files = [str(x) for x in Path(path).glob('*.yaml')]
                 schema_files.append('schemas/commands_schema.yaml')
-                c = Core(source_file=filename, schema_files=schema_files, file_encoding='utf-8')
-                try:
-                    c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {filename}:\n{ex}')
+                utils.validate(filename, schema_files, raise_exception=(validation == 'strict'))
+
             return yaml.load(Path(filename).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
             raise YAMLError(filename, ex)

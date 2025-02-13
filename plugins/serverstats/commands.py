@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import discord
 import psycopg
 
-from core import utils, Plugin, TEventListener, PluginRequiredError, Report, PaginationReport, Server, command, \
+from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Server, command, \
     ValueNotInRange
 from discord import app_commands
 from discord.ext import tasks
@@ -52,9 +52,9 @@ class ServerLoadFilter(PeriodFilter):
                         f"COALESCE(time, (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
 
 
-class ServerStats(Plugin):
+class ServerStats(Plugin[ServerStatsListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[ServerStatsListener] = None):
         super().__init__(bot, eventlistener)
         self.cleanup.add_exception_type(psycopg.DatabaseError)
         self.cleanup.start()

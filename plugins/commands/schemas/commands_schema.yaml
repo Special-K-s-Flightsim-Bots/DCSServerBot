@@ -1,44 +1,52 @@
 schema;cmd_execute_schema:
   type: map
+  nullable: false
   mapping:
-    cmd: {type: str, required: true}
-    args: {type: str}
-    cwd: {type: str}
-    shell: {type: bool}
+    cmd: {type: str, required: true, nullable: false, range: {min: 1}}
+    args: {type: str, nullable: false, range: {min: 1}}
+    cwd: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    shell: {type: bool, nullable: false}
 
 schema;cmd_event_schema:
   type: map
   allowempty: true
+  nullable: false
   mapping:
-    sync: {type: bool}
+    sync: {type: bool, nullable: false}
     # include: 'event_schema'  # to check the events structure for DCS events
 
 type: map
 mapping:
   DEFAULT:
     type: map
+    nullable: false
     mapping:
-      command_prefix: {type: str, range: {min: 1, max: 1}}
+      command_prefix: {type: str, range: {min: 1, max: 1}, nullable: false}
   commands:
     type: seq
+    nullable: false
     sequence:
       - type: map
+        nullable: false
         mapping:
-          name: {type: str, required: true}
-          description: {type: str}
+          name: {type: str, required: true, nullable: false, range: {min: 1}}
+          description: {type: str, nullable: false, range: {min: 1}}
           roles:
             type: seq
+            nullable: false
             sequence:
               - type: text
-          server: {type: any} # can be str or list[str]
-          server_only: {type: bool}
+                nullable: false
+          server: {type: any, nullable: false, func: str_or_list} # can be str or list[str]
+          server_only: {type: bool, nullable: false}
           execute:
             include: 'cmd_execute_schema'
           event:
             include: 'cmd_event_schema'
-          report: {type: str}
+          report: {type: str, nullable: false, range: {min: 1}}
           sequence:
             type: map
+            nullable: false
             mapping:
               execute:
                 include: 'cmd_execute_schema'
@@ -46,6 +54,9 @@ mapping:
                 include: 'cmd_event_schema'
           params:
             type: seq
+            nullable: false
             sequence:
               - type: str
-          hidden: {type: bool}
+                nullable: false
+                unique: true
+          hidden: {type: bool, nullable: false}

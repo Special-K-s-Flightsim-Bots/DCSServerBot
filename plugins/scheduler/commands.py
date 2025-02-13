@@ -2,10 +2,11 @@ import asyncio
 import discord
 import os
 import psycopg
+import random
 
 from contextlib import suppress
-from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
-    Instance, DEFAULT_TAG
+from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
+                  DEFAULT_TAG)
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -24,9 +25,9 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-class Scheduler(Plugin):
+class Scheduler(Plugin[SchedulerListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[SchedulerListener] = None):
         super().__init__(bot, eventlistener)
         self.check_state.start()
 
@@ -47,34 +48,46 @@ class Scheduler(Plugin):
         return config
 
     async def migrate(self, new_version: str, conn: Optional[psycopg.AsyncConnection] = None) -> None:
-        if new_version == '3.1':
-            def _change_instance(instance: dict):
-                if 'restart' in instance:
-                    instance['action'] = instance.pop('restart')
-                    if isinstance(instance['action'], list):
-                        for action in instance['action']:
-                            if action['method'] == 'restart_with_shutdown':
-                                action['method'] = 'restart'
-                                action['shutdown'] = True
-                    else:
-                        if instance['action']['method'] == 'restart_with_shutdown':
-                            instance['action']['method'] = 'restart'
-                            instance['action']['shutdown'] = True
+        def change_instance_3_1(instance: dict):
+            if 'restart' in instance:
+                instance['action'] = instance.pop('restart')
+                if isinstance(instance['action'], list):
+                    for action in instance['action']:
+                        if action['method'] == 'restart_with_shutdown':
+                            action['method'] = 'restart'
+                            action['shutdown'] = True
+                else:
+                    if instance['action']['method'] == 'restart_with_shutdown':
+                        instance['action']['method'] = 'restart'
+                        instance['action']['shutdown'] = True
 
-            config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
-            if self.node.name in data.keys():
-                for name, node in data.items():
-                    if name == DEFAULT_TAG:
-                        _change_instance(node)
-                        continue
-                    for instance in node.values():
-                        _change_instance(instance)
-            else:
-                for instance in data.values():
-                    _change_instance(instance)
-            with open(config, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+        def change_instance_3_2(instance: dict):
+            if 'onMissionStart' in instance:
+                instance['onSimulationStart'] = instance.pop('onMissionStart')
+            if 'onMissionEnd' in instance:
+                instance['onSimulationStop'] = instance.pop('onMissionEnd')
+
+        if new_version == '3.1':
+            change_instance = change_instance_3_1
+        elif new_version == '3.2':
+            change_instance = change_instance_3_2
+        else:
+            return
+
+        config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+        data = yaml.load(Path(config).read_text(encoding='utf-8'))
+        if self.node.name in data.keys():
+            for name, node in data.items():
+                if name == DEFAULT_TAG:
+                    change_instance(node)
+                    continue
+                for instance in node.values():
+                    change_instance(instance)
+        else:
+            for instance in data.values():
+                change_instance(instance)
+        with open(config, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(data, outfile)
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
@@ -244,10 +257,16 @@ class Scheduler(Plugin):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
                     if method == 'load':
-                        if 'mission_id' in rconf:
-                            server.on_empty['mission_id'] = rconf['mission_id']
-                        elif 'mission_file' in rconf:
-                            server.on_empty['mission_file'] = rconf['mission_file']
+                        mission_id = rconf.get('mission_id')
+                        mission_file = rconf.get('mission_file')
+                        if isinstance(mission_id, list):
+                            server.on_empty['mission_id'] = random.choice(mission_id)
+                        elif isinstance(mission_id, int):
+                            server.on_empty['mission_id'] = mission_id
+                        elif isinstance(mission_file, list):
+                            server.on_empty['mission_file'] = random.choice(mission_file)
+                        elif isinstance(mission_file, str):
+                            server.on_empty['mission_file'] = mission_file
                     self.log.debug("Scheduler: Setting on_empty trigger.")
                 server.restart_pending = True
                 return
@@ -303,8 +322,10 @@ class Scheduler(Plugin):
                 try:
                     mission_id = rconf.get('mission_id')
                     if not mission_id:
-                        filename = utils.format_string(rconf.get('mission_file'),
-                                                       instance=server.instance, server=server)
+                        mission_file = rconf.get('mission_file')
+                        if isinstance(mission_file, list):
+                            mission_file = random.choice(mission_file)
+                        filename = utils.format_string(mission_file, instance=server.instance, server=server)
                         if not filename:
                             self.log.error(
                                 "You need to provide either mission_id or mission_file to your load configuration!")
@@ -328,6 +349,8 @@ class Scheduler(Plugin):
                         else:
                             self.log.error(f"Mission {filename} not found in your serverSettings.lua!")
                             return
+                    elif isinstance(mission_id, list):
+                        mission_id = random.choice(mission_id)
                     self.log.debug(f"Scheduler: Loading mission {mission_id} on server {server.name} ...")
                     modify_mission = rconf.get('run_extensions', True)
                     if server.status == Status.SHUTDOWN:
@@ -417,8 +440,11 @@ class Scheduler(Plugin):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         server.status = Status.LOADING
-                        if config.get('startup') and config['startup'].get('mission_id'):
-                            await server.setStartIndex(config['startup']['mission_id'])
+                        mission_id = config.get('startup') and config['startup'].get('mission_id')
+                        if isinstance(mission_id, list):
+                            await server.setStartIndex(random.choice(mission_id))
+                        elif isinstance(mission_id, int):
+                            await server.setStartIndex(mission_id)
                         self.loop.call_later(
                             delay=next_startup, callback=partial(asyncio.create_task,
                                                                  self.launch_dcs(server, ignore_exception=True)))
@@ -495,11 +521,9 @@ class Scheduler(Plugin):
         elif server.status == Status.SHUTDOWN:
             ephemeral = utils.get_ephemeral(interaction)
             # noinspection PyUnresolvedReferences
-            if not interaction.response.is_done():
-                # noinspection PyUnresolvedReferences
-                await interaction.response.defer(ephemeral=ephemeral)
-            msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
-                                                  ephemeral=ephemeral)
+            await interaction.response.send_message(
+                f"Starting DCS server \"{server.display_name}\", please wait ...", ephemeral=ephemeral)
+            msg = await interaction.original_response()
             # set maintenance flag. default is true to prevent auto stops of this server if configured to be stopped.
             server.maintenance = maintenance
             try:

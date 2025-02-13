@@ -343,3 +343,8 @@ class LotAtc(Extension, FileSystemEventHandler):
                     })
         except Exception as ex:
             self.log.exception(ex)
+
+    async def get_ports(self) -> dict:
+        return {
+            "LotAtc": self.locals.get('port', 10310)
+        }

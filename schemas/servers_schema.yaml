@@ -1,144 +1,173 @@
 schema;settings_schema:
   type: map
+  allowempty: true
   mapping:
-    bind_address: {type: str}
-    description: {type: str}
-    isPublic: {type: bool}
-    listLoop: {type: bool}
-    listShuffle: {type: bool}
-    maxPlayers: {type: text}
-    name: {type: str}
-    password: {type: str}
-    port: {type: text}
-    mode: {type: text}
-    require_pure_clients: {type: bool}
-    require_pure_models: {type: bool}
-    require_pure_scripts: {type: bool}
-    require_pure_textures: {type: bool}
+    bind_address: {type: str, nullable: false, range: {min: 1}}
+    description: {type: str, nullable: false}
+    isPublic: {type: bool, nullable: false}
+    listLoop: {type: bool, nullable: false}
+    listShuffle: {type: bool, nullable: false}
+    maxPlayers: {type: text, nullable: false}
+    name: {type: str, nullable: false, range: {min: 1}}
+    password: {type: str, nullable: false}
+    port: {type: text, nullable: false}
+    mode: {type: text, nullable: false}
+    require_pure_clients: {type: bool, nullable: false}
+    require_pure_models: {type: bool, nullable: false}
+    require_pure_scripts: {type: bool, nullable: false}
+    require_pure_textures: {type: bool, nullable: false}
     missionList:
       type: seq
+      nullable: false
       sequence:
         - type: str
+          unique: true
+          nullable: false
+          range: {min: 1}
     advanced:
       type: map
+      nullable: false
+      allowempty: true
       mapping:
-        client_outbound_limit: {type: text}
-        client_inbound_limit: {type: text}
-        disable_events: {type: bool}
-        maxPing: {type: text}
-        pause_on_load: {type: bool}
-        pause_without_clients: {type: bool}
-        resume_mode: {type: text}
-        server_can_screenshot: {type: bool}
-        voice_chat_server: {type: bool}
-        allow_change_skin: {type: bool}
-        allow_change_tailno: {type: bool}
-        allow_dynamic_radio: {type: bool}
-        allow_ownship_export: {type: bool}
-        allow_object_export: {type: bool}
-        allow_players_pool: {type: bool}
-        allow_sensor_export: {type: bool}
-        allow_trial_only_clients: {type: bool}
-        event_Connect: {type: bool}
-        event_Crash: {type: bool}
-        event_Ejecting: {type: bool}
-        event_Kill: {type: bool}
-        event_Role: {type: bool}
-        event_Takeoff: {type: bool}
-        bluePasswordHash: {type: str}
-        redPasswordHash: {type: str}
+        client_outbound_limit: {type: text, nullable: false}
+        client_inbound_limit: {type: text, nullable: false}
+        disable_events: {type: bool, nullable: false}
+        maxPing: {type: text, nullable: false}
+        pause_on_load: {type: bool, nullable: false}
+        pause_without_clients: {type: bool, nullable: false}
+        resume_mode: {type: text, nullable: false}
+        server_can_screenshot: {type: bool, nullable: false}
+        voice_chat_server: {type: bool, nullable: false}
+        allow_change_skin: {type: bool, nullable: false}
+        allow_change_tailno: {type: bool, nullable: false}
+        allow_dynamic_radio: {type: bool, nullable: false}
+        allow_ownship_export: {type: bool, nullable: false}
+        allow_object_export: {type: bool, nullable: false}
+        allow_players_pool: {type: bool, nullable: false}
+        allow_sensor_export: {type: bool, nullable: false}
+        allow_trial_only_clients: {type: bool, nullable: false}
+        event_Connect: {type: bool, nullable: false}
+        event_Crash: {type: bool, nullable: false}
+        event_Ejecting: {type: bool, nullable: false}
+        event_Kill: {type: bool, nullable: false}
+        event_Role: {type: bool, nullable: false}
+        event_Takeoff: {type: bool, nullable: false}
+        bluePasswordHash: {type: str, nullable: false, range: {min: 1}}
+        redPasswordHash: {type: str, nullable: false, range: {min: 1}}
 
 type: map
 mapping:
   regex;(.+):
     type: map
+    nullable: false
     mapping:
       messages:
+        nullable: false
         type: map
         mapping:
-          greeting_message_members: { type: str }
-          greeting_message_unmatched: { type: str }
-          message_player_username: {type: str}
-          message_player_default_username: {type: str}
-          message_ban: {type: str}
-          message_reserved: {type: str}
-          message_no_voice: {type: str}
-      message_timeout: {type: int, range: {min: 5, max: 60}}
-      display_ai_chat: {type: bool}
-      profanity_filter: { type: bool }
-      server_user: {type: str}
-      show_passwords: {type: bool}
+          greeting_message_members: {type: str, nullable: false, range: {min: 1}}
+          greeting_message_unmatched: {type: str, nullable: false, range: {min: 1}}
+          message_player_username: {type: str, nullable: false, range: {min: 1}}
+          message_player_default_username: {type: str, nullable: false, range: {min: 1}}
+          message_ban: {type: str, nullable: false, range: {min: 1}}
+          message_reserved: {type: str, nullable: false, range: {min: 1}}
+          message_no_voice: {type: str, nullable: false, range: {min: 1}}
+      message_timeout: {type: int, range: {min: 5, max: 60}, nullable: false}
+      display_ai_chat: {type: bool, nullable: false}
+      profanity_filter: {type: bool, nullable: false}
+      server_user: {type: str, nullable: false, range: {min: 1}}
+      show_passwords: {type: bool, nullable: false}
       afk:
         type: map
+        nullable: false
         mapping:
-          afk_time: {type: int, range: {min: -1}}
-          message: {type: str}
+          afk_time: {type: int, range: {min: -1}, nullable: false}
+          message: {type: str, nullable: false, range: {min: 1}}
           exemptions:
+            nullable: false
             type: map
             mapping:
               ucid:
                 type: seq
+                nullable: false
                 sequence:
                   - type: str
+                    nullable: false
+                    range: {min: 1}
+                    unique: true
               discord:
                 type: seq
                 sequence:
                   - type: text
+                    nullable: false
+                    unique: true
       usage_alarm:
         type: map
+        nullable: false
         mapping:
-          min_threshold: {type: int, range: {min: 1}}
-          max_threshold: {type: int, range: {min: 0}}
-          role: {type: text}
-          channel: {type: int}
+          min_threshold: {type: int, range: {min: 1}, nullable: false}
+          max_threshold: {type: int, range: {min: 0}, nullable: false}
+          role: {type: text, nullable: false}
+          channel: {type: int, nullable: false}
       slot_spamming:
         type: map
+        nullable: false
         mapping:
-          message: {type: str}
-          check_time: {type: int}
-          slot_changes: {type: int}
-      ping_admin_on_crash: {type: bool}
-      autoscan: {type: bool}
+          message: {type: str, nullable: false, range: {min: 1}}
+          check_time: {type: int, nullable: false}
+          slot_changes: {type: int, nullable: false}
+      ping_admin_on_crash: {type: bool, nullable: false}
+      autoscan: {type: bool, nullable: false}
       ignore_dirs:
         type: seq
+        nullable: false
         sequence:
           - type: str
-      autoadd: {type: bool}
-      validate_missions: {type: bool}
-      autorole: {type: text}
-      smooth_pause: {type: int}
-      force_voice: {type: bool}
-      rules: {type: str}
-      accept_rules_on_join: {type: bool}
-      smart_bans: {type: bool}
+            nullable: false
+            range: {min: 1}
+            unique: true
+      autoadd: {type: bool, nullable: false}
+      validate_missions: {type: bool, nullable: false}
+      autorole: {type: text, nullable: false}
+      smooth_pause: {type: int, nullable: false}
+      force_voice: {type: bool, nullable: false}
+      rules: {type: str, nullable: false, range: {min: 1}}
+      accept_rules_on_join: {type: bool, nullable: false}
+      smart_bans: {type: bool, nullable: false}
       serverSettings:
         include: 'settings_schema'
       discord:
         type: seq
+        nullable: false
         sequence:
           - type: text
+            nullable: false
+            unique: true
       channels:
         type: map
+        nullable: false
         mapping:
-          status: {type: int, range: {min: -1}}
-          chat: {type: int, range: {min: -1}}
-          events: {type: int, range: {min: -1}}
-          admin: {type: int, range: {min: -1}}
-          voice: {type: int, range: {min: -1}}
-          blue: {type: int, range: {min: -1}}
-          blue_events: {type: int, range: {min: -1}}
-          red: {type: int, range: {min: -1}}
-          red_events: {type: int, range: {min: -1}}
+          status: {type: int, range: {min: -1}, nullable: false}
+          chat: {type: int, range: {min: -1}, nullable: false}
+          events: {type: int, range: {min: -1}, nullable: false}
+          admin: {type: int, range: {min: -1}, nullable: false}
+          voice: {type: int, range: {min: -1}, nullable: false}
+          blue: {type: int, range: {min: -1}, nullable: false}
+          blue_events: {type: int, range: {min: -1}, nullable: false}
+          red: {type: int, range: {min: -1}, nullable: false}
+          red_events: {type: int, range: {min: -1}, nullable: false}
       chat_log:
         type: map
+        nullable: false
         mapping:
-          count: {type: int, range: {min: 1}}
-          size: {type: int}
+          count: {type: int, range: {min: 1}, nullable: false}
+          size: {type: int, nullable: false}
       coalitions:
         type: map
+        nullable: false
         mapping:
-          lock_time: {type: str}
-          allow_players_pool: {type: bool}
-          blue_role: {type: text}
-          red_role: {type: text}
-      no_coalition_chat: {type: bool}
+          lock_time: {type: str, nullable: false, range: {min: 1}}
+          allow_players_pool: {type: bool, nullable: false}
+          blue_role: {type: text, nullable: false}
+          red_role: {type: text, nullable: false}
+      no_coalition_chat: {type: bool, nullable: false}

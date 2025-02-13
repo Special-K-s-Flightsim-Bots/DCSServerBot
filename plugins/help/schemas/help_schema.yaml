@@ -1,4 +1,7 @@
 type: map
+nullable: false
 mapping:
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'

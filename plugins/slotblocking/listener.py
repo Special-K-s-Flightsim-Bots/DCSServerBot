@@ -3,11 +3,14 @@ import re
 
 from core import EventListener, Plugin, Server, Status, utils, event, Side
 from plugins.creditsystem.player import CreditPlayer
-from typing import Union, cast, Optional
+from typing import Union, cast, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import SlotBlocking
 
 
-class SlotBlockingListener(EventListener):
-    def __init__(self, plugin: Plugin):
+class SlotBlockingListener(EventListener["SlotBlocking"]):
+    def __init__(self, plugin: "SlotBlocking"):
         super().__init__(plugin)
         self.lock = asyncio.Lock()
 

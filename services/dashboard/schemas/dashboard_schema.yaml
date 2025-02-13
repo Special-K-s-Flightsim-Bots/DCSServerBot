@@ -1,10 +1,20 @@
 type: map
+nullable: false
 mapping:
   DEFAULT:
     type: map
+    nullable: false
     mapping:
-      regex;(header|servers|nodes|log):
+      servers:
         type: map
+        nullable: false
         mapping:
-          background: {type: str}
-          border: {type: str}
+          hide_remote_servers: {type: bool, nullable: false}
+          background: {type: str, nullable: false, range: {min: 1}}
+          border: {type: str, nullable: false, range: {min: 1}}
+      regex;(header|nodes|log):
+        type: map
+        nullable: false
+        mapping:
+          background: {type: str, nullable: false, range: {min: 1}}
+          border: {type: str, nullable: false, range: {min: 1}}

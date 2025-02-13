@@ -1,39 +1,47 @@
 schema;node_skyeye_schema:
   type: map
+  nullable: false
   mapping:
-    installation: {type: str, required: true}
-    autoupdate: {type: bool}
-    debug: {type: bool}
+    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    autoupdate: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
 schema;instance_skyeye_schema:
   type: map
+  nullable: false
+  allowempty: true
   mapping:
-    enabled: {type: bool}
-    affinity: {type: any}
-    debug: {type: bool}
-    config: {type: str}
-    coalition: {type: str, enum: ['blue', 'red']}
-    recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api']}
-    whisper-model: {type: str}
-    openai-api-key: {type: str}
-    callsign: {type: str}
+    enabled: {type: bool, nullable: false}
+    log: {type: str, nullable: false, range: {min: 1}}
+    affinity: {type: any, nullable: false, func: int_csv_or_list}
+    debug: {type: bool, nullable: false}
+    config: {type: str, nullable: false, range: {min: 1}}
+    coalition: {type: str, enum: ['blue', 'red'], nullable: false}
+    recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api'], nullable: false}
+    whisper-model: {type: str, nullable: false, range: {min: 1}}
+    openai-api-key: {type: str, nullable: false, range: {min: 1}}
+    callsign: {type: str, nullable: false, range: {min: 1}}
     callsigns:
       type: seq
+      nullable: false
       sequence:
-        - type: text
-    voice: {type: str, enum: ['feminine', 'masculine']}
-    voice-playback-speed: {type: float}
-    voice-playback-pause: {type: str, pattern: '^\d+(\.\d+)?s$'}
-    auto-picture: {type: bool}
-    auto-picture-interval: {type: str, pattern: '^\d+m$'}
-    threat-monitoring: {type: bool}
-    threat-monitoring-interval: {type: str, pattern: '^\d+m$'}
-    mandatory-threat-radius: {type: int}
-    discord-webhook-id: {type: str}
-    discord-webhook-token: {type: str}
-    telemetry-address: {type: str}
-    srs-server-address: {type: str}
-    srs-eam-password: {type: str}
-    srs-frequencies: {type: any}
-    enable-grpc: {type: bool}
-    grpc-address: {type: str}
-    grpc-password: {type: str}  # not supported yet
+        - type: str
+          nullable: false
+          range: {min: 1}
+          unique: true
+    voice: {type: str, enum: ['feminine', 'masculine'], nullable: false}
+    voice-playback-speed: {type: float, nullable: false}
+    voice-playback-pause: {type: str, pattern: '^\d+(\.\d+)?s$', nullable: false}
+    auto-picture: {type: bool, nullable: false}
+    auto-picture-interval: {type: str, pattern: '^\d+m$', nullable: false}
+    threat-monitoring: {type: bool, nullable: false}
+    threat-monitoring-interval: {type: str, pattern: '^\d+m$', nullable: false}
+    mandatory-threat-radius: {type: int, nullable: false}
+    discord-webhook-id: {type: text, nullable: false}
+    discord-webhook-token: {type: str, nullable: false, range: {min: 1}}
+    telemetry-address: {type: str, nullable: false, range: {min: 1}}
+    srs-server-address: {type: str, nullable: false, range: {min: 1}}
+    srs-eam-password: {type: str, nullable: false, range: {min: 1}}
+    srs-frequencies: {type: str, nullable: false}
+    enable-grpc: {type: bool, nullable: false}
+    grpc-address: {type: str, nullable: false, range: {min: 1}}
+    grpc-password: {type: str, nullable: false, range: {min: 1}}

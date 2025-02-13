@@ -2,14 +2,17 @@ import asyncio
 import os
 import random
 
-from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile
+from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Union, cast
+
+from ..realweather import RealWeather
 
 # ruamel YAML support
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
+
 yaml = YAML()
 
 __all__ = [
@@ -82,16 +85,29 @@ class MizEdit(Extension):
         return modifications
 
     @staticmethod
-    async def apply_presets(filename: str, preset: Union[list, dict]) -> str:
+    async def apply_presets(server: Server, filename: str, preset: Union[list, dict]) -> str:
+        if preset and isinstance(preset, list) and 'RealWeather' in preset[0]:
+            try:
+                await server.run_on_extension('RealWeather', 'is_running')
+                filename = await server.run_on_extension('RealWeather', 'apply_realweather',
+                                                             filename=filename, config=preset[0]['RealWeather'])
+            except ValueError:
+                # TODO: this is really dirty
+                await server.config_extension("RealWeather", {"enabled": True})
+                ext = cast(ServerImpl, server).load_extension('RealWeather')
+                filename = await cast(RealWeather, ext).apply_realweather(filename, preset[0]['RealWeather'])
+                await server.config_extension("RealWeather", {"enabled": False})
+
+            preset.pop(0)
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
         # write new mission
-        new_filename = utils.create_writable_mission(filename)
-        await asyncio.to_thread(miz.save, new_filename)
-        return new_filename
+        filename = utils.create_writable_mission(filename)
+        await asyncio.to_thread(miz.save, filename)
+        return filename
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
-        return (await self.apply_presets(filename, await self.get_presets(self.config))), True
+        return (await self.apply_presets(self.server, filename, await self.get_presets(self.config))), True
 
     def is_running(self) -> bool:
         return True

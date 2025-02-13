@@ -1,32 +1,65 @@
-schema;master_schema:
+schema;highscore_map:
   type: map
-  allowempty: true
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    wipe_stats_on_leave: {type: bool}
+    channel: {type: int, nullable: false}
+    params:
+      type: map
+      nullable: false
+      mapping:
+        period: {type: str, nullable: false, range: {min: 1}}
+        limit: {type: int, nullable: false, range: {min: 3, max: 20}}
+        mission_end: {type: bool, nullable: false}
+
+schema;highscore_seq:
+  type: seq
+  nullable: false
+  sequence:
+    - include: 'highscore_map'
+
+schema;highscore:
+  type: any
+  nullable: false
+  func: seq_or_map
+  enum: ['highscore_seq', 'highscore_map']
+
+schema;instance_schema:
+  type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    wipe_stats_on_leave: {type: bool, nullable: false}
     squadrons:
       type: map
+      nullable: false
       mapping:
-        self_join: {type: bool}
-        persist_list: {type: bool}
+        self_join: {type: bool, nullable: false}
+        persist_list: {type: bool, nullable: false}
         highscore:
-          type: map
-          mapping:
-            params:
-              type: map
-              mapping:
-                limit: {type: int}
+          include: 'highscore'
     highscore:
-      type: any
-      # todo
+      include: 'highscore'
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

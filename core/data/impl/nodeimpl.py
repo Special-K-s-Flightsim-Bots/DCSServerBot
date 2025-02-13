@@ -23,6 +23,7 @@ from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.translations import get_translation
 from discord.ext import tasks
+from gzip import BadGzipFile
 from migrate import migrate
 from packaging.version import parse
 from pathlib import Path
@@ -45,7 +46,7 @@ from core.services.registry import ServiceRegistry
 from core.utils.helper import SettingsDict, YAMLError, async_cache
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError
+from pykwalify.errors import SchemaError, PyKwalifyException
 from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
@@ -53,7 +54,8 @@ yaml = YAML()
 
 
 __all__ = [
-    "NodeImpl"
+    "NodeImpl",
+    "DEFAULT_PLUGINS"
 ]
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
@@ -202,13 +204,11 @@ class NodeImpl(Node):
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         if os.path.exists(config_file):
             try:
-                schema_files = ['schemas/nodes_schema.yaml']
-                schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
-                c = Core(source_file=config_file, schema_files=schema_files, file_encoding='utf-8')
-                try:
-                    c.validate(raise_exception=True)
-                except SchemaError as ex:
-                    self.log.warning(f'Error while parsing {config_file}:\n{ex}')
+                validation = self.node.config.get('validation', 'lazy')
+                if validation in ['strict', 'lazy']:
+                    schema_files = ['schemas/nodes_schema.yaml']
+                    schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
+                    utils.validate(config_file, schema_files, raise_exception=(validation == 'strict'))
                 data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
@@ -593,12 +593,13 @@ class NodeImpl(Node):
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
-                                data = [x['version'] for x in json.loads(gzip.decompress(await r2.read()))['versions2']]
-                            else:
-                                data = None
+                                result = await r2.read()
+                                try:
+                                    return [x['version'] for x in json.loads(gzip.decompress(result))['versions2']]
+                                except BadGzipFile:
+                                    self.log.warning(f"ED response is not a GZIP: {result.decode('utf8')}")
                         async with await session.get(LOGOUT_URL):
                             pass
-                        return data
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_versions_no_auth()
@@ -1110,7 +1111,7 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         await server.node.unregister_server(server)
-        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name, bus=self)
         instance.server = server
         ServiceRegistry.get(ServiceBus).servers[server.name] = server
         if not self.master:
@@ -1123,3 +1124,44 @@ class NodeImpl(Node):
         instance = server.instance
         instance.server = None
         ServiceRegistry.get(ServiceBus).servers.pop(server.name)
+
+    async def install_plugin(self, plugin: str) -> bool:
+        from services.bot import BotService
+        from services.servicebus import ServiceBus
+
+        if not self.master or plugin in self.plugins:
+            return False
+
+        # amend the main.yaml
+        main_yaml = os.path.join(self.config_dir, 'main.yaml')
+        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        if 'opt_plugins' not in data:
+            data['opt_plugins'] = []
+        data['opt_plugins'].append(plugin)
+        with Path(main_yaml).open("w", encoding="utf-8") as file:
+            yaml.dump(data, file)
+        self.plugins.append(plugin)
+
+        # install the plugin into all DCS servers
+        if os.path.exists(os.path.join('plugins', plugin, 'lua')):
+            for server in ServiceRegistry.get(ServiceBus).servers.values():
+                await server.install_plugin(plugin)
+
+        # load the plugin
+        await ServiceRegistry.get(BotService).bot.load_plugin(plugin)
+        return True
+
+    async def uninstall_plugin(self, plugin: str) -> bool:
+        from services.bot import BotService
+
+        if not self.master or plugin not in self.plugins:
+            return False
+        main_yaml = os.path.join(self.config_dir, 'main.yaml')
+        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        data['opt_plugins'].remove(plugin)
+        with Path(main_yaml).open("w", encoding="utf-8") as file:
+            yaml.dump(data, file)
+        bot = ServiceRegistry.get(BotService).bot
+        await bot.unload_plugin(plugin)
+        self.plugins.remove(plugin)
+        return True

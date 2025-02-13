@@ -1,10 +1,19 @@
-schema;master_schema:
-  allowempty: true
+schema;instance_schema:
   type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
   mapping:
     options:
       type: map
-      allowempty: true
+      nullable: false
+      allowempty: true  # allow other options
       mapping:
         preset:
           include: 'preset_schema'
@@ -16,26 +25,34 @@ schema;master_schema:
           include: 'kick_schema'
         tempban:
           include: 'tempban_schema'
-    creator: {type: any}
-    voter: {type: any}
-    mission_time: {type: int, range: {min: 1}}
-    time: {type: int, range: {min: 60}}
+    creator: {type: any, nullable: false, func: text_or_list}
+    voter: {type: any, nullable: false, func: text_or_list}
+    mission_time: {type: int, range: {min: 1}, nullable: false}
+    time: {type: int, range: {min: 30}, nullable: false}
     reminder:
       type: seq
+      nullable: false
       sequence:
         - type: int
-    voting_threshold: {type: float}
-    voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute']}
-    welcome_message: {type: str}
-    credits: {type: int}
+          nullable: false
+          unique: true
+    voting_threshold: {type: float, nullable: false}
+    voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute'], nullable: false}
+    welcome_message: {type: str, nullable: false, range: {min: 1}}
+    credits: {type: int, nullable: false}
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

@@ -2,6 +2,8 @@ import aiohttp
 import asyncio
 import atexit
 import certifi
+import json
+import logging
 import os
 import psutil
 import re
@@ -13,6 +15,7 @@ import zipfile
 from contextlib import suppress
 from core import Extension, utils, ServiceRegistry, get_translation
 from discord.ext import tasks
+from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
 from pathlib import Path
@@ -37,9 +40,10 @@ class SkyEye(Extension):
     def __init__(self, server, config):
         super().__init__(server, config)
         self._version = None
-        self.process: Optional[psutil.Process] = utils.find_process(self.get_exe_path(), self.server.instance.name)
-        if self.process:
-            self.log.info(f"  => {self.name}: Running SkyEye server detected.")
+        if self.enabled:
+            self.process: Optional[psutil.Process] = utils.find_process(self.get_exe_path(), self.server.instance.name)
+            if self.process:
+                self.log.info(f"  => {self.name}: Running SkyEye server detected.")
 
     def get_config(self) -> str:
         return os.path.expandvars(utils.format_string(
@@ -174,12 +178,25 @@ class SkyEye(Extension):
         return await super().prepare()
 
     async def startup(self) -> bool:
-        def log_output(proc: subprocess.Popen):
-            for line in iter(proc.stdout.readline, b''):
-                self.log.debug(line.decode('utf-8').rstrip())
-
         def run_subprocess():
-            out = subprocess.PIPE if self.config.get('debug', False) else subprocess.DEVNULL
+            debug = self.config.get('debug', False)
+            log_file = self.config.get('log')
+
+            if log_file:
+                logger = logging.getLogger(self.name)
+                logger.setLevel(logging.DEBUG)
+                handler = RotatingFileHandler(
+                    log_file,
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=5
+                )
+                formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s%(extra_data)s')
+                handler.setFormatter(formatter)
+                handler.doRollover()
+                logger.addHandler(handler)
+                logger.propagate = False
+
+            # Define the subprocess command
             args = [
                 self.get_exe_path(),
                 '--config-file', self.get_config()
@@ -188,44 +205,77 @@ class SkyEye(Extension):
                 args.extend(['--whisper-model', 'whisper.bin'])
 
             self.log.debug("Launching {}".format(' '.join(args)))
+
+            # Launch the subprocess and capture stdout/stderr
             proc = subprocess.Popen(
-                args, cwd=os.path.dirname(self.get_exe_path()), stdout=out, stderr=subprocess.STDOUT, close_fds=True
+                args,
+                cwd=os.path.dirname(self.get_exe_path()),
+                stdout=subprocess.PIPE if log_file else subprocess.DEVNULL,
+                stderr=subprocess.PIPE if log_file else subprocess.DEVNULL,
+                close_fds=True,
+                universal_newlines=True  # Ensure text mode for captured output
             )
-            if self.config.get('debug', False):
-                Thread(target=log_output, args=(proc,), daemon=True).start()
+
+            def log_output(pipe):
+                def get_remaining_values(data: dict) -> dict:
+                    return {key: value for key, value in data.items() if key not in ['level', 'message', 'time']}
+
+                for line in iter(pipe.readline, ''):
+                    if line.startswith('{'):
+                        try:
+                            data = json.loads(line)
+                            level = logging.getLevelNamesMapping()[data['level'].upper()]
+                            message = data['message']
+                            extra_data = get_remaining_values(data)
+                            logger.log(level, message, extra={"extra_data": f"- {extra_data}" if extra_data else ""})
+                            continue
+                        except json.JSONDecodeError:
+                            pass
+                    elif debug:
+                        self.log.debug(f"{self.name}: {line.rstrip()}")
+                pipe.close()
+
+            if log_file:
+                Thread(target=log_output, args=(proc.stdout,), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr,), daemon=True).start()
+
             return proc
 
         try:
-            # waiting for SRS to be started
-            self.log.debug(f"{self.name}: Waiting for SRS to start ...")
-            ip, port = self.locals.get('srs-server-address').split(':')
-            # Give the SkyEye server 10s to start
-            for _ in range(0, 10):
-                if utils.is_open(ip, port):
-                    break
-                await asyncio.sleep(1)
-            else:
-                self.log.warning(f"  => {self.name}: SRS is not running, skipping SkyEye.")
-                return False
-            self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
-            # Start the SkyEye server
-            p = await asyncio.to_thread(run_subprocess)
-            try:
-                self.process = psutil.Process(p.pid)
-                atexit.register(self.terminate)
-                if self.config.get('affinity'):
-                    self.set_affinity(self.config['affinity'])
+            # avoid race conditions on startup
+            async with self.lock:
+                if self.is_running():
+                    return True
+                # waiting for SRS to be started
+                self.log.debug(f"{self.name}: Waiting for SRS to start ...")
+                ip, port = self.locals.get('srs-server-address').split(':')
+                # Give the SRS server 10s to start
+                for _ in range(0, 10):
+                    if utils.is_open(ip, port):
+                        break
+                    await asyncio.sleep(1)
                 else:
-                    p_core_affinity = utils.get_p_core_affinity()
-                    if p_core_affinity:
-                        self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
-                        self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
+                    self.log.warning(f"  => {self.name}: SRS is not running, skipping SkyEye.")
+                    return False
+                self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
+                # Start the SkyEye server
+                p = await asyncio.to_thread(run_subprocess)
+                try:
+                    self.process = psutil.Process(p.pid)
+                    atexit.register(self.terminate)
+                    if self.config.get('affinity'):
+                        self.set_affinity(self.config['affinity'])
                     else:
-                        self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
+                        p_core_affinity = utils.get_p_core_affinity()
+                        if p_core_affinity:
+                            self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
+                            self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
+                        else:
+                            self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
 
-            except (AttributeError, psutil.NoSuchProcess):
-                self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")
-                return False
+                except (AttributeError, psutil.NoSuchProcess):
+                    self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")
+                    return False
         except OSError as ex:
             self.log.error("Error while starting SkyEye: " + str(ex))
             return False
@@ -248,8 +298,17 @@ class SkyEye(Extension):
             return False
 
     def shutdown(self) -> bool:
-        super().shutdown()
-        return self.terminate()
+        def close_log_handlers(self):
+            logger = logging.getLogger(self.name)
+            while logger.handlers:  # Remove and close all handlers
+                handler = logger.handlers[0]
+                handler.close()
+                logger.removeHandler(handler)
+        try:
+            super().shutdown()
+            return self.terminate()
+        finally:
+            close_log_handlers(self)
 
     def is_running(self) -> bool:
         return self.process is not None and self.process.is_running()
@@ -335,6 +394,7 @@ class SkyEye(Extension):
             if version:
                 self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
                 await self.do_update(version)
+                self._version = version.lstrip('v')
                 self.log.info("SkyEye updated.")
                 bus = ServiceRegistry.get(ServiceBus)
                 await bus.send_to_node({

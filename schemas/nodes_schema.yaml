@@ -1,52 +1,70 @@
+schema;autoupdate:
+  type: map
+  nullable: false
+  mapping:
+    channel: {type: int, nullable: false}
+    title: {type: str, nullable: false, range: {min: 1}}
+    description: {type: str, nullable: false, range: {min: 1}}
+    footer: {type: str, nullable: false, range: {min: 1}}
+    mention:
+      type: seq
+      nullable: false
+      sequence:
+        - {type: text, nullable: false}
+
 type: map
-matching-rule: 'any'
 mapping:
   regex;(.+):   # Any string as a node name
     type: map
+    nullable: false
     mapping:
-      listen_address: {type: str}
-      listen_port: {type: int, range: {min: 1025, max: 65535}}
-      public_ip: {type: str}
-      autoupdate: {type: bool}
-      slow_system: {type: bool}
-      preferred_master: {type: bool}
-      heartbeat: {type: int, range: {min: 10}}
-      cloud_drive: {type: bool}
-      nodestats: {type: bool}
+      listen_address: {type: str, nullable: false, range: {min: 1}}
+      listen_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
+      public_ip: {type: str, nullable: false, range: {min: 1}}
+      autoupdate: {type: bool, nullable: false}
+      slow_system: {type: bool, nullable: false}
+      preferred_master: {type: bool, nullable: false}
+      heartbeat: {type: int, range: {min: 10}, nullable: false}
+      cloud_drive: {type: bool, nullable: false}
+      nodestats: {type: bool, nullable: false}
       database:
         type: map
+        nullable: false
         mapping:
-          url: {type: str}
-          pool_min: {type: int, range: {min: 2}}
-          pool_max: {type: int, range: {min: 5}}
-          max_idle: {type: int}
+          url: {type: str, required: true, nullable: false, range: {min: 1}}
+          pool_min: {type: int, range: {min: 2}, nullable: false}
+          pool_max: {type: int, range: {min: 5}, nullable: false}
+          max_idle: {type: int, nullable: false}
       DCS:
         type: map
+        nullable: false
         mapping:
-          installation: {type: str, required: true}
-          autoupdate: {type: any}
-          desanitize: {type: bool}
-          minimized: {type: bool}
-          user: {type: str}
-          password: {type: str}
+          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+          autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
+          desanitize: {type: bool, nullable: false}
+          minimized: {type: bool, nullable: false}
+          user: {type: str, nullable: false, range: {min: 1}}
+          password: {type: str, nullable: false, range: {min: 1}}
       extensions:
         include: 'node_extensions_schema'
       instances:
         type: map
+        nullable: false
         mapping:
           regex;(.+):   # Any string as an instance name
             type: map
+            nullable: false
             mapping:
-              home: {type: str}
-              missions_dir: {type: str}
-              mission_rewrite: {type: bool}
-              autoscan: {type: bool}
-              bot_port: {type: int, range: {min: 1025, max: 65535}, required: true}
-              webgui_port: {type: int, range: {min: 1025, max: 65535}}
-              dcs_port: {type: int, range: {min: 1025, max: 65535}}
-              server_user: {type: str}
-              max_hung_minutes: {type: int, range: {min: 0}}
-              affinity: {type: any}
-              priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime']}
+              home: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+              missions_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+              mission_rewrite: {type: bool, nullable: false}
+              autoscan: {type: bool, nullable: false}
+              bot_port: {type: int, range: {min: 1025, max: 65535}, required: true, nullable: false}
+              webgui_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
+              dcs_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
+              server_user: {type: str, nullable: false, range: {min: 1}}
+              max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
+              affinity: {type: any, nullable: false, func: int_csv_or_list}
+              priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime'], nullable: false}
               extensions:
                 include: 'instance_extensions_schema'

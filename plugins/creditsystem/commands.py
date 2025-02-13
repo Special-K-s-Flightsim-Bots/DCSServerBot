@@ -15,7 +15,7 @@ from .player import CreditPlayer
 _ = get_translation(__name__.split('.')[1])
 
 
-class CreditSystem(Plugin):
+class CreditSystem(Plugin[CreditSystemListener]):
 
     async def cog_load(self) -> None:
         await super().cog_load()

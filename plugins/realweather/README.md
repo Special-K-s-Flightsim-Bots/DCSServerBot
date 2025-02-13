@@ -20,7 +20,11 @@ MyNode:
 This can be used to enable the RealWeather [extension](../../extensions/README.md) also.
 
 ## Discord Commands
+| Command         | Parameter                            | Channel | Role       | Description                                                                                    |
+|-----------------|--------------------------------------|---------|------------|------------------------------------------------------------------------------------------------|
+| /realweather    | server airport [optional parameters] | any     | DCS Admin  | Change the weather and time in the mission to the one that is active at that specific airport. |
 
-| Command              | Parameter                            | Channel       | Role                  | Description                                                                                    |
-|----------------------|--------------------------------------|---------------|-----------------------|------------------------------------------------------------------------------------------------|
-| /realweather         | server airport [optional parameters] | any           | DCS Admin             | Change the weather and time in the mission to the one that is active at that specific airport. |
+## In-Game Chat Commands
+| Command      | Parameter      | Role      | Description                                                                                     |
+|--------------|----------------|-----------|-------------------------------------------------------------------------------------------------|
+| -realweather | icao / airport | DCS Admin | Change the weather and time in the mission to the one that is active at that specific airport.  |

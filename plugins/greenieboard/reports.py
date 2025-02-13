@@ -1,15 +1,17 @@
 import discord
 import io
+import numpy as np
 import re
 
 from core import report, utils, EmbedElement, get_translation
 from datetime import datetime
+from matplotlib import cm
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 from typing import Optional
 
 from . import ERRORS, DISTANCE_MARKS, GRADES, const
-from ..userstats.highscore import get_sides
+from ..userstats.highscore import get_sides, compute_font_size
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -153,14 +155,22 @@ class HighscoreTraps(report.GraphElement):
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
                     values.insert(0, row['value'])
-                self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], label="Traps", height=0.75)
-                if bar_labels:
-                    for c in self.axes.containers:
-                        self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2)
-                    self.axes.margins(x=0.1)
+                num_bars = len(labels)
                 self.axes.set_title(_("Traps"), color='white', fontsize=25)
                 self.axes.set_xlabel("traps")
-                if len(values) == 0:
+                if num_bars > 0:
+                    fontsize = compute_font_size(num_bars)
+                    bar_height = max(0.75, 3 / num_bars)
+
+                    color_map = cm.get_cmap('viridis', num_bars)
+                    colors = color_map(np.linspace(0, 1, num_bars))
+                    self.axes.barh(labels, values, color=colors, label="Traps", height=bar_height)
+                    if bar_labels:
+                        for c in self.axes.containers:
+                            self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2, fontsize=fontsize)
+                        self.axes.margins(x=0.1)
+                    self.axes.tick_params(axis='y', labelsize=fontsize)
+                else:
                     self.axes.set_xticks([])
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, _('No data available.'), ha='center', va='center', rotation=45, size=15)

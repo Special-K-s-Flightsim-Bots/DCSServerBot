@@ -18,8 +18,8 @@ from ..creditsystem.player import CreditPlayer
 _ = get_translation(__name__.split('.')[1])
 
 
-class Punishment(Plugin):
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+class Punishment(Plugin[PunishmentEventListener]):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[PunishmentEventListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)

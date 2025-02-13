@@ -7,7 +7,10 @@ from datetime import datetime, timezone
 from discord.ext import tasks
 from plugins.competitive import rating
 from trueskill import Rating
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Competitive
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -50,9 +53,9 @@ class Match:
         return len(self.alive[Side.BLUE]) > 0 and len(self.alive[Side.RED]) > 0
 
 
-class CompetitiveListener(EventListener):
+class CompetitiveListener(EventListener["Competitive"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "Competitive"):
         super().__init__(plugin)
         self.matches: dict[str, dict[str, Match]] = {}
         self.in_match: dict[str, dict[str, Match]] = {}

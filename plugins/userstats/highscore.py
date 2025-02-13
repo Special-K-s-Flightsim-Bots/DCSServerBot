@@ -1,8 +1,10 @@
 import discord
 import math
+import numpy as np
 
 from core import report, utils, Side, Server, Coalition
 from decimal import Decimal
+from matplotlib import cm
 from psycopg.rows import dict_row
 from typing import Optional
 
@@ -22,6 +24,15 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
     if len(sides) == 0:
         sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
     return sides
+
+
+def compute_font_size(num_bars):
+    if num_bars <= 10:
+        return 10  # Default font size for 10 or fewer bars
+    elif num_bars <= 20:
+        return 10 - (num_bars - 10) * (3 / 10)  # Linear reduction
+    else:
+        return 7  # Minimum font size for 20 or more bars
 
 
 class HighscorePlaytime(report.GraphElement):
@@ -53,17 +64,37 @@ class HighscorePlaytime(report.GraphElement):
                     labels.insert(0, name)
                     values.insert(0, row['playtime'] / 3600)
 
-        self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
-        self.axes.set_xlabel('hours')
-        if bar_labels:
-            for c in self.axes.containers:
-                self.axes.bar_label(c, fmt='%.1f h', label_type='edge', padding=2)
-            self.axes.margins(x=0.1)
+        num_bars = len(labels)
         self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
-        if len(values) == 0:
+
+        if num_bars > 0:
+            fontsize = compute_font_size(num_bars)
+            bar_height = max(0.75, 3 / num_bars)
+
+            color_map = cm.get_cmap('viridis', num_bars)
+            colors = color_map(np.linspace(0, 1, num_bars))
+
+            self.axes.barh(labels, values, color=colors, height=bar_height)
+            self.axes.set_xlabel('hours', fontsize=fontsize)
+
+            if bar_labels:
+                for c in self.axes.containers:
+                    self.axes.bar_label(c, fmt='%.1f h', label_type='edge', padding=2,
+                                        fontsize=fontsize)
+                self.axes.margins(x=0.1)
+            self.axes.tick_params(axis='y', labelsize=fontsize)
+
+        else:
             self.axes.set_xticks([])
             self.axes.set_yticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', size=15)
+            xlim = self.axes.get_xlim()
+            ylim = self.axes.get_ylim()
+            self.axes.text(
+                (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
+                (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
+                'No data available.',
+                ha='center', va='center', size=15
+            )
 
 
 class HighscoreElement(report.GraphElement):
@@ -93,7 +124,6 @@ class HighscoreElement(report.GraphElement):
             'Most Efficient Killers': 'kills / h',
             'Most Wasteful Pilots': 'airframes wasted / h'
         }
-        colors = ['#CD7F32', 'silver', 'gold']
         sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
@@ -119,18 +149,32 @@ class HighscoreElement(report.GraphElement):
                     labels.insert(0, name)
                     values.insert(0, row['value'])
 
-        self.axes.barh(labels, values, color=colors, label=kill_type, height=0.75)
-        if values and bar_labels:
-            for c in self.axes.containers:
-                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], Decimal) else '%d', label_type='edge',
-                                    padding=2)
-            self.axes.margins(x=0.125)
         self.axes.set_title(kill_type, color='white', fontsize=25)
         self.axes.set_xlabel(xlabels[kill_type])
-        if len(values) == 0:
+        if values and bar_labels:
+            num_bars = len(labels)
+            fontsize = compute_font_size(num_bars)
+            bar_height = max(0.75, 3 / num_bars)
+
+            color_map = cm.get_cmap('viridis', num_bars)
+            colors = color_map(np.linspace(0, 1, num_bars))
+
+            self.axes.barh(labels, values, color=colors, label=kill_type, height=bar_height)
+            for c in self.axes.containers:
+                self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], Decimal) else '%d', label_type='edge',
+                                    padding=2, fontsize=fontsize)
+            self.axes.margins(x=0.125)
+            scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
+            self.axes.tick_params(axis='y', labelsize=fontsize)
+            self.axes.set_xticks(scale)
+        else:
             self.axes.set_xticks([])
             self.axes.set_yticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-        else:
-            scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
-            self.axes.set_xticks(scale)
+            xlim = self.axes.get_xlim()
+            ylim = self.axes.get_ylim()
+            self.axes.text(
+                (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
+                (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
+                'No data available.',
+                ha='center', va='center', size=15, rotation=45
+            )

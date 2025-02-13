@@ -1,23 +1,43 @@
-schema;settings_schema:
+schema;settings_map:
+  type: map
+  nullable: false
+  mapping:
+    regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$):
+      type: any
+      nullable: false
+      func: str_or_list
+      enum: ['settings_list']
+
+schema;settings_list:
+  type: seq
+  nullable: false
+  sequence:
+    - type: any
+      nullable: false
+      func: str_or_list
+
+schema;settings:
   type: any
-  # todo
+  nullable: false
+  func: seq_or_map
+  enum: ['settings_list', 'settings_map']
 
 schema;mizedit_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    presets:
-      type: seq
-      sequence:
-        - type: str
-          unique: true
+    enabled: {type: bool, nullable: false}
+    presets: {type: any, nullable: false, func: str_or_list}
     settings:
-      include: 'settings_schema'
+      type: any
+      include: 'settings'
     terrains:
       type: map
+      nullable: false
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
           type: map
+          nullable: false
           mapping:
             settings:
-              include: 'settings_schema'
+              include: 'settings'

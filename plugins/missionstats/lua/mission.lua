@@ -25,15 +25,16 @@ world.event.S_EVENT_ECW_TROOP_PICKUP = world.event.S_EVENT_MAX + 1052
 
 dcsbot.mission_stats_enabled = false
 
-dcsbot.eventHandler = {}
+dcsbot.eventHandler = dcsbot.eventHandler or {}
+
 function dcsbot.eventHandler:onEvent(event)
-	status, err = pcall(onEvent, event)
+	status, err = pcall(onMissionEvent, event)
 	if not status then
 		env.warning("DCSServerBot - Error during MissionStatistics:onEvent(): " .. err)
 	end
 end
 
-function onEvent(event)
+function onMissionEvent(event)
 	if event then
 		local msg = {
 			command = 'onMissionEvent',
@@ -164,7 +165,7 @@ function onEvent(event)
 				end
 				if msg.initiator.unit.getTypeName ~= nil then
 					msg.initiator.unit_type = msg.initiator.unit:getTypeName()
-                		else
+                else
 					msg.initiator.unit_type = "SCENERY"
 				end
 				msg.initiator.coalition = coalition.side.NEUTRAL

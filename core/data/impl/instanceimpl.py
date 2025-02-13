@@ -28,16 +28,18 @@ class InstanceImpl(Instance):
         os.makedirs(self.missions_dir, exist_ok=True)
         os.makedirs(os.path.join(self.missions_dir, 'Scripts'), exist_ok=True)
         autoexec = Autoexec(instance=self)
-        if self.locals.get('webgui_port'):
-            autoexec.webgui_port = int(self.locals.get('webgui_port'))
+        webgui_port = self.locals.get('webgui_port')
+        if webgui_port:
+            autoexec.webgui_port = webgui_port
         else:
             self.locals['webgui_port'] = autoexec.webgui_port or 8088
         server_name = None
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
-            if self.locals.get('dcs_port'):
-                settings['port'] = int(self.locals['dcs_port'])
+            dcs_port = self.locals.get('dcs_port')
+            if dcs_port:
+                settings['port'] = dcs_port
             else:
                 self.locals['dcs_port'] = settings.get('port', 10308)
             server_name = settings.get('name', 'DCS Server') if settings else None

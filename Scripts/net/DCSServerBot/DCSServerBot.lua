@@ -14,7 +14,6 @@ end
 dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
 local config = require('DCSServerBotConfig')
 loadfile(lfs.writedir() .. 'Config/serverSettings.lua')()
-local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
 
 dcsbot = base.dcsbot or {}
 if dcsbot.UDPSendSocket == nil then
@@ -35,8 +34,24 @@ end
 dcsbot.sendBotTable = dcsbot.sendBotTable or function (tbl, channel)
 	tbl.server_name = cfg.name
 	tbl.channel = channel or "-1"
-	local tbl_json_txt = JSON:encode(tbl)
-	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, config.BOT_HOST, config.BOT_PORT))
+	socket.try(dcsbot.UDPSendSocket:sendto(net.lua2json(tbl), config.BOT_HOST, config.BOT_PORT))
+end
+
+dcsbot.enableExtension = dcsbot.enableExtension or function (extension, config)
+    local msg = {
+        command = 'enableExtension',
+        extension = extension,
+        config = config
+    }
+	dcsbot.sendBotTable(msg, "-1")
+end
+
+dcsbot.disableExtension = dcsbot.disableExtension or function (extension)
+    local msg = {
+        command = 'disableExtension',
+        extension = extension
+    }
+	dcsbot.sendBotTable(msg, "-1")
 end
 
 do

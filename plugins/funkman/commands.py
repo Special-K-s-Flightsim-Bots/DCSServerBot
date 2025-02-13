@@ -13,13 +13,19 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-class FunkMan(Plugin):
+class FunkMan(Plugin[FunkManEventListener]):
 
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
-            raise PluginInstallationError('funkman',
-                                          f"Can't find {self.node.config_dir}/plugins/funkman.yaml, please create one!")
+            raise PluginInstallationError(self.plugin_name,
+                                          f"Can't find {self.node.config_dir}/plugins/funkman.yaml, "
+                                          f"please create one!")
+        path = config.get(DEFAULT_TAG, {}).get('install')
+        if not path or not os.path.exists(path):
+            raise PluginInstallationError(self.plugin_name,
+                                          f"FunkMan install path is not set correctly in the DEFAULT-section of "
+                                          f"your {self.plugin_name}.yaml! FunkMan will not work.")
         return config
 
     async def install(self) -> bool:

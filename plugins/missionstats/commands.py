@@ -44,7 +44,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
         interaction.client.log.exception(ex)
 
 
-class MissionStatistics(Plugin):
+class MissionStatistics(Plugin[MissionStatisticsEventListener]):
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:

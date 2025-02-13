@@ -1,10 +1,14 @@
 schema;loganalyser_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    restart_on_unlist: {type: bool}
-    message_unlist: {type: str}
+    enabled: {type: bool, nullable: false}
+    restart_on_unlist: {type: bool, nullable: false}
+    message_unlist: {type: str, nullable: false, range: {min: 1}}
     warn_times:
       type: seq
+      nullable: false
       sequence:
         - type: int
+          nullable: false
+          unique: true

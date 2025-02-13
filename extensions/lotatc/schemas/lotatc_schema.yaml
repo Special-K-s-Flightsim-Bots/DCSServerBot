@@ -1,15 +1,17 @@
 schema;node_lotatc_schema:
   type: map
+  nullable: false
   allowempty: true  # we might want to specify additional lotatc parameters, which are then not validated
   mapping:
-    installation: {type: str}
-    autoupdate: {type: any}
+    installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
 schema;instance_lotatc_schema:
   type: map
+  nullable: false
   allowempty: true  # we might get other LotAtc options in here
   mapping:
-    enabled: {type: bool}
-    host: {type: str}
-    port: {type: int, range: {min: 80, max: 65535}}
-    show_passwords: {type: bool}
-    autoupdate: {type: bool}
+    enabled: {type: bool, nullable: false}
+    host: {type: str, nullable: false, range: {min: 1}}
+    port: {type: int, range: {min: 80, max: 65535}, nullable: false}
+    show_passwords: {type: bool, nullable: false}
+    autoupdate: {type: bool, nullable: false}

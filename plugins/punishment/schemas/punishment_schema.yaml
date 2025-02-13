@@ -1,63 +1,89 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  allowempty: true
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
   mapping:
     penalties:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            event: {type: str, required: true}
-            default: {type: int}
-            human: {type: int}
-            AI: {type: int}
-            reason: {type: str}
-            action: {type: str}
-            days: {type: int}     # ban only
-            penalty: {type: int}  # credits only
-    forgive: {type: int, range: {min: 30}}  # it does not make sense to specify a forgive value lower than 30s
+            event: {type: str, required: true, nullable: false, range: {min: 1}}
+            default: {type: int, nullable: false}
+            human: {type: int, nullable: false}
+            AI: {type: int, nullable: false}
+            reason: {type: str, nullable: false, range: {min: 1}}
+            action: {type: str, nullable: false, range: {min: 1}}
+            days: {type: int, nullable: false}     # ban only
+            penalty: {type: int, nullable: false}  # credits only
+    forgive: {type: int, range: {min: 30}, nullable: false}  # it does not make sense to specify a forgive value lower than 30s
     punishments:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            points: {type: int, range: {min: 1}, required: true}
-            action: {type: str}
-            days: {type: int}     # ban only
-            penalty: {type: int}  # credits only
+            points: {type: int, range: {min: 1}, required: true, nullable: false}
+            action: {type: str, nullable: false, range: {min: 1}}
+            days: {type: int, nullable: false}     # ban only
+            penalty: {type: int, nullable: false}  # credits only
     flightHoursWeight:
       type: seq
+      nullable: false
       sequence:
         - type: map
+          nullable: false
           mapping:
-            time: {type: int, range: {min: 0}, required: true}
-            weight: {type: float}
+            time: {type: int, range: {min: 0}, required: true, nullable: false}
+            weight: {type: float, nullable: false}
     decay:
       type: seq
+      nullable: false
       sequence:
         - type: map
           mapping:
-            days: {type: int, range: {min: 0}, required: true}
-            weight: {type: float}
+            days: {type: int, range: {min: 0}, required: true, nullable: false}
+            weight: {type: float, nullable: false}
     exemptions:
       type: map
+      nullable: false
       mapping:
         ucid:
           type: seq
+          nullable: false
           sequence:
             - type: str
+              nullable: false
+              unique: true
         discord:
           type: seq
+          nullable: false
           sequence:
             - type: text
+              nullable: false
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

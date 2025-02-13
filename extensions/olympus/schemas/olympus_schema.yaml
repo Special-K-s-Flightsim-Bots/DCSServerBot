@@ -1,37 +1,48 @@
 schema;node_olympus_schema:
   type: map
+  nullable: false
   mapping:
-    nodejs: {type: str, required: true, nullable: false}
-    debug: {type: bool}
-    show_passwords: {type: bool}
+    nodejs: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    debug: {type: bool, nullable: false}
+    show_passwords: {type: bool, nullable: false}
     authentication:
       type: map
+      nullable: false
+      allowempty: true
       mapping:
-        gameMasterPassword: {type: str, required: true}
-        blueCommanderPassword: {type: str, required: true}
-        redCommanderPassword: {type: str, required: true}
+        gameMasterPassword: {type: str, required: true, nullable: false, range: {min: 1}}
+        blueCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
+        redCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
 schema;instance_olympus_schema:
   type: map
+  nullable: false
+  allowempty: true
   mapping:
-    enabled: {type: bool}
-    debug: {type: bool}
-    show_passwords: {type: bool}
-    url: {type: str, pattern: 'http(s)?://[a-zA-Z0-9\-.]+(:[0-9]+)?(/.*)?'}
+    enabled: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
+    show_passwords: {type: bool, nullable: false}
+    url: {type: url, nullable: false}
     regex;(backend|server):
       type: map
+      nullable: false
       required: true
+      allowempty: true
       mapping:
-        address: {type: str}
-        port: {type: int, required: true, range: {min: 80, max: 65535}}
+        address: {type: str, nullable: false, range: {min: 1}}
+        port: {type: int, required: true, range: {min: 80, max: 65535}, nullable: false}
     authentication:
       type: map
+      nullable: false
+      allowempty: true
       mapping:
-        gameMasterPassword: {type: str, required: true}
-        blueCommanderPassword: {type: str, required: true}
-        redCommanderPassword: {type: str, required: true}
+        gameMasterPassword: {type: str, required: true, nullable: false, range: {min: 1}}
+        blueCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
+        redCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
     regex;(frontend|client):
       type: map
+      nullable: false
       required: true
+      allowempty: true
       mapping:
-        path: {type: str}
-        port: {type: int, required: true, range: {min: 80, max: 65535}}
+        path: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+        port: {type: int, required: true, range: {min: 80, max: 65535}, nullable: false}

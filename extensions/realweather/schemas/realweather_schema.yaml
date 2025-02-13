@@ -1,73 +1,275 @@
 schema;node_realweather_schema:
   type: map
+  nullable: false
+  allowempty: true
   mapping:
-    installation: {type: str, required: true, nullable: false}
+    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
+    realweather:
+      type: map
+      nullable: false
+      allowempty: true
+      mapping:
+        log:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+            file: {type: str, nullable: false, range: {min: 1}}
+            max-size: {type: int, nullable: false}
+            max-backups: {type: int, nullable: false}
+            max-age: {type: int, nullable: false}
+            compress: {type: bool, nullable: false}
+            level: {type: str, enum: ['debug', 'info', 'warn', 'error'], nullable: false}
+        mission:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            brief:
+              type: map
+              nullable: false
+              allowempty: true
+              mapping:
+                add-metar: {type: bool, nullable: false}
+                insert-key: {type: str, nullable: false, range: {min: 1}}
+                remarks: {type: str, nullable: false}
+    api:
+      type: map
+      nullable: false
+      allowempty: true
+      mapping:
+        provider-priority:
+          type: seq
+          nullable: false
+          sequence:
+            - type: str
+              enum: ['aviationweather', 'checkwx', 'custom']
+              nullable: false
+              unique: true
+        aviationweather:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+        checkwx:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, required: true, nullable: false}
+            key: {type: str, required: true, nullable: false, range: {min: 1}}
+        custom:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, required: true, nullable: false}
+            file: {type: str, nullable: false, range: {min: 1}}
+            override: {type: bool, nullable: false}
+        openmeteo:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
 
 schema;instance_realweather_schema:
   type: map
+  nullable: false
   mapping:
-    enabled: {type: bool}
-    debug: {type: bool}
-    api-key: {type: str}
+    enabled: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
     terrains:
       type: map
+      nullable: false
+      allowempty: true
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
           include: 'instance_realweather_schema'
-    files:
-      type: map
-      mapping:
-        log: { type: str }
-    metar:
-      type: map
-      allowempty: true  # allow the author to change values
-      mapping:
-        icao: {type: str, required: true, pattern: '^[A-Za-z]{4}$'}
-        runway-elevation: {type: int, range: {min: 0}}
-        remarks: {type: str}
-        add-to-brief: {type: bool}
-        use-custom-data: {type: bool}
-    options:
+    realweather:
       type: map
       allowempty: true
+      nullable: false
       mapping:
-        update-time: {type: bool}
-        update-weather: {type: bool}
-        time-offset: {type: str, pattern: '^[+-]?\d+h\d+m$'}
-        wind:
+        log:
           type: map
+          nullable: false
           allowempty: true
           mapping:
-            minimum: {type: int}
-            maximum: {type: int}
-            gust-minimum: {type: int}
-            gust-maximum: {type: int}
-            open-meteo: {type: bool}
-            stability: {type: float}
-            fixed-reference: {type: bool}
-        clouds:
+            enable: {type: bool, nullable: false}
+            file: {type: str, nullable: false, range: {min: 1}}
+            max-size: {type: int, nullable: false}
+            max-backups: {type: int, nullable: false}
+            max-age: {type: int, nullable: false}
+            compress: {type: bool, nullable: false}
+            level: {type: str, enum: ['debug', 'info', 'warn', 'error'], nullable: false}
+        mission:
           type: map
+          nullable: false
           allowempty: true
           mapping:
-            disallowed-presets:
+            brief:
+              type: map
+              mapping:
+                add-metar: {type: bool, nullable: false}
+                insert-key: {type: str, nullable: false, range: {min: 1}}
+                remarks: {type: str, nullable: false}
+    api:
+      type: map
+      nullable: false
+      allowempty: true
+      mapping:
+        provider-priority:
+          type: seq
+          nullable: false
+          sequence:
+            - type: str
+              enum: ['aviationweather', 'checkwx', 'custom']
+              nullable: false
+              unique: true
+        aviationweather:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+        checkwx:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, required: true, nullable: false}
+            key: {type: str, required: true, nullable: false, range: {min: 1}}
+        custom:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, required: true, nullable: false}
+            file: {type: str, nullable: false, range: {min: 1}}
+            override: {type: bool, nullable: false}
+        openmeteo:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+    options:
+      type: map
+      nullable: false
+      allowempty: true
+      mapping:
+        time:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+            system-time: {type: bool, nullable: false}
+            offset: {type: str, pattern: '^[+-]?\d+h(\d+m)?$', nullable: false, range: {min: 1}}
+        date:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+            system-date: {type: bool, nullable: false}
+            offset: {type: str, nullable: false, range: {min: 1}}
+        weather:
+          type: map
+          nullable: false
+          allowempty: true
+          mapping:
+            enable: {type: bool, nullable: false}
+            icao: {type: str, pattern: '^[A-Z]{4}$', nullable: false, range: {min: 1}}
+            icao-list:
               type: seq
+              nullable: false
               sequence:
                 - type: str
-            fallback-to-no-preset: {type: bool}
-            default-preset: {type: str}
-        fog:
-          type: map
-          allowempty: true
-          mapping:
-            enable: {type: bool}
-            thickness-minimum: {type: int, range: {min: 0}}
-            thickness-maximum: {type: int, range: {max: 1000}}
-            visibility-minimum: {type: int, range: {min: 0}}
-            visibility-maximum: {type: int, range: {max: 6000}}
-        dust:
-          type: map
-          allowempty: true
-          mapping:
-            enable: {type: bool}
-            visibility-minimum: {type: int, range: {min: 300}}
-            visibility-maximum: {type: int, range: {max: 3000}}
+                  pattern: '^[A-Z]{4}$'
+                  nullable: false
+                  unique: true
+            runway-elevation: {type: int, range: {min: 0}, nullable: false}
+            wind:
+              type: map
+              nullable: false
+              allowempty: true
+              mapping:
+                enable: {type: bool, nullable: false}
+                minimum: {type: int, range: {min: 0}, nullable: false}
+                maximum: {type: int, range: {max: 50}, nullable: false}
+                gust-minimum: {type: int, range: {min: 0}, nullable: false}
+                gust-maximum: {type: int, range: {max: 50}, nullable: false}
+                stability: {type: float, nullable: false}
+                fixed-reference: {type: bool, nullable: false}
+            clouds:
+              type: map
+              nullable: false
+              allowempty: true
+              mapping:
+                enable: {type: bool, nullable: false}
+                fallback-to-legacy: {type: bool, nullable: false}
+                base:
+                  type: map
+                  nullable: false
+                  allowempty: true
+                  mapping:
+                    minimum: {type: int, range: {min: 0}, nullable: false}
+                    maximum: {type: int, range: {max: 15000}, nullable: false}
+                presets:
+                  type: map
+                  nullable: false
+                  allowempty: true
+                  mapping:
+                    default: {type: str, nullable: false}
+                    disallowed:
+                      type: seq
+                      nullable: false
+                      sequence:
+                        - type: str
+                          nullable: false
+                          range: {min: 1}
+                          unique: true
+                custom:
+                  type: map
+                  allowempty: true
+                  nullable: false
+                  mapping:
+                    enable: {type: bool, nullable: false}
+                    allow-precipitation: {type: bool, nullable: false}
+                    density-minimum: {type: int, range: {min: 0}, nullable: false}
+                    density-maximum: {type: int, range: {min: 0, max: 10}, nullable: false}
+            fog:
+              type: map
+              nullable: false
+              allowempty: true
+              mapping:
+                enable: {type: bool, nullable: false}
+                mode: {type: str, enum: ["auto", "manual", "legacy"], nullable: false}
+                thickness-minimum: {type: int, range: {min: 0}, nullable: false}
+                thickness-maximum: {type: int, range: {min: 0, max: 1000}, nullable: false}
+                visibility-minimum: {type: int, range: {min: 0}, nullable: false}
+                visibility-maximum: {type: int, range: {max: 6000}, nullable: false}
+            dust:
+              type: map
+              allowempty: true
+              nullable: false
+              mapping:
+                enable: {type: bool, nullable: false}
+                visibility-minimum: {type: int, range: {min: 300}, nullable: false}
+                visibility-maximum: {type: int, range: {max: 3000}, nullable: false}
+            temperature:
+              type: map
+              nullable: false
+              allowempty: true
+              mapping:
+                enable: {type: bool, nullable: false}
+            pressure:
+              type: map
+              nullable: false
+              allowempty: true
+              mapping:
+                enable: {type: bool, nullable: false}

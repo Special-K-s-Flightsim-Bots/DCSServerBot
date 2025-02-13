@@ -19,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Type
 
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
@@ -92,9 +92,9 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
         interaction.client.log.exception(ex)
 
 
-class Mission(Plugin):
+class Mission(Plugin[MissionEventListener]):
 
-    def __init__(self, bot, listener):
+    def __init__(self, bot: DCSServerBot, listener: Type[MissionEventListener] = None):
         super().__init__(bot, listener)
         self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.start()
@@ -394,7 +394,7 @@ class Mission(Plugin):
                                                  ).format(name))
                     else:
                         message = _('Mission {} loaded.').format(name)
-                        if not mission_id:
+                        if mission_id is None:
                             message += _('\nThis mission is NOT in the mission list and will not auto-load on server '
                                          'or mission restarts.\n'
                                          'If you want it to auto-load, use {}').format(
@@ -477,13 +477,13 @@ class Mission(Plugin):
                     try:
                         await server.node.remove_file(filename)
                         if '.dcssb' in filename:
-                            origname = filename.replace(os.path.sep + '.dcssb', '')
-                            await server.node.remove_file(origname)
+                            secondary = filename
+                            primary = filename.replace(os.path.sep + '.dcssb', '')
+                            await server.node.remove_file(primary)
                         else:
-                            origname = filename
                             secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
                             await server.node.remove_file(secondary)
-                        await server.node.remove_file(origname + '.orig')
+                        await server.node.remove_file(secondary + '.orig')
                         await interaction.followup.send(_('Mission "{}" deleted.').format(os.path.basename(filename)),
                                                         ephemeral=ephemeral)
                     except FileNotFoundError:
@@ -556,23 +556,32 @@ class Mission(Plugin):
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
             return
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         try:
+            try:
+                next((x for x in presets.values() if 'terrain' in x or 'terrains' in x), None)
+                terrain = await server.get_current_mission_theatre()
+            except StopIteration:
+                terrain = ''
             options = [
                 discord.SelectOption(label=k)
                 for k, v in presets.items()
-                if not isinstance(v, dict) or not v.get('hidden', False)
+                if not isinstance(v, dict) or (
+                        not v.get('hidden', False)
+                        and v.get('terrain', terrain) == terrain
+                        and terrain in v.get('terrains', [terrain])
+                )
             ]
         except AttributeError:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 _("There is an error in your {}. Please check the file structure.").format(presets_file),
                 ephemeral=True)
             return
         if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
         elif not options:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_("There are no presets to chose from."), ephemeral=True)
+            await interaction.followup.send(_("There are no presets to chose from."), ephemeral=True)
 
         result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:
@@ -605,6 +614,7 @@ class Mission(Plugin):
             server.restart_pending = True
             await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
         else:
+            server.on_empty = dict()
             startup = False
             msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
             if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
@@ -614,6 +624,7 @@ class Mission(Plugin):
             new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
             message = _('The following preset were applied: {}.').format(','.join(view.result))
             if new_filename != filename:
+                self.log.info(f"  => {message}")
                 self.log.info(f"  => New mission written: {new_filename}")
                 await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
             else:
@@ -690,12 +701,15 @@ class Mission(Plugin):
             await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
                                             ephemeral=True)
             return
-        mission_folder = await server.get_missions_dir()
-        miz_file = os.path.basename(filename)
+        if '.dcssb' in filename:
+            new_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                    os.path.basename(filename))
+            orig_file = filename + '.orig'
+        else:
+            new_file = filename
+            orig_file = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename)) + '.orig'
         try:
-            new_file = os.path.join(mission_folder, miz_file)
-            old_file = new_file + '.orig'
-            await server.node.rename_file(old_file, new_file, force=True)
+            await server.node.rename_file(orig_file, new_file, force=True)
         except FileNotFoundError:
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file there, the mission was never changed.'),
@@ -703,7 +717,7 @@ class Mission(Plugin):
             return
         if new_file != filename:
             await server.replaceMission(mission_id + 1, new_file)
-        await interaction.followup.send(_("Mission {} has been rolled back.").format(miz_file[:-4]),
+        await interaction.followup.send(_("Mission {} has been rolled back.").format(os.path.basename(filename)[:-4]),
                                         ephemeral=ephemeral)
 
     @mission.command(description=_('Sets fog in the running mission'))

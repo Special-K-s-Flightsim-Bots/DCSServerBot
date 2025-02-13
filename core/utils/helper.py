@@ -595,6 +595,7 @@ class SettingsDict(dict):
     def write_file(self):
         # DO NOT write empty config files. This means in general that there is an error.
         if not len(self):
+            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
             return
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
@@ -653,13 +654,11 @@ class SettingsDict(dict):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
-        super().__setitem__(key, value)
-        if len(self):
+        if self.get(key) != value:
+            super().__setitem__(key, value)
             self.write_file()
             if not self.obj.node.master:
                 self.update_master(key, value, method='__setitem__')
-        else:
-            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
 
     def __getitem__(self, item):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
@@ -671,13 +670,11 @@ class SettingsDict(dict):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
-        super().__delitem__(key)
-        if len(self):
+        if self.get(key) is not None:
+            super().__delitem__(key)
             self.write_file()
             if not self.obj.node.master:
                 self.update_master(key, method='__delitem__')
-        else:
-            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
 
     def get(self, key, default=None):
         try:

@@ -280,11 +280,7 @@ class ServerImpl(Server):
             self.log.exception(ex)
         self.log.debug(f"  - Installing Plugin luas into {self.instance.name} ...")
         for plugin_name in self.node.plugins:
-            source_path = f'./plugins/{plugin_name}/lua'
-            if os.path.exists(source_path):
-                target_path = os.path.join(bot_home, f'{plugin_name}')
-                shutil.copytree(source_path, target_path, dirs_exist_ok=True)
-                self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
+            self._install_plugin(plugin_name)
         self.log.debug(f'  - Luas installed into {self.instance.name}.')
 
     def prepare(self):
@@ -432,8 +428,8 @@ class ServerImpl(Server):
             else:
                 _mission = mission
             # check if the orig file has been updated
-            orig = _mission + '.orig'
-            if os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
+            orig = utils.get_orig_file(_mission, create_file=False)
+            if orig and os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
@@ -464,7 +460,7 @@ class ServerImpl(Server):
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)
             self.process = None
 
-    def _load_extension(self, name: str) -> Optional[Extension]:
+    def load_extension(self, name: str) -> Optional[Extension]:
         if '.' not in name:
             _extension = f'extensions.{name.lower()}.extension.{name}'
         else:
@@ -485,7 +481,7 @@ class ServerImpl(Server):
                 try:
                     ext: Extension = self.extensions.get(extension)
                     if not ext:
-                        ext = self._load_extension(extension)
+                        ext = self.load_extension(extension)
                         if not ext:
                             continue
                         if ext.is_installed():
@@ -551,6 +547,8 @@ class ServerImpl(Server):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
             else:
                 utils.desanitize(self)
+        else:
+            self.log.debug("MissionScripting.lua is already desanitized.")
         self.status = Status.LOADING
         await self.init_extensions()
         await self.prepare_extensions()
@@ -623,9 +621,10 @@ class ServerImpl(Server):
                     await asyncio.sleep(1)
             await self._terminate()
         self.status = Status.SHUTDOWN
-        shutil.copy2(os.path.join(self.instance.home, 'Logs', 'dcs.log'),
-                     os.path.join(self.instance.home, 'Logs',
-                                  f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
+        logfile = os.path.join(self.instance.home, 'Logs', 'dcs.log')
+        if os.path.exists(logfile):
+            shutil.copy2(logfile, os.path.join(self.instance.home, 'Logs',
+                                               f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
 
     async def is_running(self) -> bool:
         async with self.lock:
@@ -640,7 +639,7 @@ class ServerImpl(Server):
             self.process.terminate()
             # wait 30/60s for the process to terminate
             for i in range(1, 60 if self.node.locals.get('slow_system', False) else 30):
-                if not self.process.is_running():
+                if not self.process or not self.process.is_running():
                     return
                 await asyncio.sleep(1)
             else:
@@ -683,7 +682,12 @@ class ServerImpl(Server):
                     self.log.warning("No mission found. Is your mission list empty?")
                     return filename
 
-            new_filename = utils.get_orig_file(filename)
+            # create a writable mission
+            new_filename = utils.create_writable_mission(filename)
+            # get the orig file
+            orig_filename = utils.get_orig_file(new_filename)
+            # and copy the orig file over
+            shutil.copy2(orig_filename, new_filename)
             try:
                 # process all mission modifications
                 dirty = False
@@ -735,11 +739,11 @@ class ServerImpl(Server):
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
+        secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
         if orig:
-            filename += '.orig'
+            filename = secondary + '.orig'
             add = False
         else:
-            secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
             for idx, name in enumerate(self.settings['missionList']):
                 if (os.path.normpath(name) == filename) or (os.path.normpath(name) == secondary):
                     if self.current_mission and idx == int(self.settings['listStartIndex']) - 1:
@@ -759,7 +763,7 @@ class ServerImpl(Server):
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         from extensions.mizedit import MizEdit
 
-        return await MizEdit.apply_presets(utils.get_orig_file(filename), preset)
+        return await MizEdit.apply_presets(self, utils.get_orig_file(filename), preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -825,10 +829,10 @@ class ServerImpl(Server):
 
     async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
-        orig = path + '.orig'
+        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        orig = secondary + '.orig'
         if os.path.exists(orig):
             os.remove(orig)
-        secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         missions = self.settings['missionList']
         if path in missions or secondary in missions:
             # the mission is already in the list. check if we need to reset a .dcssb copy
@@ -957,9 +961,7 @@ class ServerImpl(Server):
         if asyncio.iscoroutinefunction(_method):
             result = await _method(**kwargs)
         else:
-            async def _aux_func():
-                return _method(**kwargs)
-            result = await asyncio.to_thread(_aux_func)
+            result = await asyncio.to_thread(_method, **kwargs)
         return result
 
     async def config_extension(self, name: str, config: dict) -> None:
@@ -979,13 +981,13 @@ class ServerImpl(Server):
         self.locals |= self.node.locals['instances'][self.instance.name]
         self.instance.locals |= self.node.locals['instances'][self.instance.name]
         if name in self.extensions:
-            self.extensions[name].config = config
+            self.extensions[name].config = self.node.locals.get('extensions', {}).get(name, {}) | self.locals['extensions'][name]
 
     async def install_extension(self, name: str, config: dict) -> None:
         if name in self.extensions:
             raise InstallException(f"Extension {name} is already installed!")
         await self.config_extension(name, config)
-        ext = self._load_extension(name)
+        ext = self.load_extension(name)
         await ext.install()
         self.extensions[name] = ext
 
@@ -1006,7 +1008,7 @@ class ServerImpl(Server):
             if file.endswith('.orig'):
                 return file[:-5]
             if '.dcssb' in file:
-                return file.replace(os.path.sep + '.dcssb', '')
+                return os.path.join(os.path.dirname(file).replace('.dcssb', ''), os.path.basename(file))
             return file
 
         result = []
@@ -1027,3 +1029,19 @@ class ServerImpl(Server):
             result.append((shorten_filename(file), file))
 
         return result
+
+    def _install_plugin(self, plugin: str) -> None:
+        source_path = f'./plugins/{plugin}/lua'
+        if os.path.exists(source_path):
+            target_path = os.path.join(self.instance.home, 'Scripts', 'net', 'DCSServerBot', plugin)
+            shutil.copytree(source_path, target_path, dirs_exist_ok=True)
+            self.log.debug(f'    => Plugin {plugin.capitalize()} installed.')
+
+    async def install_plugin(self, plugin: str) -> None:
+        self._install_plugin(plugin)
+
+    async def uninstall_plugin(self, plugin: str) -> None:
+        target_path = os.path.join(self.instance.home, 'Scripts', 'net', 'DCSServerBot', plugin)
+        if os.path.exists(target_path):
+            utils.safe_rmtree(target_path)
+            self.log.debug(f'    => Plugin {plugin.capitalize()} uninstalled.')

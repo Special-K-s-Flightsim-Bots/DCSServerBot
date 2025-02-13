@@ -13,7 +13,7 @@ from ..servicebus import ServiceBus
 logging.getLogger(name='eyed3.mp3.headers').setLevel(logging.FATAL)
 
 
-@ServiceRegistry.register(plugin='music')
+@ServiceRegistry.register(plugin='music', depends_on=[ServiceBus])
 class MusicService(Service):
 
     def __init__(self, node):

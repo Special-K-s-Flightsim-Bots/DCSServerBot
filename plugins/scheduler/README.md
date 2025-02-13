@@ -24,7 +24,7 @@ DCS.release_server:
   schedule:                                       # Server "DCS.release_server" will run 24x7
     00-24: YYYYYYY
   startup:
-    mission_id: 3                                 # Load mission #3 from the mission list on startup
+    mission_id: 3                                 # Load mission #3 from the mission list on startup (could be a list also / random pick)
 instance2:
   schedule:                                       # Server "instance2" will run every day from 0h-12h in the specified time zone
     timezone: Europe/Berlin                       # optional: timezone (default: local time)
@@ -36,7 +36,8 @@ instance2:
     - 08:00
     method: rotate                                # .. it will rotate ..                                
     populated: true                               # .. independently if players are flying or not. 
-  onMissionStart: load:Scripts/net/start.lua      # We will run a specific lua script on mission start
+  onSimulationStart: load:Scripts/net/start.lua   # We will run a specific lua script on server start
+  onSimulationStop: load:Scripts/net/stop.lua     # We will run a specific lua script on server stop (restart will trigger stop and start!)
   onMissionEnd: load:Scripts/net/end.lua          # We will run a specific lua script on mission end
   onShutdown: run:shutdown /r                     # if the DCS server is shut down, the real PC will restart
 instance3:
@@ -93,19 +94,20 @@ Here you can provide a mission_id to be started on server startup.
 | idle_time        | Time in minutes, the server was not in use (no people in the server)                                                                                                                                                                                                   |
 | local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                      |
 | utc_times        | Like local_times but UTC.                                                                                                                                                                                                                                              |
-| mission_id       | For load only: the mission_id to load (1 = first from the mission list).                                                                                                                                                                                               |
-| mission_file     | For load only: the mission file name to load (has to be in the mission list).                                                                                                                                                                                          |
+| mission_id       | For load only: the mission_id to load (1 = first from the mission list). Can be an integer or a list of integers for random pick.                                                                                                                                      |
+| mission_file     | For load only: the mission file name to load (has to be in the mission list). Can be a single mission or list of missions for random pick.                                                                                                                             |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                        |
 | mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                              |
 | run_extensions   | If true, extensions will be applied to the mission prior to the restart / rotation (default: true) .                                                                                                                                                                   |
 
 ### on-commands
 
-| Parameter      | Description                                                                                  |
-|----------------|----------------------------------------------------------------------------------------------|
-| onMissionStart | Called at the start of a mission (onSimulationStart).                                        |
-| onMissionEnd   | Called, when the Scheduler (!) ends a mission. Not if the mission is ended in any other way. |
-| onShutdown     | Called, when the DCS server is being shut down.                                              |
+| Parameter         | Description                                                           |
+|-------------------|-----------------------------------------------------------------------|
+| onSimulationStart | Called at the start of a mission.                                     |
+| onSimulationEnd   | Called, when the server stops.                                        |
+| onMissionEnd      | Called, when the mission has ended with a win for either blue or red. |
+| onShutdown        | Called, when the DCS server is being shut down.                       |
 
 Commands can be executed in different ways:
 

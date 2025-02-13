@@ -2,7 +2,7 @@ import discord
 import os
 import psycopg
 
-from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
+from core import Plugin, PluginRequiredError, Server, Player, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands
 from pathlib import Path
 from services.bot import DCSServerBot
@@ -15,10 +15,10 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-class SlotBlocking(Plugin):
+class SlotBlocking(Plugin[SlotBlockingListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener=eventlistener)
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[SlotBlockingListener] = None):
+        super().__init__(bot, eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
 

@@ -2,16 +2,19 @@ import asyncio
 import discord
 import os
 
-from core import UploadStatus, utils, get_translation, Status, Plugin, Server
+from core import UploadStatus, utils, get_translation, Status, Server
 from core.utils.discord import ServerUploadHandler
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Mission
 
 _ = get_translation(__name__.split('.')[1])
 
 
 class MissionUploadHandler(ServerUploadHandler):
 
-    def __init__(self, plugin: Plugin, server: Server, message: discord.Message, pattern: list[str]):
+    def __init__(self, plugin: "Mission", server: Server, message: discord.Message, pattern: list[str]):
         super().__init__(server, message, pattern)
         self.plugin = plugin
         self.log = plugin.log
@@ -29,7 +32,8 @@ class MissionUploadHandler(ServerUploadHandler):
                 await self.server.stop()
             elif what == 'later':
                 await self.server.uploadMission(att.filename, att.url, orig=True, force=True, missions_dir=directory)
-                await self.channel.send(_('Mission "{mission}" uploaded to server {server}').format(
+                await self.channel.send(_('Mission "{mission}" uploaded to server {server}\n'
+                                          'It will be loaded when server is empty or on the next restart.').format(
                     mission=os.path.basename(att.filename)[:-4], server=self.server.display_name))
                 # we return the old rc (file in use), to not force a mission load
                 return rc
@@ -111,11 +115,19 @@ class MissionUploadHandler(ServerUploadHandler):
             return
         if self.server.is_populated():
             ctx = await self.bot.get_context(self.message)
-            if not await utils.yn_question(ctx, _("People are flying on this server.\n"
-                                                  "Do you want to stop it and load the new mission?")):
+            rc = await utils.populated_question(ctx, _("Do you want to stop the server and load the new mission?"))
+            if not rc:
                 await self.channel.send("Aborted.")
                 return
-            await self.server.stop()
+            elif rc == 'later':
+                mission_id = (await self.server.getMissionList()).index(filename)
+                await self.server.setStartIndex(mission_id)
+                self.server.on_empty = {"command": "load", "mission_id": mission_id, "user": self.message.author}
+                await self.channel.send(
+                    _('Mission {} will be loaded when server is empty or on the next restart.').format(filename))
+                return
+            else:
+                await self.server.stop()
         await self._load_mission(filename)
         if self.server.status == Status.STOPPED:
             await self.server.start()

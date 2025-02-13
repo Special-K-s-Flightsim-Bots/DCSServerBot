@@ -43,7 +43,7 @@ class Sneaker(Extension):
 
         super().__init__(server, config)
         self.bus = ServiceRegistry.get(ServiceBus)
-        if not process or not process.is_running():
+        if self.enabled and (not process or not process.is_running()):
             cmd = self.config.get('cmd')
             if not cmd:
                 return
@@ -171,7 +171,7 @@ class Sneaker(Extension):
             return False
         # check if Sneaker is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
-            self.log.warning("Sneaker executable not found!")
+            self.log.warning("  => Sneaker: can't run extension, executable not found!")
             return False
         return True
 
@@ -184,4 +184,9 @@ class Sneaker(Extension):
             "name": "Sneaker",
             "version": self.version or 'n/a',
             "value": value
+        }
+
+    def get_ports(self) -> dict:
+        return {
+            "Sneaker": self.config['bind'].split(':')[1]
         }

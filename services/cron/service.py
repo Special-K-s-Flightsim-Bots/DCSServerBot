@@ -10,7 +10,7 @@ from ..bot import BotService
 from ..servicebus import ServiceBus
 
 
-@ServiceRegistry.register()
+@ServiceRegistry.register(depends_on=[ServiceBus])
 class CronService(Service):
 
     def __init__(self, node):
@@ -51,6 +51,8 @@ class CronService(Service):
                 async def _aux_func():
                     return func(**kwargs)
                 await asyncio.to_thread(_aux_func)
+        except AttributeError:
+            self.log.error(f"Cron: Action {action} needs to be defined in the DFAULT section.")
         except Exception as ex:
             self.log.error(f"Cron: error while processing action {action}", exc_info=ex)
 
@@ -68,9 +70,10 @@ class CronService(Service):
                 asyncio.create_task(self.do_actions(cfg, server))
 
         try:
-            config = self.get_config()
             # run all default tasks
-            await check_run(config)
+            config = self.get_config()
+            if config:
+                await check_run(config)
             # do the servers
             for server in [x for x in self.bus.servers.values() if not x.is_remote and x.status != Status.UNREGISTERED]:
                 config = self.get_config(server)

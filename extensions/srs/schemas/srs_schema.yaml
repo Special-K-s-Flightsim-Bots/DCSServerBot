@@ -1,40 +1,44 @@
 schema;node_srs_schema:
   type: map
+  nullable: false
+  allowempty: true
   mapping:
-    installation: {type: str}
-    autoupdate: {type: any}
-    autostart: {type: bool}
-    host: {type: str}
-    minimized: {type: bool}
-    debug: {type: bool}
-    awacs: {type: bool}
-    blue_password: {type: str}
-    red_password: {type: str}
-    no_shutdown: {type: bool}
-    srs_nudge_message: {type: str}
-    autoconnect: {type: bool}
-    show_passwords: {type: bool}
-    always_on: {type: bool}
-    radio_effect_override: {type: bool}
-    global_lobby_frequencies: {type: str}
+    installation: {type: str, nullable: false, range: {min: 1}, func: file_exists}
+    autoupdate: {type: any, nullable: false, func: bool_or_map, enum: ['autoupdate']}
+    autostart: {type: bool, nullable: false}
+    host: {type: str, nullable: false, range: {min: 1}}
+    minimized: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
+    awacs: {type: bool, nullable: false}
+    blue_password: {type: str, nullable: false, range: {min: 1}}
+    red_password: {type: str, nullable: false, range: {min: 1}}
+    no_shutdown: {type: bool, nullable: false}
+    srs_nudge_message: {type: str, nullable: false, range: {min: 1}}
+    autoconnect: {type: bool, nullable: false}
+    show_passwords: {type: bool, nullable: false}
+    always_on: {type: bool, nullable: false}
+    radio_effect_override: {type: bool, nullable: false}
+    global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
 schema;instance_srs_schema:
   type: map
+  nullable: false
+  allowempty: true
   mapping:
-    enabled: {type: bool}
-    config: {type: str, required: true}
-    host: {type: str}
-    port: {type: int, range: {min: 80, max: 65535}}
-    minimized: {type: bool}
-    debug: {type: bool}
-    awacs: {type: bool}
-    blue_password: {type: str}
-    red_password: {type: str}
-    autostart: {type: bool}
-    no_shutdown: {type: bool}
-    srs_nudge_message: {type: str}
-    autoconnect: {type: bool}
-    show_passwords: {type: bool}
-    always_on: {type: bool}
-    radio_effect_override: {type: bool}
-    global_lobby_frequencies: {type: str}
-    lotatc_export_port: {type: int, range: {min: 80, max: 65535}}
+    enabled: {type: bool, nullable: false}
+    config: {type: str, required: true, nullable: false}
+    host: {type: str, nullable: false, range: {min: 1}}
+    port: {type: int, range: {min: 80, max: 65535}, nullable: false}
+    minimized: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
+    awacs: {type: bool, nullable: false}
+    blue_password: {type: str, nullable: false, range: {min: 1}}
+    red_password: {type: str, nullable: false, range: {min: 1}}
+    autostart: {type: bool, nullable: false}
+    no_shutdown: {type: bool, nullable: false}
+    srs_nudge_message: {type: str, nullable: false, range: {min: 1}}
+    autoconnect: {type: bool, nullable: false}
+    show_passwords: {type: bool, nullable: false}
+    always_on: {type: bool, nullable: false}
+    radio_effect_override: {type: bool, nullable: false}
+    global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
+    lotatc_export_port: {type: int, range: {min: 80, max: 65535}, nullable: false}

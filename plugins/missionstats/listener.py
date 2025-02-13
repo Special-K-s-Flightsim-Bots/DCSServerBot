@@ -3,11 +3,15 @@ import psycopg_pool
 
 from core import EventListener, Plugin, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
 from discord.ext import tasks
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import MissionStatistics
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class MissionStatisticsEventListener(EventListener):
+class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
     COALITION = {
         0: Coalition.NEUTRAL,
@@ -37,7 +41,7 @@ class MissionStatisticsEventListener(EventListener):
         }
     }
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "MissionStatistics"):
         super().__init__(plugin)
         self.mission_stats = {}
         self.update: dict[str, bool] = {}
@@ -143,7 +147,7 @@ class MissionStatisticsEventListener(EventListener):
             unit_name = initiator['unit_name']
             if initiator['type'] == 'UNIT':
                 category = self.UNIT_CATEGORY.get(initiator['category'], 'Unknown')
-                if category not in stats['coalitions'][coalition.name]['units']:
+                if not stats['coalitions'][coalition.name]['units'].get(category):
                     # lua does initialize the empty dict as an array
                     if len(stats['coalitions'][coalition.name]['units']) == 0:
                         stats['coalitions'][coalition.name]['units'] = {}
@@ -151,6 +155,8 @@ class MissionStatisticsEventListener(EventListener):
                 if unit_name not in stats['coalitions'][coalition.name]['units'][category]:
                     stats['coalitions'][coalition.name]['units'][category].append(unit_name)
             elif initiator['type'] == 'STATIC':
+                if not stats['coalitions'][coalition.name].get('statics'):
+                    stats['coalitions'][coalition.name]['statics'] = []
                 stats['coalitions'][coalition.name]['statics'].append(unit_name)
             update = True
         elif data['eventName'] == 'S_EVENT_KILL':

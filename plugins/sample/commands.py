@@ -1,7 +1,7 @@
 import discord
 import psycopg
 
-from core import Plugin, utils, Server, TEventListener, Status, command
+from core import Plugin, utils, Server, Status, command
 from discord import app_commands
 from services.bot import DCSServerBot
 from typing import Type
@@ -9,7 +9,7 @@ from typing import Type
 from .listener import SampleEventListener
 
 
-class Sample(Plugin):
+class Sample(Plugin[SampleEventListener]):
     """
     A class where all your discord commands should go.
 
@@ -29,7 +29,7 @@ class Sample(Plugin):
         Send the text to DCS, which will return the same text again (echo).
     """
 
-    def __init__(self, bot: DCSServerBot, listener: Type[TEventListener]):
+    def __init__(self, bot: DCSServerBot, listener: Type[SampleEventListener]):
         super().__init__(bot, listener)
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function.

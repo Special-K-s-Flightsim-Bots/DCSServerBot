@@ -1,19 +1,32 @@
-schema;master_schema:
+schema;instance_schema:
   type: map
-  allowempty: true
+  func: is_node
+  nullable: false
   mapping:
-    min_fps: {type: int, range: {min: 0}}
-    period: {type: int, range: {min: 3}}
-    mentioning: {type: bool}
-    message: {type: str}
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  nullable: false
+  mapping:
+    min_fps: {type: int, range: {min: 0}, nullable: false}
+    period: {type: int, range: {min: 3}, nullable: false}
+    mentioning: {type: bool, nullable: false}
+    message: {type: str, nullable: false, range: {min: 1}}
 
 type: map
+func: check_main_structure
+nullable: false
 mapping:
   DEFAULT:
-    include: 'master_schema'
+    include: 'element_schema'
   commands:
     include: 'commands_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
   regex;(.+):
-    include: 'master_schema'
-    regex;(.+):
-      include: 'master_schema'
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

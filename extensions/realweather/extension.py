@@ -93,12 +93,9 @@ class RealWeather(Extension):
                     cfg[name] = config[name]
         icao = self.get_icao_code(input_mission)
         if icao and icao != self.config.get('metar', {}).get('icao'):
-            cfg |= {
-                "metar": {
-                    "icao": icao
-                }
-            }
-            self.config['metar'] = {"icao": icao}
+            if 'metar' not in cfg:
+                cfg['metar'] = {}
+            cfg['metar']['icao'] = icao
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
 
@@ -115,7 +112,7 @@ class RealWeather(Extension):
         for name, element in cfg.items():
             if name == 'realweather':
                 element |= config.get('realweather', {"mission": {}})
-                element['mission'] |= config.get('mission', {}) | {
+                element['mission'] |= config.get('realweather', {}).get('mission', {}) | {
                     "input": input_mission,
                     "output": output_mission
                 }
@@ -126,20 +123,14 @@ class RealWeather(Extension):
                     cfg[name] = config[name]
         icao = self.get_icao_code(input_mission)
         if icao and icao != self.config.get('options', {}).get('weather', {}).get('icao'):
-            cfg |= {
-                "options": {
-                    "weather": {
-                        "icao": icao
-                    }
-                }
-            }
-            if not self.config.get('options'):
-                self.config['options'] = {}
-            self.config['options'] |= {
-                "weather": {
-                    "icao": icao
-                }
-            }
+            if 'options' not in cfg:
+                cfg['options'] = {}
+            if 'weather' not in cfg['options']:
+                cfg['options']['weather'] = {"enable": True}
+            cfg['options']['weather']['icao'] = icao
+        # make sure we only have icao or icao-list
+        if cfg.get('options', {}).get('weather', {}).get('icao'):
+            cfg['options']['weather'].pop('icao-list', None)
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
 

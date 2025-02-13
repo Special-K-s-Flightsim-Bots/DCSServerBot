@@ -367,3 +367,27 @@ class NodeProxy(Node):
                 "server": server.name
             }
         }, node=self.name, timeout=timeout)
+
+    async def install_plugin(self, plugin: str) -> bool:
+        timeout = 60 if not self.slow_system else 120
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "install_plugin",
+            "params": {
+                "plugin": plugin
+            }
+        }, node=self.name, timeout=timeout)
+        return data['return']
+
+    async def uninstall_plugin(self, plugin: str) -> bool:
+        timeout = 60 if not self.slow_system else 120
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "uninstall_plugin",
+            "params": {
+                "plugin": plugin
+            }
+        }, node=self.name, timeout=timeout)
+        return data['return']

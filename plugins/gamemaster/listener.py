@@ -13,15 +13,16 @@ from psycopg.rows import dict_row
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core import Player, Server, Plugin
+    from core import Player, Server
+    from .commands import GameMaster
 
 _ = get_translation(__name__.split('.')[1])
 INTERNAL_CAMPAIGN = '_internal_'
 
 
-class GameMasterEventListener(EventListener):
+class GameMasterEventListener(EventListener["GameMaster"]):
 
-    def __init__(self, plugin: Plugin):
+    def __init__(self, plugin: "GameMaster"):
         super().__init__(plugin)
         self.chat_log = dict()
         self.tasks: dict[str, asyncio.TimerHandle] = {}
@@ -86,7 +87,6 @@ class GameMasterEventListener(EventListener):
                 color = colors[player.side]
             else:
                 color = colors[Side.SPECTATOR]
-            # noinspection PyAsyncCall
             asyncio.create_task(chat_channel.send(
                 f"```ansi\n\u001b[1;{color}mPlayer {player.name} said: {data['message']}```"
             ))
@@ -155,16 +155,13 @@ class GameMasterEventListener(EventListener):
             side = Side.RED
         else:
             side = Side.SPECTATOR
-        # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             "command": "setUserCoalition",
             "ucid": player.ucid,
             "coalition": side.value
         }))
-        # noinspection PyAsyncCall
         asyncio.create_task(self._coalition(server, player))
         if await self.get_coalition_password(server, player.coalition):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._password(server, player, True))
 
     @event(name="onMissionEvent")
@@ -175,7 +172,6 @@ class GameMasterEventListener(EventListener):
                 # should never happen, just in case
                 return
             # check for player messages and start to annoy them
-            # noinspection PyAsyncCall
             asyncio.create_task(self.send_player_message(player))
 
     async def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
@@ -201,6 +197,8 @@ class GameMasterEventListener(EventListener):
                     """, (name,))
                     if cursor.rowcount == 0:
                         await conn.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
+                    else:
+                        raise ValueError(f"Campaign {name} is already active!")
                     if servers:
                         cursor = await conn.execute("""
                             SELECT id FROM campaigns WHERE name ILIKE %s 
@@ -228,17 +226,14 @@ class GameMasterEventListener(EventListener):
     async def startCampaign(self, server: Server, data: dict) -> None:
         name = data.get('name') or INTERNAL_CAMPAIGN
         try:
-            # noinspection PyAsyncCall
-            asyncio.create_task(self.campaign('start', servers=[server], name=name))
+            await self.campaign('start', servers=[server], name=name)
         except psycopg.errors.UniqueViolation:
-            # noinspection PyAsyncCall
             asyncio.create_task(self._resetCampaign(server))
 
     @event(name="stopCampaign")
     async def stopCampaign(self, server: Server, _: dict) -> None:
         _, name = utils.get_running_campaign(self.bot, server)
         if name:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.campaign('delete', name=name))
 
     async def _resetCampaign(self, server: Server) -> None:
@@ -263,7 +258,6 @@ class GameMasterEventListener(EventListener):
 
     @event(name="resetCampaign")
     async def resetCampaign(self, server: Server, _: dict) -> None:
-        # noinspection PyAsyncCall
         asyncio.create_task(self._resetCampaign(server))
 
     async def _join(self, server: Server, player: Player, params: list[str]):
@@ -317,7 +311,6 @@ class GameMasterEventListener(EventListener):
                 Coalition.RED: server.locals['coalitions']['red_role'],
                 Coalition.BLUE: server.locals['coalitions']['blue_role']
             }
-            # noinspection PyAsyncCall
             asyncio.create_task(player.add_role(roles[player.coalition]))
 
     async def reset_coalitions(self, server: Server, discord_roles: bool):
@@ -353,7 +346,6 @@ class GameMasterEventListener(EventListener):
                 f'Event "resetUserCoalitions" received, but COALITIONS are disabled on server "{server.name}"')
             return
         discord_roles = data.get('discord_roles', False)
-        # noinspection PyAsyncCall
         asyncio.create_task(self.reset_coalitions(server, discord_roles))
 
     @chat_command(name="join", usage="<red|blue>", help=_("join a coalition"))
@@ -380,7 +372,6 @@ class GameMasterEventListener(EventListener):
                 Coalition.RED: server.locals['coalitions']['red_role'],
                 Coalition.BLUE: server.locals['coalitions']['blue_role']
             }
-            # noinspection PyAsyncCall
             asyncio.create_task(player.remove_role(roles[player.coalition]))
         player.coalition = None
 
@@ -402,7 +393,6 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="coalition", help=_("displays your current coalition"))
     async def coalition(self, server: Server, player: Player, params: list[str]):
-        # noinspection PyAsyncCall
         asyncio.create_task(self._coalition(server, player))
 
     async def _password(self, server: Server, player: Player, init: Optional[bool] = False):
@@ -420,7 +410,6 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="password", aliases=["passwd"], help=_("displays the coalition password"))
     async def password(self, server: Server, player: Player, params: list[str]):
-        # noinspection PyAsyncCall
         asyncio.create_task(self._password(server, player, False))
 
     @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage=_("<flag> [value]"),

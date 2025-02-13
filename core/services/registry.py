@@ -1,7 +1,14 @@
 import asyncio
+import logging
 
+from core.data.node import FatalException
 from core.services.base import Service
-from typing import Type, Optional, TypeVar, Callable, Union
+from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import NodeImpl
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["ServiceRegistry"]
 
@@ -23,6 +30,7 @@ class ServiceRegistry:
         return cls._instance
 
     async def __aenter__(self):
+        await self.run()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -30,13 +38,16 @@ class ServiceRegistry:
 
     @classmethod
     def register(cls, *, t: Optional[Type[T]] = None, master_only: Optional[bool] = False,
-                 plugin: Optional[str] = None) -> Callable[[Type[T]], Type[T]]:
+                 plugin: Optional[str] = None,
+                 depends_on: Optional[list[Type[T]]] = None) -> Callable[[Type[T]], Type[T]]:
         def inner_wrapper(wrapped_class: Type[T]) -> Type[T]:
             cls._registry[t or wrapped_class] = wrapped_class
             if master_only:
                 cls._master_only.add(t or wrapped_class)
             if plugin:
                 cls._plugins[t or wrapped_class] = plugin
+            # Add dependencies to the service as an attribute
+            wrapped_class.dependencies = depends_on or []
             return wrapped_class
 
         return inner_wrapper
@@ -81,10 +92,23 @@ class ServiceRegistry:
 
     @classmethod
     async def run(cls):
-        await asyncio.gather(*[service.start() for service in cls._singletons.values()])
+        logger.info("- Starting Services ...")
+        services = [cls.new(service) for service in cls.services().keys() if cls.can_run(service)]
+        ret = await asyncio.gather(*[service.start() for service in services], return_exceptions=True)
+        for idx in range(0, len(ret)):
+            name = services[idx].name
+            if isinstance(ret[idx], Exception):
+                logger.error(f"  => Service {name} NOT started.", exc_info=ret[idx])
+                if isinstance(ret[idx], FatalException):
+                    raise
+            else:
+                logger.debug(f"  => Service {name} started.")
+        logger.info("- Services started.")
 
     @classmethod
     async def shutdown(cls):
+        logger.info("- Stopping Services...")
         for _, service in cls._singletons.items():
             await service.stop()
         cls._singletons.clear()
+        logger.info("- Services stopped.")

@@ -87,7 +87,7 @@ class ServerInfo(report.EmbedElement):
         else:
             footer = ''
         if server.node.dcs_version:
-            footer += f'DCS {self.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
+            footer += f'DCS {server.node.dcs_version} | DCSServerBot {self.node.bot_version}.{self.node.sub_version} | '
         self.embed.set_footer(text=footer)
 
 

@@ -2,13 +2,17 @@ import asyncio
 import discord
 
 from core import EventListener, Server, Status, utils, event, chat_command, get_translation
-from typing import cast, Union
+from typing import cast, Union, TYPE_CHECKING
+
 from .player import CreditPlayer
+
+if TYPE_CHECKING:
+    from .commands import CreditSystem
 
 _ = get_translation(__name__.split('.')[1])
 
 
-class CreditSystemListener(EventListener):
+class CreditSystemListener(EventListener["CreditSystem"]):
 
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:

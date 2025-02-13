@@ -1,7 +1,12 @@
 schema;preset_schema:
   type: map
+  nullable: false
   mapping:
     choices:
       type: seq
+      nullable: true
       sequence:
         - type: str
+          nullable: false
+          unique: true
+          range: {min: 1}

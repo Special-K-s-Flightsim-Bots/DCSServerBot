@@ -12,7 +12,7 @@ from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Union, Optional
+from typing import Union, Optional, Type
 
 from .filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, SquadronFilter
 from .listener import UserStatisticsEventListener
@@ -66,9 +66,9 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
         interaction.client.log.exception(ex)
 
 
-class UserStatistics(Plugin):
+class UserStatistics(Plugin[UserStatisticsEventListener]):
 
-    def __init__(self, bot, listener):
+    def __init__(self, bot: DCSServerBot, listener: Type[UserStatisticsEventListener]):
         super().__init__(bot, listener)
         if self.locals:
             self.persistent_highscore.start()
@@ -693,11 +693,10 @@ class UserStatistics(Plugin):
 
             # Render server-specific highscores
             for server in self.bus.servers.values():
-                # Avoid repeated nested lookups
                 server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
                 if not (server_config and server_config.get('highscore')):
                     continue
-                await self.render_highscore(server_config['highscore'], server=server)
+                await self.render_highscore(deepcopy(server_config['highscore']), server=server)
 
         except Exception as ex:
             # Improved logging with context

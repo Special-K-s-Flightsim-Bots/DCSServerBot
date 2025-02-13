@@ -15,8 +15,6 @@ to launch DCS from a specific command (not really useful as you have .startup, b
 command. 
 
 ```yaml
-DEFAULT:
-  command_prefix: . # The prefix to use for these discord commands
 commands:
 - name: dcs         # Create a command .dcs
   roles:            # that can be run by the DCS Admin role
