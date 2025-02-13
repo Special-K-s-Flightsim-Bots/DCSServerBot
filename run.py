@@ -76,6 +76,7 @@ class Main:
         # Change 3rd-party logging
         logging.getLogger(name='asyncio').setLevel(logging.WARNING)
         logging.getLogger(name='discord').setLevel(logging.ERROR)
+        logging.getLogger(name="eye3d").setLevel(logging.ERROR)
         logging.getLogger(name='git').setLevel(logging.WARNING)
         logging.getLogger(name='matplotlib').setLevel(logging.ERROR)
         logging.getLogger(name='PidFile').setLevel(logging.ERROR)
