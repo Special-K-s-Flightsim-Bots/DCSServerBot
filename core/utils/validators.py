@@ -67,7 +67,9 @@ class NodeData:
             self._data = yaml.load(config_path.read_text(encoding='utf-8'))
             self._nodes: list[str] = list(self._data.keys())
             self._instances: dict[str, list[str]] = {
-                node: list(self._data[node].get('instances', {}).keys()) for node in self._nodes
+                node: list(self._data[node]['instances'].keys())
+                for node in self._nodes
+                if self._data[node] and self._data[node].get('instances')
             }
             self._all_instances: dict[str, int] = {}
             for node, instances in self._instances.items():
