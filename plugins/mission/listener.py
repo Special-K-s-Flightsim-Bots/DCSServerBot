@@ -823,12 +823,14 @@ class MissionEventListener(EventListener["Mission"]):
                         "menu": menu
                     })
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
-            group_id = data.get('initiator', {}).get('group', {}).get('id_')
-            if group_id is not None:
-                await server.send_to_dcs({
-                    "command": "deleteMenu",
-                    "groupID": group_id
-                })
+            initiator = data.get('initiator', {})
+            if initiator:
+                group_id = initiator.get('group', {}).get('id_')
+                if group_id is not None:
+                    await server.send_to_dcs({
+                        "command": "deleteMenu",
+                        "groupID": group_id
+                    })
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
     async def pause(self, server: Server, player: Player, params: list[str]):

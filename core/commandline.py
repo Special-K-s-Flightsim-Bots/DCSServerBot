@@ -21,7 +21,6 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-s', '--secret', action='store_true', help='Reveal all stored passwords')
     elif program == 'update.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
-        parser.add_argument('-d', '--delete', action='store_true', help='remove obsolete local files')
         parser.add_argument('-r', '--no-restart', action='store_true', default=False,
                             help="don't start DCSServerBot after the update")
     elif program == 'install.py':

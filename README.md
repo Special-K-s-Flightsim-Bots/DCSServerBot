@@ -430,6 +430,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   channels:
     status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right-click on your channel and select "Copy Channel ID". You can disable it with -1
     chat: 8877665544332211      # The Discord channel for the in-game chat replication. You can disable it with setting it to -1.
+    events: 1928374619283746    # Optional: if you want to split game events from chat messages, you can enable an optional events channel.
     admin: 1188227733664455     # The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server specific ones. See bot.yaml for more.
     voice: 1827364518273645     # The voice channel, where people need to connect to (if force_voice is true). 
   chat_log:
