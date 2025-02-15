@@ -51,10 +51,12 @@ My Fancy Server:
   # [...]
   channels:
     status: 1122334455667788
-    chat: 8765432187654321      # general chat channel
+    chat: 8765432187654321          # general chat channel
     admin: 8877665544332211
-    blue: 1188227733664455      # chat channel for coalition blue
-    red: 8811772266335544       # chat channel for coalition red
+    blue: 1188227733664455          # chat channel for coalition blue
+    blue_events: 987651234987651234 # Optional: to separate in-game event from chat messages (default: take blue instead).
+    red: 8811772266335544           # chat channel for coalition red
+    red_events: 123459876123459876  # Optional: same as blue_events for red.
   # [...]
   coalitions:
     lock_time: 1 day            # time in which you are not allowed to move to the opposite coalition after leaving one coalition
