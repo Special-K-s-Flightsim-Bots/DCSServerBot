@@ -386,6 +386,7 @@ class NodeImpl(Node):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(REPO_URL) as response:
+                    response.raise_for_status()
                     result = await response.json()
                     current_version = re.sub('^v', '', __version__)
                     latest_version = re.sub('^v', '', result[0]["tag_name"])
@@ -661,6 +662,7 @@ class NodeImpl(Node):
                                 FROM cluster c LEFT OUTER JOIN nodes n
                                 ON c.guild_id = n.guild_id AND c.master = n.node
                                 WHERE c.guild_id = %s
+                                AND n.last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
                             """, (self.guild_id, ))
                             cluster = await cursor.fetchone()
                             # No master there? we take it!

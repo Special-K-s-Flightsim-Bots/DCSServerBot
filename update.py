@@ -1,6 +1,8 @@
 import io
 import os
 import re
+from pathlib import Path
+
 import requests
 import shutil
 import subprocess
@@ -15,7 +17,7 @@ from typing import Iterable, Optional
 from version import __version__
 
 
-def do_update_git(delete: Optional[bool]) -> int:
+def do_update_git() -> int:
     import git
 
     try:
@@ -42,7 +44,7 @@ def do_update_git(delete: Optional[bool]) -> int:
                             print('     Please run update.cmd manually.')
                             return -1
                 except git.exc.InvalidGitRepositoryError:
-                    return do_update_github(delete)
+                    return do_update_github()
                 except git.exc.GitCommandError:
                     print('  => Autoupdate failed!')
                     print('     Please revert back the changes in these files:')
@@ -53,25 +55,56 @@ def do_update_git(delete: Optional[bool]) -> int:
                 print('- No update found for DCSServerBot.')
                 return 0
     except git.exc.InvalidGitRepositoryError:
-        return do_update_github(delete)
+        return do_update_github()
 
 
-def cleanup_local_files(to_delete_set: Iterable):
+def cleanup_local_files(to_delete_set: Iterable, extracted_folder: str):
     # Exclude directories from deletion
-#    exclude_dirs = {'__pycache__', '.git', 'config', 'reports', 'sounds', 'services', 'extensions', 'plugins', 'logs'}
-    exclude_dirs = {'__pycache__', '.git', 'config', 'reports', 'sounds', 'services', 'plugins', 'logs'}
-    to_delete_set = {f for f in to_delete_set if not any(excluded_dir in f for excluded_dir in exclude_dirs)}
+    root_exclude_dirs = {'__pycache__', '.git', 'config', 'reports', 'logs'}
+    plugins_dir = Path('plugins')
+    services_dir = Path('services')
+
+    to_delete_set = {f for f in to_delete_set if not any(excluded_dir in f for excluded_dir in root_exclude_dirs)}
 
     # Delete each old file that is not in the updated directory.
     for relative_path in to_delete_set:
         full_path = os.path.join(os.getcwd(), relative_path)
+        # Skip special handling for plugins and services if outside their context
+        if plugins_dir in Path(relative_path).parents:
+            # Delete only subdirectories inside `plugins` that exist in the zip
+            sub_path = relative_path.replace(f"{plugins_dir}/", "")  # Subpath inside plugins directory
+            if not os.path.isdir(os.path.join(extracted_folder, plugins_dir, sub_path)):
+                print(f"  => Deleting {full_path} (from plugins directory)")
+                if os.path.isfile(full_path):
+                    os.remove(full_path)
+                elif os.path.isdir(full_path):
+                    shutil.rmtree(full_path)
+            continue
+        elif services_dir in Path(relative_path).parents:
+            # Delete only subdirectories inside `services` that exist in zip
+            sub_path = relative_path.replace(f"{services_dir}/", "")  # Subpath inside services directory
+            if not os.path.isdir(os.path.join(extracted_folder, services_dir, sub_path)):
+                print(f"  => Deleting {full_path} (from services directory)")
+                if os.path.isfile(full_path):
+                    os.remove(full_path)
+                elif os.path.isdir(full_path):
+                    shutil.rmtree(full_path)
+            continue
+
+        # Delete rest normally
         if os.path.isfile(full_path):
             print(f"  => Deleting {full_path}")
             os.remove(full_path)
+        elif os.path.isdir(full_path):
+            print(f"  => Removing directory {full_path}")
+            shutil.rmtree(full_path)
 
 
-def do_update_github(delete: Optional[bool] = False) -> int:
+def do_update_github() -> int:
     response = requests.get(f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases")
+    if response.status_code != 200:
+        print(f'  => Autoupdate failed: {response.reason} ({response.status_code})')
+        return -2
     current_version = re.sub('^v', '', __version__)
     latest_version = re.sub('^v', '', response.json()[0]["tag_name"])
 
@@ -91,12 +124,11 @@ def do_update_github(delete: Optional[bool] = False) -> int:
 
                     extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])  # there is one folder
 
-                    if delete:
-                        # check for necessary file deletions
-                        old_files_set = set(utils.list_all_files(os.getcwd()))
-                        new_files_set = set(utils.list_all_files(extracted_folder))
-                        to_delete_set = old_files_set - new_files_set
-                        cleanup_local_files(to_delete_set)
+                    # check for necessary file deletions
+                    old_files_set = set(utils.list_all_files(os.getcwd()))
+                    new_files_set = set(utils.list_all_files(extracted_folder))
+                    to_delete_set = old_files_set - new_files_set
+                    cleanup_local_files(to_delete_set, extracted_folder)
 
                     for root, dirs, files in os.walk(extracted_folder):
                         for file in files:
@@ -124,9 +156,9 @@ if __name__ == '__main__':
     # get the command line args from core
     args = COMMAND_LINE_ARGS
     try:
-        rc = do_update_git(args.delete)
+        rc = do_update_git()
     except ImportError:
-        rc = do_update_github(args.delete)
+        rc = do_update_github()
     if args.no_restart:
         exit(-2)
     else:
