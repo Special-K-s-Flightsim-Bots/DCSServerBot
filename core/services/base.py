@@ -71,6 +71,8 @@ def proxy(original_function: Callable[..., Any]):
 
 
 class Service(ABC):
+    dependencies: list[type[Service]] = None
+
     def __init__(self, node: NodeImpl, name: Optional[str] = None):
         self.name = name or self.__class__.__name__
         self.running: bool = False

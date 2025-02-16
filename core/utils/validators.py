@@ -262,7 +262,7 @@ def check_main_structure(value, rule_obj, path):
                 raise SchemaError(msg="The DEFAULT tag must not have any instances!", path=path)
         elif element in node_data.nodes:
             for instance in value[element].keys():
-                if instance not in node_data.instances[element]:
+                if instance not in node_data.instances.get(element, {}):
                     raise SchemaError(
                         msg=f"{instance} is not an instance name of node {element}!",
                         path=path + '/' + element
