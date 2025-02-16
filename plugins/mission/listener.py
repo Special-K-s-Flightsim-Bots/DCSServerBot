@@ -835,7 +835,9 @@ class MissionEventListener(EventListener["Mission"]):
                     })
 
     async def do_change_mission(self, server: Server, player: Player, params: dict):
-        mission_file = params.get('mission_file')
+        mission_file = os.path.expandvars(params.get('mission_file'))
+        if not os.path.isabs(mission_file):
+            mission_file = os.path.join(await server.get_missions_dir(), mission_file)
         if not mission_file:
             mission_list = await server.getMissionList()
             mission_id = params.get('mission_id')
