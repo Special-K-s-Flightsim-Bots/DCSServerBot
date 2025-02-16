@@ -379,9 +379,11 @@ class ModManagerService(Service):
         return True
 
     @proxy
-    async def install_package(self, server: Server, folder: Folder, package_name: str, version: str,
+    async def install_package(self, server: Server, folder: Union[Folder, str], package_name: str, version: str,
                               repo: Optional[str] = None) -> bool:
         self.log.info(f"Installing package {package_name}_v{version} ...")
+        if isinstance(folder, str):
+            folder = Folder(folder)
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         if folder == Folder.SavedGames:
@@ -435,7 +437,10 @@ class ModManagerService(Service):
         return True
 
     @proxy
-    async def uninstall_package(self, server: Server, folder: Folder, package_name: str, version: str) -> bool:
+    async def uninstall_package(self, server: Server, folder: Union[Folder, str], package_name: str,
+                                version: str) -> bool:
+        if isinstance(folder, str):
+            folder = Folder(folder)
         if folder == Folder.RootFolder:
             return await self.uninstall_root_package(server.node, package_name, version)
         self.log.info(f"Uninstalling package {package_name}_v{version} ...")
