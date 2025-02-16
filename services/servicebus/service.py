@@ -16,6 +16,7 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.impl.serverimpl import ServerImpl
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from functools import reduce
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
@@ -626,7 +627,7 @@ class ServiceBus(Service):
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
             method_name = data['method']
-            func = getattr(obj, method_name, None)
+            func = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
             if not func:
                 raise ValueError(f"Call to non-existing function {method_name}()")
 
