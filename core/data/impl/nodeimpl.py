@@ -254,7 +254,9 @@ class NodeImpl(Node):
             try:
                 aconn = await psycopg.AsyncConnection.connect(url)
                 async with aconn:
-                    self.log.info("- Connection to database established.")
+                    cursor = await aconn.execute("SELECT version()")
+                    version = (await cursor.fetchone())[0]
+                    self.log.info(f"- Connection to {version} established.")
                     break
             except OperationalError:
                 if attempt == max_attempts:
@@ -377,10 +379,9 @@ class NodeImpl(Node):
                     self.log.error(f'     ./{item.a_path}')
             else:
                 self.log.error(ex)
-            return False
         except ValueError as ex:
             self.log.error(ex)
-            return False
+        return False
 
     async def _upgrade_pending_non_git(self) -> bool:
         try:
@@ -1004,6 +1005,8 @@ class NodeImpl(Node):
             await asyncio.sleep(1)
 
     async def add_instance(self, name: str, *, template: str = "") -> "Instance":
+        from services.servicebus import ServiceBus
+
         max_bot_port = max_dcs_port = max_webgui_port = -1
         for instance in self.instances:
             if instance.bot_port > max_bot_port:
@@ -1038,6 +1041,8 @@ class NodeImpl(Node):
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)
+        if 'instances' not in config[self.name]:
+            config[self.name]['instances'] = {}
         config[self.name]['instances'][instance.name] = {
             "home": instance.home,
             "bot_port": instance.bot_port
@@ -1049,7 +1054,8 @@ class NodeImpl(Node):
             settings = SettingsDict(self, settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
-        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a')
+        bus = ServiceRegistry.get(ServiceBus)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
         self.instances.append(instance)
         return instance
@@ -1113,11 +1119,12 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         await server.node.unregister_server(server)
-        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name, bus=self)
+        bus = ServiceRegistry.get(ServiceBus)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name=server.name, bus=bus)
         instance.server = server
-        ServiceRegistry.get(ServiceBus).servers[server.name] = server
+        bus.servers[server.name] = server
         if not self.master:
-            await ServiceRegistry.get(ServiceBus).send_init(server)
+            await bus.send_init(server)
         server.status = Status.SHUTDOWN
 
     async def unregister_server(self, server: Server) -> None:
