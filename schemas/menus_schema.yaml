@@ -1,13 +1,24 @@
+schema;params_seq:
+  type: seq
+  nullable: false
+  sequence:
+    - {type: text, nullable: false}
+
+schema;params_map:
+  type: map
+  nullable: true
+  allowempty: true
+
 schema;command_menu_element:
   type: map
   mapping:
     command: {type: str, nullable: false, range: {min: 1}}
     subcommand: {type: str, nullable: false, range: {min: 1}}
     params:
-      type: seq
+      type: any
       nullable: false
-      sequence:
-        - {type: text, nullable: false}
+      func: seq_or_map
+      enum: ['params_seq', 'params_map']
     discord: {type: any, nullable: false, func: text_or_list}
     ucid: {type: any, nullable: false, func: str_or_list}
 

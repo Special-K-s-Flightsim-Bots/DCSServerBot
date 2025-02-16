@@ -5,6 +5,7 @@ import os
 import psycopg
 import random
 import re
+import traceback
 
 from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
@@ -1597,6 +1598,28 @@ class Mission(Plugin[MissionEventListener]):
         env = await report.render(period=f"{number} {period}")
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+
+    # New command group "/mission"
+    menu = Group(name="menu", description=_("Commands to manage mission menus"))
+
+    @menu.command(description=_('Validate the menu.yaml'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def validate(self, interaction: discord.Interaction):
+        menu_file = os.path.join(self.node.config_dir, 'menus.yaml')
+        if os.path.exists(menu_file):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer(ephemeral=True)
+            try:
+                utils.validate(menu_file, ['schemas/menus_schema.yaml'], raise_exception=True)
+                await interaction.followup.send("Schema valid.", ephemeral=True)
+            except Exception as ex:
+                self.log.exception(ex)
+                message = traceback.format_exc()
+                await interaction.followup.send(message[:2000])
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("No menus.yaml found."), ephemeral=True)
 
     @tasks.loop(hours=1)
     async def expire_token(self):
