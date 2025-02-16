@@ -845,14 +845,14 @@ class MissionEventListener(EventListener["Mission"]):
                 await player.sendChatMessage(_("Wrong menu configuration. "
                                                "Neither mission_file nor mission_id are specified."))
                 return
-        run_extensions = params.get('run_extensions', (params.get('presets') is None))
         message = params.get('message', 'Server is going to load mission {} now!')
         await server.sendPopupMessage(Coalition.ALL, message.format(os.path.basename(mission_file)[:-4]))
-        if not run_extensions:
-            presets = params.get('presets')
-            if presets:
-                mission_file = await server.modifyMission(mission_file, [utils.get_preset(self.node, x) for x in presets])
-        await server.loadMission(mission_file, modify_mission=run_extensions)
+        if params.get('run_extensions', False):
+            mission_file = await server.apply_mission_changes(mission_file)
+        presets = params.get('presets')
+        if presets:
+            mission_file = await server.modifyMission(mission_file, [utils.get_preset(self.node, x) for x in presets])
+        await server.loadMission(mission_file, modify_mission=False)
 
     @event(name="changeMission")
     async def changeMission(self, server: Server, data: dict) -> None:
