@@ -14,7 +14,6 @@ import zipfile
 
 from contextlib import suppress
 from core import Extension, utils, ServiceRegistry, get_translation
-from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
 from io import BytesIO
 from packaging.version import parse
@@ -38,6 +37,7 @@ LOGLEVEL = {
     'DEBUG': logging.DEBUG,
     'INFO': logging.INFO,
     'WARNING': logging.WARNING,
+    'WARN': logging.WARNING,
     'ERROR': logging.ERROR,
     'CRITICAL': logging.CRITICAL,
     'FATAL': logging.FATAL
@@ -100,7 +100,7 @@ class SkyEye(Extension):
             return True
         return False
 
-    async def prepare(self) -> bool:
+    async def _prepare_config(self):
         dirty = False
 
         # make sure we have a local model, unless configured otherwise
@@ -184,6 +184,31 @@ class SkyEye(Extension):
         if dirty:
             with open(self.get_config(), mode='w', encoding='utf-8') as outfile:
                 yaml.dump(self.locals, outfile)
+
+    async def _autoupdate(self):
+        try:
+            version = await self.check_for_updates()
+            if version:
+                self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
+                await self.do_update(version)
+                self._version = version.lstrip('v')
+                self.log.info("SkyEye updated.")
+                bus = ServiceRegistry.get(ServiceBus)
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
+                    }
+                })
+        except Exception as ex:
+            self.log.exception(ex)
+
+    async def prepare(self) -> bool:
+        await self._prepare_config()
+        if self.config.get('autoupdate', False):
+            await self._autoupdate()
         return await super().prepare()
 
     async def startup(self) -> bool:
@@ -393,26 +418,3 @@ class SkyEye(Extension):
                             os.makedirs(os.path.dirname(destination_path), exist_ok=True)
                             with open(destination_path, 'wb') as output_file:
                                 output_file.write(z.read(member))
-
-    @tasks.loop(minutes=30)
-    async def schedule(self):
-        if not self.config.get('autoupdate', False):
-            return
-        try:
-            version = await self.check_for_updates()
-            if version:
-                self.log.info(f"A new SkyEye update is available. Updating to version {version} ...")
-                await self.do_update(version)
-                self._version = version.lstrip('v')
-                self.log.info("SkyEye updated.")
-                bus = ServiceRegistry.get(ServiceBus)
-                await bus.send_to_node({
-                    "command": "rpc",
-                    "service": BotService.__name__,
-                    "method": "audit",
-                    "params": {
-                        "message": f"{self.name} updated to version {version} on node {self.node.name}."
-                    }
-                })
-        except Exception as ex:
-            self.log.exception(ex)
