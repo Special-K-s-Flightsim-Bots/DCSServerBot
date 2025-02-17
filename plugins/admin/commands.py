@@ -13,13 +13,12 @@ from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
 from pathlib import Path
+from plugins.admin.listener import AdminEventListener
+from plugins.admin.views import CleanupView
+from plugins.scheduler.views import ConfigView
 from services.bot import DCSServerBot
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
-
-from .listener import AdminEventListener
-from .views import CleanupView
-from ..scheduler.views import ConfigView
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -881,20 +880,13 @@ class Admin(Plugin[AdminEventListener]):
             except Exception as ex:
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
-                config_file = os.path.join(self.node.config_dir, 'servers.yaml')
-                with open(config_file, mode='r', encoding='utf-8') as infile:
-                    config = yaml.load(infile)
-                config[server.name] = {
-                    "channels": {
-                        "status": server.locals.get('channels', {}).get('status', -1),
-                        "chat": server.locals.get('channels', {}).get('chat', -1)
-                    }
+                channels = {
+                    "status": server.locals.get('channels', {}).get('status', -1),
+                    "chat": server.locals.get('channels', {}).get('chat', -1)
                 }
                 if not self.bot.locals.get('channels', {}).get('admin'):
-                    config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin', -1)
-                with open(config_file, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(config, outfile)
-                await server.reload()
+                    channels['admin'] = server.locals.get('channels', {}).get('admin', -1)
+                await server.update_channels(channels)
                 server.status = Status.SHUTDOWN
                 await interaction.followup.send(
                     _("Server {server} assigned to instance {instance}.").format(server=server.name,
@@ -1171,12 +1163,15 @@ Please make sure you forward the following ports:
         name = att.filename[:-5]
         if name in ['main', 'nodes', 'servers'] or name.startswith('presets'):
             target_path = self.node.config_dir
+            schema_path = os.path.join('schemas', name)
             plugin = False
         elif name in ['backup', 'bot']:
             target_path = os.path.join(self.node.config_dir, 'services')
+            schema_path = os.path.join('services', name[:-4], 'schemas', name[:-4] + '_schema.yaml')
             plugin = False
         elif name in self.node.plugins:
             target_path = os.path.join(self.node.config_dir, 'plugins')
+            schema_path = os.path.join('plugins', name[:-4], 'schemas', name[:-4] + '_schema.yaml')
             plugin = True
         else:
             return False

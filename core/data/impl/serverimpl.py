@@ -248,6 +248,16 @@ class ServerImpl(Server):
             else:
                 super().set_status(status)
 
+    async def update_channels(self, channels: dict[str, int]) -> None:
+        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+        with open(config_file, mode='r', encoding='utf-8') as infile:
+            config = yaml.load(infile)
+        config[self.name]['channels'] = channels
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(config, outfile)
+        self.locals['channels'] |= channels
+        self._channels.clear()
+
     def _install_luas(self):
         dcs_path = os.path.join(self.instance.home, 'Scripts')
         if not os.path.exists(dcs_path):
@@ -362,29 +372,42 @@ class ServerImpl(Server):
             filename = os.path.join(self.node.config_dir, 'servers.yaml')
             if os.path.exists(filename):
                 data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+                # proper rename
                 if old_name in data and new_name not in data:
                     data[new_name] = data.pop(old_name)
-                    with open(filename, mode='w', encoding='utf-8') as outfile:
-                        yaml.dump(data, outfile)
+                # new added server
+                elif not old_name:
+                    data[new_name] = {}
+                with open(filename, mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
             # update serverSettings.lua if requested
             if update_settings:
                 self.settings['name'] = new_name
 
         old_name = self.name
+        if old_name == 'n/a':
+            old_name = None
         try:
             # rename the server in the database
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     # we need to remove any older server that might have had the same name
                     await conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
-                    await conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                       (new_name, self.name))
+                    await conn.execute("""
+                        UPDATE servers SET server_name = %s WHERE server_name IS NOT DISTINCT FROM %s
+                    """, (new_name, old_name))
                     await conn.execute('DELETE FROM instances WHERE server_name = %s', (new_name, ))
-                    await conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
-                                       (new_name, self.name))
+                    await conn.execute("""
+                        UPDATE instances 
+                        SET server_name = %s 
+                        WHERE instance = %s AND server_name IS NOT DISTINCT FROM %s
+                    """, (new_name, self.instance.name, old_name))
                     await conn.execute('DELETE FROM message_persistence WHERE server_name = %s', (new_name, ))
-                    await conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                       (new_name, self.name))
+                    await conn.execute("""
+                        UPDATE message_persistence 
+                        SET server_name = %s 
+                        WHERE server_name IS NOT DISTINCT FROM %s
+                    """, (new_name, old_name))
                     # only the master can take care of a cluster-wide rename
                     if self.node.master:
                         await self.node.rename_server(self, new_name)
@@ -394,7 +417,7 @@ class ServerImpl(Server):
                             "object": "Node",
                             "method": "rename_server",
                             "params": {
-                                "server": self.name,
+                                "server": self.name or 'n/a',
                                 "new_name": new_name
                             }
                         })

@@ -388,6 +388,9 @@ class Server(DataObject):
                 self._channels[Channel.COALITION_RED_EVENTS] = self._channels[Channel.COALITION_RED_CHAT]
         return self._channels
 
+    async def update_channels(self, channels: dict[str, int]) -> None:
+        raise NotImplemented()
+
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
             while self.status not in s:

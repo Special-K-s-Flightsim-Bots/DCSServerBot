@@ -94,7 +94,6 @@ class NodeImpl(Node):
         self.dcs_branch = None
         self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
         self.suspect: dict[str, Node] = {}
-        self.instances: list[Instance] = []
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
@@ -254,9 +253,9 @@ class NodeImpl(Node):
             try:
                 aconn = await psycopg.AsyncConnection.connect(url)
                 async with aconn:
-                    cursor = await aconn.execute("SELECT version()")
+                    cursor = await aconn.execute("SHOW server_version")
                     version = (await cursor.fetchone())[0]
-                    self.log.info(f"- Connection to {version} established.")
+                    self.log.info(f"- Connection to PostgreSQL {version} established.")
                     break
             except OperationalError:
                 if attempt == max_attempts:
@@ -1058,6 +1057,9 @@ class NodeImpl(Node):
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
         self.instances.append(instance)
+        bus.servers[server.name] = server
+        if not self.master:
+            await bus.send_init(server)
         return instance
 
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:

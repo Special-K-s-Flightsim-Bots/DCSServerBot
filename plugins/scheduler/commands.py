@@ -804,35 +804,24 @@ class Scheduler(Plugin[SchedulerListener]):
                 await interaction.followup.send('Aborted.')
                 return
 
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         view = ConfigView(self.bot, server)
         embed = discord.Embed(title=f'Please edit the configuration of server\n"{server.display_name}"')
-        # noinspection PyUnresolvedReferences
-        if interaction.response.is_done():
-            msg = await interaction.followup.send(embed=embed, view=view)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(embed=embed, view=view)
-            msg = await interaction.original_response()
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:
             if not await view.wait() and not view.cancelled:
                 if view.channel_update:
-                    if not await view.wait() and not view.cancelled and view.channel_update:
-                        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
-                        with open(config_file, mode='r', encoding='utf-8') as infile:
-                            config = yaml.load(infile)
-                        config[server.name] = {
-                            "channels": {
-                                "status": server.locals.get('channels', {}).get('status', -1),
-                                "chat": server.locals.get('channels', {}).get('chat', -1)
-                            }
-                        }
-                        if not self.bot.locals.get('channels', {}).get('admin'):
-                            config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin',
-                                                                                                             -1)
-                        with open(config_file, mode='w', encoding='utf-8') as outfile:
-                            yaml.dump(config, outfile)
-                        await server.reload()
-                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')
+                    channels = {
+                        "status": server.locals.get('channels', {}).get('status', -1),
+                        "chat": server.locals.get('channels', {}).get('chat', -1)
+                    }
+                    if not self.bot.locals.get('channels', {}).get('admin'):
+                        channels['admin'] = server.locals.get('channels', {}).get('admin', -1)
+                    await server.update_channels(channels)
+                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.',
+                                                ephemeral=ephemeral)
         finally:
             try:
                 await msg.delete()

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 from core import Server, Status, utils, Coalition
 from core.utils.helper import async_cache, cache_with_expiration
 from core.data.node import UploadStatus
@@ -62,6 +60,18 @@ class ServerProxy(Server):
     @options.setter
     def options(self, o: dict):
         self._options = utils.RemoteSettingsDict(self, "_options", o)
+
+    async def update_channels(self, channels: dict[str, int]) -> None:
+        timeout = 60 if not self.node.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "update_channels",
+            "server_name": self.name,
+            "params": {
+                "channels": channels
+            }
+        }, node=self.node.name, timeout=timeout)
 
     async def get_current_mission_file(self) -> Optional[str]:
         timeout = 60 if not self.node.slow_system else 120

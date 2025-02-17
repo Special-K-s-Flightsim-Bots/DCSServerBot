@@ -3,12 +3,11 @@ import os
 
 from core import utils
 from core.translations import get_translation
+from core.utils.helper import YAMLError
 from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
-
-from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML

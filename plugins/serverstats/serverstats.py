@@ -701,7 +701,6 @@ class ServerLoad(report.MultiGraphElement):
         time_span = time_end - time_start
 
 
-        self.log.debug(f"### Time start: {time_start}, Time end: {time_end}, Time span: {time_span}")
         if time_span <= pd.Timedelta(hours=1):
             _period = "Hour"
         elif time_span <= pd.Timedelta(days=1):
@@ -712,7 +711,6 @@ class ServerLoad(report.MultiGraphElement):
             _period = "Month"
         else:
             _period = "Month"
-        self.log.debug(f"### Period: {_period}")
 
         settings = {
             "Hour": {
