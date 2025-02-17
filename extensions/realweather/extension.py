@@ -187,10 +187,12 @@ class RealWeather(Extension):
         await self.generate_config(filename, tmpname)
         return await self.run_realweather(filename, tmpname)
 
-    async def apply_realweather(self, filename: str, config: dict) -> str:
+    async def apply_realweather(self, filename: str, config: dict, use_orig: bool = True) -> str:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
-        await self.generate_config(utils.get_orig_file(filename), tmpname, config)
+        if use_orig:
+            filename = utils.get_orig_file(filename)
+        await self.generate_config(filename, tmpname, config)
         return (await self.run_realweather(filename, tmpname))[0]
 
     async def render(self, param: Optional[dict] = None) -> dict:

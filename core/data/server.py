@@ -356,7 +356,7 @@ class Server(DataObject):
     async def getAllMissionFiles(self) -> list[str]:
         raise NotImplemented()
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
+    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         raise NotImplemented()
 
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,

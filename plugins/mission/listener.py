@@ -849,11 +849,15 @@ class MissionEventListener(EventListener["Mission"]):
                 return
         message = params.get('message', 'Server is going to load mission {} now!')
         await server.sendPopupMessage(Coalition.ALL, message.format(os.path.basename(mission_file)[:-4]))
+        use_orig = True
         if params.get('run_extensions', False):
             mission_file = await server.apply_mission_changes(mission_file)
+            use_orig = False
         presets = params.get('presets')
         if presets:
-            mission_file = await server.modifyMission(mission_file, [utils.get_preset(self.node, x) for x in presets])
+            mission_file = await server.modifyMission(
+                mission_file, [utils.get_preset(self.node, x) for x in presets], use_orig
+            )
         await server.loadMission(mission_file, modify_mission=False)
 
     @event(name="changeMission")

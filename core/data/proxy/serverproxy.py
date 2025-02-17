@@ -180,7 +180,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
+    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -189,7 +189,8 @@ class ServerProxy(Server):
             "server_name": self.name,
             "params": {
                 "filename": filename,
-                "preset": preset
+                "preset": preset,
+                "use_orig": use_orig
             }
         }, timeout=timeout, node=self.node.name)
         return data['return']

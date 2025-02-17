@@ -783,10 +783,12 @@ class ServerImpl(Server):
             await self.addMission(filename)
         return UploadStatus.OK
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
+    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         from extensions.mizedit import MizEdit
 
-        return await MizEdit.apply_presets(self, utils.get_orig_file(filename), preset)
+        if use_orig:
+            filename = utils.get_orig_file(filename)
+        return await MizEdit.apply_presets(self, filename, preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')

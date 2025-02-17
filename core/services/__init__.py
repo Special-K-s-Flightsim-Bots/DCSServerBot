@@ -1,2 +1,2 @@
-from .base import *
-from .registry import *
+from core.services.base import *
+from core.services.registry import *
