@@ -363,7 +363,7 @@ class Server(DataObject):
                             orig = False) -> UploadStatus:
         raise NotImplemented()
 
-    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
+    async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
         raise NotImplemented()
 
     @property

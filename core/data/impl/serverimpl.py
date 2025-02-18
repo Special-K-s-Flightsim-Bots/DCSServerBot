@@ -692,7 +692,7 @@ class ServerImpl(Server):
             await wait_for_file_release(10)
 
     @performance_log()
-    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
+    async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
@@ -705,10 +705,11 @@ class ServerImpl(Server):
 
             # create a writable mission
             new_filename = utils.create_writable_mission(filename)
-            # get the orig file
-            orig_filename = utils.get_orig_file(new_filename)
-            # and copy the orig file over
-            shutil.copy2(orig_filename, new_filename)
+            if use_orig:
+                # get the orig file
+                orig_filename = utils.get_orig_file(new_filename)
+                # and copy the orig file over
+                shutil.copy2(orig_filename, new_filename)
             try:
                 # process all mission modifications
                 dirty = False

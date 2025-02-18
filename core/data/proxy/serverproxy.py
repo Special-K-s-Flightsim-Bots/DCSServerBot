@@ -167,7 +167,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return UploadStatus(data["return"])
 
-    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
+    async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
         timeout = 120 if not self.node.slow_system else 240
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -175,7 +175,8 @@ class ServerProxy(Server):
             "method": "apply_mission_changes",
             "server_name": self.name,
             "params": {
-                "filename": filename or ""
+                "filename": filename or "",
+                "use_orig": use_orig
             }
         }, timeout=timeout, node=self.node.name)
         return data['return']
