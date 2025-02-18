@@ -255,7 +255,7 @@ class ServerImpl(Server):
         config[self.name]['channels'] = channels
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             yaml.dump(config, outfile)
-        self.locals['channels'] |= channels
+        self.locals.setdefault('channels', {}).update(channels)
         self._channels.clear()
 
     def _install_luas(self):
@@ -299,9 +299,7 @@ class ServerImpl(Server):
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
-                    if 'advanced' not in self.settings:
-                        self.settings['advanced'] = {}
-                    self.settings['advanced'] = self.settings['advanced'] | value
+                    self.settings.setdefault('advanced', {}).update(value)
                 else:
                     self.settings[key] = value
         self._install_luas()
@@ -993,12 +991,10 @@ class ServerImpl(Server):
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
         data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
         node_config = data.get(self.node.name, {})
-        if not node_config['instances'][self.instance.name].get('extensions'):
-            node_config['instances'][self.instance.name]['extensions'] = {}
-        if name not in node_config['instances'][self.instance.name]['extensions']:
-            node_config['instances'][self.instance.name]['extensions'][name] = config
-        else:
-            node_config['instances'][self.instance.name]['extensions'][name] |= config
+        extensions = node_config.setdefault('instances', {}).setdefault(
+            self.instance.name, {}
+        ).setdefault('extensions', {})
+        extensions[name] = extensions.get(name, {}) | config
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f)
         # re-read config
