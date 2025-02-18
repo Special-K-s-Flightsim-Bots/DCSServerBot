@@ -542,10 +542,11 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(presets_file=presets_autocomplete)
     @app_commands.describe(presets_file=_('Chose an alternate presets file'))
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
-                     presets_file: Optional[str] = None):
+                     presets_file: Optional[str] = None, use_orig: Optional[bool] = True):
         ephemeral = utils.get_ephemeral(interaction)
         if presets_file is None:
             presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
@@ -611,7 +612,12 @@ class Mission(Plugin[MissionEventListener]):
             except discord.NotFound:
                 pass
         if result == 'later':
-            server.on_empty = {"command": "preset", "preset": view.result, "user": interaction.user}
+            server.on_empty = {
+                "command": "preset",
+                "preset": view.result,
+                "use_orig": use_orig,
+                "user": interaction.user
+            }
             server.restart_pending = True
             await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
         else:
@@ -622,7 +628,11 @@ class Mission(Plugin[MissionEventListener]):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
+            new_filename = await server.modifyMission(
+                filename,
+                [utils.get_preset(self.node, x) for x in view.result],
+                use_orig=use_orig
+            )
             message = _('The following preset were applied: {}.').format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => {message}")
