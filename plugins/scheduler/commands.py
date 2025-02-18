@@ -485,7 +485,7 @@ class Scheduler(Plugin[SchedulerListener]):
             names.append(server.display_name)
             status.append(server.status.name.title())
             if server.status in [Status.RUNNING, Status.PAUSED]:
-                players.append(f"{len(server.players) + 1}/{server.settings.get('maxPlayers', 0)}")
+                players.append(f"{len(server.get_active_players()) + 1}/{server.settings.get('maxPlayers', 0)}")
             else:
                 players.append('-')
         if len(names):
