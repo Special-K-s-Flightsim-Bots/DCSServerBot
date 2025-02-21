@@ -135,7 +135,7 @@ def get_cpu_set_information():
 
     # Determine required buffer size
     buffer_size = wintypes.DWORD(0)
-    result = kernel32.GetSystemCpuSetInformation(
+    kernel32.GetSystemCpuSetInformation(
         None,  # No buffer since we're querying the size
         0,  # BufferLength = 0
         ctypes.byref(buffer_size),  # Retrieve required buffer size
@@ -156,7 +156,6 @@ def get_cpu_set_information():
         None,  # Current process
         0  # Reserved
     )
-
     if result == 0:
         raise RuntimeError("GetSystemCpuSetInformation failed to retrieve information")
 

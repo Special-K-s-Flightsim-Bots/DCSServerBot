@@ -2,10 +2,7 @@ import asyncio
 import random
 
 from core import EventListener, utils, Server, Report, Player, event
-from typing import Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .commands import MOTD
+from typing import Optional
 
 
 class MOTDListener(EventListener["MOTD"]):

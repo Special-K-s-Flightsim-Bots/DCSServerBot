@@ -10,7 +10,7 @@ from discord import app_commands
 from discord.ext import tasks
 from discord.utils import MISSING
 from services.bot import DCSServerBot
-from typing import Type, Optional, Literal, Union
+from typing import Type, Optional, Union
 
 from .listener import ServerStatsListener
 from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, \
@@ -50,7 +50,8 @@ class ServerLoadFilter(PeriodFilter):
                 end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
                 return (f"time >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
                         f"COALESCE(time, (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
-
+        else:
+            return "1 = 1"
 
 class ServerStats(Plugin[ServerStatsListener]):
 

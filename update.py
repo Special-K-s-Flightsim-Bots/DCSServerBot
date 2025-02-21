@@ -13,7 +13,7 @@ import zipfile
 from contextlib import closing
 from core import utils, COMMAND_LINE_ARGS
 from packaging import version
-from typing import Iterable, Optional
+from typing import Iterable
 from version import __version__
 
 

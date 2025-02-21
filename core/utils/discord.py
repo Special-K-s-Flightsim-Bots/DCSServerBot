@@ -926,6 +926,7 @@ class ServerTransformer(app_commands.Transformer):
             return choices[:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
+            return []
 
 
 class NodeTransformer(app_commands.Transformer):
@@ -952,6 +953,7 @@ class NodeTransformer(app_commands.Transformer):
             ]
         except Exception as ex:
             interaction.client.log.exception(ex)
+            return []
 
 
 class InstanceTransformer(app_commands.Transformer):
@@ -995,6 +997,7 @@ class InstanceTransformer(app_commands.Transformer):
             ]
         except Exception as ex:
             interaction.client.log.exception(ex)
+            return []
 
 
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -1015,6 +1018,7 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -1043,6 +1047,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         return sorted(choices, key=lambda choice: choice.name)[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def group_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -1170,6 +1175,7 @@ class PlayerTransformer(app_commands.Transformer):
             return choices[:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
+            return []
 
 
 def _server_filter(server: Server) -> bool:
@@ -1287,6 +1293,7 @@ class ConfigModal(Modal):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=self.ephemeral)
+        # noinspection PyUnresolvedReferences
         self.value = {
             v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type'))
             for v in self.children
@@ -1341,12 +1348,16 @@ class DirectoryPicker(discord.ui.View):
                     ]
                 )
             )
+            # noinspection PyUnresolvedReferences
             self.children[0].disabled = False
         elif not init:
+            # noinspection PyUnresolvedReferences
             self.children[0].disabled = True
         else:
+            # noinspection PyUnresolvedReferences
             self.children[0].disabled = True
             embed = None
+        # noinspection PyUnresolvedReferences
         self.children[2].disabled = not self.dir
         return embed
 
@@ -1477,8 +1488,8 @@ class NodeUploadHandler:
         embed = await view.render(init=True) or discord.utils.MISSING
         try:
             msg = await self.channel.send(embed=embed, view=view)
-        except Exception as ex:
-            return
+        except Exception:
+            return None
         try:
             if await view.wait():
                 await self.channel.send(_('Upload aborted.'))

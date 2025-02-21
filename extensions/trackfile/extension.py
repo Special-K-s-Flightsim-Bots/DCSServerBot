@@ -1,10 +1,12 @@
 import os
 import shutil
 
-from core import Extension, DISCORD_FILE_SIZE_LIMIT, ServiceRegistry, Server, get_translation, utils, Autoexec
+from core import Extension, DISCORD_FILE_SIZE_LIMIT, ServiceRegistry, Server, get_translation, utils, Autoexec, \
+    InstanceImpl
 from pathlib import Path
 from services.bot import BotService
 from services.servicebus import ServiceBus
+from typing import cast
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -17,7 +19,7 @@ class Trackfile(Extension):
 
     async def startup(self) -> bool:
         if self.config.get('enabled', True):
-            cfg = Autoexec(self.server.instance)
+            cfg = Autoexec(cast(InstanceImpl, self.server.instance))
             if cfg.disable_write_track:
                 self.log.warning(
                     f"Server {self.server.name} has disable_write_track set and will not write any track file!")

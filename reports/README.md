@@ -85,7 +85,7 @@ To use them in your reports, expect all strings to be f-string capable:
   "description": "Player {player[name]} is causing trouble."
 }
 ```
-Be aware that player['name'] is written as player[name] in the reports!
+Be aware that player\['name'\] is written as player\[name\] in the reports!
 
 ## Simple Report Elements for Embeds
 The following elements can be used in your reports without any additional coding. Anybody familiar with Discord Embeds should be able to create a simple report with them.

@@ -1,14 +1,13 @@
+import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import warnings
 
 from core import const, report, EmbedElement, utils
-import matplotlib.dates as mdates
+from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 from typing import Optional
-
-from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 
 # ignore pandas warnings (log scale et al)
 warnings.filterwarnings("ignore", category=UserWarning)

@@ -1,5 +1,3 @@
-import getpass
-
 import aiohttp
 import ipaddress
 import logging
@@ -103,6 +101,7 @@ def get_windows_version(cmd: str) -> Optional[str]:
     if sys.platform != 'win32':
         return None
     try:
+        # noinspection PyUnresolvedReferences
         info = win32api.GetFileVersionInfo(os.path.expandvars(cmd), '\\')
         version = "%d.%d.%d.%d" % (info['FileVersionMS'] / MS_LSB_MULTIPLIER,
                                    info['FileVersionMS'] % MS_LSB_MULTIPLIER,
@@ -269,7 +268,7 @@ def sanitize_filename(filename: str, base_directory: str) -> str:
         raise ValueError(f"Relative path injection attempt detected: {filename}")
 
     # Optional: Check file name for illegal characters (e.g., reject ../)
-    if ".." in filename or filename.startswith(("/")):
+    if ".." in filename or filename.startswith("/"):
         raise ValueError(f"Invalid filename detected: {filename}")
 
     return resolved_path

@@ -112,7 +112,7 @@ class Extension(ABC):
     async def uninstall(self):
         ...
 
-    async def get_config(self) -> dict:
+    async def get_config(self, **kwargs) -> dict:
         return self.locals
 
     async def get_ports(self) -> dict:

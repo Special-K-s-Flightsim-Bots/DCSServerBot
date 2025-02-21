@@ -108,6 +108,8 @@ class PeriodFilter(StatisticsFilter):
                 end = self.parse_date(end) if end else datetime.now(tz=timezone.utc)
                 return (f"s.hop_on >= '{start.strftime('%Y-%m-%d %H:%M:%S')}'::TIMESTAMP AND "
                         f"COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) <= '{end.strftime('%Y-%m-%d %H:%M:%S')}'")
+        else:
+            return "1 = 1"
 
 
     def format(self, bot: DCSServerBot) -> str:
@@ -257,11 +259,10 @@ class SquadronFilter(StatisticsFilter):
 class MissionStatisticsFilter(PeriodFilter):
 
     def filter(self, bot: DCSServerBot) -> str:
-        if self.period in [None, 'all']:
-            return '1 = 1'
-        elif self.period in self.list(bot):
+        if self.period in self.list(bot):
             return f"time > ((now() AT TIME ZONE 'utc') - interval '1 {self.period}')"
-
+        else:
+            return '1 = 1'
 
 class StatsPagination(Pagination):
     def __init__(self, env: ReportEnv):

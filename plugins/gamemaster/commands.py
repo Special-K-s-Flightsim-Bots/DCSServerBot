@@ -37,6 +37,7 @@ async def scriptfile_autocomplete(interaction: discord.Interaction, current: str
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def recipient_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -57,6 +58,7 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
             return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def campaign_servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -78,6 +80,7 @@ async def campaign_servers_autocomplete(interaction: discord.Interaction, curren
             return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class GameMaster(Plugin[GameMasterEventListener]):

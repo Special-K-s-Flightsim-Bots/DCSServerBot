@@ -57,6 +57,7 @@ async def installed_mods_autocomplete(interaction: discord.Interaction, current:
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def available_mods_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -76,6 +77,7 @@ async def available_mods_autocomplete(interaction: discord.Interaction, current:
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def available_versions_autocomplete(interaction: discord.Interaction,
@@ -99,6 +101,7 @@ async def available_versions_autocomplete(interaction: discord.Interaction,
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def repo_version_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -117,6 +120,7 @@ async def repo_version_autocomplete(interaction: discord.Interaction, current: s
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class ModManager(Plugin):

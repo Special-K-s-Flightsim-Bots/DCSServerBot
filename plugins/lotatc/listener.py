@@ -1,8 +1,8 @@
 import asyncio
 import discord
 
-from core import EventListener, event, Server, Plugin, Coalition, Player, get_translation, chat_command, ChatCommand, \
-    Side, Channel, utils
+from core import (EventListener, event, Server, Coalition, Player, get_translation, chat_command, ChatCommand, Side,
+                  Channel, utils)
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 

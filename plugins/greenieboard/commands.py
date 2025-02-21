@@ -42,6 +42,7 @@ async def trap_users_autocomplete(interaction: discord.Interaction, current: str
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class GreenieBoard(Plugin[GreenieBoardEventListener]):

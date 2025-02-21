@@ -15,12 +15,12 @@ if sys.platform == 'win32':
     import win32process
     from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 
-from datetime import datetime, timezone
-from discord.ext import tasks
-
-from core import Status, Server, ServerImpl, Autoexec, utils
+from core import Status, Server, ServerImpl, Autoexec, utils, InstanceImpl
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
+from datetime import datetime, timezone
+from discord.ext import tasks
+from typing import cast
 
 from ..servicebus import ServiceBus
 from ..bot import BotService
@@ -86,7 +86,7 @@ class MonitoringService(Service):
     def check_autoexec(self):
         for instance in self.node.instances:
             try:
-                cfg = Autoexec(instance)
+                cfg = Autoexec(cast(InstanceImpl, instance))
                 if cfg.crash_report_mode is None:
                     self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
                     cfg.crash_report_mode = 'silent'
@@ -141,6 +141,7 @@ class MonitoringService(Service):
                     if child_windows:
                         # Press the OK button
                         ok_button_handle = child_windows[0]
+                        # noinspection PyUnresolvedReferences
                         win32api.SendMessage(ok_button_handle, win32con.BM_CLICK, 0, 0)
                         return
 

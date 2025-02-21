@@ -518,7 +518,7 @@ class ServerImpl(Server):
                     await ext.prepare()
                 except InstallException as ex:
                     self.log.error(f"  => Error during {ext.name}.prepare(): {ex} - skipped")
-                except Exception as ex:
+                except Exception:
                     self.log.error(f"  => Unknown error during {ext.name}.prepare() - skipped.", exc_info=True)
 
     @staticmethod

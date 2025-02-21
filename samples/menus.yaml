@@ -7,8 +7,8 @@ DEFAULT:
       - Help:                       # Top-Level command below the root menu
           command: onChatCommand
           subcommand: help          # Call the "help" chat-command
-      - GameMaster:                 # Sub-menu section
-        - Launch AWACS:             # Command inside of the subsection
+      - GameMaster:                 # Submenu section
+        - Launch AWACS:             # Command inside the subsection
             command: onChatCommand
             subcommand: flag        # Call the chat-command "flag 1 1", which sets flag 1 to value 1
             params: [ 1, 1 ]

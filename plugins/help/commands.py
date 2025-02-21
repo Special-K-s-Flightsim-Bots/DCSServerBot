@@ -44,6 +44,7 @@ async def commands_autocomplete(interaction: discord.Interaction, current: str) 
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class Help(Plugin[HelpListener]):
@@ -95,9 +96,11 @@ class Help(Plugin[HelpListener]):
             if not await cmd._check_can_run(interaction):
                 raise PermissionError()
             help_embed = discord.Embed(color=discord.Color.blue())
+            # noinspection PyUnresolvedReferences
             help_embed.title = _("Command: {}").format(cmd.mention)
             help_embed.description = cmd.description
             usage = get_usage(cmd)
+            # noinspection PyUnresolvedReferences
             help_embed.add_field(name=_('Usage'), value=f"{cmd.mention} {usage}", inline=False)
             if usage:
                 help_embed.set_footer(text=_('<> mandatory, [] non-mandatory'))
@@ -111,6 +114,7 @@ class Help(Plugin[HelpListener]):
             descriptions = ""
             for name, cmd in (await get_commands(interaction)).items():
                 if cmd.module == plugin:
+                    # noinspection PyUnresolvedReferences
                     new_cmd = f"{cmd.mention} {get_usage(cmd)}\n"
                     new_desc = f"{cmd.description}\n"
                     if len(cmds + new_cmd) > 1024 or len(descriptions + new_desc) > 1024:
@@ -261,6 +265,7 @@ class Help(Plugin[HelpListener]):
                     else:
                         continue
                     plugin = cmd.binding.plugin_name.title() if cmd.binding else ''
+                    # noinspection PyUnresolvedReferences
                     data_df = pd.DataFrame(
                         [(plugin, f"/{cmd.qualified_name}" if not use_mention else cmd.mention,
                           get_usage(cmd), ','.join(roles), cmd.description.strip('\n'))],

@@ -49,6 +49,7 @@ class CloudLoggingHandler(logging.Handler):
         exc_info = record.exc_info
         if (isinstance(exc_info, tuple) and len(exc_info) > 1 and
                 isinstance(exc_info[1], discord.app_commands.CommandInvokeError)):
+            # noinspection PyUnresolvedReferences
             exc = exc_info[1].original
         elif isinstance(exc_info, tuple) and len(exc_info) > 1:
             exc = exc_info[1]

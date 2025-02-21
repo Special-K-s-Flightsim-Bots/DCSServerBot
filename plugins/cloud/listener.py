@@ -1,7 +1,7 @@
 import aiohttp
 import asyncio
 
-from core import EventListener, Server, Player, Side, event, Plugin
+from core import EventListener, Server, Player, Side, event
 from datetime import datetime, timezone
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING

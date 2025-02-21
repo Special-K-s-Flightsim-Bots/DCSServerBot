@@ -1,7 +1,7 @@
 import asyncio
 import psycopg
 
-from core import EventListener, Plugin, Status, Server, Side, Player, event
+from core import EventListener, Status, Server, Side, Player, event
 from psycopg import Connection
 from typing import Union, TYPE_CHECKING
 

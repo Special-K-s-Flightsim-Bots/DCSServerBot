@@ -53,6 +53,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
         ]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction,
@@ -69,6 +70,7 @@ async def installed_modules_autocomplete(interaction: discord.Interaction,
         ]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -88,6 +90,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
+
 
 async def _mission_file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
@@ -103,6 +107,7 @@ async def _mission_file_autocomplete(interaction: discord.Interaction, current: 
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -132,6 +137,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -159,10 +165,10 @@ async def installable_plugins(interaction: discord.Interaction, current: str) ->
     if not await interaction.command._check_can_run(interaction):
         return []
     installed = set([x for x in interaction.client.node.plugins])
-    all = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
+    available = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
     return [
         app_commands.Choice(name=x.capitalize(), value=x)
-        for x in sorted(all - installed)
+        for x in sorted(available - installed)
         if not current or current.casefold() in x.casefold()
     ]
 

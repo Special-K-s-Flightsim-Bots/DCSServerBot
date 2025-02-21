@@ -46,8 +46,6 @@ from core.services.registry import ServiceRegistry
 from core.utils.helper import SettingsDict, YAMLError, async_cache
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, PyKwalifyException
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()

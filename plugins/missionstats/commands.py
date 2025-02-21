@@ -42,6 +42,7 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
         return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class MissionStatistics(Plugin[MissionStatisticsEventListener]):

@@ -1,9 +1,11 @@
 import discord
 
-from core import TEventListener, Server, get_translation, utils
+from core import Server, get_translation, utils
 from datetime import datetime, timezone
 from discord.ui import Modal, TextInput, View
-from typing import Type, Union, Optional
+from typing import Union, Optional
+
+from .listener import GameMasterEventListener
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -14,7 +16,7 @@ class CampaignModal(Modal):
     end = TextInput(label=_("End (UTC)"), placeholder="yyyy-mm-dd hh24:mi", required=False)
     description = TextInput(label=_("Description"), required=False, style=discord.TextStyle.long)
 
-    def __init__(self, eventlistener: Type[TEventListener]):
+    def __init__(self, eventlistener: GameMasterEventListener):
         super().__init__(title=_("Campaign Info"))
         self.eventlistener = eventlistener
         self.start.default = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")

@@ -1,7 +1,7 @@
 import asyncio
 import psycopg_pool
 
-from core import EventListener, Plugin, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
+from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
 from discord.ext import tasks
 from typing import TYPE_CHECKING
 

@@ -363,20 +363,6 @@ class DCSServerBot(commands.Bot):
                 return None
         return self.get_channel(admin_channel)
 
-    async def get_ucid_by_name(self, name: str) -> tuple[Optional[str], Optional[str]]:
-        async with self.apool.connection() as conn:
-            search = f'%{name}%'
-            cursor = await conn.execute("""
-                SELECT ucid, name FROM players 
-                WHERE LOWER(name) like LOWER(%s) 
-                ORDER BY last_seen DESC LIMIT 1
-            """, (search, ))
-            if cursor.rowcount >= 1:
-                res = await cursor.fetchone()
-                return res[0], res[1]
-            else:
-                return None, None
-
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
         async with self.apool.connection() as conn:
             sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'

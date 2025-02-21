@@ -64,6 +64,7 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class UserStatistics(Plugin[UserStatisticsEventListener]):

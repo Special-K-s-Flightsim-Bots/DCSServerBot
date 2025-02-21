@@ -506,7 +506,7 @@ roles:                                          # Roles mapping. The bot uses in
   - @everyone
 ```
 > [!CAUTION]
-> Never ever share your Discord TOKEN with anyone. If you plan to check-in your configuration to GitHub, don't do that
+> Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
 
 > [!IMPORTANT]
@@ -528,7 +528,7 @@ To do so, DCSServerBot creates special mission files and even its own directory 
 
 #### .dcssb sub-directory
 DCSServerBot creates its own directory below your Missions-directory. This is needed, to allow changes of .miz files,
-that are locked by DCS. Whenever a Missions\}x.miz file is locked, a similar file is created in Missions\.dcssb\x.miz. 
+that are locked by DCS. Whenever a Missions\x.miz file is locked, a similar file is created in Missions\.dcssb\x.miz. 
 This file is then changed and loaded. Whenever you change the mission again, the earlier file (Missions\x.miz) is 
 changed again. This happens in a round-robin way.
 

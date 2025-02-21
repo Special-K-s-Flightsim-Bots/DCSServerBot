@@ -118,6 +118,7 @@ class SRC(Extension):
         return True
 
     async def render(self, param: Optional[dict] = None) -> dict:
+        rc = {}
         if self.locals:
             host = self.config.get('host', self.node.public_ip)
             value = f"{host}:{self.locals['SERVER_TCP_PORT']}"
@@ -127,8 +128,10 @@ class SRC(Extension):
                 red = self.locals.get('PASSWORDS', {}).get('RED')
                 if blue or red:
                     value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            return {
+            rc = {
                 "name": self.name,
                 "version": self.version,
                 "value": value
             }
+        return rc
+    
