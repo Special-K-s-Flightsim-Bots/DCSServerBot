@@ -379,7 +379,7 @@ class UserEngagement(report.GraphElement):
                 SELECT 
                     s.player_ucid,
                     COUNT(DISTINCT DATE(s.hop_on)) AS days_present,
-                    CASE WHEN f.first_seen >= NOW() - INTERVAL '{interval}' THEN true ELSE false END AS is_new
+                    CASE WHEN f.first_seen >= (NOW() AT TIME ZONE 'UTC') - INTERVAL '{interval}' THEN true ELSE false END AS is_new
                 FROM 
                     statistics s
                     LEFT JOIN missions m ON s.mission_id = m.id
@@ -398,7 +398,7 @@ class UserEngagement(report.GraphElement):
             ),
             date_series AS (
                 SELECT generate_series(1, (
-                    SELECT DATE_PART('day', NOW() - (NOW() - INTERVAL '{interval}'))::INTEGER)
+                    SELECT DATE_PART('day', (NOW() AT TIME ZONE 'UTC') - ((NOW() AT TIME ZONE 'UTC') - INTERVAL '{interval}'))::INTEGER)
                 ) AS date
             )
             SELECT

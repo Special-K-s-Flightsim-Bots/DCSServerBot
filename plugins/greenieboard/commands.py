@@ -129,7 +129,9 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             for ucid in ucids:
                 await conn.execute('DELETE FROM traps WHERE player_ucid = %s', (ucid,))
         elif days > -1:
-            await conn.execute("DELETE FROM traps WHERE time < (DATE(NOW()) - %s::interval)", (f'{days} days', ))
+            await conn.execute("""
+                DELETE FROM traps WHERE time < (DATE(NOW() AT TIME ZONE 'UTC') - %s::interval)
+            """,(f'{days} days', ))
         self.log.debug('Greenieboard pruned.')
 
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:

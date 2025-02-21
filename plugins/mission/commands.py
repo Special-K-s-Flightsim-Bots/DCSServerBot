@@ -1622,10 +1622,10 @@ class Mission(Plugin[MissionEventListener]):
                             token = str(random.randrange(1000, 9999))
                             await cursor.execute("""
                                 INSERT INTO players (ucid, discord_id, last_seen) 
-                                VALUES (%s, %s, NOW())
+                                VALUES (%s, %s, NOW() AT TIME ZONE 'UTC')
                             """, (token, interaction.user.id))
                             break
-                        except psycopg.DatabaseError:
+                        except psycopg.errors.UniqueViolation:
                             pass
             await send_token(token)
 
