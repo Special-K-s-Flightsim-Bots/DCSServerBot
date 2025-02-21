@@ -1,6 +1,7 @@
 import asyncio
 import os
 import random
+import logging
 
 from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl
 from datetime import datetime
@@ -14,6 +15,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 
 yaml = YAML()
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "MizEdit"
@@ -86,21 +89,33 @@ class MizEdit(Extension):
 
     @staticmethod
     async def apply_presets(server: Server, filename: str, preset: Union[list, dict]) -> str:
-        if preset and isinstance(preset, list) and 'RealWeather' in preset[0]:
-            try:
-                await server.run_on_extension('RealWeather', 'is_running')
-                filename = await server.run_on_extension('RealWeather', 'apply_realweather',
-                                                             filename=filename, config=preset[0]['RealWeather'])
-            except ValueError:
-                # TODO: this is really dirty
-                await server.config_extension("RealWeather", {"enabled": True})
-                ext = cast(ServerImpl, server).load_extension('RealWeather')
-                filename = await cast(RealWeather, ext).apply_realweather(filename, preset[0]['RealWeather'])
-                await server.config_extension("RealWeather", {"enabled": False})
+        if preset and isinstance(preset, list):
+            presetsWithoutRealWeather = [] # create a list of presets in which we'll copy all presets except RealWeather
+            realWeatherAlreadyApplied = False # flag to check if a RealWeather preset was already applied
+            for aPreset in preset:
+                if 'RealWeather' in aPreset:
+                    if realWeatherAlreadyApplied:
+                        logger.warning(f"RealWeather preset found many times - ignoring preset {aPreset}")
+                        continue
+                    try:
+                        await server.run_on_extension('RealWeather', 'is_running')
+                        filename = await server.run_on_extension('RealWeather', 'apply_realweather',
+                                                                    filename=filename, config=aPreset['RealWeather'])                        
+                    except ValueError:
+                        # TODO: this is really dirty
+                        await server.config_extension("RealWeather", {"enabled": True})
+                        ext = cast(ServerImpl, server).load_extension('RealWeather')
+                        filename = await cast(RealWeather, ext).apply_realweather(filename, aPreset['RealWeather'])
+                        await server.config_extension("RealWeather", {"enabled": False})
+                    
+                    realWeatherAlreadyApplied = True
+                else:
+                    presetsWithoutRealWeather.append(aPreset)
+        else:
+            presetsWithoutRealWeather = preset
 
-            preset.pop(0)
         miz = await asyncio.to_thread(MizFile, filename)
-        await asyncio.to_thread(miz.apply_preset, preset)
+        await asyncio.to_thread(miz.apply_preset, presetsWithoutRealWeather)
         # write new mission
         filename = utils.create_writable_mission(filename)
         await asyncio.to_thread(miz.save, filename)
