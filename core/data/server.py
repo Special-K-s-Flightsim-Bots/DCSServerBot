@@ -56,11 +56,9 @@ class Server(DataObject):
     locals: dict = field(default_factory=dict, compare=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
-    idle_since: datetime = field(compare=False, default=None)
+    idle_since: Optional[datetime] = field(compare=False, default=None)
 
     def __post_init__(self):
-        from services.servicebus import ServiceBus
-
         super().__post_init__()
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
@@ -261,7 +259,7 @@ class Server(DataObject):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         raise NotImplemented()
 
-    async def startup(self, modify_mission: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         raise NotImplemented()
 
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
@@ -320,10 +318,9 @@ class Server(DataObject):
             if rc['result'] == 0:
                 await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
                 return True
-            else:
-                return False
+        return False
 
-    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         raise NotImplemented()
 
     async def setStartIndex(self, mission_id: int) -> None:
@@ -344,10 +341,11 @@ class Server(DataObject):
     async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         raise NotImplemented()
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
+                          use_orig: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:

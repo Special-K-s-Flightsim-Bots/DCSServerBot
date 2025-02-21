@@ -317,7 +317,6 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
             config = self.get_config(server)
             if 'highscore' in config:
                 # noinspection PyAsyncCall
-                # noinspection PyUnresolvedReferences
                 asyncio.create_task(self.plugin.render_highscore(config['highscore'], server=server, mission_end=True))
 
     @event(name="onMemberLinked")
@@ -336,7 +335,6 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                                 ON CONFLICT (squadron_id, player_ucid) DO NOTHING
                             """, (row[0], data['ucid']))
                         if self.get_config().get('squadrons', {}).get('persist_list', False):
-                            # noinspection PyUnresolvedReferences
                             await self.plugin.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)
@@ -355,7 +353,6 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                             DELETE FROM squadron_members WHERE squadron_id = %s AND player_ucid = %s 
                         """, (row[0], data['ucid']))
                         if self.get_config().get('squadrons', {}).get('persist_list', False):
-                            # noinspection PyUnresolvedReferences
                             await self.plugin.persist_squadron_list(row[0])
         except Exception as ex:
             self.log.exception(ex)

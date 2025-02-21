@@ -562,7 +562,7 @@ class ServerImpl(Server):
         self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
         self.process.cpu_affinity(affinity)
 
-    async def startup(self, modify_mission: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
@@ -574,7 +574,7 @@ class ServerImpl(Server):
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
-            await self.apply_mission_changes()
+            await self.apply_mission_changes(use_orig=use_orig)
         await asyncio.to_thread(self.do_startup)
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         try:
@@ -692,7 +692,7 @@ class ServerImpl(Server):
             await wait_for_file_release(10)
 
     @performance_log()
-    async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
+    async def apply_mission_changes(self, filename: Optional[str] = None, *, use_orig: Optional[bool] = True) -> str:
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
@@ -818,8 +818,8 @@ class ServerImpl(Server):
                 ret.append(await ext.render())
         return ret
 
-    async def restart(self, modify_mission: Optional[bool] = True) -> None:
-        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
+    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission, use_orig=use_orig)
 
     async def setStartIndex(self, mission_id: int) -> None:
         if mission_id > len(self.settings['missionList']):
@@ -897,23 +897,29 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
         return self.settings['missionList']
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
-        # check if we re-load the running mission
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
+                          use_orig: Optional[bool] = True) -> bool:
         start_index = int(self.settings['listStartIndex'])
+        # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
             mission = self.settings['missionList'][start_index - 1]
-            # now determine the original mission name
-            _mission = utils.get_orig_file(mission)
-            # check if the orig file has been replaced
-            if os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
-                new_filename = utils.create_writable_mission(mission)
-                # we can't write the original one, so use the copy
-                if new_filename != mission:
-                    shutil.copy2(_mission, new_filename)
-                    await self.replaceMission(start_index, new_filename)
+            if use_orig:
+                # now determine the original mission name
+                orig_mission = utils.get_orig_file(mission)
+                # check if the orig file has been replaced
+                if os.path.exists(orig_mission) and os.path.getmtime(orig_mission) > os.path.getmtime(mission):
+                    new_filename = utils.create_writable_mission(mission)
+                    # we can't write the original one, so use the copy
+                    if new_filename != mission:
+                        shutil.copy2(orig_mission, new_filename)
+                        await self.replaceMission(start_index, new_filename)
                     return await self.loadMission(start_index, modify_mission=modify_mission)
-                else:
+            else:
+                # don't use the orig file, still make sure we have a writable mission
+                new_filename = utils.create_writable_mission(mission)
+                if new_filename != mission:
+                    await self.replaceMission(start_index, new_filename)
                     return await self.loadMission(start_index, modify_mission=modify_mission)
 
         if isinstance(mission, int):
@@ -951,13 +957,13 @@ class ServerImpl(Server):
             await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
         return True
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = False) -> bool:
         init_mission_id = int(self.settings['listStartIndex'])
         max_mission_id = len(self.settings['missionList'])
         mission_id = init_mission_id + 1
         if mission_id > max_mission_id:
             mission_id = 1
-        while not await self.loadMission(mission_id, modify_mission):
+        while not await self.loadMission(mission_id, modify_mission, use_orig):
             mission_id += 1
             if mission_id > max_mission_id:
                 mission_id = 1

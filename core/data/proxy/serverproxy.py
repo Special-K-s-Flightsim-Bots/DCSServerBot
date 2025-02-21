@@ -97,14 +97,17 @@ class ServerProxy(Server):
         message['server_name'] = self.name
         await self.bus.send_to_node(message, node=self.node.name)
 
-    async def startup(self, modify_mission: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "startup",
-            "modify_mission": modify_mission,
-            "server_name": self.name
+            "server_name": self.name,
+            "params": {
+                "modify_mission": modify_mission,
+                "use_orig": use_orig
+            }
         }, timeout=timeout, node=self.node.name)
 
     async def shutdown(self, force: bool = False) -> None:
@@ -241,7 +244,7 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
-    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         timeout = 180 if not self.node.slow_system else 300
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -249,7 +252,8 @@ class ServerProxy(Server):
             "method": "restart",
             "server_name": self.name,
             "params": {
-                "modify_mission": modify_mission
+                "modify_mission": modify_mission,
+                "use_orig": use_orig
             }
         }, timeout=timeout, node=self.node.name)
 
@@ -331,7 +335,8 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
+                          use_orig: Optional[bool] = True) -> bool:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -340,12 +345,13 @@ class ServerProxy(Server):
             "server_name": self.name,
             "params": {
                 "mission": mission,
-                "modify_mission": modify_mission
+                "modify_mission": modify_mission,
+                "use_orig": use_orig
             }
         }, timeout=timeout, node=self.node.name)
         return data['return']
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = False) -> bool:
         timeout = 180 if not self.node.slow_system else 300
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -353,7 +359,8 @@ class ServerProxy(Server):
             "method": "loadNextMission",
             "server_name": self.name,
             "params": {
-                "modify_mission": modify_mission
+                "modify_mission": modify_mission,
+                "use_orig": use_orig
             }
         }, timeout=timeout, node=self.node.name)
         return data['return']

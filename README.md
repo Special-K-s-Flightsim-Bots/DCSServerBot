@@ -549,8 +549,10 @@ DCSServerBot is smart enough to be able to replace the missions again on upload,
 
 > [!NOTE]
 > When changing missions with `/mission modify` or the [MizEdit](./extensions/mizedit/README.md) extension, the change 
-> will always use the .orig mission as a startpoint. This means, if you apply some preset that is not re-entrant, a 
-> subsequent call will not change the changed mission again, but will always run against the .orig mission.
+> will per default use the .orig mission as a startpoint. This means, if you apply some preset that is not re-entrant, a 
+> subsequent call will not change the changed mission again, but will run against the .orig mission.<br>
+> You can configure this behaviour though, all commands have an option "use_orig", which you can set to false, to use
+> the latest mission file as reference instead.
 
 ### CJK-Fonts Support
 DCSServerBot supports external fonts, especially CJK-fonts to render the graphs and show your player names using the 

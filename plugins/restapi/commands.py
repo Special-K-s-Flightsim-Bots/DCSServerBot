@@ -186,7 +186,7 @@ class RestAPI(Plugin):
 async def setup(bot: DCSServerBot):
     global app
 
-    app = FastAPI()
+    app = FastAPI(docs_url=None, redoc_url=None)
     restapi = RestAPI(bot)
     await bot.add_cog(restapi)
     app.include_router(restapi.router)
