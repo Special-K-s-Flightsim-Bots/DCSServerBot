@@ -1,11 +1,11 @@
 # Extension "DCS Olympus"
 [DCS Olympus](https://github.com/Pax1601/DCSOlympus) is a free and open-source mod for DCS that enables dynamic 
 real-time control through a map interface. It is a mod that needs to be installed into your servers. Best you can do
-is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [OvGME](../../services/ovgme/README.md) service like so:
+is to download the latest ZIP file from [here](https://github.com/Pax1601/DCSOlympus/releases/latest) and provide it to the [ModManager](../../services/modmanager/README.md) service like so:
 ```yaml
 DEFAULT:
-  SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'
-  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'
+  SavedGames: '%USERPROFILE%\Documents\ModManager\SavedGames'
+  RootFolder: '%USERPROFILE%\Documents\ModManager\RootFolder'
 DCS_MERCS:
   packages:
   - name: DCSOlympus
@@ -42,7 +42,7 @@ MyNode:
             blueCommanderPassword: blue   # Blue Tactical Commander password
             redCommanderPassword: red     # Red Tactical Commander password
           frontend:
-            path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend. This is only needed if you are using the official installer. OVGME users don't need this.
+            path: '%USERPROFILE%\Saved Games\Olympus\frontend' # Optional: path to the Olympus frontend. This is only needed if you are using the official installer. ModManager users don't need this.
             port: 3000                    # Port where DCS Olympus listens for client access (needs to be unique)
     instance2:
       # [...]
