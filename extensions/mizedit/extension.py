@@ -87,23 +87,33 @@ class MizEdit(Extension):
 
     @staticmethod
     async def apply_presets(server: Server, filename: str, preset: Union[list, dict]) -> str:
-        if preset and isinstance(preset, list) and 'RealWeather' in preset[0]:
-            try:
-                await server.run_on_extension('RealWeather', 'is_running')
-                filename = await server.run_on_extension(
-                    'RealWeather', 'apply_realweather', filename=filename,
-                    config=preset[0]['RealWeather'], use_orig=False
-                )
-            except ValueError:
-                # TODO: this is really dirty
-                await server.config_extension("RealWeather", {"enabled": True})
-                ext = cast(ServerImpl, server).load_extension('RealWeather')
-                filename = await cast(RealWeather, ext).apply_realweather(
-                    filename, preset[0]['RealWeather'], use_orig=False
-                )
-                await server.config_extension("RealWeather", {"enabled": False})
+        if preset and isinstance(preset, list):
+            rw_preset = next((p for p in preset if 'RealWeather'in p), None)
+            if rw_preset:
+                try:
+                    await server.run_on_extension('RealWeather', 'is_running')
+                    filename = await server.run_on_extension(
+                        'RealWeather', 'apply_realweather', filename=filename,
+                        config=rw_preset['RealWeather'], use_orig=False
+                    )
+                except ValueError:
+                    # TODO: this is really dirty
+                    await server.config_extension("RealWeather", {"enabled": True})
+                    ext = cast(ServerImpl, server).load_extension('RealWeather')
+                    filename = await cast(RealWeather, ext).apply_realweather(
+                        filename, rw_preset['RealWeather'], use_orig=False
+                    )
+                    await server.config_extension("RealWeather", {"enabled": False})
 
-            preset.pop(0)
+                # remove all RealWeather presets
+                count = 0
+                while rw_preset:
+                    count += 1
+                    preset.remove(rw_preset)
+                    rw_preset = next((p for p in preset if 'RealWeather' in p), None)
+                if count > 1:
+                    logger.error("Your preset contained more than one RealWeather preset. Only the first one was run.")
+
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
         # write new mission
