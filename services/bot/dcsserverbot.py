@@ -287,6 +287,7 @@ class DCSServerBot(commands.Bot):
                 await send(error, ephemeral=True)
             elif isinstance(error, discord.app_commands.CommandInvokeError):
                 await send(error, ephemeral=True)
+                self.log.exception(error)
             elif isinstance(error, discord.NotFound):
                 await send("Command not found. Did you try it too early?", ephemeral=True)
             elif isinstance(error, discord.app_commands.AppCommandError):

@@ -869,6 +869,7 @@ class Scheduler(Plugin[SchedulerListener]):
                                                         f"Do you want to unlink (and probably shutdown) server "
                                                         f"{instance.server.name} first?", ephemeral=ephemeral):
                 await interaction.followup.send("Aborted.", ephemeral=ephemeral)
+                return
         maintenance = server.maintenance
         running = False
         server.maintenance = True
