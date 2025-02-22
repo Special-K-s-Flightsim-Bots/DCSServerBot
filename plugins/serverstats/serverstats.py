@@ -515,7 +515,14 @@ class UsersPerDayTime(report.GraphElement):
 class UsersPerMissionTime(report.GraphElement):
 
     async def render(self, server_name: Optional[str], interval: Optional[str] = '1 month'):
+        """
+        Render a bar plot to visualize the number of average users per hour within a given interval of time.
 
+        Parameters:
+            server_name (Optional[str]): The name of the server to filter data by.
+            interval (Optional[str]): The time interval for filtering mission times (default is '1 month').
+
+        """
         where_clause = "AND server_name = %(server_name)s" if server_name else ""
         inner_sql = f"""
             SELECT mission_time / 3600 AS time, users 
@@ -534,21 +541,35 @@ class UsersPerMissionTime(report.GraphElement):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(sql, {"server_name": server_name})
-                df = pd.DataFrame.from_dict(await cursor.fetchall())
-        all_hours = pd.DataFrame({'time': np.arange(0, 24)})
-        df = pd.merge(all_hours, df, on='time', how='left')
-        df['users'] = df['users'].fillna(0)
+                query_results = await cursor.fetchall()
 
-        barplot = sns.barplot(x='time', y='users', data=df, ax=self.axes, color='dodgerblue')
+        if query_results:
+            df = pd.DataFrame.from_records(query_results)
+        else:
+            # Create an empty DataFrame with "time" and "users" columns if query returns nothing
+            df = pd.DataFrame(columns=['time', 'users'])
 
-        self.axes.set_title('Users per Mission-Time | past {}'.format(interval.replace('1', '').strip()),
-                            color='white', fontsize=25)
+        all_hours = pd.DataFrame({'time': np.arange(0, 24)})  # Ensure "time" covers all hours in a day
+        df['time'] = df.get('time', pd.Series(dtype=int))  # In case 'time' is missing, create an empty column
+        df['users'] = df.get('users', pd.Series(dtype=float))  # Ensure 'users' column exists
+
+        # Merge data with all possible hours (left join) and fill missing user counts with 0
+        merged_df = pd.merge(all_hours, df, on='time', how='left')
+        merged_df['users'].fillna(0, inplace=True)
+
+        # Step 4: Create the bar plot
+        barplot = sns.barplot(x='time', y='users', data=merged_df, ax=self.axes, color='dodgerblue')
+
+        # Step 5: Customize plot appearance
+        self.axes.set_title(
+            f'Users per Mission-Time | past {interval.replace("1", "").strip()}',
+            color='white',
+            fontsize=25
+        )
         self.axes.set_xlabel('')
         self.axes.set_ylabel('Average Users', color='white', fontsize=10)
-
         self.axes.set_xticks(range(24))
-        time_labels = [f"{hour:02d}h" for hour in range(24)]
-        self.axes.set_xticklabels(time_labels, color='white')
+        self.axes.set_xticklabels([f"{hour:02d}h" for hour in range(24)], color='white')
         self.axes.tick_params(axis='y', colors='white')
 
         # Add annotations for user count above the bars
@@ -556,9 +577,10 @@ class UsersPerMissionTime(report.GraphElement):
             height = bar.get_height()
             if height > 0:
                 self.axes.text(bar.get_x() + bar.get_width() / 2, height,
-                               f'{height:.1f}', ha='center', va='bottom', color='white',
-                               fontsize=10, weight='bold')
+                               f'{height:.1f}', ha='center', va='bottom',
+                               color='white', fontsize=10, weight='bold')
 
+        # Adjust plot aesthetics (spines, background, etc.)
         for spine in self.axes.spines.values():
             spine.set_color('white')
         self.axes.set_facecolor('#303030')
