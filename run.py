@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# Default imports
 import asyncio
 import certifi
 import discord
@@ -11,20 +12,29 @@ import psycopg
 import sys
 import time
 
-from core import (
-    NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
-    CloudRotatingFileHandler
-)
 from datetime import datetime
-from pid import PidFile, PidFileError
-from rich import print
-from rich.console import Console
-from rich.logging import RichHandler
-from rich.text import Text
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+# DCSServerBot imports
+try:
+    from core import (
+        NodeImpl, ServiceRegistry, ServiceInstallationError, utils, YAMLError, FatalException, COMMAND_LINE_ARGS,
+        CloudRotatingFileHandler
+    )
+    from pid import PidFile, PidFileError
+    from rich import print
+    from rich.console import Console
+    from rich.logging import RichHandler
+    from rich.text import Text
+
+    # ruamel YAML support
+    from ruamel.yaml import YAML
+    yaml = YAML()
+except ModuleNotFoundError as ex:
+    import subprocess
+
+    print(f"Module {ex.name} is not installed, fixing ...")
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+    exit(-1)
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,

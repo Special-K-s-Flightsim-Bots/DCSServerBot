@@ -96,20 +96,6 @@ class NodeImpl(Node):
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.locals = self.read_locals()
-        if sys.platform == 'win32':
-            from os import system
-            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
-        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
-        self.log.info(f'- Python version {platform.python_version()} detected.')
-        self.install_plugins()
-        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
-        for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
-            if plugin not in self.plugins:
-                self.plugins.append(plugin)
-        # make sure, cloud is loaded last
-        if 'cloud' in self.plugins:
-            self.plugins.remove('cloud')
-            self.plugins.append('cloud')
         self.db_version = None
         self.pool: Optional[ConnectionPool] = None
         self.apool: Optional[AsyncConnectionPool] = None
@@ -121,6 +107,20 @@ class NodeImpl(Node):
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def __aenter__(self):
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
+        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
+        self.log.info(f'- Python version {platform.python_version()} detected.')
+        await asyncio.to_thread(self.install_plugins)
+        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
+        for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
+            if plugin not in self.plugins:
+                self.plugins.append(plugin)
+        # make sure, cloud is loaded last
+        if 'cloud' in self.plugins:
+            self.plugins.remove('cloud')
+            self.plugins.append('cloud')
         return self
 
     async def __aexit__(self, type, value, traceback):
