@@ -131,6 +131,8 @@ class RealWeather(Extension):
         # make sure we only have icao or icao-list
         if cfg.get('options', {}).get('weather', {}).get('icao'):
             cfg['options']['weather'].pop('icao-list', None)
+        else:
+            cfg['options']['weather']['icao'] = ""
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
 
