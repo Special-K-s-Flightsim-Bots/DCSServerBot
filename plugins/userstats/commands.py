@@ -192,7 +192,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     await conn.execute("TRUNCATE TABLE missionstats")
                     await conn.execute("TRUNCATE TABLE missions")
                     if 'greenieboard' in self.node.plugins:
-                        await conn.execute("TRUNCATE TABLE greenieboard")
+                        await conn.execute("TRUNCATE TABLE traps")
                     await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=ephemeral)
                     await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
 
