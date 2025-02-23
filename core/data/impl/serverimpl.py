@@ -104,7 +104,7 @@ class ServerImpl(Server):
             row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
             if row:
                 self._maintenance = row[0]
-        atexit.register(self._stop_observer)
+        atexit.register(self.stop_observer)
 
     def __eq__(self, other):
         if isinstance(other, ServerImpl):
@@ -160,24 +160,26 @@ class ServerImpl(Server):
         if self.name != 'n/a':
             self.prepare()
 
-    def _start_observer(self):
-        self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
-        self.observer = Observer()
-        self._enable_autoscan()
-        self.observer.start()
+    def start_observer(self):
+        if not self.observer:
+            self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
+            self.observer = Observer()
+            self.enable_autoscan()
+            self.observer.start()
 
-    def _stop_observer(self):
+    def stop_observer(self):
         if self.observer:
+            self.disable_autoscan()
             self.observer.stop()
             self.observer.join(timeout=10)
             self.observer = None
 
-    def _enable_autoscan(self):
+    def enable_autoscan(self):
         if not self.observer.emitters:
             self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=True)
             self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
 
-    def _disable_autoscan(self):
+    def disable_autoscan(self):
         if self.observer.emitters:
             self.observer.unschedule_all()
             self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
@@ -302,7 +304,7 @@ class ServerImpl(Server):
         self._install_luas()
         # enable autoscan for missions changes
         if self.locals.get('autoscan', False):
-            self._start_observer()
+            self.start_observer()
 
     def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
@@ -693,7 +695,7 @@ class ServerImpl(Server):
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
-                self._disable_autoscan()
+                self.disable_autoscan()
             if not filename:
                 filename = await self.get_current_mission_file()
                 if not filename:
@@ -741,7 +743,7 @@ class ServerImpl(Server):
         finally:
             # enable autoscan
             if self.locals.get('autoscan', False):
-                self._enable_autoscan()
+                self.enable_autoscan()
 
     async def keep_alive(self):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:

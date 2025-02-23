@@ -980,11 +980,11 @@ Please make sure you forward the following ports:
             )
         except FileExistsError:
             await msg.edit(
-                _("Instance {} could not be renamed, because the directory already exist.").format(old_name)
+                content=_("Instance {} could not be renamed, because the directory already exist.").format(old_name)
             )
         except Exception as ex:
             await msg.edit(
-                _("Instance {} could not be renamed: {}.").format(old_name, ex)
+                content=_("Instance {} could not be renamed: {}.").format(old_name, ex)
             )
             self.log.exception(ex)
 

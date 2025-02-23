@@ -1103,88 +1103,96 @@ class NodeImpl(Node):
             else:
                 return data
 
-        # test rename it, to make sure it works
-        new_home = os.path.join(os.path.dirname(instance.home), new_name)
-        os.rename(instance.home, new_home)
-        os.rename(new_home, instance.home)
+        # disable autoscan
+        if instance.server and instance.server.locals.get('autoscan', False):
+            await asyncio.to_thread(instance.server.stop_observer)
 
-        # change the database
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE instances SET instance = %s 
-                    WHERE node = %s AND instance = %s
-                """, (new_name, instance.node.name, instance.name, ))
+        try:
+            # test rename it, to make sure it works
+            new_home = os.path.join(os.path.dirname(instance.home), new_name)
+            os.rename(instance.home, new_home)
+            os.rename(new_home, instance.home)
 
-        # rename missions in the missionlist
-        if instance.server:
-            missions_list = instance.server.settings['missionList']
-            new_mission_list = []
-            for mission in missions_list:
-                new_mission_list.append(rename_path(mission))
-            instance.server.settings['missionList'] = new_mission_list
+            # change the database
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
+                        UPDATE instances SET instance = %s 
+                        WHERE node = %s AND instance = %s
+                    """, (new_name, instance.node.name, instance.name, ))
 
-        # read nodes.yaml
-        config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            # rename missions in the missionlist
+            if instance.server:
+                missions_list = instance.server.settings['missionList']
+                new_mission_list = []
+                for mission in missions_list:
+                    new_mission_list.append(rename_path(mission))
+                instance.server.settings['missionList'] = new_mission_list
 
-        # rename the instance in nodes.yaml
-        config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
-        config[self.name]['instances'][new_name]['home'] = new_home
-        missions_dir = config[self.name]['instances'][new_name].get('missions_dir')
-        if missions_dir:
-            config[self.name]['instances'][new_name]['missions_dir'] = rename_path(missions_dir)
+            # read nodes.yaml
+            config_file = os.path.join(self.config_dir, 'nodes.yaml')
+            with open(config_file, mode='r', encoding='utf-8') as infile:
+                config = yaml.load(infile)
 
-        # rename extensions in nodes.yaml
-        for name, extension in config[self.name]['instances'][new_name].get('extensions', {}).items():
-            change_instance_in_path(extension)
+            # rename the instance in nodes.yaml
+            config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
+            config[self.name]['instances'][new_name]['home'] = new_home
+            missions_dir = config[self.name]['instances'][new_name].get('missions_dir')
+            if missions_dir:
+                instance.missions_dir = config[self.name]['instances'][new_name]['missions_dir'] = rename_path(missions_dir)
+            else:
+                instance.missions_dir = rename_path(instance.missions_dir)
 
-        # rename plugin configs
-        for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
-            data = yaml.load(plugin.read_text(encoding='utf-8'))
-            change_instance_in_config(data)
-            yaml.dump(data, plugin)
+            # rename extensions in nodes.yaml
+            for name, extension in config[self.name]['instances'][new_name].get('extensions', {}).items():
+                change_instance_in_path(extension)
 
-        # rename service configs
-        for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
-            data = yaml.load(service.read_text(encoding='utf-8'))
-            change_instance_in_config(data)
-            yaml.dump(data, service)
+            # rename plugin configs
+            for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
+                data = yaml.load(plugin.read_text(encoding='utf-8'))
+                change_instance_in_config(data)
+                yaml.dump(data, plugin)
 
-        # restart all services but the bot
-        tasks = []
-        for cls in ServiceRegistry.services().keys():
-            service = ServiceRegistry.get(cls)
-            if service and not isinstance(service, BotService):
-                assert service is not None
-                tasks.append(service.stop())
-        await asyncio.gather(*tasks)
+            # rename service configs
+            for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
+                data = yaml.load(service.read_text(encoding='utf-8'))
+                change_instance_in_config(data)
+                yaml.dump(data, service)
 
-        # rename the directory
-        os.rename(instance.home, new_home)
-        # rename the instance
-        instance.name = new_name
-        instance.locals['home'] = new_home
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
-        # re-init the attached server instance
-        await instance.server.reload()
+            # restart all services but the bot
+            tasks = []
+            for cls in ServiceRegistry.services().keys():
+                service = ServiceRegistry.get(cls)
+                if service and not isinstance(service, BotService):
+                    assert service is not None
+                    tasks.append(service.stop())
+            await asyncio.gather(*tasks)
 
-        # reload the bot service
-        if self.master:
-            bot = ServiceRegistry.get(BotService).bot
-            await bot.reload()
+            # rename the directory
+            os.rename(instance.home, new_home)
+            # rename the instance
+            instance.name = new_name
+            instance.locals['home'] = new_home
+            with open(config_file, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(config, outfile)
 
-        # and start all the rest up again
-        tasks = []
-        for cls in ServiceRegistry.services().keys():
-            service = ServiceRegistry.get(cls)
-            if service and not isinstance(service, BotService):
-                assert service is not None
-                service.reload()
-                tasks.append(service.start())
-        await asyncio.gather(*tasks)
+            # reload the bot service
+            if self.master:
+                bot = ServiceRegistry.get(BotService).bot
+                await bot.reload()
+
+            # and start all the rest up again
+            tasks = []
+            for cls in ServiceRegistry.services().keys():
+                service = ServiceRegistry.get(cls)
+                if service and not isinstance(service, BotService):
+                    assert service is not None
+                    service.reload()
+                    tasks.append(service.start())
+            await asyncio.gather(*tasks)
+        finally:
+            # re-init the attached server instance
+            await instance.server.reload()
 
     async def find_all_instances(self) -> list[tuple[str, str]]:
         return utils.findDCSInstances()
