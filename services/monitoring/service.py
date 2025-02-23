@@ -362,7 +362,7 @@ class MonitoringService(Service):
                 self.drive_check(),
             ])
 
-            if 'serverstats' in self.node.config.get('opt_plugins', []):
+            if 'serverstats' in self.node.plugins:
                 tasks.append(self.serverload())
 
             if self.node.locals.get('nodestats', True):
