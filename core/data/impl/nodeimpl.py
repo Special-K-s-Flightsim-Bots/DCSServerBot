@@ -1095,13 +1095,14 @@ class NodeImpl(Node):
 
         def change_instance_in_path(data):
             if isinstance(data, dict):
-                return {key: change_instance_in_path(value) for key, value in data.items()}
+                for key, value in data.items():
+                    data[key] = change_instance_in_path(value)
             elif isinstance(data, list):
-                return [change_instance_in_path(item) for item in data]
+                for index, item in enumerate(data):
+                    data[index] = change_instance_in_path(item)
             elif isinstance(data, str):
                 return rename_path(data)
-            else:
-                return data
+            return data
 
         # disable autoscan
         if instance.server and instance.server.locals.get('autoscan', False):
