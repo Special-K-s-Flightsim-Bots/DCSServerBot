@@ -129,9 +129,6 @@ class ServerImpl(Server):
         if not self._settings:
             path = os.path.join(self.instance.home, 'Config', 'serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
-            # TODO: can be removed if bug in net.load_next_mission() is fixed
-            if self._settings.get('listLoop', False):
-                self._settings['listLoop'] = True
             # if someone managed to destroy the mission list, fix it...
             if 'missionList' not in self._settings:
                 self._settings['missionList'] = []

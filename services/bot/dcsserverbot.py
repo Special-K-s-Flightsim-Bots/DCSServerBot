@@ -86,7 +86,7 @@ class DCSServerBot(commands.Bot):
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
-            await self.load_extension(f'plugins.{plugin}.commands')
+            await self.load_extension(f'plugins.{plugin.lower()}.commands')
             return True
         except ModuleNotFoundError:
             self.log.error(f'  - Plugin "{plugin.title()}" not found!')
@@ -107,7 +107,7 @@ class DCSServerBot(commands.Bot):
 
     async def unload_plugin(self, plugin: str) -> bool:
         try:
-            await self.unload_extension(f'plugins.{plugin}.commands')
+            await self.unload_extension(f'plugins.{plugin.lower()}.commands')
             return True
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')

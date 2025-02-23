@@ -965,16 +965,28 @@ Please make sure you forward the following ports:
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         old_name = instance.name
+        msg = await interaction.followup.send(
+            _("Renaming instance {} to {}. This will take a bit, standby ...").format(old_name, new_name)
+        )
         try:
             await node.rename_instance(instance, new_name)
-            await interaction.followup.send(
-                _("Instance {old_name} renamed to {new_name}.").format(old_name=old_name, new_name=instance.name),
-                ephemeral=ephemeral)
+            await msg.edit(content=_("Instance {old_name} renamed to {new_name}.").format(
+                old_name=old_name, new_name=instance.name)
+            )
             await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
         except PermissionError:
-            await interaction.followup.send(
-                _("Instance {} could not be renamed, because the directory is in use.").format(old_name),
-                ephemeral=ephemeral)
+            await msg.edit(
+                content=_("Instance {} could not be renamed, because the directory is in use.").format(old_name)
+            )
+        except FileExistsError:
+            await msg.edit(
+                _("Instance {} could not be renamed, because the directory already exist.").format(old_name)
+            )
+        except Exception as ex:
+            await msg.edit(
+                _("Instance {} could not be renamed: {}.").format(old_name, ex)
+            )
+            self.log.exception(ex)
 
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
 
