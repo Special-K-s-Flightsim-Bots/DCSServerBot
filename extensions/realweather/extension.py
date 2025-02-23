@@ -160,7 +160,9 @@ class RealWeather(Extension):
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
             stdout, stderr = process.communicate()
             if process.returncode != 0:
-                self.log.error(stderr.decode('utf-8'))
+                error = stdout.decode('utf-8')
+                self.log.error(error)
+                raise RealWeatherException(f"Error during {self.name}: {process.returncode} - {error}")
             output = stdout.decode('utf-8')
             metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
             remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
@@ -174,7 +176,6 @@ class RealWeather(Extension):
             await asyncio.to_thread(run_subprocess)
 
         # check if DCS Real Weather corrupted the miz file
-        # (as the original author does not see any reason to do that on his own)
         await asyncio.to_thread(MizFile, tmpname)
 
         # mission is good, take it
