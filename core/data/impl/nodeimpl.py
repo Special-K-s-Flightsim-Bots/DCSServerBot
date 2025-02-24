@@ -407,7 +407,7 @@ class NodeImpl(Node):
                 rc = await self._upgrade_pending_non_git()
         except Exception as ex:
             self.log.exception(ex)
-            raise
+            return False
         if not rc:
             self.log.debug('- No update found for DCSServerBot.')
         return rc
