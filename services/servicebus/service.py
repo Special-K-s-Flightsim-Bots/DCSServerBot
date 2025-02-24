@@ -638,12 +638,18 @@ class ServiceBus(Service):
                 func_signature = inspect.signature(func).parameters
 
             # check function signature
-            invalid_keys = set(kwargs.keys()) - set(func_signature.keys())
-            if invalid_keys:
-                raise ValueError("RPC call {} onto non-matching function {}!".format(
-                    "{}({})".format(method_name, ','.join(kwargs.keys())),
-                    "{}({})".format(method_name, ','.join(func_signature.keys())))
-                )
+            if func_signature.get('kwargs', None):  # Handle functions with **kwargs
+                valid_keys = set(func_signature.keys()) - {'kwargs'}
+                explicit_kwargs = {key: value for key, value in kwargs.items() if key in valid_keys}
+                extra_kwargs = {key: value for key, value in kwargs.items() if key not in valid_keys}
+                kwargs = {**explicit_kwargs, **extra_kwargs}
+            else:
+                invalid_keys = set(kwargs.keys()) - set(func_signature.keys())
+                if invalid_keys:
+                    raise ValueError("RPC call {} onto non-matching function {}!".format(
+                        "{}({})".format(method_name, ','.join(kwargs.keys())),
+                        "{}({})".format(method_name, ','.join(func_signature.keys())))
+                    )
 
             server_key = kwargs.get('server')
             if server_key and func_signature and func_signature['server'].annotation != 'str':
