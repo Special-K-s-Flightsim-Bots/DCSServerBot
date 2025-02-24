@@ -396,9 +396,8 @@ class NodeImpl(Node):
                         return True
         except aiohttp.ClientResponseError as ex:
             # ignore rate limits
-            if ex.status == 403:
-                pass
-            raise
+            if ex.status != 403:
+                raise
         return False
 
     async def upgrade_pending(self) -> bool:
