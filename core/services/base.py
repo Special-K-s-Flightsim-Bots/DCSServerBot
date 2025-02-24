@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
 
@@ -45,51 +46,30 @@ def proxy(original_function: Callable[..., Any]):
     """
 
     @wraps(original_function)
-    async def wrapper(self, *args, **kwargs):
-        # Map argument names to their corresponding values in args
-        arg_dict = {}
-        if hasattr(original_function, "__annotations__"):
-            arg_names = list(original_function.__annotations__.keys())  # e.g., ['self', 'server', 'instance', ...]
-            arg_dict = {name: value for name, value in zip(arg_names[1:], args)}  # Exclude 'self'
+    async def wrapper(self, server: Server, *args, **kwargs):
+        # Get argument names from the original function
+        arg_names = list(original_function.__annotations__.keys()) if hasattr(original_function,
+                                                                              "__annotations__") else []
 
-        # Prepare params by dereferencing DataObject and Enum instances
+        # Prepare params by dereferencing DataObject instances to their names,
+        # while matching argument names with values.
         params = {
             k: v.name if isinstance(v, DataObject)
             else v.value if isinstance(v, Enum)
             else v
-            for k, v in arg_dict.items()
+            for k, v in zip(arg_names[1:], args)
             if v is not None
         }
 
-        call = {
-            "command": "rpc",
-            "service": self.__class__.__name__,
-            "method": original_function.__name__,
-            "params": params
-        }
-
-        # Try to pick the node from the functions arguments
-        node = None
-        for source in (arg_dict, kwargs):
-            if source.get("server"):
-                node = source["server"].node
-            elif source.get("instance"):
-                node = source["instance"].node
-            elif source.get("node"):
-                node = source["node"]
-
-        # Log an error if no valid object is found
-        if node is None:
-            logger.error(f"Cannot proxy function {original_function.__name__}: no valid reference object passed!")
-            return
-
-        # If the node is remote, send the call synchronously
-        if node.is_remote:
-            data = await self.bus.send_to_node_sync(call, node=node.name, timeout=60)
+        if server.is_remote:
+            data = await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "service": self.__class__.__name__,
+                "method": original_function.__name__,
+                "params": {"server": server.name} | params
+            }, node=server.node.name, timeout=60)
             return data.get('return')
-
-        # Otherwise, call the original function directly
-        return await original_function(self, *args, **kwargs)
+        return await original_function(self, server, *args, **kwargs)
 
     return wrapper
 
