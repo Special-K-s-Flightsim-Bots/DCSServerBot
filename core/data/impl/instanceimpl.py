@@ -51,10 +51,6 @@ class InstanceImpl(Instance):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    # clean up old server name entries to avoid conflicts
-                    conn.execute("""
-                        DELETE FROM instances WHERE server_name = %s
-                    """, (server_name, ))
                     conn.execute("""
                         INSERT INTO instances (node, instance, port, server_name)
                         VALUES (%s, %s, %s, %s) 

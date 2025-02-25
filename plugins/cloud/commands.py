@@ -104,15 +104,14 @@ class Cloud(Plugin[CloudListener]):
 
     async def get(self, request: str) -> Any:
         url = f"{self.base_url}/{request}"
-        async with self.session.get(url, proxy=ServiceRegistry.get(BotService).proxy,
-                                    proxy_auth=ServiceRegistry.get(BotService).proxy_auth) as response:
+        async with self.session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
             return await response.json()
 
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with self.session.post(url, json=element, proxy=ServiceRegistry.get(BotService).proxy,
-                                         proxy_auth=ServiceRegistry.get(BotService).proxy_auth) as response:
+            async with self.session.post(
+                    url, json=element, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 return await response.json()
 
         if isinstance(data, list):

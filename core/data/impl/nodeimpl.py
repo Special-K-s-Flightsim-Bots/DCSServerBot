@@ -138,7 +138,7 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             await self.update_db()
-        self.init_instances()
+        await self.init_instances()
 
     @property
     def master(self) -> bool:
@@ -288,7 +288,7 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
 
-    def init_instances(self):
+    async def init_instances(self):
         grouped = defaultdict(list)
         for server_name, instance_name in utils.findDCSInstances():
             grouped[server_name].append(instance_name)
@@ -300,6 +300,13 @@ class NodeImpl(Node):
         for server_name, instances in duplicates.items():
             self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(
                 server_name, ', '.join(instances)))
+        # remove all (old) instances before node start to avoid duplicates
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    DELETE FROM instances WHERE node = %s
+                """, (self.name,))
+        # initialize the nodes
         for _name, _element in self.locals.pop('instances', {}).items():
             instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
@@ -383,7 +390,7 @@ class NodeImpl(Node):
     async def _upgrade_pending_non_git(self) -> bool:
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL) as response:
+                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                     response.raise_for_status()
                     result = await response.json()
                     current_version = re.sub('^v', '', __version__)
@@ -406,7 +413,7 @@ class NodeImpl(Node):
                 rc = await self._upgrade_pending_non_git()
         except Exception as ex:
             self.log.exception(ex)
-            return False
+            raise
         if not rc:
             self.log.debug('- No update found for DCSServerBot.')
         return rc
@@ -559,7 +566,8 @@ class NodeImpl(Node):
         }
         async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-            async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
+            async with await session.post(LOGIN_URL, data={"login": user, "password": password}, proxy=self.proxy,
+                                          proxy_auth=self.proxy_auth) as r1:
                 if r1.status == 200:
                     async with session.get(LICENSES_URL) as r2:
                         if r2.status == 200:
@@ -575,7 +583,8 @@ class NodeImpl(Node):
         async def _get_latest_versions_no_auth() -> Optional[list[str]]:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(UPDATER_URL.format(branch)) as response:
+                async with session.get(
+                        UPDATER_URL.format(branch), proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                     if response.status == 200:
                         return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
 
@@ -587,7 +596,8 @@ class NodeImpl(Node):
             }
             async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
+                async with await session.post(LOGIN_URL, data={"login": user, "password": password},
+                                              proxy=self.proxy, proxy_auth=self.proxy_auth) as r1:
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
@@ -612,7 +622,7 @@ class NodeImpl(Node):
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
-            self._public_ip = await utils.get_public_ip()
+            self._public_ip = await utils.get_public_ip(self)
             self.log.info(f"- Public IP registered as: {self.public_ip}")
         if 'DCS' in self.locals:
             if self.locals['DCS'].get('autoupdate', False):
@@ -820,7 +830,7 @@ class NodeImpl(Node):
         async def _read_file(path: str):
             if path.startswith('http'):
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(path) as response:
+                    async with session.get(path, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                         if response.status == 200:
                             return await response.read()
                         else:
@@ -845,7 +855,7 @@ class NodeImpl(Node):
             return UploadStatus.FILE_EXISTS
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                 if response.status == 200:
                     try:
                         # make sure the directory exists

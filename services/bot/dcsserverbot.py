@@ -446,6 +446,8 @@ class DCSServerBot(commands.Bot):
             if not channel:
                 try:
                     channel = await self.fetch_channel(channel_id)
+                except discord.NotFound:
+                    pass
                 except discord.Forbidden:
                     self.log.error("No permission to fetch channels!")
                 except Exception as ex:

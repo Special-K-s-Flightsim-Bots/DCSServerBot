@@ -226,7 +226,8 @@ class LotAtc(Extension, FileSystemEventHandler):
     async def check_for_updates(self) -> Optional[str]:
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-            async with session.get(f"https://tinyurl.com/{UPDATER_CODE}") as response:
+            async with session.get(f"https://tinyurl.com/{UPDATER_CODE}", proxy=self.node.proxy,
+                                   proxy_auth=self.node.proxy_auth) as response:
                 if response.status in [200, 302]:
                     root = ET.fromstring(await response.text(encoding='utf-8'))
                     for package in root.findall('.//PackageUpdate'):

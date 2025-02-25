@@ -269,7 +269,8 @@ class LotAtc(Plugin[LotAtcEventListener]):
             if not attachment.filename.endswith('.json'):
                 continue
             async with aiohttp.ClientSession() as session:
-                async with session.get(message.attachments[0].url) as response:
+                async with session.get(message.attachments[0].url, proxy=self.node.proxy,
+                                       proxy_auth=self.node.proxy_auth) as response:
                     if response.status == 200:
                         data = await response.json(encoding="utf-8")
                         with open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:
