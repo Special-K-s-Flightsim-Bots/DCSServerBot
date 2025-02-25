@@ -384,12 +384,16 @@ If you need any further assistance, please visit the support discord, listed in 
             # calculate unique bot ports
             bot_port = max([
                 i.get('bot_port', 6665 + idx)
-                for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
+                for idx, i in enumerate([
+                    n['instances'] for n in nodes.values() if 'instances' in n
+                ])
             ]) + 1 if nodes else 6666
             # calculate unique SRS ports
             srs_port = max([
                 i.get('extensions', {}).get('SRS', {}).get('port', 5001 + idx)
-                for idx, i in enumerate([n.get('instances', []) for n in nodes.values()])
+                for idx, i in enumerate([
+                    n['instances'] for n in nodes.values() if 'instances' in n
+                ])
             ]) + 1 if nodes else 5002
             print(_("Searching for existing DCS server configurations ..."))
             instances = utils.findDCSInstances()
