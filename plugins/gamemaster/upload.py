@@ -23,7 +23,7 @@ class GameMasterUploadHandler(ServerUploadHandler):
 
     async def create_embed(self, att: discord.Attachment) -> None:
         async with aiohttp.ClientSession() as session:
-            async with session.get(att.url) as response:
+            async with session.get(att.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 if response.status != 200:
                     await self.channel.send(_('Error {} while reading JSON file!').format(response.status))
                     return
