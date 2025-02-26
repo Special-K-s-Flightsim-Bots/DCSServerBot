@@ -6,7 +6,7 @@ import random
 
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
-                  DEFAULT_TAG)
+                  DEFAULT_TAG, get_translation)
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -23,6 +23,8 @@ from .views import ConfigView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class Scheduler(Plugin[SchedulerListener]):
@@ -649,7 +651,7 @@ class Scheduler(Plugin[SchedulerListener]):
                           status=[
                               Status.RUNNING, Status.PAUSED, Status.STOPPED
                           ])],
-                      force: Optional[bool] = False, run_extensions: Optional[bool] = True,
+                      delay: Optional[int] = 120, force: Optional[bool] = False, run_extensions: Optional[bool] = True,
                       use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
@@ -660,9 +662,24 @@ class Scheduler(Plugin[SchedulerListener]):
         if not await utils.yn_question(interaction, question, ephemeral=ephemeral):
             await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
+        # send warnings (TODO: change to warn structure)
+        if server.is_populated():
+            if delay > 0:
+                message = _("!!! Server will restart in {}!!!").format(utils.format_time(delay))
+            else:
+                message = _("!!! Server will restart NOW !!!")
 
-        msg = await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\" ...",
-                                              ephemeral=ephemeral)
+            msg = await interaction.followup.send(
+                _('Server will restart in {} (warning users before)...').format(utils.format_time(delay)),
+                ephemeral=ephemeral
+            )
+            await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
+            await asyncio.sleep(delay)
+            await msg.delete()
+
+        msg = await interaction.followup.send(
+            f'Shutting down DCS server "{server.display_name}" ...', ephemeral=ephemeral
+        )
         try:
             maintenance = server.maintenance
             server.maintenance = True
