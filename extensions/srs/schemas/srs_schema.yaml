@@ -27,7 +27,7 @@ schema;instance_srs_schema:
     enabled: {type: bool, nullable: false}
     config: {type: str, required: true, nullable: false}
     host: {type: str, nullable: false, range: {min: 1}}
-    port: {type: int, range: {min: 80, max: 65535}, nullable: false}
+    port: {type: int, nullable: false, func: unique_port}
     minimized: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
     awacs: {type: bool, nullable: false}
@@ -41,4 +41,4 @@ schema;instance_srs_schema:
     always_on: {type: bool, nullable: false}
     radio_effect_override: {type: bool, nullable: false}
     global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
-    lotatc_export_port: {type: int, range: {min: 80, max: 65535}, nullable: false}
+    lotatc_export_port: {type: int, nullable: false, func: unique_port}

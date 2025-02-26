@@ -48,6 +48,10 @@ __all__ = [
 from ruamel.yaml import YAML
 yaml = YAML()
 
+# Node-global unique ports
+ports: dict[str, dict[int, str]] = {}
+
+
 class NodeData:
     _instance: Optional['NodeData'] = None
     _lock = threading.Lock()    # make it thread-safe
@@ -97,6 +101,17 @@ def file_exists(value, _, path):
     if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node]:
         if not os.path.exists(os.path.expandvars(value)):
             raise SchemaError(msg=f'File "{value}" does not exist', path=path)
+    return True
+
+def unique_port(value, _, path):
+    if not isinstance(value, int) or value < 1024 or value > 65535:
+        raise SchemaError(msg=f"{value} is not a valid port", path=path)
+    node = path.split("/")[1]
+    if node not in ports:
+        ports[node] = {}
+    if value in ports[node]:
+        raise SchemaError(msg=f"Port {value} is already in use in {ports[node][value]}", path=path)
+    ports[node][value] = path
     return True
 
 def _load_schema(include_name: str, path: str) -> str:

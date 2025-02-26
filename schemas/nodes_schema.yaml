@@ -59,9 +59,9 @@ mapping:
               missions_dir: {type: str, nullable: false, range: {min: 1}, func: file_exists}
               mission_rewrite: {type: bool, nullable: false}
               autoscan: {type: bool, nullable: false}
-              bot_port: {type: int, range: {min: 1025, max: 65535}, required: true, nullable: false}
-              webgui_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
-              dcs_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
+              bot_port: {type: int, required: true, nullable: false, func: unique_port}
+              webgui_port: {type: int, nullable: false, func: unique_port}
+              dcs_port: {type: int, nullable: false, func: unique_port}
               server_user: {type: str, nullable: false, range: {min: 1}}
               max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
               affinity: {type: any, nullable: false, func: int_csv_or_list}
