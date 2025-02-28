@@ -86,7 +86,7 @@ class DCSServerBot(commands.Bot):
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
-            await self.load_extension(f'plugins.{plugin}.commands')
+            await self.load_extension(f'plugins.{plugin.lower()}.commands')
             return True
         except ModuleNotFoundError:
             self.log.error(f'  - Plugin "{plugin.title()}" not found!')
@@ -107,7 +107,7 @@ class DCSServerBot(commands.Bot):
 
     async def unload_plugin(self, plugin: str) -> bool:
         try:
-            await self.unload_extension(f'plugins.{plugin}.commands')
+            await self.unload_extension(f'plugins.{plugin.lower()}.commands')
             return True
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')
@@ -363,20 +363,6 @@ class DCSServerBot(commands.Bot):
                 return None
         return self.get_channel(admin_channel)
 
-    async def get_ucid_by_name(self, name: str) -> tuple[Optional[str], Optional[str]]:
-        async with self.apool.connection() as conn:
-            search = f'%{name}%'
-            cursor = await conn.execute("""
-                SELECT ucid, name FROM players 
-                WHERE LOWER(name) like LOWER(%s) 
-                ORDER BY last_seen DESC LIMIT 1
-            """, (search, ))
-            if cursor.rowcount >= 1:
-                res = await cursor.fetchone()
-                return res[0], res[1]
-            else:
-                return None, None
-
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
         async with self.apool.connection() as conn:
             sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
@@ -460,6 +446,8 @@ class DCSServerBot(commands.Bot):
             if not channel:
                 try:
                     channel = await self.fetch_channel(channel_id)
+                except discord.NotFound:
+                    pass
                 except discord.Forbidden:
                     self.log.error("No permission to fetch channels!")
                 except Exception as ex:

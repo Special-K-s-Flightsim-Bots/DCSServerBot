@@ -1,5 +1,3 @@
-import getpass
-
 import aiohttp
 import ipaddress
 import logging
@@ -11,6 +9,7 @@ import socket
 import stat
 import subprocess
 import sys
+
 if sys.platform == 'win32':
     import ctypes
     import pywintypes
@@ -20,7 +19,10 @@ if sys.platform == 'win32':
 from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import Node
 
 API_URLS = [
     'https://api4.my-ip.io/ip',
@@ -60,11 +62,11 @@ def is_open(ip, port):
         return s.connect_ex((ip, int(port))) == 0
 
 
-async def get_public_ip():
+async def get_public_ip(node: "Node"):
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
+                async with session.get(url, proxy=node.proxy, proxy_auth=node.proxy_auth) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
 
 
@@ -103,6 +105,7 @@ def get_windows_version(cmd: str) -> Optional[str]:
     if sys.platform != 'win32':
         return None
     try:
+        # noinspection PyUnresolvedReferences
         info = win32api.GetFileVersionInfo(os.path.expandvars(cmd), '\\')
         version = "%d.%d.%d.%d" % (info['FileVersionMS'] / MS_LSB_MULTIPLIER,
                                    info['FileVersionMS'] % MS_LSB_MULTIPLIER,
@@ -269,7 +272,7 @@ def sanitize_filename(filename: str, base_directory: str) -> str:
         raise ValueError(f"Relative path injection attempt detected: {filename}")
 
     # Optional: Check file name for illegal characters (e.g., reject ../)
-    if ".." in filename or filename.startswith(("/")):
+    if ".." in filename or filename.startswith("/"):
         raise ValueError(f"Invalid filename detected: {filename}")
 
     return resolved_path

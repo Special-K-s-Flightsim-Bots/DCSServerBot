@@ -1,14 +1,14 @@
+import aiohttp
 import logging
 import os
 
 from core import utils
 from core.translations import get_translation
+from core.utils.helper import YAMLError
 from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
-
-from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -79,6 +79,25 @@ class Node:
     @property
     def installation(self) -> str:
         raise NotImplemented()
+
+    @property
+    def proxy(self) -> Optional[str]:
+        if 'proxy' not in self.locals:
+            config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            self.locals['proxy'] = config.get('proxy', {}).get('url')
+        return self.locals['proxy']
+
+    @property
+    def proxy_auth(self) -> Optional[aiohttp.BasicAuth]:
+        if 'proxy_auth' not in self.locals:
+            config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            username = config.get('proxy', {}).get('username')
+            try:
+                password = utils.get_password('proxy', self.config_dir)
+                self.locals['proxy_auth'] = aiohttp.BasicAuth(username, password)
+            except ValueError:
+                self.locals['proxy_auth'] = None
+        return self.locals['proxy_auth']
 
     @property
     def extensions(self) -> dict:

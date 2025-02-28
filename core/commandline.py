@@ -23,6 +23,8 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-r', '--no-restart', action='store_true', default=False,
                             help="don't start DCSServerBot after the update")
+        parser.add_argument('-i', '--install', action='store_true', default=False,
+                            help='Install requirements.txt only')
     elif program == 'install.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-u', '--user', help='Database username', default='dcsserverbot')

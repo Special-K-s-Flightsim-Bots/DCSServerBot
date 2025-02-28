@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, Server, event, ServiceRegistry, Plugin
+from core import EventListener, Server, event, ServiceRegistry
 from services.music.service import MusicService
 from typing import TYPE_CHECKING
 

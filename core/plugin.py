@@ -154,13 +154,13 @@ class Command(app_commands.Command):
                             'No server registered for this channel. '
                             'If the channel is correct, please try again in a bit, when the server has registered.',
                             ephemeral=True)
-                        return
+                        return None
                     except discord.errors.NotFound:
                         pass
                 else:
                     # noinspection PyUnresolvedReferences
                     await interaction.response.send_message('No servers registered yet.', ephemeral=True)
-                    return
+                    return None
             params['server'] = server
         return await super()._do_call(interaction=interaction, params=params)
 
@@ -246,7 +246,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
         if self.plugin_name != 'commands' and 'commands' in self.locals:
             self.change_commands(self.locals['commands'], {x.name: x for x in self.get_app_commands()})
         self._config = dict[str, dict]()
-        self.eventlistener: Type[TEventListener] = eventlistener(self) if eventlistener else None
+        self.eventlistener: TEventListener = eventlistener(self) if eventlistener else None
         self.wait_for_on_ready.start()
 
     async def cog_load(self) -> None:
@@ -296,6 +296,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                             if 'has_role' in check.__qualname__:
                                 cmd.remove_check(check)
                         if len(params['roles']):
+                            # noinspection PyUnresolvedReferences
                             cmd.add_check(utils.cmd_has_roles(params['roles'].copy()).predicate)
                     if cmd.parent:
                         cmd.parent.add_command(cmd)

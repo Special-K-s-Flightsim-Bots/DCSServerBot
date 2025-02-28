@@ -36,6 +36,7 @@ async def gci_autocomplete(interaction: discord.Interaction, current: str) -> li
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class LotAtc(Plugin[LotAtcEventListener]):
@@ -218,7 +219,7 @@ class LotAtc(Plugin[LotAtcEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("You are not allowed to see the {} GCIs.").format(coalition))
             return
-        gcis = self.eventlistener.on_station.get(server.name, {}).get(coalition, {})
+        gcis = self.eventlistener.on_station.get(server.name, {}).get(Coalition(coalition), {})
         if not gcis:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
@@ -268,7 +269,8 @@ class LotAtc(Plugin[LotAtcEventListener]):
             if not attachment.filename.endswith('.json'):
                 continue
             async with aiohttp.ClientSession() as session:
-                async with session.get(message.attachments[0].url) as response:
+                async with session.get(message.attachments[0].url, proxy=self.node.proxy,
+                                       proxy_auth=self.node.proxy_auth) as response:
                     if response.status == 200:
                         data = await response.json(encoding="utf-8")
                         with open('plugins/lotatc/schemas/lotatc_schema.json', mode='r') as infile:

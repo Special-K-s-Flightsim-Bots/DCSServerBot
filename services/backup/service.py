@@ -44,10 +44,10 @@ class BackupService(Service):
     async def stop(self, *args, **kwargs):
         if not self.locals:
             return
-        self.schedule.stop()
+        self.schedule.cancel()
         delete_after = self.locals.get('delete_after', 'never')
         if isinstance(delete_after, int) or delete_after.isnumeric():
-            self.delete.stop()
+            self.delete.cancel()
         await super().stop()
 
     def mkdir(self) -> str:

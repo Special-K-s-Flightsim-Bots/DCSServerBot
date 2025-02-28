@@ -2,12 +2,10 @@ import asyncio
 import discord
 
 from core import EventListener, Server, Status, utils, event, chat_command, get_translation
-from typing import cast, Union, TYPE_CHECKING
+from typing import cast, Union
 
 from .player import CreditPlayer
 
-if TYPE_CHECKING:
-    from .commands import CreditSystem
 
 _ = get_translation(__name__.split('.')[1])
 

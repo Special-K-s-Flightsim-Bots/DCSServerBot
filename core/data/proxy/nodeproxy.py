@@ -309,7 +309,11 @@ class NodeProxy(Node):
                 "template": template
             }
         }, node=self.name, timeout=timeout)
-        return InstanceProxy(name=data['return'], node=self)
+        instance = next((x for x in self.instances if x.name == name), None)
+        if not instance:
+            instance = InstanceProxy(name=data['return'], node=self)
+            self.instances.append(instance)
+        return instance
 
     async def delete_instance(self, instance: "Instance", remove_files: bool) -> None:
         timeout = 60 if not self.slow_system else 120
@@ -322,6 +326,7 @@ class NodeProxy(Node):
                 "remove_files": remove_files
             }
         }, node=self.name, timeout=timeout)
+        self.instances.remove(instance)
 
     async def rename_instance(self, instance: "Instance", new_name: str) -> None:
         timeout = 60 if not self.slow_system else 120

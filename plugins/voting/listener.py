@@ -3,13 +3,10 @@ import asyncio
 from core import EventListener, chat_command, Server, Player, utils, Coalition, event, ChatCommand, get_translation
 from functools import partial
 from itertools import islice
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from plugins.creditsystem.player import CreditPlayer
 from plugins.voting.base import VotableItem
-
-if TYPE_CHECKING:
-    from .commands import Voting
 
 # ruamel YAML support
 from ruamel.yaml import YAML

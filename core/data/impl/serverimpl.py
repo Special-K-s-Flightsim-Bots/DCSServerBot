@@ -104,7 +104,7 @@ class ServerImpl(Server):
             row = conn.execute("SELECT maintenance FROM servers WHERE server_name = %s", (self.name,)).fetchone()
             if row:
                 self._maintenance = row[0]
-        atexit.register(self._stop_observer)
+        atexit.register(self.stop_observer)
 
     def __eq__(self, other):
         if isinstance(other, ServerImpl):
@@ -129,9 +129,6 @@ class ServerImpl(Server):
         if not self._settings:
             path = os.path.join(self.instance.home, 'Config', 'serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
-            # TODO: can be removed if bug in net.load_next_mission() is fixed
-            if self._settings.get('listLoop', False):
-                self._settings['listLoop'] = True
             # if someone managed to destroy the mission list, fix it...
             if 'missionList' not in self._settings:
                 self._settings['missionList'] = []
@@ -163,24 +160,26 @@ class ServerImpl(Server):
         if self.name != 'n/a':
             self.prepare()
 
-    def _start_observer(self):
-        self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
-        self.observer = Observer()
-        self._enable_autoscan()
-        self.observer.start()
+    def start_observer(self):
+        if not self.observer:
+            self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
+            self.observer = Observer()
+            self.enable_autoscan()
+            self.observer.start()
 
-    def _stop_observer(self):
+    def stop_observer(self):
         if self.observer:
+            self.disable_autoscan()
             self.observer.stop()
             self.observer.join(timeout=10)
             self.observer = None
 
-    def _enable_autoscan(self):
+    def enable_autoscan(self):
         if not self.observer.emitters:
             self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=True)
             self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
 
-    def _disable_autoscan(self):
+    def disable_autoscan(self):
         if self.observer.emitters:
             self.observer.unschedule_all()
             self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
@@ -248,6 +247,16 @@ class ServerImpl(Server):
             else:
                 super().set_status(status)
 
+    async def update_channels(self, channels: dict[str, int]) -> None:
+        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
+        with open(config_file, mode='r', encoding='utf-8') as infile:
+            config = yaml.load(infile)
+        config[self.name]['channels'] = channels
+        with open(config_file, mode='w', encoding='utf-8') as outfile:
+            yaml.dump(config, outfile)
+        self.locals.setdefault('channels', {}).update(channels)
+        self._channels.clear()
+
     def _install_luas(self):
         dcs_path = os.path.join(self.instance.home, 'Scripts')
         if not os.path.exists(dcs_path):
@@ -289,15 +298,13 @@ class ServerImpl(Server):
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
-                    if 'advanced' not in self.settings:
-                        self.settings['advanced'] = {}
-                    self.settings['advanced'] = self.settings['advanced'] | value
+                    self.settings.setdefault('advanced', {}).update(value)
                 else:
                     self.settings[key] = value
         self._install_luas()
         # enable autoscan for missions changes
         if self.locals.get('autoscan', False):
-            self._start_observer()
+            self.start_observer()
 
     def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
@@ -362,29 +369,42 @@ class ServerImpl(Server):
             filename = os.path.join(self.node.config_dir, 'servers.yaml')
             if os.path.exists(filename):
                 data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+                # proper rename
                 if old_name in data and new_name not in data:
                     data[new_name] = data.pop(old_name)
-                    with open(filename, mode='w', encoding='utf-8') as outfile:
-                        yaml.dump(data, outfile)
+                # new added server
+                elif not old_name:
+                    data[new_name] = {}
+                with open(filename, mode='w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
             # update serverSettings.lua if requested
             if update_settings:
                 self.settings['name'] = new_name
 
         old_name = self.name
+        if old_name == 'n/a':
+            old_name = None
         try:
             # rename the server in the database
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     # we need to remove any older server that might have had the same name
                     await conn.execute('DELETE FROM servers WHERE server_name = %s', (new_name, ))
-                    await conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                       (new_name, self.name))
+                    await conn.execute("""
+                        UPDATE servers SET server_name = %s WHERE server_name IS NOT DISTINCT FROM %s
+                    """, (new_name, old_name))
                     await conn.execute('DELETE FROM instances WHERE server_name = %s', (new_name, ))
-                    await conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
-                                       (new_name, self.name))
+                    await conn.execute("""
+                        UPDATE instances 
+                        SET server_name = %s 
+                        WHERE instance = %s AND server_name IS NOT DISTINCT FROM %s
+                    """, (new_name, self.instance.name, old_name))
                     await conn.execute('DELETE FROM message_persistence WHERE server_name = %s', (new_name, ))
-                    await conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                       (new_name, self.name))
+                    await conn.execute("""
+                        UPDATE message_persistence 
+                        SET server_name = %s 
+                        WHERE server_name IS NOT DISTINCT FROM %s
+                    """, (new_name, old_name))
                     # only the master can take care of a cluster-wide rename
                     if self.node.master:
                         await self.node.rename_server(self, new_name)
@@ -394,7 +414,7 @@ class ServerImpl(Server):
                             "object": "Node",
                             "method": "rename_server",
                             "params": {
-                                "server": self.name,
+                                "server": self.name or 'n/a',
                                 "new_name": new_name
                             }
                         })
@@ -497,7 +517,7 @@ class ServerImpl(Server):
                     await ext.prepare()
                 except InstallException as ex:
                     self.log.error(f"  => Error during {ext.name}.prepare(): {ex} - skipped")
-                except Exception as ex:
+                except Exception:
                     self.log.error(f"  => Unknown error during {ext.name}.prepare() - skipped.", exc_info=True)
 
     @staticmethod
@@ -541,7 +561,7 @@ class ServerImpl(Server):
         self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
         self.process.cpu_affinity(affinity)
 
-    async def startup(self, modify_mission: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
@@ -553,7 +573,7 @@ class ServerImpl(Server):
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
-            await self.apply_mission_changes()
+            await self.apply_mission_changes(use_orig=use_orig)
         await asyncio.to_thread(self.do_startup)
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         try:
@@ -671,11 +691,11 @@ class ServerImpl(Server):
             await wait_for_file_release(10)
 
     @performance_log()
-    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
+    async def apply_mission_changes(self, filename: Optional[str] = None, *, use_orig: Optional[bool] = True) -> str:
         try:
             # disable autoscan
             if self.locals.get('autoscan', False):
-                self._disable_autoscan()
+                self.disable_autoscan()
             if not filename:
                 filename = await self.get_current_mission_file()
                 if not filename:
@@ -684,10 +704,11 @@ class ServerImpl(Server):
 
             # create a writable mission
             new_filename = utils.create_writable_mission(filename)
-            # get the orig file
-            orig_filename = utils.get_orig_file(new_filename)
-            # and copy the orig file over
-            shutil.copy2(orig_filename, new_filename)
+            if use_orig:
+                # get the orig file
+                orig_filename = utils.get_orig_file(new_filename)
+                # and copy the orig file over
+                shutil.copy2(orig_filename, new_filename)
             try:
                 # process all mission modifications
                 dirty = False
@@ -722,7 +743,7 @@ class ServerImpl(Server):
         finally:
             # enable autoscan
             if self.locals.get('autoscan', False):
-                self._enable_autoscan()
+                self.enable_autoscan()
 
     async def keep_alive(self):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
@@ -760,10 +781,12 @@ class ServerImpl(Server):
             await self.addMission(filename)
         return UploadStatus.OK
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
+    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         from extensions.mizedit import MizEdit
 
-        return await MizEdit.apply_presets(self, utils.get_orig_file(filename), preset)
+        if use_orig:
+            filename = utils.get_orig_file(filename)
+        return await MizEdit.apply_presets(self, filename, preset)
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -794,8 +817,8 @@ class ServerImpl(Server):
                 ret.append(await ext.render())
         return ret
 
-    async def restart(self, modify_mission: Optional[bool] = True) -> None:
-        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission)
+    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
+        await self.loadMission(int(self.settings['listStartIndex']), modify_mission=modify_mission, use_orig=use_orig)
 
     async def setStartIndex(self, mission_id: int) -> None:
         if mission_id > len(self.settings['missionList']):
@@ -873,23 +896,29 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
         return self.settings['missionList']
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
-        # check if we re-load the running mission
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
+                          use_orig: Optional[bool] = True) -> bool:
         start_index = int(self.settings['listStartIndex'])
+        # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
             mission = self.settings['missionList'][start_index - 1]
-            # now determine the original mission name
-            _mission = utils.get_orig_file(mission)
-            # check if the orig file has been replaced
-            if os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
-                new_filename = utils.create_writable_mission(mission)
-                # we can't write the original one, so use the copy
-                if new_filename != mission:
-                    shutil.copy2(_mission, new_filename)
-                    await self.replaceMission(start_index, new_filename)
+            if use_orig:
+                # now determine the original mission name
+                orig_mission = utils.get_orig_file(mission)
+                # check if the orig file has been replaced
+                if os.path.exists(orig_mission) and os.path.getmtime(orig_mission) > os.path.getmtime(mission):
+                    new_filename = utils.create_writable_mission(mission)
+                    # we can't write the original one, so use the copy
+                    if new_filename != mission:
+                        shutil.copy2(orig_mission, new_filename)
+                        await self.replaceMission(start_index, new_filename)
                     return await self.loadMission(start_index, modify_mission=modify_mission)
-                else:
+            else:
+                # don't use the orig file, still make sure we have a writable mission
+                new_filename = utils.create_writable_mission(mission)
+                if new_filename != mission:
+                    await self.replaceMission(start_index, new_filename)
                     return await self.loadMission(start_index, modify_mission=modify_mission)
 
         if isinstance(mission, int):
@@ -927,13 +956,13 @@ class ServerImpl(Server):
             await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
         return True
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = False) -> bool:
         init_mission_id = int(self.settings['listStartIndex'])
         max_mission_id = len(self.settings['missionList'])
         mission_id = init_mission_id + 1
         if mission_id > max_mission_id:
             mission_id = 1
-        while not await self.loadMission(mission_id, modify_mission):
+        while not await self.loadMission(mission_id, modify_mission, use_orig):
             mission_id += 1
             if mission_id > max_mission_id:
                 mission_id = 1
@@ -968,12 +997,10 @@ class ServerImpl(Server):
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
         data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
         node_config = data.get(self.node.name, {})
-        if not node_config['instances'][self.instance.name].get('extensions'):
-            node_config['instances'][self.instance.name]['extensions'] = {}
-        if name not in node_config['instances'][self.instance.name]['extensions']:
-            node_config['instances'][self.instance.name]['extensions'][name] = config
-        else:
-            node_config['instances'][self.instance.name]['extensions'][name] |= config
+        extensions = node_config.setdefault('instances', {}).setdefault(
+            self.instance.name, {}
+        ).setdefault('extensions', {})
+        extensions[name] = extensions.get(name, {}) | config
         with open(config_file, 'w', encoding='utf-8') as f:
             yaml.dump(data, f)
         # re-read config

@@ -1,7 +1,7 @@
 import asyncio
 import trueskill
 
-from core import EventListener, event, Server, Status, Player, chat_command, Plugin, Side, get_translation, ChatCommand
+from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from discord.ext import tasks
@@ -69,8 +69,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             self.log.exception(ex)
 
     async def can_run(self, command: ChatCommand, server: Server, player: Player) -> bool:
-        if server.name not in self.active_servers:
-            return False
+        return server.name in self.active_servers
 
     async def inform_players(self, match: Match, message: str, time: Optional[int] = 10):
         all_players = match.teams

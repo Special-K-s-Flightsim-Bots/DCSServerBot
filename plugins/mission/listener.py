@@ -6,7 +6,7 @@ import shlex
 
 from copy import deepcopy
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand
+    Channel, DataObjectFactory, event, chat_command, ServiceRegistry, ChatCommand, get_translation
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
@@ -19,6 +19,8 @@ from .menu import read_menu_config, filter_menu
 if TYPE_CHECKING:
     from core import Server
     from .commands import Mission
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class MissionEventListener(EventListener["Mission"]):
@@ -831,6 +833,38 @@ class MissionEventListener(EventListener["Mission"]):
                         "command": "deleteMenu",
                         "groupID": group_id
                     })
+
+    async def do_change_mission(self, server: Server, player: Player, params: dict):
+        mission_file = os.path.expandvars(params.get('mission_file'))
+        if not os.path.isabs(mission_file):
+            mission_file = os.path.join(await server.get_missions_dir(), mission_file)
+        if not mission_file:
+            mission_list = await server.getMissionList()
+            mission_id = params.get('mission_id')
+            if mission_id:
+                mission_file = mission_list[int(mission_id) - 1]
+            else:
+                await player.sendChatMessage(_("Wrong menu configuration. "
+                                               "Neither mission_file nor mission_id are specified."))
+                return
+        message = params.get('message', 'Server is going to load mission {} now!')
+        await server.sendPopupMessage(Coalition.ALL, message.format(os.path.basename(mission_file)[:-4]))
+        use_orig = params.get('use_orig', True)
+        if params.get('run_extensions', False):
+            mission_file = await server.apply_mission_changes(mission_file, use_orig=use_orig)
+            use_orig = False
+        presets = params.get('presets')
+        if presets:
+            mission_file = await server.modifyMission(
+                mission_file, [utils.get_preset(self.node, x) for x in presets], use_orig
+            )
+        await server.loadMission(mission_file, modify_mission=False)
+
+    @event(name="changeMission")
+    async def changeMission(self, server: Server, data: dict) -> None:
+        params = data.get('params', {})
+        player = server.get_player(id=data['from'])
+        asyncio.create_task(self.do_change_mission(server, player, params))
 
     @chat_command(name='pause', help='pause the mission', roles=['DCS Admin', 'GameMaster'])
     async def pause(self, server: Server, player: Player, params: list[str]):

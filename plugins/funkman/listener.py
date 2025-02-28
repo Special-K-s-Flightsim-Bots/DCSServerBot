@@ -4,7 +4,7 @@ import sys
 import uuid
 import matplotlib.figure
 
-from core import EventListener, Plugin, Server, event, Player, PersistentReport, Channel, get_translation
+from core import EventListener, Server, event, Player, PersistentReport, Channel, get_translation
 from io import BytesIO
 from matplotlib import pyplot as plt
 from typing import Literal, TYPE_CHECKING

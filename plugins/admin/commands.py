@@ -13,13 +13,12 @@ from discord.ui import TextInput, Modal
 from functools import partial
 from io import BytesIO
 from pathlib import Path
+from plugins.admin.listener import AdminEventListener
+from plugins.admin.views import CleanupView
+from plugins.scheduler.views import ConfigView
 from services.bot import DCSServerBot
 from typing import Optional, Union, Literal, Type
 from zipfile import ZipFile, ZIP_DEFLATED
-
-from .listener import AdminEventListener
-from .views import CleanupView
-from ..scheduler.views import ConfigView
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -54,6 +53,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
         ]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction,
@@ -70,6 +70,7 @@ async def installed_modules_autocomplete(interaction: discord.Interaction,
         ]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -89,6 +90,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
+
 
 async def _mission_file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
@@ -104,6 +107,7 @@ async def _mission_file_autocomplete(interaction: discord.Interaction, current: 
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -133,6 +137,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -160,10 +165,10 @@ async def installable_plugins(interaction: discord.Interaction, current: str) ->
     if not await interaction.command._check_can_run(interaction):
         return []
     installed = set([x for x in interaction.client.node.plugins])
-    all = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
+    available = set([d for d in os.listdir('plugins') if d not in ['__pycache__'] and os.path.isdir(os.path.join('plugins', d))])
     return [
         app_commands.Choice(name=x.capitalize(), value=x)
-        for x in sorted(all - installed)
+        for x in sorted(available - installed)
         if not current or current.casefold() in x.casefold()
     ]
 
@@ -881,20 +886,13 @@ class Admin(Plugin[AdminEventListener]):
             except Exception as ex:
                 self.log.exception(ex)
             if not await view.wait() and not view.cancelled:
-                config_file = os.path.join(self.node.config_dir, 'servers.yaml')
-                with open(config_file, mode='r', encoding='utf-8') as infile:
-                    config = yaml.load(infile)
-                config[server.name] = {
-                    "channels": {
-                        "status": server.locals.get('channels', {}).get('status', -1),
-                        "chat": server.locals.get('channels', {}).get('chat', -1)
-                    }
+                channels = {
+                    "status": server.locals.get('channels', {}).get('status', -1),
+                    "chat": server.locals.get('channels', {}).get('chat', -1)
                 }
                 if not self.bot.locals.get('channels', {}).get('admin'):
-                    config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin', -1)
-                with open(config_file, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(config, outfile)
-                await server.reload()
+                    channels['admin'] = server.locals.get('channels', {}).get('admin', -1)
+                await server.update_channels(channels)
                 server.status = Status.SHUTDOWN
                 await interaction.followup.send(
                     _("Server {server} assigned to instance {instance}.").format(server=server.name,
@@ -967,16 +965,28 @@ Please make sure you forward the following ports:
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         old_name = instance.name
+        msg = await interaction.followup.send(
+            _("Renaming instance {} to {}. This will take a bit, standby ...").format(old_name, new_name)
+        )
         try:
             await node.rename_instance(instance, new_name)
-            await interaction.followup.send(
-                _("Instance {old_name} renamed to {new_name}.").format(old_name=old_name, new_name=instance.name),
-                ephemeral=ephemeral)
+            await msg.edit(content=_("Instance {old_name} renamed to {new_name}.").format(
+                old_name=old_name, new_name=instance.name)
+            )
             await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
         except PermissionError:
-            await interaction.followup.send(
-                _("Instance {} could not be renamed, because the directory is in use.").format(old_name),
-                ephemeral=ephemeral)
+            await msg.edit(
+                content=_("Instance {} could not be renamed, because the directory is in use.").format(old_name)
+            )
+        except FileExistsError:
+            await msg.edit(
+                content=_("Instance {} could not be renamed, because the directory already exist.").format(old_name)
+            )
+        except Exception as ex:
+            await msg.edit(
+                content=_("Instance {} could not be renamed: {}.").format(old_name, ex)
+            )
+            self.log.exception(ex)
 
     plug = Group(name="plugin", description=_("Commands to manage your DCSServerBot plugins"))
 
@@ -1171,12 +1181,15 @@ Please make sure you forward the following ports:
         name = att.filename[:-5]
         if name in ['main', 'nodes', 'servers'] or name.startswith('presets'):
             target_path = self.node.config_dir
+            schema_path = os.path.join('schemas', name)
             plugin = False
         elif name in ['backup', 'bot']:
             target_path = os.path.join(self.node.config_dir, 'services')
+            schema_path = os.path.join('services', name[:-4], 'schemas', name[:-4] + '_schema.yaml')
             plugin = False
         elif name in self.node.plugins:
             target_path = os.path.join(self.node.config_dir, 'plugins')
+            schema_path = os.path.join('plugins', name[:-4], 'schemas', name[:-4] + '_schema.yaml')
             plugin = True
         else:
             return False

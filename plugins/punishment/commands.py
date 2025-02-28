@@ -3,8 +3,8 @@ import discord
 import psycopg
 
 from contextlib import suppress
-from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, PluginInstallationError, \
-    command, DEFAULT_TAG, Report, get_translation
+from core import (Plugin, PluginRequiredError, utils, Player, Server, PluginInstallationError, command, DEFAULT_TAG,
+                  Report, get_translation)
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks

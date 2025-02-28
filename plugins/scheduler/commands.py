@@ -6,7 +6,7 @@ import random
 
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
-                  DEFAULT_TAG)
+                  DEFAULT_TAG, get_translation)
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -23,6 +23,8 @@ from .views import ConfigView
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class Scheduler(Plugin[SchedulerListener]):
@@ -120,11 +122,12 @@ class Scheduler(Plugin[SchedulerListener]):
                     return Status.SHUTDOWN
         return server.status
 
-    async def launch_dcs(self, server: Server, member: Optional[discord.Member] = None,
-                         modify_mission: Optional[bool] = True, ignore_exception: Optional[bool] = False):
+    async def launch_dcs(self, server: Server, member: Optional[discord.Member] = None, *,
+                         modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True,
+                         ignore_exception: Optional[bool] = False):
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
-            await server.startup(modify_mission=modify_mission)
+            await server.startup(modify_mission=modify_mission, use_orig=use_orig)
             if not member:
                 self.log.info(f'  => DCS server "{server.name}" started by '
                               f'{self.plugin_name.title()}.')
@@ -148,6 +151,7 @@ class Scheduler(Plugin[SchedulerListener]):
             return sorted(times, reverse=True)
         elif isinstance(times, dict):
             return sorted(times.keys(), reverse=True)
+        return []
 
     async def warn_users(self, server: Server, config: dict, what: str, max_warn_time: Optional[int] = None):
         if 'warn' not in config:
@@ -291,13 +295,14 @@ class Scheduler(Plugin[SchedulerListener]):
             if method == 'restart':
                 try:
                     modify_mission = rconf.get('run_extensions', True)
+                    use_orig = rconf.get('use_orig', True)
                     if server.status == Status.SHUTDOWN:
                         self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
                         await asyncio.sleep(self.get_config(server).get('startup_delay', 0))
-                        await self.launch_dcs(server, modify_mission=modify_mission)
+                        await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
                         self.log.debug(f"Scheduler: Restarting mission on server {server.name} ...")
-                        await server.restart(modify_mission=modify_mission)
+                        await server.restart(modify_mission=modify_mission, use_orig=use_orig)
                     await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
                                          f"{server.current_mission.display_name}", server=server)
                 except (TimeoutError, asyncio.TimeoutError):
@@ -307,12 +312,13 @@ class Scheduler(Plugin[SchedulerListener]):
                 try:
                     self.log.debug(f"Scheduler: Rotating mission on server {server.name} ...")
                     modify_mission = rconf.get('run_extensions', True)
+                    use_orig = rconf.get('use_orig', True)
                     if server.status == Status.SHUTDOWN:
                         await server.setStartIndex(server.settings['listStartIndex'] + 1)
                         self.log.debug(f"Scheduler: Starting DCS Server {server.name} ...")
-                        await self.launch_dcs(server, modify_mission=modify_mission)
+                        await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
-                        await server.loadNextMission(modify_mission=modify_mission)
+                        await server.loadNextMission(modify_mission=modify_mission, use_orig=use_orig)
                     await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                          f"{server.current_mission.display_name}", server=server)
                 except (TimeoutError, asyncio.TimeoutError):
@@ -353,12 +359,14 @@ class Scheduler(Plugin[SchedulerListener]):
                         mission_id = random.choice(mission_id)
                     self.log.debug(f"Scheduler: Loading mission {mission_id} on server {server.name} ...")
                     modify_mission = rconf.get('run_extensions', True)
+                    use_orig = rconf.get('use_orig', True)
                     if server.status == Status.SHUTDOWN:
                         await server.setStartIndex(mission_id)
                         self.log.debug(f"Scheduler: Starting DCS Server {server.name} ...")
-                        await self.launch_dcs(server, modify_mission=modify_mission)
+                        await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
-                        if not await server.loadMission(mission=mission_id, modify_mission=modify_mission):
+                        if not await server.loadMission(mission=mission_id, modify_mission=modify_mission,
+                                                        use_orig=use_orig):
                             self.log.error(f"Mission {mission_id} not loaded on server {server.name}")
                             return
                     await self.bot.audit(f"{self.plugin_name.title()} loaded mission "
@@ -446,8 +454,9 @@ class Scheduler(Plugin[SchedulerListener]):
                         elif isinstance(mission_id, int):
                             await server.setStartIndex(mission_id)
                         self.loop.call_later(
-                            delay=next_startup, callback=partial(asyncio.create_task,
-                                                                 self.launch_dcs(server, ignore_exception=True)))
+                            delay=next_startup,
+                            callback=partial(asyncio.create_task,self.launch_dcs(server, ignore_exception=True))
+                        )
                         next_startup += startup_delay
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
@@ -485,7 +494,7 @@ class Scheduler(Plugin[SchedulerListener]):
             names.append(server.display_name)
             status.append(server.status.name.title())
             if server.status in [Status.RUNNING, Status.PAUSED]:
-                players.append(f"{len(server.players) + 1}/{server.settings.get('maxPlayers', 0)}")
+                players.append(f"{len(server.get_active_players()) + 1}/{server.settings.get('maxPlayers', 0)}")
             else:
                 players.append('-')
         if len(names):
@@ -499,11 +508,12 @@ class Scheduler(Plugin[SchedulerListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     @app_commands.rename(mission_id="mission")
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                       maintenance: Optional[bool] = False, run_extensions: Optional[bool] = True,
-                      mission_id: Optional[int] = None):
+                      use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
         if server.status == Status.STOPPED:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
@@ -529,7 +539,7 @@ class Scheduler(Plugin[SchedulerListener]):
             try:
                 if mission_id is not None:
                     await server.setStartIndex(mission_id + 1)
-                await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
+                await self.launch_dcs(server, interaction.user, modify_mission=run_extensions, use_orig=use_orig)
                 if maintenance:
                     embed = utils.create_warning_embed(
                         title=f"DCS server \"{server.display_name}\" started.",
@@ -634,14 +644,15 @@ class Scheduler(Plugin[SchedulerListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     @app_commands.rename(mission_id="mission")
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def restart(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[
                               Status.RUNNING, Status.PAUSED, Status.STOPPED
                           ])],
-                      force: Optional[bool] = False, run_extensions: Optional[bool] = True,
-                      mission_id: Optional[int] = None):
+                      delay: Optional[int] = 120, force: Optional[bool] = False, run_extensions: Optional[bool] = True,
+                      use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
@@ -651,9 +662,24 @@ class Scheduler(Plugin[SchedulerListener]):
         if not await utils.yn_question(interaction, question, ephemeral=ephemeral):
             await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
+        # send warnings (TODO: change to warn structure)
+        if server.is_populated():
+            if delay > 0:
+                message = _("!!! Server will restart in {}!!!").format(utils.format_time(delay))
+            else:
+                message = _("!!! Server will restart NOW !!!")
 
-        msg = await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\" ...",
-                                              ephemeral=ephemeral)
+            msg = await interaction.followup.send(
+                _('Server will restart in {} (warning users before)...').format(utils.format_time(delay)),
+                ephemeral=ephemeral
+            )
+            await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
+            await asyncio.sleep(delay)
+            await msg.delete()
+
+        msg = await interaction.followup.send(
+            f'Shutting down DCS server "{server.display_name}" ...', ephemeral=ephemeral
+        )
         try:
             maintenance = server.maintenance
             server.maintenance = True
@@ -665,7 +691,7 @@ class Scheduler(Plugin[SchedulerListener]):
             server.maintenance = maintenance
             if mission_id is not None:
                 await server.setStartIndex(mission_id + 1)
-            await self.launch_dcs(server, interaction.user, modify_mission=run_extensions)
+            await self.launch_dcs(server, interaction.user, modify_mission=run_extensions, use_orig=use_orig)
             await msg.edit(content=f"DCS server \"{server.display_name}\" restarted.")
         except (TimeoutError, asyncio.TimeoutError):
             if server.status == Status.SHUTDOWN:
@@ -804,35 +830,24 @@ class Scheduler(Plugin[SchedulerListener]):
                 await interaction.followup.send('Aborted.')
                 return
 
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
         view = ConfigView(self.bot, server)
         embed = discord.Embed(title=f'Please edit the configuration of server\n"{server.display_name}"')
-        # noinspection PyUnresolvedReferences
-        if interaction.response.is_done():
-            msg = await interaction.followup.send(embed=embed, view=view)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(embed=embed, view=view)
-            msg = await interaction.original_response()
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:
             if not await view.wait() and not view.cancelled:
                 if view.channel_update:
-                    if not await view.wait() and not view.cancelled and view.channel_update:
-                        config_file = os.path.join(self.node.config_dir, 'servers.yaml')
-                        with open(config_file, mode='r', encoding='utf-8') as infile:
-                            config = yaml.load(infile)
-                        config[server.name] = {
-                            "channels": {
-                                "status": server.locals.get('channels', {}).get('status', -1),
-                                "chat": server.locals.get('channels', {}).get('chat', -1)
-                            }
-                        }
-                        if not self.bot.locals.get('channels', {}).get('admin'):
-                            config[server.name]['channels']['admin'] = server.locals.get('channels', {}).get('admin',
-                                                                                                             -1)
-                        with open(config_file, mode='w', encoding='utf-8') as outfile:
-                            yaml.dump(config, outfile)
-                        await server.reload()
-                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.')
+                    channels = {
+                        "status": server.locals.get('channels', {}).get('status', -1),
+                        "chat": server.locals.get('channels', {}).get('chat', -1)
+                    }
+                    if not self.bot.locals.get('channels', {}).get('admin'):
+                        channels['admin'] = server.locals.get('channels', {}).get('admin', -1)
+                    await server.update_channels(channels)
+                await interaction.followup.send(f'Server configuration for server "{server.display_name}" updated.',
+                                                ephemeral=ephemeral)
         finally:
             try:
                 await msg.delete()
@@ -880,6 +895,7 @@ class Scheduler(Plugin[SchedulerListener]):
                                                         f"Do you want to unlink (and probably shutdown) server "
                                                         f"{instance.server.name} first?", ephemeral=ephemeral):
                 await interaction.followup.send("Aborted.", ephemeral=ephemeral)
+                return
         maintenance = server.maintenance
         running = False
         server.maintenance = True
@@ -948,8 +964,7 @@ class Scheduler(Plugin[SchedulerListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("Please try again in a minute.", ephemeral=True)
             return
-        # noinspection PyUnresolvedReferences
-        restart_in, rconf = self.eventlistener.get_next_restart(_server, config)
+        restart_in, rconf = self.eventlistener.get_next_restart(server=_server, restart=config)
         what = rconf['method']
         if what == 'shutdown' or rconf.get('shutdown', False):
             item = f'Server {_server.name}'

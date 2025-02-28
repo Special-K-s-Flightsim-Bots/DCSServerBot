@@ -7,7 +7,6 @@ from core import Plugin, utils, command, get_translation
 from discord import app_commands
 from discord.ext import tasks
 from services.bot import DCSServerBot
-from typing import Type
 
 _ = get_translation(__name__.split('.')[1])
 

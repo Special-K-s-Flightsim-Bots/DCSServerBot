@@ -3,8 +3,8 @@ import discord
 import os
 import psycopg
 
-from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, \
-    get_translation, NodeUploadHandler, Channel
+from core import (Plugin, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry, get_translation,
+                  NodeUploadHandler, Channel)
 from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
@@ -35,6 +35,7 @@ async def playlist_autocomplete(interaction: discord.Interaction, current: str) 
         ]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def all_songs_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -56,6 +57,7 @@ async def all_songs_autocomplete(interaction: discord.Interaction, current: str)
         return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def songs_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -74,6 +76,7 @@ async def songs_autocomplete(interaction: discord.Interaction, current: str) -> 
         return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def radios_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -92,6 +95,7 @@ async def radios_autocomplete(interaction: discord.Interaction, current: str) ->
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def subfolder_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -108,6 +112,7 @@ async def subfolder_autocomplete(interaction: discord.Interaction, current: str)
         return ret[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class Music(Plugin[MusicEventListener]):

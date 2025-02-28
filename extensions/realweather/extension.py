@@ -131,6 +131,8 @@ class RealWeather(Extension):
         # make sure we only have icao or icao-list
         if cfg.get('options', {}).get('weather', {}).get('icao'):
             cfg['options']['weather'].pop('icao-list', None)
+        else:
+            cfg['options']['weather']['icao'] = ""
         self.locals = utils.deep_merge(cfg, override or {})
         await self.write_config()
 
@@ -150,36 +152,39 @@ class RealWeather(Extension):
             await self.generate_config_2_0(filename, tmpname, config)
 
     async def run_realweather(self, filename: str, tmpname: str) -> tuple[str, bool]:
-        cwd = await self.server.get_missions_dir()
-        rw_home = os.path.expandvars(self.config['installation'])
+        try:
+            cwd = await self.server.get_missions_dir()
+            rw_home = os.path.expandvars(self.config['installation'])
 
-        def run_subprocess():
-            process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
-            stdout, stderr = process.communicate()
-            if process.returncode != 0:
-                self.log.error(stderr.decode('utf-8'))
-            output = stdout.decode('utf-8')
-            metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
-            remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
-            matches = re.search(rf"(?<=METAR: )(.*)(?= {remarks})", metar)
-            if matches:
-                self.metar = matches.group(0)
-            if self.config.get('debug', False):
-                self.log.debug(output)
+            def run_subprocess():
+                process = subprocess.Popen([os.path.join(rw_home, 'realweather.exe')],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
+                stdout, stderr = process.communicate()
+                if process.returncode != 0:
+                    error = stdout.decode('utf-8')
+                    self.log.error(error)
+                    raise RealWeatherException(f"Error during {self.name}: {process.returncode} - {error}")
+                output = stdout.decode('utf-8')
+                metar = next((x for x in output.split('\n') if 'METAR:' in x), "")
+                remarks = self.locals.get('realweather', {}).get('mission', {}).get('brief', {}).get('remarks', '')
+                matches = re.search(rf"(?<=METAR: )(.*)(?= {remarks})", metar)
+                if matches:
+                    self.metar = matches.group(0)
+                if self.config.get('debug', False):
+                    self.log.debug(output)
 
-        async with self.lock:
-            await asyncio.to_thread(run_subprocess)
+            async with self.lock:
+                await asyncio.to_thread(run_subprocess)
 
-        # check if DCS Real Weather corrupted the miz file
-        # (as the original author does not see any reason to do that on his own)
-        await asyncio.to_thread(MizFile, tmpname)
+            # check if DCS Real Weather corrupted the miz file
+            await asyncio.to_thread(MizFile, tmpname)
 
-        # mission is good, take it
-        new_filename = utils.create_writable_mission(filename)
-        shutil.copy2(tmpname, new_filename)
-        os.remove(tmpname)
-        return new_filename, True
+            # mission is good, take it
+            new_filename = utils.create_writable_mission(filename)
+            shutil.copy2(tmpname, new_filename)
+            return new_filename, True
+        finally:
+            os.remove(tmpname)
 
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         tmpfd, tmpname = tempfile.mkstemp()
@@ -187,10 +192,12 @@ class RealWeather(Extension):
         await self.generate_config(filename, tmpname)
         return await self.run_realweather(filename, tmpname)
 
-    async def apply_realweather(self, filename: str, config: dict) -> str:
+    async def apply_realweather(self, filename: str, config: dict, use_orig: bool = True) -> str:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
-        await self.generate_config(utils.get_orig_file(filename), tmpname, config)
+        if use_orig:
+            filename = utils.get_orig_file(filename)
+        await self.generate_config(filename, tmpname, config)
         return (await self.run_realweather(filename, tmpname))[0]
 
     async def render(self, param: Optional[dict] = None) -> dict:

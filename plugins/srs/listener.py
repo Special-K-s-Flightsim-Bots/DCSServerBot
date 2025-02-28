@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, event, Server, Player, Plugin, get_translation, Side
+from core import EventListener, event, Server, Player, get_translation, Side
 from typing import Optional, cast, TYPE_CHECKING
 
 from plugins.mission.commands import Mission

@@ -153,7 +153,7 @@ class ModManagerService(Service):
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
         exp = re.compile(r'(\d+\.\d+(\.\d+)?)')
         async with ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 response.raise_for_status()
                 data = await response.json()
                 for release in data:
@@ -187,7 +187,7 @@ class ModManagerService(Service):
         filename = url.split('/')[-1]
         self.log.info(f"  => ModManager: Downloading {folder.value}/{filename} ...")
         async with ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 response.raise_for_status()
                 outpath = os.path.join(path, filename)
                 if os.path.exists(outpath) and not force:
@@ -214,7 +214,7 @@ class ModManagerService(Service):
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases/latest"
 
         async with ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 response.raise_for_status()
                 data = await response.json()
                 return data.get('tag_name', '').strip('v')

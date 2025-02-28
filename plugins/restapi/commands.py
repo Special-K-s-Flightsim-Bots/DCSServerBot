@@ -1,11 +1,13 @@
 import asyncio
 import logging
 import os
+import psycopg
+import random
 import shutil
 import uvicorn
 
 from core import Plugin, DEFAULT_TAG
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, APIRouter, Form
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -13,6 +15,12 @@ from typing import Optional
 from uvicorn import Config
 
 app: Optional[FastAPI] = None
+
+
+# Bit field constants
+BIT_USER_LINKED = 1
+BIT_LINK_IN_PROGRESS = 2
+BIT_FORCE_OPERATION = 4
 
 
 class RestAPI(Plugin):
@@ -30,6 +38,7 @@ class RestAPI(Plugin):
         self.router.add_api_route(prefix + "/getuser", self.getuser, methods=["POST"])
         self.router.add_api_route(prefix + "/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route(prefix + "/stats", self.stats, methods=["POST"])
+        self.router.add_api_route(prefix + "/linkme", self.linkme, methods=["POST"])
         self.app = app
         self.config = Config(app=self.app, host=cfg['listen'], port=cfg['port'], log_level=logging.ERROR,
                              use_colors=False)
@@ -182,11 +191,79 @@ class RestAPI(Plugin):
                 data['kdrByModule'] = await cursor.fetchall()
                 return data
 
+    async def linkme(self,
+                     discord_id: str = Form(..., description="Discord user ID (snowflake)", example="123456789012345678"),
+                     force: bool = Form(False, description="Force the operation", example=True)):
+
+        async def create_token() -> str:
+            while True:
+                try:
+                    token = str(random.randint(1000, 9999))
+                    cursor.execute("""
+                        INSERT INTO players (ucid, discord_id, last_seen)
+                        VALUES (%s, %s, NOW() AT TIME ZONE 'utc')
+                    """, (token, discord_id))
+                    return token
+                except psycopg.errors.UniqueViolation:
+                    pass
+
+        self.log.debug(f'Calling /link with discord_id="{discord_id}", force="{force}"')
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+
+                # Check if discord_id exists
+                await cursor.execute("SELECT ucid, last_seen FROM players WHERE discord_id = %s", (discord_id,))
+                result = await cursor.fetchone()
+
+                rc = 0
+                token = None
+                now = datetime.now(tz=timezone.utc)
+
+                if result:
+                    ucid, last_seen = result
+
+                    if len(ucid) == 4:  # UCID is stored as a 4-character string
+                        # Linking already in progress
+                        token = ucid
+                        rc |= BIT_LINK_IN_PROGRESS
+                        if force:
+                            rc |= BIT_FORCE_OPERATION
+                            cursor.execute("""
+                                UPDATE players 
+                                SET last_seen = (NOW() AT TIME ZONE 'utc') 
+                                WHERE discord_id = %s
+                            """, (discord_id, ))
+                            expiry_timestamp = (now + timedelta(hours=48)).isoformat()
+                        else:
+                            expiry_timestamp = (last_seen + timedelta(hours=48)).isoformat()
+                    else:
+                        # User already linked
+                        rc |= BIT_USER_LINKED
+                        if force:
+                            rc |= BIT_FORCE_OPERATION
+                            token = await create_token()
+                            expiry_timestamp = (now + timedelta(hours=48)).isoformat()
+                        else:
+                            expiry_timestamp = None
+                else:
+                    token = await create_token()
+                    expiry_timestamp = (datetime.now() + timedelta(hours=48)).isoformat()
+                    # Set bit_field for new user
+                    rc = 0  # Default bit_field for new user
+                    if force:
+                        rc |= BIT_FORCE_OPERATION  # Set force operation flag
+
+        return {
+            "token": token,
+            "timestamp": expiry_timestamp,
+            "rc": rc
+        }
+
 
 async def setup(bot: DCSServerBot):
     global app
 
-    app = FastAPI()
+    app = FastAPI(docs_url=None, redoc_url=None)
     restapi = RestAPI(bot)
     await bot.add_cog(restapi)
     app.include_router(restapi.router)

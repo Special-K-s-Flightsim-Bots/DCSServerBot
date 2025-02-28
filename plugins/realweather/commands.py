@@ -85,7 +85,8 @@ class RealWeather(Plugin[RealWeatherEventListener]):
     async def realweather(self, interaction: discord.Interaction,
                           server: app_commands.Transform[Server, utils.ServerTransformer(
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                          idx: int, wind: Optional[bool] = False, clouds: Optional[bool] = False,
+                          idx: int, use_orig: Optional[bool] = True, wind: Optional[bool] = False,
+                          clouds: Optional[bool] = False,
                           fog: Optional[bool] = False, dust: Optional[bool] = False,
                           temperature: Optional[bool] = False, pressure: Optional[bool] = False,
                           time: Optional[bool] = False):
@@ -123,7 +124,7 @@ class RealWeather(Plugin[RealWeatherEventListener]):
             try:
                 filename = await server.get_current_mission_file()
                 new_filename = await server.run_on_extension('RealWeather', 'apply_realweather',
-                                                             filename=filename, config=config)
+                                                             filename=filename, config=config, use_orig=use_orig)
             except (FileNotFoundError, UnsupportedMizFileException):
                 await msg.edit(content='Could not apply weather due to an error in RealWeather.')
                 return

@@ -1,14 +1,13 @@
+import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import warnings
 
 from core import const, report, EmbedElement, utils
-import matplotlib.dates as mdates
+from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
 from typing import Optional
-
-from plugins.userstats.filter import StatisticsFilter, PeriodFilter
 
 # ignore pandas warnings (log scale et al)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -380,7 +379,7 @@ class UserEngagement(report.GraphElement):
                 SELECT 
                     s.player_ucid,
                     COUNT(DISTINCT DATE(s.hop_on)) AS days_present,
-                    CASE WHEN f.first_seen >= NOW() - INTERVAL '{interval}' THEN true ELSE false END AS is_new
+                    CASE WHEN f.first_seen >= (NOW() AT TIME ZONE 'UTC') - INTERVAL '{interval}' THEN true ELSE false END AS is_new
                 FROM 
                     statistics s
                     LEFT JOIN missions m ON s.mission_id = m.id
@@ -399,7 +398,7 @@ class UserEngagement(report.GraphElement):
             ),
             date_series AS (
                 SELECT generate_series(1, (
-                    SELECT DATE_PART('day', NOW() - (NOW() - INTERVAL '{interval}'))::INTEGER)
+                    SELECT DATE_PART('day', (NOW() AT TIME ZONE 'UTC') - ((NOW() AT TIME ZONE 'UTC') - INTERVAL '{interval}'))::INTEGER)
                 ) AS date
             )
             SELECT
@@ -721,7 +720,6 @@ class ServerLoad(report.MultiGraphElement):
         time_span = time_end - time_start
 
 
-        self.log.debug(f"### Time start: {time_start}, Time end: {time_end}, Time span: {time_span}")
         if time_span <= pd.Timedelta(hours=1):
             _period = "Hour"
         elif time_span <= pd.Timedelta(days=1):
@@ -732,7 +730,6 @@ class ServerLoad(report.MultiGraphElement):
             _period = "Month"
         else:
             _period = "Month"
-        self.log.debug(f"### Period: {_period}")
 
         settings = {
             "Hour": {

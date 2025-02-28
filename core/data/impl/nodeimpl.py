@@ -46,8 +46,6 @@ from core.services.registry import ServiceRegistry
 from core.utils.helper import SettingsDict, YAMLError, async_cache
 
 # ruamel YAML support
-from pykwalify.errors import SchemaError, PyKwalifyException
-from pykwalify.core import Core
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 yaml = YAML()
@@ -94,25 +92,10 @@ class NodeImpl(Node):
         self.dcs_branch = None
         self.all_nodes: dict[str, Optional[Node]] = {self.name: self}
         self.suspect: dict[str, Node] = {}
-        self.instances: list[Instance] = []
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.locals = self.read_locals()
-        if sys.platform == 'win32':
-            from os import system
-            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
-        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
-        self.log.info(f'- Python version {platform.python_version()} detected.')
-        self.install_plugins()
-        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
-        for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
-            if plugin not in self.plugins:
-                self.plugins.append(plugin)
-        # make sure, cloud is loaded last
-        if 'cloud' in self.plugins:
-            self.plugins.remove('cloud')
-            self.plugins.append('cloud')
         self.db_version = None
         self.pool: Optional[ConnectionPool] = None
         self.apool: Optional[AsyncConnectionPool] = None
@@ -124,6 +107,20 @@ class NodeImpl(Node):
         self.listen_port = self.locals.get('listen_port', 10042)
 
     async def __aenter__(self):
+        if sys.platform == 'win32':
+            from os import system
+            system(f"title DCSServerBot v{self.bot_version}.{self.sub_version} - {self.node.name}")
+        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
+        self.log.info(f'- Python version {platform.python_version()} detected.')
+        await asyncio.to_thread(self.install_plugins)
+        self.plugins: list[str] = [x.lower() for x in self.config.get('plugins', DEFAULT_PLUGINS)]
+        for plugin in [x.lower() for x in self.config.get('opt_plugins', [])]:
+            if plugin not in self.plugins:
+                self.plugins.append(plugin)
+        # make sure, cloud is loaded last
+        if 'cloud' in self.plugins:
+            self.plugins.remove('cloud')
+            self.plugins.append('cloud')
         return self
 
     async def __aexit__(self, type, value, traceback):
@@ -141,7 +138,7 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             await self.update_db()
-        self.init_instances()
+        await self.init_instances()
 
     @property
     def master(self) -> bool:
@@ -254,9 +251,9 @@ class NodeImpl(Node):
             try:
                 aconn = await psycopg.AsyncConnection.connect(url)
                 async with aconn:
-                    cursor = await aconn.execute("SELECT version()")
+                    cursor = await aconn.execute("SHOW server_version")
                     version = (await cursor.fetchone())[0]
-                    self.log.info(f"- Connection to {version} established.")
+                    self.log.info(f"- Connection to PostgreSQL {version} established.")
                     break
             except OperationalError:
                 if attempt == max_attempts:
@@ -291,7 +288,7 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
 
-    def init_instances(self):
+    async def init_instances(self):
         grouped = defaultdict(list)
         for server_name, instance_name in utils.findDCSInstances():
             grouped[server_name].append(instance_name)
@@ -303,6 +300,13 @@ class NodeImpl(Node):
         for server_name, instances in duplicates.items():
             self.log.warning("Duplicate server \"{}\" defined in instance {}!".format(
                 server_name, ', '.join(instances)))
+        # remove all (old) instances before node start to avoid duplicates
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    DELETE FROM instances WHERE node = %s
+                """, (self.name,))
+        # initialize the nodes
         for _name, _element in self.locals.pop('instances', {}).items():
             instance = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
             self.instances.append(instance)
@@ -386,7 +390,7 @@ class NodeImpl(Node):
     async def _upgrade_pending_non_git(self) -> bool:
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL) as response:
+                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                     response.raise_for_status()
                     result = await response.json()
                     current_version = re.sub('^v', '', __version__)
@@ -562,7 +566,8 @@ class NodeImpl(Node):
         }
         async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-            async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
+            async with await session.post(LOGIN_URL, data={"login": user, "password": password}, proxy=self.proxy,
+                                          proxy_auth=self.proxy_auth) as r1:
                 if r1.status == 200:
                     async with session.get(LICENSES_URL) as r2:
                         if r2.status == 200:
@@ -578,7 +583,8 @@ class NodeImpl(Node):
         async def _get_latest_versions_no_auth() -> Optional[list[str]]:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(UPDATER_URL.format(branch)) as response:
+                async with session.get(
+                        UPDATER_URL.format(branch), proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                     if response.status == 200:
                         return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
 
@@ -590,7 +596,8 @@ class NodeImpl(Node):
             }
             async with aiohttp.ClientSession(headers=headers, connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with await session.post(LOGIN_URL, data={"login": user, "password": password}) as r1:
+                async with await session.post(LOGIN_URL, data={"login": user, "password": password},
+                                              proxy=self.proxy, proxy_auth=self.proxy_auth) as r1:
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
@@ -615,7 +622,7 @@ class NodeImpl(Node):
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
-            self._public_ip = await utils.get_public_ip()
+            self._public_ip = await utils.get_public_ip(self)
             self.log.info(f"- Public IP registered as: {self.public_ip}")
         if 'DCS' in self.locals:
             if self.locals['DCS'].get('autoupdate', False):
@@ -823,7 +830,7 @@ class NodeImpl(Node):
         async def _read_file(path: str):
             if path.startswith('http'):
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(path) as response:
+                    async with session.get(path, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                         if response.status == 200:
                             return await response.read()
                         else:
@@ -848,7 +855,7 @@ class NodeImpl(Node):
             return UploadStatus.FILE_EXISTS
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                 if response.status == 200:
                     try:
                         # make sure the directory exists
@@ -1057,6 +1064,9 @@ class NodeImpl(Node):
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
         instance.server = server
         self.instances.append(instance)
+        bus.servers[server.name] = server
+        if not self.master:
+            await bus.send_init(server)
         return instance
 
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
@@ -1076,19 +1086,7 @@ class NodeImpl(Node):
             shutil.rmtree(instance.home, ignore_errors=True)
 
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
-        config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
-        new_home = os.path.join(os.path.dirname(instance.home), new_name)
-        os.rename(instance.home, new_home)
-        config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
-        config[self.name]['instances'][new_name]['home'] = new_home
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE instances SET instance = %s 
-                    WHERE node = %s AND instance = %s
-                """, (new_name, instance.node.name, instance.name, ))
+        from services.bot import BotService
 
         def change_instance_in_config(data: dict):
             if self.node.name in data and instance.name in data[self.node.name]:
@@ -1096,20 +1094,115 @@ class NodeImpl(Node):
             elif instance.name in data:
                 data[new_name] = data.pop(instance.name)
 
-        # rename plugin configs
-        for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
-            data = yaml.load(plugin.read_text(encoding='utf-8'))
-            change_instance_in_config(data)
-            yaml.dump(data, plugin)
-        # rename service configs
-        for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
-            data = yaml.load(service.read_text(encoding='utf-8'))
-            change_instance_in_config(data)
-            yaml.dump(data, service)
-        instance.name = new_name
-        instance.locals['home'] = new_home
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+        def rename_path(data) -> str:
+            # Only replace if the string matches the path
+            if os.path.exists(os.path.expandvars(data)):
+                parts = Path(data).parts
+                updated_parts = [new_name if part == instance.name else part for part in parts]
+                return str(Path(*updated_parts))
+            return data
+
+        def change_instance_in_path(data):
+            if isinstance(data, dict):
+                for key, value in data.items():
+                    data[key] = change_instance_in_path(value)
+            elif isinstance(data, list):
+                for index, item in enumerate(data):
+                    data[index] = change_instance_in_path(item)
+            elif isinstance(data, str):
+                return rename_path(data)
+            return data
+
+        # disable autoscan
+        if instance.server and instance.server.locals.get('autoscan', False):
+            await asyncio.to_thread(instance.server.stop_observer)
+
+        try:
+            # test rename it, to make sure it works
+            new_home = os.path.join(os.path.dirname(instance.home), new_name)
+            os.rename(instance.home, new_home)
+            os.rename(new_home, instance.home)
+
+            # change the database
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
+                        UPDATE instances SET instance = %s 
+                        WHERE node = %s AND instance = %s
+                    """, (new_name, instance.node.name, instance.name, ))
+
+            # rename missions in the missionlist
+            if instance.server:
+                missions_list = instance.server.settings['missionList']
+                new_mission_list = []
+                for mission in missions_list:
+                    new_mission_list.append(rename_path(mission))
+                instance.server.settings['missionList'] = new_mission_list
+
+            # read nodes.yaml
+            config_file = os.path.join(self.config_dir, 'nodes.yaml')
+            with open(config_file, mode='r', encoding='utf-8') as infile:
+                config = yaml.load(infile)
+
+            # rename the instance in nodes.yaml
+            config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
+            config[self.name]['instances'][new_name]['home'] = new_home
+            missions_dir = config[self.name]['instances'][new_name].get('missions_dir')
+            if missions_dir:
+                instance.missions_dir = config[self.name]['instances'][new_name]['missions_dir'] = rename_path(missions_dir)
+            else:
+                instance.missions_dir = rename_path(instance.missions_dir)
+
+            # rename extensions in nodes.yaml
+            for name, extension in config[self.name]['instances'][new_name].get('extensions', {}).items():
+                change_instance_in_path(extension)
+
+            # rename plugin configs
+            for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
+                data = yaml.load(plugin.read_text(encoding='utf-8'))
+                change_instance_in_config(data)
+                yaml.dump(data, plugin)
+
+            # rename service configs
+            for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
+                data = yaml.load(service.read_text(encoding='utf-8'))
+                change_instance_in_config(data)
+                yaml.dump(data, service)
+
+            # restart all services but the bot
+            tasks = []
+            for cls in ServiceRegistry.services().keys():
+                service = ServiceRegistry.get(cls)
+                if service and not isinstance(service, BotService):
+                    assert service is not None
+                    tasks.append(service.stop())
+            await asyncio.gather(*tasks)
+
+            # rename the directory
+            os.rename(instance.home, new_home)
+            # rename the instance
+            instance.name = new_name
+            instance.locals['home'] = new_home
+            with open(config_file, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(config, outfile)
+
+            # reload the bot service
+            if self.master:
+                bot = ServiceRegistry.get(BotService).bot
+                await bot.reload()
+
+            # and start all the rest up again
+            tasks = []
+            for cls in ServiceRegistry.services().keys():
+                service = ServiceRegistry.get(cls)
+                if service and not isinstance(service, BotService):
+                    assert service is not None
+                    service.reload()
+                    tasks.append(service.start())
+            await asyncio.gather(*tasks)
+        finally:
+            # re-init the attached server instance
+            await instance.server.reload()
 
     async def find_all_instances(self) -> list[tuple[str, str]]:
         return utils.findDCSInstances()

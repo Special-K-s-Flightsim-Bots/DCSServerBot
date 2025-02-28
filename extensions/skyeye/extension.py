@@ -80,7 +80,8 @@ class SkyEye(Extension):
     async def download_whisper_file(self, name: str):
         whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
         async with aiohttp.ClientSession() as session:
-            async with session.get(WHISPER_URL.format(name), raise_for_status=True) as response:
+            async with session.get(WHISPER_URL.format(name), raise_for_status=True, proxy=self.node.proxy,
+                                   proxy_auth=self.node.proxy_auth) as response:
                 with open(whisper_path, 'wb') as f:
                     while True:
                         chunk = await response.content.read(1024 * 1024)
@@ -391,7 +392,8 @@ class SkyEye(Extension):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(SKYEYE_GITHUB_URL) as response:
+                async with session.get(SKYEYE_GITHUB_URL, proxy=self.node.proxy,
+                                       proxy_auth=self.node.proxy_auth) as response:
                     if response.status in [200, 302]:
                         version = response.url.raw_parts[-1]
                         if parse(version) > parse(self.version):
@@ -404,7 +406,8 @@ class SkyEye(Extension):
     async def do_update(self, version: str):
         installation_dir = os.path.expandvars(self.config['installation'])
         async with aiohttp.ClientSession() as session:
-            async with session.get(SKYEYE_DOWNLOAD_URL.format(version), raise_for_status=True) as response:
+            async with session.get(SKYEYE_DOWNLOAD_URL.format(version), raise_for_status=True, proxy=self.node.proxy,
+                                   proxy_auth=self.node.proxy_auth) as response:
                 with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
                     root_folder = z.namelist()[0].split('/')[0]
                     for member in z.namelist():

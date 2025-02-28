@@ -2,6 +2,7 @@ import filecmp
 import luadata
 import math
 import os
+import re
 import shutil
 import stat
 import sys
@@ -173,6 +174,8 @@ def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
                                     os.path.basename(filename))
     else:
         mission_file = filename
+    if filename.startswith('DSMC'):
+        filename = re.sub(r'_\d+(?=\.miz$)', '', filename)
     orig_file = os.path.join(os.path.dirname(mission_file), '.dcssb', os.path.basename(mission_file)) + '.orig'
     if not os.path.exists(orig_file):
         if create_file:

@@ -13,8 +13,12 @@ import zipfile
 from contextlib import closing
 from core import utils, COMMAND_LINE_ARGS
 from packaging import version
-from typing import Iterable, Optional
+from typing import Iterable
 from version import __version__
+
+
+def install_requirements() -> int:
+    return subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
 
 
 def do_update_git() -> int:
@@ -38,7 +42,7 @@ def do_update_git() -> int:
                     print('  => DCSServerBot updated to the latest version.')
                     if modules:
                         print('  => requirements.txt has changed. Installing missing modules...')
-                        rc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+                        rc = install_requirements()
                         if rc.returncode:
                             print('  => Autoupdate failed!')
                             print('     Please run update.cmd manually.')
@@ -142,7 +146,7 @@ def do_update_github() -> int:
 
                             # move file
                             shutil.copy2(old_file_path, new_file_path)
-            rc = subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+            rc = install_requirements()
             if rc.returncode:
                 print('  => Autoupdate failed!')
                 return -1
@@ -156,7 +160,15 @@ if __name__ == '__main__':
     # get the command line args from core
     args = COMMAND_LINE_ARGS
     try:
-        rc = do_update_git()
+        if args.install:
+            rc = install_requirements()
+            if rc.returncode:
+                print("Unable to install or update 'requirements.txt'. Please try installing it manually.")
+                print("To do so, open 'cmd.exe' in the DCSServerBot installation directory, and type:")
+                print('"%USERPROFILE%\\.dcssb\\Script\\pip" install -r requirements.txt')
+                exit(-2)
+        else:
+            rc = do_update_git()
     except ImportError:
         rc = do_update_github()
     if args.no_restart:

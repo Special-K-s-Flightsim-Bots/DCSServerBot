@@ -444,7 +444,8 @@ class SRS(Extension, FileSystemEventHandler):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.get(SRS_GITHUB_URL) as response:
+                async with session.get(SRS_GITHUB_URL, proxy=self.node.proxy,
+                                       proxy_auth=self.node.proxy_auth) as response:
                     if response.status in [200, 302]:
                         version = response.url.raw_parts[-1]
                         if version != self.version:

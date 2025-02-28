@@ -15,12 +15,12 @@ if sys.platform == 'win32':
     import win32process
     from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 
-from datetime import datetime, timezone
-from discord.ext import tasks
-
-from core import Status, Server, ServerImpl, Autoexec, utils
+from core import Status, Server, ServerImpl, Autoexec, utils, InstanceImpl
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
+from datetime import datetime, timezone
+from discord.ext import tasks
+from typing import cast
 
 from ..servicebus import ServiceBus
 from ..bot import BotService
@@ -86,7 +86,7 @@ class MonitoringService(Service):
     def check_autoexec(self):
         for instance in self.node.instances:
             try:
-                cfg = Autoexec(instance)
+                cfg = Autoexec(cast(InstanceImpl, instance))
                 if cfg.crash_report_mode is None:
                     self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
                     cfg.crash_report_mode = 'silent'
@@ -141,6 +141,7 @@ class MonitoringService(Service):
                     if child_windows:
                         # Press the OK button
                         ok_button_handle = child_windows[0]
+                        # noinspection PyUnresolvedReferences
                         win32api.SendMessage(ok_button_handle, win32con.BM_CLICK, 0, 0)
                         return
 
@@ -223,6 +224,9 @@ class MonitoringService(Service):
                         if x.enabled and not await asyncio.to_thread(x.is_running)
                     ]:
                         try:
+                            # double-check as we might have been in the restart phase
+                            if server.status not in [Status.RUNNING, Status.PAUSED]:
+                                break
                             self.log.warning(f"{ext.name} died - restarting ...")
                             await ext.startup()
                         except Exception as ex:
@@ -361,7 +365,7 @@ class MonitoringService(Service):
                 self.drive_check(),
             ])
 
-            if 'serverstats' in self.node.config.get('opt_plugins', []):
+            if 'serverstats' in self.node.plugins:
                 tasks.append(self.serverload())
 
             if self.node.locals.get('nodestats', True):

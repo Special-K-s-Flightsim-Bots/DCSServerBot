@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, Plugin, Server, Player, event, chat_command, get_translation, ChatCommand, Channel
+from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel
 from plugins.competitive.commands import Competitive
 from typing import Optional, TYPE_CHECKING
 
@@ -60,16 +60,13 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return (await cursor.fetchone())[0]
 
     async def _provide_forgiveness_window(self, data: dict, window: int):
-        self.log.debug("### _provide_forgiveness_window()")
         try:
             await asyncio.wait_for(asyncio.Future(), timeout=window)
         except (TimeoutError, asyncio.TimeoutError):
-            self.log.debug("### Timeout => punish!")
             # noinspection PyAsyncCall
             asyncio.create_task(self._punish(data))
 
     async def _punish(self, data: dict):
-        self.log.debug("### _punish()")
         initiator = data['initiator']
         target = data.get('target')
         async with self.lock:

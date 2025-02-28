@@ -104,7 +104,7 @@ class MusicService(Service):
         return radio.songs if radio else []
 
     @proxy
-    async def get_mode(self, server: Server, radio_name: str) -> Mode:
+    async def get_mode(self, server: Server, radio_name: str) -> Optional[Mode]:
         radio = self.radios.get(server.name, {}).get(radio_name)
         if radio:
             return radio.mode

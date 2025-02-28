@@ -10,7 +10,7 @@ schema;settings_schema:
     maxPlayers: {type: text, nullable: false}
     name: {type: str, nullable: false, range: {min: 1}}
     password: {type: str, nullable: false}
-    port: {type: text, nullable: false}
+    port: {type: text, nullable: false, func: unique_port}
     mode: {type: text, nullable: false}
     require_pure_clients: {type: bool, nullable: false}
     require_pure_models: {type: bool, nullable: false}
@@ -77,6 +77,7 @@ mapping:
       profanity_filter: {type: bool, nullable: false}
       server_user: {type: str, nullable: false, range: {min: 1}}
       show_passwords: {type: bool, nullable: false}
+      mission_rewrite: {type: bool, nullable: false}
       afk:
         type: map
         nullable: false

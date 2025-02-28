@@ -4,8 +4,7 @@ import os
 import shutil
 import ssl
 
-from aiohttp import BasicAuth
-from core import Extension, Server, utils, DEFAULT_TAG
+from core import Extension, Server, DEFAULT_TAG
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
@@ -36,20 +35,6 @@ class Cloud(Extension):
         return yaml.load(Path(config_file).read_text(encoding='utf-8'))
 
     @property
-    def proxy(self) -> Optional[str]:
-        return self.locals.get('proxy', {}).get('url')
-
-    @property
-    def proxy_auth(self) -> Optional[BasicAuth]:
-        username = self.locals.get('proxy', {}).get('username')
-        try:
-            password = utils.get_password('proxy', self.node.config_dir)
-        except ValueError:
-            return None
-        if username and password:
-            return BasicAuth(username, password)
-
-    @property
     def session(self):
         if not self._session:
             headers = {
@@ -66,8 +51,13 @@ class Cloud(Extension):
     async def post(self, request: str, data: Any) -> Any:
         async def send(element: dict):
             url = f"{self.base_url}/{request}/"
-            async with (self.session.post(url, json=element, proxy=self.proxy, proxy_auth=self.proxy_auth,
-                                         raise_for_status=False) as response):
+            async with (self.session.post(
+                    url,
+                    json=element,
+                    proxy=self.node.proxy,
+                    proxy_auth=self.node.proxy_auth,
+                    raise_for_status=False
+            ) as response):
                 if response.status > 299:
                     body = await response.text()
                     raise aiohttp.ClientResponseError(

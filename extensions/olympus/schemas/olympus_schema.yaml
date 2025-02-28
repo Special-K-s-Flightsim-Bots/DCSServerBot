@@ -45,4 +45,4 @@ schema;instance_olympus_schema:
       allowempty: true
       mapping:
         path: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-        port: {type: int, required: true, range: {min: 80, max: 65535}, nullable: false}
+        port: {type: int, required: true, nullable: false, func: unique_port}

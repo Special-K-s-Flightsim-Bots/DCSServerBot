@@ -49,6 +49,7 @@ class CloudLoggingHandler(logging.Handler):
         exc_info = record.exc_info
         if (isinstance(exc_info, tuple) and len(exc_info) > 1 and
                 isinstance(exc_info[1], discord.app_commands.CommandInvokeError)):
+            # noinspection PyUnresolvedReferences
             exc = exc_info[1].original
         elif isinstance(exc_info, tuple) and len(exc_info) > 1:
             exc = exc_info[1]
@@ -67,7 +68,7 @@ class CloudLoggingHandler(logging.Handler):
         with suppress(Exception):
             async with aiohttp.ClientSession() as session:
                 # noinspection PyUnresolvedReferences
-                await session.post(self.url, json={
+                await self.session.post(self.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, json={
                     "guild_id": self.node.guild_id,
                     "version": f"{self.node.bot_version}.{self.node.sub_version}",
                     "filename": file,

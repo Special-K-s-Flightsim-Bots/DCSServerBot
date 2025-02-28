@@ -4,11 +4,11 @@ import os
 import re
 
 from contextlib import suppress
-from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec
+from core import Extension, Server, ServiceRegistry, Status, Coalition, utils, get_translation, Autoexec, InstanceImpl
 from datetime import datetime
 from services.bot import BotService
 from services.servicebus import ServiceBus
-from typing import Callable
+from typing import Callable, cast
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -214,7 +214,7 @@ class LogAnalyser(Extension):
                 self.log.exception(ex)
 
     async def disable_upnp(self, idx: int, line: str, match: re.Match):
-        autoexec = Autoexec(self.server.instance)
+        autoexec = Autoexec(cast(InstanceImpl, self.server.instance))
         net = autoexec.net or {}
         net |= {
             "use_upnp": False

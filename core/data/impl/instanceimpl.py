@@ -51,10 +51,6 @@ class InstanceImpl(Instance):
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    # clean up old server name entries to avoid conflicts
-                    conn.execute("""
-                        DELETE FROM instances WHERE server_name = %s
-                    """, (server_name, ))
                     conn.execute("""
                         INSERT INTO instances (node, instance, port, server_name)
                         VALUES (%s, %s, %s, %s) 
@@ -75,7 +71,7 @@ class InstanceImpl(Instance):
                 conn.execute("""
                     UPDATE instances SET server_name = %s, last_seen = (now() AT TIME ZONE 'utc') 
                     WHERE node = %s AND instance = %s
-                """, (server.name if server else None, self.node.name, self.name))
+                """, (server.name if server and server.name != 'n/a' else None, self.node.name, self.name))
 
     def set_server(self, server: Optional["Server"]):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:

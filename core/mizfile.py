@@ -58,53 +58,55 @@ class MizFile:
     def save(self, new_filename: Optional[str] = None):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
         os.close(tmpfd)
-        with zipfile.ZipFile(self.filename, 'r') as zin:
-            with zipfile.ZipFile(tmpname, 'w') as zout:
-                zout.comment = zin.comment  # preserve the comment
-                filenames = []
-                for item in self._files:
-                    if utils.is_valid_url(item['source']):
-                        ...
-                    else:
-                        filenames.extend([
-                            utils.make_unix_filename(item['target'], x) for x in utils.list_all_files(item['source'])
-                        ])
-                for item in zin.infolist():
-                    if item.filename == 'mission':
-                        zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
-                                                                             indent_level=0))
-                    elif item.filename == 'options':
-                        zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
-                                                                             indent_level=0))
-                    elif item.filename == 'warehouses':
-                        zout.writestr(item, "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
-                                                                                indent_level=0))
-                    elif item.filename not in filenames:
-                        zout.writestr(item, zin.read(item.filename))
-                for item in self._files:
-                    def get_dir_path(name):
-                        return name if os.path.isdir(name) else os.path.dirname(name)
-
-                    for file in utils.list_all_files(item['source']):
-                        if os.path.basename(file).lower() == 'desktop.ini':
-                            continue
-                        try:
-                            zout.write(
-                                os.path.join(get_dir_path(item['source']), file),
-                                utils.make_unix_filename(item['target'], file)
-                            )
-                        except FileNotFoundError:
-                            self.log.warning(
-                                f"- File {os.path.join(item['source'], file)} could not be found, skipping.")
         try:
-            if new_filename and new_filename != self.filename:
-                shutil.copy2(tmpname, new_filename)
-            else:
-                shutil.copy2(tmpname, self.filename)
+            with zipfile.ZipFile(self.filename, 'r') as zin:
+                with zipfile.ZipFile(tmpname, 'w') as zout:
+                    zout.comment = zin.comment  # preserve the comment
+                    filenames = []
+                    for item in self._files:
+                        if utils.is_valid_url(item['source']):
+                            ...
+                        else:
+                            filenames.extend([
+                                utils.make_unix_filename(item['target'], x) for x in utils.list_all_files(item['source'])
+                            ])
+                    for item in zin.infolist():
+                        if item.filename == 'mission':
+                            zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
+                                                                                 indent_level=0))
+                        elif item.filename == 'options':
+                            zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
+                                                                                 indent_level=0))
+                        elif item.filename == 'warehouses':
+                            zout.writestr(item, "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
+                                                                                    indent_level=0))
+                        elif item.filename not in filenames:
+                            zout.writestr(item, zin.read(item.filename))
+                    for item in self._files:
+                        def get_dir_path(name):
+                            return name if os.path.isdir(name) else os.path.dirname(name)
+
+                        for file in utils.list_all_files(item['source']):
+                            if os.path.basename(file).lower() == 'desktop.ini':
+                                continue
+                            try:
+                                zout.write(
+                                    os.path.join(get_dir_path(item['source']), file),
+                                    utils.make_unix_filename(item['target'], file)
+                                )
+                            except FileNotFoundError:
+                                self.log.warning(
+                                    f"- File {os.path.join(item['source'], file)} could not be found, skipping.")
+            try:
+                if new_filename and new_filename != self.filename:
+                    shutil.copy2(tmpname, new_filename)
+                else:
+                    shutil.copy2(tmpname, self.filename)
+            except PermissionError as ex:
+                self.log.error(f"Can't write new mission file: {ex}")
+                raise
+        finally:
             os.remove(tmpname)
-        except PermissionError as ex:
-            self.log.error(f"Can't write new mission file: {ex}")
-            raise
 
     def apply_preset(self, preset: Union[dict, list]):
         if isinstance(preset, list):

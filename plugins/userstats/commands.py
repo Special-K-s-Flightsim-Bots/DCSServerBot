@@ -64,6 +64,7 @@ async def squadron_users_autocomplete(interaction: discord.Interaction, current:
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class UserStatistics(Plugin[UserStatisticsEventListener]):
@@ -694,9 +695,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             # Render server-specific highscores
             for server in self.bus.servers.values():
                 server_config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
-                if not (server_config and server_config.get('highscore')):
-                    continue
-                await self.render_highscore(deepcopy(server_config['highscore']), server=server)
+                if server_config and server_config.get('highscore'):
+                    await self.render_highscore(deepcopy(server_config['highscore']), server=server)
 
         except Exception as ex:
             # Improved logging with context

@@ -1,10 +1,6 @@
 import asyncio
 
 from core import EventListener, event, Server
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .commands import Admin
 
 
 class AdminEventListener(EventListener["Admin"]):

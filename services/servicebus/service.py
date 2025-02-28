@@ -443,7 +443,11 @@ class ServiceBus(Service):
                     name=server_name,
                     bus=self
                 )
-                _instance = next(x for x in node.instances if x.name == instance)
+                _instance = next((x for x in node.instances if x.name == instance), None)
+                if not _instance:
+                    # first time we see this instance, so register it
+                    _instance = InstanceProxy(name=instance, node=node)
+                    node.instances.append(_instance)
                 cast(InstanceProxy, _instance).home = home
                 server.instance = _instance
                 server.instance.locals['dcs_port'] = dcs_port
@@ -462,7 +466,7 @@ class ServiceBus(Service):
                 self.executor.submit(self.udp_server.process, server.name)
             self.log.info(f"  => Remote DCS-Server \"{server.name}\" registered.")
         except StopIteration:
-            self.log.error(f"No configuration found for instance {instance} in config\nodes.yaml")
+            self.log.error(f"No configuration found for instance {instance} in config\\nodes.yaml")
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
 
@@ -685,8 +689,8 @@ class ServiceBus(Service):
                     # If the function is asynchronous, await it directly
                     return await func(**kwargs)
                 else:
-                    # For synchronous functions, move execution to a separate thread
-                    return await asyncio.to_thread(func, **kwargs)
+                    # For synchronous functions, we need to execute them without to_thread() because of loop access
+                    return func(**kwargs)
 
         elif 'params' in data:
             for key, value in data['params'].items():

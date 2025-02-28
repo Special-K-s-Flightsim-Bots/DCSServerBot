@@ -70,3 +70,4 @@ async def campaign_autocomplete(interaction: discord.Interaction, current: str) 
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []

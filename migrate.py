@@ -448,7 +448,7 @@ def migrate_3(node: str):
                 # fill missionstats
                 m = missionstats[instance] = {}
                 if 'EVENT_FILTER' in cfg['FILTER']:
-                    m['filter'] = [x.strip() for x in cfg['FILTER']['EVENT_FILTER'].split(',')]
+                    m['event_filter'] = [x.strip() for x in cfg['FILTER']['EVENT_FILTER'].split(',')]
                 m['enabled'] = cfg[instance].getboolean('MISSION_STATISTICS')
                 m['display'] = cfg[instance].getboolean('DISPLAY_MISSION_STATISTICS')
                 m['persistence'] = cfg[instance].getboolean('PERSIST_MISSION_STATISTICS')

@@ -52,7 +52,6 @@ class SquadronModal(Modal):
                                 ON CONFLICT (squadron_id, player_ucid) DO NOTHING
                             """, (squadron_id, ucid))
         if self.plugin.get_config().get('squadrons', {}).get('persist_list', False):
-            # noinspection PyUnresolvedReferences
             await self.plugin.persist_squadron_list(squadron_id)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"Squadron {self.name} created/updated.", ephemeral=ephemeral)

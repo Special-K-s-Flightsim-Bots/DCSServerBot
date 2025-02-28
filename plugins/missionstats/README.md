@@ -13,6 +13,10 @@ DCS.release_server:
   display: true                   # false: don't show mission statistics in your status channel (default: true)
   persistence: true               # false: don't persist the mission statistics to database (default: true)
   persist_ai_statistics: false    # true: persist AI statistics to the database (default: false)
+  event_filter:                   # Optional: do not receive these events
+    - S_EVENT_TOOK_CONTROL
+    - S_EVENT_BDA
+    - S_EVENT_MAX
   mission_end:                    # optional: display a final mission statistics embed at mission end
     persistent: true              # send a persistent mission end embed (default: non persistent) 
     channel: 1122334455667788     # channel to display the embed in

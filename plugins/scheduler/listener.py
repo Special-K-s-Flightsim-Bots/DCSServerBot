@@ -4,10 +4,7 @@ import random
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .commands import Scheduler
+from typing import Union, Optional
 
 
 class SchedulerListener(EventListener["Scheduler"]):
@@ -104,22 +101,27 @@ class SchedulerListener(EventListener["Scheduler"]):
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         if 'restart' in what['command']:
+            run_extensions = what.get('run_extensions', True)
+            use_orig = what.get('use_orig', True)
             if server.status == Status.SHUTDOWN:
-                # noinspection PyUnresolvedReferences
-                await self.plugin.launch_dcs(server)
+                await self.plugin.launch_dcs(server, modify_mission=run_extensions, use_orig=use_orig)
             else:
-                await server.restart()
+                await server.restart(modify_mission=run_extensions, use_orig=use_orig)
                 message = f'restarted mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
                 # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         elif what['command'] == 'rotate':
-            await server.loadNextMission()
+            run_extensions = what.get('run_extensions', True)
+            use_orig = what.get('use_orig', True)
+            await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
             # noinspection PyAsyncCall
             asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                                f"{server.current_mission.display_name}", server=server))
         elif what['command'] == 'load':
+            run_extensions = what.get('run_extensions', True)
+            use_orig = what.get('use_orig', True)
             if 'mission_id' in what:
                 _mission = what['mission_id']
                 if isinstance(_mission, list):
@@ -133,7 +135,7 @@ class SchedulerListener(EventListener["Scheduler"]):
             else:
                 self.log.error(f"No mission_id or mission_file specified in {what}")
                 return
-            if not await server.loadMission(_mission):
+            if not await server.loadMission(_mission, modify_mission=run_extensions, use_orig=use_orig):
                 self.log.warning(f"Mission {_mission} NOT loaded.")
             else:
                 message = f'loaded mission {server.current_mission.display_name}'
@@ -145,8 +147,12 @@ class SchedulerListener(EventListener["Scheduler"]):
             if not server.locals.get('mission_rewrite', True):
                 await server.stop()
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(filename,
-                                                      [utils.get_preset(self.node, x) for x in what['preset']])
+            use_orig = what.get('use_orig', True)
+            new_filename = await server.modifyMission(
+                filename,
+                [utils.get_preset(self.node, x) for x in what['preset']],
+                use_orig=use_orig
+            )
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
                 await server.replaceMission(int(server.settings['listStartIndex']), new_filename)

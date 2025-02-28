@@ -56,11 +56,9 @@ class Server(DataObject):
     locals: dict = field(default_factory=dict, compare=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
     restart_time: datetime = field(compare=False, default=None)
-    idle_since: datetime = field(compare=False, default=None)
+    idle_since: Optional[datetime] = field(compare=False, default=None)
 
     def __post_init__(self):
-        from services.servicebus import ServiceBus
-
         super().__post_init__()
         self.status_change = asyncio.Event()
         self.locals = self.read_locals()
@@ -261,7 +259,7 @@ class Server(DataObject):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         raise NotImplemented()
 
-    async def startup(self, modify_mission: Optional[bool] = True) -> None:
+    async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         raise NotImplemented()
 
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
@@ -320,10 +318,9 @@ class Server(DataObject):
             if rc['result'] == 0:
                 await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
                 return True
-            else:
-                return False
+        return False
 
-    async def restart(self, modify_mission: Optional[bool] = True) -> None:
+    async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
         raise NotImplemented()
 
     async def setStartIndex(self, mission_id: int) -> None:
@@ -344,10 +341,11 @@ class Server(DataObject):
     async def replaceMission(self, mission_id: int, path: str) -> list[str]:
         raise NotImplemented()
 
-    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True) -> bool:
+    async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
+                          use_orig: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
-    async def loadNextMission(self, modify_mission: Optional[bool] = True) -> bool:
+    async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> bool:
         raise NotImplemented()
 
     async def getMissionList(self) -> list[str]:
@@ -356,14 +354,14 @@ class Server(DataObject):
     async def getAllMissionFiles(self) -> list[str]:
         raise NotImplemented()
 
-    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
+    async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         raise NotImplemented()
 
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
                             orig = False) -> UploadStatus:
         raise NotImplemented()
 
-    async def apply_mission_changes(self, filename: Optional[str] = None) -> str:
+    async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
         raise NotImplemented()
 
     @property
@@ -387,6 +385,9 @@ class Server(DataObject):
             if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:
                 self._channels[Channel.COALITION_RED_EVENTS] = self._channels[Channel.COALITION_RED_CHAT]
         return self._channels
+
+    async def update_channels(self, channels: dict[str, int]) -> None:
+        raise NotImplemented()
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):

@@ -5,6 +5,7 @@ import os
 import psycopg
 import random
 import re
+import traceback
 
 from contextlib import suppress
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
@@ -55,7 +56,7 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
-
+        return []
 
 async def orig_mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
@@ -76,6 +77,7 @@ async def orig_mission_autocomplete(interaction: discord.Interaction, current: s
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 async def presets_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -90,6 +92,7 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
         return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
+        return []
 
 
 class Mission(Plugin[MissionEventListener]):
@@ -237,8 +240,9 @@ class Mission(Plugin[MissionEventListener]):
     async def restart(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                      delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True):
-        await self._restart(interaction, server, delay, reason, run_extensions, rotate=False)
+                      delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
+                      use_orig: Optional[bool] = True):
+        await self._restart(interaction, server, delay, reason, run_extensions, use_orig, rotate=False)
 
     @mission.command(description=_('Rotates to the next mission\n'))
     @app_commands.guild_only()
@@ -246,14 +250,15 @@ class Mission(Plugin[MissionEventListener]):
     async def rotate(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                     delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True):
-        await self._restart(interaction, server, delay, reason, run_extensions, rotate=True)
+                     delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
+                     use_orig: Optional[bool] = True):
+        await self._restart(interaction, server, delay, reason, run_extensions, use_orig, rotate=True)
 
     async def _restart(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                        delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = True,
-                       rotate: Optional[bool] = False):
+                       use_orig: Optional[bool] = True, rotate: Optional[bool] = False):
         what = "restart" if not rotate else "rotate"
         actions = {
             "restart": "restarted",
@@ -279,7 +284,12 @@ class Mission(Plugin[MissionEventListener]):
             if not result:
                 return
             elif result == 'later':
-                server.on_empty = {"command": what, "user": interaction.user}
+                server.on_empty = {
+                    "command": what,
+                    "user": interaction.user,
+                    "run_extensions": run_extensions,
+                    "use_orig": use_orig
+                }
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_(what)),
                                                 ephemeral=ephemeral)
@@ -310,8 +320,10 @@ class Mission(Plugin[MissionEventListener]):
         try:
             msg = await interaction.followup.send(_('Mission will {} now, please wait ...').format(_(what)),
                                                   ephemeral=ephemeral)
+            if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                await server.stop()
             if rotate:
-                await server.loadNextMission(modify_mission=run_extensions)
+                await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
             else:
                 await server.restart(modify_mission=run_extensions)
             await self.bot.audit(f'{actions.get(what)} mission', server=server, user=interaction.user)
@@ -326,7 +338,7 @@ class Mission(Plugin[MissionEventListener]):
                 ), ephemeral=ephemeral)
 
     async def _load(self, interaction: discord.Interaction, server: Server, mission: Optional[Union[int, str]] = None,
-                    run_extensions: Optional[bool] = False):
+                    run_extensions: Optional[bool] = False, use_orig: Optional[bool] = True):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             # noinspection PyUnresolvedReferences
@@ -335,17 +347,20 @@ class Mission(Plugin[MissionEventListener]):
                     server=server.display_name, status=server.status.name), ephemeral=True)
             return
         if server.restart_pending and not await utils.yn_question(
-                interaction, _('A restart is currently pending.\n'
-                               'Would you still like to {} the mission?').format(_("change")),
-                ephemeral=ephemeral):
+                interaction,
+                _('A restart is currently pending.\nWould you still like to {} the mission?').format(_("change")),
+                ephemeral=ephemeral
+        ):
             return
         else:
             server.on_empty = dict()
 
         if server.is_populated():
-            result = await utils.populated_question(interaction,
-                                                    _("Do you really want to {} the mission?").format(_("change")),
-                                                    ephemeral=ephemeral)
+            result = await utils.populated_question(
+                interaction,
+                _("Do you really want to {} the mission?").format(_("change")),
+                ephemeral=ephemeral
+            )
             if not result:
                 return
         else:
@@ -369,7 +384,12 @@ class Mission(Plugin[MissionEventListener]):
             return
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
-                server.on_empty = {"command": "restart", "user": interaction.user}
+                server.on_empty = {
+                    "command": "restart",
+                    "user": interaction.user,
+                    "run_extensions": run_extensions,
+                    "use_orig": use_orig
+                }
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
                                                 ephemeral=ephemeral)
             else:
@@ -380,7 +400,13 @@ class Mission(Plugin[MissionEventListener]):
             if mission_id and result == 'later':
                 # make sure, we load that mission, independently on what happens to the server
                 await server.setStartIndex(mission_id + 1)
-                server.on_empty = {"command": "load", "mission_id": mission_id + 1, "user": interaction.user}
+                server.on_empty = {
+                    "command": "load",
+                    "mission_id": mission_id + 1,
+                    "run_extensions": run_extensions,
+                    "use_orig": use_orig,
+                    "user": interaction.user
+                }
                 await interaction.followup.send(
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(name),
                     ephemeral=ephemeral)
@@ -388,7 +414,9 @@ class Mission(Plugin[MissionEventListener]):
                 msg = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
                                                       ephemeral=ephemeral)
                 try:
-                    if not await server.loadMission(mission, modify_mission=run_extensions):
+                    if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                        await server.stop()
+                    if not await server.loadMission(mission, modify_mission=run_extensions, use_orig=use_orig):
                         await msg.edit(content=_('Mission {} NOT loaded. '
                                                  'Check that you have installed the pre-requisites (terrains, mods).'
                                                  ).format(name))
@@ -411,14 +439,21 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                    mission_id: Optional[int] = None, alt_mission: Optional[str] = None,
-                   run_extensions: Optional[bool] = True):
-        await self._load(interaction, server, mission_id if mission_id is not None else alt_mission, run_extensions)
+                   run_extensions: Optional[bool] = True, use_orig: Optional[bool] = True):
+        await self._load(
+            interaction,
+            server,
+            mission_id if mission_id is not None else alt_mission,
+            run_extensions,
+            use_orig
+        )
 
     @mission.command(description=_('Adds a mission to the list\n'))
     @app_commands.guild_only()
@@ -541,10 +576,11 @@ class Mission(Plugin[MissionEventListener]):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(presets_file=presets_autocomplete)
     @app_commands.describe(presets_file=_('Chose an alternate presets file'))
+    @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
-                     presets_file: Optional[str] = None):
+                     presets_file: Optional[str] = None, use_orig: Optional[bool] = True):
         ephemeral = utils.get_ephemeral(interaction)
         if presets_file is None:
             presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
@@ -610,7 +646,12 @@ class Mission(Plugin[MissionEventListener]):
             except discord.NotFound:
                 pass
         if result == 'later':
-            server.on_empty = {"command": "preset", "preset": view.result, "user": interaction.user}
+            server.on_empty = {
+                "command": "preset",
+                "preset": view.result,
+                "use_orig": use_orig,
+                "user": interaction.user
+            }
             server.restart_pending = True
             await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
         else:
@@ -621,7 +662,11 @@ class Mission(Plugin[MissionEventListener]):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(filename, [utils.get_preset(self.node, x) for x in view.result])
+            new_filename = await server.modifyMission(
+                filename,
+                [utils.get_preset(self.node, x) for x in view.result],
+                use_orig=use_orig
+            )
             message = _('The following preset were applied: {}.').format(','.join(view.result))
             if new_filename != filename:
                 self.log.info(f"  => {message}")
@@ -1581,10 +1626,10 @@ class Mission(Plugin[MissionEventListener]):
                             token = str(random.randrange(1000, 9999))
                             await cursor.execute("""
                                 INSERT INTO players (ucid, discord_id, last_seen) 
-                                VALUES (%s, %s, NOW())
+                                VALUES (%s, %s, NOW() AT TIME ZONE 'UTC')
                             """, (token, interaction.user.id))
                             break
-                        except psycopg.DatabaseError:
+                        except psycopg.errors.UniqueViolation:
                             pass
             await send_token(token)
 
@@ -1597,6 +1642,28 @@ class Mission(Plugin[MissionEventListener]):
         env = await report.render(period=f"{number} {period}")
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+
+    # New command group "/mission"
+    menu = Group(name="menu", description=_("Commands to manage mission menus"))
+
+    @menu.command(description=_('Validate the menu.yaml'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def validate(self, interaction: discord.Interaction):
+        menu_file = os.path.join(self.node.config_dir, 'menus.yaml')
+        if os.path.exists(menu_file):
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer(ephemeral=True)
+            try:
+                utils.validate(menu_file, ['schemas/menus_schema.yaml'], raise_exception=True)
+                await interaction.followup.send("Schema valid.", ephemeral=True)
+            except Exception as ex:
+                self.log.exception(ex)
+                message = traceback.format_exc()
+                await interaction.followup.send(message[:2000])
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("No menus.yaml found."), ephemeral=True)
 
     @tasks.loop(hours=1)
     async def expire_token(self):
