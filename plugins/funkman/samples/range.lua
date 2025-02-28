@@ -4,13 +4,3 @@ Range:AddBombingTargets("bombtarget", 25)
 Range:AddStrafePit({"strafetarget-1"}, 4000, 500, 180, false, 20)
 -- [...]
 Range:Start()
-
-function Range:OnAfterImpact(From, Event, To, Result, Player)
-    local player = Player
-    local result = Result
-end
-
-function Range:OnAfterStrafeResult(From, Event, To, Player, Result)
-    local player = Player
-    local result = Result
-end

@@ -224,6 +224,9 @@ class MonitoringService(Service):
                         if x.enabled and not await asyncio.to_thread(x.is_running)
                     ]:
                         try:
+                            # double-check as we might have been in the restart phase
+                            if server.status not in [Status.RUNNING, Status.PAUSED]:
+                                break
                             self.log.warning(f"{ext.name} died - restarting ...")
                             await ext.startup()
                         except Exception as ex:

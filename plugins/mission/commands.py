@@ -320,6 +320,8 @@ class Mission(Plugin[MissionEventListener]):
         try:
             msg = await interaction.followup.send(_('Mission will {} now, please wait ...').format(_(what)),
                                                   ephemeral=ephemeral)
+            if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                await server.stop()
             if rotate:
                 await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
             else:
@@ -412,6 +414,8 @@ class Mission(Plugin[MissionEventListener]):
                 msg = await interaction.followup.send(_('Loading mission {} ...').format(utils.escape_string(name)),
                                                       ephemeral=ephemeral)
                 try:
+                    if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                        await server.stop()
                     if not await server.loadMission(mission, modify_mission=run_extensions, use_orig=use_orig):
                         await msg.edit(content=_('Mission {} NOT loaded. '
                                                  'Check that you have installed the pre-requisites (terrains, mods).'

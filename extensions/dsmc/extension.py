@@ -70,7 +70,10 @@ class DSMC(Extension):
                 with open(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'), mode='w',
                           encoding='utf-8') as outfile:
                     for line in infile.readlines():
-                        if line.strip().startswith('DSMC_updateMissionList'):
+                        if line.strip().startswith('DSMC_24_7_serverStandardSetup'):
+                            line = "DSMC_24_7_serverStandardSetup   = false     -- multiple valid values. This option is a simplified setup for the specific server autosave layout. You can input:"
+                            self.locals['DSMC_24_7_serverStandardSetup'] = False
+                        elif line.strip().startswith('DSMC_updateMissionList'):
                             line = line.replace('true', 'false', 1)
                             self.locals['DSMC_updateMissionList'] = False
                         elif line.strip().startswith('DSMC_AutosaveExit_time'):
@@ -109,6 +112,7 @@ class DSMC(Extension):
                 not os.path.exists(os.path.join(dcs_home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')):
             self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")
             return False
+        self.server.locals['mission_rewrite'] = False
         return True
 
     def shutdown(self) -> bool:
