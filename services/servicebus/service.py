@@ -296,7 +296,7 @@ class ServiceBus(Service):
         server: ServerImpl = cast(ServerImpl, self.servers[server_name])
         # set the PID
         if not server.process:
-            server.process = utils.find_process("DCS_server.exe|DCS.exe", server.instance.name)
+            server.process = next(utils.find_process("DCS_server.exe|DCS.exe", server.instance.name), None)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
         # if we are an agent, initialize the server

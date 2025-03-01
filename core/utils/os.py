@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, Generator
 
 if TYPE_CHECKING:
     from core import Node
@@ -70,7 +70,7 @@ async def get_public_ip(node: "Node"):
                     return ipaddress.ip_address(await resp.text()).compressed
 
 
-def find_process(proc: str, instance: Optional[str] = None):
+def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.Process, None, None]:
     proc_set = {name.casefold() for name in proc.split("|")}
 
     for p in psutil.process_iter(['cmdline']):
@@ -83,9 +83,9 @@ def find_process(proc: str, instance: Optional[str] = None):
                     continue
                 # Check if `instance` is part of any cmdline parameter (case-insensitive)
                 if any(instance.casefold() in c.replace('\\', '/').casefold() for c in cmdline):
-                    return p
+                    yield p
             else:
-                return p
+                yield p
         except (psutil.AccessDenied, psutil.NoSuchProcess, IndexError):
             continue
     return None

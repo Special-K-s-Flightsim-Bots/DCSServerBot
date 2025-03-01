@@ -63,8 +63,8 @@ class Olympus(Extension):
         super().__init__(server, config)
         if self.enabled:
             # check if there is an olympus process running already
-            self.process: Optional[psutil.Process] = utils.find_process(os.path.basename(self.nodejs),
-                                                                        self.server.instance.name)
+            self.process: Optional[psutil.Process] = next(utils.find_process(os.path.basename(self.nodejs),
+                                                                        self.server.instance.name), None)
             if self.process:
                 self.log.debug("- Running Olympus process found.")
 

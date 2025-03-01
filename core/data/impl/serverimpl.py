@@ -649,7 +649,9 @@ class ServerImpl(Server):
     async def is_running(self) -> bool:
         async with self.lock:
             if not self.process or not self.process.is_running():
-                self.process = await asyncio.to_thread(utils.find_process, "DCS_server.exe|DCS.exe", self.instance.name)
+                self.process = await asyncio.to_thread(
+                    lambda: next(utils.find_process("DCS_server.exe|DCS.exe", self.instance.name), None)
+                )
             return self.process is not None
 
     async def _terminate(self) -> None:

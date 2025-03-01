@@ -261,7 +261,7 @@ class SRS(Extension, FileSystemEventHandler):
                 try:
                     super().shutdown()
                     if not self.process:
-                        self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+                        self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
                     if self.process:
                         utils.terminate_process(self.process)
                         self.process = None
@@ -349,7 +349,7 @@ class SRS(Extension, FileSystemEventHandler):
 
     def is_running(self) -> bool:
         if not self.process:
-            self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+            self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
             running = self.process is not None and self.process.is_running()
             if not running:
                 self.log.debug("SRS: is NOT running (process)")

@@ -5,15 +5,15 @@ schema;node_skyeye_schema:
     installation: {type: str, required: true, nullable: false, range: {min: 1}, func: file_exists}
     autoupdate: {type: bool, nullable: false}
     debug: {type: bool, nullable: false}
-schema;instance_skyeye_schema:
+
+schema;skyeye_config:
   type: map
   nullable: false
-  allowempty: true
   mapping:
     enabled: {type: bool, nullable: false}
+    debug: {type: bool, nullable: false}
     log: {type: str, nullable: false, range: {min: 1}}
     affinity: {type: any, nullable: false, func: int_csv_or_list}
-    debug: {type: bool, nullable: false}
     config: {type: str, nullable: false, range: {min: 1}}
     coalition: {type: str, enum: ['blue', 'red'], nullable: false}
     recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api'], nullable: false}
@@ -45,3 +45,11 @@ schema;instance_skyeye_schema:
     enable-grpc: {type: bool, nullable: false}
     grpc-address: {type: str, nullable: false, range: {min: 1}}
     grpc-password: {type: str, nullable: false, range: {min: 1}}
+    instances:
+      type: seq
+      nullable: false
+      sequence:
+        - include: 'skyeye_config'
+
+schema;instance_skyeye_schema:
+  include: 'skyeye_config'
