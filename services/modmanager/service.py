@@ -277,7 +277,8 @@ class ModManagerService(Service):
         else:
             return False
 
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING) as log:
+        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING,
+                                 errors='replace') as log:
             await log.writelines(log_entries)
         return True
 
@@ -364,7 +365,8 @@ class ModManagerService(Service):
         else:
             self.log.error(f"- Installation of package {package_name}_v{version} failed, no package.")
             return False
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING) as log:
+        async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='w', encoding=ENCODING,
+                                 errors='replace') as log:
             await log.writelines(log_entries)
 
         async with self.apool.connection() as conn:
