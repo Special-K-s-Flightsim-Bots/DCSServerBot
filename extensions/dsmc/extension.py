@@ -2,7 +2,7 @@ import os
 import re
 import shutil
 
-from core import Extension
+from core import Extension, Server
 from typing import Optional, Union
 
 __all__ = [
@@ -11,6 +11,11 @@ __all__ = [
 
 
 class DSMC(Extension):
+
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        server.locals['mission_rewrite'] = False
+        server.locals['validate_missions'] = False
 
     @property
     def version(self) -> Optional[str]:
@@ -112,7 +117,6 @@ class DSMC(Extension):
                 not os.path.exists(os.path.join(dcs_home, 'Scripts', 'Hooks', 'DSMC_hooks.lua')):
             self.log.error(f"  => {self.server.name}: Can't load extension, {self.name} not correctly installed.")
             return False
-        self.server.locals['mission_rewrite'] = False
         return True
 
     def shutdown(self) -> bool:
