@@ -247,19 +247,19 @@ class NodeImpl(Node):
             pass
         # quick connection check
         max_attempts = self.config.get("database", self.locals.get('database')).get('max_retries', 10)
-        for attempt in range(max_attempts):
+        for attempt in range(max_attempts + 1):
             try:
-                aconn = await psycopg.AsyncConnection.connect(url)
+                aconn = await psycopg.AsyncConnection.connect(url, connect_timeout=5)
                 async with aconn:
                     cursor = await aconn.execute("SHOW server_version")
                     version = (await cursor.fetchone())[0]
                     self.log.info(f"- Connection to PostgreSQL {version} established.")
                     break
             except OperationalError:
-                if attempt == max_attempts:
-                    raise
-                self.log.warning("- Database not available, trying again in 5s ...")
-                await asyncio.sleep(5)
+                if attempt < max_attempts:
+                    self.log.warning("- Database not available (yet), trying again ...")
+                    continue
+                raise
         pool_min = self.config.get("database", self.locals.get('database')).get('pool_min', 4)
         pool_max = self.config.get("database", self.locals.get('database')).get('pool_max', 10)
         max_idle = self.config.get("database", self.locals.get('database')).get('max_idle', 10 * 60.0)
