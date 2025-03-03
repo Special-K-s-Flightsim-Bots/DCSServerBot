@@ -77,7 +77,7 @@ class SkyEye(Extension):
             for instance in self.config['instances']:
                 cfg = data.copy()
                 cfg |= main_config
-                cfg_file = self.get_config(cfg)
+                cfg_file = self.get_config(cfg | instance)
                 if os.path.exists(cfg_file):
                     cfg |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
                 cfg |= instance.copy()
