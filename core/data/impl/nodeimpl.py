@@ -912,8 +912,10 @@ class NodeImpl(Node):
             self.log.error(
                 f"Rename request received for server {server.name} that should have gone to the master node!")
             return
-        # we are doing the plugin changes, as we are the master
-        await ServiceRegistry.get(BotService).rename_server(server, new_name)
+        # do not rename initially created servers (they should not be there anyway)
+        if server.name != 'n/a':
+            # we are doing the plugin changes, as we are the master
+            await ServiceRegistry.get(BotService).rename_server(server, new_name)
         # update the ServiceBus
         ServiceRegistry.get(ServiceBus).rename_server(server, new_name)
         # change the proxy name for remote servers (local ones will be renamed by ServerImpl)
