@@ -66,7 +66,7 @@ class DSMC(Extension):
             self.log.error('  => DSMC_updateMissionList missing in DSMC_Dedicated_Server_options.lua! '
                            'Check your config and / or update DSMC!')
             return False
-        if self.locals.get('DSMC_updateMissionList', True) or self.locals.get('DSMC_AutosaveExit_time', 0):
+        if not self.locals.get('DSMC_updateMissionList', True) or self.locals.get('DSMC_AutosaveExit_time', 0):
             dcs_home = self.server.instance.home
             shutil.copy2(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'),
                          os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak'))
@@ -79,8 +79,8 @@ class DSMC(Extension):
                             line = "DSMC_24_7_serverStandardSetup   = false     -- multiple valid values. This option is a simplified setup for the specific server autosave layout. You can input:"
                             self.locals['DSMC_24_7_serverStandardSetup'] = False
                         elif line.strip().startswith('DSMC_updateMissionList'):
-                            line = line.replace('true', 'false', 1)
-                            self.locals['DSMC_updateMissionList'] = False
+                            line = line.replace('false', 'true', 1)
+                            self.locals['DSMC_updateMissionList'] = True
                         elif line.strip().startswith('DSMC_AutosaveExit_time'):
                             line = line.replace(str(self.locals['DSMC_AutosaveExit_time']), '0', 1)
                             self.locals['DSMC_AutosaveExit_time'] = 0
