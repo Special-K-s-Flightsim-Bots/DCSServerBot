@@ -138,7 +138,7 @@ class SkyEye(Extension):
             dirty |= self._maybe_update_config(cfg, 'recognizer', 'openai-whisper-api')
             dirty |= self._maybe_update_config(cfg, 'openai-api-key', cfg['openai-api-key'])
 
-        dirty |= self._maybe_update_config(cfg, 'voice-lock-path', os.path.dirname(self.get_exe_path()))
+        # dirty |= self._maybe_update_config(cfg, 'voice-lock-path', os.path.dirname(self.get_exe_path()))
         dirty |= self._maybe_update_config(cfg, 'whisper-model', cfg.get('whisper-model', 'ggml-small.en.bin'))
         dirty |= self._maybe_update_config(cfg, 'coalition', cfg.get('coalition'))
         if 'callsign' in cfg:
