@@ -295,11 +295,12 @@ class Dashboard(Service):
     async def update(self):
         try:
             previous_server_count = len(self.bus.servers)
-            with Live(self.layout, refresh_per_second=1, screen=True):
+            with Live(self.layout, refresh_per_second=1, screen=True) as live:
                 while not self.stop_event.is_set():
                     current_server_count = len(self.bus.servers)
                     if current_server_count != previous_server_count:
                         self.layout = self.create_layout()
+                        live.update(self.layout)
                         previous_server_count = current_server_count
                     await asyncio.sleep(1)
         except Exception as ex:
