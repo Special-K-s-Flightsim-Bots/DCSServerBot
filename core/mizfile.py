@@ -5,19 +5,26 @@ import io
 import logging
 import luadata
 import os
+import re
 import shutil
 import tempfile
 import zipfile
 
+from astral import LocationInfo
+from astral.sun import sun
 from core import utils
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from packaging.version import parse, Version
+from timezonefinder import TimezoneFinder
 from typing import Union, Optional
+from zoneinfo import ZoneInfo
 
 __all__ = [
     "MizFile",
     "UnsupportedMizFileException"
 ]
+
+THEATRES = {}
 
 
 class MizFile:
@@ -34,6 +41,38 @@ class MizFile:
         self._load()
         self._files: list[dict] = []
         self.node = ServiceRegistry.get(ServiceBus).node
+        if not THEATRES:
+            self.read_theatres()
+
+    def read_theatres(self):
+        maps_path = os.path.join(os.path.expandvars(self.node.locals['DCS']['installation']), "Mods", "terrains")
+        if not os.path.exists(maps_path):
+            self.log.error(f"Maps directory not found: {maps_path}, can't use timezone specific parameters!")
+            return
+
+        for terrain in os.listdir(maps_path):
+            terrain_path = os.path.join(maps_path, terrain)
+            entry_lua = os.path.join(terrain_path, "entry.lua")
+            pattern = r'local self_ID\s*=\s*"(.*?)";'
+            with open(entry_lua, "r", encoding="utf-8") as file:
+                match = re.search(pattern, file.read())
+                terrain_id = match.group(1)
+            towns_file = os.path.join(terrain_path, "Map", "towns.lua")
+            if os.path.exists(towns_file):
+                try:
+                    pattern = r"latitude\s*=\s*([\d.-]+),\s*longitude\s*=\s*([\d.-]+)"
+                    with open(towns_file, "r", encoding="utf-8") as file:
+                        for line in file:
+                            match = re.search(pattern, line)
+                            if match:
+                                THEATRES[terrain_id] = {float(match.group(1)), float(match.group(2))}
+                                break
+                        else:
+                            self.log.warning(f"No towns found in: {towns_file}")
+                except Exception as ex:
+                    self.log.error(f"Error reading file {towns_file}: {ex}")
+            else:
+                self.log.info(f"No towns.lua found for terrain: {terrain}")
 
     def _load(self):
         try:
@@ -68,7 +107,8 @@ class MizFile:
                             ...
                         else:
                             filenames.extend([
-                                utils.make_unix_filename(item['target'], x) for x in utils.list_all_files(item['source'])
+                                utils.make_unix_filename(item['target'], x) for x in
+                                utils.list_all_files(item['source'])
                             ])
                     for item in zin.infolist():
                         if item.filename == 'mission':
@@ -78,8 +118,9 @@ class MizFile:
                             zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
                                                                                  indent_level=0))
                         elif item.filename == 'warehouses':
-                            zout.writestr(item, "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
-                                                                                    indent_level=0))
+                            zout.writestr(item,
+                                          "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
+                                                                              indent_level=0))
                         elif item.filename not in filenames:
                             zout.writestr(item, zin.read(item.filename))
                     for item in self._files:
@@ -118,9 +159,28 @@ class MizFile:
             # handle special cases
             if key == 'date':
                 if isinstance(value, str):
-                    self.date = datetime.strptime(value, '%Y-%m-%d')
+                    try:
+                        self.date = datetime.strptime(value, '%Y-%m-%d').date()
+                    except ValueError:
+                        if value in ['today', 'yesterday', 'tomorrow']:
+                            now = datetime.today().date()
+                            if value == 'today':
+                                self.date = now
+                            elif value == 'yesterday':
+                                self.date = now - timedelta(days=1)
+                            elif value == 'tomorrow':
+                                self.date = now + timedelta(days=1)
                 else:
                     self.date = value
+            elif key == 'start_time':
+                if isinstance(value, int):
+                    self.start_time = value
+                else:
+                    try:
+                        self.start_time = int((datetime.strptime(value, "%H:%M") -
+                                               datetime(1900, 1, 1)).total_seconds())
+                    except ValueError:
+                        self.start_time = self.parse_moment(value)
             elif key == 'clouds':
                 if isinstance(value, str):
                     self.clouds = {"preset": value}
@@ -146,20 +206,16 @@ class MizFile:
         return self.mission['start_time']
 
     @start_time.setter
-    def start_time(self, value: Union[int, str]) -> None:
-        if isinstance(value, int):
-            start_time = value
-        else:
-            start_time = int((datetime.strptime(value, "%H:%M") - datetime(1900, 1, 1)).total_seconds())
-        self.mission['start_time'] = start_time
+    def start_time(self, value: int) -> None:
+        self.mission['start_time'] = value
 
     @property
-    def date(self) -> datetime:
-        date = self.mission['date']
-        return datetime(date['Year'], date['Month'], date['Day'])
+    def date(self) -> date:
+        value = self.mission['date']
+        return date(value['Year'], value['Month'], value['Day'])
 
     @date.setter
-    def date(self, value: datetime) -> None:
+    def date(self, value: date) -> None:
         self.mission['date'] = {"Day": value.day, "Year": value.year, "Month": value.month}
 
     @property
@@ -387,6 +443,75 @@ class MizFile:
             else:
                 self._files.append(file)
 
+    def parse_moment(self, value: str = "morning") -> int:
+        """
+        Calculate the "moment" for the MizFile's theatre coordinates and date,
+        then return the time corresponding to the "moment" parameter in seconds since midnight
+        in the local timezone.
+
+        Example: parse_moment(mizfile, "sunrise") returns the time of sunrise in seconds since midnight
+        Example: parse_moment(mizfile, "sunrise + 01:00") returns the time of sunrise + 1 hour in seconds since midnight
+        Example: parse_moment(mizfile, "morning") returns the time of morning in seconds since midnight
+
+        Parameters:
+        self: MizFile object with date, theatreCoordinates, and start_time properties
+        value: string representing the moment to calculate
+
+        Constants available for the "moment" parameter:
+        - sunrise: The time of sunrise
+        - dawn: The time of dawn
+        - morning: Two hours after dawn
+        - noon: The time of solar noon
+        - evening: Two hours before sunset
+        - sunset: The time of sunset
+        - dusk: The time of dusk
+        - night: Two hours after dusk
+        """
+
+        # Get the date from the MizFile object
+        target_date = self.date
+
+        # Extract latitude and longitude from theatreCoordinates
+        latitude, longitude = THEATRES[self.theatre]
+
+        # Determine the local timezone
+        timezone = TimezoneFinder().timezone_at(lat=latitude, lng=longitude)
+        if not timezone:
+            raise ValueError("start_time: Could not determine timezone for the given coordinates!")
+
+        # Create a LocationInfo object for astral calculations
+        location = LocationInfo("Custom", "Location", timezone, latitude, longitude)
+
+        # Calculate sun times
+        solar_events = sun(location.observer, date=target_date, tzinfo=ZoneInfo(timezone)).copy()
+
+        # Alternate moments, calculated based on the solar events above
+        solar_events |= {
+            "now": datetime.now(tz=ZoneInfo(timezone)),
+            "morning": solar_events["dawn"] + timedelta(hours=2),
+            "evening": solar_events["sunset"] - timedelta(hours=2),
+            "night": solar_events["dusk"] + timedelta(hours=2)
+        }
+
+        match = re.match(r"(\w+)\s*([+-]\d{2}:\d{2})?", value.strip())
+        if not match:
+            raise ValueError("start_time: Invalid input format. Expected '<event> [+HH:MM|-HH:MM]'.")
+
+        event = match.group(1)  # the event
+        offset = match.group(2) # the offset time (+/- HH24:MM)
+
+        if not event or event.lower() not in solar_events:
+            raise ValueError(f"start_time: Invalid solar event '{event}'. "
+                             f"Valid events are {list(solar_events.keys())}.")
+
+        base_time = solar_events[event.lower()]
+        if offset:
+            hours, minutes = map(int, offset.split(":"))
+            delta = timedelta(hours=hours, minutes=minutes)
+            base_time += delta
+
+        return (base_time.hour * 3600) + (base_time.minute * 60)
+
     def modify(self, config: Union[list, dict]) -> None:
 
         def sort_dict(d):
@@ -430,7 +555,8 @@ class MizFile:
                                     element[_what - 1] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                                 except IndexError:
                                     element.append(utils.evaluate(_with, reference=reference, **kkwargs, **kwargs))
-                            elif isinstance(element, dict) and any(isinstance(key, (int, float)) for key in element.keys()):
+                            elif isinstance(element, dict) and any(
+                                    isinstance(key, (int, float)) for key in element.keys()):
                                 element[_what] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                                 sort = True
                         elif isinstance(_with, dict) and isinstance(element[_what], (int, str, float, bool)):

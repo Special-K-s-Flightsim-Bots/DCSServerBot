@@ -86,6 +86,22 @@ With this method, you can change the following values in your mission (to be ext
 
 I highly recommend looking at a mission or options file inside your miz-file to see the structure of these settings.
 
+date has different options:
+* date: '2022-05-31' # normal date
+* date: 'today'      # one of today, yesterday, tomorrow
+
+start_time has different options:
+* start_time: 28800            # seconds since midnight (here: 08:00h)
+* start_time: '08:00'          # fixed time
+* start_time: 'noon'           # one of now, dawn, sunrise, morning, noon, evening, sunset, dusk, night as a moment in time based on the current map / date
+* start_time: 'morning +02:00' # relative time to one of the above-mentioned moments
+
+> [!NOTE]
+> The moments are calculated based on the current theatre and date. If you change the date through MizEdit, you need to
+> set that prior to the start_time!
+> 
+> Thanks @davidp57 for contributing the moments part!
+
 #### b) Attaching Files
 If you want to attach files to your mission (e.g. sounds but others like scripts, etc.), you can do it like this:
 ```yaml

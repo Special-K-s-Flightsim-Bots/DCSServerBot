@@ -1,4 +1,6 @@
 import discord
+from discord import Interaction
+from discord._types import ClientT
 
 from core import Server
 from discord.ui import Modal, TextInput, View, Button
@@ -87,7 +89,8 @@ class ConfigView(View):
     @discord.ui.button(label='Config', style=discord.ButtonStyle.secondary)
     async def on_config(self, interaction: discord.Interaction, _: Button):
         class ConfigModal(Modal, title="Server Configuration"):
-            name = TextInput(label="Name", default=self.server.name, max_length=80, required=True)
+            name = TextInput(label="Name", default=self.server.name if self.server.name != 'n/a' else '',
+                             min_length=3, max_length=80, required=True)
             description = TextInput(label="Description", style=discord.TextStyle.long,
                                     default=self.server.settings.get('description'), max_length=2000, required=False)
             password = TextInput(label="Password", placeholder="n/a", default=self.server.settings.get('password'),
