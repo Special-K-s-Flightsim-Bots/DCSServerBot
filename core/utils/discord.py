@@ -314,10 +314,7 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
         return view.result
     finally:
         try:
-            if ctx.interaction:
-                await ctx.interaction.delete_original_response()
-            else:
-                await msg.delete()
+            await msg.delete()
         except discord.NotFound:
             pass
 
@@ -374,10 +371,7 @@ async def populated_question(ctx: Union[commands.Context, discord.Interaction], 
         return view.result
     finally:
         try:
-            if ctx.interaction:
-                await ctx.interaction.delete_original_response()
-            else:
-                await msg.delete()
+            await msg.delete()
         except discord.NotFound:
             pass
 
