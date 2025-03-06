@@ -240,7 +240,7 @@ class Dashboard(Service):
         layout = Layout()
         layout.split(
             Layout(header, name="header", size=3),
-            Layout(servers, name="main"),
+            Layout(servers, name="main", size=len(self.bus.servers) + 6),
             Layout(log, name="log", ratio=2, minimum_size=5)
         )
         if self.node.master and self.is_multinode():
