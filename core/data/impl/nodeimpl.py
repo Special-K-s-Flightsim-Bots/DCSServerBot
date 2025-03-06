@@ -60,7 +60,7 @@ REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot
 LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
 LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
-LICENSES_URL = 'https://api.digitalcombatsimulator.com/checklicenses.php'
+LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
 # Internationalisation
 _ = get_translation('core')
@@ -247,15 +247,15 @@ class NodeImpl(Node):
             pass
         # quick connection check
         max_attempts = self.config.get("database", self.locals.get('database')).get('max_retries', 10)
-        for attempt in range(max_attempts):
+        for attempt in range(max_attempts + 1):
             try:
-                aconn = await psycopg.AsyncConnection.connect(url)
+                aconn = await psycopg.AsyncConnection.connect(url, connect_timeout=5)
                 async with aconn:
                     cursor = await aconn.execute("SHOW server_version")
                     version = (await cursor.fetchone())[0]
                     self.log.info(f"- Connection to PostgreSQL {version} established.")
                     break
-            except OperationalError:
+            except ConnectionTimeout:
                 if attempt == max_attempts:
                     raise
                 self.log.warning("- Database not available, trying again in 5s ...")
