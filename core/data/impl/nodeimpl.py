@@ -668,8 +668,8 @@ class NodeImpl(Node):
                                 SELECT c.master, c.version, c.update_pending, n.node 
                                 FROM cluster c LEFT OUTER JOIN nodes n
                                 ON c.guild_id = n.guild_id AND c.master = n.node
-                                WHERE c.guild_id = %s
                                 AND n.last_seen > (NOW() AT TIME ZONE 'UTC' - interval '1 minute')
+                                WHERE c.guild_id = %s
                             """, (self.guild_id, ))
                             cluster = await cursor.fetchone()
                             # No master there? we take it!
