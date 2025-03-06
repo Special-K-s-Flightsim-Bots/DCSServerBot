@@ -46,7 +46,7 @@ class HeaderWidget:
             else:
                 message += "Cluster Agent | "
         message += (f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version} | "
-                    f"DCS Version {self.service.dcs_version}[/]")
+                    f"DCS Version {self.node.dcs_version}[/]")
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
         return Panel(grid, style=config.get("background", "white on navy_blue"),
                      border_style=config.get("border", "white"))
@@ -225,23 +225,26 @@ class Dashboard(Service):
         self.queue = None
         self.log_handler = None
         self.old_handler = None
-        self.dcs_branch = None
-        self.dcs_version = None
         self.update_task = None
+        self.header_widget = None
+        self.servers_widget = None
+        self.log_widget = None
         self.stop_event = asyncio.Event()
 
     def is_multinode(self):
         return len(self.node.all_nodes) > 1
 
+    def create_widgets(self):
+        self.header_widget = HeaderWidget(self)
+        self.servers_widget = ServersWidget(self)
+        self.log_widget = LogWidget(self)
+
     def create_layout(self):
-        header = HeaderWidget(self)
-        servers = ServersWidget(self)
-        log = LogWidget(self)
         layout = Layout()
         layout.split(
-            Layout(header, name="header", size=3),
-            Layout(servers, name="main", size=len(self.bus.servers) + 6),
-            Layout(log, name="log", ratio=2, minimum_size=5)
+            Layout(self.header_widget, name="header", size=3),
+            Layout(self.servers_widget, name="main", size=len(self.bus.servers) + 6),
+            Layout(self.log_widget, name="log", ratio=2, minimum_size=5)
         )
         if self.node.master and self.is_multinode():
             servers = ServersWidget(self)
@@ -270,7 +273,7 @@ class Dashboard(Service):
         await super().start()
         self.bus = ServiceRegistry.get(ServiceBus)
         self.hook_logging()
-        self.dcs_branch, self.dcs_version = await self.node.get_dcs_branch_and_version()
+        self.create_widgets()
         self.layout = self.create_layout()
         self.stop_event.clear()
         self.update_task = asyncio.create_task(self.update())
@@ -291,8 +294,14 @@ class Dashboard(Service):
 
     async def update(self):
         try:
+            previous_server_count = len(self.bus.servers)
             with Live(self.layout, refresh_per_second=1, screen=True):
-                await self.stop_event.wait()
+                while not self.stop_event.is_set():
+                    current_server_count = len(self.bus.servers)
+                    if current_server_count != previous_server_count:
+                        self.layout = self.create_layout()
+                        previous_server_count = current_server_count
+                    await asyncio.sleep(1)
         except Exception as ex:
             self.log.exception(ex)
             await self.stop()
