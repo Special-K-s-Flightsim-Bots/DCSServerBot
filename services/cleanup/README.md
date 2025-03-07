@@ -20,6 +20,8 @@ DEFAULT:
     channel:                # delete all messages from these channels ...
       - 112233445566778899
       - 998877665544332211
+    ignore: 
+      - 11992288337744      # ignore these author IDs
     delete_after: 7         # ... which are older than 7 days (default: 0)
 DCS.release_server:
   greenieboard:
