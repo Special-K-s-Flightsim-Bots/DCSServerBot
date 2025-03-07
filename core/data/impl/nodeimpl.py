@@ -706,6 +706,7 @@ class NodeImpl(Node):
                                     else:
                                         # something went wrong, we need to upgrade again
                                         # noinspection PyAsyncCall
+                                        self.log.debug("Upgrade failed, upgrading again.")
                                         asyncio.create_task(self.upgrade())
                                         return True
                                 elif parse(cluster['version']) != parse(__version__):
@@ -748,6 +749,7 @@ class NodeImpl(Node):
                                 self.log.debug("A bot update is in progress. We will not take over the master node.")
                                 return False
                             elif not cluster['node']:
+                                self.log.debug("Taking over the MASTER, because none is set.")
                                 await cursor.execute("UPDATE cluster SET master = %s WHERE guild_id = %s",
                                                      (self.name, self.guild_id))
                                 return True
