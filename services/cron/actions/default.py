@@ -103,7 +103,7 @@ async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: 
 
         try:
             def check(message: discord.Message):
-                return not ignore or message.author.id not in ignore
+                return not ignore or (message.author.id not in ignore and message.id not in ignore)
 
             if older_than is not None:
                 now = datetime.now(tz=timezone.utc)
