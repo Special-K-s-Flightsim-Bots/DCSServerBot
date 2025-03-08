@@ -30,7 +30,7 @@ DEFAULT:
             - 112233445566778899
             - 998877665544332211
           older_than: 7                 # delete all messages that are older than 7 days
-          ignore: 119922883377446655    # ignore this user id (probably the bots)
+          ignore: 119922883377446655    # ignore this user id AND message id (either the bot's or persistent messages in the channel); can be either an ID or a list of IDs
 DCS.release_server:
   actions:
     - cron: '0 0,4,8,12,16,20 * * *'  # run every 4 hrs
@@ -127,7 +127,7 @@ DEFAULT:
             - 112233445566778899
             - 998877665544332211
           older_than: 7                 # delete all messages that are older than 7 days
-          ignore: 119922883377446655    # ignore this user id (probably the bots)
+          ignore: 119922883377446655    # ignore this user id AND message id (either the bot's or persistent messages in the channel); can be either an ID or a list of IDs
 ```
 
 g) dcs_update
