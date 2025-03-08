@@ -63,10 +63,10 @@ class CleanupService(Service):
                 if 'directory' in config:
                     await self.do_directory_cleanup(instance, config)
         else:
-            config = self.get_config()
-            if 'channel' in config:
-                self.log.debug(f"- Running channel cleanup ...")
-                await self.do_channel_cleanup(config)
+            for name, config in self.get_config().items():
+                if 'channel' in config:
+                    self.log.debug(f"- Running channel cleanup ...")
+                    await self.do_channel_cleanup(config)
 
     @tasks.loop(hours=12)
     async def schedule(self):
