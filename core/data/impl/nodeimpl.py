@@ -280,7 +280,7 @@ class NodeImpl(Node):
 
         self.log.info(f"- Connection to PostgreSQL {version} established.")
 
-        pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 0)
+        pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 4)
         pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 10)
         max_idle = self.locals.get("database", self.config.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
@@ -291,7 +291,7 @@ class NodeImpl(Node):
 
         self.apool = AsyncConnectionPool(conninfo=lpool_url, min_size=pool_min, max_size=pool_max,
                                          check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                         reconnect_timeout=60.0, reconnect_failed=reconnect_failed, open=False)
+                                         open=False)
         await self.apool.open()
 
         if urlparse(lpool_url).path != urlparse(cpool_url).path:
@@ -299,7 +299,7 @@ class NodeImpl(Node):
             self.cpool = AsyncConnectionPool(
                 conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
                 max_idle=self.config['database'].get('max_idle', 10 * 60.0),
-                timeout=timeout, reconnect_timeout=60.0, reconnect_failed=reconnect_failed, open=False)
+                timeout=timeout, open=False)
             await self.cpool.open()
         else:
             self.cpool = self.apool
