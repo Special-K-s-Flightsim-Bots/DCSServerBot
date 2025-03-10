@@ -123,12 +123,6 @@ class Node:
                     with open(file, 'w', encoding='utf-8') as f:
                         yaml.dump(config, f)
                     self.log.info("Database password found, removing it from config.")
-                else:
-                    try:
-                        utils.get_password('clusterdb', self.config_dir)
-                    except ValueError:
-                        password = utils.get_password('database', self.config_dir)
-                        utils.set_password('clusterdb', password, self.config_dir)
 
             # set defaults
             config['autoupdate'] = config.get('autoupdate', False)

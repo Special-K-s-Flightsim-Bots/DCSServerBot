@@ -266,10 +266,13 @@ class NodeImpl(Node):
         cpool_url = self.config.get("database", self.locals.get('database'))['url']
         lpool_url = self.locals.get("database", self.config.get('database'))['url']
         try:
-            cpool_url = cpool_url.replace('SECRET', quote(utils.get_password('clusterdb', self.config_dir)) or '')
-            lpool_url = lpool_url.replace('SECRET', quote(utils.get_password('database', self.config_dir)) or '')
+            password = utils.get_password('clusterdb', self.config_dir)
         except ValueError:
-            pass
+            password = utils.get_password('database', self.config_dir)
+            utils.set_password('clusterdb', password, self.config_dir)
+
+        cpool_url = cpool_url.replace('SECRET', quote(password) or '')
+        lpool_url = lpool_url.replace('SECRET', quote(utils.get_password('database', self.config_dir)) or '')
 
         version = await check_db(lpool_url)
         if lpool_url != cpool_url:
