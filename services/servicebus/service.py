@@ -233,7 +233,7 @@ class ServiceBus(Service):
                         self.log.info(f"  => Local DCS-Server \"{server.name}\" registered as DOWN (no process).")
                         num += 1
                 except Exception as ex:
-                    self.log.error(f"Error while registering DCS-Server \"{server.name}\": {ex}")
+                    self.log.error(f'Error while registering DCS-Server "{server.name}"', exc_info=ex)
             ret = await asyncio.gather(*(calls.values()), return_exceptions=True)
             for i, name in enumerate(calls.keys()):
                 server = self.servers[name]

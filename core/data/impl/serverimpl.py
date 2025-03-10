@@ -309,7 +309,10 @@ class ServerImpl(Server):
     def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
-            start_index = int(settings.get('listStartIndex', 1))
+            try:
+                start_index = int(settings.get('listStartIndex', 1))
+            except ValueError:
+                start_index = settings['listStartIndex'] = 1
             if start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
             else:
@@ -910,7 +913,7 @@ class ServerImpl(Server):
         # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
-            mission = self.settings['missionList'][start_index - 1]
+            mission = self._get_current_mission_file()
             if use_orig:
                 # now determine the original mission name
                 orig_mission = utils.get_orig_file(mission)
