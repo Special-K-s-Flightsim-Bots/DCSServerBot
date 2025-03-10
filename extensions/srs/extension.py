@@ -366,6 +366,7 @@ class SRS(Extension, FileSystemEventHandler):
             running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
             if not running:
                 self.log.debug("SRS: is NOT running (port)")
+                self.process = None
         # start the observer, if we were started to a running SRS server
         if running and not self.observer:
             self.start_observer()

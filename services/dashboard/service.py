@@ -302,7 +302,7 @@ class Dashboard(Service):
                         self.layout = self.create_layout()
                         live.update(self.layout)
                         previous_server_count = current_server_count
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
         except Exception as ex:
             self.log.exception(ex)
             await self.stop()

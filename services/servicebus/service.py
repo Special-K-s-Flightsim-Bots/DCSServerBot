@@ -49,12 +49,13 @@ class ServiceBus(Service):
             if not self.node.locals['DCS'].get('cloud', False) or self.master:
                 utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
-        db_pass = utils.get_password('database', self.node.config_dir)
         # main.yaml database connection has priority for intercom
-        url = self.node.config.get("database", self.node.locals.get('database'))['url'].replace('SECRET', db_pass)
+        url = self.node.config.get("database", self.node.locals.get('database'))['url'].replace(
+            'SECRET', utils.get_password('clusterdb', self.node.config_dir))
         self.intercom_channel = PubSub(self.node, 'intercom', url, self.handle_rpc)
         # nodes.yaml database connection has priority for broadcasts
-        url = self.node.locals.get("database", self.node.config.get('database'))['url'].replace('SECRET', db_pass)
+        url = self.node.locals.get("database", self.node.config.get('database'))['url'].replace(
+            'SECRET', utils.get_password('database', self.node.config_dir))
         self.broadcasts_channel = PubSub(self.node, 'broadcasts', url, self.handle_broadcast_event)
         self._lock = asyncio.Lock()
 
@@ -69,7 +70,7 @@ class ServiceBus(Service):
             await self.intercom_channel.clear()
             await self.broadcasts_channel.clear()
             # cleanup the files
-            async with self.apool.connection() as conn:
+            async with self.node.cpool.connection() as conn:
                 async with conn.transaction():
                     await conn.execute("""
                         DELETE FROM files 
@@ -100,13 +101,13 @@ class ServiceBus(Service):
             for node in await self.node.get_active_nodes():
                 await self.send_to_node({
                     "command": "rpc",
-                    "service": "ServiceBus",
+                    "service": self.__class__.__name__,
                     "method": "switch"
                 }, node=node)
         else:
             await self.send_to_node({
                 "command": "rpc",
-                "service": "ServiceBus",
+                "service": self.__class__.__name__,
                 "method": "register_remote_node",
                 "params": {
                     "name": self.node.name,
@@ -129,7 +130,7 @@ class ServiceBus(Service):
         if not self.master:
             await self.send_to_node({
                 "command": "rpc",
-                "service": "ServiceBus",
+                "service": self.__class__.__name__,
                 "method": "unregister_remote_node",
                 "params": {
                     "node": self.node.name
@@ -183,7 +184,7 @@ class ServiceBus(Service):
         _, dcs_version = await self.node.get_dcs_branch_and_version()
         await self.send_to_node_sync({
             "command": "rpc",
-            "service": "ServiceBus",
+            "service": self.__class__.__name__,
             "method": "init_remote_server",
             "params": {
                 "server_name": server.name,
@@ -250,7 +251,7 @@ class ServiceBus(Service):
     async def register_remote_servers(self, node: Node):
         await self.send_to_node({
             "command": "rpc",
-            "service": "ServiceBus",
+            "service": self.__class__.__name__,
             "method": "register_local_servers"
         }, node=node.name)
         self.log.info(f"- Remote node {node.name} registered.")
@@ -809,10 +810,12 @@ class ServiceBus(Service):
             def shutdown(derived):
                 super().shutdown()
                 try:
-                    for server_name, queue in derived.message_queue.items():
-                        if not queue.empty():
-                            queue.join()
-                        queue.put({})
+                    for server_name in list(derived.message_queue.keys()):
+                        queue = derived.message_queue.get(server_name)
+                        if queue:
+                            if not queue.empty():
+                                queue.join()
+                            queue.put({})
                 except Exception as ex:
                     self.log.exception(ex)
 

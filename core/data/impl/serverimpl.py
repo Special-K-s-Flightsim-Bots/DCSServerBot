@@ -381,10 +381,7 @@ class ServerImpl(Server):
             if update_settings:
                 self.settings['name'] = new_name
 
-        old_name = self.name
-        if old_name == 'n/a':
-            old_name = None
-        try:
+        async def update_database(old_name: str, new_name: str):
             # rename the server in the database
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -405,20 +402,29 @@ class ServerImpl(Server):
                         SET server_name = %s 
                         WHERE server_name IS NOT DISTINCT FROM %s
                     """, (new_name, old_name))
-                    # only the master can take care of a cluster-wide rename
-                    if self.node.master:
-                        await self.node.rename_server(self, new_name)
-                    else:
-                        await self.bus.send_to_node_sync({
-                            "command": "rpc",
-                            "object": "Node",
-                            "method": "rename_server",
-                            "params": {
-                                "server": self.name or 'n/a',
-                                "new_name": new_name
-                            }
-                        })
-                        self.bus.rename_server(self, new_name)
+
+        async def update_cluster(new_name: str):
+            # only the master can take care of a cluster-wide rename
+            if self.node.master:
+                await self.node.rename_server(self, new_name)
+            else:
+                await self.bus.send_to_node_sync({
+                    "command": "rpc",
+                    "object": "Node",
+                    "method": "rename_server",
+                    "params": {
+                        "server": self.name or 'n/a',
+                        "new_name": new_name
+                    }
+                })
+                self.bus.rename_server(self, new_name)
+
+        old_name = self.name
+        if old_name == 'n/a':
+            old_name = None
+        try:
+            await update_database(old_name, new_name)
+            await update_cluster(new_name)
             try:
                 # update servers.yaml
                 update_config(old_name, new_name, update_settings)
@@ -438,8 +444,8 @@ class ServerImpl(Server):
             if os.path.exists(path):
                 break
         else:
-            self.log.error(f"No executable found to start a DCS server in {basepath}!")
-            return
+            raise FileNotFoundError(f"No executable found to start a DCS server in {basepath}!")
+
         # check if all missions are existing
         missions = []
         for mission in self.settings['missionList']:

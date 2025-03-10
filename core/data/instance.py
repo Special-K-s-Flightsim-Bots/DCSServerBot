@@ -86,4 +86,4 @@ class Instance(DataObject):
         self._server = server
 
     def prepare(self):
-        raise NotImplemented()
+        raise NotImplementedError()

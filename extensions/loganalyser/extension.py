@@ -17,6 +17,7 @@ ERROR_SCRIPT = r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)'
 MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})-\w+ \*\*\*"
 NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
 NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
+REGMAP_STORAGE_FULL = "RegMapStorage has no more IDs"
 
 __all__ = [
     "LogAnalyser"
@@ -51,6 +52,7 @@ class LogAnalyser(Extension):
         self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
         self.register_callback(NO_UPNP, self.disable_upnp)
         self.register_callback(NO_TERRAIN, self.terrain_missing)
+        self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
         # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
 
@@ -228,3 +230,7 @@ class LogAnalyser(Extension):
             await self.send_alert(title="Terrain Missing!",
                                   message=f"Terrain {theatre} is not installed on this server!\n"
                                           f"You can't run mission {filename}.")
+
+    async def restart_server(self, idx: int, line: str, match: re.Match):
+        self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")
+        asyncio.create_task(self.server.restart(modify_mission=False))

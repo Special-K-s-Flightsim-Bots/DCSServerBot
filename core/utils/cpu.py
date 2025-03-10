@@ -231,9 +231,9 @@ def get_cpus_from_affinity(affinity_mask: int) -> list[int]:
     return core_ids
 
 
-def determine_performance_class(efficiency_class: int, flags: int) -> int:
+def determine_scheduling_class(efficiency_class: int, flags: int) -> int:
     """
-    Determines the performance class of a processor core.
+    Determines the scheduling class of a processor core.
 
     Args:
         efficiency_class (int): The processor core's efficiency class as given
@@ -241,9 +241,9 @@ def determine_performance_class(efficiency_class: int, flags: int) -> int:
         flags (int): Processor flags or the group affinity mask.
 
     Returns:
-        int: The core's performance class.
+        int: The core's scheduling class.
     """
-    # Example: Map efficiency class & flags to performance class
+    # Example: Map efficiency class & flags to scheduling class
     # You may override or extend this logic depending on architecture
     if efficiency_class == 0:
         return 0  # Efficiency cores (E-cores)
@@ -254,24 +254,24 @@ def determine_performance_class(efficiency_class: int, flags: int) -> int:
         return (flags >> 2) & 0b11  # Example: Mock performance tier from 'flags'
 
 
-def get_performance_classes() -> dict:
+def get_scheduling_classes() -> dict:
     """
-    Groups logical cores by their performance class.
+    Groups logical cores by their scheduling class.
 
     Returns:
-        dict: A dictionary mapping each performance class to its associated logical cores.
-              Keys are `performance_class` integers, and values are combined bitmasks of logical processors.
+        dict: A dictionary mapping each scheduling class to its associated logical cores.
+              Keys are `scheduling_class` integers, and values are combined bitmasks of logical processors.
     """
     processor_info = get_processor_info()  # Retrieve individual core data
-    performance_classes = {}  # Dictionary to store logical processors mapped by performance class
+    scheduling_classes = {}  # Dictionary to store logical processors mapped by scheduling class
 
-    for _, performance_class, mask in processor_info:
-        # Group logical processors by performance class
-        if performance_class not in performance_classes:
-            performance_classes[performance_class] = 0
-        performance_classes[performance_class] |= mask  # Aggregate logical processors for the class using bitwise OR
+    for _, scheduling_class, mask in processor_info:
+        # Group logical processors by scheduling class
+        if scheduling_class not in scheduling_classes:
+            scheduling_classes[scheduling_class] = 0
+        scheduling_classes[scheduling_class] |= mask  # Aggregate logical processors for the class using bitwise OR
 
-    return performance_classes
+    return scheduling_classes
 
 
 def get_cpu_name():
@@ -303,16 +303,16 @@ def log_cpu():
                 logger.debug(f"logical cores with efficiency class {efficiency_class}: {get_cpus_from_affinity(mask)}")
     else:
         logger.debug(f"all CPU cores have the same efficiency class {efficiency_classes[0]}")
-    performance_classes = sorted({entry[1] for entry in processor_info})
-    if len(performance_classes) > 1:
-        logger.info(f"CPU cores have different efficiency classes: [{performance_classes[0]}-{performance_classes[-1]}]")
-        for performance_class in sorted(performance_classes, reverse=True):
+    scheduling_classes = sorted({entry[1] for entry in processor_info})
+    if len(scheduling_classes) > 1:
+        logger.info(f"CPU cores have different efficiency classes: [{scheduling_classes[0]}-{scheduling_classes[-1]}]")
+        for scheduling_class in sorted(scheduling_classes, reverse=True):
             for eclass, pclass, mask in processor_info:
-                if pclass != performance_class:
+                if pclass != scheduling_class:
                     continue
-                logger.debug(f"logical cores with performance class {performance_class}: {get_cpus_from_affinity(mask)}")
+                logger.debug(f"logical cores with scheduling class {scheduling_class}: {get_cpus_from_affinity(mask)}")
     else:
-        logger.debug(f"all CPU cores have the same performance class {performance_classes[0]}")
+        logger.debug(f"all CPU cores have the same scheduling class {scheduling_classes[0]}")
 
 
 if __name__ == '__main__':
@@ -322,6 +322,6 @@ if __name__ == '__main__':
     print(f"Performance Cores: {get_cpus_from_affinity(p_core_affinity_mask)}")
     e_core_affinity_mask = get_e_core_affinity()
     print(f"Efficiency Cores: {get_cpus_from_affinity(e_core_affinity_mask)}")
-    performance_classes = get_performance_classes()
-    for plcass, affinity_mask in performance_classes.items():
-        print(f"Performance Class {plcass}: {get_cpus_from_affinity(affinity_mask)}")
+    scheduling_classes = get_scheduling_classes()
+    for plcass, affinity_mask in scheduling_classes.items():
+        print(f"Scheduling Class {plcass}: {get_cpus_from_affinity(affinity_mask)}")

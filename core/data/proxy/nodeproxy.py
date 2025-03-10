@@ -41,7 +41,7 @@ class NodeProxy(Node):
 
     @master.setter
     def master(self, value: bool):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def public_ip(self) -> str:
@@ -53,7 +53,7 @@ class NodeProxy(Node):
 
     @property
     def installation(self) -> str:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def read_locals(self) -> dict:
         _locals = dict()
