@@ -688,10 +688,10 @@ class Scheduler(Plugin[SchedulerListener]):
             else:
                 await self.teardown_dcs(server, interaction.user)
             await msg.edit(content=f"Server \"{server.display_name}\" shut down. Restarting ...")
-            server.maintenance = maintenance
             if mission_id is not None:
                 await server.setStartIndex(mission_id + 1)
             await self.launch_dcs(server, interaction.user, modify_mission=run_extensions, use_orig=use_orig)
+            server.maintenance = maintenance
             await msg.edit(content=f"DCS server \"{server.display_name}\" restarted.")
         except (TimeoutError, asyncio.TimeoutError):
             if server.status == Status.SHUTDOWN:
