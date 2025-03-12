@@ -251,8 +251,8 @@ class SchedulerListener(EventListener["Scheduler"]):
     async def _restart_server(self, server: Server):
         server.maintenance = True
         await self.plugin.teardown_dcs(server)
-        server.maintenance = False
         await self.plugin.launch_dcs(server, modify_mission=False, use_orig=False)
+        server.maintenance = False
 
     @event(name="restartServer")
     async def restartServer(self, server: Server, _: dict) -> None:
