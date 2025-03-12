@@ -248,6 +248,16 @@ class SchedulerListener(EventListener["Scheduler"]):
             # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onShutdown']))
 
+    async def _restart_server(self, server: Server):
+        server.maintenance = True
+        await self.plugin.teardown_dcs(server)
+        await self.plugin.launch_dcs(server, modify_mission=False, use_orig=False)
+        server.maintenance = False
+
+    @event(name="restartServer")
+    async def restartServer(self, server: Server, _: dict) -> None:
+        asyncio.create_task(self._restart_server(server))
+
     def set_restart_time(self, server: Server) -> None:
         config = self.get_config(server)
         if not config or not server.current_mission:
