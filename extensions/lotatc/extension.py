@@ -232,7 +232,7 @@ class LotAtc(Extension, FileSystemEventHandler):
                     root = ET.fromstring(await response.text(encoding='utf-8'))
                     for package in root.findall('.//PackageUpdate'):
                         name = package.find('Name')
-                        if name is not None and name.text == 'com.lotatc.server':
+                        if name is not None and name.text == 'com.lotatc.server.server23':
                             version = package.find('Version')
                             if version is not None:
                                 break
