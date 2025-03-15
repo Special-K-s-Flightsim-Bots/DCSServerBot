@@ -742,10 +742,6 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.followup.send(_("No mission found."), ephemeral=True)
             return
         filename = missions[mission_id]
-        if server.status in [Status.RUNNING, Status.PAUSED] and filename == server.current_mission.filename:
-            await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
-                                            ephemeral=True)
-            return
         if '.dcssb' in filename:
             new_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
                                     os.path.basename(filename))
@@ -753,6 +749,10 @@ class Mission(Plugin[MissionEventListener]):
         else:
             new_file = filename
             orig_file = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename)) + '.orig'
+        if server.status in [Status.RUNNING, Status.PAUSED] and new_file == server.current_mission.filename:
+            await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
+                                            ephemeral=True)
+            return
         try:
             await server.node.rename_file(orig_file, new_file, force=True)
         except FileNotFoundError:
