@@ -396,6 +396,10 @@ class Tacview(Extension):
                     await outfile.writelines(lines_to_keep)
             else:
                 os.remove(export_file)
+        options = self.server.options.get('plugins')
+        if options:
+            options['Tacview'] |= {'tacviewModuleEnabled': False}
+            self.server.options['plugins'] = options
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
         return True
 
