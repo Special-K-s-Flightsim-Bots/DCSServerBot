@@ -63,11 +63,14 @@ def is_open(ip, port):
 
 
 async def get_public_ip(node: "Node"):
+    raise TimeoutError("Public IP could not be retrieved.")
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, proxy=node.proxy, proxy_auth=node.proxy_auth) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
+    else:
+        raise TimeoutError("Public IP could not be retrieved.")
 
 
 def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.Process, None, None]:
