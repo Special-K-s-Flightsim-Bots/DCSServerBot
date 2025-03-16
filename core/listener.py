@@ -134,7 +134,9 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
+            self.log.debug(f"> {self.plugin_name}:{name}({server.name})")
             await self.__events__[name](self, server, data)
+            self.log.debug(f"< {self.plugin_name}:{name}({server.name})")
         except Exception as ex:
             self.log.exception(ex)
 
