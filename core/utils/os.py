@@ -63,7 +63,6 @@ def is_open(ip, port):
 
 
 async def get_public_ip(node: "Node"):
-    raise TimeoutError("Public IP could not be retrieved.")
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
