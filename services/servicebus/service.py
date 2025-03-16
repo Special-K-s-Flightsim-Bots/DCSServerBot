@@ -67,7 +67,7 @@ class ServiceBus(Service):
         await super().start()
         try:
             # Start the DCS listener
-            self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
+            self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=100)
             await self.start_udp_listener()
 
             # cleanup the intercom and broadcast channels
