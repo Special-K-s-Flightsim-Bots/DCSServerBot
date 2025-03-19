@@ -295,6 +295,9 @@ class ServerImpl(Server):
     def prepare(self):
         if self.settings.get('name', 'DCS Server') != self.name:
             self.settings['name'] = self.name
+        # enable persistence
+        if not self.settings.get('sav_autosave', False):
+            self.settings['sav_autosave'] = True
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
@@ -945,6 +948,7 @@ class ServerImpl(Server):
             try:
                 idx = self.settings['missionList'].index(filename) + 1
                 self.settings['listStartIndex'] = idx
+                self.settings['current'] = idx
                 return await self.start()
             except ValueError:
                 return False

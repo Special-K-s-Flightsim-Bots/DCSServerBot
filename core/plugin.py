@@ -372,8 +372,8 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                                 installed = ver + '.' + str(int(rev) + 1)
                             await self.migrate(installed, conn)
                             self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
-                        await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
-                                             (self.plugin_version, self.plugin_name))
+                            await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
+                                                 (self.plugin_version, self.plugin_name))
                         return False
 
     @staticmethod

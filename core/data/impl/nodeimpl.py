@@ -280,16 +280,17 @@ class NodeImpl(Node):
 
         self.log.info(f"- Connection to PostgreSQL {version} established.")
 
-        pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 4)
-        pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 10)
+        pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 10)
+        pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 20)
         max_idle = self.locals.get("database", self.config.get('database')).get('max_idle', 10 * 60.0)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
         self.log.debug("- Initializing database pools ...")
-        self.pool = ConnectionPool(lpool_url, min_size=2, max_size=10, check=ConnectionPool.check_connection,
-                                   max_idle=max_idle, timeout=timeout, open=False)
+        self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
+                                   check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
+                                   open=False)
         self.pool.open()
 
-        self.apool = AsyncConnectionPool(conninfo=lpool_url, min_size=pool_min, max_size=pool_max,
+        self.apool = AsyncConnectionPool(conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
                                          check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
                                          open=False)
         await self.apool.open()

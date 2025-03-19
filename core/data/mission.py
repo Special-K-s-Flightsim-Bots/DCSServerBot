@@ -61,7 +61,7 @@ class Mission(DataObject):
         if 'current_map' in data:
             self.map = data['current_map']
         if 'current_mission' in data:
-            self.name = data['current_mission']
+            self.name = data['current_mission'].replace('.sav', '')
         if 'start_time' in data:
             self.start_time = data['start_time']
         if 'mission_time' in data:

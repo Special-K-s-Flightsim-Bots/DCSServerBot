@@ -46,7 +46,8 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         if server.locals.get('ignore_dirs'):
             ignore.extend(server.locals['ignore_dirs'])
         installed_missions = [os.path.expandvars(x) for x in await server.getMissionList()]
-        exp_base, file_list = await server.node.list_directory(base_dir, pattern="*.miz", traverse=True, ignore=ignore)
+        exp_base, file_list = await server.node.list_directory(base_dir, pattern=['*.miz', '*.sav'], traverse=True,
+                                                               ignore=ignore)
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=os.path.relpath(x, exp_base)[:-4], value=os.path.relpath(x, exp_base))
             for x in file_list
@@ -90,6 +91,37 @@ async def presets_autocomplete(interaction: discord.Interaction, current: str) -
             if not current or current.casefold() in x.name[:-5].casefold()
         ]
         return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+        return []
+
+
+async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    """
+    Autocompletion of mission names from the current mission list of a server that has to be provided as an earlier
+    parameter to the application command. The mission list can only be obtained by people with the DCS Admin role.
+    """
+    def get_name(base_dir: str, path: str):
+        try:
+            return os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+        except ValueError:
+            return os.path.basename(path)[:-4]
+
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        server: Server = await utils.ServerTransformer().transform(
+            interaction, utils.get_interaction_param(interaction, 'server')
+        )
+        if not server:
+            return []
+        base_dir = await server.get_missions_dir()
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=get_name(base_dir, x), value=idx)
+            for idx, x in enumerate(await server.getMissionList())
+            if not x.endswith('.sav') and (current or current.casefold() in get_name(base_dir, x).casefold())
+        ]
+        return sorted(choices, key=lambda choice: choice.name)[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -742,6 +774,11 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.followup.send(_("No mission found."), ephemeral=True)
             return
         filename = missions[mission_id]
+        if server.status in [Status.RUNNING, Status.PAUSED] and filename == server.current_mission.filename:
+            await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
+                                            ephemeral=True)
+            return
+
         if '.dcssb' in filename:
             new_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
                                     os.path.basename(filename))
@@ -749,12 +786,12 @@ class Mission(Plugin[MissionEventListener]):
         else:
             new_file = filename
             orig_file = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename)) + '.orig'
-        if server.status in [Status.RUNNING, Status.PAUSED] and new_file == server.current_mission.filename:
-            await interaction.followup.send(_("Please stop your server first to rollback the running mission."),
-                                            ephemeral=True)
-            return
         try:
+            orig_file = orig_file.replace('.sav', '.miz')
+            new_file = new_file.replace('.sav', '.miz')
             await server.node.rename_file(orig_file, new_file, force=True)
+            if filename.endswith('.sav'):
+                await server.node.remove_file(filename)
         except FileNotFoundError:
             # we should never be here, but just in case
             await interaction.followup.send(_('No ".orig" file there, the mission was never changed.'),
@@ -869,6 +906,38 @@ class Mission(Plugin[MissionEventListener]):
             })
         message = _('The following preset was applied: {}.').format(view.result[0])
         await interaction.followup.send(message, ephemeral=ephemeral)
+
+    @mission.command(description=_('Enables persistence'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(mission_id="mission")
+    @app_commands.autocomplete(mission_id=nosav_autocomplete)
+    @utils.app_has_dcs_version("2.9.14")
+    async def persistence(self, interaction: discord.Interaction,
+                          server: app_commands.Transform[Server, utils.ServerTransformer], mission_id: int):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        missions = await server.getMissionList()
+        if mission_id >= len(missions):
+            await interaction.followup.send(_("No mission found."), ephemeral=True)
+            return
+        filename = missions[mission_id]
+        new_file = filename.replace('.miz', '.sav')
+        if server.status in [Status.RUNNING, Status.PAUSED] and filename == server.current_mission.filename:
+            await interaction.followup.send(
+                _("Please stop your server first to enable persistence of the running mission."), ephemeral=True)
+            return
+        try:
+            utils.get_orig_file(filename)
+            await server.node.rename_file(filename, new_file, force=True)
+        except FileNotFoundError:
+            # we should never be here, but just in case
+            await interaction.followup.send(_('No ".orig" file found.'), ephemeral=True)
+            return
+        await server.replaceMission(mission_id + 1, new_file)
+        await interaction.followup.send(
+            _("Persistence for mission {} enabled.").format(os.path.basename(filename)[:-4]), ephemeral=ephemeral)
 
     # New command group "/player"
     player = Group(name="player", description=_("Commands to manage DCS players"))
@@ -1813,7 +1882,7 @@ class Mission(Plugin[MissionEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        pattern = ['.miz']
+        pattern = ['.miz', '.sav']
         config = self.get_config().get('uploads', {})
         if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
             return
