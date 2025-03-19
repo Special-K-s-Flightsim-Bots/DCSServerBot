@@ -1163,13 +1163,16 @@ class NodeImpl(Node):
             for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
                 data = yaml.load(plugin.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
-                yaml.dump(data, plugin)
+                with plugin.open('w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
 
             # rename service configs
             for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
                 data = yaml.load(service.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
-                yaml.dump(data, service)
+                with service.open('w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
+
 
             # restart all services but the bot
             tasks = []
