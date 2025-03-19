@@ -43,7 +43,7 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
-from core.utils.helper import SettingsDict, YAMLError, async_cache
+from core.utils.helper import SettingsDict, YAMLError, cache_with_expiration
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -582,12 +582,13 @@ class NodeImpl(Node):
                                             _('Server is going down to {what}'.format(what=what) + ' a module in {}!')):
             await asyncio.to_thread(run_subprocess)
 
+    @cache_with_expiration(expiration=60)
     async def get_installed_modules(self) -> list[str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
             data = json.load(cfg)
         return data['modules']
 
-    @async_cache
+    @cache_with_expiration(expiration=120)
     async def get_available_modules(self) -> list[str]:
         licenses = {
             "CAUCASUS_terrain",
@@ -602,6 +603,7 @@ class NodeImpl(Node):
             "KOLA_terrain",
             "AFGHANISTAN_terrain",
             "IRAQ_terrain",
+            "GERMANYCW_terrain",
             "WWII-ARMOUR",
             "SUPERCARRIER"
         }
@@ -627,6 +629,7 @@ class NodeImpl(Node):
                         pass
             return list(licenses)
 
+    @cache_with_expiration(expiration=120)
     async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
         async def _get_latest_versions_no_auth() -> Optional[list[str]]:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
@@ -1176,13 +1179,15 @@ class NodeImpl(Node):
             for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
                 data = yaml.load(plugin.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
-                yaml.dump(data, plugin)
+                with plugin.open('w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
 
             # rename service configs
             for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
                 data = yaml.load(service.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
-                yaml.dump(data, service)
+                with service.open('w', encoding='utf-8') as outfile:
+                    yaml.dump(data, outfile)
 
             # restart all services but the bot
             tasks = []
