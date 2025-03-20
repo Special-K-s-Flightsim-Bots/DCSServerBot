@@ -996,13 +996,14 @@ class NodeImpl(Node):
                             "params": params
                         })
                 else:
-                    if rc in [2, 112]:
-                        message = f"DCS World could not be updated on node {self.name} due to missing disk space!"
+                    if rc == 2:
+                        message = f"DCS World update on node {self.name} was aborted by the user!"
                     elif rc in [3, 350]:
                         message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
                                    f"The updater has requested a **reboot** of the system!")
                     else:
-                        message = f"DCS World could not be updated on node {self.name} due to an error ({rc})!"
+                        message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
+                                   f"{utils.get_win32_error_message(rc)}!")
                     self.log.error(message)
                     await ServiceRegistry.get(ServiceBus).send_to_node({
                         "command": "rpc",

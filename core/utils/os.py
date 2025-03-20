@@ -49,8 +49,9 @@ __all__ = [
     "set_password",
     "get_password",
     "delete_password",
-    "CloudRotatingFileHandler",
-    "sanitize_filename"
+    "sanitize_filename",
+    "get_win32_error_message",
+    "CloudRotatingFileHandler"
 ]
 
 logger = logging.getLogger(__name__)
@@ -278,6 +279,21 @@ def sanitize_filename(filename: str, base_directory: str) -> str:
         raise ValueError(f"Invalid filename detected: {filename}")
 
     return resolved_path
+
+
+def get_win32_error_message(error_code: int):
+    # Load the system message corresponding to the error code
+    buffer = ctypes.create_unicode_buffer(512)
+    ctypes.windll.kernel32.FormatMessageW(
+        0x00001000,  # FORMAT_MESSAGE_FROM_SYSTEM
+        None,
+        error_code,
+        0,  # Default language
+        buffer,
+        len(buffer),
+        None
+    )
+    return buffer.value.strip()
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

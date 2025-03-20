@@ -401,9 +401,9 @@ class Admin(Plugin[AdminEventListener]):
                                          ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
-            elif rc in [2, 112]:
+            elif rc == 2:
                 await interaction.followup.send(
-                    content=_("DCS World could not be updated on node {name} due to missing disk space!").format(
+                    content=_("DCS World update on node {name} was aborted by the user!").format(
                         name=node.name), ephemeral=True)
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
@@ -413,8 +413,8 @@ class Admin(Plugin[AdminEventListener]):
                     version=new_version, branch=branch, name=node.name), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc),
-                    ephemeral=True)
+                    content=_("Error while updating DCS on node {name}, code={rc}, message={message}").format(
+                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)), ephemeral=True)
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
                 content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."),
