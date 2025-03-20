@@ -997,7 +997,7 @@ class NodeImpl(Node):
                         })
                 else:
                     if rc == 2:
-                        message = f"DCS World update on node {self.name} was aborted by the user!"
+                        message = f"DCS World update on node {self.name} was aborted (check disk space)!"
                     elif rc in [3, 350]:
                         message = (f"DCS World has been updated to version {new_version} on node {self.name}.\n"
                                    f"The updater has requested a **reboot** of the system!")

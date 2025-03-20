@@ -403,7 +403,7 @@ class Admin(Plugin[AdminEventListener]):
                                      user=interaction.user)
             elif rc == 2:
                 await interaction.followup.send(
-                    content=_("DCS World update on node {name} was aborted by the user!").format(
+                    content=_("DCS World update on node {name} was aborted (check disk space)!").format(
                         name=node.name), ephemeral=True)
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
