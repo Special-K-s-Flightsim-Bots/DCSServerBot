@@ -654,11 +654,10 @@ class SettingsDict(dict):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
-        if self.get(key) != value:
-            super().__setitem__(key, value)
-            self.write_file()
-            if not self.obj.node.master:
-                self.update_master(key, value, method='__setitem__')
+        super().__setitem__(key, value)
+        self.write_file()
+        if not self.obj.node.master:
+            self.update_master(key, value, method='__setitem__')
 
     def __getitem__(self, item):
         if os.path.exists(self.path) and self.mtime < os.path.getmtime(self.path):
