@@ -13,7 +13,9 @@ import sys
 
 from core import Extension, utils, Server, get_translation
 from threading import Thread
-from typing import Optional
+from typing import Optional, cast
+
+from extensions.srs import SRS
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -189,6 +191,23 @@ class Olympus(Extension):
             "redCommanderPassword": hashlib.sha256(
                 str(self.config.get('authentication', {}).get('redCommanderPassword', '')).encode('utf-8')).hexdigest()
         }
+        if self.version.startswith('2.0'):
+            self.locals['authentication']['adminPassword'] = hashlib.sha256(
+                str(self.config.get('authentication', {}).get('adminPassword', '')).encode('utf-8')).hexdigest()
+            frontend = self.config.get(self.frontend_tag, {})
+            if 'customAuthHeaders' in frontend:
+                self.locals[self.frontend_tag]['customAuthHeaders'] = frontend['customAuthHeaders']
+            if 'elevationProvider' in frontend:
+                self.locals[self.frontend_tag]['elevationProvider'] = frontend['elevationProvider']
+            if 'mapLayers' in frontend:
+                self.locals[self.frontend_tag]['mapLayers'] = frontend['mapLayers']
+            if 'mapMirrors' in frontend:
+                self.locals[self.frontend_tag]['mapMirrors'] = frontend['mapMirrors']
+            extension = cast(SRS, self.server.extensions.get('SRS'))
+            if extension:
+                self.locals['audio'] = {
+                    "SRSPort": extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
+                } | self.config.get('audio', {})
         with open(self.config_path, mode='w', encoding='utf-8') as cfg:
             json.dump(self.locals, cfg, indent=2)
 
@@ -229,10 +248,14 @@ class Olympus(Extension):
             err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
-            if not os.path.exists(os.path.join(path, 'bin', 'www')):
-                self.log.error(f"Path {os.path.join(path, 'bin', 'www')} does not exist, can't launch Olympus!")
+            if self.version.startswith('2.0'):
+                frontend_exe = os.path.join(path, 'build', 'www.js')
+            else:
+                frontend_exe = os.path.join(path, 'bin', 'www')
+            if not os.path.exists(frontend_exe):
+                self.log.error(f"Path {frontend_exe} does not exist, can't launch Olympus!")
                 return
-            args = [self.nodejs, os.path.join(path, 'bin', 'www')]
+            args = [self.nodejs, frontend_exe]
             if self.version != '1.0.3.0':
                 args.append('--config')
                 args.append(self.config_path)
