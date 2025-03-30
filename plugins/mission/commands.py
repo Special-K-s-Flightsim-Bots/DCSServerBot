@@ -690,7 +690,7 @@ class Mission(Plugin[MissionEventListener]):
             server.on_empty = dict()
             startup = False
             msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
-            if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
+            if not server.locals.get('mission_rewrite', True) and server.status in [Status.PAUSED, Status.RUNNING]:
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()

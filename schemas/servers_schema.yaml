@@ -54,6 +54,7 @@ schema;settings_schema:
         event_Takeoff: {type: bool, nullable: false}
         bluePasswordHash: {type: str, nullable: false, range: {min: 1}}
         redPasswordHash: {type: str, nullable: false, range: {min: 1}}
+        sav_autosave: {type: bool, nullable: false}
 
 type: map
 mapping:

@@ -206,7 +206,8 @@ class Footer(report.EmbedElement):
                     (server.name in listener.active_servers):
                 text += '\n\n- User statistics are enabled.'
                 break
-        if (await server.get_current_mission_file()).endswith('.sav'):
+        current_mission = await server.get_current_mission_file()
+        if current_mission and current_mission.endswith('.sav'):
             text += '\n- Mission persistence is enabled.'
         text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
         self.embed.set_footer(text=text)
