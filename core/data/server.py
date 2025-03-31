@@ -332,7 +332,7 @@ class Server(DataObject):
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
         raise NotImplementedError()
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
         raise NotImplementedError()
 
     async def deleteMission(self, mission_id: int) -> list[str]:

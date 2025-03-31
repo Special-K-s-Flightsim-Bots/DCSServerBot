@@ -55,13 +55,18 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         self.server = server
         self.log = server.log
         self.loop = loop
+        self.deleted: dict[str, int] = {}
 
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
         # ignore non-mission files and such that are in the .dcssb folder
-        if not path.endswith('.miz') or '.dcssb' in path:
+        if not (path.endswith('.miz') or path.endswith('.sav')) or '.dcssb' in path:
             return
-        asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
+        if path in self.deleted:
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=self.deleted[path]), self.loop)
+            del self.deleted[path]
+        else:
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
         self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def on_moved(self, event: FileSystemMovedEvent):
@@ -81,6 +86,9 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if path in missions:
             idx = missions.index(path) + 1
             asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
+            # cache the index of the line to re-add the file at the correct position afterwards,
+            # if a cloud drive did a delete/add instead of a modification
+            self.deleted[path] = idx
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
         else:
             self.log.debug(f"Mission file {path} got deleted from disk.")
@@ -864,7 +872,7 @@ class ServerImpl(Server):
                     'blue_password' if coalition == Coalition.BLUE else 'red_password'),
                     (password, self.name))
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
         secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         orig = secondary + '.orig'
@@ -879,10 +887,18 @@ class ServerImpl(Server):
                     os.remove(secondary)
             return missions
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+            data = await self.send_to_dcs_sync({
+                "command": "addMission",
+                "path": path,
+                "index": idx,
+                "autostart": autostart
+            })
             self.settings['missionList'] = data['missionList']
         else:
-            missions.append(path)
+            if idx > 0:
+                missions.insert(idx - 1, path)
+            else:
+                missions.append(path)
             self.settings['missionList'] = missions
             if autostart:
                 self.settings['listStartIndex'] = missions.index(path if path in missions else secondary) + 1
