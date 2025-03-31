@@ -690,6 +690,7 @@ class Mission(Plugin[MissionEventListener]):
             server.on_empty = dict()
             startup = False
             msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
+            # we need to stop the mission, if rewrite is false
             if not server.locals.get('mission_rewrite', True) and server.status in [Status.PAUSED, Status.RUNNING]:
                 await server.stop()
                 startup = True
@@ -708,7 +709,12 @@ class Mission(Plugin[MissionEventListener]):
                 self.log.info(f"  => Mission {filename} overwritten.")
             if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 try:
-                    await server.restart(modify_mission=False)
+                    # if the filename has not changed, we can just restart the running mission
+                    if filename == new_filename:
+                        await server.restart(modify_mission=False)
+                    # otherwise we load the new mission
+                    else:
+                        await server.loadMission(new_filename, modify_mission=False)
                     message += _('\nMission reloaded.')
                     await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
                                          user=interaction.user)
