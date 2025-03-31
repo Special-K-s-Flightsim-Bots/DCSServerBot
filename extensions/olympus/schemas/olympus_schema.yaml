@@ -39,7 +39,7 @@ schema;instance_olympus_schema:
         gameMasterPassword: {type: str, required: true, nullable: false, range: {min: 1}}
         blueCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
         redCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        adminPassword: {type: str, required: true, nullable: false, range: {min: 1}}
+        adminPassword: {type: str, nullable: false, range: {min: 1}}
     regex;(frontend|client):
       type: map
       nullable: false
