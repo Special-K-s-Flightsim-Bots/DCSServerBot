@@ -676,7 +676,12 @@ class Mission(Plugin[MissionEventListener]):
                 self.log.info(f"  => Mission {filename} overwritten.")
             if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 try:
-                    await server.restart(modify_mission=False)
+                    # if the filename has not changed, we can just restart the running mission
+                    if filename == new_filename:
+                        await server.restart(modify_mission=False)
+                    # otherwise we load the new mission
+                    else:
+                        await server.loadMission(new_filename, modify_mission=False)
                     message += _('\nMission reloaded.')
                     await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
                                          user=interaction.user)
