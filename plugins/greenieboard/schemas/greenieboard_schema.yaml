@@ -26,7 +26,7 @@ schema;default_schema:
           mapping:
             rating: {type: float, nullable: false, range: {min: 0.0}}
             grade: {type: str, nullable: false, range: {min: 1}}
-            color: {type: str, required: true, nullable: false, range: {min: 1}}
+            color: {type: str, nullable: false, range: {min: 1}}
             legend: {type: str, required: true, nullable: false, range: {min: 1}}
     Moose.AIRBOSS:
       type: map
