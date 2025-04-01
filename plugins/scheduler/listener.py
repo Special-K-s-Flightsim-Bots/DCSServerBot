@@ -89,7 +89,6 @@ class SchedulerListener(EventListener["Scheduler"]):
         elif method.startswith('run:'):
             cmd = method[4:].strip()
             cmd = utils.format_string(cmd, server=server, **kwargs)
-            # noinspection PyAsyncCall
             asyncio.create_task(self.node.shell_command(cmd))
 
     async def process(self, server: Server, what: dict) -> None:
@@ -98,7 +97,6 @@ class SchedulerListener(EventListener["Scheduler"]):
             message = 'shut down DCS server'
             if 'user' not in what:
                 message = self.plugin_name.title() + ' ' + message
-            # noinspection PyAsyncCall
             asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         if 'restart' in what['command']:
             run_extensions = what.get('run_extensions', True)
@@ -110,13 +108,11 @@ class SchedulerListener(EventListener["Scheduler"]):
                 message = f'restarted mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         elif what['command'] == 'rotate':
             run_extensions = what.get('run_extensions', True)
             use_orig = what.get('use_orig', True)
             await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
-            # noinspection PyAsyncCall
             asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                                f"{server.current_mission.display_name}", server=server))
         elif what['command'] == 'load':
@@ -141,7 +137,6 @@ class SchedulerListener(EventListener["Scheduler"]):
                 message = f'loaded mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.bot.audit(message, server=server, user=what.get('user')))
         elif what['command'] == 'preset':
             if not server.locals.get('mission_rewrite', True):
@@ -184,7 +179,6 @@ class SchedulerListener(EventListener["Scheduler"]):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(
                 "Server will restart {}".format(restart_time)))
 
@@ -215,7 +209,6 @@ class SchedulerListener(EventListener["Scheduler"]):
     async def onSimulationStart(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onSimulationStart' in config:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onSimulationStart']))
 
     @event(name="onMissionLoadEnd")
@@ -231,21 +224,18 @@ class SchedulerListener(EventListener["Scheduler"]):
     async def onMissionEnd(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onMissionEnd'], winner=data['arg1'], msg=data['arg2']))
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onSimulationStop' in config:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onSimulationStop']))
 
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, _: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.run(server, config['onShutdown']))
 
     async def _restart_server(self, server: Server):
@@ -276,7 +266,6 @@ class SchedulerListener(EventListener["Scheduler"]):
     @event(name="onServerEmpty")
     async def onServerEmpty(self, server: Server, _: dict) -> None:
         if server.on_empty:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.process(server, server.on_empty.copy()))
             server.on_empty.clear()
 

@@ -91,15 +91,15 @@ DEFAULT:
   squadrons:
     - name: 'My Fancy Squadron 1' # Optional: display boards for these squadrons
     - name: 'My Fancy Squadron 2'
-  ratings:                  # Default points per LSO rating, amend them to your needs
-    _OK_: 5
-    OK: 4
-    (OK): 3
-    B: 2.5
-    --: 2
-    OWO: 2
-    WO: 1
-    C: 0
+  grades:
+    _OK_: {rating: 5, grade: 'Perfect pass', legend: 'PERFECT'}
+    OK: {rating: 4, grade: 'Minimum deviation with good correction', color: '#29C248', legend: 'OK'}
+    (OK): {rating: 3, grade: 'Reasonable deviation with average correction', color: '#F2C038', legend: 'FAIR'}
+    B: {rating: 2.5, grade: 'Tailhook did not catch a wire, aircraft went around for another pass', color: '#088199', legend: 'BOLTER'}
+    --: {rating: 2, grade: 'No grade. Below average corrections but safe pass', color: '#73481d', legend: 'NO GRADE'}
+    WO: {rating: 1, grade: 'Wave-off', color: '#000000', legend: 'WAVE OFF'}
+    C: {rating: 0, grade: 'Cut. Unsafe, gross deviations inside the wave-off window', color: '#CC0000', legend: 'CUT'}
+    _n: {color: '#000000', legend: 'Night pass'}
   credits: true                   # People should get credits for their landings (see CreditSystem)
   Moose.AIRBOSS:
     basedir: airboss              # Trapsheets will be stored in Saved Games\<instance>\airboss
@@ -128,11 +128,11 @@ with all 3 methods.
 
 ## Discord Commands
 
-| Command      | Parameter | Channel | Role       | Description                                                                                                           |
-|--------------|-----------|---------|------------|-----------------------------------------------------------------------------------------------------------------------|
-| /traps board | rows      | all     | DCS        | Print the current greenieboard (per server). 10 rows is default, can be changed with the parameter.                   |
-| /traps info  | [user]    | all     | DCS        | Display the last carrier landings for this user and a detailed view on selection. User is the caller if not provided. |
-| /traps add   | user      | all     | DCS Admin  | Adds a trap for this user (manual data input).                                                                        |
+| Command      | Parameter     | Channel | Role       | Description                                                                                                             |
+|--------------|---------------|---------|------------|-------------------------------------------------------------------------------------------------------------------------|
+| /traps board | rows landings | all     | DCS        | Print the current greenieboard (per server). 10 rows is default, so is 30 landings. Can be changed with the parameters. |
+| /traps info  | [user]        | all     | DCS        | Display the last carrier landings for this user and a detailed view on selection. User is the caller if not provided.   |
+| /traps add   | user          | all     | DCS Admin  | Adds a trap for this user (manual data input).                                                                          |
 
 ## Highscore Plugin
 You can add your traps to your .highscore (.hs) command. To do that, copy the file plugins/userstats/reports/highscore.json 

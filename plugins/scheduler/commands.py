@@ -461,7 +461,6 @@ class Scheduler(Plugin[SchedulerListener]):
                     elif target_state == Status.SHUTDOWN and server.status in [
                         Status.STOPPED, Status.RUNNING, Status.PAUSED
                     ]:
-                        # noinspection PyAsyncCall
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)

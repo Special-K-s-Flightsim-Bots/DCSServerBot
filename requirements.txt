@@ -8,7 +8,7 @@ astral==3.2
 audioop-lts==0.2.1; python_version>='3.13'
 
 # AIOHTTP: Uses asyncio for async/await native coroutines for establishing and handling HTTP connections
-aiohttp==3.11.13
+aiohttp==3.11.14
 
 # Certifi: Python package for providing Mozilla's CA Bundle
 certifi==2025.1.31
@@ -23,7 +23,7 @@ discord.py==2.4.0
 eyeD3==0.9.7
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.115.11
+fastapi==0.115.12
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -44,7 +44,7 @@ matplotlib>=3.9.4
 minidump==0.0.24; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
-numpy==2.2.3
+numpy==2.2.4
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5
@@ -59,7 +59,7 @@ packaging==24.2
 pid==3.0.4
 
 # Psycopg: PostgreSQL database adapter for Python
-psycopg[binary]==3.2.5
+psycopg[binary]==3.2.6
 
 # Psycopg Pool: PostgreSQL database adapter pool for Python
 psycopg-pool==3.2.6
@@ -80,7 +80,7 @@ python-Levenshtein==0.27.1
 python-multipart==0.0.20
 
 # Pywin32: Set of Python extensions for MS Windows
-pywin32==308; sys_platform == 'win32'
+pywin32==309; sys_platform == 'win32'
 
 # Requests: Python HTTP library
 requests==2.32.3
@@ -98,7 +98,7 @@ seaborn==0.13.2
 sqlparse==0.5.3
 
 # TimetoneFinder: Find the right timezones for a given coordinate
-timezonefinder==6.5.8
+timezonefinder==6.5.9
 
 # tomli: Python TOML parser
 tomli==2.2.1

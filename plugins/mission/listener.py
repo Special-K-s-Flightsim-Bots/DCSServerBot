@@ -197,7 +197,6 @@ class MissionEventListener(EventListener["Mission"]):
                 message = ''.join([
                     self.bot.get_role(role).mention for role in self.bot.roles[data['mention']]
                 ]) + message
-            # noinspection PyAsyncCall
             asyncio.create_task(channel.send(message))
 
     @event(name="sendEmbed")
@@ -214,7 +213,6 @@ class MissionEventListener(EventListener["Mission"]):
                 channel_id = server.channels[Channel.EVENTS]
             channel = self.bot.get_channel(channel_id)
             if channel:
-                # noinspection PyAsyncCall
                 asyncio.create_task(channel.send(embed=embed))
 
     def send_dcs_event(self, server: Server, side: Side, message: str) -> None:
@@ -242,7 +240,6 @@ class MissionEventListener(EventListener["Mission"]):
     async def callback(self, server: Server, data: dict):
         if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
             data['command'] = data['subcommand']
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs(data))
 
     @staticmethod
@@ -364,7 +361,6 @@ class MissionEventListener(EventListener["Mission"]):
             admin_channel = self.bot.get_admin_channel(server)
             if admin_channel:
                 channels['admin'] = admin_channel.id
-        # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             'command': 'loadParams',
             'plugin': self.plugin_name,
@@ -386,15 +382,12 @@ class MissionEventListener(EventListener["Mission"]):
                 server.players.clear()
                 server.status = Status.STOPPED
                 return
-            # noinspection PyAsyncCall
             asyncio.create_task(self._update_bans(server))
             # get the weather async (if not filled already)
             if not data.get('weather'):
-                # noinspection PyAsyncCall
                 asyncio.create_task(self._load_weather_data(server))
             # get the airbases async (if not filled already)
             if not data.get('airbases'):
-                # noinspection PyAsyncCall
                 asyncio.create_task(self._load_airbases(server))
         server.afk.clear()
         # all players are inactive for now
@@ -417,10 +410,8 @@ class MissionEventListener(EventListener["Mission"]):
             if player.member:
                 autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
                 if autorole:
-                    # noinspection PyAsyncCall
                     asyncio.create_task(player.add_role(autorole))
 
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs({
                 'command': 'uploadUserRoles',
                 'ucid': player.ucid,
@@ -440,7 +431,6 @@ class MissionEventListener(EventListener["Mission"]):
             if role:
                 all_members = set(x.member for x in server.players.values() if x.member)
                 for member in (set(role.members) - all_members):
-                    # noinspection PyAsyncCall
                     asyncio.create_task(member.remove_roles(role))
         # Set the status at the latest possible place
         if data['channel'].startswith('sync-'):
@@ -460,13 +450,10 @@ class MissionEventListener(EventListener["Mission"]):
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         self._update_mission(server, data)
         if not data.get('weather'):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._load_weather_data(server))
         # get the airbases async (if not filled already)
         if not data.get('airbases'):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._load_airbases(server))
-        # noinspection PyAsyncCall
         asyncio.create_task(self._update_bans(server))
         self.display_mission_embed(server)
 
@@ -490,7 +477,6 @@ class MissionEventListener(EventListener["Mission"]):
         if server.settings.get('advanced', {}).get('resume_mode', 0) == 2:
             smooth_pause = server.locals.get('smooth_pause', 0)
             if smooth_pause > 0:
-                # noinspection PyAsyncCall
                 asyncio.create_task(self._smooth_pause(server, smooth_pause))
         self.display_mission_embed(server)
 
@@ -543,21 +529,18 @@ class MissionEventListener(EventListener["Mission"]):
         # if the first player joined, the server is considered non-idle
         if server.idle_since:
             server.idle_since = None
-        # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             'command': 'uploadUserRoles',
             'ucid': player.ucid,
             'roles': [x.id for x in player.member.roles] if player.member and player.verified else []
         }))
         if player.watchlist:
-            # noinspection PyAsyncCall
             asyncio.create_task(self._watchlist_alert(server, player))
 
         # check if we've reached the max_threshold
         usage_alarm = server.locals.get('usage_alarm', {})
         mt = usage_alarm.get('max_threshold')
         if mt and len(server.get_active_players()) == (mt + 1):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._threshold_alert(server, usage_alarm))
 
     @event(name="onPlayerStart")
@@ -573,7 +556,6 @@ class MissionEventListener(EventListener["Mission"]):
             member = self.bot.get_member_by_ucid(data['ucid'])
             roles = discord_roles if isinstance(discord_roles, list) else [discord_roles]
             if not member or not utils.check_roles(roles, member):
-                # noinspection PyAsyncCall
                 asyncio.create_task(server.send_to_dcs({
                     "command": "kick",
                     "id": data['id'],
@@ -590,7 +572,6 @@ class MissionEventListener(EventListener["Mission"]):
             await player.update(data)
         # security check, if a banned player somehow managed to get here (should never happen)
         if player.is_banned():
-            # noinspection PyAsyncCall
             asyncio.create_task(server.kick(player, messages['message_ban'].format('n/a')))
             return
         # greet the player
@@ -599,21 +580,17 @@ class MissionEventListener(EventListener["Mission"]):
             if self.bot.locals.get('automatch', True) and server.settings['password']:
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:
-                    # noinspection PyAsyncCall
                     asyncio.create_task(admin_channel.send(
                         f"{server.display_name}: Player {player.display_name} (ucid={player.ucid}) can't be matched "
                         f"to a discord user."))
             if not isinstance(self.bot, DummyBot):
-                # noinspection PyAsyncCall
                 asyncio.create_task(player.sendChatMessage(
                     messages['greeting_message_unmatched'].format(server=server, player=player)))
         else:
-            # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(
                 messages['greeting_message_members'].format(player=player, server=server)))
             autorole = server.locals.get('autorole', self.bot.locals.get('autorole', {}).get('online'))
             if autorole:
-                # noinspection PyAsyncCall
                 asyncio.create_task(player.add_role(autorole))
             # check if we need to enforce voice chat usage
             if server.locals.get('force_voice', False):
@@ -625,11 +602,9 @@ class MissionEventListener(EventListener["Mission"]):
                             f"force_voice is enabled for server {server.name}, but no voice channel is configured!")
                         return
                     if not player.member.voice:
-                        # noinspection PyAsyncCall
                         asyncio.create_task(server.kick(player, reason=messages['message_no_voice'].format(voice.name)))
                         return
                     else:
-                        # noinspection PyAsyncCall
                         asyncio.create_task(player.member.move_to(voice))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now(timezone.utc)
@@ -669,7 +644,6 @@ class MissionEventListener(EventListener["Mission"]):
             # this should never happen
             player = server.get_player(id=data['id'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(self._stop_player(server, player))
 
     async def _disconnect(self, server: Server, player: Player):
@@ -685,7 +659,6 @@ class MissionEventListener(EventListener["Mission"]):
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         # Workaround for missing disconnect events
         if 'side' not in data:
-            # noinspection PyAsyncCall
             asyncio.create_task(self._disconnect(server, server.get_player(id=data['id'], active=True)))
             return
         player: Player = server.get_player(ucid=data['ucid'], active=True)
@@ -717,7 +690,6 @@ class MissionEventListener(EventListener["Mission"]):
         elif data['eventName'] == 'disconnect':
             if data['arg1'] == 1:
                 return
-            # noinspection PyAsyncCall
             asyncio.create_task(self._disconnect(server, server.get_player(id=data['arg1'], active=True)))
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
@@ -763,7 +735,6 @@ class MissionEventListener(EventListener["Mission"]):
                     message = f"{server.display_name}: " + message
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:
-                    # noinspection PyAsyncCall
                     asyncio.create_task(admin_channel.send(message))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             player = server.get_player(id=data['arg1'])
@@ -786,7 +757,6 @@ class MissionEventListener(EventListener["Mission"]):
             return
         player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs({
                 'command': 'uploadUserRoles',
                 'ucid': player.ucid,
@@ -800,7 +770,6 @@ class MissionEventListener(EventListener["Mission"]):
             return
         player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs({
                 'command': 'uploadUserRoles',
                 'ucid': player.ucid,
@@ -871,7 +840,6 @@ class MissionEventListener(EventListener["Mission"]):
         if server.status == Status.PAUSED:
             await player.sendChatMessage("Mission is paused already.")
         else:
-            # noinspection PyAsyncCall
             asyncio.create_task(server.current_mission.pause())
             await player.sendChatMessage("Mission paused.")
 
@@ -880,7 +848,6 @@ class MissionEventListener(EventListener["Mission"]):
         if server.status == Status.RUNNING:
             await player.sendChatMessage("Mission is running already.")
         else:
-            # noinspection PyAsyncCall
             asyncio.create_task(server.current_mission.unpause())
             await player.sendChatMessage("Mission unpaused.")
 
@@ -915,7 +882,6 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 message = '!!! Server will be restarted NOW !!!'
             await server.sendPopupMessage(Coalition.ALL, message)
-            # noinspection PyAsyncCall
             asyncio.create_task(server.current_mission.restart())
         except ValueError:
             await player.sendChatMessage(f"Wrong time: {params[0]}")
@@ -936,7 +902,6 @@ class MissionEventListener(EventListener["Mission"]):
         if not params or not params[0].isnumeric():
             await player.sendChatMessage(f"Usage: {self.prefix}{self.load.name} <number>")
             return
-        # noinspection PyAsyncCall
         asyncio.create_task(server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
@@ -1113,7 +1078,6 @@ class MissionEventListener(EventListener["Mission"]):
             else:
                 if params[0].isnumeric():
                     n = int(params[0]) - 1
-                    # noinspection PyAsyncCall
                     asyncio.create_task(change_preset(presets[n]))
                 else:
                     asyncio.create_task(change_preset(params[0]))

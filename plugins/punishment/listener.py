@@ -63,7 +63,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
         try:
             await asyncio.wait_for(asyncio.Future(), timeout=window)
         except (TimeoutError, asyncio.TimeoutError):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._punish(data))
 
     async def _punish(self, data: dict):
@@ -124,7 +123,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         tasks = self.pending_forgiveness[(initiator.ucid, target.ucid)] = []
                     tasks.append(asyncio.create_task(self._provide_forgiveness_window(data, window)))
             else:
-                # noinspection PyAsyncCall
                 asyncio.create_task(self._punish(data))
 
     @event(name="onGameEvent")
@@ -163,7 +161,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     return
             else:
                 event['eventName'] = 'friendly_fire'
-            # noinspection PyAsyncCall
             asyncio.create_task(self._check_punishment(event))
 
         elif data['eventName'] == 'kill' and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
@@ -175,7 +172,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 event['eventName'] = 'collision_kill'
             else:
                 event['eventName'] = 'kill'
-            # noinspection PyAsyncCall
             asyncio.create_task(self._check_punishment(event))
 
     async def _send_player_points(self, player: Player):
@@ -190,7 +186,6 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(self._send_player_points(player))
 
     @event(name="disablePunishments")

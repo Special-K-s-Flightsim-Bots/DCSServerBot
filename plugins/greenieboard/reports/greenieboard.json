@@ -9,10 +9,21 @@
   },
   "color": "blue",
   "title": "GreenieBoard (TOP {num_rows})",
-  "elements":
-  [
+
+  "elements": [
     {
-      "class": "plugins.greenieboard.reports.GreenieBoard"
+      "type": "Graph",
+      "params": {
+        "width": 20,
+        "height": 15,
+        "cols": 1,
+        "rows": 1,
+        "elements": [
+          {
+            "class": "plugins.greenieboard.reports.GreenieBoard"
+          }
+        ]
+      }
     }
   ]
 }

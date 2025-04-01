@@ -761,7 +761,6 @@ class Admin(Plugin[AdminEventListener]):
                 if server.node.name == node_name:
                     server.maintenance = True
                     if shutdown:
-                        # noinspection PyAsyncCall
                         asyncio.create_task(server.shutdown())
             await interaction.followup.send(_("Node {} is now offline.").format(node_name))
             await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)

@@ -252,9 +252,7 @@ class Player(DataObject):
             })
 
     async def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
-        # noinspection PyAsyncCall
         asyncio.create_task(self.sendPopupMessage(message, timeout))
-        # noinspection PyAsyncCall
         asyncio.create_task(self.sendChatMessage(message))
 
     async def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):

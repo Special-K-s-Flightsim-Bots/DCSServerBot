@@ -147,7 +147,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
         channel = self.bot.get_channel(int(config.get('CHANNELID_MAIN', -1)))
         if not channel:
             return
-        # noinspection PyAsyncCall
         asyncio.create_task(channel.send(data['text'], delete_after=self.config.get('delete_after')))
 
     @event(name="moose_bomb_result")
@@ -162,7 +161,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
                           data['distance'], BombQuality[data['quality']].value))
-            # noinspection PyAsyncCall
             asyncio.create_task(self.update_rangeboard(server, 'bomb'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
@@ -171,7 +169,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
         if not fig:
             self.log.error("Bomb result could not be plotted (due to missing data?)")
             return
-        # noinspection PyAsyncCall
         asyncio.create_task(self.send_fig(fig, channel))
 
     @event(name="moose_strafe_result")
@@ -186,7 +183,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (server.mission_id, player.ucid, player.unit_type, data.get('rangename', 'n/a'),
                           data['strafeAccuracy'], StrafeQuality[data['roundsQuality'].replace(' ', '_')].value if not data.get('invalid', False) else None))
-            # noinspection PyAsyncCall
             asyncio.create_task(self.update_rangeboard(server, 'strafe'))
         channel = self.bot.get_channel(int(config.get('CHANNELID_RANGE', -1)))
         if not channel:
@@ -195,7 +191,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
         if not fig:
             self.log.error("Strafe result could not be plotted (due to missing data?)")
             return
-        # noinspection PyAsyncCall
         asyncio.create_task(self.send_fig(fig, channel))
 
     @event(name="moose_lso_grade")
@@ -213,7 +208,6 @@ class FunkManEventListener(EventListener["FunkMan"]):
             with buffer:
                 embed = self.create_lso_embed(data)
                 embed.set_image(url=f"attachment://{filename}")
-                # noinspection PyAsyncCall
                 asyncio.create_task(channel.send(embed=embed, file=discord.File(fp=buffer, filename=filename),
                                                  delete_after=self.config.get('delete_after')))
         except (ValueError, TypeError):

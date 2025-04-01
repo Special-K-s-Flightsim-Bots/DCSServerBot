@@ -77,7 +77,6 @@ class Tacview(Extension):
         self.stop_event.clear()
         self.stopped.clear()
         if self.config.get('target'):
-            # noinspection PyAsyncCall
             asyncio.create_task(self.check_log())
         return await super().startup()
 
@@ -276,7 +275,6 @@ class Tacview(Extension):
                             match = self.exp.search(line)
                             if match:
                                 self.log.debug("TACVIEW pattern found.")
-                                # noinspection PyAsyncCall
                                 asyncio.create_task(self.send_tacview_file(match.group('filename')))
                                 if self.stop_event.is_set():
                                     return

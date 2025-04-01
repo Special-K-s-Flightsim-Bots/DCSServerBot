@@ -316,7 +316,6 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
         if event_name == 'mission_end':
             config = self.get_config(server)
             if 'highscore' in config:
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.plugin.render_highscore(config['highscore'], server=server, mission_end=True))
 
     @event(name="onMemberLinked")

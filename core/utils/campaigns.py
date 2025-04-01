@@ -6,8 +6,7 @@ from discord import app_commands
 from psycopg.rows import dict_row
 
 if TYPE_CHECKING:
-    from core import Server
-    from services.bot import DCSServerBot
+    from core import Server, Node
 
 __all__ = [
     "get_running_campaign",
@@ -17,8 +16,8 @@ __all__ = [
 ]
 
 
-def get_running_campaign(bot: DCSServerBot, server: Optional[Server] = None) -> tuple[Any, Any]:
-    with bot.pool.connection() as conn:
+def get_running_campaign(node: Node, server: Optional[Server] = None) -> tuple[Any, Any]:
+    with node.pool.connection() as conn:
         with closing(conn.cursor()) as cursor:
             if server:
                 cursor.execute("""
@@ -59,7 +58,7 @@ async def campaign_autocomplete(interaction: discord.Interaction, current: str) 
         return []
     try:
         choices: list[app_commands.Choice[str]] = list()
-        _, name = get_running_campaign(interaction.client)
+        _, name = get_running_campaign(interaction.client.node)
         if name:
             choices.append(app_commands.Choice(name=name, value=name))
         choices.extend([

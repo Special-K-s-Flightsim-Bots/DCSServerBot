@@ -210,7 +210,6 @@ class SRS(Extension, FileSystemEventHandler):
             # no_shutdown defaults to True for always_on
             self.config['no_shutdown'] = self.config.get('no_shutdown', True)
             if not await asyncio.to_thread(self.is_running):
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.startup())
         return await super().prepare()
 

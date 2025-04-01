@@ -35,7 +35,7 @@ schema;mizedit_schema:
       type: map
       nullable: false
       mapping:
-        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq|GermanyCW):
           type: map
           nullable: false
           mapping:

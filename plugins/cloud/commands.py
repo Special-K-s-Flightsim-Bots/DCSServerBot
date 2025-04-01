@@ -90,7 +90,6 @@ class Cloud(Plugin[CloudListener]):
             self.cloud_sync.cancel()
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.cloud_bans.cancel()
-        # noinspection PyAsyncCall
         asyncio.create_task(self.session.close())
         await super().cog_unload()
 

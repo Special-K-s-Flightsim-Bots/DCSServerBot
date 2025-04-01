@@ -68,11 +68,9 @@ class LotAtcEventListener(EventListener["LotAtc"]):
                 break
         if (gci and self.get_config(server).get('kick_gci', False) and
                 not player.check_exemptions(self.get_config(server).get('exemptions', {}))):
-            # noinspection PyAsyncCall
             asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
             admin_channel = self.bot.get_admin_channel(server)
             if admin_channel:
-                # noinspection PyAsyncCall
                 asyncio.create_task(
                     admin_channel.send(_("GCI {} tried to join as player {}!").format(gci.name, player.name)))
             return
@@ -80,7 +78,6 @@ class LotAtcEventListener(EventListener["LotAtc"]):
         message += self._generate_message(server, Coalition.BLUE)
         message += self._generate_message(server, Coalition.RED)
         if message:
-            # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(message))
 
     async def add_gci(self, server: Server, gci: GCI) -> GCI:
@@ -149,11 +146,9 @@ class LotAtcEventListener(EventListener["LotAtc"]):
         if (not player or not self.get_config(server).get('kick_gci', False) or
                 player.check_exemptions(self.get_config(server).get('exemptions', {}))):
             return
-        # noinspection PyAsyncCall
         asyncio.create_task(server.kick(player, reason=_("You are not allowed to play when being a GCI.")))
         admin_channel = self.bot.get_admin_channel(server)
         if admin_channel:
-            # noinspection PyAsyncCall
             asyncio.create_task(
                 admin_channel.send(_("GCI {} tried to join as player {}!").format(gci.name, player.name)))
 
@@ -165,7 +160,6 @@ class LotAtcEventListener(EventListener["LotAtc"]):
         gci.lotatc = False
         gci.ipaddr = None
         if not gci.radios:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.del_gci(server, gci))
 
     @chat_command(name="gcis", help=_("Shows active GCIs"))

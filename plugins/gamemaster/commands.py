@@ -49,7 +49,7 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
                 SELECT DISTINCT p.name, p.ucid 
                 FROM players p, messages m
                 WHERE p.ucid = m.player_ucid
-                 AND (name ILIKE %s OR ucid ILIKE %s)
+                AND (name ILIKE %s OR ucid ILIKE %s)
             """, ('%' + current + '%', '%' + current + '%'))
             choices: list[app_commands.Choice[int]] = [
                 app_commands.Choice(name=f"{row[0]} (ucid={row[1]})", value=row[1])

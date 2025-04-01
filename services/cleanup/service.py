@@ -73,10 +73,8 @@ class CleanupService(Service):
         if not self.locals:
             return
         if self.node.master:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.do_cleanup())
         for instance in self.node.instances:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.do_cleanup(instance))
 
     @schedule.before_loop

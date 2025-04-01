@@ -83,9 +83,7 @@ class ServiceBus(Service):
                     """, (self.node.guild_id, ))
 
             # subscribe to the intercom and broadcast channels
-            # noinspection PyAsyncCall
             asyncio.create_task(self.intercom_channel.subscribe())
-            # noinspection PyAsyncCall
             asyncio.create_task(self.broadcasts_channel.subscribe())
             # check master
             await self.switch()

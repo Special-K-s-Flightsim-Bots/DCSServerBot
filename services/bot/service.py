@@ -132,7 +132,6 @@ class BotService(Service):
             self.bot = self.init_bot()
             await self.install_fonts()
             await self.bot.login(token=self.token)
-            # noinspection PyAsyncCall
             asyncio.create_task(self.bot.connect(reconnect=reconnect))
         except Exception as ex:
             self.log.exception(ex)

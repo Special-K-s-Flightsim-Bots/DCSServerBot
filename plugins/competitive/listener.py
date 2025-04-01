@@ -115,7 +115,6 @@ class CompetitiveListener(EventListener["Competitive"]):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(self._print_trueskill(player))
 
     @event(name="addPlayerToMatch")
@@ -134,7 +133,6 @@ class CompetitiveListener(EventListener["Competitive"]):
                 match = self.matches[server.name][match_id]
                 # check that we were not in the same match but died
                 if player in match.dead[Side.BLUE] or player in match.dead[Side.RED]:
-                    # noinspection PyAsyncCall
                     asyncio.create_task(server.move_to_spectators(
                         player, reason=_("You're not allowed to re-join the same match!")))
                     return
@@ -251,7 +249,6 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
-        # noinspection PyAsyncCall
         asyncio.create_task(self._onGameEvent(server, data))
 
     async def _print_trueskill(self, player: Player):
@@ -261,7 +258,6 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     @chat_command(name="skill", help=_("Display your rating"))
     async def skill(self, server: Server, player: Player, params: list[str]):
-        # noinspection PyAsyncCall
         asyncio.create_task(self._print_trueskill(player))
 
     @tasks.loop(seconds=5)
@@ -285,7 +281,6 @@ class CompetitiveListener(EventListener["Competitive"]):
                     message += _("\nYour new rating is as follows:\n")
                     for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                         message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
-                    # noinspection PyAsyncCall
                     asyncio.create_task(self.inform_players(match, message, 30))
                     finished.append(match)
             for match in finished:

@@ -109,7 +109,6 @@ class PubSub:
             })
             async for row in cursor:
                 try:
-                    # noinspection PyAsyncCall
                     asyncio.create_task(self.handler(row[1]))
                 except Exception as ex:
                     self.log.exception(ex)

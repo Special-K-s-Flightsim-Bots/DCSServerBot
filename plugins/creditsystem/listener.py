@@ -58,14 +58,12 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             player.points = self.get_initial_points(player, config)
             player.audit('init', 0, _('Initial points received'))
         else:
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs({
                 'command': 'updateUserPoints',
                 'ucid': player.ucid,
                 'points': player.points
             }))
         if config:
-            # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(_("{name}, you currently have {credits} credit points.").format(
                 name=player.name, credits=player.points)))
 
@@ -121,7 +119,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         if 'achievements' not in config:
             return
 
-        campaign_id, _ = utils.get_running_campaign(self.bot, server)
+        campaign_id, _ = utils.get_running_campaign(self.node, server)
         playtime = (await self.get_flighttime(player.ucid, campaign_id)) / 3600.0
         sorted_achievements = sorted(config['achievements'],
                                      key=lambda x: x['credits'] if 'credits' in x else x['playtime'],
@@ -171,7 +169,6 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player:
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.process_achievements(server, player))
 
     @event(name="onCampaignReset")

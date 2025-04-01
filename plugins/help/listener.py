@@ -17,7 +17,6 @@ class HelpListener(EventListener["Help"]):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(f"Use \"{self.prefix}help\" for commands."))
 
     @chat_command(name="help", help="The help command")

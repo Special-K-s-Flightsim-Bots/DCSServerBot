@@ -57,7 +57,6 @@ class CloudListener(EventListener["Cloud"]):
             return
         if player.side == Side.SPECTATOR:
             return
-        # noinspection PyAsyncCall
         asyncio.create_task(self.update_cloud_data(server, player))
 
     @event(name="onPlayerStart")

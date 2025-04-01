@@ -487,8 +487,8 @@ class NodeImpl(Node):
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
             if "openbeta" in self.dcs_branch:
-                self.log.debug("You're running DCS OpenBeta, which is discontinued. "
-                               "Use /dcs update if you want to switch to the release branch.")
+                self.log.warning("You're running DCS OpenBeta, which is discontinued. "
+                                 "Use /dcs update if you want to switch to the release branch.")
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:

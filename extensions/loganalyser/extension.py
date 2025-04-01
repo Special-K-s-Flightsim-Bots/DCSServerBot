@@ -53,7 +53,6 @@ class LogAnalyser(Extension):
         self.register_callback(NO_UPNP, self.disable_upnp)
         self.register_callback(NO_TERRAIN, self.terrain_missing)
         self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
-        # noinspection PyAsyncCall
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:

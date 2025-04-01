@@ -86,7 +86,7 @@ schema;instance_realweather_schema:
       nullable: false
       allowempty: true
       mapping:
-        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq):
+        regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq|GermanyCW):
           include: 'instance_realweather_schema'
     realweather:
       type: map

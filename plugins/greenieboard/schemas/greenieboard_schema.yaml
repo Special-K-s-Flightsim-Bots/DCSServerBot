@@ -2,7 +2,7 @@ schema;default_schema:
   type: map
   nullable: false
   mapping:
-    num_landings: {type: int, range: {min: 1, max: 10}, nullable: false}
+    num_landings: {type: int, range: {min: 1, max: 30}, nullable: false}
     num_rows: {type: int, range: {min: 1, max: 20}, nullable: false}
     persistent_board: {type: bool, nullable: false}
     persistent_channel: {type: int, nullable: false}
@@ -16,11 +16,18 @@ schema;default_schema:
           mapping:
             name: {type: str, nullable: false, range: {min: 1}}
             channel: {type: int, nullable: false}
-    ratings:
+    grades:
       type: map
       nullable: false
       mapping:
-        regex;(\_OK\_|OK|\(OK\)|B|\-\-|OWO|WO|C): {type: float, range: {min: 0.0}, nullable: false}
+        regex;(\_OK\_|OK|\(OK\)|B|\-\-|WO|C|_n):
+          type: map
+          nullable: false
+          mapping:
+            rating: {type: float, nullable: false, range: {min: 0.0}}
+            grade: {type: str, nullable: false, range: {min: 1}}
+            color: {type: str, required: true, nullable: false, range: {min: 1}}
+            legend: {type: str, required: true, nullable: false, range: {min: 1}}
     Moose.AIRBOSS:
       type: map
       nullable: false
