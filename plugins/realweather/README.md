@@ -17,7 +17,7 @@ MyNode:
     RealWeather:
       installation: '%USERPROFILE%\Documents\realweather_v1.9.0-rc2'
 ```
-This can be used to enable the RealWeather [extension](../../extensions/README.md) also.
+This can be used to enable the RealWeather [extension](../../extensions/realweather/README.md) also.
 
 ## Discord Commands
 | Command         | Parameter                            | Channel | Role       | Description                                                                                    |

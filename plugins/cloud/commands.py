@@ -11,12 +11,12 @@ import ssl
 
 from contextlib import suppress
 from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, \
-    get_translation, ServiceRegistry, command
+    get_translation, command
 from datetime import timedelta
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
-from services.bot import DCSServerBot, BotService
+from services.bot import DCSServerBot
 from services.bot.dummy import DummyBot
 from typing import Type, Any, Optional, Union
 from urllib.parse import quote

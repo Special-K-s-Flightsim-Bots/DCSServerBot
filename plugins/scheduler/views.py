@@ -1,6 +1,4 @@
 import discord
-from discord import Interaction
-from discord._types import ClientT
 
 from core import Server
 from discord.ui import Modal, TextInput, View, Button
