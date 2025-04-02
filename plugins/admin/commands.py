@@ -542,15 +542,19 @@ class Admin(Plugin[AdminEventListener]):
                 return
         elif target.startswith('<'):
             channel = self.bot.get_channel(int(target[4:-1]))
-            try:
-                await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
-            except discord.HTTPException:
-                await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
-                                                ephemeral=ephemeral)
-            if channel != interaction.channel:
-                await interaction.followup.send(_('File sent to the configured channel.'), ephemeral=ephemeral)
+            if channel:
+                try:
+                    await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
+                except discord.HTTPException:
+                    await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
+                                                    ephemeral=ephemeral)
+                if channel != interaction.channel:
+                    await interaction.followup.send(_('File sent to the configured channel.'), ephemeral=ephemeral)
+                else:
+                    await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
             else:
-                await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
+                await interaction.followup.send(_('Channel {} not found, check your admin.yaml!').format(target[4:-1]),
+                                                ephemeral=ephemeral)
         else:
             target_file = os.path.join(os.path.expandvars(target), os.path.basename(filename))
             os.makedirs(os.path.dirname(target_file), exist_ok=True)
