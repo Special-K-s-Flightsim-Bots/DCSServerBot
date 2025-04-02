@@ -241,6 +241,9 @@ class GreenieBoard(GraphElement):
                            color='white')
 
     async def render(self, server_name: str, num_rows: int, num_landings: int, squadron: Optional[dict] = None):
+
+        title = self.env.embed.title
+        self.env.embed.title = ""
         sql1 = """
             SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (
                 SELECT player_ucid, ROW_NUMBER() OVER w AS rn, 
@@ -253,7 +256,7 @@ class GreenieBoard(GraphElement):
             WHERE player_ucid = %(player_ucid)s
         """
         if server_name:
-            self.env.embed.description = utils.escape_string(server_name)
+            title = utils.escape_string(server_name)
             sql1 += """
                 WHERE mission_id in (
                     SELECT id FROM missions WHERE server_name = %(server_name)s
@@ -266,10 +269,10 @@ class GreenieBoard(GraphElement):
             """
         if squadron:
             if self.env.embed.description:
-                self.env.embed.description += '\n'
+                title += '\n'
             else:
-                self.env.embed.description = ""
-            self.env.embed.description += f"Squadron \"{utils.escape_string(squadron['name'])}\""
+                title = ""
+            title += f"Squadron \"{utils.escape_string(squadron['name'])}\""
             if server_name:
                 sql1 += " AND "
             else:
@@ -409,3 +412,4 @@ class GreenieBoard(GraphElement):
                 self.axes.set_ylim(-fig_height + 1, 0.5)
                 self.axes.axis('off')
                 self.env.figure.set_facecolor(bg_color)
+                plt.title(f'{title}', color='white', fontsize=30, fontname=font_name)
