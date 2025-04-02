@@ -127,11 +127,14 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
     async def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
-        points = int(data.get('points', config['ratings'].get(data['grade'], 0)))
+        points = int(data.get('points', config['grades'].get(data['grade'], {}).get('rating', 0)))
+        # map some events to NC
+        if data['grade'] in ['WOP', 'OWO', 'TWO', 'TLU']:
+            data['grade'] = 'NC'
         # Moose.AIRBOSS sometimes gives negative points for WO. That is not according to any standard.
         # After SME consultation, any WO will give the WO points (typically 1.0).
-        if points < 0 and 'WO' in data['grade']:
-            points = config['ratings']['WO']
+        if points < 0 and data['grade'] == 'WO':
+            points = config['grades']['WO']['rating']
         if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
             cp.audit(_('Carrier Landing'), cp.points,

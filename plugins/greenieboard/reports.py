@@ -311,7 +311,7 @@ class GreenieBoard(GraphElement):
                 font_name = None
 
                 # Calculate dynamic figure size based on rows and columns
-                pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
+                pilot_column_width = (max([len(item['name']) for item in rows]) if rows else 1) * 0.20
                 padding = 1.0  # Padding between columns
                 fig_width = pilot_column_width + padding + (num_columns * column_width) + 2  # Additional padding on the sides
                 fig_height = (num_rows * row_height) + 2 + 2.5  # Additional padding on the top and bottom
@@ -362,6 +362,9 @@ class GreenieBoard(GraphElement):
                         x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2)
                         if j < len(landings):
                             grade = landings[j]['grade']
+
+                            if grade in ['WOP', 'OWO', 'TWO', 'TLU']:
+                                grade = 'NC'
 
                             if grade == '_OK_':
                                 imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)

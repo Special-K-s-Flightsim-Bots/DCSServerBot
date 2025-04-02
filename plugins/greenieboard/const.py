@@ -6,6 +6,7 @@ GRADES = {
     "--": {"rating": 2, "grade": "No grade. Below average corrections but safe pass", "color": "#73481d", "legend": "NO GRADE"},
     "WO": {"rating": 1, "grade": "Wave-off", "color": "#000000", "legend": "WAVE OFF"},
     "C": {"rating": 0, "grade": "Cut. Unsafe, gross deviations inside the wave-off window", "color": "#CC0000", "legend": "CUT"},
+    "NC": {"rating": 0, "grade": "No count", "color": "#FFFFFF", "legend": "NO COUNT"},
     "_n": {"color": "#000000", "legend": "Night pass"}
 }
 

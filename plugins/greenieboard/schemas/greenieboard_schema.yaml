@@ -20,7 +20,7 @@ schema;default_schema:
       type: map
       nullable: false
       mapping:
-        regex;(\_OK\_|OK|\(OK\)|B|\-\-|WO|C|_n):
+        regex;(\_OK\_|OK|\(OK\)|B|\-\-|WO|C|NC|_n):
           type: map
           nullable: false
           mapping:
