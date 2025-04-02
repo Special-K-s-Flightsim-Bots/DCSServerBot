@@ -131,6 +131,8 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
         # map some events to NC
         if data['grade'] in ['WOP', 'OWO', 'TWO', 'TLU']:
             data['grade'] = 'NC'
+        elif data['grade'] == 'WOFD':
+            data['grade'] = 'WO'
         # Moose.AIRBOSS sometimes gives negative points for WO. That is not according to any standard.
         # After SME consultation, any WO will give the WO points (typically 1.0).
         if points < 0 and data['grade'] == 'WO':

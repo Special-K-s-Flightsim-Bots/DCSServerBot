@@ -366,8 +366,11 @@ class GreenieBoard(GraphElement):
                         if j < len(landings):
                             grade = landings[j]['grade']
 
+                            # fixing grades...
                             if grade in ['WOP', 'OWO', 'TWO', 'TLU']:
                                 grade = 'NC'
+                            elif grade == 'WOFD':
+                                grade = 'WO'
 
                             if grade == '_OK_':
                                 imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)
