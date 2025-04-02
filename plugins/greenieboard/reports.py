@@ -315,15 +315,14 @@ class GreenieBoard(GraphElement):
                 rows = await cursor.fetchall()
 
                 if not rows:
-                    self.axes.set_xticks([])
-                    self.axes.set_yticks([])
+                    self.axes.axis('off')
                     xlim = self.axes.get_xlim()
                     ylim = self.axes.get_ylim()
                     self.axes.text(
                         (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
                         (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
                         'No traps captured yet.',
-                        ha='center', va='center', size=15
+                        ha='center', va='center', size=35
                     )
                     return
 
