@@ -244,6 +244,13 @@ class GreenieBoard(GraphElement):
 
         title = self.env.embed.title
         self.env.embed.title = ""
+        num_columns = num_landings
+        row_height = 0.8
+        column_width = 0.7
+        card_size = 0.5
+        text_size = 20
+        font_name = None
+
         sql1 = """
             SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (
                 SELECT player_ucid, ROW_NUMBER() OVER w AS rn, 
@@ -296,6 +303,7 @@ class GreenieBoard(GraphElement):
         server = self.bot.servers.get(server_name)
         config = self.plugin.get_config(server)
         grades = GRADES | config.get('grades', {})
+        plt.title(f'{title}', color='white', fontsize=30, fontname=font_name)
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -306,15 +314,21 @@ class GreenieBoard(GraphElement):
                 })
                 rows = await cursor.fetchall()
 
-                num_columns = num_landings
-                row_height = 0.8
-                column_width = 0.7
-                card_size = 0.5
-                text_size = 20
-                font_name = None
+                if not rows:
+                    self.axes.set_xticks([])
+                    self.axes.set_yticks([])
+                    xlim = self.axes.get_xlim()
+                    ylim = self.axes.get_ylim()
+                    self.axes.text(
+                        (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
+                        (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
+                        'No traps captured yet.',
+                        ha='center', va='center', size=15
+                    )
+                    return
 
                 # Calculate dynamic figure size based on rows and columns
-                pilot_column_width = (max([len(item['name']) for item in rows]) if rows else 1) * 0.20
+                pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
                 padding = 1.0  # Padding between columns
                 fig_width = pilot_column_width + padding + (num_columns * column_width) + 2  # Additional padding on the sides
                 fig_height = (num_rows * row_height) + 2 + 2.5  # Additional padding on the top and bottom
@@ -415,4 +429,3 @@ class GreenieBoard(GraphElement):
                 self.axes.set_ylim(-fig_height + 1, 0.5)
                 self.axes.axis('off')
                 self.env.figure.set_facecolor(bg_color)
-                plt.title(f'{title}', color='white', fontsize=30, fontname=font_name)
