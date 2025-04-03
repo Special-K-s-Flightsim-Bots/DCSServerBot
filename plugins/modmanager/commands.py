@@ -464,7 +464,12 @@ class ModManager(Plugin):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         if utils.is_github_repo(url) and not version:
-            version = await self.service.get_latest_repo_version(url)
+            try:
+                version = await self.service.get_latest_repo_version(url)
+            except aiohttp.ClientResponseError as ex:
+                await interaction.followup.send(
+                    _("Can't connect to {url}: {message}").format(url=url, message=ex.message))
+                return
         if version:
             package_name = self.service.extract_repo_name(url).split('/')[-1]
             msg = await interaction.followup.send(

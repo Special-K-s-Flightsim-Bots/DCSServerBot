@@ -84,7 +84,7 @@ class ModManagerService(Service):
                 await asyncio.sleep(1)
             config = self.get_config(server)
             if 'packages' not in config:
-                return
+                continue
 
             for package in config.get('packages', []):
                 folder = Folder(package['source'])
@@ -233,9 +233,13 @@ class ModManagerService(Service):
 
     async def get_latest_version(self, package: dict) -> str:
         if 'repo' in package:
-            return await self.get_latest_repo_version(package['repo'])
-        else:
-            return await self._get_latest_file_version(package)
+            try:
+                return await self.get_latest_repo_version(package['repo'])
+            except ClientResponseError as ex:
+                self.log.warning(
+                    f"Can't connect to {package['repo']}: {ex.message}. "
+                    f"Update-check skipped for package {package['name']}.")
+        return await self._get_latest_file_version(package)
 
     async def get_installed_package(self, reference: Union[Server, Node], folder: Folder, package_name: str) -> Optional[str]:
         async with self.apool.connection() as conn:
