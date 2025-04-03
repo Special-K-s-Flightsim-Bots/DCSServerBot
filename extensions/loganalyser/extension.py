@@ -198,9 +198,10 @@ class LogAnalyser(Extension):
         timestamp_str = match.group(1)
         timestamp = datetime.fromisoformat(timestamp_str)
         if timestamp < datetime.fromisoformat('2024-09-03T16:47:17+02:00'):
+            mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
             embed = utils.create_warning_embed(
                 title='Outdated Moose version found!',
-                text=f"Mission {self.server.current_mission.name} is using an old Moose version. "
+                text=f"Mission {mission_name} is using an old Moose version. "
                      f"You will probably see performance issues!")
             try:
                 await self.bus.send_to_node_sync({

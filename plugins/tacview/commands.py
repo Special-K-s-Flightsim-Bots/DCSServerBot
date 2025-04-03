@@ -22,15 +22,22 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
         # single file per player
         if config.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
             ucid = await interaction.client.get_ucid_by_member(interaction.user)
-            _, name = await interaction.client.get_member_or_name_by_ucid(ucid, verified=True)
-            _, files = await server.node.list_directory(os.path.join(path, utils.slugify(name, allow_unicode=True)),
-                                                        pattern='*.acmi', is_dir=False)
+            if ucid:
+                async with interaction.client.apool.connection() as conn:
+                    cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (ucid, ))
+                    row = await cursor.fetchone()
+                    if row:
+                        name = row[0]
+                _, files = await server.node.list_directory(os.path.join(path, name),
+                                                            pattern='*.acmi', is_dir=False)
+            else:
+                files = []
         else:
             _, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False)
 
         # file per session
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.basename(x), value=x)
+            app_commands.Choice(name=os.path.basename(x), value=os.path.relpath(x, path))
             for x in files
             if not current or current.casefold() in x.casefold()
         ]

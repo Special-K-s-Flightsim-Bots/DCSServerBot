@@ -359,7 +359,7 @@ class MissionEventListener(EventListener["Mission"]):
             self.log.debug(f"Player {player.name} is not linked or verified.")
             roles = []
         else:
-            roles = player.member.roles
+            roles = [x.id for x in player.member.roles]
             self.log.debug(f"Player {player.name} has the following roles: " + ','.join([role.name for role in roles]))
         await server.send_to_dcs({
             'command': 'uploadUserRoles',
