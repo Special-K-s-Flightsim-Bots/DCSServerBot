@@ -356,11 +356,9 @@ class MissionEventListener(EventListener["Mission"]):
 
     async def _upload_user_roles(self, server: Server, player: Player):
         if not player.member or not player.verified:
-            self.log.debug(f"Player {player.name} is not linked or verified.")
             roles = []
         else:
             roles = [x.id for x in player.member.roles]
-            self.log.debug(f"Player {player.name} has the following roles: " + ','.join([role.name for role in roles]))
         await server.send_to_dcs({
             'command': 'uploadUserRoles',
             'ucid': player.ucid,
