@@ -61,11 +61,11 @@ class Player(DataObject):
                                p.manual, c.coalition, 
                                CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
-                        LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
+                        LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid AND c.server_name = %s
                         LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
                         WHERE p.ucid = %s 
                         AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
-                    """, (self.ucid, ))
+                    """, (self.server.name, self.ucid))
                     # existing member found?
                     if cursor.rowcount == 1:
                         row = cursor.fetchone()
