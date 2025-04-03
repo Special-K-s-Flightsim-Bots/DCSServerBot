@@ -30,6 +30,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 'plugin': self.plugin_name,
                 'params': config
             })
+            # find all VIP roles
             roles = []
             for role in config.get('VIP', {}).get('discord', []):
                 roles.append(self.bot.get_role(role))
@@ -52,11 +53,12 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                             'ucid': row[0],
                             'roles': [x.id for x in member.roles]
                         })
+                    # upload the VIP-users in batches of 25
                     if len(batch) >= 25:
                         await server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
                         batch = []
 
-                # Send remaining users, if any
+                # Send remaining VIP-users, if any
                 if batch:
                     await server.send_to_dcs({'command': 'uploadUserRoles', 'batch': batch})
 

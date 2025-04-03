@@ -354,6 +354,19 @@ class MissionEventListener(EventListener["Mission"]):
         except (TimeoutError, asyncio.TimeoutError):
             self.log.error(f"Timeout during _load_airbases(server={server.name})!")
 
+    async def _upload_user_roles(self, server: Server, player: Player):
+        if not player.member or not player.verified:
+            self.log.debug(f"Player {player.name} is not linked or verified.")
+            roles = []
+        else:
+            roles = player.member.roles
+            self.log.debug(f"Player {player.name} has the following roles: " + ','.join([role.name for role in roles]))
+        await server.send_to_dcs({
+            'command': 'uploadUserRoles',
+            'ucid': player.ucid,
+            'roles': roles
+        })
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         channels = deepcopy(server.locals.get('channels', {}))
@@ -412,11 +425,7 @@ class MissionEventListener(EventListener["Mission"]):
                 if autorole:
                     asyncio.create_task(player.add_role(autorole))
 
-            asyncio.create_task(server.send_to_dcs({
-                'command': 'uploadUserRoles',
-                'ucid': player.ucid,
-                'roles': [x.id for x in player.member.roles] if player.member and player.verified else []
-            }))
+            asyncio.create_task(self._upload_user_roles(server, player))
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now(timezone.utc)
         # cleanup inactive players
@@ -529,11 +538,7 @@ class MissionEventListener(EventListener["Mission"]):
         # if the first player joined, the server is considered non-idle
         if server.idle_since:
             server.idle_since = None
-        asyncio.create_task(server.send_to_dcs({
-            'command': 'uploadUserRoles',
-            'ucid': player.ucid,
-            'roles': [x.id for x in player.member.roles] if player.member and player.verified else []
-        }))
+        asyncio.create_task(self._upload_user_roles(server, player))
         if player.watchlist:
             asyncio.create_task(self._watchlist_alert(server, player))
 
@@ -757,11 +762,7 @@ class MissionEventListener(EventListener["Mission"]):
             return
         player = server.get_player(ucid=data['ucid'])
         if player:
-            asyncio.create_task(server.send_to_dcs({
-                'command': 'uploadUserRoles',
-                'ucid': player.ucid,
-                'roles': [x.id for x in player.member.roles]
-            }))
+            asyncio.create_task(self._upload_user_roles(server, player))
 
     @event(name="onMemberUnlinked")
     async def onMemberUnlinked(self, server: Server, data: dict) -> None:
@@ -770,11 +771,7 @@ class MissionEventListener(EventListener["Mission"]):
             return
         player = server.get_player(ucid=data['ucid'])
         if player:
-            asyncio.create_task(server.send_to_dcs({
-                'command': 'uploadUserRoles',
-                'ucid': player.ucid,
-                'roles': []
-            }))
+            asyncio.create_task(self._upload_user_roles(server, player))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
