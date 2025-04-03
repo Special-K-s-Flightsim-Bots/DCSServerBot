@@ -259,7 +259,7 @@ function dcsbot.addMission(json)
 		path = json.path
 	end
 	net.missionlist_append(path)
-	if json.index ~= nil and json.index > 0 then
+	if json.index ~= nil and tonumber(json.index) > 0 then
 	    net.missionlist_move(#current_missions["missionList"], tonumber(json.index))
 	end
 	local current_missions = net.missionlist_get()
