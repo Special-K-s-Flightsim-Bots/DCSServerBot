@@ -57,7 +57,7 @@ class Player(DataObject):
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
                     cursor.execute("""
-                        SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
+                        SELECT DISTINCT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
                                p.manual, c.coalition, 
                                CASE WHEN w.player_ucid IS NOT NULL THEN TRUE ELSE FALSE END AS watchlict, p.vip 
                         FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
