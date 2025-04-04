@@ -784,6 +784,10 @@ class NodeImpl(Node):
                 self.suspect[node.name] = node
 
         try:
+            # do not do any checks, if we are supposed to shut down
+            if self.node.is_shutdown.is_set():
+                return self.master
+
             async with self.cpool.connection() as conn:
                 async with conn.transaction():
                     try:
