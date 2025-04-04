@@ -747,6 +747,7 @@ class NodeImpl(Node):
                 WHERE guild_id = %s AND node = %s 
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
             """).format(interval=sql.Literal(f"{timeout} seconds"))
+            self.log.debug(query.as_string(conn))
             cursor = await conn.execute(query, (self.guild_id, node))
             return (await cursor.fetchone())[0] == 1
 
