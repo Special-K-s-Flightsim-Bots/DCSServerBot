@@ -190,7 +190,7 @@ class GreenieBoard(GraphElement):
 
     def add_legend(self, config: dict, start_y, card_size=0.4, font_size=14, num_landings=30):
         grades = GRADES | config.get('grades', {})
-        num_columns = 4 if num_landings < 20 else 3
+        num_columns = 5 if num_landings < 20 else 3
         padding = 0.2
         x_start = 0
         y_position = start_y
@@ -220,9 +220,9 @@ class GreenieBoard(GraphElement):
                 # Draw colored rectangle for the legend
                 rect = FancyBboxPatch((x_pos, y_pos - card_size / 2),
                                       card_size, card_size,
-                                      boxstyle="round,pad=0.02,rounding_size=0.1",
+                                      boxstyle=f"round,pad=0.02,rounding_size=0.1",
                                       edgecolor='none', facecolor=grades[key]['color'],
-                                      lw=0, zorder=2)
+                                      lw=0, zorder=5)
                 self.axes.add_patch(rect)
 
             # Calculate the required space for the text
@@ -330,7 +330,8 @@ class GreenieBoard(GraphElement):
                 pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
                 padding = 1.0  # Padding between columns
                 fig_width = pilot_column_width + padding + (num_columns * column_width) + 2  # Additional padding on the sides
-                fig_height = (num_rows * row_height) + 2 + 2.5  # Additional padding on the top and bottom
+                legend_height = (5 if num_landings < 20 else 3) * (card_size + 0.2)
+                fig_height = (num_rows * row_height) + 2 + legend_height  # Additional padding on the top and bottom
                 self.env.figure.set_size_inches(fig_width, fig_height)
 
                 bg_color = '#2A2A2A'
