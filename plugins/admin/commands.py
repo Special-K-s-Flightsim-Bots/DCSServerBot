@@ -479,7 +479,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @command(description=_('Download files from your server'))
     @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
+    @utils.app_has_roles(['Admin', 'DCS Admin'])
     @app_commands.autocomplete(what=label_autocomplete)
     @app_commands.autocomplete(filename=file_autocomplete)
     async def download(self, interaction: discord.Interaction,
