@@ -57,7 +57,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             if config.get('persistent_board', False):
                 channel_id = int(config.get('persistent_channel', server.channels[Channel.STATUS]))
                 num_rows = config.get('num_rows', 10)
-                num_landings = config.get('nun_landings', 30)
+                num_landings = config.get('num_landings', 30)
                 report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
                                           embed_name='greenieboard', server=server, channel_id=channel_id)
                 await report.render(server_name=server.name, num_rows=num_rows, num_landings=num_landings)
@@ -78,7 +78,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
             if 'persistent_channel' in config and config.get('persistent_board', False):
                 channel_id = int(config.get('persistent_channel'))
                 num_rows = config.get('num_rows', 10)
-                num_landings = config.get('nun_landings', 30)
+                num_landings = config.get('num_landings', 30)
                 report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
                                           embed_name='greenieboard', channel_id=channel_id)
                 await report.render(server_name=None, num_rows=num_rows, num_landings=num_landings)
