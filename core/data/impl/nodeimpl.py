@@ -762,7 +762,6 @@ class NodeImpl(Node):
 
             active_nodes = set(await self.get_active_nodes())
             all_nodes = set(self.all_nodes.keys())
-            suspect_nodes = set(self.suspect.keys())
 
             # check if suspect nodes came back again
             for node_name in {name: self.suspect[name] for name in active_nodes if name in self.suspect}:
