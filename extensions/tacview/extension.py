@@ -77,7 +77,6 @@ class Tacview(Extension):
         self.stop_event.clear()
         self.stopped.clear()
         if self.config.get('target'):
-            # noinspection PyAsyncCall
             asyncio.create_task(self.check_log())
         return await super().startup()
 
@@ -275,7 +274,7 @@ class Tacview(Extension):
                                 return
                             match = self.exp.search(line)
                             if match:
-                                # noinspection PyAsyncCall
+                                self.log.debug("TACVIEW pattern found.")
                                 asyncio.create_task(self.send_tacview_file(match.group('filename')))
                                 if self.stop_event.is_set():
                                     return
@@ -394,6 +393,10 @@ class Tacview(Extension):
                     await outfile.writelines(lines_to_keep)
             else:
                 os.remove(export_file)
+        options = self.server.options.get('plugins')
+        if options:
+            options['Tacview'] |= {'tacviewModuleEnabled': False}
+            self.server.options['plugins'] = options
         self.log.info(f"  => {self.name} {version} uninstalled from instance {self.server.instance.name}.")
         return True
 

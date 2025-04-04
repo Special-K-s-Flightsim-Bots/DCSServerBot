@@ -67,12 +67,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync') and data.get('players'):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._toggle_mission_stats(server))
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, _: dict) -> None:
-        # noinspection PyAsyncCall
         asyncio.create_task(self._toggle_mission_stats(server))
 
     async def _update_database(self, server: Server, config: dict, data: dict):
@@ -126,7 +124,6 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config.get('persistence', True):
-            # noinspection PyAsyncCall
             asyncio.create_task(self._update_database(server, config, data))
         if not data['server_name'] in self.mission_stats or not data.get('initiator'):
             return
@@ -223,7 +220,6 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             update = True
             events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:
-                # noinspection PyAsyncCall
                 asyncio.create_task(events_channel.send(message))
         if update:
             self.update[server.name] = True
@@ -255,7 +251,6 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'mission_end':
-            # noinspection PyAsyncCall
             asyncio.create_task(self._process_event(server))
 
     @tasks.loop(minutes=5)

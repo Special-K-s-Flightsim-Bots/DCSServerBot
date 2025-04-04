@@ -83,8 +83,8 @@ async def popup(node: Node, server: Server, message: str, to: Optional[str] = 'a
     await server.sendPopupMessage(Coalition(to), message, timeout)
 
 
-async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: int = None, ignore: int = None,
-                        after_id: int = None, before_id: int = None):
+async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: int = None,
+                        ignore: Union[int, list[int]] = None, after_id: int = None, before_id: int = None):
     if not node.master:
         return
     bot = ServiceRegistry.get(BotService).bot
@@ -93,6 +93,8 @@ async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: 
         channels = [channel]
     else:
         channels = channel
+    if isinstance(ignore, int):
+        ignore = [ignore]
     for c in channels:
         channel = bot.get_channel(c)
         if not channel:
@@ -101,7 +103,7 @@ async def purge_channel(node: Node, channel: Union[int, list[int]], older_than: 
 
         try:
             def check(message: discord.Message):
-                return not ignore or message.author.id != ignore
+                return not ignore or (message.author.id not in ignore and message.id not in ignore)
 
             if older_than is not None:
                 now = datetime.now(tz=timezone.utc)

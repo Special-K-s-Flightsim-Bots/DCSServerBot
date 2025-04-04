@@ -41,7 +41,6 @@ class SRSEventListener(EventListener["SRS"]):
         config = self.get_config(server) or {
             "message_no_srs": "You need to use SRS to play on this server!"
         }
-        # noinspection PyAsyncCall
         asyncio.create_task(server.send_to_dcs({
             'command': 'loadParams',
             'plugin': self.plugin_name,
@@ -55,7 +54,6 @@ class SRSEventListener(EventListener["SRS"]):
         if self.get_config(server).get('enforce_srs', False):
             player: Player = server.get_player(ucid=data['ucid'])
             if player.name not in self.srs_users.get(server.name, {}):
-                # noinspection PyAsyncCall
                 asyncio.create_task(server.send_to_dcs({"command": "disableSRS", "name": player.name}))
 
     @event(name="onSRSConnect")
@@ -64,7 +62,6 @@ class SRSEventListener(EventListener["SRS"]):
             return
         self._add_or_update_srs_user(server, data)
         if self.get_config(server).get('enforce_srs', False):
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs({"command": "enableSRS", "name": data['player_name']}))
         self.mission.eventlistener.display_player_embed(server)
 
@@ -80,12 +77,10 @@ class SRSEventListener(EventListener["SRS"]):
             return
         self._del_srs_user(server, data)
         if self.get_config(server).get('enforce_srs', False):
-            # noinspection PyAsyncCall
             asyncio.create_task(server.send_to_dcs({"command": "disableSRS", "name": data['player_name']}))
             if self.get_config(server).get('move_to_spec', False):
                 player = server.get_player(name=data['player_name'])
                 if player and player.side != Side.SPECTATOR:
-                    # noinspection PyAsyncCall
                     asyncio.create_task(server.move_to_spectators(player, reason=self.get_config(server).get(
                         'message_no_srs', 'You need to use SRS to play on this server!')))
         self.mission.eventlistener.display_player_embed(server)

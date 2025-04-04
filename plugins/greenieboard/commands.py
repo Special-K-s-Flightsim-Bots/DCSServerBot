@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import aiofiles
 import asyncio
 import discord
@@ -16,9 +18,14 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from typing import Optional, Union
 
+from . import GRADES
 from .listener import GreenieBoardEventListener
 from .trapsheet import read_trapsheet, parse_filename, plot_trapsheet
 from .views import TrapView
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -121,6 +128,29 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                 with suppress(Exception):
                     os.remove(filename)
             await conn.execute("DROP TABLE greenieboard")
+        elif new_version == '3.3':
+            def change_instance(instance: dict):
+                if 'ratings' in instance:
+                    ratings = instance.pop('ratings')
+                    grades = GRADES
+                    for key, value in grades.items():
+                        value['rating'] = ratings.get(key, 0)
+                    instance['grades'] = grades
+
+            config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            if self.node.name in data.keys():
+                for name, node in data.items():
+                    if name == DEFAULT_TAG:
+                        change_instance(node)
+                        continue
+                    for instance in node.values():
+                        change_instance(instance)
+            else:
+                for instance in data.values():
+                    change_instance(instance)
+            with open(config, mode='w', encoding='utf-8') as outfile:
+                yaml.dump(data, outfile)
 
     async def prune(self, conn: psycopg.AsyncConnection, *, days: int = -1, ucids: list[str] = None,
                     server: Optional[str] = None) -> None:
@@ -191,14 +221,16 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     @app_commands.rename(num_rows='rows')
+    @app_commands.rename(num_landings='landings')
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     async def board(self, interaction: discord.Interaction,
                     num_rows: Optional[Range[int, 5, 20]] = 10,
+                    num_landings: Optional[Range[int, 1, 30]] = 30,
                     squadron_id: Optional[int] = None):
         report = PaginationReport(interaction, self.plugin_name, 'greenieboard.json')
-        squadron = (await utils.get_squadron(self.bot, squadron_id=squadron_id)) if squadron_id else None
-        await report.render(server_name=None, num_rows=num_rows, squadron=squadron)
+        squadron = utils.get_squadron(self.node, squadron_id=squadron_id) if squadron_id else None
+        await report.render(server_name=None, num_rows=num_rows, num_landings=num_landings, squadron=squadron)
 
     @traps.command(description=_('Adds a trap to the Greenieboard'))
     @app_commands.guild_only()

@@ -16,7 +16,7 @@ class CreditPlayer(Player):
             with self.pool.connection() as conn:
                 with closing(conn.cursor()) as cursor:
                     # load credit points
-                    campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
+                    campaign_id, _ = utils.get_running_campaign(self.node, self.server)
                     if not campaign_id:
                         return -1
                     cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
@@ -41,7 +41,7 @@ class CreditPlayer(Player):
             self._points = 0
         else:
             self._points = p
-        campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
+        campaign_id, _ = utils.get_running_campaign(self.node, self.server)
         if campaign_id:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -62,7 +62,7 @@ class CreditPlayer(Player):
     def audit(self, event: str, old_points: int, remark: str):
         if old_points == self.points:
             return
-        campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
+        campaign_id, _ = utils.get_running_campaign(self.node, self.server)
         if not campaign_id:
             return
         with self.pool.connection() as conn:

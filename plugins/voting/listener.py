@@ -222,7 +222,6 @@ class VotingListener(EventListener["Voting"]):
             return
         player: Player = server.get_player(ucid=data['ucid'])
         if player:
-            # noinspection PyAsyncCall
             asyncio.create_task(player.sendChatMessage(
                 utils.format_string(config['welcome_message'], server=server, player=player, prefix=self.prefix)))
 

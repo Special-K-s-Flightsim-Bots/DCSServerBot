@@ -148,7 +148,8 @@ class Report:
                            exc_info=True)
             raise
 
-    def _resolve_element_class_and_args(self, element, params):
+    @staticmethod
+    def _resolve_element_class_and_args(element, params):
         """
         Resolves the class and arguments for a given element.
         """
@@ -175,7 +176,8 @@ class Report:
 
         return element_class, element_args
 
-    def _filter_args(self, args, method):
+    @staticmethod
+    def _filter_args(args, method):
         """
         Filters arguments based on a method's signature, ensuring compatibility.
         """

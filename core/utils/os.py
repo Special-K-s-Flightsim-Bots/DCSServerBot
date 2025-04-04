@@ -19,7 +19,7 @@ if sys.platform == 'win32':
 from contextlib import closing, suppress
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, Generator
 
 if TYPE_CHECKING:
     from core import Node
@@ -49,8 +49,9 @@ __all__ = [
     "set_password",
     "get_password",
     "delete_password",
-    "CloudRotatingFileHandler",
-    "sanitize_filename"
+    "sanitize_filename",
+    "get_win32_error_message",
+    "CloudRotatingFileHandler"
 ]
 
 logger = logging.getLogger(__name__)
@@ -68,9 +69,11 @@ async def get_public_ip(node: "Node"):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, proxy=node.proxy, proxy_auth=node.proxy_auth) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
+    else:
+        raise TimeoutError("Public IP could not be retrieved.")
 
 
-def find_process(proc: str, instance: Optional[str] = None):
+def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.Process, None, None]:
     proc_set = {name.casefold() for name in proc.split("|")}
 
     for p in psutil.process_iter(['cmdline']):
@@ -83,9 +86,9 @@ def find_process(proc: str, instance: Optional[str] = None):
                     continue
                 # Check if `instance` is part of any cmdline parameter (case-insensitive)
                 if any(instance.casefold() in c.replace('\\', '/').casefold() for c in cmdline):
-                    return p
+                    yield p
             else:
-                return p
+                yield p
         except (psutil.AccessDenied, psutil.NoSuchProcess, IndexError):
             continue
     return None
@@ -276,6 +279,21 @@ def sanitize_filename(filename: str, base_directory: str) -> str:
         raise ValueError(f"Invalid filename detected: {filename}")
 
     return resolved_path
+
+
+def get_win32_error_message(error_code: int):
+    # Load the system message corresponding to the error code
+    buffer = ctypes.create_unicode_buffer(512)
+    ctypes.windll.kernel32.FormatMessageW(
+        0x00001000,  # FORMAT_MESSAGE_FROM_SYSTEM
+        None,
+        error_code,
+        0,  # Default language
+        buffer,
+        len(buffer),
+        None
+    )
+    return buffer.value.strip()
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

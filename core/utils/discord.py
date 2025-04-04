@@ -1069,14 +1069,14 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str) 
         return choices[:25]
 
 
-async def get_squadron(bot: DCSServerBot, *, name: Optional[str] = None,
+async def get_squadron(node: Node, *, name: Optional[str] = None,
                        squadron_id: Optional[int] = None) -> Optional[dict]:
     sql = "SELECT * FROM squadrons"
     if name:
         sql += " WHERE name = %(name)s"
     elif squadron_id:
         sql += " WHERE id = %(squadron_id)s"
-    async with bot.apool.connection() as conn:
+    async with node.apool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cursor:
             await cursor.execute(sql, {"name": name, "squadron_id": squadron_id})
             return await cursor.fetchone()

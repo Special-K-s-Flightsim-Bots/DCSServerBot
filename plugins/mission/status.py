@@ -204,8 +204,11 @@ class Footer(report.EmbedElement):
             # noinspection PyUnresolvedReferences
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server.name in listener.active_servers):
-                text += '\n\nUser statistics are enabled for this server.'
+                text += '\n\n- User statistics are enabled.'
                 break
+        current_mission = await server.get_current_mission_file()
+        if current_mission and current_mission.endswith('.sav'):
+            text += '\n- Mission persistence is enabled.'
         text += f'\n\nLast updated: {datetime.now(timezone.utc):%y-%m-%d %H:%M:%S UTC}'
         self.embed.set_footer(text=text)
 

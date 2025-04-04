@@ -7,7 +7,6 @@ import logging
 import os
 import psutil
 import re
-import shutil
 import ssl
 import subprocess
 import zipfile
@@ -47,35 +46,56 @@ LOGLEVEL = {
 class SkyEye(Extension):
 
     def __init__(self, server, config):
+        self.configs = []
         super().__init__(server, config)
         self._version = None
+        self.processes = []
+        self.loggers = []
         if self.enabled:
-            self.process: Optional[psutil.Process] = utils.find_process(self.get_exe_path(), self.server.instance.name)
-            if self.process:
-                self.log.info(f"  => {self.name}: Running SkyEye server detected.")
+            for process in utils.find_process(self.get_exe_path(), self.server.instance.name):
+                self.processes.append(process)
+            if self.processes:
+                self.log.info(f"  => {self.name}: Running SkyEye server(s) detected.")
+        # register shutdown handler
+        atexit.register(self.terminate)
 
-    def get_config(self) -> str:
+    def get_config(self, cfg: dict) -> str:
         return os.path.expandvars(utils.format_string(
-            self.config.get('config', f'{self.server.instance.home}\\Config\\SkyEye.yaml'),
-            server=self.server)
+            cfg.get('config', '{instance.home}\\Config\\SkyEye-{coalition}.yaml'),
+            server=self.server, instance=self.server.instance, coalition=cfg.get('coalition', 'blue'))
         )
 
     def load_config(self) -> Optional[dict]:
-        path = self.get_config()
-        if not os.path.exists(path):
-            base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
-            if not os.path.exists(base_config):
-                return {}
-            shutil.copy2(base_config, path)
-        return yaml.load(Path(path).read_text(encoding='utf-8'))
+        base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
+        if os.path.exists(base_config):
+            data = yaml.load(Path(base_config).read_text(encoding='utf-8')) or {}
+        else:
+            data = {}
+        if 'instances' in self.config:
+            main_config = self.config.copy()
+            main_config.pop('instances')
+            for instance in self.config['instances']:
+                cfg = data.copy()
+                cfg |= main_config
+                cfg_file = self.get_config(cfg | instance)
+                if os.path.exists(cfg_file):
+                    cfg |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
+                cfg |= instance.copy()
+                self.configs.append(cfg)
+        else:
+            cfg_file = self.get_config(self.config)
+            if os.path.exists(cfg_file):
+                self.config |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
+            self.configs = [data | self.config]
+        return data
 
-    def set_affinity(self, affinity: Union[list[int], str]):
+    def set_affinity(self, process: psutil.Process, affinity: Union[list[int], str]):
         if isinstance(affinity, str):
             affinity = [int(x.strip()) for x in affinity.split(',')]
         elif isinstance(affinity, int):
             affinity = [affinity]
         self.log.info("  => Setting process affinity to {}".format(','.join(map(str, affinity))))
-        self.process.cpu_affinity(affinity)
+        process.cpu_affinity(affinity)
 
     async def download_whisper_file(self, name: str):
         whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
@@ -89,102 +109,114 @@ class SkyEye(Extension):
                             break
                         f.write(chunk)
 
-    def _maybe_update_config(self, key: str, value: Any):
+    def _maybe_update_config(self, cfg: dict, key: str, value: Any):
         if not value:
             return False
         if key in self.locals:
-            if self.locals[key] != value:
-                self.locals[key] = value
+            if cfg[key] != value:
+                cfg[key] = value
                 return True
         else:
-            self.locals[key] = value
+            cfg[key] = value
             return True
         return False
 
-    async def _prepare_config(self):
+    async def _prepare_config(self, cfg: dict):
         dirty = False
 
         # make sure we have a local model, unless configured otherwise
-        if self.config.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
+        if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
             self.log.warning(f"  => {self.name}: Local Whisper model configured. This has a performance impact on your system!")
             whisper_path = os.path.join(os.path.dirname(self.get_exe_path()), "whisper.bin")
             if not os.path.exists(whisper_path):
                 self.log.info(f"  => {self.name}: Downloading whisper model...")
-                await self.download_whisper_file(self.config.get('whisper-model', 'ggml-small.en.bin'))
+                await self.download_whisper_file(cfg.get('whisper-model', 'ggml-small.en.bin'))
                 self.log.info(f"  => {self.name}: Whisper model downloaded.")
-            dirty |= self._maybe_update_config('recognizer', 'openai-whisper-local')
+            dirty |= self._maybe_update_config(cfg, 'recognizer', 'openai-whisper-local')
+            dirty |= self._maybe_update_config(cfg,'recognizer-lock-path',
+                                               os.path.join(os.path.dirname(self.get_exe_path()), 'recognizer.lck'))
         else:
-            dirty |= self._maybe_update_config('recognizer', 'openai-whisper-api')
-            dirty |= self._maybe_update_config('openai-api-key', self.config['openai-api-key'])
+            dirty |= self._maybe_update_config(cfg, 'recognizer', 'openai-whisper-api')
+            dirty |= self._maybe_update_config(cfg, 'openai-api-key', cfg['openai-api-key'])
 
-        dirty |= self._maybe_update_config('whisper-model', self.config.get('whisper-model', 'ggml-small.en.bin'))
-        dirty |= self._maybe_update_config('coalition', self.config.get('coalition'))
-        if 'callsign' in self.config:
-            dirty |= self._maybe_update_config('callsign', self.config['callsign'])
-        elif 'callsigns' in self.config:
-            dirty |= self._maybe_update_config('callsigns', self.config['callsigns'])
-        dirty |= self._maybe_update_config('voice', self.config.get('voice'))
-        dirty |= self._maybe_update_config('voice-playback-speed', self.config.get('voice-playback-speed'))
-        dirty |= self._maybe_update_config('voice-playback-pause', self.config.get('voice-playback-pause'))
-        dirty |= self._maybe_update_config('auto-picture', self.config.get('auto-picture'))
-        dirty |= self._maybe_update_config('auto-picture-interval', self.config.get('auto-picture-interval'))
-        dirty |= self._maybe_update_config('threat-monitoring', self.config.get('threat-monitoring'))
-        dirty |= self._maybe_update_config(
-            'threat-monitoring-interval', self.config.get('threat-monitoring-interval'))
-        dirty |= self._maybe_update_config(
-            'mandatory-threat-radius', self.config.get('mandatory-threat-radius'))
-        dirty |= self._maybe_update_config('log-format', 'json')
-        if self.config.get('discord-webhook-id'):
-            dirty |= self._maybe_update_config('discord-webhook-id', self.config['discord-webhook-id'])
-            dirty |= self._maybe_update_config('discord-webhook-token', self.config['discord-webhook-token'])
+        dirty |= self._maybe_update_config(cfg, 'voice-lock-path',
+                                           os.path.join(os.path.dirname(self.get_exe_path()), 'voice.lck'))
+        dirty |= self._maybe_update_config(cfg, 'whisper-model', cfg.get('whisper-model', 'ggml-small.en.bin'))
+        dirty |= self._maybe_update_config(cfg, 'coalition', cfg.get('coalition'))
+        if 'callsign' in cfg:
+            dirty |= self._maybe_update_config(cfg, 'callsign', cfg['callsign'])
+        elif 'callsigns' in cfg:
+            dirty |= self._maybe_update_config(cfg, 'callsigns', cfg['callsigns'])
+        dirty |= self._maybe_update_config(cfg, 'voice', cfg.get('voice'))
+        dirty |= self._maybe_update_config(cfg, 'voice-playback-speed', cfg.get('voice-playback-speed'))
+        dirty |= self._maybe_update_config(cfg, 'voice-playback-pause', cfg.get('voice-playback-pause'))
+        dirty |= self._maybe_update_config(cfg, 'auto-picture', cfg.get('auto-picture'))
+        dirty |= self._maybe_update_config(cfg, 'auto-picture-interval', cfg.get('auto-picture-interval'))
+        dirty |= self._maybe_update_config(cfg, 'threat-monitoring', cfg.get('threat-monitoring'))
+        dirty |= self._maybe_update_config(cfg,
+            'threat-monitoring-interval', cfg.get('threat-monitoring-interval'))
+        dirty |= self._maybe_update_config(cfg,
+            'mandatory-threat-radius', cfg.get('mandatory-threat-radius'))
+        dirty |= self._maybe_update_config(cfg, 'log-format', 'json')
+        if cfg.get('discord-webhook-id'):
+            dirty |= self._maybe_update_config(cfg, 'discord-webhook-id', cfg['discord-webhook-id'])
+            dirty |= self._maybe_update_config(cfg, 'discord-webhook-token', cfg['discord-webhook-token'])
 
         # Configure Tacview
         tacview = self.server.extensions.get('Tacview')
         if tacview:
             tacview_port = tacview.locals.get('tacviewRealTimeTelemetryPort', 42674)
-            dirty |= self._maybe_update_config('telemetry-address', f"localhost:{tacview_port}")
-            dirty |= self._maybe_update_config(
+            dirty |= self._maybe_update_config(cfg, 'telemetry-address', f"localhost:{tacview_port}")
+            dirty |= self._maybe_update_config(cfg,
                 'telemetry-password', tacview.locals.get('tacviewRealTimeTelemetryPassword')
             )
         else:
             # we definitely need Tacview, so if no Tacview extension is configured, expect the values to be in the config
-            dirty |= self._maybe_update_config(
-                'telemetry-address', self.config.get('telemetry-address', f"localhost:42674"))
-            dirty |= self._maybe_update_config('telemetry-password', self.config.get('telemetry-password'))
+            dirty |= self._maybe_update_config(cfg,
+                'telemetry-address', cfg.get('telemetry-address', f"localhost:42674"))
+            dirty |= self._maybe_update_config(cfg, 'telemetry-password', cfg.get('telemetry-password'))
 
         # Configure SRS
         srs = self.server.extensions.get('SRS')
         if srs:
             srs_port = srs.config.get('port', srs.locals['Server Settings']['SERVER_PORT'])
-            dirty |= self._maybe_update_config('srs-server-address', f"localhost:{srs_port}")
-            if self.config.get('coalition', 'blue') == 'blue':
-                dirty |= self._maybe_update_config(
+            dirty |= self._maybe_update_config(cfg, 'srs-server-address', f"localhost:{srs_port}")
+            if cfg.get('coalition', 'blue') == 'blue':
+                dirty |= self._maybe_update_config(cfg,
                     'srs-eam-password',
                     srs.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
                 )
             else:
-                dirty |= self._maybe_update_config(
+                dirty |= self._maybe_update_config(cfg,
                     'srs-eam-password',
                     srs.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
                 )
         else:
             # we definitely need SRS, so if no SRS extension is configured, expect the values to be in the config
-            dirty |= self._maybe_update_config(
-                'srs-server-address', self.config.get('srs-server-address', f"localhost:5002"))
-            dirty |= self._maybe_update_config('srs-eam-password', self.config.get('srs-eam-password'))
-        dirty |= self._maybe_update_config('srs-frequencies', self.config.get('srs-frequencies'))
+            dirty |= self._maybe_update_config(cfg,
+                'srs-server-address', cfg.get('srs-server-address', f"localhost:5002"))
+            dirty |= self._maybe_update_config(cfg, 'srs-eam-password', cfg.get('srs-eam-password'))
+        dirty |= self._maybe_update_config(cfg, 'srs-frequencies', cfg.get('srs-frequencies'))
 
         # Configure gRPC
         grpc = self.server.extensions.get('gRPC')
         if grpc:
             grpc_port = grpc.locals.get('port', 50051)
-            dirty |= self._maybe_update_config('enable-grpc', True)
-            dirty |= self._maybe_update_config('grpc-address', f"localhost:{grpc_port}")
+            dirty |= self._maybe_update_config(cfg, 'enable-grpc', True)
+            dirty |= self._maybe_update_config(cfg, 'grpc-address', f"localhost:{grpc_port}")
             # grpc-password is not supported yet
 
         if dirty:
-            with open(self.get_config(), mode='w', encoding='utf-8') as outfile:
-                yaml.dump(self.locals, outfile)
+            with open(self.get_config(cfg), mode='w', encoding='utf-8') as outfile:
+                out = cfg.copy()
+                out.pop('installation', None)
+                out.pop('autoupdate', None)
+                out.pop('enabled', None)
+                out.pop('log', None)
+                out.pop('debug', None)
+                out.pop('config', None)
+                out.pop('affinity', None)
+                yaml.dump(out, outfile)
 
     async def _autoupdate(self):
         try:
@@ -207,36 +239,42 @@ class SkyEye(Extension):
             self.log.exception(ex)
 
     async def prepare(self) -> bool:
-        await self._prepare_config()
+        for cfg in self.configs:
+            await self._prepare_config(cfg)
         if self.config.get('autoupdate', False):
             await self._autoupdate()
         return await super().prepare()
 
     async def startup(self) -> bool:
-        def run_subprocess():
-            debug = self.config.get('debug', False)
-            log_file = self.config.get('log')
+        def run_subprocess(cfg: dict):
+            debug = cfg.get('debug', False)
+            log_file = utils.format_string(cfg.get('log'),
+                                           server=self.server,
+                                           instance=self.server.instance,
+                                           coalition=cfg.get('coalition'))
 
             if log_file:
-                logger = logging.getLogger(self.name)
+                logger = logging.getLogger(os.path.basename(log_file)[:-4])
                 logger.setLevel(logging.DEBUG)
-                handler = RotatingFileHandler(
-                    log_file,
-                    maxBytes=10 * 1024 * 1024,
-                    backupCount=5
-                )
-                formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s%(extra_data)s')
-                handler.setFormatter(formatter)
-                handler.doRollover()
-                logger.addHandler(handler)
+                if not logger.handlers:
+                    handler = RotatingFileHandler(
+                        log_file,
+                        maxBytes=10 * 1024 * 1024,
+                        backupCount=5
+                    )
+                    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s%(extra_data)s')
+                    handler.setFormatter(formatter)
+                    handler.doRollover()
+                    logger.addHandler(handler)
                 logger.propagate = False
+                self.loggers.append(logger)
 
             # Define the subprocess command
             args = [
                 self.get_exe_path(),
-                '--config-file', self.get_config()
+                '--config-file', self.get_config(cfg)
             ]
-            if self.locals.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
+            if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
                 args.extend(['--whisper-model', 'whisper.bin'])
 
             self.log.debug("Launching {}".format(' '.join(args)))
@@ -251,7 +289,7 @@ class SkyEye(Extension):
                 universal_newlines=True  # Ensure text mode for captured output
             )
 
-            def log_output(pipe):
+            def log_output(pipe, logger):
                 def get_remaining_values(data: dict) -> dict:
                     return {key: value for key, value in data.items() if key not in ['level', 'message', 'time']}
 
@@ -271,8 +309,8 @@ class SkyEye(Extension):
                 pipe.close()
 
             if log_file:
-                Thread(target=log_output, args=(proc.stdout,), daemon=True).start()
-                Thread(target=log_output, args=(proc.stderr,), daemon=True).start()
+                Thread(target=log_output, args=(proc.stdout,logger), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr,logger), daemon=True).start()
 
             return proc
 
@@ -281,40 +319,44 @@ class SkyEye(Extension):
             async with self.lock:
                 if self.is_running():
                     return True
-                # waiting for SRS to be started
-                self.log.debug(f"{self.name}: Waiting for SRS to start ...")
-                ip, port = self.locals.get('srs-server-address').split(':')
-                # Give the SRS server 10s to start
-                for _ in range(0, 10):
-                    if utils.is_open(ip, port):
-                        break
-                    await asyncio.sleep(1)
                 else:
-                    self.log.warning(f"  => {self.name}: SRS is not running, skipping SkyEye.")
-                    return False
-                self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
-                # Start the SkyEye server
-                p = await asyncio.to_thread(run_subprocess)
-                try:
-                    self.process = psutil.Process(p.pid)
-                    atexit.register(self.terminate)
-                    if self.config.get('affinity'):
-                        self.set_affinity(self.config['affinity'])
-                    else:
-                        p_core_affinity = utils.get_p_core_affinity()
-                        if p_core_affinity:
-                            self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
-                            self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
-                        else:
-                            self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
+                    self.shutdown()
 
-                except (AttributeError, psutil.NoSuchProcess):
-                    self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")
-                    return False
+                # Start the SkyEye server(s)
+                for cfg in self.configs:
+                    # waiting for SRS to be started
+                    self.log.debug(f"{self.name}: Waiting for SRS to start ...")
+                    ip, port = cfg.get('srs-server-address').split(':')
+                    # Give the SRS server 10s to start
+                    for _ in range(0, 10):
+                        if utils.is_open(ip, port):
+                            break
+                        await asyncio.sleep(1)
+                    else:
+                        self.log.warning(f"  => {self.name}: SRS is not running, skipping SkyEye.")
+                        return False
+                    self.log.debug(f"{self.name}: SRS is running, launching SkyEye ...")
+
+                    p = await asyncio.to_thread(run_subprocess, cfg)
+                    try:
+                        process = psutil.Process(p.pid)
+                        if cfg.get('affinity'):
+                            self.set_affinity(process, cfg['affinity'])
+                        else:
+                            p_core_affinity = utils.get_p_core_affinity()
+                            if p_core_affinity:
+                                self.log.warning("No core-affinity set for SkyEye server, using all available P-cores!")
+                                self.set_affinity(process, utils.get_cpus_from_affinity(p_core_affinity))
+                            else:
+                                self.log.warning("No core-affinity set for SkyEye server, using all available cores!")
+                        self.processes.append(process)
+                    except (AttributeError, psutil.NoSuchProcess):
+                        self.log.error(f"Failed to start SkyEye server, enable debug in the extension.")
+                        return False
         except OSError as ex:
             self.log.error("Error while starting SkyEye: " + str(ex))
             return False
-        # Give the SkyEye server 10s to start
+        # Give the SkyEye server(s) 10s to start
         for _ in range(0, 10):
             if self.is_running():
                 break
@@ -325,8 +367,9 @@ class SkyEye(Extension):
 
     def terminate(self) -> bool:
         try:
-            utils.terminate_process(self.process)
-            self.process = None
+            for process in self.processes:
+                utils.terminate_process(process)
+            self.processes = []
             return True
         except Exception as ex:
             self.log.error(f"Error during shutdown of {self.get_exe_path()}: {str(ex)}")
@@ -334,11 +377,11 @@ class SkyEye(Extension):
 
     def shutdown(self) -> bool:
         def close_log_handlers(self):
-            logger = logging.getLogger(self.name)
-            while logger.handlers:  # Remove and close all handlers
-                handler = logger.handlers[0]
-                handler.close()
-                logger.removeHandler(handler)
+            for logger in self.loggers:
+                while logger.handlers:  # Remove and close all handlers
+                    handler = logger.handlers[0]
+                    handler.close()
+                    logger.removeHandler(handler)
         try:
             super().shutdown()
             return self.terminate()
@@ -346,7 +389,10 @@ class SkyEye(Extension):
             close_log_handlers(self)
 
     def is_running(self) -> bool:
-        return self.process is not None and self.process.is_running()
+        for process in self.processes:
+            if not process.is_running():
+                return False
+        return len(self.processes) == len(self.configs)
 
     def get_exe_path(self) -> str:
         return os.path.join(os.path.expandvars(self.config['installation']), "skyeye.exe")
@@ -373,10 +419,14 @@ class SkyEye(Extension):
         return self._version
 
     async def render(self, param: Optional[dict] = None) -> dict:
+        value = ""
+        for cfg in self.configs:
+            coalition = '🔹' if cfg.get('coalition', 'blue') == 'blue' else '🔸'
+            value += f"{coalition} {cfg.get('callsign', 'Focus')}: {cfg.get('srs-frequencies', '251.0AM,133.0AM,30.0FM')}\n"
         return {
             "name": self.__class__.__name__,
             "version": self.version,
-            "value": '\n'.join([x.strip() for x in self.locals.get('srs-frequencies', '').split(',')])
+            "value": value
         }
 
     def is_installed(self) -> bool:

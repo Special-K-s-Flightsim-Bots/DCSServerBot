@@ -21,7 +21,7 @@ If you want to run your DCSServerBot over multiple locations, you need to prepar
 ## Cloud-Drive Setup (default)
 You need to make sure, that every node in your cluster is aware of the full configuration. The best way to achieve this
 is to have the bot or at least the bots configuration installed on a cloud drive, like OneDrive or Google Drive. 
-I personally prefer OneDrive, as its technology is superior to Google Drive. But any cloud drive should work.
+I personally prefer OneDrive, as its technology is superior to Google Drive. But any cloud drive or NAS should work.
 
 Add these lines to your configuration:
 

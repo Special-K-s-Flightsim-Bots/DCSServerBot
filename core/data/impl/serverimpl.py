@@ -55,13 +55,18 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         self.server = server
         self.log = server.log
         self.loop = loop
+        self.deleted: dict[str, int] = {}
 
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
         # ignore non-mission files and such that are in the .dcssb folder
-        if not path.endswith('.miz') or '.dcssb' in path:
+        if not (path.endswith('.miz') or path.endswith('.sav')) or '.dcssb' in path:
             return
-        asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
+        if path in self.deleted:
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=self.deleted[path]), self.loop)
+            del self.deleted[path]
+        else:
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
         self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def on_moved(self, event: FileSystemMovedEvent):
@@ -81,6 +86,9 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if path in missions:
             idx = missions.index(path) + 1
             asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
+            # cache the index of the line to re-add the file at the correct position afterwards,
+            # if a cloud drive did a delete/add instead of a modification
+            self.deleted[path] = idx
             self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
         else:
             self.log.debug(f"Mission file {path} got deleted from disk.")
@@ -295,6 +303,9 @@ class ServerImpl(Server):
     def prepare(self):
         if self.settings.get('name', 'DCS Server') != self.name:
             self.settings['name'] = self.name
+        # enable persistence
+        if not self.settings.get('advanced', {}).get('sav_autosave', False):
+            self.settings.setdefault('advanced', {})['sav_autosave'] = True
         if 'serverSettings' in self.locals:
             for key, value in self.locals['serverSettings'].items():
                 if key == 'advanced':
@@ -309,7 +320,10 @@ class ServerImpl(Server):
     def _get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
-            start_index = int(settings.get('listStartIndex', 1))
+            try:
+                start_index = int(settings.get('listStartIndex', 1))
+            except ValueError:
+                start_index = settings['listStartIndex'] = 1
             if start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
             else:
@@ -381,10 +395,7 @@ class ServerImpl(Server):
             if update_settings:
                 self.settings['name'] = new_name
 
-        old_name = self.name
-        if old_name == 'n/a':
-            old_name = None
-        try:
+        async def update_database(old_name: str, new_name: str):
             # rename the server in the database
             async with self.apool.connection() as conn:
                 async with conn.transaction():
@@ -405,20 +416,29 @@ class ServerImpl(Server):
                         SET server_name = %s 
                         WHERE server_name IS NOT DISTINCT FROM %s
                     """, (new_name, old_name))
-                    # only the master can take care of a cluster-wide rename
-                    if self.node.master:
-                        await self.node.rename_server(self, new_name)
-                    else:
-                        await self.bus.send_to_node_sync({
-                            "command": "rpc",
-                            "object": "Node",
-                            "method": "rename_server",
-                            "params": {
-                                "server": self.name or 'n/a',
-                                "new_name": new_name
-                            }
-                        })
-                        self.bus.rename_server(self, new_name)
+
+        async def update_cluster(new_name: str):
+            # only the master can take care of a cluster-wide rename
+            if self.node.master:
+                await self.node.rename_server(self, new_name)
+            else:
+                await self.bus.send_to_node_sync({
+                    "command": "rpc",
+                    "object": "Node",
+                    "method": "rename_server",
+                    "params": {
+                        "server": self.name or 'n/a',
+                        "new_name": new_name
+                    }
+                })
+                self.bus.rename_server(self, new_name)
+
+        old_name = self.name
+        if old_name == 'n/a':
+            old_name = None
+        try:
+            await update_database(old_name, new_name)
+            await update_cluster(new_name)
             try:
                 # update servers.yaml
                 update_config(old_name, new_name, update_settings)
@@ -438,8 +458,8 @@ class ServerImpl(Server):
             if os.path.exists(path):
                 break
         else:
-            self.log.error(f"No executable found to start a DCS server in {basepath}!")
-            return
+            raise FileNotFoundError(f"No executable found to start a DCS server in {basepath}!")
+
         # check if all missions are existing
         missions = []
         for mission in self.settings['missionList']:
@@ -649,7 +669,9 @@ class ServerImpl(Server):
     async def is_running(self) -> bool:
         async with self.lock:
             if not self.process or not self.process.is_running():
-                self.process = await asyncio.to_thread(utils.find_process, "DCS_server.exe|DCS.exe", self.instance.name)
+                self.process = await asyncio.to_thread(
+                    lambda: next(utils.find_process("DCS_server.exe|DCS.exe", self.instance.name), None)
+                )
             return self.process is not None
 
     async def _terminate(self) -> None:
@@ -850,7 +872,7 @@ class ServerImpl(Server):
                     'blue_password' if coalition == Coalition.BLUE else 'red_password'),
                     (password, self.name))
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
         path = os.path.normpath(path)
         secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
         orig = secondary + '.orig'
@@ -865,10 +887,18 @@ class ServerImpl(Server):
                     os.remove(secondary)
             return missions
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+            data = await self.send_to_dcs_sync({
+                "command": "addMission",
+                "path": path,
+                "index": idx,
+                "autostart": autostart
+            })
             self.settings['missionList'] = data['missionList']
         else:
-            missions.append(path)
+            if idx > 0:
+                missions.insert(idx - 1, path)
+            else:
+                missions.append(path)
             self.settings['missionList'] = missions
             if autostart:
                 self.settings['listStartIndex'] = missions.index(path if path in missions else secondary) + 1
@@ -902,7 +932,7 @@ class ServerImpl(Server):
         # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
-            mission = self.settings['missionList'][start_index - 1]
+            mission = self._get_current_mission_file()
             if use_orig:
                 # now determine the original mission name
                 orig_mission = utils.get_orig_file(mission)
@@ -934,6 +964,7 @@ class ServerImpl(Server):
             try:
                 idx = self.settings['missionList'].index(filename) + 1
                 self.settings['listStartIndex'] = idx
+                self.settings['current'] = idx
                 return await self.start()
             except ValueError:
                 return False

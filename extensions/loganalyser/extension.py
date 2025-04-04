@@ -17,6 +17,7 @@ ERROR_SCRIPT = r'SCRIPTING.*\[string "(.*)"\]:(\d+): (.*)'
 MOOSE_COMMIT_LOG = r"\*\*\* MOOSE GITHUB Commit Hash ID: (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})-\w+ \*\*\*"
 NO_UPNP = r"\s+\(Main\):\s+No UPNP devices found."
 NO_TERRAIN = r"INFO\s+Dispatcher\s+\(Main\):\s+Terrain theatre\s*$"
+REGMAP_STORAGE_FULL = "RegMapStorage has no more IDs"
 
 __all__ = [
     "LogAnalyser"
@@ -51,7 +52,7 @@ class LogAnalyser(Extension):
         self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
         self.register_callback(NO_UPNP, self.disable_upnp)
         self.register_callback(NO_TERRAIN, self.terrain_missing)
-        # noinspection PyAsyncCall
+        self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:
@@ -197,9 +198,10 @@ class LogAnalyser(Extension):
         timestamp_str = match.group(1)
         timestamp = datetime.fromisoformat(timestamp_str)
         if timestamp < datetime.fromisoformat('2024-09-03T16:47:17+02:00'):
+            mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
             embed = utils.create_warning_embed(
                 title='Outdated Moose version found!',
-                text=f"Mission {self.server.current_mission.name} is using an old Moose version. "
+                text=f"Mission {mission_name} is using an old Moose version. "
                      f"You will probably see performance issues!")
             try:
                 await self.bus.send_to_node_sync({
@@ -228,3 +230,7 @@ class LogAnalyser(Extension):
             await self.send_alert(title="Terrain Missing!",
                                   message=f"Terrain {theatre} is not installed on this server!\n"
                                           f"You can't run mission {filename}.")
+
+    async def restart_server(self, idx: int, line: str, match: re.Match):
+        self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")
+        asyncio.create_task(self.server.restart(modify_mission=False))

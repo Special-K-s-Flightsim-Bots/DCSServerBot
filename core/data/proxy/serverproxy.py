@@ -294,7 +294,7 @@ class ServerProxy(Server):
             }
         }, timeout=timeout, node=self.node.name)
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
+    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
         timeout = 60 if not self.node.slow_system else 120
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -303,6 +303,7 @@ class ServerProxy(Server):
             "server_name": self.name,
             "params": {
                 "path": path,
+                "idx": idx,
                 "autostart": autostart
             }
         }, timeout=timeout, node=self.node.name)

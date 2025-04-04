@@ -210,7 +210,6 @@ class SRS(Extension, FileSystemEventHandler):
             # no_shutdown defaults to True for always_on
             self.config['no_shutdown'] = self.config.get('no_shutdown', True)
             if not await asyncio.to_thread(self.is_running):
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.startup())
         return await super().prepare()
 
@@ -261,7 +260,7 @@ class SRS(Extension, FileSystemEventHandler):
                 try:
                     super().shutdown()
                     if not self.process:
-                        self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+                        self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
                     if self.process:
                         utils.terminate_process(self.process)
                         self.process = None
@@ -349,7 +348,7 @@ class SRS(Extension, FileSystemEventHandler):
 
     def is_running(self) -> bool:
         if not self.process:
-            self.process = utils.find_process('SR-Server.exe', self.server.instance.name)
+            self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
             running = self.process is not None and self.process.is_running()
             if not running:
                 self.log.debug("SRS: is NOT running (process)")
@@ -366,6 +365,7 @@ class SRS(Extension, FileSystemEventHandler):
             running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
             if not running:
                 self.log.debug("SRS: is NOT running (port)")
+                self.process = None
         # start the observer, if we were started to a running SRS server
         if running and not self.observer:
             self.start_observer()

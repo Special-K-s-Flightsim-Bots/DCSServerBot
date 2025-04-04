@@ -363,6 +363,7 @@ If you need any further assistance, please visit the support discord, listed in 
 
             if Confirm.ask(_("Do you want your DCS installation being auto-updated by the bot?"), default=True):
                 node["DCS"]["autoupdate"] = True
+
             # Check for SRS
             srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
             if not os.path.exists(srs_path):
@@ -388,6 +389,7 @@ If you need any further assistance, please visit the support discord, listed in 
                     n['instances'] for n in nodes.values() if 'instances' in n
                 ])
             ]) + 1 if nodes else 6666
+
             # calculate unique SRS ports
             srs_port = max([
                 i.get('extensions', {}).get('SRS', {}).get('port', 5001 + idx)
@@ -395,6 +397,7 @@ If you need any further assistance, please visit the support discord, listed in 
                     n['instances'] for n in nodes.values() if 'instances' in n
                 ])
             ]) + 1 if nodes else 5002
+
             print(_("Searching for existing DCS server configurations ..."))
             instances = utils.findDCSInstances()
             if not instances:

@@ -4,7 +4,7 @@ mission is basically a ZIP file, consisting of several configuration files insid
 with that the whole mission. Now, lets take a look at these files and talk about the purpose of them.
 
 ### mission
-This file is the main file inside of the miz file. It holds your units, their waypoints (routes), time and weather
+This file is the main file inside the miz file. It holds your units, their waypoints (routes), time and weather
 information of the mission, any mission triggers and basic mission options.
 
 ### options

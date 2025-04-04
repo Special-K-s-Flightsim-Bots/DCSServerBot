@@ -33,6 +33,14 @@ mapping:
       server_name: {type: str, nullable: false, range: {min: 1}}
       mission_name: {type: str, nullable: false, range: {min: 1}}
       tag: {type: str, nullable: false, range: {min: 1}}
+  plugins:
+    type: seq
+    nullable: false
+    sequence:
+      - type: str
+        nullable: false
+        range: {min: 1}
+        unique: true
   opt_plugins:
     type: seq
     nullable: false

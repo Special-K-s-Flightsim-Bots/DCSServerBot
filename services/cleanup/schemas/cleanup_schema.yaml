@@ -20,6 +20,7 @@ schema;element_schema:
         recursive: {type: bool, nullable: false}
         delete_after: {type: int, range: {min: 1}, nullable: false}
         channel: {type: any, nullable: false, func: int_or_list}
+        ignore: {type: any, func: int_or_list, nullable: false}
 
 type: map
 func: check_main_structure

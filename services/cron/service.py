@@ -66,7 +66,6 @@ class CronService(Service):
                 elif (server and 'mission_time' in cfg and
                       server.current_mission.mission_time < cfg['mission_time'] * 60):
                     continue
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.do_actions(cfg, server))
 
         try:

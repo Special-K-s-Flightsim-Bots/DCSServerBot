@@ -303,9 +303,9 @@ language: de              # Change the bots language to German. This is WIP, sev
 validation: lazy          # YAML schema validation. One of none, lazy, strict. none = disabled, lazy = display warnings / errors in log (default), strict = fail on error
 database:
   url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
-  pool_min: 5           # min size of the DB pool, default is 5
-  pool_max: 10          # max size of the DB pool, default is 10
-  max_reties: 10        # maximum number of retries to initially connect to the database on startups
+  pool_min: 5             # min size of the DB pool, default is 5
+  pool_max: 10            # max size of the DB pool, default is 10
+  max_reties: 10          # maximum number of retries to initially connect to the database on startups
 logging:
   loglevel: DEBUG           # loglevel, default is DEBUG
   logrotate_count: 5        # Number of logfiles to keep after rotation. Default is 5.    
@@ -343,6 +343,11 @@ NODENAME:                       # this will usually be your hostname
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
   nodestats: true               # Enable/disable node statistics (database pool and event queue sizes), default: true
+  database:                     # Optional: It might be that you need to use different IPs to connect to the same database server. This is the place you could do that.
+    url: postgres://USER:PASSWORD@DB-IP:DB-PORT/DB-NAME   # The bot will auto-move the database password from here to a secret place and replace it with SECRET.
+    pool_min: 5                 # min size of the DB pool, default is 5
+    pool_max: 10                # max size of the DB pool, default is 10
+    max_reties: 10              # maximum number of retries to initially connect to the database on startups
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.

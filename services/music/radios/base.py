@@ -121,6 +121,9 @@ class Radio(ABC):
     async def pause(self) -> None:
         return
 
+    def reset(self) -> None:
+        self.idx = 0
+
     @property
     def current(self) -> str:
         return self._current or ""

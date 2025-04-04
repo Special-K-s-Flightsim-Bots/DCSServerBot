@@ -63,20 +63,18 @@ class CleanupService(Service):
                 if 'directory' in config:
                     await self.do_directory_cleanup(instance, config)
         else:
-            config = self.get_config()
-            if 'channel' in config:
-                self.log.debug(f"- Running channel cleanup ...")
-                await self.do_channel_cleanup(config)
+            for name, config in self.get_config().items():
+                if 'channel' in config:
+                    self.log.debug(f"- Running channel cleanup ...")
+                    await self.do_channel_cleanup(config)
 
     @tasks.loop(hours=12)
     async def schedule(self):
         if not self.locals:
             return
         if self.node.master:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.do_cleanup())
         for instance in self.node.instances:
-            # noinspection PyAsyncCall
             asyncio.create_task(self.do_cleanup(instance))
 
     @schedule.before_loop

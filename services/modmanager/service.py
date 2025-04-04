@@ -58,7 +58,6 @@ class ModManagerService(Service):
             os.makedirs(os.path.expandvars(config[folder.value]), exist_ok=True)
         self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
         self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
-        # noinspection PyAsyncCall
         asyncio.create_task(self.install_packages())
 
     async def stop(self):
@@ -85,7 +84,7 @@ class ModManagerService(Service):
                 await asyncio.sleep(1)
             config = self.get_config(server)
             if 'packages' not in config:
-                return
+                continue
 
             for package in config.get('packages', []):
                 folder = Folder(package['source'])
@@ -234,9 +233,13 @@ class ModManagerService(Service):
 
     async def get_latest_version(self, package: dict) -> str:
         if 'repo' in package:
-            return await self.get_latest_repo_version(package['repo'])
-        else:
-            return await self._get_latest_file_version(package)
+            try:
+                return await self.get_latest_repo_version(package['repo'])
+            except ClientResponseError as ex:
+                self.log.warning(
+                    f"Can't connect to {package['repo']}: {ex.message}. "
+                    f"Update-check skipped for package {package['name']}.")
+        return await self._get_latest_file_version(package)
 
     async def get_installed_package(self, reference: Union[Server, Node], folder: Folder, package_name: str) -> Optional[str]:
         async with self.apool.connection() as conn:
@@ -277,7 +280,8 @@ class ModManagerService(Service):
         else:
             return False
 
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING) as log:
+        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING,
+                                 errors='replace') as log:
             await log.writelines(log_entries)
         return True
 
@@ -364,7 +368,8 @@ class ModManagerService(Service):
         else:
             self.log.error(f"- Installation of package {package_name}_v{version} failed, no package.")
             return False
-        async with aiofiles.open(os.path.join(packages_path, 'install.log'), 'w', encoding=ENCODING) as log:
+        async with aiofiles.open(os.path.join(packages_path, 'install.log'), mode='w', encoding=ENCODING,
+                                 errors='replace') as log:
             await log.writelines(log_entries)
 
         async with self.apool.connection() as conn:

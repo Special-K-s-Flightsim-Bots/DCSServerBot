@@ -1,19 +1,25 @@
 import discord
 import io
 import numpy as np
+import os
 import re
 
-from core import report, utils, EmbedElement, get_translation
-from datetime import datetime
-from matplotlib import cm
+from core import report, utils, get_translation, GraphElement, ReportEnv, Plugin
+from matplotlib import cm, pyplot as plt
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib.patches import FancyBboxPatch
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
-from typing import Optional
+from typing import Optional, cast
 
-from . import ERRORS, DISTANCE_MARKS, GRADES, const
+from . import ERRORS, DISTANCE_MARKS, GRADES
 from ..userstats.highscore import get_sides, compute_font_size
 
 _ = get_translation(__name__.split('.')[1])
+
+unicorn_image_path = 'unicorn_emoji.png'
+this_dir = os.path.dirname(os.path.abspath(__file__))
+unicorn_image = plt.imread(os.path.join(this_dir, 'img', unicorn_image_path))
 
 
 class LSORating(report.EmbedElement):
@@ -122,7 +128,6 @@ class TrapSheet(report.EmbedElement):
 
 
 class HighscoreTraps(report.GraphElement):
-
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
                      flt: StatisticsFilter, include_bolters: bool = False, include_waveoffs: bool = False,
                      bar_labels: Optional[bool] = True):
@@ -176,8 +181,76 @@ class HighscoreTraps(report.GraphElement):
                     self.axes.text(0, 0, _('No data available.'), ha='center', va='center', rotation=45, size=15)
 
 
-class GreenieBoard(EmbedElement):
-    async def render(self, server_name: str, num_rows: int, squadron: Optional[dict] = None):
+class GreenieBoard(GraphElement):
+
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: Optional[int] = 0, col: Optional[int] = 0,
+                 colspan: Optional[int] = 1, rowspan: Optional[int] = 1):
+        super().__init__(env, rows, cols, row, col, colspan, rowspan)
+        self.plugin: Plugin = cast(Plugin, env.bot.cogs.get('GreenieBoard'))
+
+    def add_legend(self, config: dict, start_y, card_size=0.4, font_size=14, num_landings=30):
+        grades = GRADES | config.get('grades', {})
+        num_columns = 4 if num_landings < 20 else 3
+        padding = 0.2
+        x_start = 0
+        y_position = start_y
+        max_text_length = 0
+        offset = 0
+        keys = list(grades.keys())
+
+        for i, key in enumerate(keys):
+            row = i % num_columns
+            col = i // num_columns
+
+            if row == 0:
+                offset += max_text_length
+                max_text_length = 0
+
+            x_pos = x_start + col * (card_size + padding) + offset
+            y_pos = y_position - row * (card_size + padding)
+
+            # Draw unicorn image if needed
+            if key == '_n':
+                self.axes.plot(x_pos + card_size / 2, y_pos, 'o', color='black', markersize=10, zorder=3)
+            elif key == '_OK_':
+                imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)
+                ab = AnnotationBbox(imagebox, (x_pos + card_size / 2, y_pos), frameon=False, zorder=3)
+                self.axes.add_artist(ab)
+            else:
+                # Draw colored rectangle for the legend
+                rect = FancyBboxPatch((x_pos, y_pos - card_size / 2),
+                                      card_size, card_size,
+                                      boxstyle="round,pad=0.02,rounding_size=0.1",
+                                      edgecolor='none', facecolor=grades[key]['color'],
+                                      lw=0, zorder=2)
+                self.axes.add_patch(rect)
+
+            # Calculate the required space for the text
+            if key == '_n':
+                text = f"{grades[key]['legend']}"
+            else:
+                text = f"{grades[key]['legend']} ({grades[key]['rating']:.1f}) - {grades[key]['grade']}"
+
+            text_length = len(text) * (font_size * 0.01)
+
+            if text_length > max_text_length:
+                max_text_length = text_length
+
+            # Add text for legend dynamically adjusted
+            self.axes.text(x_pos + card_size + padding, y_pos, text, va='center', ha='left', fontsize=font_size,
+                           color='white')
+
+    async def render(self, server_name: str, num_rows: int, num_landings: int, squadron: Optional[dict] = None):
+
+        title = self.env.embed.title
+        self.env.embed.title = ""
+        num_columns = num_landings
+        row_height = 0.8
+        column_width = 0.7
+        card_size = 0.5
+        text_size = 20
+        font_name = None
+
         sql1 = """
             SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (
                 SELECT player_ucid, ROW_NUMBER() OVER w AS rn, 
@@ -190,7 +263,7 @@ class GreenieBoard(EmbedElement):
             WHERE player_ucid = %(player_ucid)s
         """
         if server_name:
-            self.embed.description = utils.escape_string(server_name)
+            title = utils.escape_string(server_name)
             sql1 += """
                 WHERE mission_id in (
                     SELECT id FROM missions WHERE server_name = %(server_name)s
@@ -202,11 +275,11 @@ class GreenieBoard(EmbedElement):
                 )
             """
         if squadron:
-            if self.embed.description:
-                self.embed.description += '\n'
+            if self.env.embed.description:
+                title += '\n'
             else:
-                self.embed.description = ""
-            self.embed.description += f"Squadron \"{utils.escape_string(squadron['name'])}\""
+                title = ""
+            title += f"Squadron \"{utils.escape_string(squadron['name'])}\""
             if server_name:
                 sql1 += " AND "
             else:
@@ -227,52 +300,131 @@ class GreenieBoard(EmbedElement):
         """
         sql2 += ' ORDER BY ID DESC LIMIT 10'
 
+        server = self.bot.servers.get(server_name)
+        config = self.plugin.get_config(server)
+        grades = GRADES | config.get('grades', {})
+        plt.title(f'{title}', color='white', fontsize=30, fontname=font_name)
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                pilots = points = landings = ''
-                max_time = datetime.fromisocalendar(1970, 1, 1)
                 await cursor.execute(sql1, {
                     "server_name": server_name,
                     "num_rows": num_rows,
                     "squadron_id": squadron['id'] if squadron else None
                 })
                 rows = await cursor.fetchall()
-                for row in rows:
+
+                if not rows:
+                    self.axes.axis('off')
+                    xlim = self.axes.get_xlim()
+                    ylim = self.axes.get_ylim()
+                    self.axes.text(
+                        (xlim[1] - xlim[0]) / 2 + xlim[0],  # Midpoint of x-axis
+                        (ylim[1] - ylim[0]) / 2 + ylim[0],  # Midpoint of y-axis
+                        'No traps captured yet.',
+                        ha='center', va='center', size=35
+                    )
+                    return
+
+                # Calculate dynamic figure size based on rows and columns
+                pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
+                padding = 1.0  # Padding between columns
+                fig_width = pilot_column_width + padding + (num_columns * column_width) + 2  # Additional padding on the sides
+                fig_height = (num_rows * row_height) + 2 + 2.5  # Additional padding on the top and bottom
+                self.env.figure.set_size_inches(fig_width, fig_height)
+
+                bg_color = '#2A2A2A'
+                gray_color = '#3A3A3A'  # For odd rows
+                rounding_radius = 0.1  # Radius for rounded corners
+
+                # Plot table headers with proper padding
+                self.axes.text(0, 0, "Pilot", va='center', ha='left', fontsize=text_size, color='white',
+                               fontweight='bold', fontname=font_name)
+                self.axes.text(pilot_column_width + padding, 0, "AVG", va='center', ha='center', fontsize=text_size,
+                               color='white', fontweight='bold', fontname=font_name)
+
+                # Add dynamic column headers directly above the card columns
+                for j in range(num_columns):
+                    x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2) + card_size / 2
+                    self.axes.text(x_pos, 0, str(j + 1), va='center', ha='center', fontsize=text_size, color='white',
+                                   fontweight='bold', fontname=font_name)
+
+                for i, row in enumerate(rows):
+                    y_position = -i * row_height - 1
+
+                    # Add a light gray background to odd rows
+                    if i % 2 == 0:
+                        self.axes.add_patch(plt.Rectangle((-0.5, y_position - row_height / 2), fig_width, row_height,
+                                                          color=gray_color, zorder=1))
+
                     member = self.bot.get_member_by_ucid(row['player_ucid'])
                     if member:
-                        pilots += member.display_name + '\n'
+                        name = member.display_name
                     else:
-                        pilots += utils.escape_string(row['name']) + '\n'
-                    points += f"{row['points']:.2f}\n"
+                        name = row['name']
+
+                    self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color='white',
+                            fontweight='bold', fontname=font_name)
+                    self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center', ha='center',
+                            fontsize=text_size, color='white', fontname=font_name)
+
                     await cursor.execute(sql2, {
                         "player_ucid": row['player_ucid'],
                         "server_name": server_name
                     })
-                    i = 0
-                    landings += '**|'
-                    async for landing in cursor:
-                        if landing['night']:
-                            landings += const.NIGHT_EMOJIS[landing['grade']] + '|'
+
+                    landings = await cursor.fetchall()
+                    for j in range(num_columns):
+                        x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2)
+                        if j < len(landings):
+                            grade = landings[j]['grade']
+
+                            # fixing grades...
+                            if grade in ['WOP', 'OWO', 'TWO', 'TLU']:
+                                grade = 'NC'
+                            elif grade == 'WOFD':
+                                grade = 'WO'
+
+                            if grade == '_OK_':
+                                imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)
+                                ab = AnnotationBbox(imagebox, (x_pos + card_size / 2, y_position), frameon=False, zorder=3)
+                                self.axes.add_artist(ab)
+                            else:
+                                rect = FancyBboxPatch((x_pos, y_position - card_size / 2),
+                                                      card_size, card_size,
+                                                      boxstyle="round,pad=0.02,rounding_size=0.1",
+                                                      edgecolor='none', facecolor=grades[grade]['color'],
+                                                      lw=0, zorder=2)
+                                self.axes.add_patch(rect)
+                            # mark night passes
+                            if landings[j]['night']:
+                                self.axes.plot(x_pos + card_size / 2, y_position, 'o', color='black', markersize=10, zorder=3)
+
                         else:
-                            landings += const.DAY_EMOJIS[landing['grade']] + '|'
-                        i += 1
-                    for i in range(i, 10):
-                        landings += const.DAY_EMOJIS[None] + '|'
-                    landings += '**\n'
-                    if row['time'] > max_time:
-                        max_time = row['time']
-                # if there is nothing to plot, don't do it
-                if not landings:
-                    return
-                self.add_field(name=_('Pilot'), value=pilots)
-                self.add_field(name=_('Avg'), value=points)
-                self.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
-                               value=landings)
-                footer = ''
-                for grade, text in const.GRADES.items():
-                    if grade not in ['WOP', 'OWO', 'TWO', 'WOFD']:
-                        footer += const.DAY_EMOJIS[grade] + '\t' + grade.ljust(6) + '\t' + text + '\n'
-                footer += _('\nThe most recent landing is added at the front.\nNight landings have round markers.')
-                if max_time:
-                    footer += _('\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}').format(time=max_time)
-                self.embed.set_footer(text=footer)
+                            # Draw true rounded brackets using arcs and lines
+                            y_top = y_position + card_size / 2
+                            y_bottom = y_position - card_size / 2
+
+                            # Left rounded bracket
+                            self.axes.plot([x_pos + rounding_radius, x_pos], [y_top, y_top - rounding_radius],
+                                           color='grey', lw=1.5)
+                            self.axes.plot([x_pos, x_pos], [y_top - rounding_radius, y_bottom + rounding_radius],
+                                           color='grey', lw=1.5)
+                            self.axes.plot([x_pos, x_pos + rounding_radius], [y_bottom + rounding_radius, y_bottom],
+                                           color='grey', lw=1.5)
+
+                            # Right rounded bracket
+                            x_right = x_pos + card_size
+                            self.axes.plot([x_right - rounding_radius, x_right], [y_top, y_top - rounding_radius],
+                                           color='grey', lw=1.5)
+                            self.axes.plot([x_right, x_right], [y_top - rounding_radius, y_bottom + rounding_radius],
+                                           color='grey', lw=1.5)
+                            self.axes.plot([x_right, x_right - rounding_radius], [y_bottom + rounding_radius, y_bottom],
+                                           color='grey', lw=1.5)
+
+                legend_start_y = -row_height * num_rows - 1.5
+                self.add_legend(config=config, start_y=legend_start_y, num_landings=num_landings)
+                self.axes.set_xlim(-0.5, fig_width - 0.5)
+                self.axes.set_ylim(-fig_height + 1, 0.5)
+                self.axes.axis('off')
+                self.env.figure.set_facecolor(bg_color)

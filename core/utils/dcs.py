@@ -176,6 +176,7 @@ def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
         mission_file = filename
     if filename.startswith('DSMC'):
         filename = re.sub(r'_\d+(?=\.miz$)', '', filename)
+    mission_file = mission_file.replace('.sav', '.miz')
     orig_file = os.path.join(os.path.dirname(mission_file), '.dcssb', os.path.basename(mission_file)) + '.orig'
     if not os.path.exists(orig_file):
         if create_file:

@@ -49,7 +49,7 @@ async def recipient_autocomplete(interaction: discord.Interaction, current: str)
                 SELECT DISTINCT p.name, p.ucid 
                 FROM players p, messages m
                 WHERE p.ucid = m.player_ucid
-                 AND (name ILIKE %s OR ucid ILIKE %s)
+                AND (name ILIKE %s OR ucid ILIKE %s)
             """, ('%' + current + '%', '%' + current + '%'))
             choices: list[app_commands.Choice[int]] = [
                 app_commands.Choice(name=f"{row[0]} (ucid={row[1]})", value=row[1])
@@ -488,20 +488,6 @@ class GameMaster(Plugin[GameMasterEventListener]):
             await view.wait()
         finally:
             await msg.delete()
-
-    @commands.Cog.listener()
-    async def on_member_update(self, before: discord.Member, after: discord.Member):
-        # did a member change their roles?
-        if before.roles == after.roles:
-            return
-        for server in self.bot.servers.values():
-            player: Player = server.get_player(discord_id=after.id)
-            if player and player.verified:
-                await server.send_to_dcs({
-                    'command': 'uploadUserRoles',
-                    'ucid': player.ucid,
-                    'roles': [x.id for x in after.roles]
-                })
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

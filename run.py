@@ -13,6 +13,7 @@ import sys
 import time
 
 from datetime import datetime
+from psycopg import OperationalError
 
 # DCSServerBot imports
 try:
@@ -141,6 +142,7 @@ class Main:
                 "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it.")
 
         await self.node.register()
+        db_available = True
         async with ServiceRegistry(node=self.node) as registry:
             self.log.info("DCSServerBot {} started.".format("MASTER" if self.node.master else "AGENT"))
             try:
@@ -176,12 +178,13 @@ class Main:
                                 if service:
                                     await service.switch()
                     self.log.info(f"I am the {'MASTER' if self.node.master else 'AGENT'} now.")
-            except Exception as ex:
-                self.log.exception(ex)
-                self.log.warning("Aborting the main loop.")
+            except OperationalError:
+                db_available = False
                 raise
             finally:
-                await self.node.unregister()
+                self.log.warning("Aborting the main loop ...")
+                if db_available:
+                    await self.node.unregister()
 
 
 async def run_node(name, config_dir=None, no_autoupdate=False) -> int:

@@ -11,6 +11,7 @@ schema;element_schema:
   func: is_element
   nullable: false
   mapping:
+    enabled: {type: bool, nullable: false}
     penalties:
       type: seq
       nullable: false

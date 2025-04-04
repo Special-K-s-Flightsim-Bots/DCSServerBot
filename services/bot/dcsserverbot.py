@@ -77,7 +77,8 @@ class DCSServerBot(commands.Bot):
         self.log.info('- Loading Plugins ...')
         # we need to keep the order for our default plugins...
         for plugin in DEFAULT_PLUGINS:
-            await self.load_plugin(plugin.lower())
+            if plugin in self.plugins:
+                await self.load_plugin(plugin.lower())
         # now load the rest in parallel
         await asyncio.gather(*(self.load_plugin(plugin.lower()) for plugin in set(self.plugins) - set(DEFAULT_PLUGINS)))
         # cleanup remote servers (if any)
@@ -190,8 +191,15 @@ class DCSServerBot(commands.Bot):
                 self.check_channel(channel_id)
 
     async def on_ready(self):
+        async def register_guild_name():
+            async with self.node.cpool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("UPDATE cluster SET guild_name = %s WHERE guild_id = %s",
+                                       (self.guilds[0].name, self.guilds[0].id))
+
         try:
             await self.wait_until_ready()
+            asyncio.create_task(register_guild_name())
             if not self.synced:
                 self.log.info(f'- Preparing Discord Bot "{self.user.name}" ...')
                 if len(self.guilds) > 1:
@@ -202,6 +210,8 @@ class DCSServerBot(commands.Bot):
                     raise FatalException()
                 elif not self.guilds:
                     raise FatalException("You need to invite your bot to a Discord server.")
+                elif self.node.guild_id != self.guilds[0].id:
+                    raise FatalException(f"Change your guild_id in main.yaml to {self.guilds[0].id}!")
                 self.member = self.guilds[0].get_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")

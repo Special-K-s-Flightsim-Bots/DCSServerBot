@@ -67,7 +67,6 @@ class MOTDListener(EventListener["MOTD"]):
         if config and 'on_join' in config:
             player: Player = server.get_player(ucid=data['ucid'])
             if player:
-                # noinspection PyAsyncCall
                 asyncio.create_task(_send_message(config, server, player))
 
     @event(name="onMissionEvent")
@@ -82,5 +81,4 @@ class MOTDListener(EventListener["MOTD"]):
                 return
             message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
-                # noinspection PyAsyncCall
                 asyncio.create_task(self.plugin.send_message(message, server, cfg, player))

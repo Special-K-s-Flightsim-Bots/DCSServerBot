@@ -66,19 +66,19 @@ class Node:
 
     @property
     def master(self) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @master.setter
     def master(self, value: bool):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def public_ip(self) -> str:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def installation(self) -> str:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def proxy(self) -> Optional[str]:
@@ -116,7 +116,7 @@ class Node:
             if database_url:
                 url = urlparse(database_url)
                 if url.password != 'SECRET':
-                    utils.set_password('database', url.password, self.config_dir)
+                    utils.set_password('clusterdb', url.password, self.config_dir)
                     port = url.port or 5432
                     config['database']['url'] = \
                         f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
@@ -139,88 +139,88 @@ class Node:
             raise YAMLError(file, ex)
 
     def read_locals(self) -> dict:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def shutdown(self, rc: int = -2):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def restart(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def upgrade_pending(self) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def upgrade(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def update(self, warn_times: list[int], branch: Optional[str] = None, version: Optional[str] = None) -> int:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def handle_module(self, what: str, module: str) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_installed_modules(self) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_available_modules(self) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_available_dcs_versions(self, branch: str) -> Optional[list[str]]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_latest_version(self, branch: str) -> Optional[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def shell_command(self, cmd: str, timeout: int = 60) -> Optional[tuple[str, str]]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def create_directory(self, path: str):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def remove_file(self, path: str):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def rename_file(self, old_name: str, new_name: str, *, force: Optional[bool] = False):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def rename_server(self, server: "Server", new_name: str):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def add_instance(self, name: str, *, template: str = "") -> "Instance":
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def delete_instance(self, instance: "Instance", remove_files: bool) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def rename_instance(self, instance: "Instance", new_name: str) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def find_all_instances(self) -> list[tuple[str, str]]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def migrate_server(self, server: "Server", instance: "Instance") -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def unregister_server(self, server: "Server") -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def install_plugin(self, plugin: str) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def uninstall_plugin(self, plugin: str) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()

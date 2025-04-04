@@ -37,7 +37,6 @@ class DummyBot:
     async def start(self):
         self.log.warning("This installation does not use a Discord bot!")
         self.setup.clear()
-        # noinspection PyAsyncCall
         asyncio.create_task(self.setup_hook())
 
     async def close(self):

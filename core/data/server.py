@@ -64,7 +64,7 @@ class Server(DataObject):
         self.locals = self.read_locals()
 
     async def reload(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def read_locals(self) -> dict:
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -118,7 +118,7 @@ class Server(DataObject):
         else:
             new_status = status
         if new_status != self._status:
-            # self.log.info(f"{self.name}: {self._status.name} => {new_status.name}")
+            self.log.debug(f"{self.name}: {self._status.name} => {new_status.name}")
             self.last_seen = datetime.now(timezone.utc)
             self._status = new_status
             self.status_change.set()
@@ -175,7 +175,7 @@ class Server(DataObject):
         return self.locals.get('coalitions') is not None
 
     async def get_missions_dir(self) -> str:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def add_player(self, player: Player):
         self.players[player.id] = player
@@ -241,26 +241,26 @@ class Server(DataObject):
 
     @property
     def settings(self) -> dict:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def options(self) -> dict:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_current_mission_file(self) -> Optional[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def get_current_mission_theatre(self) -> Optional[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def send_to_dcs(self, message: dict):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def startup(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0) -> Optional[dict]:
         with PerformanceLog(f"DCS: dcsbot.{message['command']}()"):
@@ -283,7 +283,7 @@ class Server(DataObject):
                     "message": msg
                 })
         else:
-            raise NotImplemented()
+            raise NotImplementedError()
 
     async def sendPopupMessage(self, recipient: Union[Coalition, str], message: str, timeout: Optional[int] = -1,
                                sender: str = None):
@@ -307,7 +307,7 @@ class Server(DataObject):
         })
 
     async def stop(self) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @performance_log()
     async def start(self) -> bool:
@@ -321,48 +321,48 @@ class Server(DataObject):
         return False
 
     async def restart(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def setStartIndex(self, mission_id: int) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def setPassword(self, password: str):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def setCoalitionPassword(self, coalition: Coalition, password: str):
-        raise NotImplemented()
+        raise NotImplementedError()
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> list[str]:
-        raise NotImplemented()
+    async def addMission(self, path: str, *, idx: Optional[int] = -1, autostart: Optional[bool] = False) -> list[str]:
+        raise NotImplementedError()
 
     async def deleteMission(self, mission_id: int) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def replaceMission(self, mission_id: int, path: str) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
                           use_orig: Optional[bool] = True) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def loadNextMission(self, modify_mission: Optional[bool] = True, use_orig: Optional[bool] = True) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def getMissionList(self) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def getAllMissionFiles(self) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def uploadMission(self, filename: str, url: str, *, missions_dir: str = None, force: bool = False,
                             orig = False) -> UploadStatus:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def apply_mission_changes(self, filename: Optional[str] = None, use_orig: Optional[bool] = True) -> str:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def channels(self) -> dict[Channel, int]:
@@ -387,7 +387,7 @@ class Server(DataObject):
         return self._channels
 
     async def update_channels(self, channels: dict[str, int]) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
@@ -398,43 +398,43 @@ class Server(DataObject):
             await asyncio.wait_for(wait(status), timeout)
 
     async def shutdown(self, force: bool = False) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def init_extensions(self) -> list[str]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def prepare_extensions(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def persist_settings(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def render_extensions(self) -> list:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def is_running(self) -> bool:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def run_on_extension(self, extension: str, method: str, **kwargs) -> Any:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def config_extension(self, name: str, config: dict) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def install_extension(self, name: str, config: dict) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def uninstall_extension(self, name: str) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def cleanup(self) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def install_plugin(self, plugin: str) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     async def uninstall_plugin(self, plugin: str) -> None:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @async_cache
     async def list_extension(self) -> list[str]:

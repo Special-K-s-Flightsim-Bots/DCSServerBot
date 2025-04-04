@@ -14,8 +14,9 @@ The additional configuration is handled in the [extension](../../extensions/tacv
 ## Discord Commands
 The following Discord commands are available through the LotAtc plugin:
 
-| Command            | Parameter            | Channel | Role      | Description                                                           |
-|--------------------|----------------------|---------|-----------|-----------------------------------------------------------------------|
-| /tacview install   | server               | all     | DCS Admin | Install Tacview into this server (needs to be available on the node). |
-| /tacview uninstall | server               | all     | DCS Admin | Uninstall Tacview from this server.                                   |
-| /tacview configure | server               | all     | DCS Admin | Change the Tacview configuration on this server.                      |
+| Command            | Parameter   | Channel | Role      | Description                                                           |
+|--------------------|-------------|---------|-----------|-----------------------------------------------------------------------|
+| /tacview install   | server      | all     | DCS Admin | Install Tacview into this server (needs to be available on the node). |
+| /tacview uninstall | server      | all     | DCS Admin | Uninstall Tacview from this server.                                   |
+| /tacview configure | server      | all     | DCS Admin | Change the Tacview configuration on this server.                      |
+| /tacview download  | server file | all     | DCS       | Download a server or player Tacview file.                             |

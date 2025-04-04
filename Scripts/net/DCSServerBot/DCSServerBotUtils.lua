@@ -2,7 +2,6 @@ local base   		= _G
 
 module('DCSServerBotUtils')
 
-local loadfile 		= base.loadfile
 local net			= base.net
 local package		= base.package
 local pairs			= base.pairs

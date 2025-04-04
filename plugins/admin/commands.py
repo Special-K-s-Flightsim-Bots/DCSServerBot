@@ -401,9 +401,9 @@ class Admin(Plugin[AdminEventListener]):
                                          ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
-            elif rc in [2, 112]:
+            elif rc == 2:
                 await interaction.followup.send(
-                    content=_("DCS World could not be updated on node {name} due to missing disk space!").format(
+                    content=_("DCS World update on node {name} was aborted (check disk space)!").format(
                         name=node.name), ephemeral=True)
             elif rc in [3, 350]:
                 branch, new_version = await node.get_dcs_branch_and_version()
@@ -413,8 +413,8 @@ class Admin(Plugin[AdminEventListener]):
                     version=new_version, branch=branch, name=node.name), ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    content=_("Error while updating DCS on node {name}, code={rc}").format(name=node.name, rc=rc),
-                    ephemeral=True)
+                    content=_("Error while updating DCS on node {name}, code={rc}, message={message}").format(
+                        name=node.name, rc=rc, message=utils.get_win32_error_message(rc)), ephemeral=True)
         except (TimeoutError, asyncio.TimeoutError):
             await interaction.followup.send(
                 content=_("The update takes longer than 10 minutes, please check back regularly, if it has finished."),
@@ -450,7 +450,7 @@ class Admin(Plugin[AdminEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        num_servers = len([x for x in node.instances if x.server.status != Status.SHUTDOWN])
+        num_servers = len([x for x in node.instances if x.server and x.server.status != Status.SHUTDOWN])
         if num_servers and not await utils.yn_question(
                 interaction, _("Shutdown all servers on node {} for the uninstallation?").format(node.name),
                 ephemeral=ephemeral):
@@ -479,7 +479,7 @@ class Admin(Plugin[AdminEventListener]):
 
     @command(description=_('Download files from your server'))
     @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
+    @utils.app_has_roles(['Admin', 'DCS Admin'])
     @app_commands.autocomplete(what=label_autocomplete)
     @app_commands.autocomplete(filename=file_autocomplete)
     async def download(self, interaction: discord.Interaction,
@@ -542,15 +542,19 @@ class Admin(Plugin[AdminEventListener]):
                 return
         elif target.startswith('<'):
             channel = self.bot.get_channel(int(target[4:-1]))
-            try:
-                await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
-            except discord.HTTPException:
-                await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
-                                                ephemeral=ephemeral)
-            if channel != interaction.channel:
-                await interaction.followup.send(_('File sent to the configured channel.'), ephemeral=ephemeral)
+            if channel:
+                try:
+                    await channel.send(file=discord.File(fp=BytesIO(file), filename=os.path.basename(filename)))
+                except discord.HTTPException:
+                    await interaction.followup.send(_('File too large. You need a higher boost level for your server.'),
+                                                    ephemeral=ephemeral)
+                if channel != interaction.channel:
+                    await interaction.followup.send(_('File sent to the configured channel.'), ephemeral=ephemeral)
+                else:
+                    await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
             else:
-                await interaction.followup.send(_('Here is your file:'), ephemeral=ephemeral)
+                await interaction.followup.send(_('Channel {} not found, check your admin.yaml!').format(target[4:-1]),
+                                                ephemeral=ephemeral)
         else:
             target_file = os.path.join(os.path.expandvars(target), os.path.basename(filename))
             os.makedirs(os.path.dirname(target_file), exist_ok=True)
@@ -761,7 +765,6 @@ class Admin(Plugin[AdminEventListener]):
                 if server.node.name == node_name:
                     server.maintenance = True
                     if shutdown:
-                        # noinspection PyAsyncCall
                         asyncio.create_task(server.shutdown())
             await interaction.followup.send(_("Node {} is now offline.").format(node_name))
             await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)

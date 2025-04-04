@@ -26,8 +26,8 @@ MyNode:
       extensions:
         SkyEye:
           debug: true                   # Replicate the SkyEye console log into the DCSSB log
-          log: logs/skyeye.log          # Replicate the SkyEye log into a separate logfile
-          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SkyEye.yaml' # your SkyEye config file (default path)
+          log: {instance.home}/Logs/skyeye.log        # Replicate the SkyEye log into a separate logfile
+          config: {instance.home}/Config/SkyEye.yaml' # your SkyEye config file (default path)
           affinity: 14,15               # Set the core affinity for SkyEye (recommended!)
           coalition: blue               # Which coalition should SkyEye be active on   
           any-other-skyeye-config: xxx  # See the SkyEye documentation. 
@@ -47,3 +47,33 @@ MyNode:
 > to use the external model with an API-key. If you still decide to run SkyEye locally, it is recommended to separate 
 > SkyEye from your running DCS servers. You can use the affinity setting in your instance configuration (see above) and 
 > in the SkyEye configuration to separate the cores from each other.
+
+### Optional: Multiple SkyEye configurations per server (for red/blue, multiple AWACS, etc.)
+```yaml
+MyNode:
+  # [...]
+  extensions:
+    SkyEye:
+      installation: '%USERPROFILE%\Documents\skyeye-windows-amd64'  # or wherever you have installed it
+  # [...]
+  instances:
+    DCS.release_server:
+      affinity: 1, 2                  # Recommended, set core affinity for your DCS server process when using SkyEye
+      # [...]
+      extensions:
+        SkyEye:
+          debug: true                   # Replicate the SkyEye console log into the DCSSB log
+          log: '{instance.home}\Logs\skyeye-{coalition}.log'        # Replicate the SkyEye log into a separate logfile
+          config: '{instance.home}\Config\SkyEye-{coalition}.yaml'  # your SkyEye config file (default path)
+          instances:                      # configure multiple SkyEye instances
+          - coalition: blue               # Which coalition should SkyEye be active on   
+            affinity: 12,13               # Set the core affinity for SkyEye (recommended!)
+            any-other-skyeye-config: xxx  # See the SkyEye documentation. 
+          - coalition: red
+            affinity: 14,15               # Set the core affinity for SkyEye (recommended!)
+            any-other-skyeye-config: xxx  # See the SkyEye documentation. 
+```
+
+[!NOTE]
+Please make sure that your log and config pathes are unique over all your SkyEye instances. If you use several 
+SkyEye instances per coalition, rename them to maybe SkyEye-{coalition}-1.log, ...-2.log, ...-3.log.
