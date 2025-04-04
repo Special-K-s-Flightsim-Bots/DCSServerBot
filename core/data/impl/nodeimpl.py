@@ -260,9 +260,6 @@ class NodeImpl(Node):
             # we will never be here
             return None
 
-        async def reconnect_failed(pool: AsyncConnectionPool):
-            pass
-
         cpool_url = self.config.get("database", self.locals.get('database'))['url']
         lpool_url = self.locals.get("database", self.config.get('database'))['url']
         try:
@@ -697,7 +694,14 @@ class NodeImpl(Node):
     async def unregister(self):
         async with self.cpool.connection() as conn:
             async with conn.transaction():
-                await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
+                if self.master:
+                    cursor = await conn.execute("SELECT update_pending FROM cluster WHERE guild_id = %s",
+                                                (self.guild_id,))
+                    update_pending = (await cursor.fetchone())[0]
+                else:
+                    update_pending = False
+                if not update_pending:
+                    await conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
         if 'DCS' in self.locals and self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.cancel()
