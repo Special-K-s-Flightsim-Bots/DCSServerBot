@@ -720,7 +720,7 @@ class NodeImpl(Node):
                     UPDATE cluster SET version = %s, update_pending = FALSE WHERE guild_id = %s
                 """, (__version__, self.guild_id))
                 return True
-            elif await is_node_alive(master):
+            elif await is_node_alive(master, 300 if self.slow_system else 180): # give the master time to upgrade
                 return False
             else:
                 # the master is dead, so reset update pending
@@ -741,12 +741,12 @@ class NodeImpl(Node):
             else:
                 return row
 
-        async def is_node_alive(node: str) -> bool:
+        async def is_node_alive(node: str, timeout: int) -> bool:
             query = sql.SQL("""
                 SELECT COUNT(*) FROM nodes 
                 WHERE guild_id = %s AND node = %s 
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
-            """).format(interval=sql.Literal(f"{self.locals.get('heartbeat', 30)} seconds"))
+            """).format(interval=sql.Literal(f"{timeout} seconds"))
             cursor = await conn.execute(query, (self.guild_id, node))
             return (await cursor.fetchone())[0] == 1
 
@@ -804,7 +804,7 @@ class NodeImpl(Node):
                             await check_nodes()
                             return True
                         # The master is not alive, take over
-                        elif not master or not await is_node_alive(master):
+                        elif not master or not await is_node_alive(master, self.locals.get('heartbeat', 30)):
                             await take_over()
                             return True
                         # Master is alive, but we are the preferred one
