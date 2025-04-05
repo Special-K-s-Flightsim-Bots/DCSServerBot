@@ -1069,17 +1069,16 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str) 
         return choices[:25]
 
 
-async def get_squadron(node: Node, *, name: Optional[str] = None,
-                       squadron_id: Optional[int] = None) -> Optional[dict]:
+def get_squadron(node: Node, *, name: Optional[str] = None, squadron_id: Optional[int] = None) -> Optional[dict]:
     sql = "SELECT * FROM squadrons"
     if name:
         sql += " WHERE name = %(name)s"
     elif squadron_id:
         sql += " WHERE id = %(squadron_id)s"
-    async with node.apool.connection() as conn:
-        async with conn.cursor(row_factory=dict_row) as cursor:
-            await cursor.execute(sql, {"name": name, "squadron_id": squadron_id})
-            return await cursor.fetchone()
+    with node.pool.connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(sql, {"name": name, "squadron_id": squadron_id})
+            return cursor.fetchone()
 
 
 class UserTransformer(app_commands.Transformer):

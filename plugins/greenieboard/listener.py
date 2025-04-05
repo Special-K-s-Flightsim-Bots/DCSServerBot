@@ -85,7 +85,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
                 squadrons = config.get('squadrons', [])
                 if squadrons:
                     for squadron in squadrons:
-                        row = await utils.get_squadron(self.node, name=squadron['name'])
+                        row = utils.get_squadron(self.node, name=squadron['name'])
                         if not row:
                             self.log.warning(f"Squadron {squadron['name']} not found!")
                             continue
