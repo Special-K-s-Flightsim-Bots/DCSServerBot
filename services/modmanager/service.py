@@ -95,7 +95,8 @@ class ModManagerService(Service):
                 installed = await self.get_installed_package(server, folder, package['name'])
                 if (not installed or installed != _version) and \
                         server.status != Status.SHUTDOWN:
-                    self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
+                    self.log.warning(
+                        f"  - Server {server.name} needs to be shutdown to auto-install package {package['name']}")
                     break
                 maintenance = server.maintenance
                 server.maintenance = True

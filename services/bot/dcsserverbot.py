@@ -76,11 +76,8 @@ class DCSServerBot(commands.Bot):
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
         # we need to keep the order for our default plugins...
-        for plugin in DEFAULT_PLUGINS:
-            if plugin in self.plugins:
-                await self.load_plugin(plugin.lower())
-        # now load the rest in parallel
-        await asyncio.gather(*(self.load_plugin(plugin.lower()) for plugin in set(self.plugins) - set(DEFAULT_PLUGINS)))
+        for plugin in self.plugins:
+            await self.load_plugin(plugin.lower())
         # cleanup remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)
