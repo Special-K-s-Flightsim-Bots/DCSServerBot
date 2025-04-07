@@ -80,12 +80,16 @@ class SkyEye(Extension):
                 cfg_file = self.get_config(cfg | instance)
                 if os.path.exists(cfg_file):
                     cfg |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
+                else:
+                    self._prepare_config(cfg)
                 cfg |= instance.copy()
                 self.configs.append(cfg)
         else:
             cfg_file = self.get_config(self.config)
             if os.path.exists(cfg_file):
                 self.config |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
+            else:
+                self._prepare_config(self.config)
             self.configs = [data | self.config]
         return data
 
