@@ -332,6 +332,10 @@ class GreenieBoard(GraphElement):
                 fig_width = pilot_column_width + padding + (num_columns * column_width) + 2  # Additional padding on the sides
                 legend_height = (5 if num_landings < 20 else 3) * (card_size + 0.2)
                 fig_height = (num_rows * row_height) + 2 + legend_height  # Additional padding on the top and bottom
+
+                if num_columns < 20:
+                    fig_width += 14
+
                 self.env.figure.set_size_inches(fig_width, fig_height)
 
                 bg_color = '#2A2A2A'
