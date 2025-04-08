@@ -190,7 +190,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                 name = user.display_name
             else:
                 name = user
-        num_landings = max(self.get_config().get('num_landings', 25), 25)
+        num_landings = min(self.get_config().get('num_landings', 25), 25)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
