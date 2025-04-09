@@ -266,8 +266,11 @@ class SchedulerListener(EventListener["Scheduler"]):
     @event(name="onServerEmpty")
     async def onServerEmpty(self, server: Server, _: dict) -> None:
         if server.on_empty:
+            self.log.debug(f"Scheduler: onServerEmpty: processing on_empty event: {server.on_empty['command']}")
             asyncio.create_task(self.process(server, server.on_empty.copy()))
             server.on_empty.clear()
+        else:
+            self.log.debug("Scheduler: onServerEmpty: no on_empty event provided - skipping")
 
     @chat_command(name="maintenance", aliases=["maint"], roles=['DCS Admin'], help="enable maintenance mode")
     async def maintenance(self, server: Server, player: Player, _: list[str]):

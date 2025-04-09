@@ -210,8 +210,8 @@ class VotingListener(EventListener["Voting"]):
             await player.sendChatMessage(str(ex))
             return
         all_votes[server.name] = VotingHandler(listener=self, item=item, server=server, config=config)
-        await self.bot.audit(f"{player.display_name} created a voting", user=player.member or player.ucid,
-                             server=server)
+        await self.bot.audit(f"{player.display_name} called a vote for {what}",
+                             user=player.member or player.ucid, server=server)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
