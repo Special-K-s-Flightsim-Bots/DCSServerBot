@@ -291,8 +291,8 @@ class SRS(Extension, FileSystemEventHandler):
                 if client['Name'] == '---':
                     continue
                 target = set(int(x['freq']) for x in client['RadioInfo']['radios'] if int(x['freq']) > 1E6)
-                if client['Name'] not in self.clients:
-                    self.clients[client['Name']] = target
+                if client['ClientGuid'] not in self.clients:
+                    self.clients[client['ClientGuid']] = target
                     await self.bus.send_to_node({
                         "command": "onSRSConnect",
                         "server_name": self.server.name,
@@ -300,12 +300,12 @@ class SRS(Extension, FileSystemEventHandler):
                         "side": client['Coalition'],
                         "unit": client['RadioInfo']['unit'],
                         "unit_id": client['RadioInfo']['unitId'],
-                        "radios": list(self.clients[client['Name']])
+                        "radios": list(self.clients[client['ClientGuid']])
                     })
                 else:
-                    actual = self.clients[client['Name']]
+                    actual = self.clients[client['ClientGuid']]
                     if actual != target:
-                        self.clients[client['Name']] = target
+                        self.clients[client['ClientGuid']] = target
                         await self.bus.send_to_node({
                             "command": "onSRSUpdate",
                             "server_name": self.server.name,
@@ -313,10 +313,10 @@ class SRS(Extension, FileSystemEventHandler):
                             "side": client['Coalition'],
                             "unit": client['RadioInfo']['unit'],
                             "unit_id": client['RadioInfo']['unitId'],
-                            "radios": list(self.clients[client['Name']])
+                            "radios": list(self.clients[client['ClientGuid']])
                         })
             all_clients = set(self.clients.keys())
-            active_clients = set([x['Name'] for x in data['Clients']])
+            active_clients = set([x['ClientGuid'] for x in data['Clients']])
             # any clients disconnected?
             for client in all_clients - active_clients:
                 await self.bus.send_to_node({
