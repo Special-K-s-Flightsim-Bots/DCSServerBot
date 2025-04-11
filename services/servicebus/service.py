@@ -8,12 +8,17 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, Mission, Node, DataObjectFactory, Status, Autoexec, ServerProxy, utils, PubSub, PerformanceLog, \
-    ThreadSafeDict, Instance
-from core.services.base import Service
-from core.services.registry import ServiceRegistry
+from core import Server, Mission, Node, Status, utils, Instance
+from core.autoexec import Autoexec
+from core.data.dataobject import DataObjectFactory
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.impl.serverimpl import ServerImpl
+from core.data.proxy.serverproxy import ServerProxy
+from core.pubsub import PubSub
+from core.services.base import Service
+from core.services.registry import ServiceRegistry
+from core.utils import ThreadSafeDict
+from core.utils.performance import PerformanceLog
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from functools import reduce
@@ -776,7 +781,7 @@ class ServiceBus(Service):
                                         return
                                     if not self.master:
                                         self.log.debug(f"Registering server {server.name} on Master node ...")
-                            elif server.status == Status.UNREGISTERED and command not in ['getWeatherInfo', 'getAirbases']:
+                            elif server.status == Status.UNREGISTERED and command not in ['getWeatherInfo', 'getAirbases', 'onSRSConnect']:
                                 self.log.debug(
                                     f"Command {command} received for unregistered server {server.name}, ignoring.")
                                 continue
