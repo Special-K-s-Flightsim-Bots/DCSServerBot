@@ -76,10 +76,11 @@ Supported periods:
 - yyyymmdd HH:MM:SS-yyyymmdd HH:MM:SS (and any variation without seconds, minutes)
 - -3 days (or years, weeks, months, hours, minutes)
 
-In addition, you can provide any campaign name or any mission name like so:
+In addition, you can provide any campaign name, mission name, squadron name or theatre like so:
 - campaign:My Fancy Campaign
 - mission:Foothold
-It will do a wildcard search in all your missions.
+- theatre:Caucasus or terrain:Caucasus
+- squadron:Tomcatters
 
 > [!NOTE]
 > If a campaign is active on your server, `/statistics` and `/highscore` will display the data of that campaign only, 

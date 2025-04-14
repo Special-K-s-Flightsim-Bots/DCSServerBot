@@ -41,6 +41,8 @@ class StatisticsFilter(ABC):
             return MissionFilter(period)
         elif MissionIDFilter.supports(bot, period):
             return MissionIDFilter(period)
+        elif TheatreFilter.supports(bot, period):
+            return TheatreFilter(period)
         elif MonthFilter.supports(bot, period):
             return MonthFilter(period)
         elif PeriodFilter.supports(bot, period):
@@ -201,6 +203,25 @@ class MissionIDFilter(StatisticsFilter):
 
     def format(self, bot: DCSServerBot) -> str:
         return f'Mission '
+
+
+class TheatreFilter(StatisticsFilter):
+    @staticmethod
+    def list(bot: DCSServerBot) -> list[str]:
+        with bot.pool.connection() as conn:
+            rows = conn.execute("SELECT DISTINCT mission_theatre FROM missions ORDER BY 1").fetchall()
+            return [row[0] for row in rows]
+
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return period and (period.startswith('theatre:') or period.startswith('terrain:'))
+
+    def filter(self, bot: DCSServerBot) -> str:
+        theatre = utils.sanitize_string(self.period[8:].strip())
+        return f"m.mission_theatre = '{theatre}'"
+
+    def format(self, bot: DCSServerBot) -> str:
+        return f'Missions on theatre "{self.period[8:].strip().title()}"\n'
 
 
 class MonthFilter(StatisticsFilter):
