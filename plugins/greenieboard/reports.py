@@ -310,7 +310,6 @@ class GreenieBoard(GraphElement):
                 await cursor.execute(sql1, {
                     "server_name": server_name,
                     "num_rows": num_rows,
-                    "num_landings": num_landings,
                     "squadron_id": squadron['id'] if squadron else None
                 })
                 rows = await cursor.fetchall()
@@ -376,7 +375,8 @@ class GreenieBoard(GraphElement):
 
                     await cursor.execute(sql2, {
                         "player_ucid": row['player_ucid'],
-                        "server_name": server_name
+                        "server_name": server_name,
+                        "num_landings": num_landings
                     })
 
                     landings = await cursor.fetchall()
