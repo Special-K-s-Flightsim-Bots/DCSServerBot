@@ -298,7 +298,7 @@ class GreenieBoard(GraphElement):
             GROUP BY 1, 2, 3 
             ORDER BY 3 DESC LIMIT %(num_rows)s
         """
-        sql2 += ' ORDER BY ID DESC LIMIT 10'
+        sql2 += ' ORDER BY ID DESC LIMIT %(num_landings)s'
 
         server = self.bot.servers.get(server_name)
         config = self.plugin.get_config(server)
@@ -375,7 +375,8 @@ class GreenieBoard(GraphElement):
 
                     await cursor.execute(sql2, {
                         "player_ucid": row['player_ucid'],
-                        "server_name": server_name
+                        "server_name": server_name,
+                        "num_landings": num_landings
                     })
 
                     landings = await cursor.fetchall()
