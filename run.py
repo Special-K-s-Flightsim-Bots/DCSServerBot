@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import certifi
 import discord
+import faulthandler
 import logging
 import os
 import pathlib
@@ -227,7 +228,12 @@ if __name__ == "__main__":
         from migrate import migrate_3
 
         migrate_3(node=args.node)
+
+    fault_log = open(os.path.join('logs', 'fault.log'), 'w')
     try:
+        # enable faulthandler
+        faulthandler.enable(file=fault_log, all_threads=True)
+
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
                 rc = asyncio.run(run_node(name=args.node, config_dir=args.config, no_autoupdate=args.noupdate))
@@ -270,4 +276,5 @@ if __name__ == "__main__":
         exit(-1)
     finally:
         log.info("DCSServerBot stopped.")
+        fault_log.close()
     exit(rc)
