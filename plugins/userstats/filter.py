@@ -218,7 +218,7 @@ class TheatreFilter(StatisticsFilter):
 
     def filter(self, bot: DCSServerBot) -> str:
         theatre = utils.sanitize_string(self.period[8:].strip())
-        return f"m.mission_theatre = '{theatre}'"
+        return f"m.mission_theatre ILIKE '{theatre.lower()}'"
 
     def format(self, bot: DCSServerBot) -> str:
         return f'Missions on theatre "{self.period[8:].strip().title()}"\n'
