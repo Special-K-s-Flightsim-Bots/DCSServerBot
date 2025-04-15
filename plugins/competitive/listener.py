@@ -139,6 +139,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             is_on = match.is_on()
             match.player_join(player)
             self.in_match[server.name][player.ucid] = match
+            self.log.debug(f"Player {player.name} ({player.ucid}) joined the match {match_id}")
             await self.inform_players(
                 match, _("Player {name} ({rating}) joined the {side} team!").format(
                     name=player.name, rating=self.calculate_rating(await self.get_rating(player)), 
@@ -146,6 +147,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             # inform the players if the match is on now
             if not is_on and match.is_on():
                 match.started = datetime.now(timezone.utc)
+                self.log.debug(f"The match {match_id} is now on.")
                 await self.inform_players(
                     match, _("The match is on! If you die, crash or leave now, you lose!"))
 
