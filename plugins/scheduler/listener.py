@@ -115,6 +115,9 @@ class SchedulerListener(EventListener["Scheduler"]):
             await server.loadNextMission(modify_mission=run_extensions, use_orig=use_orig)
             asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                                f"{server.current_mission.display_name}", server=server))
+        elif what['command'] == 'stop':
+            await server.stop()
+            asyncio.create_task(self.bot.audit(f"{self.plugin_name.title()} stopped server", server=server))
         elif what['command'] == 'load':
             run_extensions = what.get('run_extensions', True)
             use_orig = what.get('use_orig', True)

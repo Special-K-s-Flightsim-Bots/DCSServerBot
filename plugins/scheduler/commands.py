@@ -324,6 +324,11 @@ class Scheduler(Plugin[SchedulerListener]):
                 except (TimeoutError, asyncio.TimeoutError):
                     await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                          server=server)
+            elif method == 'stop':
+                self.log.debug(f"Scheduler: Stopping DCS Server {server.name} ...")
+                await server.stop()
+                await self.bot.audit(f"{self.plugin_name.title()} stopped DCS Server {server.name}",
+                                     server=server)
             elif method == 'load':
                 try:
                     mission_id = rconf.get('mission_id')

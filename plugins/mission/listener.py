@@ -238,7 +238,7 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="callback")
     async def callback(self, server: Server, data: dict):
-        if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
+        if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown', 'stop_server']:
             data['command'] = data['subcommand']
             asyncio.create_task(server.send_to_dcs(data))
 
