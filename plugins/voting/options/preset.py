@@ -29,6 +29,8 @@ class Preset(VotableItem):
         new_filename = await self.server.modifyMission(filename, utils.get_preset(self.server.node, winner))
         if new_filename != filename:
             await self.server.replaceMission(int(self.server.settings['listStartIndex']), new_filename)
-        await self.server.restart(modify_mission=False)
+            await self.server.loadMission(new_filename, modify_mission=False)
+        else:
+            await self.server.restart(modify_mission=False)
         if self.server.status == Status.STOPPED:
             await self.server.start()
