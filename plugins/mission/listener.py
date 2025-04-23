@@ -1056,7 +1056,9 @@ class MissionEventListener(EventListener["Mission"]):
                 new_filename = await server.modifyMission(filename, preset)
                 if new_filename != filename:
                     await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
-                await server.restart(modify_mission=False)
+                    await server.loadMission(new_filename, modify_mission=False)
+                else:
+                    await server.restart(modify_mission=False)
                 if server.status == Status.STOPPED:
                     await server.start()
             await self.bot.audit(f"changed preset to {preset_name}", server=server, user=player.ucid)
