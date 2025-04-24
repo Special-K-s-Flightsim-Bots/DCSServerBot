@@ -354,16 +354,14 @@ class MonitoringService(Service):
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
-            tasks = []
-
             # Run `check_popups` only on Windows
             if sys.platform == 'win32':
-                tasks.append(self.check_popups())
+                await self.check_popups()
 
-            tasks.extend([
+            tasks = [
                 self.heartbeat(),
-                self.drive_check(),
-            ])
+                self.drive_check()
+            ]
 
             if 'serverstats' in self.node.plugins:
                 tasks.append(self.serverload())
