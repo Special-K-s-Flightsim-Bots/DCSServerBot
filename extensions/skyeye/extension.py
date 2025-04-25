@@ -30,7 +30,7 @@ _ = get_translation(__name__.split('.')[1])
 
 SKYEYE_GITHUB_URL = "https://github.com/dharmab/skyeye/releases/latest"
 SKYEYE_DOWNLOAD_URL = "https://github.com/dharmab/skyeye/releases/download/{}/skyeye-windows-amd64.zip"
-WHISPER_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}"
+WHISPER_URL = "https://huggingface.co/ggerganov/whisper.cpp/blob/main/{}"
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
