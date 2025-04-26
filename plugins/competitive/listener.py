@@ -26,8 +26,8 @@ class Match:
     @property
     def teams(self) -> dict[Side, list[Player]]:
         return {
-            Side.BLUE: [p for p in self.alive[Side.BLUE]] + [p for p in self.dead[Side.BLUE]],
-            Side.RED: [p for p in self.alive[Side.RED]] + [p for p in self.dead[Side.RED]]
+            Side.BLUE: [p for p in self.alive.get(Side.BLUE, [])] + [p for p in self.dead.get(Side.BLUE, [])],
+            Side.RED: [p for p in self.alive.get(Side.RED, [])] + [p for p in self.dead.get(Side.RED, [])]
         }
 
     def player_join(self, player: Player):
@@ -43,14 +43,14 @@ class Match:
             self.dead[player.side].append(player)
 
     def is_over(self) -> Optional[Side]:
-        if not len(self.alive[Side.RED]):
+        if not len(self.alive.get(Side.RED, [])):
             return Side.BLUE
-        elif not len(self.alive[Side.BLUE]):
+        elif not len(self.alive.get(Side.BLUE, [])):
             return Side.RED
         return None
 
     def is_on(self) -> bool:
-        return len(self.alive[Side.BLUE]) > 0 and len(self.alive[Side.RED]) > 0
+        return len(self.alive.get(Side.BLUE, [])) > 0 and len(self.alive.get(Side.RED, [])) > 0
 
 
 class CompetitiveListener(EventListener["Competitive"]):
