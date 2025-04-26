@@ -1,6 +1,7 @@
 import aiohttp
 import ipaddress
 import logging
+import miniupnpc
 import os
 import pickle
 import platform
@@ -50,6 +51,7 @@ __all__ = [
     "get_password",
     "delete_password",
     "sanitize_filename",
+    "is_upnp_available",
     "get_win32_error_message",
     "CloudRotatingFileHandler"
 ]
@@ -63,11 +65,12 @@ def is_open(ip, port):
         return s.connect_ex((ip, int(port))) == 0
 
 
-async def get_public_ip(node: "Node"):
+async def get_public_ip(node: Optional["Node"] = None):
     for url in API_URLS:
         with suppress(aiohttp.ClientError, ValueError):
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, proxy=node.proxy, proxy_auth=node.proxy_auth) as resp:
+                async with session.get(url, proxy=node.proxy if node else None,
+                                       proxy_auth=node.proxy_auth if node else None) as resp:
                     return ipaddress.ip_address(await resp.text()).compressed
     else:
         raise TimeoutError("Public IP could not be retrieved.")
@@ -294,6 +297,25 @@ def get_win32_error_message(error_code: int):
         None
     )
     return buffer.value.strip()
+
+
+def is_upnp_available() -> bool:
+    try:
+        upnp = miniupnpc.UPnP()
+        devices = upnp.discover()  # Discover UPnP-enabled devices
+        if devices > 0:
+            if upnp.selectigd():
+                # UPnP is enabled and an IGD was found.
+                return True
+            else:
+                # UPnP is enabled, but no Internet Gateway Device (IGD) is selected
+                return False
+        else:
+            # No UPnP devices detected on the network.
+            return False
+    except Exception:
+        # An UPnP device was found, but no IGD was found.
+        return False
 
 
 class CloudRotatingFileHandler(RotatingFileHandler):

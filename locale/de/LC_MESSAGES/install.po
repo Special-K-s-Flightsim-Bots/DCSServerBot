@@ -199,6 +199,9 @@ msgstr "\n{}. [u]Knoten-Konfiguration[/]"
 msgid "Aborted: No DCS installation found."
 msgstr "Abgebrochen. Keine DCS-Installation gefunden."
 
+msgid "Is {} a static IP-address for this node?"
+msgstr "Ist {} eine statische IP-Adresse für diesen Knoten?"
+
 msgid "Do you want your DCS installation being auto-updated by the bot?"
 msgstr "Möchtest Du DCS vom Bot automatisch aktualisieren lassen?"
 

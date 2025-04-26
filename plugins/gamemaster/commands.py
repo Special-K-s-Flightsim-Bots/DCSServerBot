@@ -317,7 +317,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
         await interaction.response.send_modal(modal)
         if await modal.wait():
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(_('Aborted.'), ephemeral=ephemeral)
+            await interaction.response.send_message(_('Aborted.'), ephemeral=True)
             return
         try:
             servers = await utils.server_selection(self.bus, interaction,

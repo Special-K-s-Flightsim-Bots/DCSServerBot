@@ -6,7 +6,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT name as \"Name\", TO_CHAR(start, 'YYYY-MM-DD HH24:MI') AS \"Start\", COALESCE(TO_CHAR(stop, 'YYYY-MM-DD HH24:MI'), '-') AS \"Stop\" FROM campaigns WHERE COALESCE(stop, NOW()) >= NOW()"
+        "sql": "SELECT name as \"Name\", '<t:' || EXTRACT(EPOCH FROM start) || '>' AS \"Start\", COALESCE('<t:' || EXTRACT(EPOCH FROM stop) || '>', '-') AS \"Stop\" FROM campaigns WHERE COALESCE(stop, NOW()) >= NOW()"
       }
     }
   ]

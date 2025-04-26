@@ -361,7 +361,7 @@ class DCSServerBot(commands.Bot):
                       user.id if isinstance(user, discord.Member) else None,
                       user if isinstance(user, str) else None))
 
-    def get_admin_channel(self, server: Optional["Server"]) -> Optional[discord.TextChannel]:
+    def get_admin_channel(self, server: Optional["Server"] = None) -> Optional[discord.TextChannel]:
         admin_channel = self.locals.get('channels', {}).get('admin')
         if not admin_channel:
             if server:

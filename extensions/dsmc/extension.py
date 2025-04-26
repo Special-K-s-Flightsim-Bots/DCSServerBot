@@ -14,8 +14,9 @@ class DSMC(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        server.locals['mission_rewrite'] = False
-        server.locals['validate_missions'] = False
+        if config.get('enabled', True):
+            server.locals['mission_rewrite'] = False
+            server.locals['validate_missions'] = False
 
     @property
     def version(self) -> Optional[str]:

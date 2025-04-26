@@ -21,6 +21,7 @@ mapping:
       listen_address: {type: str, nullable: false, range: {min: 1}}
       listen_port: {type: int, range: {min: 1025, max: 65535}, nullable: false}
       public_ip: {type: str, nullable: false, range: {min: 1}}
+      use_upnp: {type: bool, nullable: false}
       autoupdate: {type: bool, nullable: false}
       slow_system: {type: bool, nullable: false}
       preferred_master: {type: bool, nullable: false}

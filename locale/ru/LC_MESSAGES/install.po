@@ -189,6 +189,9 @@ msgstr "\n{}. [u]Настройка ноды[/]"
 msgid "Aborted: No DCS installation found."
 msgstr "Отмена: Не найдена установка DCS World."
 
+msgid "Is {} a static IP-address for this node?"
+msgstr "Является-ли {} статическим IP-адресом этой ноды?"
+
 msgid "Do you want your DCS installation being auto-updated by the bot?"
 msgstr "Вы хотите чтобы бот автоматически обновлял вашу установку DCS World?"
 

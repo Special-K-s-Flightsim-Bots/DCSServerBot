@@ -237,6 +237,9 @@ class NodeImpl(Node):
                     node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
                     utils.set_password('DCS', password, self.config_dir)
                     dirty = True
+            if not 'use_upnp' in node:
+                node['use_upnp'] = utils.is_upnp_available()
+                dirty = True
             if dirty:
                 with open(config_file, 'w', encoding='utf-8') as f:
                     yaml.dump(data, f)
@@ -483,6 +486,9 @@ class NodeImpl(Node):
                 data = json.loads(await cfg.read())
             self.dcs_branch = data.get('branch', 'release')
             self.dcs_version = data['version']
+            if 'DEDICATED_SERVER' in await self.get_installed_modules():
+                self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
+                               "Use /dcs update to update to the release branch.")
             if "openbeta" in self.dcs_branch:
                 self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
                                  "Use /dcs update if you want to switch to the release branch.")
@@ -687,7 +693,7 @@ class NodeImpl(Node):
                                 f"- Your DCS World version is outdated. Consider upgrading to version {new_version}.")
                         elif parse(old_version) > parse(new_version):
                             self.log.critical(
-                                f"- The DCS World version you are using has been rolled back to version {new_version}.!")
+                                f"- The DCS World version you are using has been rolled back to version {new_version}!")
                 except Exception:
                     self.log.warning("Version check failed, possible auth-server outage.")
 
@@ -1021,6 +1027,9 @@ class NodeImpl(Node):
                             "message": message
                         }
                     })
+            elif new_version < old_version:
+                self.log.warning(f"Your current DCS version {old_version} has been reverted to version {new_version}."
+                                 f"You might want to manually downgrade the version.")
         except aiohttp.ClientError as ex:
             self.log.warning(ex)
         except Exception as ex:
@@ -1071,6 +1080,12 @@ class NodeImpl(Node):
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         autoexec = Autoexec(instance=instance)
         autoexec.crash_report_mode = "silent"
+        if not self.locals.get('use_upnp', True):
+            net = autoexec.net or {}
+            net |= {
+                "use_upnp": False
+            }
+            autoexec.net = net
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
             config = yaml.load(infile)

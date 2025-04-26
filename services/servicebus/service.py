@@ -44,8 +44,8 @@ class ServiceBus(Service):
         super().__init__(node)
         self.bot: Optional[DCSServerBot] = None
         self.version = self.node.bot_version
-        self.listeners: dict[str, asyncio.Future] = dict()
-        self.eventListeners: list[EventListener] = []
+        self.listeners: dict[str, asyncio.Future] = {}
+        self.eventListeners: set[EventListener] = set()
         self.servers: dict[str, Server] = ThreadSafeDict()
         self.init_servers()
         self.udp_server = None
@@ -161,10 +161,10 @@ class ServiceBus(Service):
 
     def register_eventListener(self, listener: EventListener):
         self.log.debug(f'  - Registering EventListener {type(listener).__name__}')
-        self.eventListeners.append(listener)
+        self.eventListeners.add(listener)
 
     def unregister_eventListener(self, listener: EventListener):
-        self.eventListeners.remove(listener)
+        self.eventListeners.discard(listener)
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     def init_servers(self):

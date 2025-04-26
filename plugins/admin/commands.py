@@ -1104,7 +1104,7 @@ Please make sure you forward the following ports:
             await interaction.followup.send(_("Extension {} enabled on server {} and started.").format(
                 extension, server.display_name), ephemeral=ephemeral)
 
-    @ext.command(description=_('Enable Extension'))
+    @ext.command(description=_('Disable Extension'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(extension=extensions_autocomplete)

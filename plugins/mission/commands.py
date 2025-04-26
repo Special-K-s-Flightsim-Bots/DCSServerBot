@@ -25,6 +25,7 @@ from typing import Optional, Union, Literal, Type
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
 from .views import ServerView, PresetView, InfoView
+from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -422,6 +423,7 @@ class Mission(Plugin[MissionEventListener]):
                     "run_extensions": run_extensions,
                     "use_orig": use_orig
                 }
+                server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
                                                 ephemeral=ephemeral)
             else:
@@ -651,6 +653,13 @@ class Mission(Plugin[MissionEventListener]):
         elif not options:
             await interaction.followup.send(_("There are no presets to chose from."), ephemeral=True)
 
+        if server.restart_pending and not await utils.yn_question(
+                interaction,
+                _('A restart is currently pending.\nWould you still like to modify the mission?'), ephemeral=ephemeral
+        ):
+            return
+
+        server.on_empty = dict()
         result = None
         if server.status in [Status.PAUSED, Status.RUNNING]:
             question = _('Do you want to restart the server for a mission change?')
@@ -677,6 +686,7 @@ class Mission(Plugin[MissionEventListener]):
                 await msg.delete()
             except discord.NotFound:
                 pass
+
         if result == 'later':
             server.on_empty = {
                 "command": "preset",
@@ -1717,6 +1727,97 @@ class Mission(Plugin[MissionEventListener]):
         env = await report.render(period=f"{number} {period}")
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
+
+    @player.command(description=_('Analyses two suspects of being the same person'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def compare(self, interaction: discord.Interaction,
+                      player1: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer],
+                      player2: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        ephemeral = utils.get_ephemeral(interaction)
+        if isinstance(player1, discord.Member):
+            ucid1 = await self.bot.get_ucid_by_member(member=player1, verified=True)
+        else:
+            ucid1 = player1
+        if isinstance(player2, discord.Member):
+            ucid2 = await self.bot.get_ucid_by_member(member=player2, verified=True)
+        else:
+            ucid2 = player2
+
+        if ucid1 == ucid2:
+            await interaction.followup.send(_("You have provided the same UCID twice."), ephemeral=ephemeral)
+            return
+
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT 
+                    t1.player_ucid AS player1,
+                    t2.player_ucid AS player2,
+                    GREATEST(t1.hop_on, t2.hop_on) AS overlap_start,
+                    LEAST(t1.hop_off, t2.hop_off) AS overlap_end
+                FROM 
+                    statistics t1
+                JOIN 
+                    statistics t2
+                ON 
+                    t1.player_ucid = %s
+                    AND t2.player_ucid = %s
+                WHERE 
+                    t1.hop_off > t2.hop_on
+                    AND t1.hop_on < t2.hop_off
+                ORDER BY overlap_start
+            """, (ucid1, ucid2))
+            if cursor.rowcount > 0:
+                await interaction.followup.send(_("The players played at the same time. "
+                                                  "It is unlikely that they are the same person."), ephemeral=ephemeral)
+                return
+
+            # Inform about their non-matching playtimes
+            await interaction.followup.send(_("The players never played at the same time."))
+
+            # check both players names
+            cursor = await conn.execute("""
+                SELECT DISTINCT name FROM (
+                    SELECT name FROM players WHERE ucid = %(ucid)s
+                    UNION
+                    SELECT name FROM players_hist WHERE ucid = %(ucid)s
+                ) x
+            """, {"ucid": ucid1})
+            names1 = [x[0] for x in await cursor.fetchall()]
+
+            cursor = await conn.execute("""
+                SELECT DISTINCT name FROM (
+                    SELECT name FROM players WHERE ucid = %(ucid)s
+                    UNION
+                    SELECT name FROM players_hist WHERE ucid = %(ucid)s
+                ) x
+            """, {"ucid": ucid2})
+            names2 = [x[0] for x in await cursor.fetchall()]
+
+            same_names = utils.find_similar_names(names1, names2, threshold=85)
+            if same_names:
+                embed = discord.Embed(
+                    description="The players used similar names in the past:",
+                    color=discord.Color.blue()
+                )
+                names1, names2, scores = zip(*same_names)
+                embed.add_field(name="Player 1", value='\n'.join(map(str, names1)))
+                embed.add_field(name="Player 2", value='\n'.join(map(str, names2)))
+                embed.add_field(name="Confidence", value='\n'.join(f"{score}%" for score in scores))
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+        period = PeriodFilter()
+        for ucid in [ucid1, ucid2]:
+            report = Report(self.bot, 'userstats', 'userstats.json')
+            env = await report.render(member=ucid, server_name=None, period=period.period, flt=period)
+            try:
+                file = discord.File(fp=env.buffer, filename=env.filename)
+                await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
+            finally:
+                if env.buffer:
+                    env.buffer.close()
 
     # New command group "/mission"
     menu = Group(name="menu", description=_("Commands to manage mission menus"))

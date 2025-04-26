@@ -338,7 +338,9 @@ For a cluster installation, you want to describe all your nodes and instances on
 NODENAME:                       # this will usually be your hostname
   listen_port: 10042            # On which port should the bot listen? Default is 10042
   listen_address: 0.0.0.0       # Optional: On which interface should the bot listen? Default is 127.0.0.1.
+  public_ip: 88.77.66.55        # Optional: Your public IP. ONLY if you have a static IP (!), put this in here to speedup the startup-process of the bot.
   slow_system: false            # Optional: if you are using a slower PC to run your servers, you should set this to true (default: false)
+  use_upnp: true                # The bot will auto-detect, if there is an UPnP IGD available and configure this setting initially for you! If you do NOT want to use UPnP, even IF it is abailable, put this to false.
   preferred_master: true        # cluster only: this node should be the preferred master node (default: false)
   heartbeat: 30                 # cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
   cloud_drive: false            # cluster only: set this to false, if you do not have the bot installed on a cloud drive (default and recommended: true) 
@@ -359,6 +361,7 @@ NODENAME:                       # this will usually be your hostname
 #      mention:                  # Optional mentioning
 #        - Admin
 #        - DCS Admin
+    use_upnp: true              # Do you want to use UPnP to forward your DCS ports automatically? If not set, the global setting will be used.
     cloud: true                 # If you have installed DCS on a NAS or cloud drive, autoupdate and desanitization will only take place once on all your nodes.
     desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
     minimized: true             # Start DCS minimized (default: true)
@@ -382,6 +385,7 @@ NODENAME:                       # this will usually be your hostname
           port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration, if set here!
           autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
           autoupdate: true      # This will auto-update your SRS servers. Default is false, you need to run the bot as Administrator to make it work!
+          use_upnp: true        # Do you want to use UPnP to auto-forward your SRS ports? If not set, the global setting will be used.
         Tacview:
           show_passwords: false # If you don't want to show the Tacview passwords (default: true)
     instance2:                  # you can have an unlimited amount of instance configurations, but each instance has to have a physical representation on your disk.

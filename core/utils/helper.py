@@ -27,7 +27,7 @@ import math
 from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable, Callable, Any
@@ -165,6 +165,8 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                 value = json.dumps(value)
             elif isinstance(value, bool):
                 value = str(value).lower()
+            elif isinstance(value, datetime) and value.tzinfo:
+                value = value.astimezone(timezone.utc).replace(tzinfo=None)
             return super().format_field(value, spec)
 
     try:

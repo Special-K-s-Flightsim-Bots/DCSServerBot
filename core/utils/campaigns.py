@@ -46,7 +46,7 @@ async def get_campaign(self, campaign: str) -> dict:
     async with self.apool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cursor:
             await cursor.execute("""
-                SELECT id, name, description, start, stop 
+                SELECT id, name, description, start AT TIME ZONE 'UTC' AS start, stop AT TIME ZONE 'UTC' AS stop 
                 FROM campaigns 
                 WHERE name = %s 
             """, (campaign, ))

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import platform
@@ -35,6 +36,7 @@ class Install:
         self.log = logging.getLogger(name='dcsserverbot')
         self.log.propagate = False
         self.log.setLevel(logging.DEBUG)
+        self.use_upnp = utils.is_upnp_available()
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         os.makedirs('logs', exist_ok=True)
@@ -350,8 +352,14 @@ If you need any further assistance, please visit the support discord, listed in 
         else:
             dcs_installation = Install.get_dcs_installation_linux()
         node = nodes[self.node] = {
-            "listen_port": max([n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())]) + 1 if nodes else 10042,
+            "listen_port": max([
+                n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())
+            ]) + 1 if nodes else 10042,
+            "use_upnp": self.use_upnp
         }
+        public_ip = asyncio.run(utils.get_public_ip())
+        if Confirm.ask(_("Is {} a static IP-address for this node?").format(public_ip), default=False):
+            node['public_ip'] = public_ip
         if 'database' not in main:
             node["database"] = {
                 "url": database_url
