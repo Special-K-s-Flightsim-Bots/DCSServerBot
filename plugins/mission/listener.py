@@ -580,7 +580,7 @@ class MissionEventListener(EventListener["Mission"]):
         # greet the player
         if not player.member:
             # only warn for unknown users if it is a non-public server and automatch is on
-            if self.bot.locals.get('automatch', True) and server.settings['password']:
+            if self.bot.locals.get('automatch', True) and server.settings.get('password', ''):
                 admin_channel = self.bot.get_admin_channel(server)
                 if admin_channel:
                     asyncio.create_task(admin_channel.send(

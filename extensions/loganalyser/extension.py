@@ -52,7 +52,7 @@ class LogAnalyser(Extension):
         self.register_callback(MOOSE_COMMIT_LOG, self.moose_log)
         self.register_callback(NO_UPNP, self.disable_upnp)
         self.register_callback(NO_TERRAIN, self.terrain_missing)
-        self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
+        #self.register_callback(REGMAP_STORAGE_FULL, self.restart_server)
         asyncio.create_task(self.check_log())
 
     async def prepare(self) -> bool:

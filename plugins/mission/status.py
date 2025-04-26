@@ -46,7 +46,7 @@ class ServerInfo(report.EmbedElement):
         if server.node.public_ip:
             name = "Server-IP / Port"
             value = f"{host or server.node.public_ip}:{server.settings['port']}"
-        if server.settings['password']:
+        if server.settings.get('password', ''):
             if value:
                 value += '\n\n**Password**\n'
             else:
@@ -229,7 +229,7 @@ class All(report.EmbedElement):
             if server.restart_time and not server.maintenance:
                 restart_in = int((server.restart_time - datetime.now(timezone.utc)).total_seconds())
                 value += f"Restart:  in {utils.format_time(restart_in)}\n"
-            if server.settings['password']:
+            if server.settings.get('password', ''):
                 name = '🔐 ' + name
                 value += f"Password: {server.settings['password']}"
             else:

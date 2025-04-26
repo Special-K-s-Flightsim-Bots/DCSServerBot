@@ -86,7 +86,7 @@ class Cloud(Extension):
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name,
                 "port": self.server.instance.dcs_port,
-                "password": (self.server.settings['password'] != ""),
+                "password": (self.server.settings.get('password', '') != ''),
                 "theatre": self.server.current_mission.map,
                 "dcs_version": self.node.dcs_version,
                 "num_players": len(self.server.get_active_players()) + 1,

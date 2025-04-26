@@ -77,7 +77,7 @@ of credits.
 ## Discord Commands
 | Command         | Parameter            | Role | Description                                           |
 |-----------------|----------------------|------|-------------------------------------------------------|
-| /credits info   |                      | DCS  | Displays the players campaign credits.                |
+| /credits info   | [member]             | DCS  | Displays the players campaign credits.                |
 | /credits donate | <@member> <donation> | DCS  | Donate any of your campaign points to another member. |
 
 ## In-Game Chat Commands
