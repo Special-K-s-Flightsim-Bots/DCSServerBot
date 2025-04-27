@@ -83,7 +83,6 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
         ]
         return choices[:25]
 
-
 async def accept_squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     return await squadron_autocomplete(interaction, current, 'accept')
 
@@ -136,6 +135,21 @@ async def match_autocomplete(interaction: discord.Interaction, current: str) -> 
             """, (tournament_id, ))
         ]
         return choices[:25]
+
+
+async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    match_id = utils.get_interaction_param(interaction, "match")
+    async with interaction.client.apool.connection() as conn:
+        cursor = await conn.execute(f"""
+            SELECT server_name FROM tm_matches WHERE match_id = %s
+        """, (match_id,))
+        server_name = (await cursor.fetchone())[0]
+    if server_name:
+        interaction.data['options'][0]['options'].append({"name": "server", "type": 4, "value": server_name})
+        return await utils.mission_autocomplete(interaction, current)
+    return []
 
 
 class Tournament(Plugin[TournamentEventListener]):
@@ -603,36 +617,46 @@ class Tournament(Plugin[TournamentEventListener]):
             await server.setStartIndex(mission_id + 1)
         config_presets = { "init": config.get('presets', {}).get('initial', []) }
         async with self.apool.connection() as conn:
-            async for row in await conn.execute("""
-                SELECT 'blue', preset 
-                FROM tm_choices c JOIN tm_matches m 
-                ON c.match_id = m.match_id AND c.squadron_id = m.squadron_blue
-                WHERE m.match_id = %(match_id)s
-                UNION
-                SELECT 'red', preset 
-                FROM tm_choices c JOIN tm_matches m 
-                ON c.match_id = m.match_id AND c.squadron_id = m.squadron_blue
-                WHERE m.match_id = %(match_id)s
-            """, {"match_id": match_id}):
-                if row[0] not in config_presets:
-                    config_presets[row[0]] = []
-                config_presets[row[0]].append(row[1])
-        filename = await server.get_current_mission_file()
-        miz = MizFile(filename)
-        preset_file = config.get('presets', {}).get('file', 'presets.yaml')
-        with open(os.path.join(self.node.config_dir, preset_file), mode='r', encoding='utf-8') as infile:
-            all_presets = yaml.load(infile)
-        for side, presets in config_presets.items():
-            if side == 'init':
-                for preset in presets:
-                    miz.apply_preset(all_presets[preset])
-            elif side in ['blue', 'red']:
-                for preset in presets:
-                    cp_preset = all_presets[preset]
-                    for k,v in cp_preset.copy():
-                        cp_preset[k] = utils.format_string(v, side=side)
-                    miz.apply_preset(cp_preset)
-        miz.save(filename)
+            async with conn.transaction():
+                async for row in await conn.execute("""
+                    SELECT 'blue', preset 
+                    FROM tm_choices c JOIN tm_matches m 
+                    ON c.match_id = m.match_id AND c.squadron_id = m.squadron_blue
+                    WHERE m.match_id = %(match_id)s
+                    UNION
+                    SELECT 'red', preset 
+                    FROM tm_choices c JOIN tm_matches m 
+                    ON c.match_id = m.match_id AND c.squadron_id = m.squadron_blue
+                    WHERE m.match_id = %(match_id)s
+                """, {"match_id": match_id}):
+                    if row[0] not in config_presets:
+                        config_presets[row[0]] = []
+                    config_presets[row[0]].append(row[1])
+
+                # process the presets
+                filename = await server.get_current_mission_file()
+                miz = MizFile(filename)
+                preset_file = config.get('presets', {}).get('file', 'presets.yaml')
+                with open(os.path.join(self.node.config_dir, preset_file), mode='r', encoding='utf-8') as infile:
+                    all_presets = yaml.load(infile)
+                for side, presets in config_presets.items():
+                    if side == 'init':
+                        for preset in presets:
+                            miz.apply_preset(all_presets[preset])
+                    elif side in ['blue', 'red']:
+                        for preset in presets:
+                            cp_preset = all_presets[preset]
+                            for k,v in cp_preset.copy():
+                                cp_preset[k] = utils.format_string(v, side=side)
+                            miz.apply_preset(cp_preset)
+                miz.save(filename)
+                # delete the choices from the database and update the acknoledgement
+                await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
+                await conn.execute("""
+                    UPDATE tm_matches 
+                    SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
+                    WHERE match_id = %s
+                """, (match_id,))
 
     @match.command(description='Start a match')
     @app_commands.guild_only()
@@ -641,7 +665,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(match_id="match")
     @app_commands.autocomplete(match_id=match_autocomplete)
     @app_commands.rename(mission_id="mission")
-    @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.autocomplete(mission_id=mission_autocomplete)
     @utils.app_has_role('GameMaster')
     async def start(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
                     mission_id: Optional[int] = None, round_number: Optional[int] = None):
@@ -782,7 +806,7 @@ class Tournament(Plugin[TournamentEventListener]):
             if channel_id == interaction.channel.id:
                 async with self.node.apool.connection() as conn:
                     cursor = await conn.execute(f"""
-                        SELECT m.match_id, squadron_{coalition} 
+                        SELECT m.match_id, squadron_{coalition}, choices_{coalition}_ack 
                         FROM tm_matches m 
                         JOIN tm_tournaments t ON m.tournament_id = t.tournament_id 
                         JOIN campaigns c ON t.campaign = c.name
@@ -792,6 +816,10 @@ class Tournament(Plugin[TournamentEventListener]):
                     """)
                     row = await cursor.fetchone()
                     if row:
+                        if row[2]:
+                            await interaction.followup.send(_("You already made your choice. Wait for the next round!"),
+                                                            ephemeral=True)
+                            return
                         match_id = row[0]
                         squadron_id = row[1]
                     else:
@@ -805,14 +833,22 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         admins = utils.get_squadron_admins(self.node, squadron_id)
-        if interaction.user.id not in admins:
+        if interaction.user.id not in admins and not utils.check_roles(self.bot.roles['GameMaster'], interaction.user):
             await interaction.followup.send(
-                f"You need to be an admin of the squadron {squadron_id} to use this command.", ephemeral=True
+                f"You need to be an admin of the squadron {squadron_id} or a Game Master to use this command.",
+                ephemeral=True
             )
             return
         view = ChoicesView(node=self.node, match_id=match_id, squadron_id=squadron_id, config=config)
         embed = await view.render()
-        await interaction.followup.send(view=view, embed=embed, ephemeral=ephemeral)
+        msg = await interaction.followup.send(view=view, embed=embed, ephemeral=ephemeral)
+        try:
+           await view.wait()
+        finally:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
 
 
 async def setup(bot: DCSServerBot):

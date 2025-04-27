@@ -49,9 +49,9 @@ class TournamentEventListener(EventListener["Tournament"]):
             cursor = await conn.execute("""
                 SELECT match_id FROM tm_matches
                 WHERE tournament_id = %s
-                AND round_number BETWEEN 1 AND %s
+                AND round_number > 0
                 AND winner_squadron_id IS NULL
-            """, (tournament['tournament_id'], tournament['rounds']))
+            """, (tournament['tournament_id'], ))
             row = await cursor.fetchone()
             return row[0] if row else None
 
@@ -129,7 +129,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                         cursor = await conn.execute(f"""
                             SELECT choices_{side}_ack FROM tm_matches WHERE match_id = %s
                         """, (match_id,))
-                        row = cursor.fetchone()
+                        row = await cursor.fetchone()
                         finished[side] = row[0]
             if time == int(time_to_choose / 2):
                 await self.inform_squadrons(
@@ -195,15 +195,31 @@ class TournamentEventListener(EventListener["Tournament"]):
             tournament = self.tournaments.get(server.name)
             match_id = await self.get_active_match(server)
             # do we have a winner?
-            if data['arg1'] != 'TODO':
+            if data['arg1'] in ['red', 'blue']:
                 side = data['arg1'].lower()
                 async with self.apool.connection() as conn:
                     async with conn.transaction():
-                        await conn.execute(f"""
+                        cursor = await conn.execute(f"""
                             UPDATE tm_matches 
                             SET squadron_{side}_rounds_won = squadron_{side}_rounds_won + 1
                             WHERE match_id = %s
+                            RETURNING squadron_{side}, round_number
                         """, (match_id,))
+                        squadron_id, round_number = await cursor.fetchone()
+                squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+                asyncio.create_task(self.inform_squadrons(
+                    server, message=_("Squadron {} has won this round!").format(squadron['name'])))
+                asyncio.create_task(self.announce(
+                    server, _("Squadron {name} won round {round}!").format(name=squadron['name'], round=round_number)))
+            elif data['arg1'] == 'neutrals':
+                match = await self.plugin.get_match(match_id)
+                message = _("Round {} was a draw!").format(match['round_number'])
+                asyncio.create_task(self.inform_squadrons(server, message=message))
+                asyncio.create_task(self.announce(server, message=message))
+            else:
+                # ignore mission shutdown events
+                return
+
             # check if the match is finished
             winner_id = None
             async with self.apool.connection() as conn:

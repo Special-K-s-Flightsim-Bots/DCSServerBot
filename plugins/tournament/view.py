@@ -1,8 +1,40 @@
 import discord
-from discord import SelectOption
-from discord.ui import Select
+import numpy as np
 
-from core import Node
+from discord import SelectOption
+from discord.ui import Select, Button, Modal, TextInput
+
+from core import Node, get_translation
+
+_ = get_translation(__name__.split('.')[1])
+
+WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
+
+class NumbersModal(Modal):
+    def __init__(self, choice: str, costs: int, credits: int):
+        super().__init__(title=_("How many {} do you want?").format(choice))
+        self.costs = costs
+        self.credits = credits
+        self.textinput = TextInput(label=_("Count"), placeholder=_("Enter a number"), 
+                                   style=discord.TextStyle.short, required=True)
+        self.add_item(self.textinput)
+        self.result = 0
+        self.error = None
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        if not self.textinput.value.isdigit():
+            raise ValueError(_("Field needs to be a number."))
+        value = int(self.textinput.value)
+        if value * self.costs > self.credits:
+            raise ValueError(_("You do not have enough credits to buy {} items.").format(value))
+        self.result = value
+        self.stop()
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception):
+        self.error = str(error)
+        self.stop()
 
 
 class ChoicesView(discord.ui.View):
@@ -22,83 +54,130 @@ class ChoicesView(discord.ui.View):
                 return 0
 
     async def render(self) -> discord.Embed:
-        embed = discord.Embed(colour=discord.Colour.blue())
+        credits = await self.get_squadron_credits()
+        embed = discord.Embed(colour=discord.Colour.blue(), title=_("You have {} credit points.").format(credits))
         embed.description = ("Here you can select the presets to change the upcoming mission to your request.\n"
                              "Please keep in mind, that you will have to pay credit points, "
                              "according to the requested presets price.")
         async with self.node.apool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT preset FROM tm_choices WHERE match_id = %s AND squadron_id = %s
+                SELECT preset, num FROM tm_choices WHERE match_id = %s AND squadron_id = %s
             """, (self.match_id, self.squadron_id))
-            choices = [x[0] for x in await cursor.fetchall()]
+            choices = [x for x in await cursor.fetchall()]
         if not choices:
             embed.add_field(name="Choices", value="No choices selected yet.", inline=False)
         else:
             presets = []
             costs = []
+            number = []
             for choice in choices:
-                preset = choice
+                preset = choice[0]
                 presets.append(preset)
                 cost = self.config.get('choices').get(preset)
                 costs.append(cost)
+                number.append(choice[1])
             embed.add_field(name="Your selection", value="\n".join(presets))
             embed.add_field(name="Costs in Credits", value="\n".join([str(x) for x in costs]))
-            embed.add_field(name="Total cost", value=f"{sum(costs)} credits", inline=False)
+            embed.add_field(name="Count", value="\n".join([str(x) for x in number]))
+            embed.add_field(name="Total cost", value=f"{np.sum(np.array(costs) * np.array(number))} credits",
+                            inline=False)
         embed.set_footer(text="Please make your choice!")
         # build the selections
         self.clear_items()
         if choices:
             select = Select(placeholder="Remove a choice",
                             options=[
-                                SelectOption(label=x, value=x)
+                                SelectOption(label=x[0], value=x[0])
                                 for idx, x in enumerate(choices)
                                 if idx < 25
                             ],
-                            min_values=1, max_values=len(choices))
-            select.callback = self.remove_choices
+                            min_values=1, max_values=1)
+            select.callback = self.remove_choice
             self.add_item(select)
         if len(choices) < len(self.config['choices']):
             select = Select(placeholder="Add a choice",
                             options=[
-                                SelectOption(label=x, value=x)
+                                SelectOption(label=f"{x} (Cost={self.config['choices'][x]})", value=x)
                                 for idx, x in enumerate(self.config['choices'].keys())
-                                if idx < 25
-                            ],
-                            min_values=1, max_values=len(self.config['choices']))
-            select.callback = self.add_choices
+                                if idx < 25 and self.config['choices'][x] <= credits
+                                   and x not in [x[0] for x in choices]
+                            ], min_values=1, max_values=1)
+            select.callback = self.add_choice
             self.add_item(select)
+        button = Button(label="Save", style=discord.ButtonStyle.green)
+        button.callback = self.save
+        self.add_item(button)
+        button = Button(label="Cancel", style=discord.ButtonStyle.red)
+        button.callback = self.cancel
+        self.add_item(button)
         return embed
 
-    async def add_choices(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        choices = interaction.data['values']
+    async def add_choice(self, interaction: discord.Interaction):
+        choice = interaction.data['values'][0]
         credits = await self.get_squadron_credits()
-        costs = sum([costs for preset, costs in self.config['choices'].items() if preset in choices])
-        if costs <= credits:
-            async with self.node.apool.connection() as conn:
-                async with conn.transaction():
-                    for choice in choices:
-                        await conn.execute("INSERT INTO tm_choices (match_id, squadron_id, preset) VALUES (%s, %s, %s)",
-                                           (self.match_id, self.squadron_id, choice))
-                    await conn.execute("UPDATE squadron_credits SET points = %s WHERE squadron_id = %s",
-                                       (credits - costs, self.squadron_id))
-        embed = await self.render()
-        if costs > credits:
-            embed.set_footer(text=f"Your choice exceeded your budget of {credits} credits.")
-        await interaction.edit_original_response(embed=embed, view=self)
+        costs = self.config['choices'][choice]
 
-    async def remove_choices(self, interaction: discord.Interaction):
+        modal = NumbersModal(choice, costs, credits)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if not await modal.wait():
+            num = modal.result
+            if num and costs * num <= credits:
+                async with self.node.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
+                            INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
+                            VALUES (%s, %s, %s, %s)
+                        """, (self.match_id, self.squadron_id, choice, num))
+                        await conn.execute("UPDATE squadron_credits SET points = %s WHERE squadron_id = %s",
+                                           (credits - costs * num, self.squadron_id))
+            embed = await self.render()
+            if modal.error:
+                embed.set_footer(text=modal.error, icon_url=WARNING_ICON)
+            await interaction.edit_original_response(embed=embed, view=self)
+
+    async def remove_choice(self, interaction: discord.Interaction):
+        choice = interaction.data['values'][0]
+        credits = await self.get_squadron_credits()
+        costs = self.config['choices'][choice]
+
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        choices = interaction.data['values']
-        credits = await self.get_squadron_credits()
-        costs = sum([costs for preset, costs in self.config['choices'].items() if preset in choices])
         async with self.node.apool.connection() as conn:
             async with conn.transaction():
-                for choice in choices:
-                    await conn.execute("DELETE FROM tm_choices WHERE match_id = %s AND squadron_id = %s AND preset = %s",
-                                       (self.match_id, self.squadron_id, choice))
+                cursor = await conn.execute("""
+                    DELETE FROM tm_choices 
+                    WHERE match_id = %s AND squadron_id = %s AND preset = %s
+                    RETURNING num
+                """, (self.match_id, self.squadron_id, choice))
+                num = (await cursor.fetchone())[0]
                 await conn.execute("UPDATE squadron_credits SET points = %s WHERE squadron_id = %s",
-                                   (credits + costs, self.squadron_id))
+                                   (credits + (costs * num), self.squadron_id))
         await interaction.edit_original_response(embed=await self.render(), view=self)
+
+    async def save(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        async with self.node.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE tm_matches
+                    SET 
+                        choices_blue_ack = CASE 
+                            WHEN squadron_blue = %(squadron_id)s THEN true 
+                            ELSE choices_blue_ack 
+                        END,
+                        choices_red_ack = CASE 
+                            WHEN squadron_red = %(squadron_id)s THEN true 
+                            ELSE choices_red_ack 
+                        END
+                    WHERE 
+                        (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
+                        AND match_id = %(match_id)s
+                """, {"match_id": self.match_id, "squadron_id": self.squadron_id})
+        self.stop()
+
+    async def cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()

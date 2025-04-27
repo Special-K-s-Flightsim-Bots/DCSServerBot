@@ -20,7 +20,7 @@ CREATE TABLE tm_matches (
     squadron_red INTEGER NOT NULL,
     squadron_blue INTEGER NOT NULL,
     round_number INTEGER NOT NULL DEFAULT 0,
-    choises_red_ack BOOLEAN DEFAULT FALSE,
+    choices_red_ack BOOLEAN DEFAULT FALSE,
     choices_blue_ack BOOLEAN DEFAULT FALSE,
     squadron_red_rounds_won INTEGER NOT NULL DEFAULT 0,
     squadron_blue_rounds_won INTEGER NOT NULL DEFAULT 0,
@@ -34,9 +34,9 @@ CREATE TABLE tm_choices (
     match_id INTEGER,
     squadron_id INTEGER,
     preset TEXT NOT NULL,
-    PRIMARY KEY (match_id, squadron_id),
-    FOREIGN KEY (match_id) REFERENCES tm_matches(match_id) ON DELETE CASCADE,
-    FOREIGN KEY (tournament_id, squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE
+    num INTEGER NOT NULL,
+    PRIMARY KEY (match_id, squadron_id, preset),
+    FOREIGN KEY (match_id) REFERENCES tm_matches(match_id) ON DELETE CASCADE
 );
 CREATE TABLE tm_statistics (
     squadron_id INTEGER NOT NULL,

@@ -349,6 +349,7 @@ class ServerImpl(Server):
         if filename:
             miz = await asyncio.to_thread(MizFile, filename)
             return miz.theatre
+        return None
 
     def serialize(self, message: dict):
         def _serialize_value(value: Any) -> Any:
@@ -933,6 +934,8 @@ class ServerImpl(Server):
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
             mission = self._get_current_mission_file()
+            if not mission:
+                return False
             if use_orig:
                 # now determine the original mission name
                 orig_mission = utils.get_orig_file(mission)
@@ -943,6 +946,8 @@ class ServerImpl(Server):
                     if new_filename != mission:
                         shutil.copy2(orig_mission, new_filename)
                         await self.replaceMission(start_index, new_filename)
+                    else:
+                        shutil.copy2(orig_mission, mission)
                     return await self.loadMission(start_index, modify_mission=modify_mission)
             else:
                 # don't use the orig file, still make sure we have a writable mission

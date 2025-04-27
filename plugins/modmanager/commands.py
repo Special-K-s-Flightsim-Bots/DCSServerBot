@@ -12,6 +12,8 @@ from typing import Optional
 
 _ = get_translation(__name__.split('.')[1])
 
+WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
+
 
 async def get_installed_mods(service: ModManagerService, server: Server) -> list[tuple[Folder, str, str]]:
     installed = []
@@ -224,7 +226,8 @@ class ModManager(Plugin):
                     button.callback = derived.shutdown
                     derived.add_item(button)
                     derived.embed.set_footer(
-                        text=_("⚠️ Server {} needs to be shut down to change mods.").format(server.name))
+                        text=_("Server {} needs to be shut down to change mods.").format(server.name),
+                        icon_url=WARNING_ICON)
                 else:
                     for i in range(1, len(derived.children)):
                         # noinspection PyUnresolvedReferences
@@ -245,13 +248,13 @@ class ModManager(Plugin):
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.uninstall_package(server, folder, package, current):
                             derived.embed.set_footer(
-                                text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=package,
-                                                                                                version=version))
+                                text=_("Mod {mod}_v{version} could not be uninstalled!").format(
+                                    mod=package, version=version), icon_url=WARNING_ICON)
                             await interaction.edit_original_response(embed=derived.embed)
                         elif not await self.service.install_package(server, folder, package, version):
                             derived.embed.set_footer(
-                                text=_("Mod {mod}_v{version} could not be installed!").format(mod=package,
-                                                                                              version=version))
+                                text=_("Mod {mod}_v{version} could not be installed!").format(
+                                    mod=package, version=version), icon_url=WARNING_ICON)
                             await interaction.edit_original_response(embed=derived.embed)
                         else:
                             derived.embed.set_footer(text=_("Mod {} updated.").format(package))
@@ -262,7 +265,8 @@ class ModManager(Plugin):
                         derived.embed.set_footer(text=_("Installing mod {}, please wait ...").format(package))
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.install_package(server, folder, package, version):
-                            derived.embed.set_footer(text=_("Installation of mod {} failed.").format(package))
+                            derived.embed.set_footer(text=_("Installation of mod {} failed.").format(package),
+                                                     icon_url=WARNING_ICON)
                         else:
                             derived.embed.set_footer(text=_("Mod {} installed.").format(package))
                             derived.installed = await get_installed_mods(self.service, server)
@@ -280,7 +284,8 @@ class ModManager(Plugin):
                 await interaction.edit_original_response(embed=derived.embed)
                 if not await self.service.uninstall_package(server, folder, mod, version):
                     derived.embed.set_footer(
-                        text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=mod, version=version))
+                        text=_("Mod {mod}_v{version} could not be uninstalled!").format(mod=mod, version=version),
+                        icon_url=WARNING_ICON)
                 else:
                     derived.embed.set_footer(text=_("Mod {} uninstalled.").format(mod))
                     derived.installed = await get_installed_mods(self.service, server)
@@ -315,7 +320,8 @@ class ModManager(Plugin):
                 await interaction.response.send_modal(modal)
                 if not await modal.wait():
                     if not utils.is_valid_url(modal.url.value):
-                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(modal.url.value))
+                        derived.embed.set_footer(text=_("{} is not a valid URL!").format(modal.url.value),
+                                                 icon_url=WARNING_ICON)
                     else:
                         derived.embed.set_footer(text=_("Downloading {} , please wait ...").format(modal.url.value))
                         for child in derived.children:
@@ -327,9 +333,9 @@ class ModManager(Plugin):
                             derived.available = get_available_mods(self.service, server)
                         except aiohttp.client_exceptions.ClientResponseError as ex:
                             self.log.error(f"{ex.code}: {modal.url.value} {ex.message}")
-                            embed.set_footer(text=f"{ex.code}: {ex.message}")
+                            embed.set_footer(text=f"{ex.code}: {ex.message}", icon_url=WARNING_ICON)
                         except Exception as ex:
-                            embed.set_footer(text=_("Error: {}").format(ex.__class__.__name__))
+                            embed.set_footer(text=_("Error: {}").format(ex.__class__.__name__), icon_url=WARNING_ICON)
                         for child in derived.children:
                             child.disabled = False
                         await derived.render()

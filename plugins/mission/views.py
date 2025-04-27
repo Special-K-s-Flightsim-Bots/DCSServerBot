@@ -9,6 +9,8 @@ from typing import cast, Optional, Union
 
 from services.bot import DCSServerBot
 
+WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
+
 
 class ServerView(View):
     def __init__(self, server: Server):
@@ -70,7 +72,7 @@ class ServerView(View):
         await interaction.edit_original_response(embed=self.env.embed)
         if not await self.server.loadMission(int(interaction.data['values'][0]) + 1,
                                              modify_mission=self.modify_mission):
-            self.env.embed.set_footer(text="Mission loading failed.")
+            self.env.embed.set_footer(text="Mission loading failed.", icon_url=WARNING_ICON)
             await interaction.edit_original_response(embed=self.env.embed)
         else:
             with suppress(TimeoutError, asyncio.TimeoutError):
