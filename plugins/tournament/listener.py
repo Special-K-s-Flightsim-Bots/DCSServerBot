@@ -1,11 +1,13 @@
 import asyncio
 
-from core import EventListener, event, Server, utils
+from core import EventListener, event, Server, utils, get_translation, Coalition
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .commands import Tournament
+
+_ = get_translation(__name__.split('.')[1])
 
 
 class TournamentEventListener(EventListener["Tournament"]):
@@ -13,6 +15,21 @@ class TournamentEventListener(EventListener["Tournament"]):
     def __init__(self, plugin: "Tournament"):
         super().__init__(plugin)
         self.tournaments: dict[str, dict] = {}
+
+    async def audit(self, server: Server, message: str):
+        config = self.get_config(server)
+        channel_id = config.get('channels', {}).get('admin')
+        if channel_id:
+            channel = self.bot.get_channel(channel_id)
+        else:
+            channel = self.bot.get_admin_channel(server)
+        await channel.send(message)
+
+    async def announce(self, server: Server, message: str):
+        config = self.get_config(server)
+        channel = self.bot.get_channel(config.get('channels', {}).get('info', -1))
+        if channel:
+            await channel.send(message)
 
     async def get_active_tournament(self, server: Server) -> Optional[int]:
         async with self.apool.connection() as conn:
@@ -34,7 +51,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 WHERE tournament_id = %s
                 AND round_number BETWEEN 1 AND %s
                 AND winner_squadron_id IS NULL
-            """, (tournament['tournament_id'], tournament['num_rounds']))
+            """, (tournament['tournament_id'], tournament['rounds']))
             row = await cursor.fetchone()
             return row[0] if row else None
 
@@ -56,9 +73,37 @@ class TournamentEventListener(EventListener["Tournament"]):
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'S_EVENT_BIRTH':
-            tournament = self.tournaments.get(server.name)
+            match_id = await self.get_active_match(server)
+            tournament = self.tournaments[server.name]
+            match = await self.plugin.get_match(match_id)
+            initiator = data['initiator']
+            side = 'red' if initiator['coalition'] == 1 else 'blue' if initiator['coalition'] == 2 else 'neutral'
+            squadron_id = match[f'squadron_{side}']
+            squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+            asyncio.create_task(self.announce(
+                server, _("Player {name} of squadron {squadron} joined the match in their {unit} at {place}!").format(
+                name=initiator['name'], squadron=squadron['name'], unit=initiator['unit_type'],
+                    place=data['place']['name'])))
             if len(server.get_active_players()) == tournament['num_players'] * 2:
                 asyncio.create_task(server.current_mission.unpause())
+                asyncio.create_task(self.announce(server,
+                                                  _("All sides have occupied their units. The match is now on!")))
+                messages = [_("The server is now unpaused.")]
+                config = self.get_config(server, plugin_name='competitive')
+                win_on = config.get('win_on', 'survival')
+                if win_on == 'survival':
+                    messages.append(_("The first party to lose all their units will be defeated, "
+                                      "making the surviving party the winner of the match."))
+                elif win_on == 'landing':
+                    messages.append(_("To win the match, a party must eliminate all enemy aircraft AND safely land "
+                                      "at least one of their own planes."))
+                else:
+                    asyncio.create_task(self.audit(server, f"Win-method {win_on} is not supported yet!"))
+                asyncio.create_task(server.sendPopupMessage(Coalition.ALL, _("The server is now unpaused. Good luck!")))
+            else:
+                player = server.get_player(name=initiator['name'])
+                asyncio.create_task(player.sendPopupMessage(
+                    _("The server will be unpaused, if all players have chosen their slots!")))
 
     async def inform_squadrons(self, server, *, message: str):
         config = self.get_config(server)
@@ -71,13 +116,13 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def wait_until_choices_finished(self, server: Server):
         config = self.get_config(server)
         match_id = await self.get_active_match(server)
-        time_to_chose = config['time_to_chose']
+        time_to_choose = config.get('time_to_choose', 600)
         time = 0
         finished: dict[str, bool] = {
             "red": False,
             "blue": False
         }
-        while time < time_to_chose and (not finished["red"] or not finished["blue"]):
+        while time < time_to_choose and (not finished["red"] or not finished["blue"]):
             async with self.apool.connection() as conn:
                 for side in ['blue', 'red']:
                     async with conn.transaction():
@@ -86,9 +131,9 @@ class TournamentEventListener(EventListener["Tournament"]):
                         """, (match_id,))
                         row = cursor.fetchone()
                         finished[side] = row[0]
-            if time == int(time_to_chose / 2):
+            if time == int(time_to_choose / 2):
                 await self.inform_squadrons(
-                    server, message="The next round will start in {}!".format(utils.format_time(time_to_chose - time)))
+                    server, message="The next round will start in {}!".format(utils.format_time(time_to_choose - time)))
             await asyncio.sleep(1)
             time += 1
 
@@ -105,14 +150,44 @@ class TournamentEventListener(EventListener["Tournament"]):
                 row = await cursor.fetchone()
                 round_number = row[0]
         await self.inform_squadrons(server, message="You can now use {} to chose your customizations!".format(
-                (await utils.get_command(self.bot, group=self.plugin.tournament.name,
+                (await utils.get_command(self.bot, group=self.plugin.match.name,
                                          name=self.plugin.customize.name)).mention))
-        await self.wait_until_choices_finished()
+        await self.wait_until_choices_finished(server)
         await self.inform_squadrons(server, message="Your choice will be applied to the next round.")
         await self.plugin.prepare_mission(server, match_id)
         await server.start()
         await self.inform_squadrons(server,
                                     message=f"Round {round_number} is starting now! Please jump into the server!")
+
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        if data.get('side', -1) not in [1, 2]:
+            return
+        player = server.get_player(ucid=data['ucid'])
+        side = 'red' if data['side'] == 1 else 'blue'
+        match_id = await self.get_active_match(server)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute(f"""
+                    SELECT * FROM squadron_members sm 
+                    JOIN tm_matches m ON m.squadron_{side} = sm.squadron_id
+                    WHERE m.match_id = %s AND sm.player_ucid = %s
+                """, (match_id, player.ucid))
+                if cursor.rowcount == 0:
+                    config = self.get_config(server)
+                    if config.get('auto_join', False):
+                        async with conn.transaction():
+                            await conn.execute(f"""
+                                INSERT INTO squadron_members (squadron_id, player_ucid)
+                                SELECT squadron_{side}, '%s' FROM tm_matches WHERE match_id = %s
+                            """, (player.ucid, match_id))
+                    else:
+                        asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
+                                                                  "Please ask your squadron leader to add you.")))
+                        asyncio.create_task(self.audit(server,
+                                                       f"Unregistered player {player.name} ({player.ucid}) "
+                                                       f"tried to join the running match on the {side} side."))
+                        return
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -134,9 +209,9 @@ class TournamentEventListener(EventListener["Tournament"]):
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
-                        await cursor.execute()
-                        row = await cursor.fetchone("SELECT * FROM tm_matches WHERE match_id = %s", (match_id,))
-                        if row['round_number'] == tournament['num_rounds']:
+                        await cursor.execute("SELECT * FROM tm_matches WHERE match_id = %s", (match_id,))
+                        row = await cursor.fetchone()
+                        if row['round_number'] == tournament['rounds']:
                             if row['squadron_red_rounds_won'] < row['squadron_blue_rounds_won']:
                                 winner_id = row['squadron_blue']
                             elif row['squadron_red_rounds_won'] > row['squadron_blue_rounds_won']:

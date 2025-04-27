@@ -554,13 +554,19 @@ class Tournament(Plugin[TournamentEventListener]):
         server.settings['require_pure_models'] = True
         server.settings['require_pure_clients'] = True
         server.settings['require_pure_scripts'] = True
+        server.settings['listShuffle'] = False
+        server.settings['listLoop'] = False
         if config.get('allow_exports', False) is False:
             advanced |= {
                 "allow_ownship_export": False,
                 "allow_object_export": False,
                 "allow_sensor_export": False,
                 "allow_players_pool": False,
-                "resume_mode": 0
+                "disable_events": True,
+                "resume_mode": 0,
+                "pause_on_load": True,
+                "sav_autosave": False,
+                "maxPing": 300
             }
 
         # set coalition passwords
@@ -707,7 +713,8 @@ class Tournament(Plugin[TournamentEventListener]):
             channel: TextChannel = self.bot.get_channel(channel_id)
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is about to start!"))
             embed.description = _("You can now join the server.\n"
-                                  "Please keep in mind that only {} players can play!").format(tournament['num_players'])
+                                  "Please keep in mind that you can only use {} planes!").format(
+                tournament['num_players'])
             embed.add_field(name=_("Server"), value=server.name)
             embed.add_field(name=_("IP:Port"), value=f"{server.node.public_ip}:{server.settings['port']}")
             embed.add_field(name=_("Password"), value=server.settings.get('password', ''))
@@ -738,7 +745,7 @@ class Tournament(Plugin[TournamentEventListener]):
             overwrite = discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
-                read_message_history=False
+                read_message_history=True
             )
             try:
                 await channel.set_permissions(role, overwrite=overwrite)

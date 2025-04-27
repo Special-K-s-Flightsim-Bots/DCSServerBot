@@ -34,10 +34,13 @@ To configure the tournament plugin, create a file config\plugins\tournament.yaml
 DEFAULT:
   coalition_passwords: true # set and auto-generate coalition passwords for red / blue
   allow_exports: false      # do not allow exports (default: false)
+  auto_join: true           # if true, your pilot will be automatically assigned to the associated squadron (default: false)
+  time_to_choose: 600        # the time squadrons have to choose their 
   presets:
     file: presets_tournament.yaml
-    initial:      # presets that have to be applied to any mission
-      - sanitize  # preset to be used for sanitization (security settings in mission)
+    initial:          # presets that have to be applied to any mission
+      - sanitize      # preset to be used for sanitization (security settings in mission)
+      - switch_sides  # This will switch the blue and red sides on any round
   match:
     join_on: birth  # any of birth, takeoff, enter zone (future)
     win_on: landing # any of landing, survival
