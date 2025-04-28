@@ -1,0 +1,53 @@
+schema;instance_schema:
+  type: map
+  func: is_node
+  nullable: false
+  mapping:
+    regex;(.+):
+      include: 'element_schema'
+
+schema;element_schema:
+  type: map
+  func: is_element
+  nullable: false
+  mapping:
+    enabled: {type: bool, nullable: false}
+    coalition_passwords: {type: bool, nullable: false}
+    allow_exports: {type: bool, nullable: false}
+    auto_join: {type: bool, nullable: false}
+    time_to_choose: {type: int, nullable: false, range: {min: 300, max: 900}}
+    presets:
+      type: map
+      nullable: false
+      mapping:
+        file: {type: str, nullable: false, range: {min: 1}}
+        initial:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false, range: {min: 1}, unique: true}
+        choices:
+          type: map
+          nullable: false
+          mapping:
+            regex;(.+): {type: int, nullable: false, range: {min: 1}}
+    channels:
+      type: map
+      mapping:
+        regex;(.+):  {type: text, nullable: false}
+
+type: map
+func: check_main_structure
+nullable: false
+mapping:
+  DEFAULT:
+    include: 'element_schema'
+  chat_commands:
+    include: 'chat_commands_schema'
+  commands:
+    include: 'commands_schema'
+  regex;(.+):
+    type: any
+    func: any_of
+    nullable: false
+    enum: ['element_schema', 'instance_schema']

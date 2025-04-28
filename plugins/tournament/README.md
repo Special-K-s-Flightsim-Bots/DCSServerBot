@@ -6,7 +6,7 @@ it needs some setup and understanding of how everything works. Let's dig into it
 You need to activate these optional plugins in your main.yaml to run tournaments:
 ```yaml
 opt_plugins:
-  - competitive # for TrueSkill™️ ratings
+  - competitive # for TrueSkill™️ ratings and match handling
   - tournament  # tournament handling   
 ``` 
 
@@ -35,23 +35,37 @@ DEFAULT:
   coalition_passwords: true # set and auto-generate coalition passwords for red / blue
   allow_exports: false      # do not allow exports (default: false)
   auto_join: true           # if true, your pilot will be automatically assigned to the associated squadron (default: false)
-  time_to_choose: 600        # the time squadrons have to choose their 
+  time_to_choose: 600       # the time squadrons have to choose their 
   presets:
     file: presets_tournament.yaml
     initial:          # presets that have to be applied to any mission
       - sanitize      # preset to be used for sanitization (security settings in mission)
       - switch_sides  # This will switch the blue and red sides on any round
-  match:
-    join_on: birth  # any of birth, takeoff, enter zone (future)
-    win_on: landing # any of landing, survival
+    choices:  # list of preset | cost in squadron credits
+      'AIM-120': 2
+      'AIM-9x': 1
   channels:
     info: 112233445566778899   # information channel
     blue: 998877665544332211    # channel for blue coalition (can be the normal coalition channel)
     red: 119922883377446655     # channel for red coalition (can be the normal coalition channel)
-  choices:  # list of preset | cost in squadron credits  => TODO, use AIM-120 and make it configurable with parameters
-    '10x AIM-120': 20
-    'Summer': 100
 ```
+
+You also want to configure the [Competitive plugin](../competitive/README.md). Create a config\plugins\competitive.yaml 
+like so:
+
+```yaml
+DEFAULT:
+  enabled: true       # Optional: we want to gather TrueSkill™️ ratings on all our instances
+MyNode:
+  MyInstance:         # make sure, you only enable the match configuration on the instance you want to use for the tournament!
+    enabled: true
+    join_on: birth    # every player joins the tournament match on join (another option: takeoff)
+    win_on: rtb       # a match is won if a player of the surviving coalition brought their plane back to base. 
+    end_mission: true # end the mission if the match is finished
+```
+> [!NOTE]
+> If you end the mission if the first player RTBs, they and all other players will keep their credit points, if you have
+> configured for "payback" in your slotblocking.yaml.
 
 ---
 

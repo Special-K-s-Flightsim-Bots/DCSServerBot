@@ -230,7 +230,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
             if player and player.deposit == 0 and int(player.sub_slot) == 0:
                 asyncio.create_task(self._pay_for_plane(server, player, payback=True))
         elif data['eventName'] == 'mission_end':
-            # give all players their credit back, if the mission ends, and they are still airborne
+            # give all players their credits back if the mission ends, and they are still airborne
             for player in server.players.values():
                 asyncio.create_task(self._payback(server, player, 'Refund on mission end', plane_only=True))
         elif data['eventName'] == 'crash':
