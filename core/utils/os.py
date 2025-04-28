@@ -88,7 +88,7 @@ def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.
                 if not cmdline:
                     continue
                 # Check if `instance` is part of any cmdline parameter (case-insensitive)
-                if any(instance.casefold() in c.replace('\\', '/').casefold() for c in cmdline):
+                if any(instance.casefold() in c.replace('\\', '/').casefold().split('/') for c in cmdline):
                     yield p
             else:
                 yield p
@@ -100,7 +100,7 @@ def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.
 def is_process_running(process: Union[subprocess.Popen, psutil.Process]):
     if isinstance(process, subprocess.Popen):
         return process.poll() is None
-    elif isinstance(process, psutil.Process):
+    else:
         return process.is_running()
 
 
