@@ -73,7 +73,7 @@ class ChoicesView(discord.ui.View):
             for choice in choices:
                 preset = choice[0]
                 presets.append(preset)
-                cost = self.config.get('choices').get(preset)
+                cost = self.config['presets']['choices'][preset]
                 costs.append(cost)
                 number.append(choice[1])
             embed.add_field(name="Your selection", value="\n".join(presets))
@@ -94,12 +94,12 @@ class ChoicesView(discord.ui.View):
                             min_values=1, max_values=1)
             select.callback = self.remove_choice
             self.add_item(select)
-        if len(choices) < len(self.config['choices']):
+        if len(choices) < len(self.config['presets']['choices']):
             select = Select(placeholder="Add a choice",
                             options=[
-                                SelectOption(label=f"{x} (Cost={self.config['choices'][x]})", value=x)
-                                for idx, x in enumerate(self.config['choices'].keys())
-                                if idx < 25 and self.config['choices'][x] <= credits
+                                SelectOption(label=f"{x} (Cost={self.config['presets']['choices'][x]})", value=x)
+                                for idx, x in enumerate(self.config['presets']['choices'].keys())
+                                if idx < 25 and self.config['presets']['choices'][x] <= credits
                                    and x not in [x[0] for x in choices]
                             ], min_values=1, max_values=1)
             select.callback = self.add_choice
@@ -115,7 +115,7 @@ class ChoicesView(discord.ui.View):
     async def add_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
         credits = await self.get_squadron_credits()
-        costs = self.config['choices'][choice]
+        costs = self.config['presets']['choices'][choice]
 
         modal = NumbersModal(choice, costs, credits)
         # noinspection PyUnresolvedReferences
@@ -139,7 +139,7 @@ class ChoicesView(discord.ui.View):
     async def remove_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
         credits = await self.get_squadron_credits()
-        costs = self.config['choices'][choice]
+        costs = self.config['presets']['choices'][choice]
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
