@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import random
+import re
 
 from core import Extension, utils, Server, YAMLError, DEFAULT_TAG, MizFile, ServerImpl
 from datetime import datetime
@@ -122,7 +123,12 @@ class MizEdit(Extension):
         logger.info(f"  => Presets applied on {filename} and written to {new_filename}.")
         return new_filename
 
+    def _filter(self, filename: str) -> bool:
+        return re.search(self.config['filter'], os.path.basename(filename)) is not None
+
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
+        if 'filter' in self.config and not self._filter(filename):
+            return filename, False
         return (await self.apply_presets(self.server, filename, await self.get_presets(self.config))), True
 
     def is_running(self) -> bool:
