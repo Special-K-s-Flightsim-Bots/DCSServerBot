@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, event, Server, utils, get_translation, Coalition
+from core import EventListener, event, Server, utils, get_translation, Coalition, Status
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Optional
 
@@ -131,7 +131,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                 asyncio.create_task(self.inform_squadrons(server, message=message))
                 asyncio.create_task(self.announce(server, message=message))
             else:
-                self.log.error("S_EVENT_MISSION_END: Unknown winner: %s", winner)
+                if winner:
+                    self.log.error("S_EVENT_MISSION_END: Unknown winner: %s", winner)
                 return
 
             # check if the match is finished
@@ -192,6 +193,10 @@ class TournamentEventListener(EventListener["Tournament"]):
             time += 1
 
     async def next_round(self, server: Server, match_id: int):
+        # as DCS restarts the mission, wait for it to finish
+        if server.status == Status.RUNNING:
+            await server.wait_for_status_change([Status.STOPPED])
+        await server.wait_for_status_change([Status.PAUSED])
         # kick all players
         tasks = []
         for player in server.get_active_players():
@@ -215,7 +220,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                                          name=self.plugin.customize.name)).mention))
         await self.wait_until_choices_finished(server)
         await self.inform_squadrons(server, message="Your choice will be applied to the next round.")
-        await self.plugin.prepare_mission(server, match_id)
+        await self.plugin.prepare_mission(server, match_id, round_number=round_number)
         await server.start()
         await self.inform_squadrons(server,
                                     message=f"Round {round_number} is starting now! Please jump into the server!")

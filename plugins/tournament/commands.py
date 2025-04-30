@@ -605,58 +605,54 @@ class Tournament(Plugin[TournamentEventListener]):
                 for coalition in ['blue', 'red']:
                     await conn.execute(f"""
                         INSERT INTO coalitions(server_name, player_ucid, coalition) 
-                        SELECT %s, s.player_ucid, '{coalition}' 
-                        FROM squadron_members s JOIN tm_matches m ON s.squadron_id = m.squadron_{coalition}
-                        WHERE m.match_id = %s
+                            SELECT %s, s.player_ucid, '{coalition}' 
+                            FROM squadron_members s JOIN tm_matches m ON s.squadron_id = m.squadron_{coalition}
+                            WHERE m.match_id = %s
+                        ON CONFLICT (server_name, player_ucid) DO UPDATE SET coalition = '{coalition}'
                     """, (server.name, match['match_id']))
 
-    async def prepare_mission(self, server: Server, match_id: int, mission_id: Optional[int] = None):
+    async def prepare_mission(self, server: Server, match_id: int, mission_id: Optional[int] = None,
+                              round_number: int = 1):
         config = self.get_config(server)
         # set startindex or use last mission
         if mission_id is not None:
             await server.setStartIndex(mission_id + 1)
-        config_presets = { "init": config.get('presets', {}).get('initial', []) }
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async for row in await conn.execute("""
-                    SELECT 'blue', preset 
-                    FROM tm_choices c JOIN tm_matches m 
-                    ON c.match_id = m.match_id AND c.squadron_id = m.squadron_blue
-                    WHERE m.match_id = %(match_id)s
-                    UNION
-                    SELECT 'red', preset 
-                    FROM tm_choices c JOIN tm_matches m 
-                    ON c.match_id = m.match_id AND c.squadron_id = m.squadron_blue
-                    WHERE m.match_id = %(match_id)s
-                """, {"match_id": match_id}):
-                    if row[0] not in config_presets:
-                        config_presets[row[0]] = []
-                    config_presets[row[0]].append(row[1])
 
-                # process the presets
-                filename = await server.get_current_mission_file()
-                miz = MizFile(filename)
-                preset_file = config.get('presets', {}).get('file', 'presets.yaml')
-                with open(os.path.join(self.node.config_dir, preset_file), mode='r', encoding='utf-8') as infile:
-                    all_presets = yaml.load(infile)
-                for side, presets in config_presets.items():
-                    if side == 'init':
-                        for preset in presets:
-                            miz.apply_preset(all_presets[preset])
-                    elif side in ['blue', 'red']:
-                        for preset in presets:
-                            cp_preset = all_presets[preset]
-                            for k,v in cp_preset.copy():
-                                cp_preset[k] = utils.format_string(v, side=side)
-                            miz.apply_preset(cp_preset)
-                miz.save(filename)
-                # delete the choices from the database and update the acknoledgement
-                await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
-                await conn.execute("""
-                    UPDATE tm_matches 
-                    SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
-                    WHERE match_id = %s
-                """, (match_id,))
+        # load the presets
+        preset_file = config.get('presets', {}).get('file', 'presets.yaml')
+        with open(os.path.join(self.node.config_dir, preset_file), mode='r', encoding='utf-8') as infile:
+            all_presets = yaml.load(infile)
+
+        # change the mission
+        filename = await server.get_current_mission_file()
+        miz = MizFile(filename)
+        # apply the initial presets
+        for preset in config.get('presets', {}).get('initial', []):
+            self.log.debug(f"Applying preset {preset} ...")
+            miz.apply_preset(all_presets[preset])
+
+        if round_number > 1:
+            # apply the squadron presets
+            for side in ['blue', 'red']:
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        async for row in await conn.execute(f"""
+                            SELECT preset, num FROM tm_choices c JOIN tm_matches m 
+                            ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
+                            WHERE m.match_id = %(match_id)s
+                        """, {"match_id": match_id}):
+                            self.log.debug(f"Applying preset {row[0]} ...")
+                            miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
+
+                        # delete the choices from the database and update the acknoledgement
+                        await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
+                        await conn.execute("""
+                            UPDATE tm_matches 
+                            SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
+                            WHERE match_id = %s
+                        """, (match_id,))
+
+        miz.save(filename)
 
     @match.command(description='Start a match')
     @app_commands.guild_only()
@@ -722,7 +718,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # change settings
         await self.setup_server_for_match(msg, messages, server, match)
         # prepare the mission
-        await self.prepare_mission(server, match_id, mission_id)
+        await self.prepare_mission(server, match_id, mission_id, round_number)
         # Starting the server up again
         messages.append(_("Starting server {} ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
