@@ -149,10 +149,10 @@ class MizFile:
         finally:
             os.remove(tmpname)
 
-    def apply_preset(self, preset: Union[dict, list]):
+    def apply_preset(self, preset: Union[dict, list], **kwargs):
         if isinstance(preset, list):
             for _preset in preset:
-                self.apply_preset(_preset)
+                self.apply_preset(_preset, **kwargs)
             return
 
         for key, value in preset.items():
@@ -189,7 +189,7 @@ class MizFile:
                 else:
                     self.log.warning("Value 'clouds', str or dict required.")
             elif key == 'modify':
-                self.modify(value)
+                self.modify(value, **kwargs)
             else:
                 converted_value = int(value) if isinstance(value, str) and value.isdigit() else value
                 try:
@@ -512,7 +512,7 @@ class MizFile:
 
         return (base_time.hour * 3600) + (base_time.minute * 60)
 
-    def modify(self, config: Union[list, dict]) -> None:
+    def modify(self, config: Union[list, dict], **kwargs) -> None:
 
         def sort_dict(d):
             sorted_items = sorted(d.items())
@@ -545,10 +545,18 @@ class MizFile:
                 elif 'replace' in config:
                     sort = False
                     for _what, _with in config['replace'].items():
-                        if isinstance(_with, str):
-                            _with = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                         if debug:
-                            self.log.debug(f"Replacing {_what} with {_with}")
+                            if isinstance(_with, str):
+                                _w = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
+                            elif isinstance(_with, list):
+                                _w = [utils.evaluate(x, reference=reference, **kkwargs, **kwargs) for x in _with]
+                            elif isinstance(_with, dict):
+                                _w = {}
+                                for k, v in _with.items():
+                                    _w[k] = utils.evaluate(v, reference=reference, **kkwargs, **kwargs)
+                            else:
+                                _w = _with
+                            self.log.debug(f"Replacing {_what} with {_w}")
                         if isinstance(_what, int) and isinstance(element, (list, dict)):
                             if isinstance(element, list):
                                 try:
@@ -560,10 +568,12 @@ class MizFile:
                                 element[_what] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                                 sort = True
                         elif isinstance(_with, dict) and isinstance(element[_what], (int, str, float, bool)):
-                            for key, value in _with.items():
-                                if utils.evaluate(key, reference=reference):
-                                    element[_what] = utils.evaluate(value, reference=reference, **kkwargs, **kwargs)
+                            for k, v in _with.items():
+                                if utils.evaluate(k, reference=reference):
+                                    element[_what] = utils.evaluate(v, reference=reference, **kkwargs, **kwargs)
                                     break
+                        elif isinstance(_with, list):
+                            element[_what] = [utils.evaluate(x, reference=reference, **kkwargs, **kwargs) for x in _with]
                         else:
                             element[_what] = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
                     if sort:
@@ -571,6 +581,16 @@ class MizFile:
                 elif 'merge' in config:
                     for _what, _with in config['merge'].items():
                         if debug:
+                            if isinstance(_with, str):
+                                _w = utils.evaluate(_with, reference=reference, **kkwargs, **kwargs)
+                            elif isinstance(_with, list):
+                                _w = [utils.evaluate(x, reference=reference, **kkwargs, **kwargs) for x in _with]
+                            elif isinstance(_with, dict):
+                                _w = {}
+                                for k, v in _with.items():
+                                    _w[k] = utils.evaluate(v, reference=reference, **kkwargs, **kwargs)
+                            else:
+                                _w = _with
                             self.log.debug(f"Merging {_what} with {_with}")
                         if isinstance(_with, dict):
                             if not element[_what]:
@@ -581,6 +601,9 @@ class MizFile:
                             for value in utils.for_each(source, _with[1:].split('/'), debug=debug, **kwargs):
                                 if isinstance(element[_what], dict):
                                     element[_what] |= value
+                                elif isinstance(element[_what], list):
+                                    # attention: merge of lists is not supported, as they need to keep the order
+                                    element[_what] = value
                                 else:
                                     element[_what] += value
                             if _with.startswith('/'):
@@ -642,7 +665,6 @@ class MizFile:
             self.log.error(f"File {file} can not be changed.")
             return
 
-        kwargs = {}
         # check if we need to import stuff
         for imp in config.get('imports', []):
             try:

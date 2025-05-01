@@ -24,7 +24,7 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any, Callable
 from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
-    from core import Server, Player, Node, Instance, Plugin, Command
+    from core import Server, Player, Node, Instance, Plugin
     from services.bot import DCSServerBot
     from services.servicebus import ServiceBus
 
@@ -54,6 +54,7 @@ __all__ = [
     "escape_string",
     "print_ruler",
     "match",
+    "find_similar_names",
     "get_interaction_param",
     "get_all_linked_members",
     "NodeTransformer",
@@ -64,15 +65,14 @@ __all__ = [
     "airbase_autocomplete",
     "mission_autocomplete",
     "group_autocomplete",
-    "squadron_autocomplete",
-    "get_squadron",
     "server_selection",
     "get_ephemeral",
     "get_command",
     "ConfigModal",
     "DirectoryPicker",
     "NodeUploadHandler",
-    "ServerUploadHandler"
+    "ServerUploadHandler",
+    "DatabaseModal"
 ]
 
 # Internationalisation
@@ -834,6 +834,35 @@ def match(name: str, member_list: list[discord.Member], min_score: Optional[int]
     return member_list[best_match_index] if best_match_index else None
 
 
+def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) -> list[tuple[str, str, int]]:
+    """
+    Compare two lists of usernames and find similar matches using fuzzy string matching.
+
+    Args:
+        list1: First list of usernames
+        list2: Second list of usernames
+        threshold: Minimum similarity score (0-100) to consider names as similar
+                  Default is 90 for high confidence matches
+
+    Returns:
+        List of tuples containing (name1, name2, similarity_score)
+    """
+    similar_names = []
+
+    for name1 in list1:
+        for name2 in list2:
+            # Calculate similarity ratio
+            similarity = fuzz.ratio(name1.lower(), name2.lower())
+
+            # If similarity is above threshold, add to results
+            if similarity >= threshold:
+                similar_names.append((name1, name2, similarity))
+
+    # Sort results by similarity score in descending order
+    similar_names.sort(key=lambda x: x[2], reverse=True)
+    return similar_names
+
+
 def get_interaction_param(interaction: discord.Interaction, name: str) -> Optional[Any]:
     """
     Returns the value of a specific parameter in a Discord interaction.
@@ -1057,30 +1086,6 @@ async def group_autocomplete(interaction: discord.Interaction, current: str) -> 
     ][:25]
 
 
-async def squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
-    async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("SELECT id, name FROM squadrons WHERE name ILIKE %s", ('%' + current + '%', ))
-        choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
-            async for row in cursor
-        ]
-        return choices[:25]
-
-
-def get_squadron(node: Node, *, name: Optional[str] = None, squadron_id: Optional[int] = None) -> Optional[dict]:
-    sql = "SELECT * FROM squadrons"
-    if name:
-        sql += " WHERE name = %(name)s"
-    elif squadron_id:
-        sql += " WHERE id = %(squadron_id)s"
-    with node.pool.connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(sql, {"name": name, "squadron_id": squadron_id})
-            return cursor.fetchone()
-
-
 class UserTransformer(app_commands.Transformer):
     """
     A class for transforming interaction values to either discord.Member or ucid (str) objects and providing autocomplete choices for users.
@@ -1245,6 +1250,7 @@ async def get_command(bot: DCSServerBot, *, name: str,
                     return inner
         elif cmd.name == name:
             return cmd
+    raise app_commands.CommandNotFound(name, [group] if group else [])
 
 
 class ConfigModal(Modal):
@@ -1282,6 +1288,7 @@ class ConfigModal(Modal):
                 return False
             else:
                 raise ValueError(f"{value} is not a boolean!")
+        return value
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         # noinspection PyUnresolvedReferences
@@ -1571,3 +1578,185 @@ class ServerUploadHandler(NodeUploadHandler):
                 await ctx.send(_('Upload aborted.'))
                 return None
         return server
+
+
+class DatabaseModal(Modal):
+    def __init__(
+            self,
+            node: Node,
+            table_name: str,
+            columns: list[str],
+            title: str = "Data Entry Form"
+    ):
+        super().__init__(title=title)
+        self.node = node
+        self.table_name = table_name
+        self.columns = columns
+        self.column_types = {}
+        self.response = {}
+
+    async def get_column_info(self) -> dict[str, dict[str, Any]]:
+        """
+        Fetch column information from the database schema using async psycopg3.
+        Returns a dictionary of column information including type, constraints, etc.
+        """
+        query = """
+                SELECT column_name,
+                       data_type,
+                       is_nullable,
+                       column_default,
+                       character_maximum_length,
+                       numeric_precision,
+                       numeric_scale
+                FROM information_schema.columns
+                WHERE table_name = %s
+                  AND column_name = ANY (%s::text[])
+                """
+
+        columns_info = {}
+        async with self.node.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                async for row in await cur.execute(query, (self.table_name, self.columns)):
+                    columns_info[row['column_name']] = {
+                        'data_type': row['data_type'],
+                        'is_nullable': row['is_nullable'] == 'YES',
+                        'default': row['column_default'],
+                        'max_length': row['character_maximum_length'],
+                        'numeric_precision': row['numeric_precision'],
+                        'numeric_scale': row['numeric_scale']
+                    }
+
+        return columns_info
+
+    async def setup_fields(self):
+        """
+        Set up TextInput fields based on column information
+        """
+        columns_info = await self.get_column_info()
+
+        for column_name in self.columns:
+            info = columns_info[column_name]
+
+            # Store column type for validation
+            self.column_types[column_name] = info['data_type']
+
+            # Configure TextInput based on data type
+            field_params: dict[str, Any] = {
+                'label': column_name.replace('_', ' ').title(),
+                'required': not info['is_nullable'],
+                'placeholder': f"Enter {column_name.replace('_', ' ')}..."
+            }
+
+            # Add max_length for text fields
+            if info['max_length']:
+                field_params['max_length'] = min(info['max_length'], 4000)  # Discord's limit
+
+            # Configure field based on data type
+            if info['data_type'] in ('integer', 'bigint', 'smallint'):
+                field_params['placeholder'] = 'Enter a number...'
+                field_params['max_length'] = 20
+            elif info['data_type'] in ('timestamp', 'timestamp without time zone'):
+                field_params['placeholder'] = 'YYYY-MM-DD HH:MM'
+            elif info['data_type'] in ('numeric', 'decimal'):
+                field_params['placeholder'] = f'Enter a decimal number...'
+                if info['numeric_precision']:
+                    max_digits = info['numeric_precision']
+                    if info['numeric_scale']:
+                        field_params['placeholder'] += f' (max {info["numeric_scale"]} decimal places)'
+                    field_params['max_length'] = max_digits + 1  # +1 for decimal point
+
+            # Create and add the TextInput field
+            text_input = TextInput(**field_params)
+            self.add_item(text_input)
+            setattr(self, column_name, text_input)
+
+    def validate_integer(self, value: str) -> int:
+        """Validate and convert integer input"""
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"'{value}' is not a valid integer")
+
+    def validate_numeric(self, value: str, scale: int = None) -> float:
+        """Validate and convert numeric input"""
+        try:
+            num = float(value)
+            if scale is not None:
+                decimal_str = str(num).split('.')
+                if len(decimal_str) > 1 and len(decimal_str[1]) > scale:
+                    raise ValueError(f"Number can't have more than {scale} decimal places")
+            return num
+        except ValueError as e:
+            raise ValueError(f"'{value}' is not a valid number: {str(e)}")
+
+    def validate_timestamp(self, value: str) -> datetime:
+        """Validate and convert timestamp input"""
+        try:
+            return datetime.strptime(value, '%Y-%m-%d %H:%M')
+        except ValueError:
+            raise ValueError("Invalid date format. Use YYYY-MM-DD HH:MM")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Validate and convert all inputs
+        validated_data = {}
+        columns_info = await self.get_column_info()
+
+        for column_name, column_info in columns_info.items():
+            value = getattr(self, column_name).value
+
+            # Skip empty optional fields
+            if not value and not getattr(self, column_name).required:
+                continue
+
+            # Validate based on column type
+            if column_info['data_type'] in ('integer', 'bigint', 'smallint'):
+                validated_data[column_name] = self.validate_integer(value)
+            elif column_info['data_type'] in ('numeric', 'decimal'):
+                validated_data[column_name] = self.validate_numeric(
+                    value,
+                    scale=column_info['numeric_scale']
+                )
+            elif column_info['data_type'] in ('timestamp', 'timestamp without time zone'):
+                validated_data[column_name] = self.validate_timestamp(value)
+            else:  # text, varchar, etc.
+                validated_data[column_name] = value
+
+        # Generate INSERT query
+        columns = ', '.join(validated_data.keys())
+        placeholders = ', '.join(['%s'] * len(validated_data))
+        query = f"""
+            INSERT INTO {self.table_name} ({columns})
+            VALUES ({placeholders})
+            RETURNING *
+        """
+
+        # Execute query
+        async with self.node.apool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(query, list(validated_data.values()))
+                    self.response = await cur.fetchone()
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(
+            f"Data successfully inserted into {self.table_name}!",
+            ephemeral=True
+        )
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        """Handle any errors that occur during modal submission"""
+        if isinstance(error, ValueError):
+            # Handle validation errors
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                f"Validation error: {str(error)}",
+                ephemeral=True
+            )
+        else:
+            # Handle other errors
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(
+                f"An error occurred: {str(error)}",
+                ephemeral=True
+            )
+            logger.error(f"Error while inserting a new row in {self.table_name}: {error}")

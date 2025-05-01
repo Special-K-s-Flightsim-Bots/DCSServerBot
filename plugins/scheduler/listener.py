@@ -70,6 +70,7 @@ class SchedulerListener(EventListener["Scheduler"]):
                     return min_time_difference, restart
                 else:
                     return None
+            return None
 
     async def run(self, server: Server, method: str, **kwargs) -> None:
         if method.startswith('load:'):

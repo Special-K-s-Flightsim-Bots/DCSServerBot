@@ -682,10 +682,8 @@ class Mission(Plugin[MissionEventListener]):
             if await view.wait() or view.result is None:
                 return
         finally:
-            try:
+            with suppress(discord.NotFound):
                 await msg.delete()
-            except discord.NotFound:
-                pass
 
         if result == 'later':
             server.on_empty = {

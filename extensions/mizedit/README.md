@@ -228,7 +228,6 @@ e) Mission filter
 ```yaml
         MizEdit:
           filter: MyFancy*  # apply to all missions that start with "MyFancy" in their name
-          terrains:
           settings:
           - Spring, Morning, Rainy, Halo
           - Summer, Morning, Slight Breeze, Halo

@@ -1,16 +1,23 @@
 import asyncio
 import discord
 
-from core import EventListener, Server, Status, utils, event, chat_command, get_translation
-from typing import cast, Union
+from core import EventListener, Server, Status, utils, event, chat_command, get_translation, DataObjectFactory
+from typing import cast, Union, TYPE_CHECKING
 
 from .player import CreditPlayer
+from .squadron import Squadron
 
+if TYPE_CHECKING:
+    from .commands import CreditSystem
 
 _ = get_translation(__name__.split('.')[1])
 
 
 class CreditSystemListener(EventListener["CreditSystem"]):
+
+    def __init__(self, plugin: "CreditSystem"):
+        super().__init__(plugin)
+        self.squadrons: dict[str, Squadron] = {}
 
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:
@@ -81,6 +88,18 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             player.points += points_to_add
             if old_points != player.points:
                 player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
+
+    @event(name="addSquadronPoints")
+    async def addSquadronPoints(self, server: Server, data: dict) -> None:
+        if data['points'] != 0:
+            squadron = self.squadrons.get(data['name'])
+            if not squadron:
+                squadron = DataObjectFactory().new(Squadron, node=self, name=data['name'])
+                self.squadrons[data['name']] = squadron
+            old_points = squadron.points
+            squadron.points += int(data['points'])
+            if old_points != squadron.points:
+                squadron.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
 
     async def get_flighttime(self, ucid: str, campaign_id: int) -> int:
         async with self.apool.connection() as conn:

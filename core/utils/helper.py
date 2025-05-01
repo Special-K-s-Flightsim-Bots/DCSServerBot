@@ -858,15 +858,15 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
     If the search pattern is fully matched or the data is empty, the method will yield the data itself. If debug is set to True, debug information will be printed during the search process
     *.
     """
-    def process_iteration(_next, data, search, depth, debug):
+    def process_iteration(_next, data, search, depth, debug, **kwargs):
         if isinstance(data, list):
             for value in data:
-                yield from for_each(value, search, depth + 1, debug=debug)
+                yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
         elif isinstance(data, dict):
             for value in data.values():
-                yield from for_each(value, search, depth + 1, debug=debug)
+                yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
 
-    def process_indexing(_next, data, search, depth, debug):
+    def process_indexing(_next, data, search, depth, debug, **kwargs):
         if isinstance(data, list):
             indexes = [int(x.strip()) for x in _next[1:-1].split(',')]
             for index in indexes:
@@ -876,7 +876,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                     yield None
                 if debug:
                     logger.debug("  " * depth + f"|_ Selecting {index}. element")
-                yield from for_each(data[index - 1], search, depth + 1, debug=debug)
+                yield from for_each(data[index - 1], search, depth + 1, debug=debug, **kwargs)
         elif isinstance(data, dict):
             indexes = [x.strip() for x in _next[1:-1].split(',')]
             for index in indexes:
@@ -886,7 +886,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                     yield None
                 if debug:
                     logger.debug("  " * depth + f"|_ Selecting element {index}")
-                yield from for_each(data[index], search, depth + 1, debug=debug)
+                yield from for_each(data[index], search, depth + 1, debug=debug, **kwargs)
 
     def process_pattern(_next, data, search, depth, debug, **kwargs):
         if isinstance(data, list):
@@ -894,25 +894,35 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                 if evaluate(_next, **(kwargs | value)):
                     if debug:
                         logger.debug("  " * depth + f"  - Element {idx + 1} matches.")
-                    yield from for_each(value, search, depth + 1, debug=debug)
+                    yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
+        elif isinstance(data, dict) and any(x for x in data.keys() if isinstance(x, int)):
+            for idx, value in data.items():
+                if evaluate(_next, **(kwargs | value)):
+                    if debug:
+                        logger.debug("  " * depth + f"  - Element {idx} matches.")
+                    yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
         else:
             if evaluate(_next, **(kwargs | data)):
                 if debug:
                     logger.debug("  " * depth + "  - Element matches.")
-                yield from for_each(data, search, depth + 1, debug=debug)
+                yield from for_each(data, search, depth + 1, debug=debug, **kwargs)
 
     if not data or len(search) == depth:
-        if debug:
-            logger.debug("  " * depth + ("|_ RESULT found => Processing ..." if len(search) == depth else "|_ NO result found, skipping."))
-        yield data if len(search) == depth else None
+        if len(search) == depth:
+            if debug:
+                logger.debug("  " * depth + "|_ RESULT found => Processing ...")
+            yield data
+        else:
+            logger.debug("  " * depth +  "|_ NO result found, skipping.")
+            yield None
     else:
         _next = search[depth]
         if _next == '*':
             if debug:
                 logger.debug("  " * depth + f"|_ Iterating over {len(data)} {search[depth - 1]} elements")
-            yield from process_iteration(_next, data, search, depth, debug)
+            yield from process_iteration(_next, data, search, depth, debug, **kwargs)
         elif _next.startswith('['):
-            yield from process_indexing(_next, data, search, depth, debug)
+            yield from process_indexing(_next, data, search, depth, debug, **kwargs)
         elif _next.startswith('$'):
             if debug:
                 logger.debug("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth - 1]} elements")
@@ -920,7 +930,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
         elif _next in data:
             if debug:
                 logger.debug("  " * depth + f"|_ {_next} found.")
-            yield from for_each(data.get(_next), search, depth + 1, debug=debug)
+            yield from for_each(data.get(_next), search, depth + 1, debug=debug, **kwargs)
         else:
             if debug:
                 logger.debug("  " * depth + f"|_ {_next} not found.")

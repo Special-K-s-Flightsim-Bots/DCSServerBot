@@ -13,6 +13,9 @@ schema;element_schema:
   mapping:
     enabled: {type: bool, nullable: false}
     silent: {type: bool, nullable: false}
+    join_on: {type: str, nullable: false, enum: ['birth', 'takeoff']}
+    win_on: {type: str, nullable: false, enum: ['survival', 'landing', 'rtb']}
+    end_mission: {type: bool, nullable: false}
 
 type: map
 func: check_main_structure

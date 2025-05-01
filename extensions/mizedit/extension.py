@@ -87,7 +87,7 @@ class MizEdit(Extension):
         return modifications
 
     @staticmethod
-    async def apply_presets(server: Server, filename: str, preset: Union[list, dict]) -> str:
+    async def apply_presets(server: Server, filename: str, preset: Union[list, dict]):
         if preset and isinstance(preset, list):
             rw_preset = next((p for p in preset if 'RealWeather'in p), None)
             if rw_preset:
@@ -117,11 +117,8 @@ class MizEdit(Extension):
 
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
-        # write new mission
-        new_filename = utils.create_writable_mission(filename)
-        await asyncio.to_thread(miz.save, new_filename)
-        logger.info(f"  => Presets applied on {filename} and written to {new_filename}.")
-        return new_filename
+        await asyncio.to_thread(miz.save, filename)
+        logger.info(f"  => Presets applied on {filename}.")
 
     def _filter(self, filename: str) -> bool:
         return re.search(self.config['filter'], os.path.basename(filename)) is not None
@@ -129,7 +126,8 @@ class MizEdit(Extension):
     async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
         if 'filter' in self.config and not self._filter(filename):
             return filename, False
-        return (await self.apply_presets(self.server, filename, await self.get_presets(self.config))), True
+        await self.apply_presets(self.server, filename, await self.get_presets(self.config))
+        return filename, True
 
     def is_running(self) -> bool:
         return True

@@ -732,6 +732,8 @@ class ServerImpl(Server):
                 orig_filename = utils.get_orig_file(new_filename)
                 # and copy the orig file over
                 shutil.copy2(orig_filename, new_filename)
+            elif new_filename != filename:
+                shutil.copy2(filename, new_filename)
             try:
                 # process all mission modifications
                 dirty = False
@@ -807,9 +809,17 @@ class ServerImpl(Server):
     async def modifyMission(self, filename: str, preset: Union[list, dict], use_orig: bool = True) -> str:
         from extensions.mizedit import MizEdit
 
+        # create a writable mission
+        new_filename = utils.create_writable_mission(filename)
         if use_orig:
-            filename = utils.get_orig_file(filename)
-        return await MizEdit.apply_presets(self, filename, preset)
+            # get the orig file
+            orig_filename = utils.get_orig_file(new_filename)
+            # and copy the orig file over
+            shutil.copy2(orig_filename, new_filename)
+        elif new_filename != filename:
+            shutil.copy2(filename, new_filename)
+        await MizEdit.apply_presets(self, new_filename, preset)
+        return new_filename
 
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
@@ -937,22 +947,17 @@ class ServerImpl(Server):
             if not mission:
                 return False
             if use_orig:
-                # now determine the original mission name
+                new_filename = utils.create_writable_mission(mission)
                 orig_mission = utils.get_orig_file(mission)
-                # check if the orig file has been replaced
-                if os.path.exists(orig_mission) and os.path.getmtime(orig_mission) > os.path.getmtime(mission):
-                    new_filename = utils.create_writable_mission(mission)
-                    # we can't write the original one, so use the copy
-                    if new_filename != mission:
-                        shutil.copy2(orig_mission, new_filename)
-                        await self.replaceMission(start_index, new_filename)
-                    else:
-                        shutil.copy2(orig_mission, mission)
-                    return await self.loadMission(start_index, modify_mission=modify_mission)
-            else:
+                shutil.copy2(orig_mission, new_filename)
+                if new_filename != mission:
+                    await self.replaceMission(start_index, new_filename)
+                return await self.loadMission(start_index, modify_mission=modify_mission)
+            elif modify_mission:
                 # don't use the orig file, still make sure we have a writable mission
                 new_filename = utils.create_writable_mission(mission)
                 if new_filename != mission:
+                    shutil.copy2(mission, new_filename)
                     await self.replaceMission(start_index, new_filename)
                     return await self.loadMission(start_index, modify_mission=modify_mission)
 

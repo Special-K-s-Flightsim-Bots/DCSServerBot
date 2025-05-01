@@ -68,7 +68,7 @@ function dcsbot.registerDCSServer(json)
         -- players
         msg.players = {}
         plist = net.get_player_list()
-        for i = 1, table.getn(plist) do
+        for i = 1, #plist do
             msg.players[i] = net.get_player_info(plist[i])
             msg.players[i].ipaddr = utils.getIP(msg.players[i].ipaddr)
             msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
@@ -420,6 +420,18 @@ end
 local function setUserRoles(json)
     dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
     dcsbot.userInfo[json.ucid].roles = json.roles
+    local plist = net.get_player_list()
+
+    for i = 2, #plist do
+        if (net.get_player_info(plist[i], 'ucid') == json.ucid) then
+            name = net.get_player_info(plist[i], 'name')
+            break
+        end
+    end
+    if name then
+        local script = 'dcsbot._setUserRoles(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(net.lua2json(json.roles)) .. ')'
+        net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
+    end
 end
 
 function dcsbot.uploadUserRoles(json)
@@ -440,7 +452,7 @@ function dcsbot.kick(json)
         return
     end
     local plist = net.get_player_list()
-    for i = 2, table.getn(plist) do
+    for i = 2, #plist do
         if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or
                 (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
             net.kick(plist[i], json.reason)
@@ -462,7 +474,7 @@ local function single_ban(json)
     local reason = json.reason .. '.\nExpires ' .. banned_until
     dcsbot.banList[json.ucid] = reason
     local plist = net.get_player_list()
-    for i = 2, table.getn(plist) do
+    for i = 2, #plist do
         if net.get_player_info(plist[i], 'ucid') == json.ucid then
             net.kick(plist[i], reason)
             ipaddr = utils.getIP(net.get_player_info(plist[i], 'ipaddr'))
@@ -536,4 +548,9 @@ end
 function dcsbot.deleteMenu(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: deleteMenu()')
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.deleteMenu(' .. json.groupID .. ')') .. ')')
+end
+
+function dcsbot.endMission(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: endMission()')
+	net.dostring_in('mission', 'a_end_mission(' .. utils.basicSerialize(json.winner or '') .. ',' .. utils.basicSerialize(json.message or '') .. ',' .. (json.time or 0) .. ')')
 end
