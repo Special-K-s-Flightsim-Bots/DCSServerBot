@@ -311,8 +311,8 @@ class GreenieBoard(GraphElement):
 
         if theme == 'light':
             text_color = 'black'
-            bg_color = 'white'
-            odd_row_bg_color = '#F0F0F0'  # For odd rows
+            bg_color = '#F5F5F5'
+            odd_row_bg_color = '#D9D9D9'  # For odd rows
         else:
             text_color = 'white'
             bg_color = '#2A2A2A'
