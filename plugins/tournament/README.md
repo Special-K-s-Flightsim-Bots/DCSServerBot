@@ -55,17 +55,13 @@ like so:
 
 ```yaml
 DEFAULT:
-  enabled: true       # Optional: we want to gather TrueSkill™️ ratings on all our instances
+  enabled: true         # Optional: we want to gather TrueSkill™️ ratings on all our instances
 MyNode:
-  MyInstance:         # make sure, you only enable the match configuration on the instance you want to use for the tournament!
+  MyInstance:           # make sure, you only enable the match configuration on the instance you want to use for the tournament!
     enabled: true
-    join_on: birth    # every player joins the tournament match on join (another option: takeoff)
-    win_on: rtb       # a match is won if a player of the surviving coalition brought their plane back to base. 
-    end_mission: true # end the mission if the match is finished
+    join_on: birth      # every player joins the tournament match on join (another option: takeoff)
+    win_on: rtb         # a match is won if a player of the surviving coalition brought their plane back to base. 
 ```
-> [!NOTE]
-> If you end the mission if the first player RTBs, they and all other players will keep their credit points, if you have
-> configured for "payback" in your slotblocking.yaml.
 
 ---
 

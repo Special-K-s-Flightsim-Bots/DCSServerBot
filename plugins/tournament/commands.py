@@ -1,3 +1,6 @@
+import asyncio
+import shutil
+
 import discord
 import os
 import random
@@ -612,11 +615,16 @@ class Tournament(Plugin[TournamentEventListener]):
                     """, (server.name, match['match_id']))
 
     async def prepare_mission(self, server: Server, match_id: int, mission_id: Optional[int] = None,
-                              round_number: int = 1):
+                              round_number: int = 1) -> str:
         config = self.get_config(server)
         # set startindex or use last mission
-        if mission_id is not None:
+        if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
             await server.setStartIndex(mission_id + 1)
+            use_orig = True
+        elif round_number == 1:
+            use_orig = True
+        else:
+            use_orig = False
 
         # load the presets
         preset_file = config.get('presets', {}).get('file', 'presets.yaml')
@@ -625,7 +633,17 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # change the mission
         filename = await server.get_current_mission_file()
-        miz = MizFile(filename)
+        # create a writable mission
+        new_filename = utils.create_writable_mission(filename)
+        if use_orig:
+            # get the orig file
+            orig_filename = utils.get_orig_file(new_filename)
+            # and copy the orig file over
+            shutil.copy2(orig_filename, new_filename)
+        elif new_filename != filename:
+            shutil.copy2(filename, new_filename)
+
+        miz = MizFile(new_filename)
         # apply the initial presets
         for preset in config.get('presets', {}).get('initial', []):
             self.log.debug(f"Applying preset {preset} ...")
@@ -644,15 +662,18 @@ class Tournament(Plugin[TournamentEventListener]):
                             self.log.debug(f"Applying preset {row[0]} ...")
                             miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
 
-                        # delete the choices from the database and update the acknoledgement
-                        await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
-                        await conn.execute("""
-                            UPDATE tm_matches 
-                            SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
-                            WHERE match_id = %s
-                        """, (match_id,))
-
-        miz.save(filename)
+            # delete the choices from the database and update the acknoledgement
+            await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
+            await conn.execute("""
+                UPDATE tm_matches 
+                SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
+                WHERE match_id = %s
+            """, (match_id,))
+        miz.save(new_filename)
+        if new_filename != filename:
+            self.log.info(f"  => New mission written: {new_filename}")
+            await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+        return new_filename
 
     @match.command(description='Start a match')
     @app_commands.guild_only()
@@ -837,6 +858,10 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         view = ChoicesView(node=self.node, match_id=match_id, squadron_id=squadron_id, config=config)
         embed = await view.render()
+        if not view.children[0].options:
+            await interaction.followup.send(_("You do not have enough squadron credits to buy a choice."),
+                                            ephemeral=True)
+            return
         msg = await interaction.followup.send(view=view, embed=embed, ephemeral=ephemeral)
         try:
            await view.wait()

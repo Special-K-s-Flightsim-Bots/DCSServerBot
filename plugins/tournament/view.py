@@ -156,8 +156,6 @@ class ChoicesView(discord.ui.View):
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
         async with self.node.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
@@ -175,6 +173,9 @@ class ChoicesView(discord.ui.View):
                         (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
                         AND match_id = %(match_id)s
                 """, {"match_id": self.match_id, "squadron_id": self.squadron_id})
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Your selection will be applied to the next round."),
+                                                ephemeral=True)
         self.stop()
 
     async def cancel(self, interaction: discord.Interaction):
