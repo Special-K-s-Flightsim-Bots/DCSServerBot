@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS squadron_credits (campaign_id INTEGER NOT NULL, squadron_id INTEGER PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS squadron_credits_log (id SERIAL PRIMARY KEY, campaign_id INTEGER NOT NULL, event TEXT NOT NULL, squadron_id INTEGER NOT NULL, old_points INTEGER NOT NULL, new_points INTEGER NOT NULL, player_ucid TEXT, remark TEXT, time TIMESTAMP DEFAULT (now() AT TIME ZONE 'utc'));
