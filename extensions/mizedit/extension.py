@@ -118,7 +118,6 @@ class MizEdit(Extension):
         miz = await asyncio.to_thread(MizFile, filename)
         await asyncio.to_thread(miz.apply_preset, preset)
         await asyncio.to_thread(miz.save, filename)
-        logger.info(f"  => Presets applied on {filename}.")
 
     def _filter(self, filename: str) -> bool:
         return re.search(self.config['filter'], os.path.basename(filename)) is not None
