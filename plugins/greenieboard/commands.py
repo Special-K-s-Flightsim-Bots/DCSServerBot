@@ -16,7 +16,7 @@ from discord.app_commands import Range
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 
 from . import GRADES
 from .listener import GreenieBoardEventListener
@@ -224,13 +224,17 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     @app_commands.rename(num_landings='landings')
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
+    @app_commands.describe(rtl=_("Draw landings right to left (default: True)"))
     async def board(self, interaction: discord.Interaction,
                     num_rows: Optional[Range[int, 5, 20]] = 10,
                     num_landings: Optional[Range[int, 1, 30]] = 30,
+                    theme: Optional[Literal['light', 'dark']] = 'dark',
+                    landings_rtl: Optional[bool] = True,
                     squadron_id: Optional[int] = None):
         report = PaginationReport(interaction, self.plugin_name, 'greenieboard.json')
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id) if squadron_id else None
-        await report.render(server_name=None, num_rows=num_rows, num_landings=num_landings, squadron=squadron)
+        await report.render(server_name=None, num_rows=num_rows, num_landings=num_landings, theme=theme,
+                            landings_rtl=landings_rtl, squadron=squadron)
 
     @traps.command(description=_('Adds a trap to the Greenieboard'))
     @app_commands.guild_only()

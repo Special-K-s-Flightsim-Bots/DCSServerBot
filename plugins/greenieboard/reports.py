@@ -119,7 +119,7 @@ class LSORating(report.EmbedElement):
 class TrapSheet(report.EmbedElement):
     async def render(self, landing: dict):
         async with self.apool.connection() as conn:
-            cursor = await conn.execute("SELECT trapsheet FROM traps WHERE id = %s", (landing['id'], ))
+            cursor = await conn.execute("SELECT trapsheet FROM traps WHERE id = %s", (landing['id'],))
             trapsheet = (await cursor.fetchone())[0]
             if trapsheet:
                 self.env.filename = 'trapsheet.png'
@@ -131,10 +131,12 @@ class HighscoreTraps(report.GraphElement):
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
                      flt: StatisticsFilter, include_bolters: bool = False, include_waveoffs: bool = False,
                      bar_labels: Optional[bool] = True):
-        sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
-              "FROM traps g, missions m, statistics s, players p " \
-              "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
-              "AND g.player_ucid = p.ucid AND g.unit_type = s.slot AND g.time BETWEEN s.hop_on AND s.hop_off "
+        sql = """
+            SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value 
+            FROM traps g, missions m, statistics s, players p 
+            WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid 
+              AND g.player_ucid = p.ucid AND g.unit_type = s.slot AND g.time BETWEEN s.hop_on AND s.hop_off
+        """
         if server_name:
             sql += "AND m.server_name = %(server_name)s"
             self.env.embed.description = utils.escape_string(server_name)
@@ -188,7 +190,7 @@ class GreenieBoard(GraphElement):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.plugin: Plugin = cast(Plugin, env.bot.cogs.get('GreenieBoard'))
 
-    def add_legend(self, config: dict, start_y, card_size=0.4, font_size=14, num_landings=30):
+    def add_legend(self, config: dict, start_y, card_size=0.4, font_size=14, num_landings=30, text_color='white'):
         grades = GRADES | config.get('grades', {})
         num_columns = 5 if num_landings < 20 else 3
         padding = 0.2
@@ -209,7 +211,7 @@ class GreenieBoard(GraphElement):
             x_pos = x_start + col * (card_size + padding) + offset
             y_pos = y_position - row * (card_size + padding)
 
-            # Draw unicorn image if needed
+            # Draw the unicorn image if needed
             if key == '_n':
                 self.axes.plot(x_pos + card_size / 2, y_pos, 'o', color='black', markersize=10, zorder=3)
             elif key == '_OK_':
@@ -238,9 +240,10 @@ class GreenieBoard(GraphElement):
 
             # Add text for legend dynamically adjusted
             self.axes.text(x_pos + card_size + padding, y_pos, text, va='center', ha='left', fontsize=font_size,
-                           color='white')
+                           color=text_color)
 
-    async def render(self, server_name: str, num_rows: int, num_landings: int, squadron: Optional[dict] = None):
+    async def render(self, server_name: str, num_rows: int, num_landings: int, squadron: Optional[dict] = None,
+                     theme: str = 'dark', landings_rtl=True):
 
         title = self.env.embed.title
         self.env.embed.title = ""
@@ -252,16 +255,18 @@ class GreenieBoard(GraphElement):
         font_name = None
 
         sql1 = """
-            SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (
-                SELECT player_ucid, ROW_NUMBER() OVER w AS rn, 
-                                    AVG(points) OVER w AS points, 
-                                    MAX(time) OVER w AS time 
-                FROM traps
-        """
+               SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time
+               FROM (SELECT player_ucid,
+                            ROW_NUMBER() OVER w AS rn,
+                            AVG(points) OVER w  AS points,
+                            MAX(time) OVER w    AS time
+                     FROM traps
+               """
         sql2 = """
-            SELECT TRIM(grade) as "grade", night FROM traps 
-            WHERE player_ucid = %(player_ucid)s
-        """
+               SELECT TRIM(grade) as "grade", night
+               FROM traps
+               WHERE player_ucid = %(player_ucid)s
+               """
         if server_name:
             title = utils.escape_string(server_name)
             sql1 += """
@@ -303,7 +308,18 @@ class GreenieBoard(GraphElement):
         server = self.bot.servers.get(server_name)
         config = self.plugin.get_config(server)
         grades = GRADES | config.get('grades', {})
-        plt.title(f'{title}', color='white', fontsize=30, fontname=font_name)
+
+        if theme == 'light':
+            text_color = 'black'
+            bg_color = 'white'
+            odd_row_bg_color = '#F0F0F0'  # For odd rows
+        else:
+            text_color = 'white'
+            bg_color = '#2A2A2A'
+            odd_row_bg_color = '#3A3A3A'  # For odd rows
+
+        plt.title(f'{title}', color=text_color, fontsize=30, fontname=font_name)
+        plt.gca().set_facecolor(bg_color)
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
@@ -329,7 +345,8 @@ class GreenieBoard(GraphElement):
                 # Calculate dynamic figure size based on rows and columns
                 pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
                 padding = 1.0  # Padding between columns
-                fig_width = pilot_column_width + padding + (num_columns * column_width) + 2  # Additional padding on the sides
+                fig_width = pilot_column_width + padding + (
+                            num_columns * column_width) + 2  # Additional padding on the sides
                 legend_height = (5 if num_landings < 20 else 3) * (card_size + 0.2)
                 fig_height = (num_rows * row_height) + 2 + legend_height  # Additional padding on the top and bottom
 
@@ -338,20 +355,18 @@ class GreenieBoard(GraphElement):
 
                 self.env.figure.set_size_inches(fig_width, fig_height)
 
-                bg_color = '#2A2A2A'
-                gray_color = '#3A3A3A'  # For odd rows
                 rounding_radius = 0.1  # Radius for rounded corners
 
                 # Plot table headers with proper padding
-                self.axes.text(0, 0, "Pilot", va='center', ha='left', fontsize=text_size, color='white',
+                self.axes.text(0, 0, "Pilot", va='center', ha='left', fontsize=text_size, color=text_color,
                                fontweight='bold', fontname=font_name)
                 self.axes.text(pilot_column_width + padding, 0, "AVG", va='center', ha='center', fontsize=text_size,
-                               color='white', fontweight='bold', fontname=font_name)
+                               color=text_color, fontweight='bold', fontname=font_name)
 
                 # Add dynamic column headers directly above the card columns
                 for j in range(num_columns):
                     x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2) + card_size / 2
-                    self.axes.text(x_pos, 0, str(j + 1), va='center', ha='center', fontsize=text_size, color='white',
+                    self.axes.text(x_pos, 0, str(j + 1), va='center', ha='center', fontsize=text_size, color=text_color,
                                    fontweight='bold', fontname=font_name)
 
                 for i, row in enumerate(rows):
@@ -360,7 +375,7 @@ class GreenieBoard(GraphElement):
                     # Add a light gray background to odd rows
                     if i % 2 == 0:
                         self.axes.add_patch(plt.Rectangle((-0.5, y_position - row_height / 2), fig_width, row_height,
-                                                          color=gray_color, zorder=1))
+                                                          color=odd_row_bg_color, zorder=1))
 
                     member = self.bot.get_member_by_ucid(row['player_ucid'])
                     if member:
@@ -368,10 +383,11 @@ class GreenieBoard(GraphElement):
                     else:
                         name = row['name']
 
-                    self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color='white',
-                            fontweight='bold', fontname=font_name)
-                    self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center', ha='center',
-                            fontsize=text_size, color='white', fontname=font_name)
+                    self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color=text_color,
+                                   fontweight='bold', fontname=font_name)
+                    self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center',
+                                   ha='center',
+                                   fontsize=text_size, color=text_color, fontname=font_name)
 
                     await cursor.execute(sql2, {
                         "player_ucid": row['player_ucid'],
@@ -380,6 +396,9 @@ class GreenieBoard(GraphElement):
                     })
 
                     landings = await cursor.fetchall()
+                    if not landings_rtl:
+                        landings.reverse()
+
                     for j in range(num_columns):
                         x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2)
                         if j < len(landings):
@@ -393,7 +412,8 @@ class GreenieBoard(GraphElement):
 
                             if grade == '_OK_':
                                 imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)
-                                ab = AnnotationBbox(imagebox, (x_pos + card_size / 2, y_position), frameon=False, zorder=3)
+                                ab = AnnotationBbox(imagebox, (x_pos + card_size / 2, y_position), frameon=False,
+                                                    zorder=3)
                                 self.axes.add_artist(ab)
                             else:
                                 rect = FancyBboxPatch((x_pos, y_position - card_size / 2),
@@ -404,7 +424,8 @@ class GreenieBoard(GraphElement):
                                 self.axes.add_patch(rect)
                             # mark night passes
                             if landings[j]['night']:
-                                self.axes.plot(x_pos + card_size / 2, y_position, 'o', color='black', markersize=10, zorder=3)
+                                self.axes.plot(x_pos + card_size / 2, y_position, 'o', color='black', markersize=10,
+                                               zorder=3)
 
                         else:
                             # Draw true rounded brackets using arcs and lines
@@ -429,8 +450,8 @@ class GreenieBoard(GraphElement):
                                            color='grey', lw=1.5)
 
                 legend_start_y = -row_height * num_rows - 1.5
-                self.add_legend(config=config, start_y=legend_start_y, num_landings=num_landings)
+                self.add_legend(config=config, start_y=legend_start_y, num_landings=num_landings, text_color=text_color)
                 self.axes.set_xlim(-0.5, fig_width - 0.5)
                 self.axes.set_ylim(-fig_height + 1, 0.5)
                 self.axes.axis('off')
-                self.env.figure.set_facecolor(bg_color)
+                self.env.figure.patch.set_facecolor(bg_color)

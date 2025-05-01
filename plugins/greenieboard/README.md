@@ -86,6 +86,8 @@ different greenieboards for different servers. If that is a user demand in the f
 DEFAULT:
   num_landings: 5           # display the last 5 landings
   num_rows: 10              # display 10 players
+  theme: light              # one of 'dark' or 'light'
+  landings_rtl: false       # draw landings right to left (default: True)
   persistent_board: false   # if true, a persistent board will be uploaded into persistent_channel
   persistent_channel: 123456789 # in which channel to post the board
   squadrons:
