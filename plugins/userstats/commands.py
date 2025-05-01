@@ -605,6 +605,36 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             embed.set_footer(text=_('Log shows the last 10 events only.'))
         await interaction.followup.send(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
+    @squadron.command(name='donate', description='Donate credit points to a squadron')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
+    async def donate(self, interaction: discord.Interaction, squadron_id: int, points: int,
+                     server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        campaign = utils.get_running_campaign(self.node, server)
+        squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute("""
+                    UPDATE squadron_credits SET points = points + %(points)s 
+                    WHERE campaign_id = %(campaign)s AND squadron_id = %(squadron)s
+                    RETURNING points - %(points)s, points
+                """, {"points":points, "campaign":campaign[0], "squadron":squadron_id})
+                row = await cursor.fetchone()
+                if not row:
+                    await interaction.followup.send(_("Could not donate points to squadron."), ephemeral=True)
+                    return
+                old_points, new_points = row
+                await conn.execute("""
+                    INSERT INTO squadron_credits_log (campaign_id, event, squadron_id, old_points, new_points, remark)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (campaign[0], 'Admin donate', squadron_id, old_points, new_points, ''))
+        await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),
+                                        ephemeral=utils.get_ephemeral(interaction))
+
     async def render_highscore(self, highscore: Union[dict, list], *, server: Optional[Server] = None,
                                mission_end: bool = False):
         # Handle the case where highscore is a list.
