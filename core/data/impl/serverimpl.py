@@ -940,6 +940,7 @@ class ServerImpl(Server):
     async def loadMission(self, mission: Union[int, str], modify_mission: Optional[bool] = True,
                           use_orig: Optional[bool] = True) -> bool:
         start_index = int(self.settings['listStartIndex'])
+        mission_list = self.settings['missionList']
         # check if we re-load the running mission
         if ((isinstance(mission, int) and mission == start_index) or
             (isinstance(mission, str) and mission == self._get_current_mission_file())):
@@ -951,20 +952,18 @@ class ServerImpl(Server):
                 orig_mission = utils.get_orig_file(mission)
                 shutil.copy2(orig_mission, new_filename)
                 if new_filename != mission:
-                    await self.replaceMission(start_index, new_filename)
-                    return await self.loadMission(start_index, modify_mission=modify_mission)
+                    mission_list = await self.replaceMission(start_index, new_filename)
             elif modify_mission:
                 # don't use the orig file, still make sure we have a writable mission
                 new_filename = utils.create_writable_mission(mission)
                 if new_filename != mission:
                     shutil.copy2(mission, new_filename)
-                    await self.replaceMission(start_index, new_filename)
-                    return await self.loadMission(start_index, modify_mission=modify_mission)
+                    mission_list = await self.replaceMission(start_index, new_filename)
 
         if isinstance(mission, int):
-            if mission > len(self.settings['missionList']):
+            if mission > len(mission_list):
                 mission = 1
-            filename = self.settings['missionList'][mission - 1]
+            filename = mission_list[mission - 1]
         else:
             filename = mission
         if modify_mission:
@@ -972,7 +971,7 @@ class ServerImpl(Server):
 
         if self.status == Status.STOPPED:
             try:
-                idx = self.settings['missionList'].index(filename) + 1
+                idx = mission_list.index(filename) + 1
                 self.settings['listStartIndex'] = idx
                 self.settings['current'] = idx
                 return await self.start()
@@ -980,7 +979,7 @@ class ServerImpl(Server):
                 return False
         else:
             try:
-                idx = self.settings['missionList'].index(filename) + 1
+                idx = mission_list.index(filename) + 1
                 if idx == start_index:
                     rc = await self.send_to_dcs_sync({"command": "startMission", "filename": filename})
                 else:
