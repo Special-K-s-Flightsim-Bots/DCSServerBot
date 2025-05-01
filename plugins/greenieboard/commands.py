@@ -224,7 +224,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
     @app_commands.rename(num_landings='landings')
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
-    @app_commands.describe(rtl=_("Draw landings right to left (default: True)"))
+    @app_commands.describe(landings_rtl=_("Draw landings right to left (default: True)"))
     async def board(self, interaction: discord.Interaction,
                     num_rows: Optional[Range[int, 5, 20]] = 10,
                     num_landings: Optional[Range[int, 1, 30]] = 30,
