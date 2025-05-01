@@ -952,7 +952,7 @@ class ServerImpl(Server):
                 shutil.copy2(orig_mission, new_filename)
                 if new_filename != mission:
                     await self.replaceMission(start_index, new_filename)
-                return await self.loadMission(start_index, modify_mission=modify_mission)
+                    return await self.loadMission(start_index, modify_mission=modify_mission)
             elif modify_mission:
                 # don't use the orig file, still make sure we have a writable mission
                 new_filename = utils.create_writable_mission(mission)
