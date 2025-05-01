@@ -1,6 +1,6 @@
 import asyncio
 
-from core import EventListener, event, Server, utils, get_translation, Coalition, Status
+from core import EventListener, event, Server, utils, get_translation, Coalition
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Optional
 
@@ -30,6 +30,14 @@ class TournamentEventListener(EventListener["Tournament"]):
         channel = self.bot.get_channel(config.get('channels', {}).get('info', -1))
         if channel:
             await channel.send(message)
+
+    async def inform_squadrons(self, server, *, message: str):
+        match_id = await self.get_active_match(server)
+        match = await self.plugin.get_match(match_id)
+        for side in ['blue', 'red']:
+            squadron = utils.get_squadron(self.node, squadron_id=match[f'squadron_{side}'])
+            channel = await self.plugin.get_squadron_channel(match_id, side)
+            await channel.send(self.bot.get_role(squadron['role']).mention + " " + message)
 
     async def get_active_tournament(self, server: Server) -> Optional[int]:
         async with self.apool.connection() as conn:
@@ -147,14 +155,10 @@ class TournamentEventListener(EventListener["Tournament"]):
             asyncio.create_task(self.inform_squadrons(
                 server, message=f"Squadron {squadron['name']} is the winner of the match!"))
             asyncio.create_task(server.shutdown())
-
-    async def inform_squadrons(self, server, *, message: str):
-        config = self.get_config(server)
-        for side in ['blue', 'red']:
-            channel_id = config['channels'][side]
-            channel = self.bot.get_channel(channel_id)
-            # TODO: mention role / here
-            await channel.send(message)
+            asyncio.create_task(self.audit(
+                server,f"Match {match_id} is now finished. Squadron {squadron['name']} won the match.\n"
+                       f"Closing the squadron channels now."))
+            asyncio.create_task(self.plugin.close_channel(match_id))
 
     async def wait_until_choices_finished(self, server: Server):
         config = self.get_config(server)

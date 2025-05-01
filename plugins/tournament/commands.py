@@ -1,14 +1,12 @@
-import asyncio
-import shutil
-
 import discord
 import os
 import random
+import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
     MizFile
 from datetime import datetime, timezone
-from discord import app_commands, TextChannel
+from discord import app_commands, TextChannel, CategoryChannel
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -191,6 +189,17 @@ class Tournament(Plugin[TournamentEventListener]):
         config = self.get_config()
         channel_id = config.get('channels', {}).get('info')
         return self.bot.get_channel(channel_id)
+
+    async def get_squadron_channel(self, match_id: int, side: str) -> Optional[TextChannel]:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute(f"""
+                SELECT squadron_{side}_channel FROM tm_matches WHERE match_id = %s
+            """, (match_id, ))
+            row = await cursor.fetchone()
+            if row:
+                channel_id = row[0]
+                return self.bot.get_channel(channel_id)
+        return None
 
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
@@ -423,7 +432,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @match.command(description='Generate matches')
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
-    @app_commands.autocomplete(tournament_id=tournament_autocomplete) # TODO: change to active_tournament_autocomplete
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('GameMaster')
     async def generate(self, interaction: discord.Interaction, tournament_id: int):
         # noinspection PyUnresolvedReferences
@@ -436,23 +445,37 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         squadrons: list[tuple[int, float]] = []
         servers: list[str] = []
+
         async with self.apool.connection() as conn:
-            # read all squadrons and their ratings
-            async for row in await conn.execute("""
-                SELECT squadron_id 
-                FROM tm_squadrons 
-                WHERE tournament_id = %s
-                AND status = 'ACCEPTED'
-            """, (tournament_id, )):
-                rating = await Competitive.trueskill_squadron(self.node, row[0])
-                squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
-            # read all available servers
-            async for row in await conn.execute("""
-                SELECT server_name FROM campaigns_servers s 
-                JOIN campaigns c ON s.campaign_id = c.id
-                JOIN tm_tournaments t ON c.name = t.campaign
-            """):
-                servers.append(row[0])
+            # check if we have flown matches already
+            cursor = await conn.execute("SELECT COUNT(*) FROM tm_matches WHERE tournament_id = %s", (tournament_id,))
+            all_matches = (await cursor.fetchone())[0]
+            cursor = await conn.execute("""
+                SELECT winner_squadron_id FROM tm_matches WHERE winner_squadron_id IS NOT NULL AND tournament_id = %s
+            """, (tournament_id,))
+            # initial setup
+            if all_matches == 0:
+                cursor = await conn.execute("""
+                    SELECT squadron_id FROM tm_squadrons WHERE tournament_id = %s AND status = 'ACCEPTED'
+                """, (tournament_id,))
+            else:
+                if cursor.rowcount < all_matches:
+                    await interaction.followup.send(
+                        _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
+                    return
+
+        # read all squadrons and their ratings
+        async for row in await cursor.fetchall():
+            rating = await Competitive.trueskill_squadron(self.node, row[0])
+            squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
+
+        # read all available servers
+        async for row in await conn.execute("""
+            SELECT server_name FROM campaigns_servers s
+            JOIN campaigns c ON s.campaign_id = c.id
+            JOIN tm_tournaments t ON c.name = t.campaign
+        """):
+            servers.append(row[0])
         try:
             # create matches
             matches = create_tournament_matches(squadrons)
@@ -530,7 +553,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @match.command(name="list", description='Create a manual match')
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
-    @app_commands.autocomplete(tournament_id=tournament_autocomplete) # TODO: change to active_tournament_autocomplete
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction, tournament_id: int):
         # noinspection PyUnresolvedReferences
@@ -547,7 +570,8 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         await interaction.followup.send(embed=embed)
 
-    async def setup_server_for_match(self, msg: discord.Message, messages: list[str], server: Server, match: dict):
+    async def setup_server_for_match(self, msg: discord.Message, messages: list[str], server: Server, match: dict,
+                                     channels: dict):
         config = self.get_config(server)
         squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
         squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
@@ -593,10 +617,7 @@ class Tournament(Plugin[TournamentEventListener]):
             for coalition in [Coalition.BLUE, Coalition.RED]:
                 password = str(random.randint(100000, 999999))
                 await server.setCoalitionPassword(coalition, password)
-                channel_id = config.get('channels', {}).get(coalition.value)
-                channel = self.bot.get_channel(channel_id)
-                if not channel:
-                    return
+                channel = await self.get_squadron_channel(match['match_id'], coalition.value)
                 await channel.send(_("Your match is about to start. Your coalition password is: {}").format(password))
 
         # assign all members of the respective squadrons to the respective side
@@ -650,10 +671,10 @@ class Tournament(Plugin[TournamentEventListener]):
             miz.apply_preset(all_presets[preset])
 
         if round_number > 1:
-            # apply the squadron presets
-            for side in ['blue', 'red']:
-                async with self.apool.connection() as conn:
-                    async with conn.transaction():
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    # apply the squadron presets
+                    for side in ['blue', 'red']:
                         async for row in await conn.execute(f"""
                             SELECT preset, num FROM tm_choices c JOIN tm_matches m 
                             ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
@@ -662,13 +683,13 @@ class Tournament(Plugin[TournamentEventListener]):
                             self.log.debug(f"Applying preset {row[0]} ...")
                             miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
 
-            # delete the choices from the database and update the acknoledgement
-            await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
-            await conn.execute("""
-                UPDATE tm_matches 
-                SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
-                WHERE match_id = %s
-            """, (match_id,))
+                    # delete the choices from the database and update the acknoledgement
+                    await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
+                    await conn.execute("""
+                        UPDATE tm_matches 
+                        SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
+                        WHERE match_id = %s
+                    """, (match_id,))
         miz.save(new_filename)
         if new_filename != filename:
             self.log.info(f"  => New mission written: {new_filename}")
@@ -731,13 +752,13 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Server {} shut down.").format(match['server_name']), ephemeral=ephemeral)
 
         try:
-            # open the channel
-            await self.open_channel(match_id, server)
+            # open the channels
+            channels = await self.open_channel(match_id, server)
         except (ValueError, PermissionError) as ex:
             await interaction.followup.send(_("Error during opening the channels: {}").format(ex), ephemeral=True)
             return
         # change settings
-        await self.setup_server_for_match(msg, messages, server, match)
+        await self.setup_server_for_match(msg, messages, server, match, channels)
         # prepare the mission
         await self.prepare_mission(server, match_id, mission_id, round_number)
         # Starting the server up again
@@ -747,11 +768,9 @@ class Tournament(Plugin[TournamentEventListener]):
         messages.append(_("Server {} started. Inform squadrons ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
         # inform everyone
-        config = self.get_config(server)
         tournament = await self.get_tournament(tournament_id)
         for side in ['blue', 'red']:
-            channel_id = config['channels'][side]
-            channel: TextChannel = self.bot.get_channel(channel_id)
+            channel: TextChannel = self.bot.get_channel(channels[side])
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is about to start!"))
             embed.description = _("You can now join the server.\n"
                                   "Please keep in mind that you can only use {} planes!").format(
@@ -771,9 +790,11 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.add_field(name=_("Win propability"), value=f"{win_propability * 100.0:.2f}%")
             await info.send(embed=embed)
 
-    async def open_channel(self, match_id: int, server: Server):
+    async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
         match = await self.get_match(match_id)
+        category: CategoryChannel = self.bot.get_channel(config['channels']['category'])
+        channels = {}
         for side in ['blue', 'red']:
             squadron = utils.get_squadron(self.node, squadron_id=match[f'squadron_{side}'])
             if not squadron['role']:
@@ -781,21 +802,40 @@ class Tournament(Plugin[TournamentEventListener]):
             role = self.bot.get_role(squadron['role'])
             if not role:
                 raise ValueError(f"Squadron {squadron['name']} has an invalid role.")
-            channel_id = config['channels'][side]
-            channel: TextChannel = self.bot.get_channel(channel_id)
-            overwrite = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-            try:
-                await channel.set_permissions(role, overwrite=overwrite)
-                await channel.send(role.mention + _(", this is your private channel during the upcoming match!"))
-            except discord.Forbidden:
-                raise PermissionError("You need to give the bot the Manage Roles permission!")
+
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute(f"""
+                    SELECT squadron_{side}_channel FROM tm_matches WHERE match_id = %s
+                """, (match_id, ))
+                channel_id = (await cursor.fetchone())[0]
+                if channel_id == -1:
+                    opponent = utils.get_squadron(
+                        self.node, squadron_id=match['squadron_red' if side == 'blue' else 'squadron_blue'])
+                    channel_name = f"{squadron['name']} vs {opponent['name']}"
+                    channel: TextChannel = await category.create_text_channel(name=channel_name)
+                    channel_id = channel.id
+                    overwrite = discord.PermissionOverwrite(
+                        view_channel=True,
+                        send_messages=True,
+                        read_message_history=True
+                    )
+                    try:
+                        await channel.set_permissions(role, overwrite=overwrite)
+                        await channel.send(role.mention + _(", this is your private channel during the upcoming match!"))
+                    except discord.Forbidden:
+                        raise PermissionError("You need to give the bot the Manage Roles permission!")
+
+                    async with conn.transaction():
+                        await conn.execute(f"""
+                            UPDATE tm_matches SET squadron_{side}_channel = %s 
+                            WHERE match_id = %s
+                        """, (channel_id, match_id))
+
+            channels[side] = channel_id
+
+        return channels
 
     async def close_channel(self, match_id: int):
-        config = self.get_config()
         match = await self.get_match(match_id)
         for side in ['blue', 'red']:
             squadron = utils.get_squadron(self.node, squadron_id=match[f'squadron_{side}'])
@@ -804,9 +844,10 @@ class Tournament(Plugin[TournamentEventListener]):
             role = self.bot.get_role(squadron['role'])
             if not role:
                 raise ValueError(f"Squadron {squadron['name']} has an invalid role.")
-            channel_id = config['channels'][side]
-            channel: TextChannel = self.bot.get_channel(channel_id)
             try:
+                channel = await self.get_squadron_channel(match_id, side)
+                if channel:
+                    await channel.edit(name=channel.name + " (closed)")
                 await channel.set_permissions(role, overwrite=None)
             except discord.Forbidden:
                 raise PermissionError("You need to give the bot the Manage Roles permission!")
@@ -858,6 +899,7 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         view = ChoicesView(node=self.node, match_id=match_id, squadron_id=squadron_id, config=config)
         embed = await view.render()
+        # noinspection PyUnresolvedReferences
         if not view.children[0].options:
             await interaction.followup.send(_("You do not have enough squadron credits to buy a choice."),
                                             ephemeral=True)

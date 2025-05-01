@@ -19,6 +19,8 @@ CREATE TABLE tm_matches (
     server_name TEXT NOT NULL,
     squadron_red INTEGER NOT NULL,
     squadron_blue INTEGER NOT NULL,
+    squadron_red_channel BIGINT NOT NULL DEFAULT -1,
+    squadron_blue_channel BIGINT NOT NULL DEFAULT -1,
     round_number INTEGER NOT NULL DEFAULT 0,
     choices_red_ack BOOLEAN DEFAULT FALSE,
     choices_blue_ack BOOLEAN DEFAULT FALSE,

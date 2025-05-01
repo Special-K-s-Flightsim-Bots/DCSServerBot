@@ -11,9 +11,9 @@ opt_plugins:
 ``` 
 
 ### GameMaster Role
-Besides the creation of tournaments, which is a task for the Admin role, each tasks to run and modify a tournament 
-require a member of the GameMaster role to run them. GameMaster is one of the bot roles, that you can set up in your
-config/services/bot.yaml like so:
+Besides the creation of tournaments, which is a task for the Admin role, each task to run and modify a tournament 
+requires a member of the GameMaster role to run them. 
+GameMaster is one of the bot roles that you can set up in your config/services/bot.yaml like so:
 ```yaml
 roles:
   Admin:
@@ -45,13 +45,13 @@ DEFAULT:
       'AIM-120': 2
       'AIM-9x': 1
   channels:
-    info: 112233445566778899   # information channel
-    blue: 998877665544332211    # channel for blue coalition (can be the normal coalition channel)
-    red: 119922883377446655     # channel for red coalition (can be the normal coalition channel)
+    info: 112233445566778899      # information channel
+    category: 119922883377446655  # a category where all match channels will be created into
+    admin: 998877665544332211     # optional: gamemaster admin channel (if not set, a central admin channel will be used)
 ```
 
-You also want to configure the [Competitive plugin](../competitive/README.md). Create a config\plugins\competitive.yaml 
-like so:
+You also want to configure the [Competitive plugin](../competitive/README.md). 
+Create a config\plugins\competitive.yaml like so:
 
 ```yaml
 DEFAULT:
@@ -71,7 +71,7 @@ Setting up a tournament needs some prerequisites. Please read <b>carefully</>!
 ### Campaign
 Each tournament is based on a campaign. This means you need to create a campaign first like so:
 `/campaign add`
-Give it a self-explaining name and a proper description, which you want to share with your players. It will be posted,
+Give it a self-explaining name and a proper description, which you want to share with your players. It will be posted
 when creating the tournament.
 
 ### Squadrons
@@ -114,13 +114,13 @@ Now, everything is set up and prepared for your upcoming tournament!
 ---
 
 ## Running a Tournament
-We have set up everything now, squadrons have registered, and everyone is eager to start. Let's go!
+We have set everything up now, squadrons have registered, and everyone is eager to start. Let's go!
 
 ### Creating Matches
 A tournament consists of matches. Each match has a configurable number of rounds 
 (see [Create a Tournament](#create-a-tournament)). You can create the matches on your own, and make sure that the right
 squadrons fight against each other, based on time constraints, wishes, whatnot, or you can let the bot generate the 
-matches for you. The bot will take each squadrons TrueSkill™️ rating and generate matches based on a snake pairing
+matches for you. The bot will take each squadron's TrueSkill™️ rating and generate matches based on a snake pairing
 system. This assures exciting matches, as the risk of matching a very weak squadron with a very strong one is lower.
 
 > [!NOTE]
