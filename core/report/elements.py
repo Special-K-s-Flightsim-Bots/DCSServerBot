@@ -215,7 +215,7 @@ class Graph(ReportElement):
         self.env.filename = f'{uuid.uuid4()}.png'
         self.env.buffer = BytesIO()
         warnings.filterwarnings("ignore", category=UserWarning, message=".*Glyph.*")
-        self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight', facecolor='#2C2F33')
+        self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight')
         self.env.buffer.seek(0)
 
     async def _async_plot(self):
@@ -223,9 +223,9 @@ class Graph(ReportElement):
             self._plot()
 
     async def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
-                     facecolor: Optional[str] = None):
+                     facecolor: Optional[str] = '#2C2F33'):
         plt.style.use('dark_background')
-        plt.rcParams['axes.facecolor'] = '2C2F33'
+        plt.rcParams['axes.facecolor'] = facecolor
         fonts = get_supported_fonts()
         if fonts:
             plt.rcParams['font.family'] = [f"Noto Sans {x}" for x in fonts] + ['sans-serif']
