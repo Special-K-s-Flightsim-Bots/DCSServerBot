@@ -585,8 +585,10 @@ class Tournament(Plugin[TournamentEventListener]):
         }
 
         # set coalition channels
-        server.locals['channels'][Channel.COALITION_BLUE_CHAT] = channels['blue']
-        server.locals['channels'][Channel.COALITION_RED_CHAT] = channels['red']
+        server.locals['channels']['blue'] = channels['blue']
+        server.locals['channels']['red'] = channels['red']
+        # dirty but works
+        server._channels.clear()
 
         # Server should start paused
         advanced = server.settings['advanced']
