@@ -4,7 +4,7 @@ import random
 import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
-    MizFile
+    MizFile, Channel
 from datetime import datetime, timezone
 from discord import app_commands, TextChannel, CategoryChannel
 from psycopg.errors import UniqueViolation
@@ -585,8 +585,8 @@ class Tournament(Plugin[TournamentEventListener]):
         }
 
         # set coalition channels
-        for side in ['red', 'blue']:
-            server.locals['channels'][side] = channels[side]
+        server.locals['channels'][Channel.COALITION_BLUE_CHAT] = channels['blue']
+        server.locals['channels'][Channel.COALITION_RED_CHAT] = channels['red']
 
         # Server should start paused
         advanced = server.settings['advanced']
