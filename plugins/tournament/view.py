@@ -47,7 +47,13 @@ class ChoicesView(discord.ui.View):
 
     async def get_squadron_credits(self):
         async with self.node.apool.connection() as conn:
-            cursor = await conn.execute("SELECT points FROM squadron_credits WHERE squadron_id=%s", (self.squadron_id,))
+            cursor = await conn.execute("""
+                SELECT sc.points FROM squadron_credits sc 
+                JOIN campaigns c ON sc.campaign_id = c.id 
+                JOIN tm_tournaments t ON t.campaign = c.name
+                JOIN tm_matches tm ON tm.tournament_id = t.tournament_id
+                WHERE squadron_id=%s AND tm.match_id = %s
+            """, (self.squadron_id,self.match_id))
             if cursor.rowcount == 1:
                 return (await cursor.fetchone())[0]
             else:

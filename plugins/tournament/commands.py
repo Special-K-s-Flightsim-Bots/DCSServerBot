@@ -584,6 +584,10 @@ class Tournament(Plugin[TournamentEventListener]):
             "red_role": squadron_red['role']
         }
 
+        # set coalition channels
+        for side in ['red', 'blue']:
+            server.locals['channels'][side] = channels[side]
+
         # Server should start paused
         advanced = server.settings['advanced']
         advanced |= {
@@ -617,7 +621,7 @@ class Tournament(Plugin[TournamentEventListener]):
             for coalition in [Coalition.BLUE, Coalition.RED]:
                 password = str(random.randint(100000, 999999))
                 await server.setCoalitionPassword(coalition, password)
-                channel = await self.get_squadron_channel(match['match_id'], coalition.value)
+                channel = self.bot.get_channel(channels[coalition.value])
                 await channel.send(_("Your match is about to start. Your coalition password is: {}").format(password))
 
         # assign all members of the respective squadrons to the respective side
