@@ -465,7 +465,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     return
 
         # read all squadrons and their ratings
-        async for row in await cursor.fetchall():
+        for row in await cursor.fetchall():
             rating = await Competitive.trueskill_squadron(self.node, row[0])
             squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
 
