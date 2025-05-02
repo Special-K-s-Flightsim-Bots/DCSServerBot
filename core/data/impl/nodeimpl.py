@@ -964,10 +964,13 @@ class NodeImpl(Node):
             try:
                 branch, old_version = await self.get_dcs_branch_and_version()
                 new_version = await self.get_latest_version(branch)
+                if not new_version:
+                    self.log.debug("DCS update check failed, no version reveived from ED.")
+                    return
             except aiohttp.ClientError:
-                self.log.warning("Update check failed, possible server outage at ED.")
+                self.log.warning("DCS update check failed, possible server outage at ED.")
                 return
-            if new_version and parse(old_version) < parse(new_version):
+            if parse(old_version) < parse(new_version):
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
                 if rc == 0:

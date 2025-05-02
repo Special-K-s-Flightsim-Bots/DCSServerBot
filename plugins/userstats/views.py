@@ -57,10 +57,5 @@ class SquadronModal(Modal):
         await interaction.response.send_message(f"Squadron {self.name} created/updated.", ephemeral=ephemeral)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
-        if isinstance(error, UniqueViolation):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Squadron {self.name} exists already. Please chose another name.",
-                                                    ephemeral=True)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"Error while creating squadron: {error}", ephemeral=True)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(f"Error while creating squadron: {error}", ephemeral=True)
