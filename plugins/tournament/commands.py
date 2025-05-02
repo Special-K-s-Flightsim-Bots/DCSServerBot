@@ -102,7 +102,7 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
     tournament_id = utils.get_interaction_param(interaction, "tournament")
     async with interaction.client.apool.connection() as conn:
         choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=row[1], value=row[0])
+            app_commands.Choice(name=row[0], value=row[0])
             async for row in await conn.execute("""
                 SELECT s.server_name 
                 FROM tm_tournaments t 
@@ -110,7 +110,7 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
                      JOIN campaigns_servers s ON c.id = s.campaign_id 
                 WHERE t.tournament_id = %s
                 AND c.start <= NOW() AT TIME ZONE 'UTC'
-                AND c.stop > NOW() AT TIME ZONE 'UTC'
+                AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
                 AND s.server_name ILIKE %s
                 ORDER BY s.server_name
             """, (tournament_id, '%' + current + '%', ))
@@ -858,36 +858,31 @@ class Tournament(Plugin[TournamentEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        config = self.get_config()
         for coalition in ['red', 'blue']:
-            channel_id = config['channels'][coalition]
-            if channel_id == interaction.channel.id:
-                async with self.node.apool.connection() as conn:
-                    cursor = await conn.execute(f"""
-                        SELECT m.match_id, squadron_{coalition}, choices_{coalition}_ack 
-                        FROM tm_matches m 
-                        JOIN tm_tournaments t ON m.tournament_id = t.tournament_id 
-                        JOIN campaigns c ON t.campaign = c.name
-                        WHERE c.start <= NOW() AT TIME ZONE 'UTC'
-                        AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
-                        AND m.round_number > 0 and m.winner_squadron_id IS NULL
-                    """)
-                    row = await cursor.fetchone()
-                    if row:
-                        if row[2]:
-                            await interaction.followup.send(_("You already made your choice. Wait for the next round!"),
-                                                            ephemeral=True)
-                            return
-                        match_id = row[0]
-                        squadron_id = row[1]
-                    else:
-                        await interaction.followup.send(
-                            _("There is no match in progress for this coalition."), ephemeral=True)
+            async with self.node.apool.connection() as conn:
+                cursor = await conn.execute(f"""
+                    SELECT m.match_id, squadron_{coalition}, choices_{coalition}_ack, server_name 
+                    FROM tm_matches m 
+                    JOIN tm_tournaments t ON m.tournament_id = t.tournament_id 
+                    JOIN campaigns c ON t.campaign = c.name
+                    WHERE c.start <= NOW() AT TIME ZONE 'UTC' AND squadron_{coalition}_channel = %s
+                    AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
+                    AND m.round_number > 0 and m.winner_squadron_id IS NULL
+                """, (interaction.channel.id, ))
+                row = await cursor.fetchone()
+                if row:
+                    if row[2]:
+                        await interaction.followup.send(_("You already made your choice. Wait for the next round!"),
+                                                        ephemeral=True)
                         return
-                break
+                    match_id = row[0]
+                    squadron_id = row[1]
+                    break
+                else:
+                    continue
         else:
             await interaction.followup.send("{} has to be used in the respective coalition channel.".format(
-                (await utils.get_command(self.bot, group=self.tournament.name, name=self.customize.name)).mention))
+                (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
             return
 
         admins = utils.get_squadron_admins(self.node, squadron_id)
@@ -897,7 +892,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 ephemeral=True
             )
             return
-        view = ChoicesView(node=self.node, match_id=match_id, squadron_id=squadron_id, config=config)
+        view = ChoicesView(node=self.node, match_id=match_id, squadron_id=squadron_id,
+                           config=self.get_config(self.bot.servers[row[3]]))
         embed = await view.render()
         # noinspection PyUnresolvedReferences
         if not view.children[0].options:
