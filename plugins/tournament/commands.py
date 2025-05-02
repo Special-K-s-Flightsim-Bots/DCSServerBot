@@ -622,7 +622,14 @@ class Tournament(Plugin[TournamentEventListener]):
                 password = str(random.randint(100000, 999999))
                 await server.setCoalitionPassword(coalition, password)
                 channel = self.bot.get_channel(channels[coalition.value])
-                await channel.send(_("Your match is about to start. Your coalition password is: {}").format(password))
+                embed = discord.Embed(color=discord.Color.blue(), title=_("**Get your team ready!**\n"))
+                embed.add_field(name=_("Coalition"), value=coalition.value, inline=True)
+                embed.add_field(name=_("Password"), value=password, inline=True)
+                embed.set_footer(text=_("You must not share the password with anyone outside your squadron!\n"
+                                        "You will stay on the {} side throughout the whole match.").format(
+                    coalition.value))
+                await channel.send(embed=embed)
+
 
         # assign all members of the respective squadrons to the respective side
         messages.append(_("Setting coalitions for players..."))
@@ -775,13 +782,13 @@ class Tournament(Plugin[TournamentEventListener]):
         tournament = await self.get_tournament(tournament_id)
         for side in ['blue', 'red']:
             channel: TextChannel = self.bot.get_channel(channels[side])
-            embed = discord.Embed(color=discord.Color.blue(), title=_("The match is about to start!"))
-            embed.description = _("You can now join the server.\n"
-                                  "Please keep in mind that you can only use {} planes!").format(
-                tournament['num_players'])
+            embed = discord.Embed(color=discord.Color.blue(), title=_("The match is starting NOW!"))
             embed.add_field(name=_("Server"), value=server.name)
+            embed.description = _("You can **now** join the server.")
             embed.add_field(name=_("IP:Port"), value=f"{server.node.public_ip}:{server.settings['port']}")
             embed.add_field(name=_("Password"), value=server.settings.get('password', ''))
+            embed.set_footer(text=_("Please keep in mind that you can only use {} planes!").format(
+                tournament['num_players']))
             await channel.send(embed=embed)
         info = self.get_info_channel()
         if info:
