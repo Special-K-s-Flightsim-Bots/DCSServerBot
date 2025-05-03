@@ -12,10 +12,10 @@ WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/
 
 class NumbersModal(Modal):
     def __init__(self, choice: str, costs: int, credits: int):
-        super().__init__(title=_("How many {} do you want?").format(choice))
+        super().__init__(title=_("How many {} do you want?").format(choice[:20]))
         self.costs = costs
         self.credits = credits
-        self.textinput = TextInput(label=_("Count"), placeholder=_("Enter a number"), 
+        self.textinput = TextInput(label=_("Count"), placeholder=_("Enter a number"), default="1",
                                    style=discord.TextStyle.short, required=True)
         self.add_item(self.textinput)
         self.result = 0
