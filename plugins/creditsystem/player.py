@@ -49,14 +49,14 @@ class CreditPlayer(Player):
         plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
         config = plugin.get_config(self.server)
 
-        if not config:
-            self._points = p
-        elif 'max_points' in config and p > int(config['max_points']):
+        if 'max_points' in config and p > int(config['max_points']):
             self._points = int(config['max_points'])
-        elif p < 0:
-            self._points = 0
         else:
             self._points = p
+
+        # make sure we never go below 0
+        if self._points < 0:
+            self._points = 0
 
         campaign_id, _ = utils.get_running_campaign(self.node, self.server)
         if campaign_id:
