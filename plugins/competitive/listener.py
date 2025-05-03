@@ -214,7 +214,8 @@ class CompetitiveListener(EventListener["Competitive"]):
         def remove_players(players: list[Player]):
             for player in players:
                 match.player_dead(player)
-                self.in_match[server.name].pop(player.ucid, None)
+                # TODO: check this!
+                #self.in_match[server.name].pop(player.ucid, None)
             config = self.get_config(server)
             survivor = match.survivor()
             # if all sides are dead, the match is finished
