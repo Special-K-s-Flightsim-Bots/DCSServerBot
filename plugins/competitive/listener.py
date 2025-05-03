@@ -37,7 +37,7 @@ class Match:
         self.alive[player.side].append(player)
 
     def player_dead(self, player: Player):
-        if player in self.alive[player.side]:
+        if player in self.alive.get(player.side, []):
             self.alive[player.side].remove(player)
             if player.side.name not in self.dead:
                 self.dead[player.side] = []
