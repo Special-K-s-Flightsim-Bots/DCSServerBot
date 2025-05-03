@@ -286,7 +286,11 @@ class CompetitiveListener(EventListener["Competitive"]):
             match: Match = self.in_match[server.name].get(players[0].ucid)
             if match:
                 config = self.get_config(server)
-                if config.get('join_on', '') == 'takeoff':
+                if config.get('win_on', '') == 'rtb':
+                    if not data['arg3']:
+                        self.log.error(
+                            f"Competitive: Player {players[0].name} joined in an airstart, but win_on is 'rtb.")
+                        return
                     for player in players:
                         self.home_base[server.name][player.ucid] = data['arg3']
                         asyncio.create_task(self._addPlayerToMatch(
