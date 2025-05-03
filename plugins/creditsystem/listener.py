@@ -183,6 +183,10 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                             player.deposit += ppk * multiplier
                         player.points += ppk
                         player.audit('kill', old_points, _("for killing {}").format(data['arg5']))
+                        victim = server.get_player(id=data['arg4'])
+                        # TODO: make that configurable
+                        await player.sendUserMessage(_("You received {} credit points for killing {}.").format(
+                            ppk, victim.name))
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]

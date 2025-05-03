@@ -135,8 +135,22 @@ class ChoicesView(discord.ui.View):
                             INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
                             VALUES (%s, %s, %s, %s)
                         """, (self.match_id, self.squadron_id, choice, num))
-                        await conn.execute("UPDATE squadron_credits SET points = %s WHERE squadron_id = %s",
-                                           (credits - costs * num, self.squadron_id))
+                        cursor = await conn.execute("""
+                            UPDATE squadron_credits SET points = %s 
+                            WHERE squadron_id = %s
+                            AND campaign_id = (
+                                SELECT campaign_id FROM tm_tournaments t JOIN tm_matches m 
+                                ON t.tournament_id = m.tournament_id WHERE m.match_id = %s
+                            )
+                            RETURNING campaign_id
+                        """, (credits - costs * num, self.squadron_id, self.match_id))
+                        campaign_id = (await cursor.fetchone())[0]
+                        await conn.execute("""
+                            INSERT INTO squadron_credits_log (campaign_id, event, squadron_id, 
+                                                              old_points, new_points, remark)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (campaign_id, 'match_choice', self.squadron_id, credits,
+                              credits - costs * num, f'Bought {num} of {choice} during a match choice.', ))
             embed = await self.render()
             if modal.error:
                 embed.set_footer(text=modal.error, icon_url=WARNING_ICON)
@@ -157,8 +171,22 @@ class ChoicesView(discord.ui.View):
                     RETURNING num
                 """, (self.match_id, self.squadron_id, choice))
                 num = (await cursor.fetchone())[0]
-                await conn.execute("UPDATE squadron_credits SET points = %s WHERE squadron_id = %s",
-                                   (credits + (costs * num), self.squadron_id))
+                cursor = await conn.execute("""
+                    UPDATE squadron_credits SET points = %s 
+                    WHERE squadron_id = %s
+                    AND campaign_id = (
+                        SELECT campaign_id FROM tm_tournaments t JOIN tm_matches m 
+                        ON t.tournament_id = m.tournament_id WHERE m.match_id = %s
+                    )
+                    RETURNING campaign_id
+                """, (credits + costs * num, self.squadron_id, self.match_id))
+                campaign_id = (await cursor.fetchone())[0]
+                await conn.execute("""
+                   INSERT INTO squadron_credits_log (campaign_id, event, squadron_id,
+                                                     old_points, new_points, remark)
+                   VALUES (%s, %s, %s, %s, %s, %s)
+               """, (campaign_id, 'match_choice', self.squadron_id, credits,
+                     credits + costs * num, f'Cancelled {num} of {choice} during a match choice.',))
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):
