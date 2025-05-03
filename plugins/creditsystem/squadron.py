@@ -57,7 +57,7 @@ class Squadron(DataObject):
                     conn.execute("""
                         INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
                         VALUES (%s, %s, %s) 
-                        ON CONFLICT (squadron_id) DO UPDATE SET points = EXCLUDED.points
+                        ON CONFLICT (campaign_id, squadron_id) DO UPDATE SET points = EXCLUDED.points
                     """, (campaign_id, self.squadron_id, self._points))
 
         # send points to all active DCS-servers
