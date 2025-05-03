@@ -241,6 +241,10 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                                     title=title)
             else:
                 channel = self.bot.get_channel(config['mission_end'].get('channel'))
+                if not channel:
+                    self.log.warning("Missionstats: you have no valid mission_end channel configured "
+                                     "in your missionstats.yaml")
+                    return
                 report = Report(self.bot, self.plugin_name, 'missionstats.json')
                 env = await report.render(stats=stats, mission_id=server.mission_id,
                                           sides=[Coalition.BLUE, Coalition.RED], title=title)
