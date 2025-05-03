@@ -619,8 +619,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 cursor = await conn.execute("""
-                    UPDATE squadron_credits SET points = points + %(points)s 
-                    WHERE campaign_id = %(campaign)s AND squadron_id = %(squadron)s
+                    INSERT INTO squadron_credits (squadron_id, campaign_id, points) 
+                    VALUES (%(squadron)s, %(campaign)s, %(points)s)
+                    ON CONFLICT (squadron_id, campaign_id) DO UPDATE 
+                        SET points = squadron_credits.points + EXCLUDED.points
                     RETURNING points - %(points)s, points
                 """, {"points":points, "campaign":campaign[0], "squadron":squadron_id})
                 row = await cursor.fetchone()

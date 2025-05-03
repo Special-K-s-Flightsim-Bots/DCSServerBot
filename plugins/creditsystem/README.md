@@ -13,7 +13,6 @@ DEFAULT:              # valid for all servers
   max_points: 100     # The maximum points a player can get (default = unlimited).
   multiplier: 1       # multiplier for credit points on proper landings (if payback is enabled in slotblocking.yaml)
   squadron_credits: true # enable squadron credits (see below).
-
   points_per_kill:    # How many points do players get when they kill another unit?
   - default: 1        # You get at least one point (default = 0).
   - category: Ships   # If you kill a ship. you get 2 points
