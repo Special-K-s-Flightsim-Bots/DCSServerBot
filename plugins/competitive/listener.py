@@ -334,7 +334,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             await server.send_to_dcs({
                 "command": "endMission",
                 "winner": side,
-                "time": 10
+                "time": 60
             })
 
     async def _print_trueskill(self, player: Player):
@@ -372,7 +372,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 message += _("\nYour new rating is as follows:\n")
                 for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                     message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
-                asyncio.create_task(self.inform_players(match, message, 30))
+                asyncio.create_task(self.inform_players(match, message, 60))
                 finished.append(match)
 
                 asyncio.create_task(self.bot.bus.send_to_node({
