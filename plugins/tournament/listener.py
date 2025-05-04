@@ -194,6 +194,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                             SELECT choices_{side}_ack FROM tm_matches WHERE match_id = %s
                         """, (match_id,))
                         row = await cursor.fetchone()
+                        if not row:
+                            raise ValueError("Match aborted!")
                         finished[side] = row[0]
             if time == int(time_to_choose / 2):
                 await self.inform_squadrons(
@@ -216,7 +218,11 @@ class TournamentEventListener(EventListener["Tournament"]):
         await self.inform_squadrons(server, message=_("You can now use {} to chose your customizations!").format(
                 (await utils.get_command(self.bot, group=self.plugin.match.name,
                                          name=self.plugin.customize.name)).mention))
-        await self.wait_until_choices_finished(server)
+        try:
+            await self.wait_until_choices_finished(server)
+        except ValueError:
+            await self.audit(server, f"Match {match_id} aborted!")
+            return
 
         # Start the next round
         async with self.apool.connection() as conn:

@@ -333,7 +333,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @utils.squadron_role_check()
     async def withdraw(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
         tournament = await self.get_tournament(tournament_id)
-        if tournament['start'] > datetime.now(timezone.utc):
+        if tournament['start'] <= datetime.now(timezone.utc):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You can not withdraw from an active tournament.", ephemeral=True)
             return
