@@ -201,10 +201,12 @@ class Tournament(Plugin[TournamentEventListener]):
                 """, (match_id, ))
                 return await cursor.fetchone()
 
-    def get_info_channel(self) -> discord.TextChannel:
+    def get_info_channel(self) -> Optional[discord.TextChannel]:
         config = self.get_config()
         channel_id = config.get('channels', {}).get('info')
-        return self.bot.get_channel(channel_id)
+        if channel_id and self.bot.check_channel(channel_id):
+            return self.bot.get_channel(channel_id)
+        return None
 
     async def get_squadron_channel(self, match_id: int, side: str) -> Optional[TextChannel]:
         async with self.apool.connection() as conn:
