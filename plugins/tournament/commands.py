@@ -754,7 +754,7 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    UPDATE tm_matches SET round_number = %s
+                    UPDATE tm_matches SET round_number = %s, choices_blue_ack = FALSE, choices_red_ack = FALSE
                     WHERE match_id = %s
                 """, (round_number, match_id))
 
