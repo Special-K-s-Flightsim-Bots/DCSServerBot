@@ -4,7 +4,7 @@ import random
 import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
-    MizFile, Channel
+    MizFile
 from datetime import datetime, timezone
 from discord import app_commands, TextChannel, CategoryChannel
 from psycopg.errors import UniqueViolation
@@ -136,6 +136,22 @@ async def match_autocomplete(interaction: discord.Interaction, current: str) -> 
             """, (tournament_id, ))
         ]
         return choices[:25]
+
+
+async def match_squadrons_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    match_id = utils.get_interaction_param(interaction, "match")
+    async with interaction.client.apool.connection() as conn:
+        cursor = await conn.execute("SELECT squadron_red, squadron_blue FROM tm_matches WHERE match_id = %s",
+                                    (match_id, ))
+        squadron_red_id, squadron_blue_id = await cursor.fetchone()
+        squadron_red = utils.get_squadron(interaction.client.node, squadron_id=squadron_red_id)
+        squadron_blue = utils.get_squadron(interaction.client.node, squadron_id=squadron_blue_id)
+        return [
+            app_commands.Choice(name=squadron_blue['name'], value=squadron_blue_id),
+            app_commands.Choice(name=squadron_red['name'], value=squadron_red_id)
+        ]
 
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -550,7 +566,7 @@ class Tournament(Plugin[TournamentEventListener]):
         embed.add_field(name=_("Status"), value='\n'.join(status), inline=True)
         return embed
 
-    @match.command(name="list", description='Create a manual match')
+    @match.command(name="list", description='List matches')
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
@@ -872,14 +888,75 @@ class Tournament(Plugin[TournamentEventListener]):
             except discord.Forbidden:
                 raise PermissionError("You need to give the bot the Manage Roles permission!")
 
-    @match.command(description='Customize the next mission')
+    @match.command(description='Edit a match')
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.rename(match_id="match")
+    @app_commands.autocomplete(match_id=match_autocomplete)
+    @app_commands.autocomplete(winner_squadron_id=match_squadrons_autocomplete)
+    @utils.app_has_role('GameMaster')
+    async def edit(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
+                   winner_squadron_id: Optional[int] = None):
+        match = await self.get_match(match_id)
+        modal = utils.ConfigModal(title="Match Results", config={
+            "squadron_red_rounds_won": {
+                "type": int,
+                "label": _("Squadron red rounds won"),
+                "required": True
+            },
+            "squadron_blue_rounds_won": {
+                "type": int,
+                "label": _("Squadron blue rounds won"),
+                "required": True
+            }
+        }, old_values=match)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+
+        if modal.value.get('squadron_red_rounds_won') > modal.value.get('squadron_blue_rounds_won'):
+            winner_squadron_id = match['squadron_red']
+        elif modal.value.get('squadron_blue_rounds_won') > modal.value.get('squadron_red_rounds_won'):
+            winner_squadron_id = match['squadron_blue']
+
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE tm_matches 
+                    SET squadron_red_rounds_won = %s, squadron_blue_rounds_won = %s 
+                    WHERE match_id = %s
+                """, (modal.value.get('squadron_red_rounds_won'),
+                      modal.value.get('squadron_blue_rounds_won'),
+                      match_id))
+
+                if winner_squadron_id:
+                    squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
+                    if await utils.yn_question(
+                            interaction, _("Do you really want to finish the match and make {} the winner?").format(
+                                squadron['name']), ephemeral=True):
+                        await conn.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
+                                           (winner_squadron_id,match_id))
+                    else:
+                        await interaction.followup.send(_("Winner not updated."), ephemeral=True)
+
+        if match['winner_squadron_id'] != winner_squadron_id \
+            or match['squadron_blue_rounds_won'] != modal.value.get('squadron_blue_rounds_won') \
+            or match['squadron_red_rounds_won'] != modal.value.get('squadron_red_rounds_won'):
+            await interaction.followup.send(_("Match updated."), ephemeral=True)
+        else:
+            await interaction.followup.send(_("Match not updated."), ephemeral=True)
+
+    @match.command(description='Customize the next round')
     @app_commands.guild_only()
     async def customize(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         for coalition in ['red', 'blue']:
-            async with self.node.apool.connection() as conn:
+            async with self.apool.connection() as conn:
                 cursor = await conn.execute(f"""
                     SELECT m.match_id, squadron_{coalition}, choices_{coalition}_ack, server_name 
                     FROM tm_matches m 

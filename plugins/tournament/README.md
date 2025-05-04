@@ -181,4 +181,5 @@ The tournament ends if all matches were played.
 | /match create        | tournament server squadron_blue squadron_red | admin-channel    | GameMaster     | Creates a match manually.                                         |
 | /match list          | tournament                                   | any              | DCS            | List all matches of a specific tournament.                        |
 | /match start         | tournament match [mission] [round_number]    | admin-channel    | GameMaster     | Starts a match. Prepares and starts the DCS server.               |
+| /match edit          | tournament match [winner_squadron_id]        | admin-channel    | GameMaster     | Edit the results of a match.                                      |
 | /match customize     |                                              | squadron channel | Squadron Admin | Customize the next mission for the next round of a running match. |

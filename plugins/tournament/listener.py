@@ -90,7 +90,13 @@ class TournamentEventListener(EventListener["Tournament"]):
         if data['eventName'] == 'S_EVENT_BIRTH':
             tournament = self.tournaments[server.name]
             initiator = data['initiator']
+            player = server.get_player(name=initiator['name'])
 
+            # ignore multicrew members
+            if player.sub_slot != 0:
+                return
+
+            # check if we have the necessary number of players
             num_planes = len([x for x in server.get_active_players() if x.sub_slot == 0])
             if num_planes == tournament['num_players'] * 2:
                 asyncio.create_task(server.current_mission.unpause())
@@ -143,7 +149,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             match = await self.plugin.get_match(match_id)
             message = _("Round {} was a draw!").format(match['round_number'])
         # inform players and people
-        asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
+        asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
         asyncio.create_task(self.inform_squadrons(server, message=message))
         asyncio.create_task(self.announce(server, message))
 
@@ -169,8 +175,11 @@ class TournamentEventListener(EventListener["Tournament"]):
             asyncio.create_task(self.next_round(server, match_id))
         else:
             squadron = utils.get_squadron(self.node, squadron_id=winner_id)
-            asyncio.create_task(self.inform_squadrons(
-                server, message=f"Squadron {squadron['name']} is the winner of the match!"))
+            message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
+            asyncio.create_task(self.inform_squadrons(server, message=message))
+            message += _("\nServer will be shut down in 60 seonds ...")
+            asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
+            await asyncio.sleep(60)
             asyncio.create_task(server.shutdown())
             asyncio.create_task(self.audit(
                 server,f"Match {match_id} is now finished. Squadron {squadron['name']} won the match.\n"
@@ -205,7 +214,8 @@ class TournamentEventListener(EventListener["Tournament"]):
 
     async def next_round(self, server: Server, match_id: int):
         await asyncio.create_task(server.sendPopupMessage(
-            Coalition.ALL, _("You will now be moved back to spectators ...")))
+            Coalition.ALL, _("You will be moved back to spectators in 60 seconds ...")))
+        await asyncio.sleep(60)
         # move all players back to spectators
         tasks = []
         for player in server.get_active_players():
