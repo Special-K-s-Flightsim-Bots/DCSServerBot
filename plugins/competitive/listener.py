@@ -294,7 +294,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             else:
                 players = [player]
             match: Match = self.in_match[server.name].get(player.ucid)
-            if match and match.started and not match.finished and player not in match.dead[player.side]:
+            if match and match.started and not match.finished and player not in match.dead.get(player.side, []):
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 remove_players(players)
