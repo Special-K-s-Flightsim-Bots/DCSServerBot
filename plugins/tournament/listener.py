@@ -112,7 +112,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                                       "at least one of their own planes."))
                 else:
                     asyncio.create_task(self.audit(server, f"Win-method {win_on} is not supported yet!"))
-                asyncio.create_task(server.sendPopupMessage(Coalition.ALL, _("The server is now unpaused. Good luck!")))
+                asyncio.create_task(server.sendPopupMessage(Coalition.ALL, '\n'.join(messages)))
             elif num_planes < tournament['num_players'] * 2:
                 player = server.get_player(name=initiator['name'])
                 asyncio.create_task(player.sendPopupMessage(
