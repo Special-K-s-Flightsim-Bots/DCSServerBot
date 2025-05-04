@@ -3,9 +3,10 @@ from functools import partial
 
 import trueskill
 
-from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand
+from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand, \
+    Coalition
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
 from plugins.competitive import rating
 from trueskill import Rating
@@ -142,6 +143,31 @@ class CompetitiveListener(EventListener["Competitive"]):
         await self.inform_players(
             match, _("The match is on! If you die, crash or leave now, you lose!"))
 
+    async def countdown_with_warnings(self, match: Match, delayed_start: int):
+        start_time = datetime.now()
+        end_time = start_time + timedelta(seconds=delayed_start)
+        last_minute_warning = None
+        ten_second_warning_sent = False
+
+        while True:
+            remaining = int((end_time - datetime.now()).total_seconds())
+
+            if remaining <= 0:
+                break
+
+            # Minute warnings
+            current_minute = int(remaining / 60)
+            if current_minute != last_minute_warning and remaining > 10:
+                if current_minute > 0:  # Only show minute warnings if there's at least 1 minute
+                    await self.inform_players(match, _("The match will start in {} minute{}.").format(
+                        current_minute, 's' if current_minute != 1 else ''))
+                last_minute_warning = current_minute
+
+            # Single 10-second warning
+            if remaining <= 10 and not ten_second_warning_sent:
+                await self.inform_players(match, _("The match will start in 10 seconds."))
+                ten_second_warning_sent = True
+
     async def _addPlayerToMatch(self, server: Server, data: dict) -> None:
         players = server.get_crew_members(server.get_player(name=data['player_name']))
         for player in players:
@@ -176,8 +202,11 @@ class CompetitiveListener(EventListener["Competitive"]):
 
             # inform the players if the match is on now
             if not is_on and match.is_on():
-                self.loop.call_later(delay=config.get('delayed_start', 0),
-                                     callback=partial(asyncio.create_task,self.start_match(match)))
+                delayed_start = config.get('delayed_start', 0)
+                if delayed_start > 0:
+                    await self.countdown_with_warnings(match, delayed_start)
+                else:
+                    asyncio.create_task(self.start_match(match))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
