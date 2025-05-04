@@ -48,8 +48,8 @@ DEFAULT:            # Default section - true for all your servers.
     activation_threshold: 10  # do not balance, if the number of players is below this threshold
     message: You need to take a slot of the opposite coalition to keep the balance!
   messages:
-    credits_taken: '{deposit} credits taken for using a reserved module.'  # Possible variables: deposit, old_points, new_points
-    payback: 'You have been given {deposit} credits back.' # Possible variables: deposit, old_points, new_points
+    credits_taken: '{deposit} credits taken for using a reserved module.' # Possible variables: deposit, old_points, new_points
+    payback: 'You have been given {deposit} credits back.'                # Possible variables: deposit, old_points, new_points
 DCS.release_server:
   restricted:             # in this example we restrict by credit points
   - group_name: Rookie    # this tag has to be in the group name of the respective units (best is to prepend it)

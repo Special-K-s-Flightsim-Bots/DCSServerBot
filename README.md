@@ -411,7 +411,8 @@ DEFAULT:
       of the multiplayer selection list to an individual one!
     message_ban: 'You are banned from this server. Reason: {}' # default message, if a player is banned on the DCS server
     message_reserved: 'This server is locked for specific users.\nPlease contact a server admin.' # Message if server requires discord role (optional)
-    message_no_voice: You need to be in voice channel "{}" to use this server!  # default message, if you are not in Discord voice, but force_voice is on.
+    message_no_voice: 'You need to be in voice channel "{}" to use this server!'  # default message, if you are not in Discord voice, but force_voice is on.
+    message_seat_locked: 'Your player is locked and can not take any seat.'       # Seat is locked by /player lock
   message_timeout: 10           # default timeout for DCS popup messages in seconds 
   profanity_filter: true        # Use the profanity filter for the in-game chat (default: false).
   display_ai_chat: false        # do not display AI chat messages in the chat channel (default: false)

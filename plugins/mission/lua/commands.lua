@@ -10,6 +10,7 @@ local mod_dictionary= require('dictionary')
 
 dcsbot.registered = false
 dcsbot.banList = dcsbot.banList or {}
+dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
@@ -497,8 +498,18 @@ function dcsbot.ban(json)
 end
 
 function dcsbot.unban(json)
-    log.write('DCSServerBot', log.DEBUG, 'Admin: unban()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unban()')
 	dcsbot.banList[json.ucid] = nil
+end
+
+function dcsbot.lock_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: lock_player()')
+	dcsbot.locked[json.ucid] = true
+end
+
+function dcsbot.unlock_player(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_player()')
+	dcsbot.locked[json.ucid] = nil
 end
 
 function dcsbot.makeScreenshot(json)

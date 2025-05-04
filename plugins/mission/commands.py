@@ -1017,6 +1017,28 @@ class Mission(Plugin[MissionEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_modal(BanModal())
 
+    @player.command(description=_('Locks a player'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def lock(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        await player.lock()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player {} has been locked.").format(player.display_name),
+                                                ephemeral=utils.get_ephemeral(interaction))
+
+    @player.command(description=_('Unlocks a player'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def unlock(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+        await player.unlock()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Player {} has been unlocked.").format(player.display_name),
+                                                ephemeral=utils.get_ephemeral(interaction))
+
     @player.command(description=_('Moves a player to spectators\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')

@@ -62,6 +62,10 @@ LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
+RESTART = -1
+SHUTDOWN = -2
+UPDATE = -3
+
 # Internationalisation
 _ = get_translation('core')
 
@@ -193,12 +197,12 @@ class NodeImpl(Node):
         else:
             self.after_update.pop(name, None)
 
-    async def shutdown(self, rc: int = -2):
+    async def shutdown(self, rc: int = SHUTDOWN):
         self.rc = rc
         self.is_shutdown.set()
 
     async def restart(self):
-        await self.shutdown(-1)
+        await self.shutdown(RESTART)
 
     def read_locals(self) -> dict:
         _locals = dict()
@@ -268,8 +272,12 @@ class NodeImpl(Node):
         try:
             password = utils.get_password('clusterdb', self.config_dir)
         except ValueError:
-            password = utils.get_password('database', self.config_dir)
-            utils.set_password('clusterdb', password, self.config_dir)
+            try:
+                password = utils.get_password('database', self.config_dir)
+                utils.set_password('clusterdb', password, self.config_dir)
+            except ValueError:
+                self.log.critical("You need to replace the SECRET keyword in your database URL with a proper password!")
+                exit(SHUTDOWN)
 
         cpool_url = cpool_url.replace('SECRET', quote(password) or '')
         lpool_url = lpool_url.replace('SECRET', quote(utils.get_password('database', self.config_dir)) or '')
@@ -478,7 +486,7 @@ class NodeImpl(Node):
                         await conn.execute("""
                             UPDATE cluster SET update_pending = TRUE WHERE guild_id = %s
                         """, (self.guild_id, ))
-            await self.shutdown(-3)
+            await self.shutdown(UPDATE)
 
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
         if not self.dcs_branch or not self.dcs_version:

@@ -4,7 +4,8 @@ local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local Censorship= base.require('censorship')
 
-
+dcsbot.banList = dcsbot.banList or {}
+dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
@@ -38,6 +39,10 @@ end
 
 local function isBanned(ucid)
 	return dcsbot.banList[ucid] ~= nil
+end
+
+local function isLocked(ucid)
+    return dcsbot.locked[ucid] ~= nil
 end
 
 function mission.onPlayerTryConnect(addr, name, ucid, playerID)
@@ -138,6 +143,8 @@ function mission.onMissionLoadEnd()
     -- airbases
     msg.airbases = {}
     msg.dsmc_enabled = (base.HOOK ~= nil)
+    -- clear locklist
+    dcsbot.locked = {}
     utils.sendBotTable(msg)
 end
 
@@ -207,6 +214,15 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryChangeSlot()')
     local config = dcsbot.params['mission']
     local slot_spamming = config['slot_spamming']
+
+    -- check, if seat is locked
+    ucid = net.get_player_info(id, 'ucid')
+    if side > 0 and isLocked(ucid) then
+        log.write('DCSServerBot', log.DEBUG, 'Mission: Player locked.')
+        net.send_chat_to(config['messages']['message_seat_locked'], id)
+        return false
+    end
+    -- check slot spamming
     if mission.num_change_slots[id] == -1 then
         return false
     end
@@ -218,7 +234,6 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
 		if mission.num_change_slots[id] > tonumber(slot_spamming['slot_changes'] or 5) then
             mission.num_change_slots[id] = -1
 			net.kick(id, slot_spamming['message'])
-            ucid = net.get_player_info(id, 'ucid')
             name = net.get_player_info(id, 'name')
             local msg = {
                 command = 'sendMessage',

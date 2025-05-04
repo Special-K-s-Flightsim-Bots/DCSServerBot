@@ -86,7 +86,8 @@ class Server(DataObject):
                 "greeting_message_unmatched": "{player.name}, please use /linkme in our Discord, if you want to see your user stats!",
                 "message_ban": "You are banned from this server. Reason: {}",
                 "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",
-                "message_no_voice": 'You need to be in voice channel "{}" to use this server!'
+                "message_no_voice": 'You need to be in voice channel "{}" to use this server!',
+                "message_seat_locked": 'Your player is locked and can not take any seat.'
             } | _locals.get('messages', {})
             return _locals
         return {}

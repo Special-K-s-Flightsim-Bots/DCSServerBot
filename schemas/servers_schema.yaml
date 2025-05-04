@@ -73,6 +73,7 @@ mapping:
           message_ban: {type: str, nullable: false, range: {min: 1}}
           message_reserved: {type: str, nullable: false, range: {min: 1}}
           message_no_voice: {type: str, nullable: false, range: {min: 1}}
+          message_seat_locked: {type: str, nullable: false, range: {min: 1}}
       message_timeout: {type: int, range: {min: 5, max: 60}, nullable: false}
       display_ai_chat: {type: bool, nullable: false}
       profanity_filter: {type: bool, nullable: false}

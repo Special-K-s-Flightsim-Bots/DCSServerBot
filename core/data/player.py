@@ -350,3 +350,15 @@ class Player(DataObject):
             "id": self.id,
             "key": key
         })
+
+    async def lock(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "lock_player",
+            "ucid": self.ucid
+        })
+
+    async def unlock(self) -> None:
+        await self.server.send_to_dcs({
+            "command": "unlock_player",
+            "ucid": self.ucid
+        })
