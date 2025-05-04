@@ -1,10 +1,7 @@
 import asyncio
-from functools import partial
-
 import trueskill
 
-from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand, \
-    Coalition
+from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
@@ -205,8 +202,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 delayed_start = config.get('delayed_start', 0)
                 if delayed_start > 0:
                     await self.countdown_with_warnings(match, delayed_start)
-                else:
-                    asyncio.create_task(self.start_match(match))
+                asyncio.create_task(self.start_match(match))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
