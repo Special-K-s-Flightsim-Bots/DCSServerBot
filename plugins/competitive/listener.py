@@ -37,14 +37,14 @@ class Match:
         }
 
     def player_join(self, player: Player):
-        if player.side.name not in self.alive:
+        if player.side not in self.alive:
             self.alive[player.side] = []
         self.alive[player.side].append(player)
 
     def player_dead(self, player: Player):
         if player in self.alive.get(player.side, []):
             self.alive[player.side].remove(player)
-            if player.side.name not in self.dead:
+            if player.side not in self.dead:
                 self.dead[player.side] = []
             self.dead[player.side].append(player)
 
@@ -240,6 +240,12 @@ class CompetitiveListener(EventListener["Competitive"]):
             if survivor == Side.UNKNOWN or config.get('win_on', 'survival') == 'survival':
                 match.winner = survivor
 
+        def in_match(server: Server, player: Player) -> Optional[Match]:
+            match: Match = self.in_match[server.name].get(player.ucid)
+            if match and match.started and not match.finished and player not in match.dead.get(player.side, []):
+                return match
+            return None
+
         now = datetime.now(timezone.utc)
         if data['eventName'] == 'kill':
             # human players only
@@ -256,8 +262,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 return
 
             # check if we are in a registered match
-            match: Match = self.in_match[server.name].get(killers[0].ucid)
-            if match and match.started and not match.finished:
+            match = in_match(server, killers[0])
+            if match:
                 match.log.append(
                     (now, _("{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}").format(
                         killer=print_crew(killers), killer_module=data['arg2'],
@@ -279,8 +285,8 @@ class CompetitiveListener(EventListener["Competitive"]):
             players = server.get_crew_members(server.get_player(id=data['arg1']))
             if not players:
                 return
-            match: Match = self.in_match[server.name].get(players[0].ucid)
-            if match and match.started and not match.finished:
+            match = in_match(server, players[0])
+            if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 remove_players(players)
@@ -293,8 +299,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 players = server.get_crew_members(server.get_player(id=data['arg1']))
             else:
                 players = [player]
-            match: Match = self.in_match[server.name].get(player.ucid)
-            if match and match.started and not match.finished and player not in match.dead.get(player.side, []):
+            match = in_match(server, player)
+            if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 remove_players(players)
@@ -319,8 +325,8 @@ class CompetitiveListener(EventListener["Competitive"]):
             player = server.get_player(id=data['arg1'])
             if not player:
                 return
-            match: Match = self.in_match[server.name].get(player.ucid)
-            if not match or not match.started or match.finished:
+            match = in_match(server, player)
+            if not match:
                 return
             config = self.get_config(server)
             win_type = config.get('win_on', 'survival')
