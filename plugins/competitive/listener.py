@@ -173,8 +173,6 @@ class CompetitiveListener(EventListener["Competitive"]):
             # if we are in a global match, lock the seat
             if match_id == GLOBAL_MATCH_ID:
                 await player.lock()
-                if config.get('kick_on_death', False):
-                    await server.kick(player, "You are dead.")
 
             # inform the players if the match is on now
             if not is_on and match.is_on():
@@ -228,12 +226,15 @@ class CompetitiveListener(EventListener["Competitive"]):
         def print_crew(players: list[Player]) -> str:
             return ' and '.join([p.name for p in players])
 
-        def remove_players(players: list[Player]):
+        async def remove_players(server: Server, players: list[Player]):
             for player in players:
                 match.player_dead(player)
                 # remove the player from the running match so that they can join another one
                 if match.match_id != GLOBAL_MATCH_ID:
                     self.in_match[server.name].pop(player.ucid, None)
+                elif self.get_config(server).get('kick_on_death', False):
+                    await server.kick(player, "You are dead.")
+
             config = self.get_config(server)
             survivor = match.survivor()
             # if all sides are dead, the match is finished
@@ -269,7 +270,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                         killer=print_crew(killers), killer_module=data['arg2'],
                         what=_('killed') if data['arg3'] != data['arg4'] else _('team-killed'),
                         victim=print_crew(victims), victim_module=data['arg5'], weapon=data['arg7'] or 'Guns')))
-                remove_players(victims)
+                await remove_players(server, victims)
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
                 await self.rank_teams(killers, victims)
@@ -289,7 +290,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
-                remove_players(players)
+                await remove_players(server, players)
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
             if not player:
@@ -303,7 +304,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
-                remove_players(players)
+                await remove_players(server, players)
         elif data['eventName'] == 'takeoff':
             player = server.get_player(id=data['arg1'])
             if not player:
