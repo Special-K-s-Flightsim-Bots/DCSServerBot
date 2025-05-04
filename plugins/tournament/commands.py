@@ -209,7 +209,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
     @utils.app_has_role('Admin')
     async def create(self, interaction: discord.Interaction, campaign: str,
-                     rounds: app_commands.Range[int, 3, 10], num_players: app_commands.Range[int, 4, 10]):
+                     rounds: app_commands.Range[int, 3, 10], num_players: app_commands.Range[int, 2, 10]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
