@@ -46,9 +46,14 @@ DEFAULT:
       'AIM-9x': 1
   channels:
     info: 112233445566778899      # information channel
+    streamer: 91827364519283745   # channel for a tournament streamer
     category: 119922883377446655  # a category where all match channels will be created into
     admin: 998877665544332211     # optional: gamemaster admin channel (if not set, a central admin channel will be used)
 ```
+
+> [!WARNING]
+> The streamer channel above will receive all information about what's going on in your match. 
+> You do NOT want any of the participating parties to have access to this channel!
 
 You also want to configure the [Competitive plugin](../competitive/README.md). 
 Create a config\plugins\competitive.yaml like so:

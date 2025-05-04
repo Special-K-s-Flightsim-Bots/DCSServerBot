@@ -16,6 +16,7 @@ schema;element_schema:
     join_on: {type: str, nullable: false, enum: ['birth', 'takeoff']}
     win_on: {type: str, nullable: false, enum: ['survival', 'landing', 'rtb']}
     end_mission: {type: bool, nullable: false}
+    delayed_start: {type: int, nullable: false, range: {min: 0}}
 
 type: map
 func: check_main_structure

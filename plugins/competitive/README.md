@@ -67,6 +67,7 @@ DCS.server:
   join_on: birth      # Match only: join on birth, takeoff, enter_zone (future)
   win_on: survival    # Match only: one of survival, landing, rtb, time (future), (default: survival)
   end_mission: false  # Match only: end the mission if a match is over (default: false)
+  delayed_start: 300  # optional: give people 300 seconds to join and prepare their planes.
 ```
 > [!NOTE]
 > Silent mode can only be used on simple 1vs1 engagements, not on team engagements.

@@ -33,8 +33,12 @@ schema;element_schema:
             regex;(.+): {type: int, nullable: false, range: {min: 1}}
     channels:
       type: map
+      nullable: false
       mapping:
-        regex;(.+):  {type: text, nullable: false}
+        info: {type: int, nullable: false}
+        admin: {type: int, nullable: false}
+        streamer: {type: int, nullable: false}
+        category: {type: int, nullable: false}
 
 type: map
 func: check_main_structure

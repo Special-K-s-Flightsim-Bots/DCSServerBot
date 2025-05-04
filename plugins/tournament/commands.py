@@ -587,6 +587,13 @@ class Tournament(Plugin[TournamentEventListener]):
         # set coalition channels
         server.locals['channels']['blue'] = channels['blue']
         server.locals['channels']['red'] = channels['red']
+
+        # setup streamer channel (replicates all events from red and blue)
+        streamer_channel = config.get('channels', {}).get('streamer')
+        if streamer_channel:
+            server.locals['channels']['blue_events'] = streamer_channel
+            server.locals['channels']['red_events'] = streamer_channel
+
         # dirty but works
         server._channels.clear()
 

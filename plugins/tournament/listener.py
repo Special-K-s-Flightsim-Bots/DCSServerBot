@@ -26,6 +26,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         await channel.send(message)
 
     async def announce(self, server: Server, message: str):
+        await self.inform_streamer(server, message)
         config = self.get_config(server)
         channel = self.bot.get_channel(config.get('channels', {}).get('info', -1))
         if channel:
@@ -38,6 +39,12 @@ class TournamentEventListener(EventListener["Tournament"]):
             squadron = utils.get_squadron(self.node, squadron_id=match[f'squadron_{side}'])
             channel = await self.plugin.get_squadron_channel(match_id, side)
             await channel.send(self.bot.get_role(squadron['role']).mention + " " + message)
+
+    async def inform_streamer(self, server: Server, message: str):
+        config = self.get_config(server)
+        channel = self.bot.get_channel(config.get('channels', {}).get('streamer', -1))
+        if channel:
+            await channel.send(message)
 
     async def get_active_tournament(self, server: Server) -> Optional[int]:
         async with self.apool.connection() as conn:
@@ -83,12 +90,19 @@ class TournamentEventListener(EventListener["Tournament"]):
         if data['eventName'] == 'S_EVENT_BIRTH':
             tournament = self.tournaments[server.name]
             initiator = data['initiator']
-            if len(server.get_active_players()) == tournament['num_players'] * 2:
+
+            num_planes = len([x for x in server.get_active_players() if x.sub_slot == 0])
+            if num_planes == tournament['num_players'] * 2:
                 asyncio.create_task(server.current_mission.unpause())
                 asyncio.create_task(self.announce(server,
                                                   _("All sides have occupied their units. The match is now on!")))
-                messages = [_("The server is now unpaused.")]
+                messages = [_("The server is now unpaused!\n")]
                 config = self.get_config(server, plugin_name='competitive')
+                delayed_start = config.get('delayed_start', 0)
+                if delayed_start:
+                    messages.append(
+                        _("You have {} to arm up your planes and get ready before the match starts.").format(
+                            utils.format_time(delayed_start)))
                 win_on = config.get('win_on', 'survival')
                 if win_on == 'survival':
                     messages.append(_("The first party to lose all their units will be defeated, "
@@ -99,10 +113,13 @@ class TournamentEventListener(EventListener["Tournament"]):
                 else:
                     asyncio.create_task(self.audit(server, f"Win-method {win_on} is not supported yet!"))
                 asyncio.create_task(server.sendPopupMessage(Coalition.ALL, _("The server is now unpaused. Good luck!")))
-            else:
+            elif num_planes < tournament['num_players'] * 2:
                 player = server.get_player(name=initiator['name'])
                 asyncio.create_task(player.sendPopupMessage(
                     _("The server will be unpaused, if all players have chosen their slots!")))
+            else:
+                player = server.get_player(name=initiator['name'])
+                await server.kick(player, "All seats are taken, you are not allowed to join anymore!")
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
@@ -248,3 +265,5 @@ class TournamentEventListener(EventListener["Tournament"]):
                                                        f"Unregistered player {player.name} ({player.ucid}) "
                                                        f"tried to join the running match on the {side} side."))
                         return
+        await self.inform_streamer(server, _("Player {name} joined the match in a {unit} on the {side} side.").format(
+            name=player.name, unit=player.unit_display_name, side=side))
