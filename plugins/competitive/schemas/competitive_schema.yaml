@@ -15,6 +15,7 @@ schema;element_schema:
     silent: {type: bool, nullable: false}
     join_on: {type: str, nullable: false, enum: ['birth', 'takeoff']}
     win_on: {type: str, nullable: false, enum: ['survival', 'landing', 'rtb']}
+    kick_on_death: {type: bool, nullable: false}
     end_mission: {type: bool, nullable: false}
     delayed_start: {type: int, nullable: false, range: {min: 0}}
 

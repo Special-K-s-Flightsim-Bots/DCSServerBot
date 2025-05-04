@@ -62,12 +62,13 @@ opt_plugins:
 If you want to disable the plugin for one or more servers, you can do it by creating a config/plugins/competitive.yaml:
 ```yaml
 DCS.server:
-  enabled: false      # optional: disable the plugin (default: true)
-  silent: false       # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)
-  join_on: birth      # Match only: join on birth, takeoff, enter_zone (future)
-  win_on: survival    # Match only: one of survival, landing, rtb, time (future), (default: survival)
-  end_mission: false  # Match only: end the mission if a match is over (default: false)
-  delayed_start: 300  # optional: give people 300 seconds to join and prepare their planes.
+  enabled: false        # optional: disable the plugin (default: true)
+  silent: false         # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)
+  join_on: birth        # Match only: join on birth, takeoff, enter_zone (future)
+  win_on: survival      # Match only: one of survival, landing, rtb, time (future), (default: survival)
+  kick_on_death: false  # Match only: Kick a dead player.
+  end_mission: false    # Match only: end the mission if a match is over (default: false)
+  delayed_start: 300    # optional: give people 300 seconds to join and prepare their planes.
 ```
 > [!NOTE]
 > Silent mode can only be used on simple 1vs1 engagements, not on team engagements.

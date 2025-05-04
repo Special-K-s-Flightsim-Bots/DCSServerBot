@@ -87,7 +87,7 @@ class Server(DataObject):
                 "message_ban": "You are banned from this server. Reason: {}",
                 "message_reserved": "This server is locked for specific users.\nPlease contact a server admin.",
                 "message_no_voice": 'You need to be in voice channel "{}" to use this server!',
-                "message_seat_locked": 'Your player is locked and can not take any seat.'
+                "message_seat_locked": 'Your player is currently locked.'
             } | _locals.get('messages', {})
             return _locals
         return {}

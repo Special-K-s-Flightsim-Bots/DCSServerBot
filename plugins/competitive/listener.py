@@ -173,6 +173,8 @@ class CompetitiveListener(EventListener["Competitive"]):
             # if we are in a global match, lock the seat
             if match_id == GLOBAL_MATCH_ID:
                 await player.lock()
+                if config.get('kick_on_death', False):
+                    await server.kick(player, "You are dead.")
 
             # inform the players if the match is on now
             if not is_on and match.is_on():

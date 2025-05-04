@@ -83,6 +83,8 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         }
         utils.sendBotTable(msg, config['channels']['admin'])
         return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[old_ucid])
+    elseif isLocked(ucid) then
+        return false, config['messages']['message_seat_locked']
     end
 end
 
