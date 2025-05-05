@@ -83,7 +83,7 @@ class TimesSelectView(View):
         select.max_values = len(options)
         self.result = None
 
-    @discord.ui.select(placeholder="Select the preset(s) you want to apply", min_values=1)
+    @discord.ui.select(placeholder=_("Select your preferred mach times"), min_values=1)
     async def callback(self, interaction: discord.Interaction, select: Select):
         self.result = select.values
         # noinspection PyUnresolvedReferences

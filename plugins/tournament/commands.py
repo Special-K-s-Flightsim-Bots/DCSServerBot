@@ -831,26 +831,26 @@ class Tournament(Plugin[TournamentEventListener]):
             self.log.debug(f"Applying preset {preset} ...")
             miz.apply_preset(all_presets[preset])
 
-        if round_number > 1:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    # apply the squadron presets
-                    for side in ['blue', 'red']:
-                        async for row in await conn.execute(f"""
-                            SELECT preset, num FROM tm_choices c JOIN tm_matches m 
-                            ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
-                            WHERE m.match_id = %(match_id)s
-                        """, {"match_id": match_id}):
-                            self.log.debug(f"Applying preset {row[0]} ...")
-                            miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                # apply the squadron presets
+                for side in ['blue', 'red']:
+                    async for row in await conn.execute(f"""
+                        SELECT preset, num FROM tm_choices c JOIN tm_matches m 
+                        ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
+                        WHERE m.match_id = %(match_id)s
+                    """, {"match_id": match_id}):
+                        self.log.debug(f"Applying preset {row[0]} ...")
+                        miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
 
-                    # delete the choices from the database and update the acknoledgement
-                    await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
-                    await conn.execute("""
-                        UPDATE tm_matches 
-                        SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
-                        WHERE match_id = %s
-                    """, (match_id,))
+                # delete the choices from the database and update the acknoledgement
+                await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
+                await conn.execute("""
+                    UPDATE tm_matches 
+                    SET choices_blue_ack=FALSE, choices_red_ack=FALSE 
+                    WHERE match_id = %s
+                """, (match_id,))
+
         miz.save(new_filename)
         if new_filename != filename:
             self.log.info(f"  => New mission written: {new_filename}")
@@ -899,13 +899,33 @@ class Tournament(Plugin[TournamentEventListener]):
                     WHERE match_id = %s
                 """, (round_number, match_id))
 
-        # preparing the server
-        messages = [_("Preparing server {} for match...").format(match['server_name'])]
-        msg = await interaction.followup.send('\n'.join(messages), ephemeral=ephemeral)
         server = self.bot.servers.get(match['server_name'])
         if not server:
             await interaction.followup.send(_("Server {} not found.").format(match['server_name']), ephemeral=True)
             return
+
+        messages = [_("Create the squadron channels ...")]
+        msg = await interaction.followup.send('\n'.join(messages), ephemeral=ephemeral)
+        try:
+            # open the channels
+            channels = await self.open_channel(match_id, server)
+        except (ValueError, PermissionError) as ex:
+            await interaction.followup.send(_("Error during opening the channels: {}").format(ex), ephemeral=True)
+            return
+
+        # inform the squadrons that they can choose
+        messages.append(_("Inform the squadrons and wait for their initial choice ..."))
+        await msg.edit(content='\n'.join(messages))
+        tournament = await self.get_tournament(tournament_id)
+        self.eventlistener.tournaments[server.name] = tournament
+        await self.eventlistener.inform_squadrons(
+            server, message=_("You can now use {} to chose your customizations!").format(
+                (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
+        await self.eventlistener.wait_until_choices_finished(server)
+
+        # preparing the server
+        messages.append(_("Preparing server {} for the match ...").format(match['server_name']))
+        await msg.edit(content='\n'.join(messages))
 
         # make sure the server is stopped
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
@@ -914,12 +934,6 @@ class Tournament(Plugin[TournamentEventListener]):
             await server.shutdown()
             await interaction.followup.send(_("Server {} shut down.").format(match['server_name']), ephemeral=ephemeral)
 
-        try:
-            # open the channels
-            channels = await self.open_channel(match_id, server)
-        except (ValueError, PermissionError) as ex:
-            await interaction.followup.send(_("Error during opening the channels: {}").format(ex), ephemeral=True)
-            return
         # change settings
         await self.setup_server_for_match(msg, messages, server, match, channels)
         # prepare the mission
@@ -931,7 +945,6 @@ class Tournament(Plugin[TournamentEventListener]):
         messages.append(_("Server {} started. Inform squadrons ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
         # inform everyone
-        tournament = await self.get_tournament(tournament_id)
         for side in ['blue', 'red']:
             channel: TextChannel = self.bot.get_channel(channels[side])
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is starting NOW!"))
