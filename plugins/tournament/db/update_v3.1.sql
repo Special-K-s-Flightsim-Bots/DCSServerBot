@@ -1,12 +1,12 @@
 ALTER TABLE tm_tournaments ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1;
-CREATE TABLE tm_available_times (
+CREATE TABLE IF NOT EXISTS tm_available_times (
     time_id SERIAL PRIMARY KEY,
     tournament_id INTEGER REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE,
     start_time TIME NOT NULL,
     UNIQUE(tournament_id, start_time)
 );
 ALTER TABLE tm_squadrons ADD COLUMN IF NOT EXISTS application TEXT;
-CREATE TABLE tm_squadron_time_preferences (
+CREATE TABLE IF NOT EXISTS tm_squadron_time_preferences (
     tournament_id INTEGER REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE,
     squadron_id INTEGER,
     available_time_id INTEGER REFERENCES tm_available_times(time_id),

@@ -360,9 +360,13 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                             updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                             if os.path.exists(updates_file):
                                 with open(updates_file, mode='r') as updates_sql:
-                                    for query in updates_sql.readlines():
+                                    for query in [
+                                        stmt.strip()
+                                        for stmt in sqlparse.split(updates_sql.read(), encoding='utf-8')
+                                        if stmt.strip()
+                                    ]:
                                         self.log.debug(query.rstrip())
-                                        await cursor.execute(query.rstrip())
+                                        await conn.execute(query.rstrip())
                                 ver, rev = installed.split('.')
                                 installed = ver + '.' + str(int(rev) + 1)
                             elif int(self.plugin_version[0]) == 3 and int(installed[0]) < 3:
