@@ -436,6 +436,35 @@ class DCSServerBot(commands.Bot):
                     return server
         return None
 
+    async def fetch_embed(self, embed_name: str, channel: Union[discord.TextChannel, discord.ForumChannel],
+                          server: Optional["Server"] = None):
+        async with self.apool.connection() as conn:
+            # check if we have a message persisted already
+            cursor = await conn.execute("""
+                SELECT embed, thread
+                FROM message_persistence
+                WHERE server_name = %s AND embed_name = %s
+            """, (server.name if server else 'Master', embed_name))
+            row = await cursor.fetchone()
+
+        message = None
+        if row:
+            try:
+                if channel.type == discord.ChannelType.forum:
+                    thread = cast(discord.ForumChannel, channel).get_thread(row[1])
+                    if thread:
+                        message = await thread.fetch_message(row[0])
+                else:
+                    message = await channel.fetch_message(row[0])
+                return message
+            except discord.errors.NotFound:
+                pass
+            except discord.errors.DiscordException as ex:
+                self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
+            except Exception as ex:
+                self.log.exception(ex)
+        return None
+
     async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Union[Channel, int] = Channel.STATUS,
                        file: Optional[discord.File] = None, server: Optional["Server"] = None):
         async with self.lock:
@@ -449,6 +478,8 @@ class DCSServerBot(commands.Bot):
                     return
             else:
                 channel_id = int(channel_id)
+
+            # find the channel
             channel = self.get_channel(channel_id)
             if not channel:
                 try:
@@ -463,37 +494,14 @@ class DCSServerBot(commands.Bot):
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return
 
-            async with self.apool.connection() as conn:
-                # check if we have a message persisted already
-                cursor = await conn.execute("""
-                    SELECT embed, thread FROM message_persistence 
-                    WHERE server_name = %s AND embed_name = %s
-                """, (server.name if server else 'Master', embed_name))
-                row = await cursor.fetchone()
-
-            message = None
-            if row:
-                try:
-                    if channel.type == discord.ChannelType.forum:
-                        thread = cast(discord.ForumChannel, channel).get_thread(row[1])
-                        if thread:
-                            message = await thread.fetch_message(row[0])
-                    else:
-                        message = await channel.fetch_message(row[0])
-                    if message:
-                        if not file:
-                            await message.edit(embed=embed)
-                        else:
-                            await message.edit(embed=embed, attachments=[file])
-                except discord.errors.NotFound:
-                    message = None
-                except discord.errors.DiscordException as ex:
-                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
-                    return
-                except Exception as ex:
-                    self.log.exception(ex)
-                    return
-            if not row or not message:
+            # try to read an already existing message
+            message = await self.fetch_embed(embed_name, channel, server)
+            if message:
+                if not file:
+                    await message.edit(embed=embed)
+                else:
+                    await message.edit(embed=embed, attachments=[file])
+            else:
                 if channel.type == discord.ChannelType.forum:
                     for thread in channel.threads:
                         if thread.name.startswith(server.name):

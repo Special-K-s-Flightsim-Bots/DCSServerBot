@@ -3,20 +3,36 @@ CREATE TABLE tm_tournaments (
     campaign TEXT NOT NULL,
     rounds INTEGER NOT NULL DEFAULT 2,
     num_players INTEGER NOT NULL DEFAULT 4,
+    level INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (campaign) REFERENCES campaigns(name) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_tm_tournaments_campaign ON tm_tournaments(campaign);
+CREATE TABLE tm_available_times (
+    time_id SERIAL PRIMARY KEY,
+    tournament_id INTEGER REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE,
+    start_time TIME NOT NULL,
+    UNIQUE(tournament_id, start_time)
+);
 CREATE TABLE tm_squadrons (
     tournament_id INTEGER NOT NULL,
     squadron_id INTEGER NOT NULL,
+    application TEXT,
     status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'ACCEPTED', 'REJECTED'
     PRIMARY KEY(tournament_id, squadron_id),
     FOREIGN KEY (tournament_id) REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE
+);
+CREATE TABLE tm_squadron_time_preferences (
+    tournament_id INTEGER REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE,
+    squadron_id INTEGER,
+    available_time_id INTEGER REFERENCES tm_available_times(time_id),
+    PRIMARY KEY (squadron_id, available_time_id),
+	FOREIGN KEY (tournament_id, squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE
 );
 CREATE TABLE tm_matches (
     match_id SERIAL PRIMARY KEY,
     tournament_id INTEGER NOT NULL,
     server_name TEXT NOT NULL,
+    match_time TIMESTAMP,
     squadron_red INTEGER NOT NULL,
     squadron_blue INTEGER NOT NULL,
     squadron_red_channel BIGINT NOT NULL DEFAULT -1,
@@ -39,14 +55,4 @@ CREATE TABLE tm_choices (
     num INTEGER NOT NULL,
     PRIMARY KEY (match_id, squadron_id, preset),
     FOREIGN KEY (match_id) REFERENCES tm_matches(match_id) ON DELETE CASCADE
-);
-CREATE TABLE tm_statistics (
-    squadron_id INTEGER NOT NULL,
-    tournament_id INTEGER NOT NULL,
-    wins INTEGER NOT NULL DEFAULT 0,
-    losses INTEGER NOT NULL DEFAULT 0,
-    matches_won INTEGER NOT NULL DEFAULT 0,
-    matches_lost INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (squadron_id, tournament_id),
-    FOREIGN KEY (tournament_id, squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE
 );

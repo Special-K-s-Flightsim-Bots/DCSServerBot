@@ -175,8 +175,7 @@ The tournament ends if all matches were played.
 | /tournament delete   | tournament                                   | admin-channel    | Admin          | Deletes the tournament and all its underlying data!               |
 | /tournament signup   | tournament squadron                          | any              | Squadron Admin | Signs up this squadron to this tournament.                        |
 | /tournament withdraw | tournament squadron                          | any              | Squadron Admin | Withdraws this squadron from this tournament.                     |
-| /tournament accept   | tournament squadron                          | admin-channel    | GameMaster     | Accepts a squadron for this tournament.                           |
-| /tournament reject   | tournament squadron                          | admin-channel    | GameMaster     | Rejects this squadron from this tournament.                       |
+| /tournament verify   | tournament squadron                          | admin-channel    | GameMaster     | Accept or reject a squadron for this tournament.                  |
 | /match generate      | tournament                                   | admin-channel    | GameMaster     | Auto-generates matches for each stage of the tournament.          |
 | /match create        | tournament server squadron_blue squadron_red | admin-channel    | GameMaster     | Creates a match manually.                                         |
 | /match list          | tournament                                   | any              | DCS            | List all matches of a specific tournament.                        |

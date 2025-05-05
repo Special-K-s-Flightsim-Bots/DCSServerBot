@@ -26,6 +26,11 @@ schema;element_schema:
     max_points: {type: int, range: {min: 1}, nullable: false}
     multiplier: {type: float, nullable: false}
     squadron_credits: {type: bool, nullable: false}
+    messages:
+      type: map
+      nullable: false
+      mapping:
+        message_kill: {type: str, nullable: false, range: {min: 1}}
     points_per_kill:
       type: seq
       nullable: false

@@ -1,14 +1,106 @@
 import discord
 import numpy as np
+import re
 
+from core import Node, get_translation, utils
 from discord import SelectOption
-from discord.ui import Select, Button, Modal, TextInput
+from discord.ui import Select, Button, Modal, TextInput, View
+from typing import TYPE_CHECKING, cast
 
-from core import Node, get_translation
+if TYPE_CHECKING:
+    from .commands import Tournament
 
 _ = get_translation(__name__.split('.')[1])
 
 WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
+
+
+class TournamentModal(Modal):
+    _num_rounds = TextInput(label=_("Number of rounds"), style=discord.TextStyle.short, min_length=1, max_length=2,
+                            default="3", required=True)
+    _num_players = TextInput(label=_("Number of players"), style=discord.TextStyle.short, min_length=1, max_length=2,
+                             default="4", required=True)
+    _times = TextInput(label=_("Preferred times (UTC)"), style=discord.TextStyle.short, required=False,
+                       placeholder=_("Match times, comma separated in format HH:MM"))
+
+    def __init__(self):
+        super().__init__(title=_("Create a new tournament"))
+        self.num_rounds = 3
+        self.num_players = 2
+        self.times = []
+        self.error = None
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        try:
+            self.num_rounds = int(self._num_rounds.value)
+        except ValueError:
+            raise ValueError(_("Number of rounds needs to be a number."))
+        if self.num_rounds < 3:
+            raise ValueError(_("Number of rounds needs to be at least 3."))
+        try:
+            self.num_players = int(self._num_players.value)
+        except ValueError:
+            raise ValueError(_("Number of players needs to be a number."))
+        if self.num_players < 1:
+            raise ValueError(_("Number of players needs to be at least 1."))
+        if self._times.value.strip():  # Only process if times is not empty
+            for time_str in self._times.value.split(','):
+                time_str = time_str.strip()
+                if not time_str:
+                    continue
+
+                if not re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', time_str):
+                    raise ValueError(f"Invalid time format: {time_str}. Please use HH:MM format (e.g., 13:45)")
+
+                self.times.append(time_str)
+        self.stop()
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.error = error
+        self.stop()
+
+
+class ApplicationModal(Modal, title=_("Apply to a tournament")):
+    application_text = TextInput(label=_("Application"), style=discord.TextStyle.long,
+                                 placeholder=_("Please enter a short summary of your group and why you want to "
+                                               "participate in this tournament."), required=True)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+
+class TimesSelectView(View):
+    def __init__(self, options: list[SelectOption]):
+        super().__init__()
+        select = cast(Select, self.children[0])
+        select.options = options
+        select.max_values = len(options)
+        self.result = None
+
+    @discord.ui.select(placeholder="Select the preset(s) you want to apply", min_values=1)
+    async def callback(self, interaction: discord.Interaction, select: Select):
+        self.result = select.values
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+
+class RejectModal(Modal, title=_("Reject a squadron")):
+    reason = TextInput(label=_("Reason"), style=discord.TextStyle.long,
+                       placeholder=_("Please enter a reason why you decided to reject this squadron."),
+                       required=True)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
 
 class NumbersModal(Modal):
     def __init__(self, choice: str, costs: int, credits: int):
@@ -37,7 +129,7 @@ class NumbersModal(Modal):
         self.stop()
 
 
-class ChoicesView(discord.ui.View):
+class ChoicesView(View):
     def __init__(self, node: Node, match_id: int, squadron_id: int, config: dict):
         super().__init__()
         self.node = node
@@ -213,6 +305,86 @@ class ChoicesView(discord.ui.View):
         self.stop()
 
     async def cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+
+class ApplicationView(View):
+
+    def __init__(self, plugin: "Tournament", tournament_id: int, squadron_id: int):
+        super().__init__()
+        self.plugin = plugin
+        self.tournament_id = tournament_id
+        self.squadron_id = squadron_id
+
+    async def inform_squadron(self, message: str):
+        async with self.plugin.apool.connection() as conn:
+            async for row in await conn.execute("""
+                SELECT p.discord_id
+                FROM players p JOIN squadron_members m ON p.ucid = m.player_ucid
+                WHERE m.squadron_id = %s AND m.admin IS TRUE
+            """, (self.squadron_id,)):
+                user = self.plugin.bot.get_user(row[0])
+                if user:
+                    tournament = await self.plugin.get_tournament(self.tournament_id)
+                    squadron = utils.get_squadron(self.plugin.node, squadron_id=self.squadron_id)
+                    dm_channel = await user.create_dm()
+                    await dm_channel.send(message.format(squadron=squadron['name'], tournament=tournament['name']))
+
+    @discord.ui.button(label=_("Accept"), style=discord.ButtonStyle.green)
+    async def on_accept(self, interaction: discord.Interaction, button: Button):
+        async with self.plugin.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE tm_squadrons SET status = 'ACCEPTED' WHERE tournament_id = %s AND squadron_id = %s
+                """, (self.tournament_id, self.squadron_id))
+
+        # update the info embed
+        channel_id = self.plugin.get_config().get('channels', {}).get('info')
+        if channel_id:
+            embed = await self.plugin.render_info_embed(self.tournament_id)
+            # create a persistent message
+            await self.plugin.bot.setEmbed(embed_name=f"tournament_{self.tournament_id}", embed=embed,
+                                           channel_id=channel_id)
+
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(_("Squadron accepted."))
+        await self.inform_squadron(_("Your squadron {squadron} was accepted for tournament {tournament}."))
+        self.stop()
+
+    @discord.ui.button(label=_("Reject"), style=discord.ButtonStyle.red)
+    async def on_reject(self, interaction: discord.Interaction, button: Button):
+        async with self.plugin.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE tm_squadrons SET status = 'REJECTED' WHERE tournament_id = %s AND squadron_id = %s
+                """, (self.tournament_id, self.squadron_id))
+        modal = RejectModal()
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            reason = ""
+        else:
+            reason = modal.reason.value
+
+        # update the info embed
+        channel_id = self.plugin.get_config().get('channels', {}).get('info')
+        if channel_id:
+            embed = await self.plugin.render_info_embed(self.tournament_id)
+            # create a persistent message
+            await self.plugin.bot.setEmbed(embed_name=f"tournament_{self.tournament_id}", embed=embed,
+                                           channel_id=channel_id)
+
+        await interaction.followup.send(_("Squadron rejected."))
+        message = _("Your squadron {squadron} was rejected from tournament {tournament}.")
+        if reason:
+            message += _("\nReason: {}").format(reason)
+        await self.inform_squadron(message)
+        self.stop()
+
+    @discord.ui.button(label=_("Cancel"), style=discord.ButtonStyle.secondary)
+    async def on_cancel(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()

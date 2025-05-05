@@ -184,9 +184,9 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                         player.points += ppk
                         player.audit('kill', old_points, _("for killing {}").format(data['arg5']))
                         victim = server.get_player(id=data['arg4'])
-                        # TODO: make that configurable
-                        await player.sendUserMessage(_("You received {} credit points for killing {}.").format(
-                            ppk, victim.name))
+                        message_kill = config.get('messages', {}).get('message_kill')
+                        if message_kill:
+                            await player.sendUserMessage(message_kill.format(points=ppk, victim=victim.name))
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
@@ -244,7 +244,11 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         old_points_receiver = receiver.points
         player.points -= donation
         player.audit('donation', old_points_player, _("Donation to player {}").format(receiver.name))
+        # do not donate to a squadron
+        squadron = receiver.squadron
+        receiver.squadron = None
         receiver.points += donation
+        receiver.squadron = squadron
         receiver.audit('donation', old_points_receiver, _("Donation from player {}").format(player.name))
         await player.sendChatMessage(_("You've donated {donation} credit points to player {name}.").format(
             donation=donation, name=name))
