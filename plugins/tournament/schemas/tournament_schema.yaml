@@ -16,6 +16,7 @@ schema;element_schema:
     allow_exports: {type: bool, nullable: false}
     auto_join: {type: bool, nullable: false}
     time_to_choose: {type: int, nullable: false, range: {min: 300, max: 900}}
+    sudden_death: {type: bool, nullable: false}
     presets:
       type: map
       nullable: false
