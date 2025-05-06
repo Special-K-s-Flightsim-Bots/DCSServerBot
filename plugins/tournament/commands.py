@@ -225,6 +225,20 @@ class Tournament(Plugin[TournamentEventListener]):
                 return self.bot.get_channel(channel_id)
         return None
 
+    async def get_squadron_credits(self, match_id: int, squadron_id: int):
+        async with self.node.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT sc.points FROM squadron_credits sc 
+                JOIN campaigns c ON sc.campaign_id = c.id 
+                JOIN tm_tournaments t ON t.campaign = c.name
+                JOIN tm_matches tm ON tm.tournament_id = t.tournament_id
+                WHERE sc.squadron_id=%s AND tm.match_id = %s
+            """, (squadron_id, match_id))
+            if cursor.rowcount == 1:
+                return (await cursor.fetchone())[0]
+            else:
+                return 0
+
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
 
@@ -297,6 +311,7 @@ class Tournament(Plugin[TournamentEventListener]):
                                 INSERT INTO tm_available_times (tournament_id, start_time)
                                 VALUES (%s, %s::time)
                             """, (tournament_id, time))
+            await self.bot.audit(f"created tournament {campaign}.", user=interaction.user)
             await interaction.followup.send(_("Tournament {} created.").format(campaign), ephemeral=ephemeral)
         except UniqueViolation:
             await interaction.followup.send(_("Tournament {} exists already!").format(campaign), ephemeral=True)
@@ -359,14 +374,18 @@ class Tournament(Plugin[TournamentEventListener]):
             messages.append(_("Closing the underlying campaign ..."))
             await msg.edit(content='\n'.join(messages))
             async with conn.transaction():
-                await conn.execute("""
+                cursor = await conn.execute("""
                     UPDATE campaigns SET stop = NOW() AT TIME ZONE 'UTC' 
                     WHERE name = (
                         SELECT name FROM tm_tournaments WHERE tournament_id = %s
                     )
+                    RETURNING name
                 """, (tournament_id,))
+                name = (await cursor.fetchone())[0]
 
-        messages.append(_("The tournament is finished."))
+        await self.bot.audit(f"finished tournament {name} and closed the underlying campaign.",
+                             user=interaction.user)
+        messages.append(_("The tournament {} is finished.").format(name))
         await msg.edit(content='\n'.join(messages))
 
     @tournament.command(description='Delete a tournament')
@@ -407,10 +426,12 @@ class Tournament(Plugin[TournamentEventListener]):
             # delete the info embed
             msg = await self.bot.fetch_embed(embed_name=f"tournament_{tournament_id}", channel=self.get_info_channel())
             try:
-                await msg.delete()
+                if msg:
+                    await msg.delete()
             except discord.NotFound:
                 pass
 
+            await self.bot.audit(f"deleted tournament {row['campaign']}.", user=interaction.user)
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Tournament {} deleted.").format(row['campaign']),)
         except Exception as ex:
@@ -493,6 +514,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @utils.squadron_role_check()
     async def withdraw(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
         tournament = await self.get_tournament(tournament_id)
+        squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
         if tournament['start'] <= datetime.now(timezone.utc):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message("You can not withdraw from an active tournament.", ephemeral=True)
@@ -503,13 +525,15 @@ class Tournament(Plugin[TournamentEventListener]):
                     DELETE FROM tm_squadrons 
                     WHERE tournament_id = %s AND squadron_id = %s
                     """, (tournament_id, squadron_id))
+
+        await self.bot.audit(f"withdrew squadron {squadron['name']} from tournament {tournament['name']}.",
+                             user=interaction.user)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _("Your squadron has been withdrawn from tournament {}.").format(tournament['name']), ephemeral=True)
 
         admin_channel = self.get_admin_channel()
         if admin_channel:
-            squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
             await admin_channel.send(
                 _("Squadron {} withdrew from tournament {}.").format(squadron['name'], tournament['name']))
 
@@ -626,6 +650,10 @@ class Tournament(Plugin[TournamentEventListener]):
                            INSERT INTO tm_matches(tournament_id, server_name, squadron_red, squadron_blue)
                            VALUES (%s, %s, %s, %s)
                         """, (tournament_id, server, match[0], match[1]))
+
+            await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
+                                 user=interaction.user)
+
             # generate the match list
             embed = await self.render_matches(tournament=tournament)
             await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
@@ -649,6 +677,12 @@ class Tournament(Plugin[TournamentEventListener]):
                     INSERT INTO tm_matches(tournament_id, server_name, squadron_red, squadron_blue) 
                     VALUES (%s, %s, %s, %s)
                 """, (tournament_id, server_name, squadron_red, squadron_blue))
+
+        tournament = await self.get_tournament(tournament_id)
+        blue = utils.get_squadron(self.node, squadron_id=squadron_blue)
+        red = utils.get_squadron(self.node, squadron_id=squadron_red)
+        await self.bot.audit(f"created a match for tournament {tournament['name']} "
+                               f"between squadrons {blue['name']} and {red['name']}.", user=interaction.user)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Match created."), ephemeral=utils.get_ephemeral(interaction))
 
@@ -877,6 +911,7 @@ class Tournament(Plugin[TournamentEventListener]):
                                             ephemeral=True)
             return
 
+        tournament = await self.get_tournament(tournament_id)
         squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
         squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
 
@@ -890,6 +925,11 @@ class Tournament(Plugin[TournamentEventListener]):
                 ), ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
+
+        # audit event
+        await self.bot.audit(f"started a match for tournament {tournament['name']} "
+                             f"between squadrons {squadron_blue['name']} and {squadron_red['name']}.",
+                             user=interaction.user)
 
         # Start the next round
         async with self.apool.connection() as conn:
@@ -916,7 +956,6 @@ class Tournament(Plugin[TournamentEventListener]):
         # inform the squadrons that they can choose
         messages.append(_("Inform the squadrons and wait for their initial choice ..."))
         await msg.edit(content='\n'.join(messages))
-        tournament = await self.get_tournament(tournament_id)
         self.eventlistener.tournaments[server.name] = tournament
         await self.eventlistener.inform_squadrons(
             server, message=_("You can now use {} to chose your customizations!").format(
@@ -1078,13 +1117,15 @@ class Tournament(Plugin[TournamentEventListener]):
                             interaction, _("Do you really want to finish the match and make {} the winner?").format(
                                 squadron['name']), ephemeral=True):
                         await conn.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
-                                           (winner_squadron_id,match_id))
+                                           (winner_squadron_id, match_id))
                     else:
                         await interaction.followup.send(_("Winner not updated."), ephemeral=True)
 
         if match['winner_squadron_id'] != winner_squadron_id \
             or match['squadron_blue_rounds_won'] != modal.value.get('squadron_blue_rounds_won') \
             or match['squadron_red_rounds_won'] != modal.value.get('squadron_red_rounds_won'):
+            await self.bot.audit(f"updated match {match_id} for tournament {tournament_id}.",
+                                 user=interaction.user)
             await interaction.followup.send(_("Match updated."), ephemeral=True)
         else:
             await interaction.followup.send(_("Match not updated."), ephemeral=True)
