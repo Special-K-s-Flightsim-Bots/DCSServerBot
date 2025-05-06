@@ -1,5 +1,7 @@
 import asyncio
 
+from psycopg.errors import UniqueViolation
+
 from core import EventListener, event, Server, utils, get_translation, Coalition
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Optional
@@ -299,12 +301,15 @@ class TournamentEventListener(EventListener["Tournament"]):
                 if cursor.rowcount == 0:
                     config = self.get_config(server)
                     if config.get('auto_join', False):
-                        async with conn.transaction():
-                            await conn.execute(f"""
-                                INSERT INTO squadron_members (squadron_id, player_ucid)
-                                SELECT squadron_{side} AS squadron_id, '{player.ucid}'::TEXT 
-                                FROM tm_matches WHERE match_id = %s
-                            """, (match_id, ))
+                        try:
+                            async with conn.transaction():
+                                await conn.execute(f"""
+                                    INSERT INTO squadron_members (squadron_id, player_ucid)
+                                    SELECT squadron_{side} AS squadron_id, '{player.ucid}'::TEXT 
+                                    FROM tm_matches WHERE match_id = %s
+                                """, (match_id, ))
+                        except UniqueViolation:
+                            await server.kick(player, "You can only be in one squadron at a time!")
                     else:
                         asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
                                                                   "Please ask your squadron leader to add you.")))
