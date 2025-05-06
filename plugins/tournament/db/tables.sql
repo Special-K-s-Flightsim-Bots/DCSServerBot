@@ -1,7 +1,7 @@
 CREATE TABLE tm_tournaments (
     tournament_id SERIAL PRIMARY KEY,
     campaign TEXT NOT NULL,
-    rounds INTEGER NOT NULL DEFAULT 2,
+    rounds INTEGER NOT NULL DEFAULT 3,
     num_players INTEGER NOT NULL DEFAULT 4,
     level INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (campaign) REFERENCES campaigns(name) ON DELETE CASCADE

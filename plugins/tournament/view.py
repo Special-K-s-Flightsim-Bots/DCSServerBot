@@ -2,7 +2,7 @@ import discord
 import numpy as np
 import re
 
-from core import Node, get_translation, utils
+from core import get_translation, utils
 from discord import SelectOption
 from discord.ui import Select, Button, Modal, TextInput, View
 from typing import TYPE_CHECKING, cast
@@ -39,6 +39,8 @@ class TournamentModal(Modal):
             raise ValueError(_("Number of rounds needs to be a number."))
         if self.num_rounds < 3:
             raise ValueError(_("Number of rounds needs to be at least 3."))
+        if self.num_rounds % 2 == 0:
+            raise ValueError(_("Number of rounds needs to be an odd value."))
         try:
             self.num_players = int(self._num_players.value)
         except ValueError:
@@ -130,34 +132,20 @@ class NumbersModal(Modal):
 
 
 class ChoicesView(View):
-    def __init__(self, node: Node, match_id: int, squadron_id: int, config: dict):
+    def __init__(self, plugin: "Tournament", match_id: int, squadron_id: int, config: dict):
         super().__init__()
-        self.node = node
+        self.plugin = plugin
         self.match_id = match_id
         self.squadron_id = squadron_id
         self.config = config
 
-    async def get_squadron_credits(self):
-        async with self.node.apool.connection() as conn:
-            cursor = await conn.execute("""
-                SELECT sc.points FROM squadron_credits sc 
-                JOIN campaigns c ON sc.campaign_id = c.id 
-                JOIN tm_tournaments t ON t.campaign = c.name
-                JOIN tm_matches tm ON tm.tournament_id = t.tournament_id
-                WHERE squadron_id=%s AND tm.match_id = %s
-            """, (self.squadron_id,self.match_id))
-            if cursor.rowcount == 1:
-                return (await cursor.fetchone())[0]
-            else:
-                return 0
-
     async def render(self) -> discord.Embed:
-        credits = await self.get_squadron_credits()
+        credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
         embed = discord.Embed(colour=discord.Colour.blue(), title=_("You have {} credit points.").format(credits))
         embed.description = ("Here you can select the presets to change the upcoming mission to your request.\n"
                              "Please keep in mind, that you will have to pay credit points, "
                              "according to the requested presets price.")
-        async with self.node.apool.connection() as conn:
+        async with self.plugin.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT preset, num FROM tm_choices WHERE match_id = %s AND squadron_id = %s
             """, (self.match_id, self.squadron_id))
@@ -212,7 +200,7 @@ class ChoicesView(View):
 
     async def add_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
-        credits = await self.get_squadron_credits()
+        credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]
 
         modal = NumbersModal(choice, costs, credits)
@@ -221,7 +209,7 @@ class ChoicesView(View):
         if not await modal.wait():
             num = modal.result
             if num and costs * num <= credits:
-                async with self.node.apool.connection() as conn:
+                async with self.plugin.apool.connection() as conn:
                     async with conn.transaction():
                         await conn.execute("""
                             INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
@@ -250,12 +238,12 @@ class ChoicesView(View):
 
     async def remove_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
-        credits = await self.get_squadron_credits()
+        credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        async with self.node.apool.connection() as conn:
+        async with self.plugin.apool.connection() as conn:
             async with conn.transaction():
                 cursor = await conn.execute("""
                     DELETE FROM tm_choices 
@@ -282,7 +270,7 @@ class ChoicesView(View):
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):
-        async with self.node.apool.connection() as conn:
+        async with self.plugin.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
                     UPDATE tm_matches
@@ -317,6 +305,7 @@ class ApplicationView(View):
         self.plugin = plugin
         self.tournament_id = tournament_id
         self.squadron_id = squadron_id
+        self.squadron = utils.get_squadron(self.plugin.node, squadron_id=self.squadron_id)
 
     async def inform_squadron(self, message: str):
         async with self.plugin.apool.connection() as conn:
@@ -328,9 +317,8 @@ class ApplicationView(View):
                 user = self.plugin.bot.get_user(row[0])
                 if user:
                     tournament = await self.plugin.get_tournament(self.tournament_id)
-                    squadron = utils.get_squadron(self.plugin.node, squadron_id=self.squadron_id)
                     dm_channel = await user.create_dm()
-                    await dm_channel.send(message.format(squadron=squadron['name'], tournament=tournament['name']))
+                    await dm_channel.send(message.format(squadron=self.squadron['name'], tournament=tournament['name']))
 
     @discord.ui.button(label=_("Accept"), style=discord.ButtonStyle.green)
     async def on_accept(self, interaction: discord.Interaction, button: Button):
@@ -348,8 +336,13 @@ class ApplicationView(View):
             await self.plugin.bot.setEmbed(embed_name=f"tournament_{self.tournament_id}", embed=embed,
                                            channel_id=channel_id)
 
+        tournament = await self.plugin.get_tournament(self.tournament_id)
+        await self.plugin.bot.audit(
+            f"accepted squadron {self.squadron['name']} for tournament {tournament['name']}.",
+            user=interaction.user
+        )
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Squadron accepted."))
+        await interaction.response.send_message(_("Squadron {} accepted.").format(self.squadron['name']))
         await self.inform_squadron(_("Your squadron {squadron} was accepted for tournament {tournament}."))
         self.stop()
 
@@ -376,7 +369,12 @@ class ApplicationView(View):
             await self.plugin.bot.setEmbed(embed_name=f"tournament_{self.tournament_id}", embed=embed,
                                            channel_id=channel_id)
 
-        await interaction.followup.send(_("Squadron rejected."))
+        tournament = await self.plugin.get_tournament(self.tournament_id)
+        await self.plugin.bot.audit(
+            f"rejected squadron {self.squadron['name']} from tournament {tournament['name']}.",
+            user=interaction.user
+        )
+        await interaction.followup.send(_("Squadron {} rejected.").format(self.squadron['name']))
         message = _("Your squadron {squadron} was rejected from tournament {tournament}.")
         if reason:
             message += _("\nReason: {}").format(reason)

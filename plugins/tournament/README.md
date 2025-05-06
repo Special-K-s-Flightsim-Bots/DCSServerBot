@@ -32,10 +32,11 @@ roles:
 To configure the tournament plugin, create a file config\plugins\tournament.yaml like so:
 ```yaml
 DEFAULT:
-  coalition_passwords: true # set and auto-generate coalition passwords for red / blue
-  allow_exports: false      # do not allow exports (default: false)
-  auto_join: true           # if true, your pilot will be automatically assigned to the associated squadron (default: false)
-  time_to_choose: 600       # the time squadrons have to choose their 
+  coalition_passwords: true # Set and auto-generate coalition passwords for red / blue.
+  allow_exports: false      # Do not allow exports (default: false).
+  auto_join: true           # If true, your pilot will be automatically assigned to the associated squadron (default: false).
+  time_to_choose: 600       # The time squadrons have to choose their customizations for the next round.
+  sudden_death: false       # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
   presets:
     file: presets_tournament.yaml
     initial:          # presets that have to be applied to any mission
