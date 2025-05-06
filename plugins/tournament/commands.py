@@ -495,7 +495,8 @@ class Tournament(Plugin[TournamentEventListener]):
                             VALUES (%s, %s, %s)
                         """, (tournament_id, squadron_id, int(value)))
             # noinspection PyUnresolvedReferences
-            await interaction.followup.send(_("Squadron application handed in for tournament."), ephemeral=True)
+            await interaction.followup.send(
+                _("Squadron application handed in for tournament {}.").format(tournament['name']), ephemeral=True)
             admin_channel = self.get_admin_channel()
             if admin_channel:
                 await admin_channel.send(_("Squadron {} signed up for tournament {}, you can now {} them.").format(
@@ -870,8 +871,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 # apply the squadron presets
                 for side in ['blue', 'red']:
                     async for row in await conn.execute(f"""
-                        SELECT preset, num FROM tm_choices c JOIN tm_matches m 
-                        ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
+                        SELECT preset, num FROM tm_choices c 
+                        JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
                         WHERE m.match_id = %(match_id)s
                     """, {"match_id": match_id}):
                         self.log.debug(f"Applying preset {row[0]} ...")
@@ -980,7 +981,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # Starting the server up again
         messages.append(_("Starting server {} ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
-        await server.startup()
+        await server.startup(modify_mission=False, use_orig=False)
         messages.append(_("Server {} started. Inform squadrons ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
         # inform everyone
@@ -1170,7 +1171,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 ephemeral=True
             )
             return
-        view = ChoicesView(node=self.node, match_id=match_id, squadron_id=squadron_id,
+        view = ChoicesView(self, match_id=match_id, squadron_id=squadron_id,
                            config=self.get_config(self.bot.servers[row[3]]))
         embed = await view.render()
         # noinspection PyUnresolvedReferences
