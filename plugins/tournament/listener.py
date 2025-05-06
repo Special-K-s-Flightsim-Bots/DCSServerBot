@@ -1,5 +1,6 @@
 import asyncio
 
+import discord
 from psycopg.errors import UniqueViolation
 
 from core import EventListener, event, Server, utils, get_translation, Coalition
@@ -303,11 +304,21 @@ class TournamentEventListener(EventListener["Tournament"]):
                     if config.get('auto_join', False):
                         try:
                             async with conn.transaction():
-                                await conn.execute(f"""
+                                cursor = await conn.execute(f"""
                                     INSERT INTO squadron_members (squadron_id, player_ucid)
                                     SELECT squadron_{side} AS squadron_id, '{player.ucid}'::TEXT 
                                     FROM tm_matches WHERE match_id = %s
+                                    RETURNING squadron_id
                                 """, (match_id, ))
+                                squadron_id = (await cursor.fetchone())[0]
+                                squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+                                # we need to give the member the role
+                                if player.member and 'role' in squadron:
+                                    try:
+                                        await player.member.add_roles(self.bot.get_role(squadron['role']))
+                                    except discord.Forbidden:
+                                        await self.bot.audit('permission "Manage Roles" missing.',
+                                                             user=self.bot.member)
                         except UniqueViolation:
                             await server.kick(player, "You can only be in one squadron at a time!")
                     else:

@@ -318,8 +318,8 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         # inform players
-        channel_id = self.get_config().get('channels', {}).get('info')
-        if not channel_id:
+        channel = self.get_info_channel()
+        if not channel:
             return
 
         if not await yn_question(interaction, _("Do you want to inform players about the new tournament now?"),
@@ -329,7 +329,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         embed = await self.render_info_embed(tournament_id)
         # create a persistent message
-        await self.bot.setEmbed(embed_name=f"tournament_{tournament_id}", embed=embed, channel_id=channel_id)
+        await self.bot.setEmbed(embed_name=f"tournament_{tournament_id}", embed=embed, channel_id=channel.id)
 
     @tournament.command(description='Finish a tournament')
     @app_commands.guild_only()

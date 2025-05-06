@@ -339,7 +339,8 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     if self.get_config().get('squadrons', {}).get('persist_list', False):
                         await self.persist_squadron_list(squadron_id)
                 except UniqueViolation:
-                    await interaction.followup.send(f"{prefix} is a member of this squadron already!", ephemeral=True)
+                    await interaction.followup.send(f"{prefix} is a member of this or another squadron already!",
+                                                    phemeral=True)
 
                 # check, if the user needs a role
                 if role:
