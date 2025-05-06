@@ -80,6 +80,9 @@ Each tournament is based on a campaign. This means you need to create a campaign
 Give it a self-explaining name and a proper description, which you want to share with your players. It will be posted
 when creating the tournament.
 
+> [!NOTE]
+> The name and description of the campaign will be the name and description of the tournament!
+
 ### Squadrons
 For each participating party, a squadron needs to be created (if none exists yet). Each member that wants to fly in the
 tournament needs to be set up in the squadron. Squadron admins need to be Discord members, as they need to run 
@@ -92,6 +95,9 @@ squadron.
 > [!IMPORTANT]
 > A squadron needs to have an assoicated role!
 
+> [!NOTE]
+> If you add a picture to each squadron, you make your posts more colorful.
+
 Then you need to add the squadron administrator, which is usually the leader of that squadron or any member that should
 be able to admin this squadron (add / delete members, sign the squadron up for the tournament, etc.). You do this with
 `/squadron add`.
@@ -100,7 +106,12 @@ The squadron admin is then able to add the other participants for this squadron.
 > [!IMPORTANT]
 > Squadron members are added by their in-game name / UCID. It is necessary that the people that should be added were
 > at least once on the connected servers of the group running the tournament. Otherwise, you will not get them in the
-> auto-completion list.
+> auto-completion list.<br>
+> To counter that, you can enable "auto_join" in your tournament.yaml, which will auto-add each player to a squadron
+> on join.
+
+> [!WARNING]
+> A player can only be a member of ONE squadron at a time!
 
 ### Create a Tournament
 If a campaign is set up, you can create a tournament with `/tournament create`. Select the respective campaign, define

@@ -403,7 +403,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 async with conn.transaction():
                     async with conn.cursor(row_factory=dict_row) as cursor:
                         # delete all temp channels
-                        async for row in await conn.execute("""
+                        async for row in await cursor.execute("""
                             SELECT squadron_blue_channel, squadron_red_channel 
                             FROM tm_matches
                             WHERE tournament_id = %s
