@@ -682,7 +682,10 @@ class MizFile:
                 if value.startswith('$'):
                     kwargs[name] = utils.evaluate(value, **kwargs)
                 else:
-                    kwargs[name] = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs))
+                    element = next(utils.for_each(source, value.split('/'), debug=debug, **kwargs), None)
+                    if element:
+                        element = element.copy()
+                    kwargs[name] = element
             else:
                 self.log.error(f"Variable '{name}' has an unsupported value: {value}")
 
