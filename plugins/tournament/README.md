@@ -43,8 +43,9 @@ DEFAULT:
       - sanitize      # preset to be used for sanitization (security settings in mission)
       - switch_sides  # This will switch the blue and red sides on any round
     choices:  # list of preset | cost in squadron credits
-      'AIM-120': 2
-      'AIM-9x': 1
+      'AIM-120': {"costs": 2}           # each AIM-120 costs you 2 credit points
+      'AIM-9x': {"costs": 1}            # each AIM-9x costs you 1 credit points
+      'AWACS': {"costs": 5, "max": 1}   # each AWACS costs you 5 credit points, but you can only choose one
   channels:
     info: 112233445566778899      # information channel
     streamer: 91827364519283745   # channel for a tournament streamer

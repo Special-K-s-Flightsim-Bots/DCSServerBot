@@ -5,7 +5,7 @@ import re
 from core import get_translation, utils
 from discord import SelectOption
 from discord.ui import Select, Button, Modal, TextInput, View
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, Optional
 
 if TYPE_CHECKING:
     from .commands import Tournament
@@ -105,10 +105,11 @@ class RejectModal(Modal, title=_("Reject a squadron")):
 
 
 class NumbersModal(Modal):
-    def __init__(self, choice: str, costs: int, credits: int):
+    def __init__(self, choice: str, costs: int, credits: int, max_value: Optional[int] = None):
         super().__init__(title=_("How many {} do you want?").format(choice[:20]))
         self.costs = costs
         self.credits = credits
+        self.max_value = max_value
         self.textinput = TextInput(label=_("Count"), placeholder=_("Enter a number"), default="1",
                                    style=discord.TextStyle.short, required=True)
         self.add_item(self.textinput)
@@ -118,9 +119,9 @@ class NumbersModal(Modal):
     async def on_submit(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        if not self.textinput.value.isdigit():
-            raise ValueError(_("Field needs to be a number."))
         value = int(self.textinput.value)
+        if self.max_value and value > self.max_value:
+            raise ValueError(_("There are only {} items available to buy.").format(self.max_value))
         if value * self.costs > self.credits:
             raise ValueError(_("You do not have enough credits to buy {} items.").format(value))
         self.result = value
@@ -159,7 +160,7 @@ class ChoicesView(View):
             for choice in choices:
                 preset = choice[0]
                 presets.append(preset)
-                cost = self.config['presets']['choices'][preset]
+                cost = self.config['presets']['choices'][preset]['costs']
                 costs.append(cost)
                 number.append(choice[1])
             embed.add_field(name="Your selection", value="\n".join(presets))
@@ -183,9 +184,10 @@ class ChoicesView(View):
         if len(choices) < len(self.config['presets']['choices']):
             select = Select(placeholder="Add a choice",
                             options=[
-                                SelectOption(label=f"{x} (Cost={self.config['presets']['choices'][x]})", value=x)
+                                SelectOption(label=f"{x} (Cost={self.config['presets']['choices'][x]['costs']})",
+                                             value=x)
                                 for idx, x in enumerate(self.config['presets']['choices'].keys())
-                                if idx < 25 and self.config['presets']['choices'][x] <= credits
+                                if idx < 25 and self.config['presets']['choices'][x]['costs'] <= credits
                                    and x not in [x[0] for x in choices]
                             ], min_values=1, max_values=1)
             select.callback = self.add_choice
@@ -201,45 +203,54 @@ class ChoicesView(View):
     async def add_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
         credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
-        costs = self.config['presets']['choices'][choice]
+        costs = self.config['presets']['choices'][choice]['costs']
 
-        modal = NumbersModal(choice, costs, credits)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(modal)
-        if not await modal.wait():
+        max = self.config['presets']['choices'][choice].get('max')
+        if not max or max > 1:
+            modal = NumbersModal(choice, costs, credits, max)
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_modal(modal)
+            if await modal.wait():
+                return
             num = modal.result
-            if num and costs * num <= credits:
-                async with self.plugin.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
-                            VALUES (%s, %s, %s, %s)
-                        """, (self.match_id, self.squadron_id, choice, num))
-                        cursor = await conn.execute("""
-                            UPDATE squadron_credits SET points = %s 
-                            WHERE squadron_id = %s
-                            AND campaign_id = (
-                                SELECT campaign_id FROM tm_tournaments t JOIN tm_matches m 
-                                ON t.tournament_id = m.tournament_id WHERE m.match_id = %s
-                            )
-                            RETURNING campaign_id
-                        """, (credits - costs * num, self.squadron_id, self.match_id))
-                        campaign_id = (await cursor.fetchone())[0]
-                        await conn.execute("""
-                            INSERT INTO squadron_credits_log (campaign_id, event, squadron_id, 
-                                                              old_points, new_points, remark)
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (campaign_id, 'match_choice', self.squadron_id, credits,
-                              credits - costs * num, f'Bought {num} of {choice} during a match choice.', ))
-            embed = await self.render()
-            if modal.error:
-                embed.set_footer(text=modal.error, icon_url=WARNING_ICON)
-            await interaction.edit_original_response(embed=embed, view=self)
+        else:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer()
+            modal = None
+            num = 1
+
+        if num and costs * num <= credits:
+            async with self.plugin.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
+                        INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
+                        VALUES (%s, %s, %s, %s)
+                    """, (self.match_id, self.squadron_id, choice, num))
+                    cursor = await conn.execute("""
+                        UPDATE squadron_credits SET points = %s 
+                        WHERE squadron_id = %s
+                        AND campaign_id = (
+                            SELECT campaign_id FROM tm_tournaments t JOIN tm_matches m 
+                            ON t.tournament_id = m.tournament_id WHERE m.match_id = %s
+                        )
+                        RETURNING campaign_id
+                    """, (credits - costs * num, self.squadron_id, self.match_id))
+                    campaign_id = (await cursor.fetchone())[0]
+                    await conn.execute("""
+                        INSERT INTO squadron_credits_log (campaign_id, event, squadron_id, 
+                                                          old_points, new_points, remark)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (campaign_id, 'match_choice', self.squadron_id, credits,
+                          credits - costs * num, f'Bought {num} of {choice} during a match choice.', ))
+        embed = await self.render()
+        if modal and modal.error:
+            embed.set_footer(text=modal.error, icon_url=WARNING_ICON)
+        await interaction.edit_original_response(embed=embed, view=self)
 
     async def remove_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
         credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
-        costs = self.config['presets']['choices'][choice]
+        costs = self.config['presets']['choices'][choice]['costs']
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
