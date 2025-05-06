@@ -69,6 +69,7 @@ DCS.server:
   kick_on_death: false  # Match only: Kick a dead player.
   end_mission: false    # Match only: end the mission if a match is over (default: false)
   delayed_start: 300    # optional: give people 300 seconds to join and prepare their planes.
+  credit_on_leave: true # Tournament only: squadrons will gain credits on crash, disconnect, change_slot
 ```
 > [!NOTE]
 > Silent mode can only be used on simple 1vs1 engagements, not on team engagements.

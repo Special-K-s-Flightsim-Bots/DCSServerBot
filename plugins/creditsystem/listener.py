@@ -24,7 +24,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         default = 1
         if 'points_per_kill' in config:
             for unit in config['points_per_kill']:
-                if 'category' in unit and data['victimCategory'] != unit['category']:
+                if 'category' in unit and data.get('victimCategory', 'Planes') != unit['category']:
                     continue
                 if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
                     continue
@@ -34,8 +34,8 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                 if 'category' in unit or 'unit_type' in unit or 'type' in unit:
                     return unit['points']
                 elif 'default' in unit:
-                    default = unit['default'] if data['victimCategory'] != 'Structures' else 0
-        return default if data['victimCategory'] != 'Structures' else 0
+                    default = unit['default'] if data.get('victimCategory', 'Planes') != 'Structures' else 0
+        return default if data.get('victimCategory', 'Planes') != 'Structures' else 0
 
     def get_initial_points(self, player: CreditPlayer, config: dict) -> int:
         if not config or 'initial_points' not in config:

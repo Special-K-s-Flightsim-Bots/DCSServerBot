@@ -1,11 +1,12 @@
 import asyncio
-
 import discord
-from psycopg.errors import UniqueViolation
 
-from core import EventListener, event, Server, utils, get_translation, Coalition
+from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory
+from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from typing import TYPE_CHECKING, Optional
+
+from ..creditsystem.squadron import Squadron
 
 if TYPE_CHECKING:
     from .commands import Tournament
@@ -290,43 +291,43 @@ class TournamentEventListener(EventListener["Tournament"]):
         if data.get('side', -1) not in [1, 2]:
             return
         player = server.get_player(ucid=data['ucid'])
+        if player.squadron:
+            return
+
         side = 'red' if data['side'] == 1 else 'blue'
         match_id = await self.get_active_match(server)
         async with self.apool.connection() as conn:
             async with conn.transaction():
-                cursor = await conn.execute(f"""
-                    SELECT * FROM squadron_members sm 
-                    JOIN tm_matches m ON m.squadron_{side} = sm.squadron_id
-                    WHERE m.match_id = %s AND sm.player_ucid = %s
-                """, (match_id, player.ucid))
-                if cursor.rowcount == 0:
-                    config = self.get_config(server)
-                    if config.get('auto_join', False):
-                        try:
-                            async with conn.transaction():
-                                cursor = await conn.execute(f"""
-                                    INSERT INTO squadron_members (squadron_id, player_ucid)
-                                    SELECT squadron_{side} AS squadron_id, '{player.ucid}'::TEXT 
-                                    FROM tm_matches WHERE match_id = %s
-                                    RETURNING squadron_id
-                                """, (match_id, ))
-                                squadron_id = (await cursor.fetchone())[0]
-                                squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-                                # we need to give the member the role
-                                if player.member and 'role' in squadron:
-                                    try:
-                                        await player.member.add_roles(self.bot.get_role(squadron['role']))
-                                    except discord.Forbidden:
-                                        await self.bot.audit('permission "Manage Roles" missing.',
-                                                             user=self.bot.member)
-                        except UniqueViolation:
-                            await server.kick(player, "You can only be in one squadron at a time!")
-                    else:
-                        asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
-                                                                  "Please ask your squadron leader to add you.")))
-                        asyncio.create_task(self.audit(server,
-                                                       f"Unregistered player {player.name} ({player.ucid}) "
-                                                       f"tried to join the running match on the {side} side."))
-                        return
+                config = self.get_config(server)
+                if config.get('auto_join', False):
+                    try:
+                        async with conn.transaction():
+                            cursor = await conn.execute(f"""
+                                INSERT INTO squadron_members (squadron_id, player_ucid)
+                                SELECT squadron_{side} AS squadron_id, '{player.ucid}'::TEXT 
+                                FROM tm_matches WHERE match_id = %s
+                                RETURNING squadron_id
+                            """, (match_id, ))
+                            squadron_id = (await cursor.fetchone())[0]
+                            squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+                            # assign the squadron to the player
+                            player.squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                                      server=server)
+                            # we need to give the member the role
+                            if player.member and 'role' in squadron:
+                                try:
+                                    await player.member.add_roles(self.bot.get_role(squadron['role']))
+                                except discord.Forbidden:
+                                    await self.bot.audit('permission "Manage Roles" missing.',
+                                                         user=self.bot.member)
+                    except UniqueViolation:
+                        await server.kick(player, "You can only be in one squadron at a time!")
+                else:
+                    asyncio.create_task(server.kick(player, _("You are not a squadron member.\n"
+                                                              "Please ask your squadron leader to add you.")))
+                    asyncio.create_task(self.audit(server,
+                                                   f"Unregistered player {player.name} ({player.ucid}) "
+                                                   f"tried to join the running match on the {side} side."))
+                    return
         await self.inform_streamer(server, _("Player {name} joined the match in a {unit} on the {side} side.").format(
             name=player.name, unit=player.unit_display_name, side=side))

@@ -1,13 +1,18 @@
 import asyncio
 import trueskill
 
-from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand
+from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand, \
+    Coalition
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
 from plugins.competitive import rating
 from trueskill import Rating
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, cast
+
+from ..creditsystem.listener import CreditSystemListener
+from ..creditsystem.player import CreditPlayer
+from ..creditsystem.squadron import Squadron
 
 if TYPE_CHECKING:
     from .commands import Competitive
@@ -59,6 +64,10 @@ class Match:
 
     def is_on(self) -> bool:
         return len(self.alive.get(Side.BLUE, [])) > 0 and len(self.alive.get(Side.RED, [])) > 0
+
+    # match only: get the squadron of one side
+    def get_squadron(self, side: Side) -> Optional[Squadron]:
+        return next((x.side for x in self.alive[side] if x.squadron), None)
 
 
 class CompetitiveListener(EventListener["Competitive"]):
@@ -272,6 +281,25 @@ class CompetitiveListener(EventListener["Competitive"]):
                 return match
             return None
 
+        async def award_squadron(server: Server, match: Match, side: Side):
+            squadron = match.get_squadron(side)
+            if not squadron:
+                return
+            ppk = CreditSystemListener.get_points_per_kill(
+                self.get_config(server, plugin_name='creditsystem'),
+                {
+                    "arg4": data['arg1'],
+                    "arg5": player.unit_type
+                }
+            )
+            squadron.points += ppk
+            squadron.audit('credit_on_leave', ppk, 'Enemy player left the game.')
+            if self.get_config(server).get('silent', False):
+                await server.sendPopupMessage(
+                    Coalition.BLUE if side == Side.BLUE else Coalition.RED,
+                    _("Your squadron was credited with {} points because an enemy player bailed out!").format(ppk),
+                    timeout=10)
+
         now = datetime.now(timezone.utc)
         if data['eventName'] == 'kill':
             # human players only
@@ -316,8 +344,10 @@ class CompetitiveListener(EventListener["Competitive"]):
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 await remove_players(server, players)
+                if self.get_config(server).get('credit_on_leave', False):
+                    await award_squadron(server, match, Side.RED if players[0].side == Side.BLUE else Side.BLUE)
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
-            player = server.get_player(id=data['arg1'])
+            player = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if not player:
                 return
             # if the pilot of an MC aircraft leaves, both pilots get booted
@@ -330,6 +360,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 await remove_players(server, players)
+                if self.get_config(server).get('credit_on_leave', False) and player.squadron:
+                    await award_squadron(server, match, Side.RED if player.side == Side.BLUE else Side.BLUE)
         elif data['eventName'] == 'takeoff':
             player = server.get_player(id=data['arg1'])
             if not player:
