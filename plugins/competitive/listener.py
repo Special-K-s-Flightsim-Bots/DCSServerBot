@@ -67,7 +67,7 @@ class Match:
 
     # match only: get the squadron of one side
     def get_squadron(self, side: Side) -> Optional[Squadron]:
-        return next((x.side for x in self.alive[side] if x.squadron), None)
+        return next((x.squadron for x in self.alive[side] if x.squadron), None)
 
 
 class CompetitiveListener(EventListener["Competitive"]):
