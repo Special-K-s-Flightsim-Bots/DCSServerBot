@@ -997,7 +997,7 @@ class Mission(Plugin[MissionEventListener]):
                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
 
         class BanModal(Modal, title=_("Ban Details")):
-            reason = TextInput(label=_("Reason"), default=_("n/a"), max_length=80, required=False)
+            reason = TextInput(label=_("Reason"), max_length=80, required=True)
             period = TextInput(label=_("Days (empty = forever)"), required=False)
 
             async def on_submit(derived, interaction: discord.Interaction):

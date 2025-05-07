@@ -18,6 +18,7 @@ schema;element_schema:
     kick_on_death: {type: bool, nullable: false}
     end_mission: {type: bool, nullable: false}
     delayed_start: {type: int, nullable: false, range: {min: 0}}
+    credit_on_leave: {type: bool, nullable: false}
 
 type: map
 func: check_main_structure

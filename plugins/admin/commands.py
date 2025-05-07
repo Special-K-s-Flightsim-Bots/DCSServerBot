@@ -255,7 +255,7 @@ class Admin(Plugin[AdminEventListener]):
                       sel_type=PlayerType.PLAYER)]]):
 
         class BanModal(Modal):
-            reason = TextInput(label=_("Reason"), default="n/a", max_length=80, required=False)
+            reason = TextInput(label=_("Reason"), max_length=80, required=True)
             period = TextInput(label=_("Days (empty = forever)"), required=False)
 
             def __init__(self, user: Union[discord.Member, str]):
