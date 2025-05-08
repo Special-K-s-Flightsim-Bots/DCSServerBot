@@ -134,7 +134,6 @@ class TournamentEventListener(EventListener["Tournament"]):
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
         winner = data['winner'].lower()
-        tournament = self.tournaments.get(server.name)
         match_id = await self.get_active_match(server)
         # do we have a winner?
         if winner in ['red', 'blue']:
@@ -159,6 +158,7 @@ class TournamentEventListener(EventListener["Tournament"]):
 
         # check if the match is finished
         winner_id = None
+        tournament = self.tournaments.get(server.name)
         config = self.get_config(server)
         async with self.apool.connection() as conn:
             async with conn.transaction():
