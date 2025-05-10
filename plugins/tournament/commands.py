@@ -917,9 +917,10 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         tournament = await self.get_tournament(tournament_id)
-        squadrons = {}
-        squadrons['blue'] = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
-        squadrons['red'] = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+        squadrons = {
+            'blue': utils.get_squadron(self.node, squadron_id=match['squadron_blue']),
+            'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+        }
 
         if not round_number:
             round_number = match['round_number'] + 1
@@ -1017,8 +1018,8 @@ class Tournament(Plugin[TournamentEventListener]):
         info = self.get_info_channel()
         if info:
             embed = discord.Embed(color=discord.Color.blue(), title=_("A match is about to start!"))
-            embed.add_field(name=_("Blue"), value=squadron_blue['name'])
-            embed.add_field(name=_("Red"), value=squadron_red['name'])
+            embed.add_field(name=_("Blue"), value=squadrons['blue']['name'])
+            embed.add_field(name=_("Red"), value=squadrons['red']['name'])
             ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
             ratings_red = await Competitive.read_squadron_member_ratings(self.node, match['squadron_red'])
             win_propability = Competitive.win_probability(ratings_blue, ratings_red)
