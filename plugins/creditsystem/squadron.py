@@ -89,4 +89,4 @@ class Squadron(DataObject):
                         remark
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (campaign_id, event, self.squadron_id, self._points - points, self._points,
-                      player.ucid or None, remark))
+                      player.ucid if player else None, remark))
