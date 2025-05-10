@@ -74,6 +74,10 @@ class TournamentEventListener(EventListener["Tournament"]):
             row = await cursor.fetchone()
             return row[0] if row else None
 
+    async def cleanup(self, server: Server):
+        await server.shutdown()
+        self.plugin.reset_serversettings(server)
+
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
             if name == 'registerDCSServer' or server.name in self.tournaments:
@@ -215,7 +219,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             message += _("\nServer will be shut down in 60 seonds ...")
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
             await asyncio.sleep(60)
-            asyncio.create_task(server.shutdown())
+            asyncio.create_task(self.cleanup())
             asyncio.create_task(self.audit(
                 server,f"Match {match_id} is now finished. Squadron {squadron['name']} won the match.\n"
                        f"Closing the squadron channels now."))

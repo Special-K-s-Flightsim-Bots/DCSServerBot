@@ -63,6 +63,7 @@ If you want to disable the plugin for one or more servers, you can do it by crea
 ```yaml
 DCS.server:
   enabled: false        # optional: disable the plugin (default: true)
+  debug: false          # optional: start a match with one joined party already (for debug purposes only!)
   silent: false         # optional: silent mode, only calculate TrueSkill:tm: ratings, but do not tell anybody about it (default: false)
   join_on: birth        # Match only: join on birth, takeoff, enter_zone (future)
   win_on: survival      # Match only: one of survival, landing, rtb, time (future), (default: survival)

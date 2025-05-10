@@ -331,6 +331,13 @@ class Tournament(Plugin[TournamentEventListener]):
         # create a persistent message
         await self.bot.setEmbed(embed_name=f"tournament_{tournament_id}", embed=embed, channel_id=channel.id)
 
+    @staticmethod
+    def reset_serversettings(server: Server):
+        filename = os.path.join(server.instance.home, 'Config', 'serverSettings.lua')
+        orig_file = filename + '.orig'
+        if os.path.exists(orig_file):
+            shutil.copy2(orig_file, filename)
+
     @tournament.command(description='Finish a tournament')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
@@ -365,10 +372,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE t.tournament_id = %s
             """, (tournament_id,)):
                 server = self.bot.servers[row[0]]
-                filename = os.path.join(server.instance.home, 'Config', 'serverSettings.lua')
-                orig_file = filename + '.orig'
-                if os.path.exists(orig_file):
-                    shutil.copy2(orig_file, filename)
+                self.reset_serversettings(server)
 
             # close campaign
             messages.append(_("Closing the underlying campaign ..."))
@@ -1117,8 +1121,13 @@ class Tournament(Plugin[TournamentEventListener]):
                     if await utils.yn_question(
                             interaction, _("Do you really want to finish the match and make {} the winner?").format(
                                 squadron['name']), ephemeral=True):
-                        await conn.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
-                                           (winner_squadron_id, match_id))
+                        cursor = await conn.execute("""
+                            UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s
+                            RETURNING server_name
+                        """, (winner_squadron_id, match_id))
+                        server_name = (await cursor.fetchone())[0]
+                        server = self.bot.servers[server_name]
+                        self.reset_serversettings(server)
                     else:
                         await interaction.followup.send(_("Winner not updated."), ephemeral=True)
 
