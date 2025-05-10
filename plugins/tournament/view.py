@@ -192,10 +192,10 @@ class ChoicesView(View):
                             ], min_values=1, max_values=1)
             select.callback = self.add_choice
             self.add_item(select)
-        button = Button(label="Acknowledge", style=discord.ButtonStyle.green)
+        button = Button(label="Confirm & buy", style=discord.ButtonStyle.green)
         button.callback = self.save
         self.add_item(button)
-        button = Button(label="Save & Quit", style=discord.ButtonStyle.red)
+        button = Button(label="Close", style=discord.ButtonStyle.red)
         button.callback = self.cancel
         self.add_item(button)
         return embed

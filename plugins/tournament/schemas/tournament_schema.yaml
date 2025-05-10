@@ -45,6 +45,7 @@ schema;element_schema:
         admin: {type: int, nullable: false}
         streamer: {type: int, nullable: false}
         category: {type: int, nullable: false}
+        results: {type: int, nullable: false}
 
 type: map
 func: check_main_structure

@@ -895,17 +895,17 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                     if debug:
                         logger.debug("  " * depth + f"  - Element {idx + 1} matches.")
                     yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
-        elif isinstance(data, dict) and any(x for x in data.keys() if isinstance(x, int)):
-            for idx, value in data.items():
-                if evaluate(_next, **(kwargs | value)):
-                    if debug:
-                        logger.debug("  " * depth + f"  - Element {idx} matches.")
-                    yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
-        else:
-            if evaluate(_next, **(kwargs | data)):
+        elif isinstance(data, dict):
+            if any(x for x in data.keys() if isinstance(x, int)):
+                for idx, value in data.items():
+                    if evaluate(_next, **(kwargs | value)):
+                        if debug:
+                            logger.debug("  " * depth + f"  - Element {idx} matches.")
+                        yield from for_each(value, search, depth + 1, debug=debug, **kwargs)
+            elif evaluate(_next, **(kwargs | data)):
                 if debug:
-                    logger.debug("  " * depth + "  - Element matches.")
-                yield from for_each(data, search, depth + 1, debug=debug, **kwargs)
+                    logger.debug("  " * depth + f"  - Element {format_string(_next[1:], **kwargs)} matches.")
+                yield from for_each(evaluate(_next, **(kwargs | data)), search, depth + 1, debug=debug, **kwargs)
 
     if not data or len(search) == depth:
         if len(search) == depth:
