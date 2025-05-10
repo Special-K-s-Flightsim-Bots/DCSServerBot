@@ -225,7 +225,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 return self.bot.get_channel(channel_id)
         return None
 
-    async def get_squadron_credits(self, match_id: int, squadron_id: int):
+    async def get_squadron_credits(self, match_id: int, squadron_id: int) -> int:
         async with self.node.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT sc.points FROM squadron_credits sc 
@@ -917,8 +917,9 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         tournament = await self.get_tournament(tournament_id)
-        squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
-        squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+        squadrons = {}
+        squadrons['blue'] = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
+        squadrons['red'] = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
 
         if not round_number:
             round_number = match['round_number'] + 1
@@ -926,14 +927,14 @@ class Tournament(Plugin[TournamentEventListener]):
         if not await yn_question(
                 interaction,
                 _("Do you want to start round {} of the match between {} and {}??").format(
-                    round_number, squadron_blue['name'], squadron_red['name']
+                    round_number, squadrons['blue']['name'], squadrons['red']['name']
                 ), ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
 
         # audit event
         await self.bot.audit(f"started a match for tournament {tournament['name']} "
-                             f"between squadrons {squadron_blue['name']} and {squadron_red['name']}.",
+                             f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
                              user=interaction.user)
 
         # Start the next round
@@ -962,9 +963,23 @@ class Tournament(Plugin[TournamentEventListener]):
         messages.append(_("Inform the squadrons and wait for their initial choice ..."))
         await msg.edit(content='\n'.join(messages))
         self.eventlistener.tournaments[server.name] = tournament
-        await self.eventlistener.inform_squadrons(
-            server, message=_("You can now use {} to chose your customizations!").format(
-                (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
+
+        config = self.get_config(server)
+        min_costs = min(choice['costs'] for choice in config['presets']['choices'].values())
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                for side in ['blue', 'red']:
+                    credits = await self.get_squadron_credits(match_id=match_id, squadron_id=squadrons[side]['id'])
+                    if credits > min_costs:
+                        channel = self.bot.get_channel(channels[side])
+                        await channel.send(_("You can now use {} to chose your customizations!").format(
+                            (await utils.get_command(self.bot, group=self.match.name,
+                                                     name=self.customize.name)).mention))
+                    else:
+                        await conn.execute(f"UPDATE tm_matches SET choices_{side}_ack = TRUE WHERE match_id = %s",
+                                           (match_id,))
+
+        # wait until all choices are finished
         await self.eventlistener.wait_until_choices_finished(server)
 
         # preparing the server
@@ -1028,7 +1043,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     SELECT squadron_{side}_channel FROM tm_matches WHERE match_id = %s
                 """, (match_id, ))
                 channel_id = (await cursor.fetchone())[0]
-                if channel_id == -1:
+                if channel_id == -1 or not self.bot.get_channel(channel_id):
                     opponent = utils.get_squadron(
                         self.node, squadron_id=match['squadron_red' if side == 'blue' else 'squadron_blue'])
                     channel_name = f"{squadron['name']} vs {opponent['name']}"
