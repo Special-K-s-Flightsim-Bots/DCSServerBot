@@ -283,7 +283,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 return match
             return None
 
-        async def award_squadron(server: Server, match: Match, side: Side):
+        async def award_squadron(server: Server, match: Match, player: Player):
+            side = Side.RED if player.side == Side.BLUE else Side.BLUE
             squadron = match.get_squadron(side)
             if not squadron:
                 return
@@ -347,7 +348,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 await remove_players(server, players)
                 if self.get_config(server).get('credit_on_leave', False):
-                    await award_squadron(server, match, Side.RED if players[0].side == Side.BLUE else Side.BLUE)
+                    await award_squadron(server, match, players[0])
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if not player:
@@ -363,7 +364,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 await remove_players(server, players)
                 if self.get_config(server).get('credit_on_leave', False) and player.squadron:
-                    await award_squadron(server, match, Side.RED if player.side == Side.BLUE else Side.BLUE)
+                    await award_squadron(server, match, player)
         elif data['eventName'] == 'takeoff':
             player = server.get_player(id=data['arg1'])
             if not player:
