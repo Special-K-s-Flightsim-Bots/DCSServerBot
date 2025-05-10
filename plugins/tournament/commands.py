@@ -13,7 +13,7 @@ from services.bot import DCSServerBot
 from typing import Optional
 
 from .listener import TournamentEventListener
-from .utils import create_tournament_matches
+from .utils import create_tournament_matches, create_versus_image
 from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModal, TimesSelectView
 from ..competitive.commands import Competitive
 
@@ -135,8 +135,8 @@ async def match_autocomplete(interaction: discord.Interaction, current: str) -> 
                 SELECT m.match_id, s1.name, s2.name 
                 FROM tm_tournaments t
                      JOIN tm_matches m ON t.tournament_id = m.tournament_id 
-                     JOIN squadrons s1 ON s1.id = m.squadron_red
-                     JOIN squadrons s2 ON s2.id = m.squadron_blue
+                     JOIN squadrons s1 ON s1.id = m.squadron_blue
+                     JOIN squadrons s2 ON s2.id = m.squadron_red
                 WHERE t.tournament_id = %s
                 ORDER BY 1
             """, (tournament_id, ))
@@ -149,11 +149,11 @@ async def match_squadrons_autocomplete(interaction: discord.Interaction, current
         return []
     match_id = utils.get_interaction_param(interaction, "match")
     async with interaction.client.apool.connection() as conn:
-        cursor = await conn.execute("SELECT squadron_red, squadron_blue FROM tm_matches WHERE match_id = %s",
+        cursor = await conn.execute("SELECT squadron_blue, squadron_red FROM tm_matches WHERE match_id = %s",
                                     (match_id, ))
-        squadron_red_id, squadron_blue_id = await cursor.fetchone()
-        squadron_red = utils.get_squadron(interaction.client.node, squadron_id=squadron_red_id)
+        squadron_blue_id, squadron_red_id = await cursor.fetchone()
         squadron_blue = utils.get_squadron(interaction.client.node, squadron_id=squadron_blue_id)
+        squadron_red = utils.get_squadron(interaction.client.node, squadron_id=squadron_red_id)
         return [
             app_commands.Choice(name=squadron_blue['name'], value=squadron_blue_id),
             app_commands.Choice(name=squadron_red['name'], value=squadron_red_id)
@@ -412,7 +412,7 @@ class Tournament(Plugin[TournamentEventListener]):
                             FROM tm_matches
                             WHERE tournament_id = %s
                         """, (tournament_id,)):
-                            for side in ['red', 'blue']:
+                            for side in ['blue', 'red']:
                                 try:
                                     channel = self.bot.get_channel(row[f'squadron_{side}_channel'])
                                     if channel:
@@ -841,11 +841,6 @@ class Tournament(Plugin[TournamentEventListener]):
         # set startindex or use last mission
         if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
             await server.setStartIndex(mission_id + 1)
-            use_orig = True
-        elif round_number == 1:
-            use_orig = True
-        else:
-            use_orig = False
 
         # load the presets
         preset_file = config.get('presets', {}).get('file', 'presets.yaml')
@@ -856,13 +851,10 @@ class Tournament(Plugin[TournamentEventListener]):
         filename = await server.get_current_mission_file()
         # create a writable mission
         new_filename = utils.create_writable_mission(filename)
-        if use_orig:
-            # get the orig file
-            orig_filename = utils.get_orig_file(new_filename)
-            # and copy the orig file over
-            shutil.copy2(orig_filename, new_filename)
-        elif new_filename != filename:
-            shutil.copy2(filename, new_filename)
+        # get the orig file
+        orig_filename = utils.get_orig_file(new_filename)
+        # and copy the orig file over
+        shutil.copy2(orig_filename, new_filename)
 
         miz = MizFile(new_filename)
         # apply the initial presets
@@ -1018,13 +1010,28 @@ class Tournament(Plugin[TournamentEventListener]):
         info = self.get_info_channel()
         if info:
             embed = discord.Embed(color=discord.Color.blue(), title=_("A match is about to start!"))
-            embed.add_field(name=_("Blue"), value=squadrons['blue']['name'])
-            embed.add_field(name=_("Red"), value=squadrons['red']['name'])
-            ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
-            ratings_red = await Competitive.read_squadron_member_ratings(self.node, match['squadron_red'])
-            win_propability = Competitive.win_probability(ratings_blue, ratings_red)
-            embed.add_field(name=_("Win propability"), value=f"{win_propability * 100.0:.2f}%")
-            await info.send(embed=embed)
+            blue_image = squadrons['blue']['image_url']
+            red_image = squadrons['red']['image_url']
+            if blue_image and red_image:
+                buffer = await create_versus_image(blue_image, red_image)
+            else:
+                buffer = None
+            try:
+                if buffer:
+                    file = discord.File(buffer, filename="vs.png")
+                    embed.set_image(url="attachment://vs.png")
+                else:
+                    file = None
+                embed.add_field(name=_("Blue"), value=squadrons['blue']['name'])
+                ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
+                ratings_red = await Competitive.read_squadron_member_ratings(self.node, match['squadron_red'])
+                win_propability = Competitive.win_probability(ratings_blue, ratings_red)
+                embed.add_field(name=_("Win propability"), value=f"{win_propability * 100.0:.2f}%")
+                embed.add_field(name=_("Red"), value=squadrons['red']['name'])
+                await info.send(embed=embed, file=file)
+            finally:
+                if buffer:
+                    buffer.close()
 
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
@@ -1100,14 +1107,14 @@ class Tournament(Plugin[TournamentEventListener]):
                    winner_squadron_id: Optional[int] = None):
         match = await self.get_match(match_id)
         modal = utils.ConfigModal(title="Match Results", config={
-            "squadron_red_rounds_won": {
-                "type": int,
-                "label": _("Squadron red rounds won"),
-                "required": True
-            },
             "squadron_blue_rounds_won": {
                 "type": int,
                 "label": _("Squadron blue rounds won"),
+                "required": True
+            },
+            "squadron_red_rounds_won": {
+                "type": int,
+                "label": _("Squadron red rounds won"),
                 "required": True
             }
         }, old_values=match)
@@ -1117,19 +1124,19 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
 
-        if modal.value.get('squadron_red_rounds_won') > modal.value.get('squadron_blue_rounds_won'):
-            winner_squadron_id = match['squadron_red']
-        elif modal.value.get('squadron_blue_rounds_won') > modal.value.get('squadron_red_rounds_won'):
+        if modal.value.get('squadron_blue_rounds_won') > modal.value.get('squadron_red_rounds_won'):
             winner_squadron_id = match['squadron_blue']
+        elif modal.value.get('squadron_red_rounds_won') > modal.value.get('squadron_blue_rounds_won'):
+            winner_squadron_id = match['squadron_red']
 
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
                     UPDATE tm_matches 
-                    SET squadron_red_rounds_won = %s, squadron_blue_rounds_won = %s 
+                    SET squadron_blue_rounds_won = %s, squadron_red_rounds_won = %s 
                     WHERE match_id = %s
-                """, (modal.value.get('squadron_red_rounds_won'),
-                      modal.value.get('squadron_blue_rounds_won'),
+                """, (modal.value.get('squadron_blue_rounds_won'),
+                      modal.value.get('squadron_red_rounds_won'),
                       match_id))
 
                 if winner_squadron_id:
@@ -1162,7 +1169,7 @@ class Tournament(Plugin[TournamentEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        for coalition in ['red', 'blue']:
+        for coalition in ['blue', 'red']:
             async with self.apool.connection() as conn:
                 cursor = await conn.execute(f"""
                     SELECT m.match_id, squadron_{coalition}, choices_{coalition}_ack, server_name 

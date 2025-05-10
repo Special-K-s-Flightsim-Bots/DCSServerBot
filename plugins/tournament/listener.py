@@ -140,7 +140,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         winner = data['winner'].lower()
         match_id = await self.get_active_match(server)
         # do we have a winner?
-        if winner in ['red', 'blue']:
+        if winner in ['blue', 'red']:
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     cursor = await conn.execute(f"""
@@ -174,23 +174,23 @@ class TournamentEventListener(EventListener["Tournament"]):
                     total_rounds_played = row['round_number']
 
                     # Check if either side has reached the required wins
-                    if row['squadron_red_rounds_won'] >= required_wins:
-                        winner_id = row['squadron_red']
-                    elif row['squadron_blue_rounds_won'] >= required_wins:
+                    if row['squadron_blue_rounds_won'] >= required_wins:
                         winner_id = row['squadron_blue']
+                    elif row['squadron_red_rounds_won'] >= required_wins:
+                        winner_id = row['squadron_red']
                     # If we've played all rounds or more and still no winner
                     elif total_rounds_played >= tournament['rounds']:
                         if config.get('sudden_death', False):
                             # If all rounds were draws, play one additional decisive round
-                            if row['squadron_red_rounds_won'] == 0 and row['squadron_blue_rounds_won'] == 0:
+                            if row['squadron_blue_rounds_won'] == 0 and row['squadron_red_rounds_won'] == 0:
                                 message = _("All rounds were draws! Playing one decisive round!")
                                 asyncio.create_task(self.inform_squadrons(server, message=message))
                                 asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
                             # Otherwise determine winner by who has more rounds won
-                            elif row['squadron_red_rounds_won'] > row['squadron_blue_rounds_won']:
-                                winner_id = row['squadron_red']
                             elif row['squadron_blue_rounds_won'] > row['squadron_red_rounds_won']:
                                 winner_id = row['squadron_blue']
+                            elif row['squadron_red_rounds_won'] > row['squadron_blue_rounds_won']:
+                                winner_id = row['squadron_red']
                             # If equal wins but not all draws, play one decisive round
                             else:
                                 message = _("Match is tied! Playing one decisive round!")
