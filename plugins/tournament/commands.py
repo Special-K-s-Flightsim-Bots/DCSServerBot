@@ -747,8 +747,10 @@ class Tournament(Plugin[TournamentEventListener]):
     async def setup_server_for_match(self, msg: discord.Message, messages: list[str], server: Server, match: dict,
                                      channels: dict):
         config = self.get_config(server)
-        squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
-        squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+        squadrons = {
+            'blue': utils.get_squadron(self.node, squadron_id=match['squadron_blue']),
+            'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+        }
 
         # backup the serversettings.lua
         filename = os.path.join(server.instance.home, 'Config', 'serverSettings.lua')
@@ -760,8 +762,8 @@ class Tournament(Plugin[TournamentEventListener]):
         server.locals["coalitions"] = {
             "lock_time": "1 day",
             "allow_players_pool": False,
-            "blue_role": squadron_blue['role'],
-            "red_role": squadron_red['role']
+            "blue_role": squadrons['blue']['role'],
+            "red_role": squadrons['red']['role']
         }
 
         # set coalition channels
@@ -803,6 +805,16 @@ class Tournament(Plugin[TournamentEventListener]):
                 "maxPing": 300
             }
 
+        results = config.get('channels', {}).get('results', -1)
+        if results:
+            extensions = await server.list_extension()
+            if 'Tacview' in extensions:
+                await server.config_extension(name='Tacview',
+                                              config={
+                                                "target": f"<id:{results}>"
+                                              })
+
+
         # set coalition passwords
         if config.get('coalition_passwords'):
             messages.append(_("Setting coalition passwords..."))
@@ -812,6 +824,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 await server.setCoalitionPassword(coalition, password)
                 channel = self.bot.get_channel(channels[coalition.value])
                 embed = discord.Embed(color=discord.Color.blue(), title=_("**Get your team ready!**\n"))
+                if squadrons[coalition.value]['image_url']:
+                    embed.set_thumbnail(url=squadrons[coalition.value]['image_url'])
                 embed.add_field(name=_("Coalition"), value=coalition.value, inline=True)
                 embed.add_field(name=_("Password"), value=password, inline=True)
                 embed.set_footer(text=_("You must not share the password with anyone outside your squadron!\n"
@@ -1000,6 +1014,8 @@ class Tournament(Plugin[TournamentEventListener]):
         for side in ['blue', 'red']:
             channel: TextChannel = self.bot.get_channel(channels[side])
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is starting NOW!"))
+            if squadrons[side]['image_url']:
+                embed.set_thumbnail(url=squadrons[side]['image_url'])
             embed.add_field(name=_("Server"), value=server.name)
             embed.description = _("You can **now** join the server.")
             embed.add_field(name=_("IP:Port"), value=f"{server.node.public_ip}:{server.settings['port']}")
