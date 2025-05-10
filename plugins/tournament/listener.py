@@ -211,7 +211,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             # inform people
             squadron = utils.get_squadron(self.node, squadron_id=winner_id)
             message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
-            asyncio.create_task(self.inform_squadrons(server, message=message))
+            asyncio.create_task(self.announce(server, message=message))
             message += _("\nServer will be shut down in 60 seonds ...")
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
             await asyncio.sleep(60)

@@ -209,7 +209,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 await player.lock()
 
             # inform the players if the match is on now
-            if not is_on and match.is_on():
+            if config.get('debug', False) or (not is_on and match.is_on()):
                 delayed_start = config.get('delayed_start', 0)
                 if delayed_start > 0:
                     await self.countdown_with_warnings(match, delayed_start)
