@@ -296,7 +296,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             )
             squadron.points += ppk
             squadron.audit('credit_on_leave', ppk, 'Enemy player left the game.')
-            if self.get_config(server).get('silent', False):
+            if not self.get_config(server).get('silent', False):
                 await server.sendPopupMessage(
                     Coalition.BLUE if side == Side.BLUE else Coalition.RED,
                     _("Your squadron was credited with {} points because an enemy player bailed out!").format(ppk),
