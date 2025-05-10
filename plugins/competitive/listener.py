@@ -174,6 +174,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 await self.inform_players(match, _("The match will start in 10 seconds."))
                 ten_second_warning_sent = True
 
+            await asyncio.sleep(1)
+
     async def _addPlayerToMatch(self, server: Server, data: dict) -> None:
         players = server.get_crew_members(server.get_player(name=data['player_name']))
         for player in players:

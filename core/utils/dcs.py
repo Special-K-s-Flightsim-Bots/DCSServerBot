@@ -172,6 +172,8 @@ def get_orig_file(filename: str, *, create_file: bool = True) -> Optional[str]:
     if '.dcssb' in filename:
         mission_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
                                     os.path.basename(filename))
+        if not os.path.exists(filename):
+            filename = mission_file
     else:
         mission_file = filename
     if filename.startswith('DSMC'):
