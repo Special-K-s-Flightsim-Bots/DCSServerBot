@@ -29,6 +29,14 @@ dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
 
+local event_filter = {
+    [world.event.S_EVENT_MARK_ADDED] = "S_EVENT_MARK_ADDED",
+    [world.event.S_EVENT_MARK_CHANGE] = "S_EVENT_MARK_CHANGE",
+    [world.event.S_EVENT_MARK_REMOVED] = "S_EVENT_MARK_REMOVED",
+    [world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION] = "S_EVENT_DISCARD_CHAIR_AFTER_EJECTION",
+    [world.event.S_EVENT_AI_ABORT_MISSION] = "S_EVENT_AI_ABORT_MISSION"
+}
+
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
 	if not status then
@@ -41,11 +49,15 @@ function onMissionEvent(event)
 	    return
 	end
 
+    if event_filter[event.id] ~= nil then
+        return
+    end
+
     local msg = {
         command = 'onMissionEvent',
         id = event.id,
         time = event.time,
-        eventName =  event_by_id[event.id]
+        eventName = event_by_id[event.id]
     }
 
     if event.initiator then
