@@ -125,18 +125,20 @@ def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) ->
     Returns:
         tuple[float, float]: (killer_multiplier, victim_multiplier)
     """
-    # Conservative skill estimates
     killer_conservative_skill = killer_rating.mu - 3 * killer_rating.sigma
     victim_conservative_skill = victim_rating.mu - 3 * victim_rating.sigma
 
-    # Calculate skill difference using conservative estimates
     skill_difference = victim_conservative_skill - killer_conservative_skill
 
-    # Calculate uncertainty factor
     total_uncertainty = killer_rating.sigma + victim_rating.sigma
     uncertainty_factor = 1.0 / (1.0 + total_uncertainty / 8.33)
 
-    # Calculate killer's multiplier
+    # Add a small threshold for considering skills equal
+    if abs(skill_difference) < 0.0001:
+        # Skills are effectively equal - use base multiplier
+        return 1.0, 1.0
+
+    # Killer multiplier
     if skill_difference > 0:
         # Killer has lower skill than victim - they get bonus points
         killer_raw_multiplier = 1.0 + math.log(1 + skill_difference / 10) * 0.5
@@ -146,7 +148,7 @@ def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) ->
         killer_raw_multiplier = 1.0 / (1 + abs(skill_difference / 20))
         killer_multiplier = max(killer_raw_multiplier * uncertainty_factor, 0.5)
 
-    # Calculate victim's multiplier (inverse relationship)
+    # Victim multiplier
     if skill_difference > 0:
         # Victim has higher skill - they lose fewer points
         victim_raw_multiplier = 1.0 / (1 + skill_difference / 20)
