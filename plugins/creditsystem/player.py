@@ -25,7 +25,8 @@ class CreditPlayer(Player):
                 ON s.id = sm.squadron_id AND sm.player_ucid = %s
             """, (self.ucid,)).fetchone()
             if row:
-                self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0], server=self.server)
+                campaign_id, _ = utils.get_running_campaign(self.node, self.server)
+                self.squadron = DataObjectFactory().new(Squadron, node=self.node, name=row[0], campaign_id=campaign_id)
             else:
                 self.squadron = None
 

@@ -105,10 +105,10 @@ class RejectModal(Modal, title=_("Reject a squadron")):
 
 
 class NumbersModal(Modal):
-    def __init__(self, choice: str, costs: int, credits: int, max_value: Optional[int] = None):
+    def __init__(self, choice: str, costs: int, points: int, max_value: Optional[int] = None):
         super().__init__(title=_("How many {} do you want?").format(choice[:20]))
         self.costs = costs
-        self.credits = credits
+        self.points = points
         self.max_value = max_value
         self.textinput = TextInput(label=_("Count"), placeholder=_("Enter a number"), default="1",
                                    style=discord.TextStyle.short, required=True)
@@ -122,7 +122,7 @@ class NumbersModal(Modal):
         value = int(self.textinput.value)
         if self.max_value and value > self.max_value:
             raise ValueError(_("There are only {} items available to buy.").format(self.max_value))
-        if value * self.costs > self.credits:
+        if value * self.costs > self.points:
             raise ValueError(_("You do not have enough credits to buy {} items.").format(value))
         self.result = value
         self.stop()
@@ -141,8 +141,9 @@ class ChoicesView(View):
         self.config = config
 
     async def render(self) -> discord.Embed:
-        credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
-        embed = discord.Embed(colour=discord.Colour.blue(), title=_("You have {} credit points.").format(credits))
+        squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
+        embed = discord.Embed(colour=discord.Colour.blue(),
+                              title=_("You have {} credit points.").format(squadron.points))
         embed.description = ("Here you can select the presets to change the upcoming mission to your request.\n"
                              "Please keep in mind, that you will have to pay credit points, "
                              "according to the requested presets price.")
@@ -187,7 +188,7 @@ class ChoicesView(View):
                                 SelectOption(label=f"{x} (Cost={self.config['presets']['choices'][x]['costs']})",
                                              value=x)
                                 for idx, x in enumerate(self.config['presets']['choices'].keys())
-                                if idx < 25 and self.config['presets']['choices'][x]['costs'] <= credits
+                                if idx < 25 and self.config['presets']['choices'][x]['costs'] <= squadron.points
                                    and x not in [x[0] for x in choices]
                             ], min_values=1, max_values=1)
             select.callback = self.add_choice
@@ -202,12 +203,12 @@ class ChoicesView(View):
 
     async def add_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
-        credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
+        squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]['costs']
 
-        max = self.config['presets']['choices'][choice].get('max')
-        if not max or max > 1:
-            modal = NumbersModal(choice, costs, credits, max)
+        max_num = self.config['presets']['choices'][choice].get('max')
+        if not max_num or max_num > 1:
+            modal = NumbersModal(choice, costs, squadron.points, max_num)
             # noinspection PyUnresolvedReferences
             await interaction.response.send_modal(modal)
             if await modal.wait():
@@ -219,29 +220,16 @@ class ChoicesView(View):
             modal = None
             num = 1
 
-        if num and costs * num <= credits:
+        if num and costs * num <= squadron.points:
             async with self.plugin.apool.connection() as conn:
                 async with conn.transaction():
                     await conn.execute("""
                         INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
                         VALUES (%s, %s, %s, %s)
                     """, (self.match_id, self.squadron_id, choice, num))
-                    cursor = await conn.execute("""
-                        UPDATE squadron_credits SET points = %s 
-                        WHERE squadron_id = %s
-                        AND campaign_id = (
-                            SELECT campaign_id FROM tm_tournaments t JOIN tm_matches m 
-                            ON t.tournament_id = m.tournament_id WHERE m.match_id = %s
-                        )
-                        RETURNING campaign_id
-                    """, (credits - costs * num, self.squadron_id, self.match_id))
-                    campaign_id = (await cursor.fetchone())[0]
-                    await conn.execute("""
-                        INSERT INTO squadron_credits_log (campaign_id, event, squadron_id, 
-                                                          old_points, new_points, remark)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (campaign_id, 'match_choice', self.squadron_id, credits,
-                          credits - costs * num, f'Bought {num} of {choice} during a match choice.', ))
+            squadron.points -= costs * num
+            squadron.audit(event='match_choice', points=-costs * num,
+                           remark=f'Bought {num} of {choice} during a match choice.')
         embed = await self.render()
         if modal and modal.error:
             embed.set_footer(text=modal.error, icon_url=WARNING_ICON)
@@ -249,7 +237,7 @@ class ChoicesView(View):
 
     async def remove_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
-        credits = await self.plugin.get_squadron_credits(self.match_id, self.squadron_id)
+        squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]['costs']
 
         # noinspection PyUnresolvedReferences
@@ -262,22 +250,9 @@ class ChoicesView(View):
                     RETURNING num
                 """, (self.match_id, self.squadron_id, choice))
                 num = (await cursor.fetchone())[0]
-                cursor = await conn.execute("""
-                    UPDATE squadron_credits SET points = %s 
-                    WHERE squadron_id = %s
-                    AND campaign_id = (
-                        SELECT campaign_id FROM tm_tournaments t JOIN tm_matches m 
-                        ON t.tournament_id = m.tournament_id WHERE m.match_id = %s
-                    )
-                    RETURNING campaign_id
-                """, (credits + costs * num, self.squadron_id, self.match_id))
-                campaign_id = (await cursor.fetchone())[0]
-                await conn.execute("""
-                   INSERT INTO squadron_credits_log (campaign_id, event, squadron_id,
-                                                     old_points, new_points, remark)
-                   VALUES (%s, %s, %s, %s, %s, %s)
-               """, (campaign_id, 'match_choice', self.squadron_id, credits,
-                     credits + costs * num, f'Cancelled {num} of {choice} during a match choice.',))
+        squadron.points += costs * num
+        squadron.audit(event='match_choice', points=costs * num,
+                       remark=f'Cancelled {num} of {choice} during a match choice.')
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):

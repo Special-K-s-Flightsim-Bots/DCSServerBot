@@ -314,9 +314,10 @@ class TournamentEventListener(EventListener["Tournament"]):
                             """, (match_id, ))
                             squadron_id = (await cursor.fetchone())[0]
                             squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
+                            campaign_id, _ = utils.get_running_campaign(self.node, server)
                             # assign the squadron to the player
                             player.squadron = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                                      server=server)
+                                                                      campaign_id=campaign_id)
                             # we need to give the member the role
                             if player.member and 'role' in squadron:
                                 try:

@@ -1,4 +1,4 @@
-from core import Server, utils, Plugin
+from core import utils, Plugin
 from core.data.dataobject import DataObjectFactory, DataObject
 from core.services.registry import ServiceRegistry
 from core.utils import get_squadron
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 @DataObjectFactory.register()
 class Squadron(DataObject):
     name: str
-    server: Server
+    campaign_id: int
     players: list[Member] = field(compare=False, default_factory=list)
     _points: int = field(compare=False, default=-1)
     squadron_id: int = field(compare=False, init=False)
@@ -30,7 +30,7 @@ class Squadron(DataObject):
         super().__post_init__()
         self.bot = ServiceRegistry.get(BotService).bot
         self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
-        self.config = self.plugin.get_config(self.server).get('squadron', {})
+        self.config = self.plugin.get_config().get('squadron', {})
         squadron = get_squadron(self.node, name=self.name)
 
         if squadron:
@@ -42,11 +42,8 @@ class Squadron(DataObject):
     def points(self) -> int:
         if self._points == -1:
             with self.pool.connection() as conn:
-                campaign_id, _ = utils.get_running_campaign(self.node, self.server)
-                if not campaign_id:
-                    return -1
                 cursor = conn.execute("SELECT points FROM squadron_credits WHERE campaign_id = %s AND squadron_id = %s",
-                                      (campaign_id, self.squadron_id))
+                                      (self.campaign_id, self.squadron_id))
                 row = cursor.fetchone()
                 if row:
                     self._points = row[0]
@@ -65,16 +62,14 @@ class Squadron(DataObject):
         if self._points < 0:
             self._points = 0
 
-        campaign_id, _ = utils.get_running_campaign(self.node, self.server)
-        if campaign_id:
-            # persist points
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute("""
-                        INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
-                        VALUES (%s, %s, %s) 
-                        ON CONFLICT (campaign_id, squadron_id) DO UPDATE SET points = EXCLUDED.points
-                    """, (campaign_id, self.squadron_id, self._points))
+        # persist points
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO squadron_credits (campaign_id, squadron_id, points) 
+                    VALUES (%s, %s, %s) 
+                    ON CONFLICT (campaign_id, squadron_id) DO UPDATE SET points = EXCLUDED.points
+                """, (self.campaign_id, self.squadron_id, self._points))
 
         # send points to all active DCS-servers
         bus = ServiceRegistry.get(ServiceBus)
@@ -89,9 +84,6 @@ class Squadron(DataObject):
     def audit(self, event: str, points: int, remark: str, player: Optional["CreditPlayer"] = None):
         if points == 0:
             return
-        campaign_id, _ = utils.get_running_campaign(self.node, self.server)
-        if not campaign_id:
-            return
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -104,5 +96,5 @@ class Squadron(DataObject):
                         player_ucid, 
                         remark
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (campaign_id, event, self.squadron_id, self._points - points, self._points,
+                """, (self.campaign_id, event, self.squadron_id, self._points - points, self._points,
                       player.ucid if player else None, remark))

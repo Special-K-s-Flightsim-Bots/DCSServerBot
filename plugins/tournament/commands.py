@@ -4,7 +4,7 @@ import random
 import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
-    MizFile
+    MizFile, DataObjectFactory, async_cache
 from datetime import datetime, timezone
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from psycopg.errors import UniqueViolation
@@ -19,6 +19,9 @@ from ..competitive.commands import Competitive
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+
+from ..creditsystem.squadron import Squadron
+
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
@@ -225,19 +228,18 @@ class Tournament(Plugin[TournamentEventListener]):
                 return self.bot.get_channel(channel_id)
         return None
 
-    async def get_squadron_credits(self, match_id: int, squadron_id: int) -> int:
+    @async_cache
+    async def get_squadron(self, match_id: int, squadron_id: int) -> Squadron:
+        squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
         async with self.node.apool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT sc.points FROM squadron_credits sc 
-                JOIN campaigns c ON sc.campaign_id = c.id 
+                SELECT c.id FROM campaigns c 
                 JOIN tm_tournaments t ON t.campaign = c.name
                 JOIN tm_matches tm ON tm.tournament_id = t.tournament_id
-                WHERE sc.squadron_id=%s AND tm.match_id = %s
-            """, (squadron_id, match_id))
-            if cursor.rowcount == 1:
-                return (await cursor.fetchone())[0]
-            else:
-                return 0
+                WHERE tm.match_id = %s
+            """, (match_id, ))
+            campaign_id = (await cursor.fetchone())[0]
+        return DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id)
 
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
@@ -976,8 +978,8 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 for side in ['blue', 'red']:
-                    credits = await self.get_squadron_credits(match_id=match_id, squadron_id=squadrons[side]['id'])
-                    if credits > min_costs:
+                    squadron = await self.get_squadron(match_id=match_id, squadron_id=squadrons[side]['id'])
+                    if squadron.points > min_costs:
                         channel = self.bot.get_channel(channels[side])
                         await channel.send(_("You can now use {} to chose your customizations!").format(
                             (await utils.get_command(self.bot, group=self.match.name,

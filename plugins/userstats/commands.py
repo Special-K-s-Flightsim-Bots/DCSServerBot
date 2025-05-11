@@ -22,6 +22,9 @@ from .views import SquadronModal
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+
+from ..creditsystem.squadron import Squadron
+
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
@@ -546,15 +549,19 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         await interaction.followup.send(embed=embed)
 
     async def get_credits(self, squadron_id: int) -> list[dict]:
+        ret = []
         async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
-                    FROM campaigns c LEFT OUTER JOIN squadron_credits s ON (c.id = s.campaign_id AND s.squadron_id = %s) 
-                    WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
-                    GROUP BY 1, 2
-                """, (squadron_id,))
-                return await cursor.fetchall()
+            async for row in await conn.execute("""
+                SELECT c.id, c.name
+                FROM campaigns c LEFT OUTER JOIN squadron_credits s 
+                ON (c.id = s.campaign_id AND s.squadron_id = %s) 
+                WHERE (now() AT TIME ZONE 'utc') BETWEEN c.start AND COALESCE(c.stop, now() AT TIME ZONE 'utc') 
+            """, (squadron_id,)):
+                squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
+                squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                       campaign_id=row[0])
+                ret.append({"id": row[0], "name": row[1], "points": squadron_obj.points})
+        return ret
 
     async def get_credits_log(self, squadron_id: int) -> list[dict]:
         async with self.apool.connection() as conn:
@@ -585,7 +592,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         campaigns = points = ''
         for row in data:
             campaigns += row['name'] + '\n'
-            points += f"{row['credits']}\n"
+            points += f"{row['points']}\n"
         embed.add_field(name=_('Campaign'), value=campaigns)
         embed.add_field(name=_('Credits'), value=points)
         embed.add_field(name='_ _', value='_ _')
@@ -615,26 +622,12 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                      server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        campaign = utils.get_running_campaign(self.node, server)
+        campaign_id, _ = utils.get_running_campaign(self.node, server)
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                cursor = await conn.execute("""
-                    INSERT INTO squadron_credits (squadron_id, campaign_id, points) 
-                    VALUES (%(squadron)s, %(campaign)s, %(points)s)
-                    ON CONFLICT (squadron_id, campaign_id) DO UPDATE 
-                        SET points = squadron_credits.points + EXCLUDED.points
-                    RETURNING points - %(points)s, points
-                """, {"points":points, "campaign":campaign[0], "squadron":squadron_id})
-                row = await cursor.fetchone()
-                if not row:
-                    await interaction.followup.send(_("Could not donate points to squadron."), ephemeral=True)
-                    return
-                old_points, new_points = row
-                await conn.execute("""
-                    INSERT INTO squadron_credits_log (campaign_id, event, squadron_id, old_points, new_points, remark)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (campaign[0], 'Admin donate', squadron_id, old_points, new_points, ''))
+        squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                               campaign_id=campaign_id)
+        squadron_obj.points += points
+        squadron_obj.audit(event='Admin donate', points=points, remark='')
         await interaction.followup.send(_("{} points donated to squadron {}.").format(points, squadron['name']),
                                         ephemeral=utils.get_ephemeral(interaction))
 

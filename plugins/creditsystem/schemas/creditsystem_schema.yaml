@@ -26,6 +26,12 @@ schema;element_schema:
     max_points: {type: int, range: {min: 1}, nullable: false}
     multiplier: {type: float, nullable: false}
     squadron_credits: {type: bool, nullable: false}
+    squadron:
+      type: map
+      nullable: false
+      mapping:
+        initial_points: {type: int, nullable: false, range: {min: 0}}
+        max_points: {type: int, nullable: false, range: {min: 0}}
     messages:
       type: map
       nullable: false
