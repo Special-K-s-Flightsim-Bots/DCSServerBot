@@ -104,8 +104,7 @@ class MonitoringService(Service):
         }
         if 'server' in kwargs:
             params['server'] = kwargs['server'].name
-        else:
-            params['node'] = self.node.name
+
         await self.bus.send_to_node({
             "command": "rpc",
             "service": BotService.__name__,
