@@ -251,7 +251,10 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             return
         old_points_player = player.points
         old_points_receiver = receiver.points
+        squadron = player.squadron
+        player.squadron = None
         player.points -= donation
+        player.squadron = squadron
         player.audit('donation', old_points_player, _("Donation to player {}").format(receiver.name))
         # do not donate to a squadron
         squadron = receiver.squadron

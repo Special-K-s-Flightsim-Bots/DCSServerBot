@@ -305,7 +305,10 @@ class CreditSystem(Plugin[CreditSystemListener]):
                             utils.escape_string(to.display_name)), ephemeral=True)
                     return
                 if p_donor:
+                    squadron = p_donor.squadron
+                    p_donor.squadron = None
                     p_donor.points -= donation
+                    p_donor.squadron = squadron
                     p_donor.audit('donation', data[n]['credits'], _('Donation to member {}').format(to.display_name))
                 else:
                     await conn.execute("""
