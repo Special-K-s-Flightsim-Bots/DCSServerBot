@@ -4,8 +4,11 @@ import discord
 from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
+from trueskill import Rating
 from typing import TYPE_CHECKING, Optional
 
+from .utils import calculate_point_multipliers
+from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
 
 if TYPE_CHECKING:
@@ -19,6 +22,8 @@ class TournamentEventListener(EventListener["Tournament"]):
     def __init__(self, plugin: "Tournament"):
         super().__init__(plugin)
         self.tournaments: dict[str, dict] = {}
+        self.ratings: dict[int, Rating] = {}
+        self.squadron_credits: dict[int, int] = {}
 
     async def audit(self, server: Server, message: str):
         config = self.get_config(server)
@@ -90,6 +95,19 @@ class TournamentEventListener(EventListener["Tournament"]):
         tournament_id = await self.get_active_tournament(server)
         if tournament_id:
             self.tournaments[server.name] = await self.plugin.get_tournament(tournament_id)
+            match_id = await self.get_active_match(server)
+            match = await self.plugin.get_match(match_id)
+            # store ratings before match for accelerator
+            self.ratings[match['squadron_blue']] = await Competitive.trueskill_squadron(
+                self.node, match['squadron_blue'])
+            self.squadron_credits[match['squadron_blue']] = (
+                await self.plugin.get_squadron(match_id, match['squadron_blue'])
+            ).points
+            self.ratings[match['squadron_red']] = await Competitive.trueskill_squadron(
+                self.node, match['squadron_red'])
+            self.squadron_credits[match['squadron_red']] = (
+                await self.plugin.get_squadron(match_id, match['squadron_red'])
+            ).points
         else:
             self.tournaments.pop(server.name, None)
 
@@ -152,6 +170,26 @@ class TournamentEventListener(EventListener["Tournament"]):
                     squadron_id, round_number = await cursor.fetchone()
             squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
             message = _("Squadron {name} won round {round}!").format(name=squadron['name'], round=round_number)
+
+            # calculate balance
+            if self.get_config(server).get('balance_multiplier', False):
+                match = await self.plugin.get_match(match_id)
+                winner_id = squadron['id']
+                loser_id = match['squadron_{}'.format('blue' if winner == 'red' else 'red')]
+                winner_squadron = await self.plugin.get_squadron(match_id, winner_id)
+                loser_squadron = await self.plugin.get_squadron(match_id, loser_id)
+                winner_points = winner_squadron.points - self.squadron_credits[winner_id]
+                loser_points = loser_squadron.points - self.squadron_credits[loser_id]
+                self.log.debug(f"Winning squadron {winner_squadron.name} gained {winner_points} points during the round.")
+                self.log.debug(f"Defeated squadron {loser_squadron.name} gained {loser_points} points during the round.")
+                killer_multiplier, loser_multiplier = calculate_point_multipliers(self.ratings[winner_id], self.ratings[loser_id])
+                self.log.debug(f"Mulipliers are as follows: Killer = {killer_multiplier} / Victim = {loser_multiplier}")
+                winner_squadron.points -= winner_points # remove the points first
+                winner_squadron.points += winner_points * killer_multiplier # add the points with the correct multiplier
+                self.log.debug(f"Winner got {winner_points * killer_multiplier} points instead of {winner_points} points.")
+                loser_squadron.points -= loser_points # remove the points first
+                loser_squadron.points += loser_points * loser_multiplier # add the points with the correct multiplier
+                self.log.debug(f"Loser got {loser_points * loser_multiplier} points instead of {loser_points} points.")
         else:
             match = await self.plugin.get_match(match_id)
             message = _("Round {} was a draw!").format(match['round_number'])

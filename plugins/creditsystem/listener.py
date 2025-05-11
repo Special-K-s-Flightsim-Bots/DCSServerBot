@@ -85,10 +85,8 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             if not player:
                 return
             old_points = player.points
-            multiplier = self.plugin.get_config(server).get('multiplier', 0)
             points_to_add = int(data['points'])
-            if multiplier:
-                player.deposit += points_to_add * multiplier
+            player.deposit += points_to_add * self.plugin.get_config(server).get('multiplier', 1.0)
             player.points += points_to_add
             if old_points != player.points:
                 player.audit('mission', old_points, data.get('reason', _('Unknown mission achievement')))
@@ -176,7 +174,6 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         if data['eventName'] == 'kill':
             # players gain points only, if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
-                multiplier = config.get('multiplier', 0)
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
                     ppk = self.get_points_per_kill(config, data)
@@ -184,8 +181,7 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                         old_points = player.points
                         # We will add the PPK to the deposit to allow for multiplied paybacks
                         # (to be configured in Slotblocking)
-                        if multiplier:
-                            player.deposit += ppk * multiplier
+                        player.deposit += ppk * config.get('multiplier', 1.0)
                         player.points += ppk
                         player.audit('kill', old_points, _("for killing {}").format(data['arg5']))
                         victim = server.get_player(id=data['arg4'])

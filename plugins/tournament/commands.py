@@ -978,7 +978,7 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 for side in ['blue', 'red']:
-                    squadron = await self.get_squadron(match_id=match_id, squadron_id=squadrons[side]['id'])
+                    squadron = await self.get_squadron(match_id, squadrons[side]['id'])
                     if squadron.points > min_costs:
                         channel = self.bot.get_channel(channels[side])
                         await channel.send(_("You can now use {} to chose your customizations!").format(

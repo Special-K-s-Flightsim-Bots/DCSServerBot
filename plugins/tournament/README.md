@@ -37,6 +37,7 @@ DEFAULT:
   auto_join: true           # If true, your pilot will be automatically assigned to the associated squadron (default: false).
   time_to_choose: 600       # The time squadrons have to choose their customizations for the next round.
   sudden_death: false       # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
+  balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
   presets:
     file: presets_tournament.yaml
     initial:          # presets that have to be applied to any mission
@@ -52,6 +53,10 @@ DEFAULT:
     category: 119922883377446655  # a category where all match channels will be created into
     admin: 998877665544332211     # optional: gamemaster admin channel (if not set, a central admin channel will be used)
 ```
+
+> [!NOTE]
+> The balance_multiplier adds some fairness into your game. It will award a party that is weaker with more credit points
+> and the stronger party with less. So the weaker party can buy more stuff on the next round than the stronger party.
 
 > [!WARNING]
 > The streamer channel above will receive all information about what's going on in your match. 
