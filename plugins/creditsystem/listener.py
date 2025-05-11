@@ -62,8 +62,12 @@ class CreditSystemListener(EventListener["CreditSystem"]):
         if not player:
             return
         if player.points == -1:
+            # do not add initial points to squadrons
+            squadron = player.squadron
+            player.squadron = None
             player.points = self.get_initial_points(player, config)
             player.audit('init', 0, _('Initial points received'))
+            player.squadron = squadron
         else:
             asyncio.create_task(server.send_to_dcs({
                 'command': 'updateUserPoints',
@@ -200,7 +204,11 @@ class CreditSystemListener(EventListener["CreditSystem"]):
             return
         config = self.plugin.get_config(server)
         for player in server.get_active_players():  # type: CreditPlayer
+            # do not add initial points to squadrons
+            squadron = player.squadron
+            player.squadron = None
             player.points = self.get_initial_points(player, config)
+            player.squadron = squadron
 
     @chat_command(name="credits", help=_("Shows your current credits"))
     async def credits(self, server: Server, player: CreditPlayer, params: list[str]):

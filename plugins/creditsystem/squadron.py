@@ -1,12 +1,14 @@
-from core import Server, utils
+from core import Server, utils, Plugin
 from core.data.dataobject import DataObjectFactory, DataObject
 from core.services.registry import ServiceRegistry
 from core.utils import get_squadron
 from core.data.member import Member
 from core.data.const import Status
 from dataclasses import dataclass, field
+
+from services.bot import DCSServerBot, BotService
 from services.servicebus import ServiceBus
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 if TYPE_CHECKING:
     from .player import CreditPlayer
@@ -20,10 +22,17 @@ class Squadron(DataObject):
     players: list[Member] = field(compare=False, default_factory=list)
     _points: int = field(compare=False, default=-1)
     squadron_id: int = field(compare=False, init=False)
+    bot: DCSServerBot = field(compare=False, init=False)
+    plugin: Plugin = field(compare=False, init=False)
+    config: dict = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
+        self.bot = ServiceRegistry.get(BotService).bot
+        self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
+        self.config = self.plugin.get_config(self.server).get('squadron', {})
         squadron = get_squadron(self.node, name=self.name)
+
         if squadron:
             self.squadron_id = squadron['id']
         else:
@@ -42,12 +51,19 @@ class Squadron(DataObject):
                 if row:
                     self._points = row[0]
                 else:
-                    self.points = 0
+                    self.points = self.config.get('initial_points', 0)
         return self._points
 
     @points.setter
     def points(self, p: int) -> None:
-        self._points = p
+        if 'max_points' in self.config and p > int(self.config['max_points']):
+            self._points = int(self.config['max_points'])
+        else:
+            self._points = p
+
+        # make sure we never go below 0
+        if self._points < 0:
+            self._points = 0
 
         campaign_id, _ = utils.get_running_campaign(self.node, self.server)
         if campaign_id:

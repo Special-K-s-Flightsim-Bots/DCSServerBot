@@ -74,7 +74,9 @@ class TrapView(View):
     @discord.ui.select(placeholder=_('Select the plane for the trap'),
                        options=[
                            SelectOption(label=x, default=(idx == 0))
-                           for idx, x in enumerate(['AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33'])
+                           for idx, x in enumerate([
+                               'AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33', 'F-4E-45MC'
+                           ])
                        ])
     async def callback(self, interaction: discord.Interaction, select: Select):
         modal = TrapModal(self.bot, config=self.config, user=self.user, unit_type=select.values[0])

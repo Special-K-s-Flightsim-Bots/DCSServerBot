@@ -14,6 +14,8 @@ DCS.release_server:
   persistence: true               # false: don't persist the mission statistics to database (default: true)
   persist_ai_statistics: false    # true: persist AI statistics to the database (default: false)
   event_filter:                   # Optional: do not receive these events
+    - S_EVENT_MARK_ADDED
+    - S_EVENT_MARK_REMOVED
     - S_EVENT_TOOK_CONTROL
     - S_EVENT_BDA
     - S_EVENT_MAX

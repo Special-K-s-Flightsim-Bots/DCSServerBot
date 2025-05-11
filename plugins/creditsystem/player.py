@@ -11,10 +11,14 @@ from .squadron import Squadron
 class CreditPlayer(Player):
     _points: int = field(compare=False, default=-1)
     deposit: int = field(compare=False, default=0)
+    plugin: Plugin = field(compare=False, init=False)
+    config: dict = field(compare=False, init=False)
     squadron: Optional[Squadron] = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
+        self.plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
+        self.config = self.plugin.get_config(self.server)
         with self.pool.connection() as conn:
             row = conn.execute("""
                 SELECT s.name FROM squadrons s JOIN squadron_members sm 
@@ -46,11 +50,9 @@ class CreditPlayer(Player):
     @points.setter
     def points(self, p: int) -> None:
         old_points = self.points
-        plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
-        config = plugin.get_config(self.server)
 
-        if 'max_points' in config and p > int(config['max_points']):
-            self._points = int(config['max_points'])
+        if 'max_points' in self.config and p > int(self.config['max_points']):
+            self._points = int(self.config['max_points'])
         else:
             self._points = p
 
@@ -71,7 +73,7 @@ class CreditPlayer(Player):
             self.log.debug("No campaign active, player points will vanish after a bot restart.")
 
         if self.squadron and old_points < self._points:
-            if config.get('squadron_credits', False):
+            if self.config.get('squadron_credits', False):
                 self.squadron.points += self._points - old_points
 
         # sending points to DCS
@@ -95,7 +97,5 @@ class CreditPlayer(Player):
                 """, (campaign_id, event, self.ucid, old_points, self._points, remark))
 
         if self.squadron and old_points < self.points:
-            plugin = cast(Plugin, self.bot.cogs['CreditSystem'])
-            config = plugin.get_config(self.server)
-            if config.get('squadron_credits', False):
+            if self.config.get('squadron_credits', False):
                 self.squadron.audit(event, self._points - old_points, remark, self)

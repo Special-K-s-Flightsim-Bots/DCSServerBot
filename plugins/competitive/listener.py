@@ -25,8 +25,8 @@ GLOBAL_MATCH_ID = 'MASTER'
 @dataclass
 class Match:
     match_id: str
-    alive: dict[Side, list[Player]] = field(default_factory=dict)
-    dead: dict[Side, list[Player]] = field(default_factory=dict)
+    alive: dict[Side, list[CreditPlayer]] = field(default_factory=dict)
+    dead: dict[Side, list[CreditPlayer]] = field(default_factory=dict)
     log: list[tuple[datetime, str]] = field(default_factory=list)
     started: datetime = field(default=None)
     finished: datetime = field(default=None)
@@ -67,7 +67,7 @@ class Match:
 
     # match only: get the squadron of one side
     def get_squadron(self, side: Side) -> Optional[Squadron]:
-        return next((x.squadron for x in self.alive[side] if x.squadron), None)
+        return next((x.squadron for x in self.alive.get(side, []) if x.squadron), None)
 
 
 class CompetitiveListener(EventListener["Competitive"]):
