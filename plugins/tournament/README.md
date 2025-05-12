@@ -57,6 +57,8 @@ DEFAULT:
 > [!NOTE]
 > The balance_multiplier adds some fairness into your game. It will award a party that is weaker with more credit points
 > and the stronger party with less. So the weaker party can buy more stuff on the next round than the stronger party.
+> The system is based on an "upset bonus system" which allows multipliers between 0.5 and 2.5, depending on the
+> situation.
 
 > [!WARNING]
 > The streamer channel above will receive all information about what's going on in your match. 

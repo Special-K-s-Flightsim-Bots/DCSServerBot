@@ -57,17 +57,18 @@ async def available_modules_autocomplete(interaction: discord.Interaction,
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction,
-                                         current: str) -> list[app_commands.Choice[int]]:
+                                         current: str) -> list[app_commands.Choice[str]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     try:
         node = await utils.NodeTransformer().transform(interaction, utils.get_interaction_param(interaction, "node"))
         available_modules = await node.get_installed_modules()
-        return [
+        choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x, value=x)
             for x in available_modules
             if not current or current.casefold() in x.casefold()
         ]
+        return choices[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []

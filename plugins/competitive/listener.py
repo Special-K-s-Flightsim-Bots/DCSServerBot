@@ -8,10 +8,9 @@ from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
 from plugins.competitive import rating
 from trueskill import Rating
-from typing import Optional, TYPE_CHECKING, cast
+from typing import Optional, TYPE_CHECKING
 
 from ..creditsystem.listener import CreditSystemListener
-from ..creditsystem.player import CreditPlayer
 from ..creditsystem.squadron import Squadron
 
 if TYPE_CHECKING:
@@ -25,8 +24,8 @@ GLOBAL_MATCH_ID = 'MASTER'
 @dataclass
 class Match:
     match_id: str
-    alive: dict[Side, list[CreditPlayer]] = field(default_factory=dict)
-    dead: dict[Side, list[CreditPlayer]] = field(default_factory=dict)
+    alive: dict[Side, list[Player]] = field(default_factory=dict)
+    dead: dict[Side, list[Player]] = field(default_factory=dict)
     log: list[tuple[datetime, str]] = field(default_factory=list)
     started: datetime = field(default=None)
     finished: datetime = field(default=None)
@@ -67,6 +66,7 @@ class Match:
 
     # match only: get the squadron of one side
     def get_squadron(self, side: Side) -> Optional[Squadron]:
+        # noinspection PyUnresolvedReferences
         return next((x.squadron for x in self.alive.get(side, []) if x.squadron), None)
 
 
@@ -149,11 +149,17 @@ class CompetitiveListener(EventListener["Competitive"]):
         await self.inform_players(
             match, _("The match is on! If you die, crash or leave now, you lose!"))
 
-    async def countdown_with_warnings(self, match: Match, delayed_start: int):
+    async def countdown_with_warnings(self, match: Match, server: Server, delayed_start: int):
         start_time = datetime.now()
         end_time = start_time + timedelta(seconds=delayed_start)
         last_minute_warning = None
         ten_second_warning_sent = False
+
+        # wait until the server is unpaused
+        try:
+            await server.wait_for_status_change(status=[Status.RUNNING], timeout=300)
+        except (TimeoutError, asyncio.TimeoutError):
+            pass
 
         while True:
             remaining = int((end_time - datetime.now()).total_seconds())
@@ -212,7 +218,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if config.get('debug', False) or (not is_on and match.is_on()):
                 delayed_start = config.get('delayed_start', 0)
                 if delayed_start > 0:
-                    await self.countdown_with_warnings(match, delayed_start)
+                    await self.countdown_with_warnings(match, server, delayed_start)
                 asyncio.create_task(self.start_match(match))
 
     @event(name="addPlayerToMatch")
@@ -350,7 +356,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, players[0])
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
-            player = cast(CreditPlayer, server.get_player(id=data['arg1']))
+            player = server.get_player(id=data['arg1'])
             if not player:
                 return
             # if the pilot of an MC aircraft leaves, both pilots get booted
@@ -363,7 +369,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
                 await remove_players(server, players)
-                if self.get_config(server).get('credit_on_leave', False) and player.squadron:
+                if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, player)
         elif data['eventName'] == 'takeoff':
             player = server.get_player(id=data['arg1'])
@@ -411,6 +417,12 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
+        # unlock players
+        if data['match_id'] == GLOBAL_MATCH_ID:
+            for ucid in self.in_match[server.name].keys():
+                player = server.get_player(ucid=ucid)
+                await player.unlock()
+
         # restart the mission if configured
         config = self.get_config(server)
         if config.get('end_mission', False):

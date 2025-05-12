@@ -204,7 +204,7 @@ class Server(DataObject):
     def get_active_players(self, *, side: Side = None) -> list[Player]:
         return [x for x in self.players.values() if x.active and (not side or side == x.side)]
 
-    def get_crew_members(self, pilot: Player):
+    def get_crew_members(self, pilot: Player) -> list[Player]:
         members = []
         if pilot:
             # now find players that have the same slot

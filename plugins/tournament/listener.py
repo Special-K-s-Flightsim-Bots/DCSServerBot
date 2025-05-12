@@ -176,6 +176,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                 match = await self.plugin.get_match(match_id)
                 winner_id = squadron['id']
                 loser_id = match['squadron_{}'.format('blue' if winner == 'red' else 'red')]
+                winner_coalition = Coalition.RED if winner == 'red' else Coalition.BLUE
+                loser_coalition = Coalition.RED if winner == 'blue' else Coalition.BLUE
                 winner_squadron = await self.plugin.get_squadron(match_id, winner_id)
                 loser_squadron = await self.plugin.get_squadron(match_id, loser_id)
                 winner_points = winner_squadron.points - self.squadron_credits[winner_id]
@@ -187,16 +189,26 @@ class TournamentEventListener(EventListener["Tournament"]):
                 winner_squadron.points -= winner_points # remove the points first
                 winner_squadron.points += winner_points * killer_multiplier # add the points with the correct multiplier
                 self.log.debug(f"Winner got {winner_points * killer_multiplier} points instead of {winner_points} points.")
+                await server.sendPopupMessage(
+                    winner_coalition,f"Squadron {winner_squadron.name}, you earned "
+                                     f"{winner_points * killer_multiplier} points!")
                 loser_squadron.points -= loser_points # remove the points first
                 loser_squadron.points += loser_points * loser_multiplier # add the points with the correct multiplier
                 self.log.debug(f"Loser got {loser_points * loser_multiplier} points instead of {loser_points} points.")
+                await server.sendPopupMessage(
+                    loser_coalition,f"Squadron {loser_squadron.name}, you earned "
+                                     f"{loser_points * loser_multiplier} points!")
         else:
             match = await self.plugin.get_match(match_id)
             message = _("Round {} was a draw!").format(match['round_number'])
+
         # inform players and people
         asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
         asyncio.create_task(self.inform_squadrons(server, message=message))
         asyncio.create_task(self.announce(server, message))
+
+        # pause the server
+        asyncio.create_task(server.current_mission.pause())
 
         # check if the match is finished
         winner_id = None
@@ -244,11 +256,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                         return
 
                     # update the database
-                    await cursor.execute("""
-                                         UPDATE tm_matches
-                                         SET winner_squadron_id = %s
-                                         WHERE match_id = %s
-                                         """, (winner_id, match_id))
+                    await cursor.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
+                                         (winner_id, match_id))
 
             # inform people
             squadron = utils.get_squadron(self.node, squadron_id=winner_id)
