@@ -1940,7 +1940,7 @@ class Mission(Plugin[MissionEventListener]):
                 if name != channel.name:
                     await channel.edit(name=name)
             except Exception as ex:
-                self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=str(ex))
+                self.log.debug(f"Exception in update_channel_name() for server {server_name}", exc_info=True)
 
     @update_channel_name.before_loop
     async def before_update_channel_name(self):

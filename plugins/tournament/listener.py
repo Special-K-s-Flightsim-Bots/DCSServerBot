@@ -189,15 +189,17 @@ class TournamentEventListener(EventListener["Tournament"]):
                 winner_squadron.points -= winner_points # remove the points first
                 winner_squadron.points += winner_points * killer_multiplier # add the points with the correct multiplier
                 self.log.debug(f"Winner got {winner_points * killer_multiplier} points instead of {winner_points} points.")
-                await server.sendPopupMessage(
-                    winner_coalition,f"Squadron {winner_squadron.name}, you earned "
-                                     f"{winner_points * killer_multiplier} points!")
+                if winner_points * killer_multiplier > 0:
+                    await server.sendPopupMessage(
+                        winner_coalition,f"Squadron {winner_squadron.name}, you earned "
+                                         f"{winner_points * killer_multiplier} points!")
                 loser_squadron.points -= loser_points # remove the points first
                 loser_squadron.points += loser_points * loser_multiplier # add the points with the correct multiplier
                 self.log.debug(f"Loser got {loser_points * loser_multiplier} points instead of {loser_points} points.")
-                await server.sendPopupMessage(
-                    loser_coalition,f"Squadron {loser_squadron.name}, you earned "
-                                     f"{loser_points * loser_multiplier} points!")
+                if loser_points * loser_multiplier > 0:
+                    await server.sendPopupMessage(
+                        loser_coalition,f"Squadron {loser_squadron.name}, you earned "
+                                        f"{loser_points * loser_multiplier} points!")
         else:
             match = await self.plugin.get_match(match_id)
             message = _("Round {} was a draw!").format(match['round_number'])

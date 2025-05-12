@@ -92,6 +92,7 @@ class Main:
         logging.getLogger(name='git').setLevel(logging.WARNING)
         logging.getLogger(name='matplotlib').setLevel(logging.ERROR)
         logging.getLogger(name='PidFile').setLevel(logging.ERROR)
+        logging.getLogger(name='PIL').setLevel(logging.INFO)
         logging.getLogger(name='psycopg.pool').setLevel(logging.WARNING)
         logging.getLogger(name='pykwalify').setLevel(logging.CRITICAL)
 

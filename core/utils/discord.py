@@ -301,7 +301,7 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
     The yn_question method uses a custom view called YNQuestionView to handle the interaction. An embedded message is sent with the specified question and optional message, along with two
     * buttons for "Yes" and "No". The view listens for the user's button clicks and returns the corresponding boolean value.
     """
-    embed = discord.Embed(description=question, color=discord.Color.red())
+    embed = discord.Embed(description="## " + question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
     if isinstance(ctx, discord.Interaction):

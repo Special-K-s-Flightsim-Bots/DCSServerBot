@@ -605,7 +605,7 @@ class Tournament(Plugin[TournamentEventListener]):
         tournament = await self.get_tournament(tournament_id)
         if not await yn_question(interaction,
                                  _("Do you want to generate matches for tournament {}?\n"
-                                   "This will overwrite any existing unflown matches!").format(tournament['name'])):
+                                   "This will overwrite any existing **unflown** matches!").format(tournament['name'])):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
         squadrons: list[tuple[int, float]] = []
@@ -629,24 +629,24 @@ class Tournament(Plugin[TournamentEventListener]):
                         _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
                     return
 
-        # read all squadrons and their ratings
-        for row in await cursor.fetchall():
-            rating = await Competitive.trueskill_squadron(self.node, row[0])
-            squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
+            # read all squadrons and their ratings
+            for row in await cursor.fetchall():
+                rating = await Competitive.trueskill_squadron(self.node, row[0])
+                squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
 
-        # read all available servers
-        async for row in await conn.execute("""
-            SELECT server_name FROM campaigns_servers s
-            JOIN campaigns c ON s.campaign_id = c.id
-            JOIN tm_tournaments t ON c.name = t.campaign
-            WHERE t.tournament_id = %s
-        """, (tournament_id,)):
-            servers.append(row[0])
-        try:
-            # create matches
-            matches = create_tournament_matches(squadrons)
-            # assign the available servers to the matches
-            async with self.apool.connection() as conn:
+            # read all available servers
+            async for row in await conn.execute("""
+                SELECT server_name FROM campaigns_servers s
+                JOIN campaigns c ON s.campaign_id = c.id
+                JOIN tm_tournaments t ON c.name = t.campaign
+                WHERE t.tournament_id = %s
+            """, (tournament_id,)):
+                servers.append(row[0])
+
+            try:
+                # create matches
+                matches = create_tournament_matches(squadrons)
+                # assign the available servers to the matches
                 async with conn.transaction():
                     # delete old matches
                     await conn.execute("DELETE FROM tm_matches WHERE tournament_id = %s AND winner_squadron_id IS NULL",
@@ -658,15 +658,16 @@ class Tournament(Plugin[TournamentEventListener]):
                            VALUES (%s, %s, %s, %s)
                         """, (tournament_id, server, match[0], match[1]))
 
-            await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
-                                 user=interaction.user)
+                await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
+                                     user=interaction.user)
+            except ValueError as ex:
+                await interaction.followup.send(f"Error: {ex}")
+                return
 
-            # generate the match list
-            embed = await self.render_matches(tournament=tournament)
-            await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
-                                            ephemeral=utils.get_ephemeral(interaction))
-        except ValueError as ex:
-            await interaction.followup.send(f"Error: {ex}")
+        # generate the match list
+        embed = await self.render_matches(tournament=tournament, unflown=True)
+        await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
+                                        ephemeral=utils.get_ephemeral(interaction))
 
     @match.command(description='Create a manual match')
     @app_commands.guild_only()
@@ -693,7 +694,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Match created."), ephemeral=utils.get_ephemeral(interaction))
 
-    async def render_matches(self, tournament: dict) -> Optional[discord.Embed]:
+    async def render_matches(self, tournament: dict, unflown: Optional[bool] = False) -> Optional[discord.Embed]:
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = _("Matches for Tournament {}").format(tournament['name'])
         rounds = tournament['rounds']
@@ -702,10 +703,11 @@ class Tournament(Plugin[TournamentEventListener]):
         status = []
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                async for row in await cursor.execute("""
-                    SELECT * FROM tm_matches 
-                    WHERE tournament_id = %s
-                """, (tournament['tournament_id'],)):
+                await cursor.execute("SELECT * FROM tm_matches WHERE tournament_id = %s",
+                                     (tournament['tournament_id'],))
+                for row in await cursor.fetchall():
+                    if row['winner_squadron_id'] and unflown:
+                        continue
                     squadrons_blue.append(utils.get_squadron(self.node, squadron_id=row['squadron_blue'])['name'])
                     squadrons_red.append(utils.get_squadron(self.node, squadron_id=row['squadron_red'])['name'])
                     if row['round_number'] == 0:
@@ -731,7 +733,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('DCS')
-    async def _list(self, interaction: discord.Interaction, tournament_id: int):
+    async def _list(self, interaction: discord.Interaction, tournament_id: int, unflown: bool = False):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
@@ -739,7 +741,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Tournament not found."), ephemeral=True)
             return
 
-        embed = await self.render_matches(tournament)
+        embed = await self.render_matches(tournament, unflown)
         if not embed:
             await interaction.followup.send(_("No matches for tournament {} found.").format(tournament['name']),
                                             ephemeral=True)
@@ -816,7 +818,6 @@ class Tournament(Plugin[TournamentEventListener]):
                                                 "target": f"<id:{results}>"
                                               })
 
-
         # set coalition passwords
         if config.get('coalition_passwords'):
             messages.append(_("Setting coalition passwords..."))
@@ -828,13 +829,12 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed = discord.Embed(color=discord.Color.blue(), title=_("**Get your team ready!**\n"))
                 if squadrons[coalition.value]['image_url']:
                     embed.set_thumbnail(url=squadrons[coalition.value]['image_url'])
-                embed.add_field(name=_("Coalition"), value=coalition.value, inline=True)
+                embed.add_field(name=_("Coalition"), value=coalition.value.upper(), inline=True)
                 embed.add_field(name=_("Password"), value=password, inline=True)
                 embed.set_footer(text=_("You must not share the password with anyone outside your squadron!\n"
                                         "You will stay on the {} side throughout the whole match.").format(
                     coalition.value))
                 await channel.send(embed=embed)
-
 
         # assign all members of the respective squadrons to the respective side
         messages.append(_("Setting coalitions for players..."))
