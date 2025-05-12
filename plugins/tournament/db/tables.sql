@@ -3,7 +3,6 @@ CREATE TABLE tm_tournaments (
     campaign TEXT NOT NULL,
     rounds INTEGER NOT NULL DEFAULT 3,
     num_players INTEGER NOT NULL DEFAULT 4,
-    level INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (campaign) REFERENCES campaigns(name) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_tm_tournaments_campaign ON tm_tournaments(campaign);

@@ -1,4 +1,3 @@
-ALTER TABLE tm_tournaments ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1;
 CREATE TABLE IF NOT EXISTS tm_available_times (
     time_id SERIAL PRIMARY KEY,
     tournament_id INTEGER REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE,

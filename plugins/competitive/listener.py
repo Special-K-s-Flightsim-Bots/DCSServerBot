@@ -329,9 +329,10 @@ class CompetitiveListener(EventListener["Competitive"]):
             if match:
                 match.log.append(
                     (now, _("{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}").format(
-                        killer=print_crew(killers), killer_module=data['arg2'],
+                        killer=print_crew(killers), killer_module=killers[0].unit_display_name,
                         what=_('killed') if data['arg3'] != data['arg4'] else _('team-killed'),
-                        victim=print_crew(victims), victim_module=data['arg5'], weapon=data['arg7'] or 'Guns')))
+                        victim=print_crew(victims), victim_module=victims[0].unit_display_name,
+                        weapon=data['arg7'] or 'Guns')))
                 await remove_players(server, victims)
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
@@ -351,7 +352,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             match = in_match(server, players[0])
             if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
-                    player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
+                    player=print_crew(players), module=players[0].unit_display_name, event=_(data['eventName']))))
                 await remove_players(server, players)
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, players[0])
@@ -367,7 +368,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             match = in_match(server, player)
             if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
-                    player=print_crew(players), module=data['arg2'], event=_(data['eventName']))))
+                    player=print_crew(players), module=players[0].unit_display_name, event=_(data['eventName']))))
                 await remove_players(server, players)
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, player)

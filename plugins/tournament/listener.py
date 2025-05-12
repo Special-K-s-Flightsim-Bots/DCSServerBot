@@ -1,7 +1,8 @@
 import asyncio
 import discord
 
-from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory
+from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, Report, \
+    PersistentReport
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from trueskill import Rating
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING, Optional
 from .utils import calculate_point_multipliers
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
+from ..userstats.filter import CampaignFilter
 
 if TYPE_CHECKING:
     from .commands import Tournament
@@ -82,6 +84,18 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def cleanup(self, server: Server):
         await server.shutdown()
         self.plugin.reset_serversettings(server)
+
+    async def render_highscore(self, server: Server):
+        config = self.get_config(server)
+        channel = self.bot.get_channel(config.get('channels', {}).get('info', -1))
+        if not channel:
+            return
+
+        tournament = self.tournaments.get(server.name)
+        report = PersistentReport(self.bot, self.plugin_name, 'highscore.json',
+                                  embed_name=f"tournament_{tournament['tournament_id']}_highscore",
+                                  channel_id=channel.id)
+        await report.render(interaction=None, server_name=None, flt=CampaignFilter(period=tournament['name']))
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
@@ -212,6 +226,9 @@ class TournamentEventListener(EventListener["Tournament"]):
         # pause the server
         asyncio.create_task(server.current_mission.pause())
 
+        # update the highscore
+        asyncio.create_task(self.render_highscore(server))
+
         # check if the match is finished
         winner_id = None
         tournament = self.tournaments.get(server.name)
@@ -311,6 +328,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 player, reason=_("The round is over, please wait for the next one!")))
         await asyncio.gather(*tasks)
         await asyncio.sleep(1)
+        # TODO: check squadron credits!
         await asyncio.create_task(server.sendPopupMessage(
             Coalition.ALL, _("Squadron admins, you can now choose your weapons for the next round!")))
         await self.inform_squadrons(server, message=_("You can now use {} to chose your customizations!").format(

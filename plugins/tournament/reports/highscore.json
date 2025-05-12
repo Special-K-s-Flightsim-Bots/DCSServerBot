@@ -1,0 +1,48 @@
+{
+  "color": "blue",
+  "title": "Highscore (TOP {limit})",
+  "input": [
+    {
+      "name": "limit",
+      "default": 10
+    }
+  ],
+  "elements": [
+    {
+      "type": "Graph",
+      "params": {
+        "width": 15,
+        "height": 15,
+        "cols": 2,
+        "rows": 4,
+        "elements":
+         [
+            {
+              "class": "plugins.userstats.highscore.HighscorePlaytime",
+              "params": { "col": 0, "row": 0, "colspan": 2 }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 1, "colspan": 2, "kill_type": "Air Targets" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 2, "kill_type": "PvP-KD-Ratio" }
+            },
+            {
+              "class": "plugins.competitive.reports.HighscoreTrueSkill",
+              "params": { "col": 1, "row": 2 }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 3, "kill_type": "Most Efficient Killers" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 1, "row": 3, "kill_type": "Most Wasteful Pilots" }
+            }
+         ]
+      }
+    }
+  ]
+}

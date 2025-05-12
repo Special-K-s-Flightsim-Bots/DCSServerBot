@@ -127,7 +127,7 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
         return choices[:25]
 
 
-async def match_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def all_matches_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
     tournament_id = utils.get_interaction_param(interaction, "tournament")
@@ -141,6 +141,26 @@ async def match_autocomplete(interaction: discord.Interaction, current: str) -> 
                      JOIN squadrons s1 ON s1.id = m.squadron_blue
                      JOIN squadrons s2 ON s2.id = m.squadron_red
                 WHERE t.tournament_id = %s
+                ORDER BY 1
+            """, (tournament_id, ))
+        ]
+        return choices[:25]
+
+
+async def active_matches_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    async with interaction.client.apool.connection() as conn:
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=row[1] + ' vs ' + row[2], value=row[0])
+            async for row in await conn.execute("""
+                SELECT m.match_id, s1.name, s2.name 
+                FROM tm_tournaments t
+                     JOIN tm_matches m ON t.tournament_id = m.tournament_id 
+                     JOIN squadrons s1 ON s1.id = m.squadron_blue
+                     JOIN squadrons s2 ON s2.id = m.squadron_red
+                WHERE t.tournament_id = %s AND m.winner_squadron_id IS NULL
                 ORDER BY 1
             """, (tournament_id, ))
         ]
@@ -696,7 +716,8 @@ class Tournament(Plugin[TournamentEventListener]):
 
     async def render_matches(self, tournament: dict, unflown: Optional[bool] = False) -> Optional[discord.Embed]:
         embed = discord.Embed(color=discord.Color.blue())
-        embed.title = _("Matches for Tournament {}").format(tournament['name'])
+        embed.title = _("Matches for Tournament {}").format(tournament['name'])#
+        embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
         rounds = tournament['rounds']
         squadrons_blue = []
         squadrons_red = []
@@ -810,13 +831,15 @@ class Tournament(Plugin[TournamentEventListener]):
             }
 
         results = config.get('channels', {}).get('results', -1)
-        if results:
+        if results > 0:
             extensions = await server.list_extension()
             if 'Tacview' in extensions:
-                await server.config_extension(name='Tacview',
-                                              config={
-                                                "target": f"<id:{results}>"
-                                              })
+                await server.config_extension(
+                    name='Tacview',
+                    config={
+                        "target": f"<id:{results}>"
+                    }
+                )
 
         # set coalition passwords
         if config.get('coalition_passwords'):
@@ -909,7 +932,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @app_commands.rename(match_id="match")
-    @app_commands.autocomplete(match_id=match_autocomplete)
+    @app_commands.autocomplete(match_id=active_matches_autocomplete)
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=mission_autocomplete)
     @utils.app_has_role('GameMaster')
@@ -1027,7 +1050,8 @@ class Tournament(Plugin[TournamentEventListener]):
             await channel.send(embed=embed)
         info = self.get_info_channel()
         if info:
-            embed = discord.Embed(color=discord.Color.blue(), title=_("A match is about to start!"))
+            embed = discord.Embed(color=discord.Color.blue(),
+                                  title=_("A match is about to start on server {}!").format(server.display_name))
             blue_image = squadrons['blue']['image_url']
             red_image = squadrons['red']['image_url']
             if blue_image and red_image:
@@ -1118,7 +1142,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @app_commands.rename(match_id="match")
-    @app_commands.autocomplete(match_id=match_autocomplete)
+    @app_commands.autocomplete(match_id=all_matches_autocomplete)
     @app_commands.autocomplete(winner_squadron_id=match_squadrons_autocomplete)
     @utils.app_has_role('GameMaster')
     async def edit(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
