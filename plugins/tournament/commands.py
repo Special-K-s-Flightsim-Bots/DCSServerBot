@@ -10,18 +10,16 @@ from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Optional
+from typing import Optional, Literal
 
 from .listener import TournamentEventListener
-from .utils import create_tournament_matches, create_versus_image
+from .utils import create_versus_image, create_elimination_matches, create_group_matches, create_groups
 from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModal, TimesSelectView
 from ..competitive.commands import Competitive
+from ..creditsystem.squadron import Squadron
 
 # ruamel YAML support
 from ruamel.yaml import YAML
-
-from ..creditsystem.squadron import Squadron
-
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
@@ -619,13 +617,15 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def generate(self, interaction: discord.Interaction, tournament_id: int):
+    async def generate(self, interaction: discord.Interaction, tournament_id: int,
+                       stage: Literal['group', 'elimination'], num_groups: Optional[int] = 4):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
         if not await yn_question(interaction,
-                                 _("Do you want to generate matches for tournament {}?\n"
-                                   "This will overwrite any existing **unflown** matches!").format(tournament['name'])):
+                                 _("Do you want to generate {} matches for tournament {}?\n"
+                                   "This will overwrite any existing **unflown** matches!").format(
+                                     stage, tournament['name'])):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
         squadrons: list[tuple[int, float]] = []
@@ -633,21 +633,62 @@ class Tournament(Plugin[TournamentEventListener]):
 
         async with self.apool.connection() as conn:
             # check if we have flown matches already
-            cursor = await conn.execute("SELECT COUNT(*) FROM tm_matches WHERE tournament_id = %s", (tournament_id,))
-            all_matches = (await cursor.fetchone())[0]
             cursor = await conn.execute("""
-                SELECT winner_squadron_id FROM tm_matches WHERE winner_squadron_id IS NOT NULL AND tournament_id = %s
+                SELECT COUNT(*), SUM(CASE WHEN winner_squadron_id IS NOT NULL THEN 1 ELSE 0 END) AS flown 
+                FROM tm_matches 
+                WHERE tournament_id = %s            
             """, (tournament_id,))
+            all_matches, flown_matches = await cursor.fetchone()
+
             # initial setup
-            if all_matches == 0:
+            if all_matches == 0 or stage == 'group':
+                if flown_matches > 0:
+                    await interaction.followup.send(
+                        _("Can't restart group phase, there are already flown matches in this tournament."),
+                        ephemeral=True)
+                    return
+                elif all_matches > 0 and not await yn_question(
+                        interaction, _("Do you really want to generate new groups?")):
+                    await interaction.followup.send(_("Aborted."), ephemeral=True)
+                    return
                 cursor = await conn.execute("""
                     SELECT squadron_id FROM tm_squadrons WHERE tournament_id = %s AND status = 'ACCEPTED'
                 """, (tournament_id,))
+            elif all_matches > flown_matches:
+                await interaction.followup.send(
+                    _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
+                return
             else:
-                if cursor.rowcount < all_matches:
-                    await interaction.followup.send(
-                        _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
-                    return
+                cursor = await conn.execute("""
+                    WITH squadron_stats AS (
+                        SELECT 
+                            s.squadron_id,
+                            s.group_number,
+                            COUNT(CASE WHEN m.winner_squadron_id = s.squadron_id THEN 1 END) as matches_won,
+                            SUM(CASE WHEN m.winner_squadron_id = m.squadron_blue THEN m.squadron_blue_rounds_won 
+                                     WHEN m.winner_squadron_id = m.squadron_red THEN m.squadron_red_rounds_won 
+                                     ELSE 0 END) as total_rounds_won,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY s.group_number 
+                                ORDER BY 3, 4
+                            ) as rank
+                        FROM tm_matches m
+                        LEFT JOIN tm_squadrons s ON (m.tournament_id = s.tournament_id AND s.squadron_id = m.winner_squadron_id)
+                        WHERE m.tournament_id = %s
+                        AND m.winner_squadron_id IS NOT NULL
+                        GROUP BY s.squadron_id, s.group_number
+                    )
+                    SELECT squadron_id 
+                    FROM squadron_stats
+                    WHERE rank <= 2 OR group_number IS NULL
+                    ORDER BY group_number, matches_won DESC, total_rounds_won DESC;
+                """, (tournament_id,))
+
+            if cursor.rowcount == 2 and all_matches == flown_matches and flown_matches % 2 == 1:
+                await interaction.followup.send(_("This tournament is finished already!"))
+                return
+
+            await interaction.followup.send(_("Generating {} matches for this tournament ...").format(stage))
 
             # read all squadrons and their ratings
             for row in await cursor.fetchall():
@@ -665,12 +706,35 @@ class Tournament(Plugin[TournamentEventListener]):
 
             try:
                 # create matches
-                matches = create_tournament_matches(squadrons)
+                if stage == 'elimination':
+                    groups = []
+                    matches = create_elimination_matches(squadrons)
+                else: # group stage
+                    groups = create_groups(squadrons, num_groups)
+                    matches = create_group_matches(groups)
+
                 # assign the available servers to the matches
                 async with conn.transaction():
+                    if groups:
+                        # update the groups, if any
+                        for idx, group in enumerate(groups):
+                            for squadron_id in group:
+                                await conn.execute("""
+                                    UPDATE tm_squadrons SET group_number = %s 
+                                    WHERE tournament_id = %s AND squadron_id = %s
+                                """, (idx + 1, tournament_id, squadron_id))
+                    else:
+                        await conn.execute("""
+                            UPDATE tm_squadrons SET group_number = NULL 
+                            WHERE tournament_id = %s
+                        """, (tournament_id,))
+
                     # delete old matches
-                    await conn.execute("DELETE FROM tm_matches WHERE tournament_id = %s AND winner_squadron_id IS NULL",
-                                       (tournament_id, ))
+                    await conn.execute("""
+                        DELETE FROM tm_matches
+                        WHERE tournament_id = %s AND winner_squadron_id IS NULL
+                    """, (tournament_id, ))
+                    # store new matches in the database
                     for idx, match in enumerate(matches):
                         server = servers[idx % len(servers)]
                         await conn.execute("""

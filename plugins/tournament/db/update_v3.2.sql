@@ -1,0 +1,2 @@
+ALTER TABLE tm_squadrons ADD COLUMN IF NOT EXISTS group_number INTEGER;
+ALTER TABLE tm_matches ADD COLUMN IF NOT EXISTS match_time TIMESTAMP;

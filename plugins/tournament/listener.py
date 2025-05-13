@@ -1,10 +1,8 @@
 import asyncio
 import discord
 
-from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, Report, \
-    PersistentReport
+from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, PersistentReport
 from psycopg.errors import UniqueViolation
-from psycopg.rows import dict_row
 from trueskill import Rating
 from typing import TYPE_CHECKING, Optional
 
@@ -167,53 +165,113 @@ class TournamentEventListener(EventListener["Tournament"]):
                 player = server.get_player(name=initiator['name'])
                 await server.kick(player, "All seats are taken, you are not allowed to join anymore!")
 
+    async def calculate_balance(self, server: Server, winner: str, winner_squadron: Squadron,
+                                loser_squadron: Squadron) -> None:
+        winner_coalition = Coalition.RED if winner == 'red' else Coalition.BLUE
+        loser_coalition = Coalition.RED if winner == 'blue' else Coalition.BLUE
+        winner_points = winner_squadron.points - self.squadron_credits[winner_squadron.squadron_id]
+        loser_points = loser_squadron.points - self.squadron_credits[loser_squadron.squadron_id]
+        self.log.debug(f"Winning squadron {winner_squadron.name} gained {winner_points} points during the round.")
+        self.log.debug(f"Defeated squadron {loser_squadron.name} gained {loser_points} points during the round.")
+        killer_multiplier, loser_multiplier = calculate_point_multipliers(self.ratings[winner_squadron.squadron_id],
+                                                                          self.ratings[loser_squadron.squadron_id])
+        self.log.debug(f"Mulipliers are as follows: Killer = {killer_multiplier} / Victim = {loser_multiplier}")
+        winner_squadron.points -= winner_points  # remove the points first
+        winner_squadron.points += winner_points * killer_multiplier  # add the points with the correct multiplier
+        self.log.debug(f"Winner got {winner_points * killer_multiplier} points instead of {winner_points} points.")
+        if winner_points * killer_multiplier > 0:
+            await server.sendPopupMessage(
+                winner_coalition, f"Squadron {winner_squadron.name}, you earned "
+                                  f"{winner_points * killer_multiplier} points!")
+        loser_squadron.points -= loser_points  # remove the points first
+        loser_squadron.points += loser_points * loser_multiplier  # add the points with the correct multiplier
+        self.log.debug(f"Loser got {loser_points * loser_multiplier} points instead of {loser_points} points.")
+        if loser_points * loser_multiplier > 0:
+            await server.sendPopupMessage(
+                loser_coalition, f"Squadron {loser_squadron.name}, you earned "
+                                 f"{loser_points * loser_multiplier} points!")
+
+    async def check_match_finished(self, server: Server, match_id: int) -> None:
+        config = self.get_config(server)
+        tournament = self.tournaments.get(server.name)
+        match = await self.plugin.get_match(match_id)
+
+        # Calculate required wins for victory (best of N)
+        required_wins = (tournament['rounds'] // 2) + 1
+        total_rounds_played = match['round_number']
+
+        winner_id = None
+        # Check if either side has reached the required wins
+        if match['squadron_blue_rounds_won'] >= required_wins:
+            winner_id = match['squadron_blue']
+        elif match['squadron_red_rounds_won'] >= required_wins:
+            winner_id = match['squadron_red']
+        # If we've played all rounds or more and still no winner
+        elif total_rounds_played >= tournament['rounds']:
+            if config.get('sudden_death', False):
+                # If all rounds were draws, play one additional decisive round
+                if match['squadron_blue_rounds_won'] == match['squadron_red_rounds_won']:
+                    message = _("No winner found yet, playing one decisive round!")
+                # Otherwise determine winner by who has more rounds won
+                elif match['squadron_blue_rounds_won'] > match['squadron_red_rounds_won']:
+                    winner_id = match['squadron_blue']
+                elif match['squadron_red_rounds_won'] > match['squadron_blue_rounds_won']:
+                    winner_id = match['squadron_red']
+            else:
+                message = _("We have found no winner yet, continuing the match with another round!")
+        else:
+            message = _("The match will continue with round {}.").format(total_rounds_played + 1)
+
+        if winner_id:
+            # update the database
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
+                                       (winner_id, match_id))
+            # inform people
+            squadron = utils.get_squadron(self.node, squadron_id=winner_id)
+            message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
+            asyncio.create_task(self.announce(server, message=message))
+            message += _("\nServer will be shut down in 60 seonds ...")
+            asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
+            await asyncio.sleep(60)
+            asyncio.create_task(self.cleanup(server))
+            asyncio.create_task(self.audit(
+                server,f"Match {match_id} is now finished. Squadron {squadron['name']} won the match.\n"
+                       f"Closing the squadron channels now."))
+            asyncio.create_task(self.plugin.close_channel(match_id))
+        else:
+            # inform people
+            asyncio.create_task(self.inform_squadrons(server, message=message))
+            asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
+            # play another round
+            asyncio.create_task(self.next_round(server, match_id))
+
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
         winner = data['winner'].lower()
         match_id = await self.get_active_match(server)
+
         # do we have a winner?
         if winner in ['blue', 'red']:
+            loser = 'blue' if winner == 'red' else 'red'
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     cursor = await conn.execute(f"""
                         UPDATE tm_matches 
                         SET squadron_{winner}_rounds_won = squadron_{winner}_rounds_won + 1
                         WHERE match_id = %s
-                        RETURNING squadron_{winner}, round_number
+                        RETURNING squadron_{winner}, squadron_{loser}, round_number
                     """, (match_id,))
-                    squadron_id, round_number = await cursor.fetchone()
-            squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-            message = _("Squadron {name} won round {round}!").format(name=squadron['name'], round=round_number)
+                    winner_id, loser_id, round_number = await cursor.fetchone()
+            winner_squadron = await self.plugin.get_squadron(match_id, squadron_id=winner_id)
+            loser_squadron = await self.plugin.get_squadron(match_id, squadron_id=loser_id)
+            message = _("Squadron {name} won round {round}!").format(name=winner_squadron.name, round=round_number)
 
             # calculate balance
             if self.get_config(server).get('balance_multiplier', False):
-                match = await self.plugin.get_match(match_id)
-                winner_id = squadron['id']
-                loser_id = match['squadron_{}'.format('blue' if winner == 'red' else 'red')]
-                winner_coalition = Coalition.RED if winner == 'red' else Coalition.BLUE
-                loser_coalition = Coalition.RED if winner == 'blue' else Coalition.BLUE
-                winner_squadron = await self.plugin.get_squadron(match_id, winner_id)
-                loser_squadron = await self.plugin.get_squadron(match_id, loser_id)
-                winner_points = winner_squadron.points - self.squadron_credits[winner_id]
-                loser_points = loser_squadron.points - self.squadron_credits[loser_id]
-                self.log.debug(f"Winning squadron {winner_squadron.name} gained {winner_points} points during the round.")
-                self.log.debug(f"Defeated squadron {loser_squadron.name} gained {loser_points} points during the round.")
-                killer_multiplier, loser_multiplier = calculate_point_multipliers(self.ratings[winner_id], self.ratings[loser_id])
-                self.log.debug(f"Mulipliers are as follows: Killer = {killer_multiplier} / Victim = {loser_multiplier}")
-                winner_squadron.points -= winner_points # remove the points first
-                winner_squadron.points += winner_points * killer_multiplier # add the points with the correct multiplier
-                self.log.debug(f"Winner got {winner_points * killer_multiplier} points instead of {winner_points} points.")
-                if winner_points * killer_multiplier > 0:
-                    await server.sendPopupMessage(
-                        winner_coalition,f"Squadron {winner_squadron.name}, you earned "
-                                         f"{winner_points * killer_multiplier} points!")
-                loser_squadron.points -= loser_points # remove the points first
-                loser_squadron.points += loser_points * loser_multiplier # add the points with the correct multiplier
-                self.log.debug(f"Loser got {loser_points * loser_multiplier} points instead of {loser_points} points.")
-                if loser_points * loser_multiplier > 0:
-                    await server.sendPopupMessage(
-                        loser_coalition,f"Squadron {loser_squadron.name}, you earned "
-                                        f"{loser_points * loser_multiplier} points!")
+                await self.calculate_balance(server, winner, winner_squadron, loser_squadron)
+
         else:
             match = await self.plugin.get_match(match_id)
             message = _("Round {} was a draw!").format(match['round_number'])
@@ -230,66 +288,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         asyncio.create_task(self.render_highscore(server))
 
         # check if the match is finished
-        winner_id = None
-        tournament = self.tournaments.get(server.name)
-        config = self.get_config(server)
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                async with conn.cursor(row_factory=dict_row) as cursor:
-                    await cursor.execute("SELECT * FROM tm_matches WHERE match_id = %s", (match_id,))
-                    row = await cursor.fetchone()
-                    # Calculate required wins for victory (best of N)
-                    required_wins = (tournament['rounds'] // 2) + 1
-                    total_rounds_played = row['round_number']
-
-                    # Check if either side has reached the required wins
-                    if row['squadron_blue_rounds_won'] >= required_wins:
-                        winner_id = row['squadron_blue']
-                    elif row['squadron_red_rounds_won'] >= required_wins:
-                        winner_id = row['squadron_red']
-                    # If we've played all rounds or more and still no winner
-                    elif total_rounds_played >= tournament['rounds']:
-                        if config.get('sudden_death', False):
-                            # If all rounds were draws, play one additional decisive round
-                            if row['squadron_blue_rounds_won'] == 0 and row['squadron_red_rounds_won'] == 0:
-                                message = _("All rounds were draws! Playing one decisive round!")
-                                asyncio.create_task(self.inform_squadrons(server, message=message))
-                                asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
-                            # Otherwise determine winner by who has more rounds won
-                            elif row['squadron_blue_rounds_won'] > row['squadron_red_rounds_won']:
-                                winner_id = row['squadron_blue']
-                            elif row['squadron_red_rounds_won'] > row['squadron_blue_rounds_won']:
-                                winner_id = row['squadron_red']
-                            # If equal wins but not all draws, play one decisive round
-                            else:
-                                message = _("Match is tied! Playing one decisive round!")
-                                asyncio.create_task(self.inform_squadrons(server, message=message))
-                                asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
-                        else:
-                            message = _("We have no winner yet, continuing the match with another round!")
-                            asyncio.create_task(self.inform_squadrons(server, message=message))
-                            asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
-
-                    if not winner_id:
-                        asyncio.create_task(self.next_round(server, match_id))
-                        return
-
-                    # update the database
-                    await cursor.execute("UPDATE tm_matches SET winner_squadron_id = %s WHERE match_id = %s",
-                                         (winner_id, match_id))
-
-            # inform people
-            squadron = utils.get_squadron(self.node, squadron_id=winner_id)
-            message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
-            asyncio.create_task(self.announce(server, message=message))
-            message += _("\nServer will be shut down in 60 seonds ...")
-            asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
-            await asyncio.sleep(60)
-            asyncio.create_task(self.cleanup(server))
-            asyncio.create_task(self.audit(
-                server,f"Match {match_id} is now finished. Squadron {squadron['name']} won the match.\n"
-                       f"Closing the squadron channels now."))
-            asyncio.create_task(self.plugin.close_channel(match_id))
+        await self.check_match_finished(server, match_id)
 
     async def wait_until_choices_finished(self, server: Server):
         config = self.get_config(server)

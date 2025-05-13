@@ -17,6 +17,7 @@ CREATE TABLE tm_squadrons (
     squadron_id INTEGER NOT NULL,
     application TEXT,
     status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'ACCEPTED', 'REJECTED'
+    group_number INTEGER,
     PRIMARY KEY(tournament_id, squadron_id),
     FOREIGN KEY (tournament_id) REFERENCES tm_tournaments(tournament_id) ON DELETE CASCADE
 );

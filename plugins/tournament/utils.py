@@ -1,12 +1,13 @@
 import aiohttp
 import math
+import random
 
 from io import BytesIO
 from trueskill import Rating
 from PIL import Image, ImageDraw, ImageFont
 
 
-def create_tournament_matches(squadrons: list[tuple[int, float]]) -> list[tuple[int, int]]:
+def create_elimination_matches(squadrons: list[tuple[int, float]]) -> list[tuple[int, int]]:
     """
     Create tournament matches using snake pairing system.
 
@@ -32,6 +33,75 @@ def create_tournament_matches(squadrons: list[tuple[int, float]]) -> list[tuple[
         squad1 = sorted_squadrons[i][0]  # Get squadron_id from tuple
         squad2 = sorted_squadrons[-(i + 1)][0]  # Get opponent from bottom, moving upwards
         matches.append((squad1, squad2))
+
+    return matches
+
+
+def create_groups(squadrons: list[tuple[int, float]], num_groups: int) -> list[list[int]]:
+    """
+    Create random groups for the group phase of the tournament.
+
+    Args:
+        squadrons: List of squadron IDs
+        num_groups: Number of groups to create
+
+    Returns:
+        List of groups, where each group is a list of squadron IDs
+
+    Raises:
+        ValueError: If number of groups is invalid or if there aren't enough squadrons
+    """
+    if num_groups <= 0:
+        raise ValueError("Number of groups must be positive")
+
+    if len(squadrons) < num_groups * 2:
+        raise ValueError(f"Need at least {num_groups * 2} squadrons for {num_groups} groups (minimum 2 per group)")
+
+    # Create a copy of the squadron list to shuffle
+    squadrons_copy = [x[0] for x in squadrons]
+    random.shuffle(squadrons_copy)
+
+    # Calculate minimum squadrons per group
+    min_per_group = len(squadrons_copy) // num_groups
+    # Calculate how many groups get an extra squadron (if uneven division)
+    extras = len(squadrons_copy) % num_groups
+
+    groups = []
+    current_idx = 0
+
+    for group_num in range(num_groups):
+        # Calculate the size for this group
+        group_size = min_per_group + (1 if group_num < extras else 0)
+        # Create the group
+        group = squadrons_copy[current_idx:current_idx + group_size]
+        groups.append(group)
+        current_idx += group_size
+
+    return groups
+
+
+def create_group_matches(groups: list[list[int]]) -> list[tuple[int, int]]:
+    """
+    Create matches for group phase where each squadron plays against all other squadrons in their group.
+
+    Args:
+        groups: List of groups, where each group is a list of squadron IDs
+               (output from create_balanced_groups)
+
+    Returns:
+        List of tuples (squadron1_id, squadron2_id) representing matches
+
+    Example:
+        For a group [1, 2, 3], it creates matches [(1,2), (1,3), (2,3)]
+    """
+    matches = []
+
+    # For each group
+    for group in groups:
+        # Create matches between each pair of squadrons in the group
+        for i in range(len(group)):
+            for j in range(i + 1, len(group)):
+                matches.append((group[i], group[j]))
 
     return matches
 
