@@ -792,19 +792,20 @@ class Tournament(Plugin[TournamentEventListener]):
     @match.command(description='Create a manual match')
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
+    @app_commands.describe(stage=_("The level of your match. If all matches on one level are finished, increase the level by one."))
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @app_commands.autocomplete(server_name=server_autocomplete)
     @app_commands.autocomplete(squadron_blue=valid_squadron_autocomplete)
     @app_commands.autocomplete(squadron_red=valid_squadron_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def create(self, interaction: discord.Interaction, tournament_id: int, server_name: str,
-                     squadron_blue: int, squadron_red: int):
+    async def create(self, interaction: discord.Interaction, tournament_id: int, stage: app_commands.Range[int, 1, 7],
+                     server_name: str, squadron_blue: int, squadron_red: int):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO tm_matches(tournament_id, server_name, squadron_red, squadron_blue) 
-                    VALUES (%s, %s, %s, %s)
-                """, (tournament_id, server_name, squadron_red, squadron_blue))
+                    INSERT INTO tm_matches(tournament_id, stage, server_name, squadron_red, squadron_blue) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (tournament_id, stage, server_name, squadron_red, squadron_blue))
 
         tournament = await self.get_tournament(tournament_id)
         blue = utils.get_squadron(self.node, squadron_id=squadron_blue)
