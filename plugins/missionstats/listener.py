@@ -1,7 +1,8 @@
 import asyncio
 import psycopg_pool
 
-from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation
+from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
+    ThreadSafeDict
 from discord.ext import tasks
 from typing import TYPE_CHECKING
 
@@ -44,7 +45,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     def __init__(self, plugin: "MissionStatistics"):
         super().__init__(plugin)
         self.mission_stats = {}
-        self.update: dict[str, bool] = {}
+        self.update: dict[str, bool] = ThreadSafeDict()
         self.do_update.start()
 
     async def shutdown(self):
