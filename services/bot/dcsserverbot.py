@@ -351,7 +351,13 @@ class DCSServerBot(commands.Bot):
                 for name, value in kwargs.items():
                     embed.add_field(name=name.title(), value=value, inline=False)
             embed.set_footer(text=datetime.now(timezone.utc).strftime("%y-%m-%d %H:%M:%S"))
-            await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
+            try:
+                await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
+            except discord.errors.HTTPException as ex:
+                # ignore rate limits
+                if ex.code != 429:
+                    raise
+                self.log.warning("Audit message discarded due to Discord rate limits: " + message)
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
