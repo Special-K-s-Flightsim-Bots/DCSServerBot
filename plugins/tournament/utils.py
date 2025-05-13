@@ -1,8 +1,11 @@
 import aiohttp
 import math
+import pandas as pd
 import random
 
 from io import BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import Border, Side, Font
 from trueskill import Rating
 from PIL import Image, ImageDraw, ImageFont
 
@@ -229,3 +232,99 @@ def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) ->
         victim_multiplier = min(victim_raw_multiplier * uncertainty_factor, 2.5)
 
     return killer_multiplier, victim_multiplier
+
+
+def create_tournament_sheet(squadrons_df, matches_df, tournament_id):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Tournament {tournament_id}"
+
+    border = Border(left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin'))
+
+    # Write group stages
+    groups = squadrons_df.sort_values(['group_number', 'squadron_id'])
+
+    # Start writing from row 2 to leave space for headers
+    row = 2
+
+    # Write group stage header
+    ws.cell(row=1, column=1, value="Groups").font = Font(bold=True)
+
+    # Write groups and squadrons
+    for group_num, group_data in groups.groupby('group_number'):
+        ws.cell(row=row, column=1, value=f'Group {group_num}').font = Font(bold=True)
+        row += 1
+
+        for _, squadron in group_data.iterrows():
+            cell = ws.cell(row=row, column=1, value=squadron['name'])
+            cell.border = border
+            row += 1
+
+        row += 1  # Space between groups
+
+    # Create squadron_id to name mapping for easier lookup
+    squadron_names = dict(zip(squadrons_df['squadron_id'], squadrons_df['name']))
+
+    # Write matches by stage
+    matches_sorted = matches_df.sort_values(['stage', 'match_id'])
+    max_row = row  # Remember the maximum row used by groups
+
+    # Group matches by stage
+    for stage, stage_matches in matches_sorted.groupby('stage'):
+        if stage == 1:
+            # Group stage matches - place them next to the groups
+            column = 3  # Start group matches from column C
+            ws.cell(row=1, column=column, value="Group Stage Matches").font = Font(bold=True)
+
+            row = 2
+            for _, match in stage_matches.iterrows():
+                red_name = squadron_names[match['squadron_red']]
+                blue_name = squadron_names[match['squadron_blue']]
+
+                ws.cell(row=row, column=column,
+                        value=f'{red_name} vs {blue_name}').border = border
+                ws.cell(row=row + 1, column=column,
+                        value=f'Result: {match["squadron_red_rounds_won"]} - {match["squadron_blue_rounds_won"]}').border = border
+
+                if match['winner_squadron_id']:
+                    winner_name = squadron_names[match['winner_squadron_id']]
+                    ws.cell(row=row + 2, column=column,
+                            value=f'Winner: {winner_name}').font = Font(italic=True)
+
+                row += 4  # Space for next match
+        else:
+            # Elimination stages - place them progressively to the right
+            column = 3 + (stage - 1) * 3  # Each stage moves 3 columns to the right
+            ws.cell(row=1, column=column, value=f"Stage {stage}").font = Font(bold=True)
+
+            row_spacing = 4 * (2 ** (stage - 2))  # Increase spacing between matches for each stage
+            base_row = 2
+
+            for idx, match in enumerate(stage_matches.itertuples()):
+                current_row = base_row + (idx * row_spacing)
+
+                red_name = squadron_names[match.squadron_red]
+                blue_name = squadron_names[match.squadron_blue]
+
+                ws.cell(row=current_row, column=column,
+                        value=f'{red_name} vs {blue_name}').border = border
+                ws.cell(row=current_row + 1, column=column,
+                        value=f'Result: {match.squadron_red_rounds_won} - {match.squadron_blue_rounds_won}').border = border
+
+                if match.winner_squadron_id:
+                    winner_name = squadron_names[match.winner_squadron_id]
+                    ws.cell(row=current_row + 2, column=column,
+                            value=f'Winner: {winner_name}').font = Font(italic=True)
+
+    # Adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col[0].column_letter].width = max_length + 2
+
+    return wb

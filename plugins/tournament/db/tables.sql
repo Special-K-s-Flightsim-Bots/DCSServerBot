@@ -31,6 +31,7 @@ CREATE TABLE tm_squadron_time_preferences (
 CREATE TABLE tm_matches (
     match_id SERIAL PRIMARY KEY,
     tournament_id INTEGER NOT NULL,
+    stage INTEGER NOT NULL,
     server_name TEXT NOT NULL,
     match_time TIMESTAMP,
     squadron_red INTEGER NOT NULL,
