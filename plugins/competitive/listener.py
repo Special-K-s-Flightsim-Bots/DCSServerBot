@@ -455,7 +455,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if server.status != Status.RUNNING:
                 continue
             finished: list[Match] = []
-            for match in self.matches[server.name].values():
+            for match in self.matches.get(server.name, {}).values():
                 winner: Side = match.winner
                 if match.finished or not winner:
                     continue

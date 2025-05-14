@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import ipaddress
 import logging
 import miniupnpc
@@ -37,6 +38,7 @@ __all__ = [
     "is_open",
     "get_public_ip",
     "find_process",
+    "find_process_async",
     "is_process_running",
     "get_windows_version",
     "get_drive_space",
@@ -100,6 +102,13 @@ def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.
                 yield p
         except (psutil.AccessDenied, psutil.NoSuchProcess, IndexError):
             continue
+
+
+async def find_process_async(proc: str, instance: Optional[str] = None):
+    def _find_first_match():
+        return next(find_process(proc, instance), None)
+
+    return await asyncio.to_thread(_find_first_match)
 
 
 def is_process_running(process: Union[subprocess.Popen, psutil.Process]):

@@ -155,7 +155,7 @@ class Competitive(Plugin[CompetitiveListener]):
         ratings = await Competitive.read_squadron_member_ratings(node, squadron_id)
         return Competitive.calculate_squadron_rating(ratings)
 
-    # New command group "/tournament"
+    # New command group "/trueskill"
     trueskill = Group(name="trueskill", description="Commands to manage TrueSkill:tm: ratings")
 
     @trueskill.command(description=_('Display TrueSkill:tm: ratings'))

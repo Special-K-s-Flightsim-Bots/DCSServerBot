@@ -6,11 +6,12 @@ import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
     MizFile, DataObjectFactory, async_cache
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
+from time import time
 from typing import Optional, Literal
 
 from .listener import TournamentEventListener
@@ -105,6 +106,23 @@ async def valid_squadron_autocomplete(interaction: discord.Interaction, current:
     return await squadron_autocomplete(interaction, current, 'accepted')
 
 
+async def stage_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    async with interaction.client.apool.connection() as conn:
+        cursor = await conn.execute("""
+            SELECT COALESCE(MAX(stage), 1) 
+            FROM tm_matches 
+            WHERE tournament_id = %s
+        """, (tournament_id,))
+        stage = (await cursor.fetchone())[0]
+    return [
+        app_commands.Choice(name=stage, value=stage),
+        app_commands.Choice(name=stage+1, value=stage+1),
+    ]
+
+
 async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     if not await interaction.command._check_can_run(interaction):
         return []
@@ -196,6 +214,30 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         interaction.data['options'][0]['options'].append({"name": "server", "type": 4, "value": server_name})
         return await utils.mission_autocomplete(interaction, current)
     return []
+
+
+async def date_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    now = int(time())
+    day_start = now - (now % 86400)
+    return [
+        app_commands.Choice(
+            name=(datetime.fromtimestamp(day_start + (i * 86400), tz=timezone.utc)).strftime("%Y-%m-%d"),
+            value=day_start + (i * 86400)
+        )
+        for i in range(0, 25)
+    ]
+
+
+async def time_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    async with interaction.client.apool.connection() as conn:
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=row[0].strftime("%H:%M"), value=row[0].hour * 3600 + row[0].minute * 60)
+            async for row in await conn.execute("""
+                SELECT start_time FROM tm_available_times WHERE tournament_id = %s
+            """, (tournament_id, ))
+        ]
+        return choices[:25]
 
 
 class Tournament(Plugin[TournamentEventListener]):
@@ -793,18 +835,22 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.describe(stage=_("The level of your match. If all matches on one level are finished, increase the level by one."))
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.autocomplete(stage=stage_autocomplete)
     @app_commands.autocomplete(server_name=server_autocomplete)
     @app_commands.autocomplete(squadron_blue=valid_squadron_autocomplete)
     @app_commands.autocomplete(squadron_red=valid_squadron_autocomplete)
+    @app_commands.autocomplete(day=date_autocomplete)
+    @app_commands.autocomplete(time=time_autocomplete)
     @utils.app_has_role('GameMaster')
     async def create(self, interaction: discord.Interaction, tournament_id: int, stage: app_commands.Range[int, 1, 7],
-                     server_name: str, squadron_blue: int, squadron_red: int):
+                     server_name: str, squadron_blue: int, squadron_red: int, day: int, time: int):
+        match_time = datetime.fromtimestamp(day, tz=timezone.utc) + timedelta(seconds=time)
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    INSERT INTO tm_matches(tournament_id, stage, server_name, squadron_red, squadron_blue) 
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (tournament_id, stage, server_name, squadron_red, squadron_blue))
+                    INSERT INTO tm_matches(tournament_id, stage, match_time, server_name, squadron_red, squadron_blue) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (tournament_id, stage, match_time, server_name, squadron_red, squadron_blue))
 
         tournament = await self.get_tournament(tournament_id)
         blue = utils.get_squadron(self.node, squadron_id=squadron_blue)
