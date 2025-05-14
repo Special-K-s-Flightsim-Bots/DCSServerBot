@@ -79,22 +79,27 @@ async def get_public_ip(node: Optional["Node"] = None):
 def find_process(proc: str, instance: Optional[str] = None) -> Generator[psutil.Process, None, None]:
     proc_set = {name.casefold() for name in proc.split("|")}
 
-    for p in psutil.process_iter(['cmdline']):
+    # Get all processes at once with their info
+    processes = {p.pid: p for p in psutil.process_iter(['name', 'cmdline'])}
+
+    # Filter by name first
+    matching_processes = {pid: p for pid, p in processes.items()
+                          if p.info['name'] and p.info['name'].casefold() in proc_set}
+
+    # Then check instance if needed
+    for p in matching_processes.values():
         try:
-            if p.name().casefold() not in proc_set:
-                continue
             if instance:
                 cmdline = p.info['cmdline']
                 if not cmdline:
                     continue
-                # Check if `instance` is part of any cmdline parameter (case-insensitive)
-                if any(instance.casefold() in c.replace('\\', '/').casefold().split('/') for c in cmdline):
+                if any(instance.casefold() in c.replace('\\', '/').casefold().split('/')
+                       for c in cmdline):
                     yield p
             else:
                 yield p
         except (psutil.AccessDenied, psutil.NoSuchProcess, IndexError):
             continue
-    return None
 
 
 def is_process_running(process: Union[subprocess.Popen, psutil.Process]):
