@@ -3,7 +3,7 @@ import itertools
 import math
 import psycopg
 
-from core import Plugin, command, utils, get_translation, Node
+from core import Plugin, command, utils, get_translation, Node, Group
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
@@ -155,14 +155,17 @@ class Competitive(Plugin[CompetitiveListener]):
         ratings = await Competitive.read_squadron_member_ratings(node, squadron_id)
         return Competitive.calculate_squadron_rating(ratings)
 
-    @command(description=_('Display TrueSkill:tm: ratings'))
+    # New command group "/tournament"
+    trueskill = Group(name="trueskill", description="Commands to manage TrueSkill:tm: ratings")
+
+    @trueskill.command(description=_('Display TrueSkill:tm: ratings'))
     @utils.app_has_role('DCS')
     @app_commands.rename(squadron_id='squadron')
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.guild_only()
-    async def trueskill(self, interaction: discord.Interaction,
-                        user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
-                        squadron_id: Optional[int] = None):
+    async def rating(self, interaction: discord.Interaction,
+                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None,
+                     squadron_id: Optional[int] = None):
         if squadron_id:
             r = await self.trueskill_squadron(self.node, squadron_id)
             # noinspection PyUnresolvedReferences
@@ -170,6 +173,39 @@ class Competitive(Plugin[CompetitiveListener]):
                 rating=r.mu - 3.0 * r.sigma), ephemeral=True)
         else:
             await self._trueskill_player(interaction, user)
+
+    @trueskill.command(description=_('Delete TrueSkill:tm: ratings'))
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def delete(self, interaction: discord.Interaction,
+                     user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.followup.send(_("User {} is not linked.").format(user.display_name), ephemeral=True)
+                return
+        else:
+            ucid = user
+
+        if user and not await utils.yn_question(
+                interaction, _("Do you really want to delete TrueSkill:tm: ratings for this user?")):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+        elif not user and not await utils.yn_question(
+                interaction, _("Do you really want to delete the TrueSkill:tm: ratings for all users?")):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                if user:
+                    await conn.execute("DELETE FROM trueskill WHERE player_ucid = %s", (ucid, ))
+                else:
+                    await conn.execute("TRUNCATE trueskill CASCADE")
+        # noinspection PyUnresolvedReferences
+        await interaction.followup.send(_("TrueSkill:tm: ratings deleted."), ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

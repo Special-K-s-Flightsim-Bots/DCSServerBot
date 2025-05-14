@@ -8,7 +8,6 @@ from core import Plugin, Group, utils, get_translation, PluginRequiredError, Sta
     MizFile, DataObjectFactory, async_cache
 from datetime import datetime, timezone
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
-from io import BytesIO
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -620,6 +619,7 @@ class Tournament(Plugin[TournamentEventListener]):
     async def bracket(self, interaction: discord.Interaction, tournament_id: int):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
+
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("SELECT * FROM tm_matches WHERE tournament_id = %s", (tournament_id,))
@@ -631,12 +631,11 @@ class Tournament(Plugin[TournamentEventListener]):
                     AND ts.status = 'ACCEPTED'
                 """, (tournament_id,))
                 squadrons_df = pd.DataFrame(await cursor.fetchall())
-        wb = create_tournament_sheet(squadrons_df, matches_df, tournament_id)
-        buffer = BytesIO()
+
+        buffer = create_tournament_sheet(squadrons_df, matches_df, tournament_id)
+        filename = f"tournament_{tournament_id}.xlsx"
         try:
-            wb.save(buffer)
-            buffer.seek(0)
-            file = discord.File(buffer, filename=f"tournament_{tournament_id}.xlsx")
+            file = discord.File(buffer, filename=filename)
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(file=file, ephemeral=utils.get_ephemeral(interaction))
         finally:

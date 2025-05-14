@@ -88,9 +88,10 @@ Select the col and row of the element you replaced (I took the "Ships" in the ab
 
 
 ## Discord Commands
-| Command         | Parameter           | Channel       | Role                  | Description                     |
-|-----------------|---------------------|---------------|-----------------------|---------------------------------|
-| /trueskill      |                     | all           | DCS                   | Shows your TrueSkill™️ rating.  |
+| Command            | Parameter        | Channel       | Role      | Description                                               |
+|--------------------|------------------|---------------|-----------|-----------------------------------------------------------|
+| /trueskill rating  | [user\|squadron] | all           | DCS       | Shows the TrueSkill™️ ratings of this user or squadron.   |
+| /trueskill delete  | [user]           | admin-channel | DCS Admin | Deletes the TrueSkill™️ ratings of this user or everyone. |
 
 ## In-Game Chat Commands
 | Command    | Parameter | Role      | Description                     |

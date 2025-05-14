@@ -6,6 +6,7 @@ from core import EventListener, event, Server, Status, Player, chat_command, Sid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
+from functools import partial
 from plugins.competitive import rating
 from trueskill import Rating
 from typing import Optional, TYPE_CHECKING
@@ -275,7 +276,8 @@ class CompetitiveListener(EventListener["Competitive"]):
                 if match.match_id != GLOBAL_MATCH_ID:
                     self.in_match[server.name].pop(player.ucid, None)
                 elif self.get_config(server).get('kick_on_death', False):
-                    await server.kick(player, "You are dead.")
+                    self.loop.call_later(delay=10, callback=partial(asyncio.create_task,
+                                                                    server.kick(player, "You are dead.")))
 
             config = self.get_config(server)
             survivor = match.survivor()
