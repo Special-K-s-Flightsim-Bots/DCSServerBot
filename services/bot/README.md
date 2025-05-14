@@ -11,7 +11,7 @@ requirements:
 token: SECRET DISCORD TOKEN COMES HERE          # Your TOKEN, as received from the discord developer portal.
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 command_prefix: .                               # Optional: only used for the commands plugin       
-automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
+automatch: true                                 # Use the bots auto-matching functionality (see below), default is false.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
 autorole:                                       # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
   on_join: Member                               # Give anyone the "Member" role, if they join your Discord.

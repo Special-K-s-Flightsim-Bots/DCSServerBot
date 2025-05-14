@@ -109,6 +109,10 @@ class TournamentEventListener(EventListener["Tournament"]):
             self.tournaments[server.name] = await self.plugin.get_tournament(tournament_id)
             match_id = await self.get_active_match(server)
             match = await self.plugin.get_match(match_id)
+            # if no match is running, disable tournament plugin
+            if not match:
+                self.tournaments.pop(server.name, None)
+                return
             # store ratings before match for accelerator
             self.ratings[match['squadron_blue']] = await Competitive.trueskill_squadron(
                 self.node, match['squadron_blue'])

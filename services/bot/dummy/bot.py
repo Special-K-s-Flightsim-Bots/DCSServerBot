@@ -23,7 +23,7 @@ class DummyBot:
         self.plugins = self.node.plugins
         self.locals = locals | {'automatch': False}
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.eventListeners: list[EventListener] = self.bus.eventListeners
+        self.eventListeners: set[EventListener] = self.bus.eventListeners
         self.loop = self.bus.loop
         self._roles = None
         self.setup = asyncio.Event()
