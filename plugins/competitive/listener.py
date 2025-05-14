@@ -423,6 +423,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             for ucid in self.in_match[server.name].keys():
                 player = server.get_player(ucid=ucid)
                 await player.unlock()
+            self.in_match[server.name].clear()
 
         # restart the mission if configured
         config = self.get_config(server)

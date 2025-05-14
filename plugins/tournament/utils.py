@@ -234,7 +234,7 @@ def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) ->
     return killer_multiplier, victim_multiplier
 
 
-def create_tournament_sheet(squadrons_df, matches_df, tournament_id):
+def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame, tournament_id: int):
     wb = Workbook()
     ws = wb.active
     ws.title = f"Tournament {tournament_id}"
@@ -327,4 +327,7 @@ def create_tournament_sheet(squadrons_df, matches_df, tournament_id):
                 max_length = max(max_length, len(str(cell.value)))
         ws.column_dimensions[col[0].column_letter].width = max_length + 2
 
-    return wb
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
