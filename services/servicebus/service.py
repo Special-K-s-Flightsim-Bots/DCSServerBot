@@ -293,6 +293,7 @@ class ServiceBus(Service):
 
     def register_server(self, data: dict) -> bool:
         server_name = data['server_name']
+
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
             self.log.error(f'Server "{server_name}" has wrong Hook version installed. '
@@ -303,11 +304,16 @@ class ServiceBus(Service):
             return False
         self.log.debug(f'  => Registering DCS-Server "{server_name}"')
         server: ServerImpl = cast(ServerImpl, self.servers[server_name])
+
         # set the PID
         if not server.process:
+            self.log.debug(f'  => No process of {server_name} found. Searching ...')
             server.process = next(utils.find_process("DCS_server.exe|DCS.exe", server.instance.name), None)
             if not server.process:
                 self.log.warning("Could not find active DCS process. Please check, if you have started DCS with -w!")
+            else:
+                self.log.debug(f'  => Process of {server_name} found.')
+
         # if we are an agent, initialize the server
         if not self.master:
             if 'current_mission' in data:
@@ -339,12 +345,14 @@ class ServiceBus(Service):
                 return False
             else:
                 webgui_ports[webgui_port] = s.name
+
         # check for DSMC
         if server.status == Status.RUNNING and data.get('dsmc_enabled', False) and 'DSMC' not in server.extensions:
             self.log.warning("  => DSMC is enabled for this server but DSMC extension is not loaded!")
             self.log.warning("     You need to configure DSMC on your own to prevent issues with the mission list.")
 
         # update the database and check for server name changes
+        self.log.debug(f'  => Checking the database for server {server_name} ...')
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute(
@@ -361,6 +369,7 @@ class ServiceBus(Service):
                             self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
                             self.servers.pop(server_name, None)
                             return False
+        self.log.debug(f'  => Database for server {server_name} checked.')
         return True
 
     def rename_server(self, server: Server, new_name: str):
