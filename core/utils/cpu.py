@@ -387,21 +387,23 @@ def get_cache_info():
 
 
 def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
+    plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(20, 12))
     ax.set_aspect('equal')
 
-    # Colors
-    p_core_color = '#ADD8E6'  # Light blue
-    e_core_color = '#90EE90'  # Light green
-    l1_color = '#FFB6C1'      # Light pink
-    l2_color = '#DDA0DD'      # Plum
-    l3_color = '#F0E68C'      # Khaki
+    # Lighter colors for dark theme
+    p_core_color = '#2E6B9B'  # Lighter blue
+    e_core_color = '#2B7A44'  # Lighter green
+    l1_color = '#9B2E4F'  # Lighter red
+    l2_color = '#6B4488'  # Lighter purple
+    l3_color = '#8C8544'  # Lighter gold
+    text_color = '#E0E0E0'  # Light gray for text
 
-    # Calculate basic dimensions
+    # Rest of the dimensions remain the same
     core_width = 0.8
     core_height = 0.8
-    core_gap = 0.4  # Gap between cores
-    x_spacing = core_width + core_gap  # = 1.2, distance from start of one core to start of next
+    core_gap = 0.4
+    x_spacing = core_width + core_gap
     y_spacing = 1.0
 
     # Calculate layout dimensions
@@ -417,10 +419,10 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     total_width = p_cores_width + ((e_cores_width + x_spacing) if e_cores else 0)
 
     def format_size(size):
-        if size >= 1024*1024:
-            return f"{size/(1024*1024):.0f}M"
+        if size >= 1024 * 1024:
+            return f"{size / (1024 * 1024):.0f}M"
         elif size >= 1024:
-            return f"{size/1024:.0f}K"
+            return f"{size / 1024:.0f}K"
         return f"{size}B"
 
     # Group cores by their L2 cache sharing
@@ -434,77 +436,122 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     for i, core in enumerate(sorted(p_cores)):
         x = (i % p_cores_per_row) * x_spacing
         y = (i // p_cores_per_row) * y_spacing * 3
-        rect = patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color)
+        rect = patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color, edgecolor='white',
+                                 linewidth=0.5)
         ax.add_patch(rect)
-        ax.text(x + core_width/2, y + core_height/2, f"P{core}", ha='center', va='center')
+        ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color)
 
-        # Find L1 caches for this core
-        if i % 2 == 0:  # For each pair of P-cores
-            # Find L1 caches
+        if i % 2 == 0:
             for cache in cache_structure:
                 if cache['level'] == 1 and core in cache['cores']:
                     if cache['type'] == 2:  # L1i
-                        l1i = patches.Rectangle((x, y - 0.6), x_spacing * 2 - 0.4, 0.4, facecolor=l1_color)
+                        l1i = patches.Rectangle((x, y - 0.6), x_spacing * 2 - 0.4, 0.4,
+                                                facecolor=l1_color, edgecolor='white', linewidth=0.5)
                         ax.add_patch(l1i)
                         ax.text(x + x_spacing - 0.2, y - 0.4, f"L1 (i) {format_size(cache['size'])}",
-                               ha='center', va='center', fontsize=8)
+                                ha='center', va='center', fontsize=8, color=text_color)
                     elif cache['type'] == 1:  # L1d
-                        l1d = patches.Rectangle((x, y - 1.0), x_spacing * 2 - 0.4, 0.4, facecolor=l1_color)
+                        l1d = patches.Rectangle((x, y - 1.0), x_spacing * 2 - 0.4, 0.4,
+                                                facecolor=l1_color, edgecolor='white', linewidth=0.5)
                         ax.add_patch(l1d)
                         ax.text(x + x_spacing - 0.2, y - 0.8, f"L1 (d) {format_size(cache['size'])}",
-                               ha='center', va='center', fontsize=8)
+                                ha='center', va='center', fontsize=8, color=text_color)
 
-            # Draw L2 cache
             for group in l2_groups.values():
                 if core in group['cores']:
-                    l2 = patches.Rectangle((x, y - 1.4), x_spacing * 2 - 0.4, 0.4, facecolor=l2_color)
+                    l2 = patches.Rectangle((x, y - 1.4), x_spacing * 2 - 0.4, 0.4,
+                                           facecolor=l2_color, edgecolor='white', linewidth=0.5)
                     ax.add_patch(l2)
                     ax.text(x + x_spacing - 0.2, y - 1.2, f"L2 {format_size(group['size'])}",
-                           ha='center', va='center', fontsize=8)
+                            ha='center', va='center', fontsize=8, color=text_color)
                     break
 
     # Draw E-cores
     for i, core in enumerate(sorted(e_cores)):
         x = (i % e_cores_per_row) * x_spacing + e_section_start
         y = (i // e_cores_per_row) * y_spacing * 3
-        rect = patches.Rectangle((x, y), core_width, core_height, facecolor=e_core_color)
+        rect = patches.Rectangle((x, y), core_width, core_height,
+                                 facecolor=e_core_color, edgecolor='white', linewidth=0.5)
         ax.add_patch(rect)
-        ax.text(x + core_width/2, y + core_height/2, f"E{core}", ha='center', va='center')
+        ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color)
 
-        # Find L1 caches for this core
         for cache in cache_structure:
             if cache['level'] == 1 and core in cache['cores']:
                 if cache['type'] == 2:  # L1i
-                    l1i = patches.Rectangle((x, y - 0.6), core_width, 0.4, facecolor=l1_color)
+                    l1i = patches.Rectangle((x, y - 0.6), core_width, 0.4,
+                                            facecolor=l1_color, edgecolor='white', linewidth=0.5)
                     ax.add_patch(l1i)
-                    ax.text(x + core_width/2, y - 0.4, f"L1i {format_size(cache['size'])}",
-                           ha='center', va='center', fontsize=8)
+                    ax.text(x + core_width / 2, y - 0.4, f"L1i {format_size(cache['size'])}",
+                            ha='center', va='center', fontsize=8, color=text_color)
                 elif cache['type'] == 1:  # L1d
-                    l1d = patches.Rectangle((x, y - 1.0), core_width, 0.4, facecolor=l1_color)
+                    l1d = patches.Rectangle((x, y - 1.0), core_width, 0.4,
+                                            facecolor=l1_color, edgecolor='white', linewidth=0.5)
                     ax.add_patch(l1d)
-                    ax.text(x + core_width/2, y - 0.8, f"L1d {format_size(cache['size'])}",
-                           ha='center', va='center', fontsize=8)
+                    ax.text(x + core_width / 2, y - 0.8, f"L1d {format_size(cache['size'])}",
+                            ha='center', va='center', fontsize=8, color=text_color)
 
-        # Draw L2 cache for E-cores (shared between quads)
         if i % 4 == 0:
             for group in l2_groups.values():
                 if core in group['cores']:
-                    l2_width = x_spacing * 4 - 0.4  # Width for 4 cores
-                    l2 = patches.Rectangle((x, y - 1.4), l2_width, 0.4, facecolor=l2_color)
+                    l2_width = x_spacing * 4 - 0.4
+                    l2 = patches.Rectangle((x, y - 1.4), l2_width, 0.4,
+                                           facecolor=l2_color, edgecolor='white', linewidth=0.5)
                     ax.add_patch(l2)
-                    ax.text(x + l2_width/2, y - 1.2, f"L2 {format_size(group['size'])}",
-                           ha='center', va='center', fontsize=8)
+                    ax.text(x + l2_width / 2, y - 1.2, f"L2 {format_size(group['size'])}",
+                            ha='center', va='center', fontsize=8, color=text_color)
                     break
 
-    # Find and draw L3 cache
-    for cache in cache_structure:
-        if cache['level'] == 3:
-            l3_width = total_width  # Now spans the entire width including both P-cores and E-cores
-            l3 = patches.Rectangle((0, -3), l3_width, 0.8, facecolor=l3_color)
-            ax.add_patch(l3)
-            ax.text(l3_width/2, -2.6, f"L3 {format_size(cache['size'])} (Shared)",
-                   ha='center', va='center')
-            break
+    # Draw L3 cache
+    l3_caches = [cache for cache in cache_structure if cache['level'] == 3]
+    for l3_cache in l3_caches:
+        # Find the leftmost and rightmost cores that share this L3
+        shared_cores = sorted(l3_cache['cores'])
+        leftmost_core = min(shared_cores)
+        rightmost_core = max(shared_cores)
+
+        # Calculate the x-coordinates for this L3 section
+        if leftmost_core in p_cores:
+            start_x = (leftmost_core % p_cores_per_row) * x_spacing
+        else:
+            # For E-cores, adjust the starting position (only if e_cores exists)
+            if e_cores:
+                e_core_index = sorted(e_cores).index(leftmost_core)
+                start_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
+            else:
+                continue  # Skip if no E-cores exist but cache is for E-cores
+
+        if rightmost_core in p_cores:
+            end_x = (rightmost_core % p_cores_per_row) * x_spacing
+        else:
+            # For E-cores, adjust the ending position (only if e_cores exists)
+            if e_cores:
+                e_core_index = sorted(e_cores).index(rightmost_core)
+                end_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
+            else:
+                continue  # Skip if no E-cores exist but cache is for E-cores
+
+        l3_width = end_x - start_x + core_width
+
+        # Draw this L3 section
+        l3 = patches.Rectangle((start_x, -3), l3_width, 0.8,
+                               facecolor=l3_color, edgecolor='white', linewidth=0.5)
+        ax.add_patch(l3)
+        ax.text(start_x + l3_width / 2, -2.6,
+                f"L3 {format_size(l3_cache['size'])} (Cores {min(shared_cores)}-{max(shared_cores)})",
+                ha='center', va='center', color=text_color)
+
+    # Create legend elements
+    legend_elements = [
+        patches.Patch(facecolor=p_core_color, edgecolor='white', label='Performance Cores (P-cores)'),
+        patches.Patch(facecolor=e_core_color, edgecolor='white', label='Efficiency Cores (E-cores)'),
+        patches.Patch(facecolor=l1_color, edgecolor='white', label='L1 Cache (Data & Instruction)'),
+        patches.Patch(facecolor=l2_color, edgecolor='white', label='L2 Cache'),
+        patches.Patch(facecolor=l3_color, edgecolor='white', label='L3 Cache (Shared)')
+    ]
+
+    # Add legend in the bottom right corner
+    ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0.98),
+              ncol=1, fancybox=True, shadow=True)
 
     # Set plot limits and remove axes
     margin = 1
@@ -512,7 +559,12 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     ax.set_ylim(-4, max(p_rows, e_rows) * y_spacing * 3 + margin)
     ax.axis('off')
 
-    plt.title("CPU Topology with Cache Hierarchy")
+    plt.title("CPU Topology with Cache Hierarchy", color=text_color, y=0.98)
+
+    # Set figure background to dark
+    fig.patch.set_facecolor('#1C1C1C')
+    ax.set_facecolor('#1C1C1C')
+
     plt.tight_layout()
     plt.show()
 
