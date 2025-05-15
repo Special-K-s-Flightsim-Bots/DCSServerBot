@@ -222,6 +222,7 @@ def get_cpu_set_information():
 def get_p_core_affinity() -> int:
     """
     Calculate the affinity mask for all logical processors associated with performance cores (P-cores).
+    If only one efficiency class (0) exists, these are considered P-cores.
 
     Returns:
         int: An affinity mask where each bit represents a logical processor, with `1` for P-cores.
@@ -229,9 +230,18 @@ def get_p_core_affinity() -> int:
     processor_info = get_processor_info()  # Retrieve individual core data
     p_core_affinity_mask = 0  # Initialize to zero
 
-    for efficiency_class, _, mask in processor_info:
-        if efficiency_class > 0:  # Check if this is a P-core
-            p_core_affinity_mask |= mask  # Add this core's bitmask to the affinity mask
+    # Check if we have multiple efficiency classes
+    efficiency_classes = {ec for ec, _, _ in processor_info}
+
+    if len(efficiency_classes) == 1:
+        # If only one class exists (0), treat these as P-cores
+        for _, _, mask in processor_info:
+            p_core_affinity_mask |= mask
+    else:
+        # Multiple classes exist, use cores with efficiency_class > 0
+        for efficiency_class, _, mask in processor_info:
+            if efficiency_class > 0:
+                p_core_affinity_mask |= mask
 
     return p_core_affinity_mask
 
@@ -239,16 +249,22 @@ def get_p_core_affinity() -> int:
 def get_e_core_affinity() -> int:
     """
     Calculate the affinity mask for all logical processors associated with efficiency cores (E-cores).
+    If only one efficiency class (0) exists, there are no E-cores.
 
     Returns:
-        int: An affinity mask where each bit represents a logical processor, with `1` for P-cores.
+        int: An affinity mask where each bit represents a logical processor, with `1` for E-cores.
     """
     processor_info = get_processor_info()  # Retrieve individual core data
     e_core_affinity_mask = 0  # Initialize to zero
 
-    for efficiency_class, _, mask in processor_info:
-        if efficiency_class == 0:  # Check if this is an E-core
-            e_core_affinity_mask |= mask  # Add this core's bitmask to the affinity mask
+    # Check if we have multiple efficiency classes
+    efficiency_classes = {ec for ec, _, _ in processor_info}
+
+    if len(efficiency_classes) > 1:
+        # Only consider efficiency class 0 as E-cores if multiple classes exist
+        for efficiency_class, _, mask in processor_info:
+            if efficiency_class == 0:
+                e_core_affinity_mask |= mask
 
     return e_core_affinity_mask
 
