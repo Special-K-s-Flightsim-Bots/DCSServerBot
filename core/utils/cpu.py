@@ -537,7 +537,7 @@ if __name__ == '__main__':
             print(f"  Line Size: {cache['line_size']} bytes")
             print(f"  Shared by cores: {cache['cores']}")
         create_cpu_topology_visualization(get_cpus_from_affinity(p_core_affinity_mask),
-                                          [], #get_cpus_from_affinity(e_core_affinity_mask),
+                                          get_cpus_from_affinity(e_core_affinity_mask),
                                           cache_info)
     except Exception as e:
         traceback.print_exc()
