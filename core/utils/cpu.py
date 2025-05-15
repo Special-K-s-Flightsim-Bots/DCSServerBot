@@ -399,12 +399,13 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     l3_color = '#8C8544'  # Lighter gold
     text_color = '#E0E0E0'  # Light gray for text
 
-    # Rest of the dimensions remain the same
     core_width = 0.8
     core_height = 0.8
     core_gap = 0.4
     x_spacing = core_width + core_gap
     y_spacing = 1.0
+    l3_height = 0.8
+    l3_spacing = 0.8
 
     # Calculate layout dimensions
     p_cores_per_row = len(p_cores) // 2
@@ -417,6 +418,15 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     e_cores_width = e_cores_per_row * core_width + (e_cores_per_row - 1) * core_gap
     e_section_start = p_cores_width + x_spacing
     total_width = p_cores_width + ((e_cores_width + x_spacing) if e_cores else 0)
+
+    # First, determine which rows have L3 caches
+    l3_caches = [cache for cache in cache_structure if cache['level'] == 3]
+    rows_with_l3 = set()
+    for l3_cache in l3_caches:
+        shared_cores = sorted(l3_cache['cores'])
+        row = min(shared_cores) // p_cores_per_row
+        rows_with_l3.add(row)
+
 
     def format_size(size):
         if size >= 1024 * 1024:
@@ -434,8 +444,16 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
 
     # Draw P-cores
     for i, core in enumerate(sorted(p_cores)):
+        row = i // p_cores_per_row
         x = (i % p_cores_per_row) * x_spacing
-        y = (i // p_cores_per_row) * y_spacing * 3
+
+        # Calculate y position based on whether previous rows had L3 caches
+        y = 0
+        for prev_row in range(row):
+            if prev_row in rows_with_l3:
+                y += y_spacing * 3 + l3_spacing
+            else:
+                y += y_spacing * 3
         rect = patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color, edgecolor='white',
                                  linewidth=0.5)
         ax.add_patch(rect)
@@ -468,8 +486,16 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
 
     # Draw E-cores
     for i, core in enumerate(sorted(e_cores)):
+        row = i // e_cores_per_row
         x = (i % e_cores_per_row) * x_spacing + e_section_start
-        y = (i // e_cores_per_row) * y_spacing * 3
+
+        # Calculate y position based on whether previous rows had L3 caches
+        y = 0
+        for prev_row in range(row):
+            if prev_row in rows_with_l3:
+                y += y_spacing * 3 + l3_spacing
+            else:
+                y += y_spacing * 3
         rect = patches.Rectangle((x, y), core_width, core_height,
                                  facecolor=e_core_color, edgecolor='white', linewidth=0.5)
         ax.add_patch(rect)
@@ -502,12 +528,22 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
                     break
 
     # Draw L3 cache
-    l3_caches = [cache for cache in cache_structure if cache['level'] == 3]
     for l3_cache in l3_caches:
-        # Find the leftmost and rightmost cores that share this L3
         shared_cores = sorted(l3_cache['cores'])
         leftmost_core = min(shared_cores)
         rightmost_core = max(shared_cores)
+        row = leftmost_core // p_cores_per_row
+
+        # Calculate y position for L3 cache
+        y_position = (row * y_spacing * 3) - 2.0
+
+        for prev_row in range(row + 1):
+            if prev_row < row:
+                if prev_row in rows_with_l3:
+                    y_position += y_spacing * 3 + l3_spacing
+                else:
+                    y_position += y_spacing * 3
+        y_position -= l3_spacing  # Position it below the current row's cores
 
         # Calculate the x-coordinates for this L3 section
         if leftmost_core in p_cores:
@@ -532,11 +568,11 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
 
         l3_width = end_x - start_x + core_width
 
-        # Draw this L3 section
-        l3 = patches.Rectangle((start_x, -3), l3_width, 0.8,
+        # Draw this L3 section at the correct y-position
+        l3 = patches.Rectangle((start_x, y_position), l3_width, l3_height,
                                facecolor=l3_color, edgecolor='white', linewidth=0.5)
         ax.add_patch(l3)
-        ax.text(start_x + l3_width / 2, -2.6,
+        ax.text(start_x + l3_width / 2, y_position + l3_height / 2,
                 f"L3 {format_size(l3_cache['size'])} (Cores {min(shared_cores)}-{max(shared_cores)})",
                 ha='center', va='center', color=text_color)
 
