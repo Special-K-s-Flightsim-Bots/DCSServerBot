@@ -1,8 +1,10 @@
 import ctypes
 import logging
+import traceback
 import winreg
 
 from ctypes import wintypes
+from winerror import ERROR_INSUFFICIENT_BUFFER
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +16,24 @@ else:  # 32-bit system
     ULONG_PTR = ctypes.c_uint32
 
 # Relation types define the type of processor data returned (for core info, we use RelationProcessorCore)
-RelationProcessorCore = 0  # Type used to identify cores
+RelationProcessorCore = 0
+RelationNumaNode = 1
+RelationCache = 2
+RelationProcessorPackage = 3
+RelationGroup = 4
 RelationAll = 0xffff
+# Cache type constants
+CacheUnified = 0
+CacheInstruction = 1
+CacheData = 2
+CacheTrace = 3
 # Constants for GetSystemCpuSetInformation API
 SystemLogicalProcessorInformation = 0  # Not used here, kept for reference
 SystemCpuSetInformation = 1
+
+PROCESSOR_CACHE_TYPE = ctypes.c_int
+MAXIMUM_PROC_PER_GROUP = 64  # Windows supports up to 64 processors per group
+
 
 # Define GROUP_AFFINITY structure
 class GROUP_AFFINITY(ctypes.Structure):
@@ -38,6 +53,19 @@ class PROCESSOR_RELATIONSHIP(ctypes.Structure):
         ("GroupMask", GROUP_AFFINITY * 1),  # Array of group masks
     ]
 
+
+class CACHE_RELATIONSHIP(ctypes.Structure):
+    _fields_ = [
+        ("Level", ctypes.c_ubyte),
+        ("Associativity", ctypes.c_ubyte),
+        ("LineSize", ctypes.c_ushort),
+        ("CacheSize", ctypes.c_ulong),
+        ("Type", PROCESSOR_CACHE_TYPE),
+        ("Reserved", ctypes.c_ubyte * 18),  # Adjusted padding
+        ("GroupMask", GROUP_AFFINITY)
+    ]
+
+
 class SYSTEM_CPU_SET_INFORMATION(ctypes.Structure):
     _fields_ = [
         ("Size", wintypes.DWORD),  # Size of the structure
@@ -56,12 +84,19 @@ class SYSTEM_CPU_SET_INFORMATION(ctypes.Structure):
         ("GroupAffinity", GROUP_AFFINITY),
     ]
 
-# SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX base container
+
 class SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(ctypes.Structure):
+    class _U(ctypes.Union):
+        _fields_ = [
+            ("Processor", PROCESSOR_RELATIONSHIP),
+            ("Cache", CACHE_RELATIONSHIP),
+        ]
+
+    _anonymous_ = ("u",)
     _fields_ = [
-        ("Relationship", wintypes.DWORD),  # RelationProcessorCore, RelationCache, etc.
-        ("Size", wintypes.DWORD),  # Size of the structure
-        ("Processor", PROCESSOR_RELATIONSHIP),  # Embedded processor structure
+        ("Relationship", wintypes.DWORD),
+        ("Size", wintypes.DWORD),
+        ("u", _U)
     ]
 
 
@@ -290,38 +325,70 @@ def get_cpu_name():
     return cpu_name.strip()
 
 
-def log_cpu():
-    logger.debug(f"CPU: {get_cpu_name()}")
-    processor_info = get_processor_info()
-    efficiency_classes = sorted({entry[0] for entry in processor_info})
-    if len(efficiency_classes) > 1:
-        logger.info(f"CPU cores have different efficiency classes: [{efficiency_classes[0]}-{efficiency_classes[-1]}]")
-        for efficiency_class in sorted(efficiency_classes, reverse=True):
-            for eclass, pclass, mask in processor_info:
-                if eclass != efficiency_class:
-                    continue
-                logger.debug(f"logical cores with efficiency class {efficiency_class}: {get_cpus_from_affinity(mask)}")
-    else:
-        logger.debug(f"all CPU cores have the same efficiency class {efficiency_classes[0]}")
-    scheduling_classes = sorted({entry[1] for entry in processor_info})
-    if len(scheduling_classes) > 1:
-        logger.info(f"CPU cores have different efficiency classes: [{scheduling_classes[0]}-{scheduling_classes[-1]}]")
-        for scheduling_class in sorted(scheduling_classes, reverse=True):
-            for eclass, pclass, mask in processor_info:
-                if pclass != scheduling_class:
-                    continue
-                logger.debug(f"logical cores with scheduling class {scheduling_class}: {get_cpus_from_affinity(mask)}")
-    else:
-        logger.debug(f"all CPU cores have the same scheduling class {scheduling_classes[0]}")
+def get_cache_info():
+    # First call to get required buffer size
+    length = ctypes.c_ulong(0)
+    result = ctypes.windll.kernel32.GetLogicalProcessorInformationEx(RelationCache, None, ctypes.byref(length))
+
+    if result == 0 and ctypes.get_last_error() != ERROR_INSUFFICIENT_BUFFER:
+        raise ctypes.WinError()
+
+    # Create the buffer
+    buffer = ctypes.create_string_buffer(length.value)
+
+    # Second call to get the actual data
+    result = ctypes.windll.kernel32.GetLogicalProcessorInformationEx(RelationCache, buffer, ctypes.byref(length))
+
+    if result == 0:
+        raise ctypes.WinError()
+
+    offset = 0
+    cache_info = []
+
+    while offset + ctypes.sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) <= length.value:
+        info = ctypes.cast(buffer[offset:], ctypes.POINTER(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)).contents
+
+        if info.Size == 0:  # Invalid entry, break the loop
+            break
+
+        if info.Relationship == RelationCache:
+            cores = get_cpus_from_affinity(info.Cache.GroupMask.Mask)
+            entry = {
+                'level': info.Cache.Level,
+                'type': int(info.Cache.Type),
+                'size': info.Cache.CacheSize,
+                'line_size': info.Cache.LineSize,
+                'cores': sorted(cores)
+            }
+            cache_info.append(entry)
+
+        offset += info.Size
+
+        # Break if we don't have enough bytes left for another complete entry
+        if offset >= length.value:
+            break
+
+    return sorted(cache_info, key=lambda x: x['level'])
 
 
 if __name__ == '__main__':
-    print(get_cpu_name())
-    print(get_processor_info())
-    p_core_affinity_mask = get_p_core_affinity()
-    print(f"Performance Cores: {get_cpus_from_affinity(p_core_affinity_mask)}")
-    e_core_affinity_mask = get_e_core_affinity()
-    print(f"Efficiency Cores: {get_cpus_from_affinity(e_core_affinity_mask)}")
-    scheduling_classes = get_scheduling_classes()
-    for plcass, affinity_mask in scheduling_classes.items():
-        print(f"Scheduling Class {plcass}: {get_cpus_from_affinity(affinity_mask)}")
+    try:
+        print(get_cpu_name())
+        print(get_processor_info())
+        p_core_affinity_mask = get_p_core_affinity()
+        print(f"Performance Cores: {get_cpus_from_affinity(p_core_affinity_mask)}")
+        e_core_affinity_mask = get_e_core_affinity()
+        print(f"Efficiency Cores: {get_cpus_from_affinity(e_core_affinity_mask)}")
+        scheduling_classes = get_scheduling_classes()
+        for plcass, affinity_mask in scheduling_classes.items():
+            print(f"Scheduling Class {plcass}: {get_cpus_from_affinity(affinity_mask)}")
+        print("\nCache Information:")
+        cache_info = get_cache_info()
+        for cache in cache_info:
+            cache_type = ['Unified', 'Instruction', 'Data', 'Trace'][cache['type']]
+            print(f"L{cache['level']} {cache_type} Cache:")
+            print(f"  Size: {cache['size']/1024:.0f}KB")
+            print(f"  Line Size: {cache['line_size']} bytes")
+            print(f"  Shared by cores: {cache['cores']}")
+    except Exception as e:
+        traceback.print_exc()
