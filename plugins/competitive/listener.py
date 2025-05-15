@@ -98,7 +98,7 @@ class CompetitiveListener(EventListener["Competitive"]):
     async def inform_players(match: Match, message: str, time: Optional[int] = 10):
         all_players = match.teams
         for player in ([p for p in all_players[Side.BLUE]] + [p for p in all_players[Side.RED]]):
-            await player.sendPopupMessage(message, timeout=time)
+            await player.sendUserMessage(message, timeout=time)
 
     async def rank_teams(self, winners: list[Player], losers: list[Player]):
         r_winners, r_losers = trueskill.rate([
