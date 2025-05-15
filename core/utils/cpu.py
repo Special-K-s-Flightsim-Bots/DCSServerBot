@@ -466,13 +466,13 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
                         l1i = patches.Rectangle((x, y - 0.6), x_spacing * 2 - 0.4, 0.4,
                                                 facecolor=l1_color, edgecolor='white', linewidth=0.5)
                         ax.add_patch(l1i)
-                        ax.text(x + x_spacing - 0.2, y - 0.4, f"L1 (i) {format_size(cache['size'])}",
+                        ax.text(x + x_spacing - 0.2, y - 0.4, f"L1-I {format_size(cache['size'])}",
                                 ha='center', va='center', fontsize=8, color=text_color)
                     elif cache['type'] == 1:  # L1d
                         l1d = patches.Rectangle((x, y - 1.0), x_spacing * 2 - 0.4, 0.4,
                                                 facecolor=l1_color, edgecolor='white', linewidth=0.5)
                         ax.add_patch(l1d)
-                        ax.text(x + x_spacing - 0.2, y - 0.8, f"L1 (d) {format_size(cache['size'])}",
+                        ax.text(x + x_spacing - 0.2, y - 0.8, f"L1-D {format_size(cache['size'])}",
                                 ha='center', va='center', fontsize=8, color=text_color)
 
             for group in l2_groups.values():
@@ -507,13 +507,13 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
                     l1i = patches.Rectangle((x, y - 0.6), core_width, 0.4,
                                             facecolor=l1_color, edgecolor='white', linewidth=0.5)
                     ax.add_patch(l1i)
-                    ax.text(x + core_width / 2, y - 0.4, f"L1i {format_size(cache['size'])}",
+                    ax.text(x + core_width / 2, y - 0.4, f"L1-I {format_size(cache['size'])}",
                             ha='center', va='center', fontsize=8, color=text_color)
                 elif cache['type'] == 1:  # L1d
                     l1d = patches.Rectangle((x, y - 1.0), core_width, 0.4,
                                             facecolor=l1_color, edgecolor='white', linewidth=0.5)
                     ax.add_patch(l1d)
-                    ax.text(x + core_width / 2, y - 0.8, f"L1d {format_size(cache['size'])}",
+                    ax.text(x + core_width / 2, y - 0.8, f"L1-D {format_size(cache['size'])}",
                             ha='center', va='center', fontsize=8, color=text_color)
 
         if i % 4 == 0:
@@ -570,11 +570,11 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
 
     # Create legend elements
     legend_elements = [
-        patches.Patch(facecolor=p_core_color, edgecolor='white', label='Performance Cores (P-cores)'),
-        patches.Patch(facecolor=e_core_color, edgecolor='white', label='Efficiency Cores (E-cores)'),
+        patches.Patch(facecolor=p_core_color, edgecolor='white', label='Performance Cores'),
+        patches.Patch(facecolor=e_core_color, edgecolor='white', label='Efficiency Cores'),
         patches.Patch(facecolor=l1_color, edgecolor='white', label='L1 Cache (Data & Instruction)'),
         patches.Patch(facecolor=l2_color, edgecolor='white', label='L2 Cache'),
-        patches.Patch(facecolor=l3_color, edgecolor='white', label='L3 Cache (Shared)')
+        patches.Patch(facecolor=l3_color, edgecolor='white', label='L3 Cache')
     ]
 
     # Add legend in the bottom right corner
