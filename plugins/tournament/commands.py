@@ -1304,6 +1304,11 @@ class Tournament(Plugin[TournamentEventListener]):
                 "type": int,
                 "label": _("Squadron red rounds won"),
                 "required": True
+            },
+            "match_time": {
+                "type": datetime,
+                "label": _("Match time (yyyy-mm-dd hh:mm:ss)"),
+                "required": False
             }
         }, old_values=match)
         # noinspection PyUnresolvedReferences
@@ -1321,10 +1326,11 @@ class Tournament(Plugin[TournamentEventListener]):
             async with conn.transaction():
                 await conn.execute("""
                     UPDATE tm_matches 
-                    SET squadron_blue_rounds_won = %s, squadron_red_rounds_won = %s 
+                    SET squadron_blue_rounds_won = %s, squadron_red_rounds_won = %s, match_time = %s 
                     WHERE match_id = %s
                 """, (modal.value.get('squadron_blue_rounds_won'),
                       modal.value.get('squadron_red_rounds_won'),
+                      datetime.strptime(modal.value.get('match_time'), '%Y-%m-%d %H:%M:%S'),
                       match_id))
 
                 if winner_squadron_id:
@@ -1344,7 +1350,8 @@ class Tournament(Plugin[TournamentEventListener]):
 
         if match['winner_squadron_id'] != winner_squadron_id \
             or match['squadron_blue_rounds_won'] != modal.value.get('squadron_blue_rounds_won') \
-            or match['squadron_red_rounds_won'] != modal.value.get('squadron_red_rounds_won'):
+            or match['squadron_red_rounds_won'] != modal.value.get('squadron_red_rounds_won')\
+            or match['match_time'] != datetime.strptime(modal.value.get('match_time'), '%Y-%m-%d %H:%M:%S'):
             await self.bot.audit(f"updated match {match_id} for tournament {tournament_id}.",
                                  user=interaction.user)
             await interaction.followup.send(_("Match updated."), ephemeral=True)
