@@ -414,7 +414,7 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     p_cores_width = p_cores_per_row * core_width + (p_cores_per_row - 1) * core_gap
     e_cores_width = e_cores_per_row * core_width + (e_cores_per_row - 1) * core_gap
     e_section_start = p_cores_width + x_spacing
-    total_width = p_cores_width + (e_cores_width + x_spacing) if e_cores else 0
+    total_width = p_cores_width + ((e_cores_width + x_spacing) if e_cores else 0)
 
     def format_size(size):
         if size >= 1024*1024:
@@ -537,7 +537,7 @@ if __name__ == '__main__':
             print(f"  Line Size: {cache['line_size']} bytes")
             print(f"  Shared by cores: {cache['cores']}")
         create_cpu_topology_visualization(get_cpus_from_affinity(p_core_affinity_mask),
-                                          get_cpus_from_affinity(e_core_affinity_mask),
+                                          [], #get_cpus_from_affinity(e_core_affinity_mask),
                                           cache_info)
     except Exception as e:
         traceback.print_exc()
