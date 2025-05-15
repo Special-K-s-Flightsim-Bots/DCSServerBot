@@ -534,16 +534,8 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
         rightmost_core = max(shared_cores)
         row = leftmost_core // p_cores_per_row
 
-        # Calculate y position for L3 cache
-        y_position = (row * y_spacing * 3) - 2.0
-
-        for prev_row in range(row + 1):
-            if prev_row < row:
-                if prev_row in rows_with_l3:
-                    y_position += y_spacing * 3 + l3_spacing
-                else:
-                    y_position += y_spacing * 3
-        y_position -= l3_spacing  # Position it below the current row's cores
+        # Calculate y position for L3 cache - simplified
+        y_position = row * y_spacing * 3 - 2.4  # Changed from -2.0 to -2.4 to avoid overlap with L1/L2
 
         # Calculate the x-coordinates for this L3 section
         if leftmost_core in p_cores:
@@ -554,7 +546,7 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
                 e_core_index = sorted(e_cores).index(leftmost_core)
                 start_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
             else:
-                continue  # Skip if no E-cores exist but cache is for E-cores
+                continue
 
         if rightmost_core in p_cores:
             end_x = (rightmost_core % p_cores_per_row) * x_spacing
@@ -564,7 +556,7 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
                 e_core_index = sorted(e_cores).index(rightmost_core)
                 end_x = e_section_start + (e_core_index % e_cores_per_row) * x_spacing
             else:
-                continue  # Skip if no E-cores exist but cache is for E-cores
+                continue
 
         l3_width = end_x - start_x + core_width
 
