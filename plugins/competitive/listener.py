@@ -420,6 +420,9 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
+        match = self.matches[server.name].pop(data['match_id'])
+        match.finished = datetime.now(timezone.utc)
+
         # unlock players
         if data['match_id'] == GLOBAL_MATCH_ID:
             for ucid in self.in_match[server.name].keys():
@@ -454,7 +457,6 @@ class CompetitiveListener(EventListener["Competitive"]):
         for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
                 continue
-            finished: list[Match] = []
             for match in self.matches.get(server.name, {}).values():
                 winner: Side = match.winner
                 if match.finished or not winner:
@@ -476,7 +478,6 @@ class CompetitiveListener(EventListener["Competitive"]):
                 for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                     message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
                 asyncio.create_task(self.inform_players(match, message, 60))
-                finished.append(match)
 
                 asyncio.create_task(self.bot.bus.send_to_node({
                     "command": "onMatchFinished",
@@ -484,9 +485,3 @@ class CompetitiveListener(EventListener["Competitive"]):
                     "winner": winner.name,
                     "server_name": server.name
                 }))
-
-            # cleanup
-            for match in finished:
-                match.finished = datetime.now(timezone.utc)
-                if match.match_id != GLOBAL_MATCH_ID:
-                    del self.matches[server.name][match.match_id]

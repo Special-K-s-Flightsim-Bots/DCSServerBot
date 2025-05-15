@@ -4,6 +4,7 @@ import traceback
 import winreg
 
 from ctypes import wintypes
+from io import BytesIO
 from matplotlib import pyplot as plt, patches
 
 logger = logging.getLogger(__name__)
@@ -386,7 +387,7 @@ def get_cache_info():
     return sorted(cache_info, key=lambda x: x['level'])
 
 
-def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
+def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False):
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(20, 12))
     ax.set_aspect('equal')
@@ -403,9 +404,9 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     core_height = 0.8
     core_gap = 0.4
     x_spacing = core_width + core_gap
-    y_spacing = 1.0
+    y_spacing = 1.2
     l3_height = 0.8
-    l3_spacing = 0.8
+    l3_spacing = 0
 
     # Calculate layout dimensions
     p_cores_per_row = len(p_cores) // 2
@@ -587,14 +588,22 @@ def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
     ax.set_ylim(-4, max(p_rows, e_rows) * y_spacing * 3 + margin)
     ax.axis('off')
 
-    plt.title("CPU Topology with Cache Hierarchy", color=text_color, y=0.98)
+    plt.title(f"CPU Topology with Cache Hierarchy for {get_cpu_name()}", color=text_color, y=0.98)
 
     # Set figure background to dark
     fig.patch.set_facecolor('#1C1C1C')
     ax.set_facecolor('#1C1C1C')
 
     plt.tight_layout()
-    plt.show()
+
+    buf = BytesIO()
+    plt.savefig(buf, format='png', facecolor='#1C1C1C')
+    if display:
+        plt.show()
+
+    plt.close(fig)  # Close the figure to free memory
+    buf.seek(0)
+    return buf
 
 
 if __name__ == '__main__':
@@ -610,14 +619,17 @@ if __name__ == '__main__':
             print(f"Scheduling Class {plcass}: {get_cpus_from_affinity(affinity_mask)}")
         print("\nCache Information:")
         cache_info = get_cache_info()
-        for cache in cache_info:
-            cache_type = ['Unified', 'Instruction', 'Data', 'Trace'][cache['type']]
-            print(f"L{cache['level']} {cache_type} Cache:")
-            print(f"  Size: {cache['size']/1024:.0f}KB")
-            print(f"  Line Size: {cache['line_size']} bytes")
-            print(f"  Shared by cores: {cache['cores']}")
+        try:
+            for cache in cache_info:
+                cache_type = ['Unified', 'Instruction', 'Data', 'Trace'][cache['type']]
+                print(f"L{cache['level']} {cache_type} Cache:")
+                print(f"  Size: {cache['size']/1024:.0f}KB")
+                print(f"  Line Size: {cache['line_size']} bytes")
+                print(f"  Shared by cores: {cache['cores']}")
+        except Exception:
+            pass
         create_cpu_topology_visualization(get_cpus_from_affinity(p_core_affinity_mask),
                                           get_cpus_from_affinity(e_core_affinity_mask),
-                                          cache_info)
+                                          cache_info, True)
     except Exception as e:
         traceback.print_exc()

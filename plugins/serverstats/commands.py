@@ -133,6 +133,22 @@ class ServerStats(Plugin[ServerStatsListener]):
         except ValueNotInRange as ex:
             await interaction.followup.send(ex, ephemeral=utils.get_ephemeral(interaction))
 
+    @command(description='Shows CPU topology')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def cpuinfo(self, interaction: discord.Interaction):
+        p_core_affinity_mask = utils.get_p_core_affinity()
+        e_core_affinity_mask = utils.get_e_core_affinity()
+        buffer = utils.create_cpu_topology_visualization(utils.get_cpus_from_affinity(p_core_affinity_mask),
+                                                         utils.get_cpus_from_affinity(e_core_affinity_mask),
+                                                         utils.get_cache_info())
+        try:
+            discord.File(fp=buffer, filename='cpuinfo.png')
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(file=discord.File(fp=buffer, filename='cpuinfo.png'))
+        finally:
+            buffer.close()
+
     @tasks.loop(hours=12.0)
     async def cleanup(self):
         async with self.apool.connection() as conn:
