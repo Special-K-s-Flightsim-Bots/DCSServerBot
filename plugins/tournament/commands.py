@@ -1322,6 +1322,12 @@ class Tournament(Plugin[TournamentEventListener]):
         elif modal.value.get('squadron_red_rounds_won') > modal.value.get('squadron_blue_rounds_won'):
             winner_squadron_id = match['squadron_red']
 
+        match_time = modal.value.get('match_time')
+        try:
+            match_time = datetime.strptime(match_time, "%Y-%m-%d %H:%M:%S") if match_time else None
+        except ValueError:
+            await interaction.followup.send(_("Invalid date format. Use yyyy-mm-dd hh:mm:ss."), ephemeral=True)
+            return
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
@@ -1330,8 +1336,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     WHERE match_id = %s
                 """, (modal.value.get('squadron_blue_rounds_won'),
                       modal.value.get('squadron_red_rounds_won'),
-                      datetime.strptime(modal.value.get('match_time'), '%Y-%m-%d %H:%M:%S'),
-                      match_id))
+                      match_time, match_id))
 
                 if winner_squadron_id:
                     squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
@@ -1351,7 +1356,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if match['winner_squadron_id'] != winner_squadron_id \
             or match['squadron_blue_rounds_won'] != modal.value.get('squadron_blue_rounds_won') \
             or match['squadron_red_rounds_won'] != modal.value.get('squadron_red_rounds_won')\
-            or match['match_time'] != datetime.strptime(modal.value.get('match_time'), '%Y-%m-%d %H:%M:%S'):
+            or match['match_time'] != match_time:
             await self.bot.audit(f"updated match {match_id} for tournament {tournament_id}.",
                                  user=interaction.user)
             await interaction.followup.send(_("Match updated."), ephemeral=True)
