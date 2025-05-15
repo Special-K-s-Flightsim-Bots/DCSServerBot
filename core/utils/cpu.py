@@ -4,7 +4,7 @@ import traceback
 import winreg
 
 from ctypes import wintypes
-from winerror import ERROR_INSUFFICIENT_BUFFER
+from matplotlib import pyplot as plt, patches
 
 logger = logging.getLogger(__name__)
 
@@ -326,26 +326,25 @@ def get_cpu_name():
 
 
 def get_cache_info():
-    # First call to get required buffer size
-    length = ctypes.c_ulong(0)
-    result = ctypes.windll.kernel32.GetLogicalProcessorInformationEx(RelationCache, None, ctypes.byref(length))
+    kernel32 = ctypes.WinDLL("Kernel32.dll")
 
-    if result == 0 and ctypes.get_last_error() != ERROR_INSUFFICIENT_BUFFER:
-        raise ctypes.WinError()
+    # First call to get required buffer size
+    buffer_size = wintypes.DWORD(0)
+    if not kernel32.GetLogicalProcessorInformationEx(RelationCache, None, ctypes.byref(buffer_size)):
+        if ctypes.get_last_error() != 122:  # ERROR_INSUFFICIENT_BUFFER
+            raise ctypes.WinError(ctypes.get_last_error())
 
     # Create the buffer
-    buffer = ctypes.create_string_buffer(length.value)
-
-    # Second call to get the actual data
-    result = ctypes.windll.kernel32.GetLogicalProcessorInformationEx(RelationCache, buffer, ctypes.byref(length))
+    buffer = ctypes.create_string_buffer(buffer_size.value)
+    # Retrieve the information
+    result = kernel32.GetLogicalProcessorInformationEx(RelationCache, buffer, ctypes.byref(buffer_size))
 
     if result == 0:
         raise ctypes.WinError()
 
     offset = 0
     cache_info = []
-
-    while offset + ctypes.sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) <= length.value:
+    while offset < buffer_size.value - ctypes.sizeof(wintypes.DWORD) * 2:  # Space for Relationship and Size fields
         info = ctypes.cast(buffer[offset:], ctypes.POINTER(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)).contents
 
         if info.Size == 0:  # Invalid entry, break the loop
@@ -365,10 +364,141 @@ def get_cache_info():
         offset += info.Size
 
         # Break if we don't have enough bytes left for another complete entry
-        if offset >= length.value:
+        if offset >= buffer_size.value:
             break
 
     return sorted(cache_info, key=lambda x: x['level'])
+
+
+def create_cpu_topology_visualization(p_cores, e_cores, cache_structure):
+    fig, ax = plt.subplots(figsize=(20, 12))
+    ax.set_aspect('equal')
+
+    # Colors
+    p_core_color = '#ADD8E6'  # Light blue
+    e_core_color = '#90EE90'  # Light green
+    l1_color = '#FFB6C1'      # Light pink
+    l2_color = '#DDA0DD'      # Plum
+    l3_color = '#F0E68C'      # Khaki
+
+    # Calculate basic dimensions
+    core_width = 0.8
+    core_height = 0.8
+    core_gap = 0.4  # Gap between cores
+    x_spacing = core_width + core_gap  # = 1.2, distance from start of one core to start of next
+    y_spacing = 1.0
+
+    # Calculate layout dimensions
+    p_cores_per_row = len(p_cores) // 2
+    e_cores_per_row = len(e_cores) // 2
+    p_rows = (len(p_cores) + p_cores_per_row - 1) // p_cores_per_row
+    e_rows = (len(e_cores) + e_cores_per_row - 1) // e_cores_per_row if e_cores else 0
+
+    # Calculate total width needed
+    p_cores_width = p_cores_per_row * core_width + (p_cores_per_row - 1) * core_gap
+    e_cores_width = e_cores_per_row * core_width + (e_cores_per_row - 1) * core_gap
+    e_section_start = p_cores_width + x_spacing
+    total_width = p_cores_width + e_cores_width + x_spacing
+
+    def format_size(size):
+        if size >= 1024*1024:
+            return f"{size/(1024*1024):.0f}M"
+        elif size >= 1024:
+            return f"{size/1024:.0f}K"
+        return f"{size}B"
+
+    # Group cores by their L2 cache sharing
+    l2_groups = {}
+    for cache in cache_structure:
+        if cache['level'] == 2:
+            key = tuple(sorted(cache['cores']))
+            l2_groups[key] = {'cores': cache['cores'], 'size': cache['size']}
+
+    # Draw P-cores
+    for i, core in enumerate(sorted(p_cores)):
+        x = (i % p_cores_per_row) * x_spacing
+        y = (i // p_cores_per_row) * y_spacing * 3
+        rect = patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color)
+        ax.add_patch(rect)
+        ax.text(x + core_width/2, y + core_height/2, f"P{core}", ha='center', va='center')
+
+        # Find L1 caches for this core
+        if i % 2 == 0:  # For each pair of P-cores
+            # Find L1 caches
+            for cache in cache_structure:
+                if cache['level'] == 1 and core in cache['cores']:
+                    if cache['type'] == 2:  # L1i
+                        l1i = patches.Rectangle((x, y - 0.6), x_spacing * 2 - 0.4, 0.4, facecolor=l1_color)
+                        ax.add_patch(l1i)
+                        ax.text(x + x_spacing - 0.2, y - 0.4, f"L1 (i) {format_size(cache['size'])}",
+                               ha='center', va='center', fontsize=8)
+                    elif cache['type'] == 1:  # L1d
+                        l1d = patches.Rectangle((x, y - 1.0), x_spacing * 2 - 0.4, 0.4, facecolor=l1_color)
+                        ax.add_patch(l1d)
+                        ax.text(x + x_spacing - 0.2, y - 0.8, f"L1 (d) {format_size(cache['size'])}",
+                               ha='center', va='center', fontsize=8)
+
+            # Draw L2 cache
+            for group in l2_groups.values():
+                if core in group['cores']:
+                    l2 = patches.Rectangle((x, y - 1.4), x_spacing * 2 - 0.4, 0.4, facecolor=l2_color)
+                    ax.add_patch(l2)
+                    ax.text(x + x_spacing - 0.2, y - 1.2, f"L2 {format_size(group['size'])}",
+                           ha='center', va='center', fontsize=8)
+                    break
+
+    # Draw E-cores
+    for i, core in enumerate(sorted(e_cores)):
+        x = (i % e_cores_per_row) * x_spacing + e_section_start
+        y = (i // e_cores_per_row) * y_spacing * 3
+        rect = patches.Rectangle((x, y), core_width, core_height, facecolor=e_core_color)
+        ax.add_patch(rect)
+        ax.text(x + core_width/2, y + core_height/2, f"E{core}", ha='center', va='center')
+
+        # Find L1 caches for this core
+        for cache in cache_structure:
+            if cache['level'] == 1 and core in cache['cores']:
+                if cache['type'] == 2:  # L1i
+                    l1i = patches.Rectangle((x, y - 0.6), core_width, 0.4, facecolor=l1_color)
+                    ax.add_patch(l1i)
+                    ax.text(x + core_width/2, y - 0.4, f"L1i {format_size(cache['size'])}",
+                           ha='center', va='center', fontsize=8)
+                elif cache['type'] == 1:  # L1d
+                    l1d = patches.Rectangle((x, y - 1.0), core_width, 0.4, facecolor=l1_color)
+                    ax.add_patch(l1d)
+                    ax.text(x + core_width/2, y - 0.8, f"L1d {format_size(cache['size'])}",
+                           ha='center', va='center', fontsize=8)
+
+        # Draw L2 cache for E-cores (shared between quads)
+        if i % 4 == 0:
+            for group in l2_groups.values():
+                if core in group['cores']:
+                    l2_width = x_spacing * 4 - 0.4  # Width for 4 cores
+                    l2 = patches.Rectangle((x, y - 1.4), l2_width, 0.4, facecolor=l2_color)
+                    ax.add_patch(l2)
+                    ax.text(x + l2_width/2, y - 1.2, f"L2 {format_size(group['size'])}",
+                           ha='center', va='center', fontsize=8)
+                    break
+
+    # Find and draw L3 cache
+    for cache in cache_structure:
+        if cache['level'] == 3:
+            l3_width = total_width  # Now spans the entire width including both P-cores and E-cores
+            l3 = patches.Rectangle((0, -3), l3_width, 0.8, facecolor=l3_color)
+            ax.add_patch(l3)
+            ax.text(l3_width/2, -2.6, f"L3 {format_size(cache['size'])} (Shared)",
+                   ha='center', va='center')
+            break
+
+    # Set plot limits and remove axes
+    margin = 1
+    ax.set_xlim(-margin, total_width + margin)
+    ax.set_ylim(-4, max(p_rows, e_rows) * y_spacing * 3 + margin)
+    ax.axis('off')
+
+    plt.title("CPU Topology with Cache Hierarchy")
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -390,5 +520,8 @@ if __name__ == '__main__':
             print(f"  Size: {cache['size']/1024:.0f}KB")
             print(f"  Line Size: {cache['line_size']} bytes")
             print(f"  Shared by cores: {cache['cores']}")
+        create_cpu_topology_visualization(get_cpus_from_affinity(p_core_affinity_mask),
+                                          get_cpus_from_affinity(e_core_affinity_mask),
+                                          cache_info)
     except Exception as e:
         traceback.print_exc()
