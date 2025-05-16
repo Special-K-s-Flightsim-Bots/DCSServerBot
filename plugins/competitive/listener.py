@@ -269,7 +269,7 @@ class CompetitiveListener(EventListener["Competitive"]):
         def print_crew(players: list[Player]) -> str:
             return ' and '.join([p.name for p in players])
 
-        async def remove_players(server: Server, players: list[Player]):
+        async def remove_players(match: Match, server: Server, players: list[Player]):
             for player in players:
                 match.player_dead(player)
                 # remove the player from the running match so that they can join another one
@@ -335,7 +335,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                         what=_('killed') if data['arg3'] != data['arg4'] else _('team-killed'),
                         victim=print_crew(victims), victim_module=victims[0].unit_display_name,
                         weapon=data['arg7'] or 'Guns')))
-                await remove_players(server, victims)
+                await remove_players(match, server, victims)
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
                 await self.rank_teams(killers, victims)
@@ -355,7 +355,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=players[0].unit_display_name, event=_(data['eventName']))))
-                await remove_players(server, players)
+                await remove_players(match, server, players)
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, players[0])
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
@@ -371,9 +371,12 @@ class CompetitiveListener(EventListener["Competitive"]):
             if match:
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=players[0].unit_display_name, event=_(data['eventName']))))
-                await remove_players(server, players)
+                await remove_players(match, server, players)
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, player)
+            elif self.in_match[server.name].get(player.ucid):
+                # in the unlikely event of a player leaving before the match started
+                await remove_players(self.in_match[server.name][player.ucid], server, [player])
         elif data['eventName'] == 'takeoff':
             player = server.get_player(id=data['arg1'])
             if not player:

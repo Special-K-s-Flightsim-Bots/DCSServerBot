@@ -143,7 +143,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             if num_planes == tournament['num_players'] * 2:
                 asyncio.create_task(server.current_mission.unpause())
                 asyncio.create_task(self.announce(server,
-                                                  _("All sides have occupied their units. The match is now on!")))
+                                                  _("All sides have occupied their units. The match can start now!")))
                 messages = [_("The server is now unpaused!\n")]
                 config = self.get_config(server, plugin_name='competitive')
                 delayed_start = config.get('delayed_start', 0)
