@@ -268,8 +268,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                         RETURNING squadron_{winner}, squadron_{loser}, round_number
                     """, (match_id,))
                     winner_id, loser_id, round_number = await cursor.fetchone()
-            winner_squadron = await self.plugin.get_squadron(match_id, squadron_id=winner_id)
-            loser_squadron = await self.plugin.get_squadron(match_id, squadron_id=loser_id)
+            winner_squadron = await self.plugin.get_squadron(match_id, winner_id)
+            loser_squadron = await self.plugin.get_squadron(match_id, loser_id)
             message = _("Squadron {name} won round {round}!").format(name=winner_squadron.name, round=round_number)
 
             # calculate balance
