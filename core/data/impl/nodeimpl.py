@@ -11,6 +11,8 @@ import platform
 import psycopg
 import re
 import shutil
+
+import psycopg_pool
 import sqlparse
 import ssl
 import subprocess
@@ -838,6 +840,10 @@ class NodeImpl(Node):
                             ON CONFLICT (guild_id, node) DO UPDATE 
                             SET last_seen = (NOW() AT TIME ZONE 'UTC')
                         """, (self.guild_id, self.name))
+        except psycopg_pool.PoolTimeout:
+            current_stats = self.apool.get_stats()
+            self.log.warning(f"Pool stats: {repr(current_stats)}")
+            raise
         except Exception as ex:
             self.log.exception(ex)
             raise
@@ -902,12 +908,12 @@ class NodeImpl(Node):
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
                         async with aiofiles.open(filename, mode='wb') as outfile:
                             await outfile.write(await response.read())
+                            return UploadStatus.OK
                     except Exception as ex:
                         self.log.error(ex)
                         return UploadStatus.WRITE_ERROR
                 else:
                     return UploadStatus.READ_ERROR
-        return UploadStatus.OK
 
     async def list_directory(self, path: str, *, pattern: Union[str, list[str]] = '*',
                              order: SortOrder = SortOrder.DATE,
