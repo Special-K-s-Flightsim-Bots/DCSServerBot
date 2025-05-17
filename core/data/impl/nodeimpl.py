@@ -291,6 +291,8 @@ class NodeImpl(Node):
         pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 10)
         pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 20)
         max_idle = self.locals.get("database", self.config.get('database')).get('max_idle', 10 * 60.0)
+        max_waiting = self.locals.get("database", self.config.get('database')).get('max_waiting', 100)
+        num_workers = self.locals.get("database", self.config.get('database')).get('num_workers', 5)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
         self.log.debug("- Initializing database pools ...")
         self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
@@ -300,7 +302,7 @@ class NodeImpl(Node):
 
         self.apool = AsyncConnectionPool(conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
                                          check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                         open=False)
+                                         num_workers=num_workers, max_waiting=max_waiting, open=False)
         await self.apool.open()
 
         if urlparse(lpool_url).path != urlparse(cpool_url).path:
