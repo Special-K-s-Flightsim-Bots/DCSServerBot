@@ -291,8 +291,8 @@ class NodeImpl(Node):
         pool_min = self.locals.get("database", self.config.get('database')).get('pool_min', 10)
         pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 20)
         max_idle = self.locals.get("database", self.config.get('database')).get('max_idle', 10 * 60.0)
-        max_waiting = self.locals.get("database", self.config.get('database')).get('max_waiting', 100)
-        num_workers = self.locals.get("database", self.config.get('database')).get('num_workers', 5)
+        max_waiting = self.locals.get("database", self.config.get('database')).get('max_waiting', 0)
+        num_workers = self.locals.get("database", self.config.get('database')).get('num_workers', 10)
         timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
         self.log.debug("- Initializing database pools ...")
         self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
