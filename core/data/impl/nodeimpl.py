@@ -313,8 +313,7 @@ class NodeImpl(Node):
         # create the fast cluster pool
         self.cpool = AsyncConnectionPool(
             conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
-            max_idle=self.config['database'].get('max_idle', 10 * 60.0),
-            timeout=timeout, open=False)
+            max_idle=max_idle, timeout=timeout, open=False)
         await self.cpool.open()
 
         self.log.debug("- Database pools initialized.")
@@ -842,7 +841,7 @@ class NodeImpl(Node):
                             SET last_seen = (NOW() AT TIME ZONE 'UTC')
                         """, (self.guild_id, self.name))
         except psycopg_pool.PoolTimeout:
-            current_stats = self.apool.get_stats()
+            current_stats = self.cpool.get_stats()
             self.log.warning(f"Pool stats: {repr(current_stats)}")
             raise
         except Exception as ex:
