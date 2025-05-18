@@ -24,10 +24,11 @@ if dcsbot.UDPSendSocket == nil then
 	dcsbot.UDPSendSocket:setsockname("*", 0)
 end
 
-dcsbot.sendBotMessage = dcsbot.sendBotMessage or function (msg, channel)
+dcsbot.sendBotMessage = dcsbot.sendBotMessage or function (msg, channel, raw)
 	local messageTable = {}
 	messageTable.command = 'sendMessage'
 	messageTable.message = msg
+	messageTable.raw = raw or false
 	dcsbot.sendBotTable(messageTable, channel)
 end
 

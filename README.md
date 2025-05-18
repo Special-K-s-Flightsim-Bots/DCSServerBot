@@ -683,7 +683,11 @@ After that, you can for instance send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
 ```
-inside a trigger or anywhere else where scripting is allowed.
+inside a trigger or anywhere else where scripting is allowed.<br>
+If you want to send raw messages containing discord formatting options (like ANSI), then you can do it like so:
+```lua
+  dcsbot.sendBotMessage('Hello World', '12345678', true) -- last parameter is "raw", which disables any bot-related formatting
+```
 
 > [!IMPORTANT]
 > Channel always has to be a string, encapsulated with '', **not** a number because of Integer limitations in LUA.

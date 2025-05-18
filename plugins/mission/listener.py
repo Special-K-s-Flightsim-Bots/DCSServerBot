@@ -192,7 +192,10 @@ class MissionEventListener(EventListener["Mission"]):
             channel_id = server.channels.get(Channel.EVENTS, -1)
         channel = self.bot.get_channel(channel_id)
         if channel:
-            message = "```" + data['message'] + "```"
+            if not data.get('raw', False):
+                message = "```" + data['message'] + "```"
+            else:
+                message = data['message']
             if 'mention' in data:
                 message = ''.join([
                     self.bot.get_role(role).mention for role in self.bot.roles[data['mention']]
