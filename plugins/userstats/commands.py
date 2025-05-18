@@ -622,7 +622,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                      server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        campaign_id, _ = utils.get_running_campaign(self.node, server)
+        campaign_id, name = utils.get_running_campaign(self.node, server)
         squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
         squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
                                                campaign_id=campaign_id)
