@@ -294,8 +294,8 @@ class NodeImpl(Node):
         pool_max = self.locals.get("database", self.config.get('database')).get('pool_max', 20)
         max_idle = self.locals.get("database", self.config.get('database')).get('max_idle', 10 * 60.0)
         max_waiting = self.locals.get("database", self.config.get('database')).get('max_waiting', 0)
-        num_workers = self.locals.get("database", self.config.get('database')).get('num_workers', 10)
-        timeout = 60.0 if self.locals.get('slow_system', False) else 30.0
+        num_workers = pool_max // 2
+        timeout = 180.0 if self.locals.get('slow_system', False) else 90.0
         self.log.debug("- Initializing database pools ...")
         self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
                                    check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
@@ -307,15 +307,16 @@ class NodeImpl(Node):
                                          num_workers=num_workers, max_waiting=max_waiting, open=False)
         await self.apool.open()
 
+        # initialize the cluster pool
         if urlparse(lpool_url).path != urlparse(cpool_url).path:
             self.log.info("- Federation detected.")
-            self.cpool = AsyncConnectionPool(
-                conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
-                max_idle=self.config['database'].get('max_idle', 10 * 60.0),
-                timeout=timeout, open=False)
-            await self.cpool.open()
-        else:
-            self.cpool = self.apool
+        # create the fast cluster pool
+        self.cpool = AsyncConnectionPool(
+            conninfo=cpool_url, min_size=2, max_size=4, check=AsyncConnectionPool.check_connection,
+            max_idle=self.config['database'].get('max_idle', 10 * 60.0),
+            timeout=timeout, open=False)
+        await self.cpool.open()
+
         self.log.debug("- Database pools initialized.")
 
     async def close_db(self):

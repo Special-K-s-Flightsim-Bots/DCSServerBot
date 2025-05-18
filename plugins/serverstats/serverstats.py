@@ -60,7 +60,7 @@ class TopTheatresPerServer(report.EmbedElement):
         sql = f"""
             SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name,
                    m.mission_theatre, 
-                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
+                   COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime 
             FROM missions m, statistics s
             WHERE m.id = s.mission_id
             {where_clause}
@@ -502,14 +502,14 @@ class UsersPerDayTime(report.GraphElement):
                 async for row in cursor:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
 
-            sns.heatmap(values, cmap='viridis', cbar=False, annot=False,
-                        yticklabels=[f'{i:02d}h' for i in range(24)],
-                        xticklabels=[const.WEEKDAYS[i] for i in range(7)],
-                        ax=self.axes)
-            self.axes.invert_yaxis()
-            self.axes.set_yticklabels(self.axes.get_yticklabels(), rotation=0)
-            self.axes.set_title('Users per Day/Time (UTC) | past {}'.format(interval.replace('1', '').strip()),
-                                                                            color='white', fontsize=25)
+        sns.heatmap(values, cmap='viridis', cbar=False, annot=False,
+                    yticklabels=[f'{i:02d}h' for i in range(24)],
+                    xticklabels=[const.WEEKDAYS[i] for i in range(7)],
+                    ax=self.axes)
+        self.axes.invert_yaxis()
+        self.axes.set_yticklabels(self.axes.get_yticklabels(), rotation=0)
+        self.axes.set_title('Users per Day/Time (UTC) | past {}'.format(interval.replace('1', '').strip()),
+                                                                        color='white', fontsize=25)
 
 
 class UsersPerMissionTime(report.GraphElement):
@@ -555,7 +555,7 @@ class UsersPerMissionTime(report.GraphElement):
 
         # Merge data with all possible hours (left join) and fill missing user counts with 0
         merged_df = pd.merge(all_hours, df, on='time', how='left')
-        merged_df['users'].fillna(0, inplace=True)
+        merged_df['users'] = merged_df['users'].fillna(0)
 
         # Step 4: Create the bar plot
         barplot = sns.barplot(x='time', y='users', data=merged_df, ax=self.axes, color='dodgerblue')

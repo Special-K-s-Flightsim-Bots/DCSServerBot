@@ -342,53 +342,55 @@ class GreenieBoard(GraphElement):
                     )
                     return
 
-                # Calculate dynamic figure size based on rows and columns
-                pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
-                padding = 1.0  # Padding between columns
-                fig_width = pilot_column_width + padding + (
-                            num_columns * column_width) + 2  # Additional padding on the sides
-                legend_height = (5 if num_landings < 20 else 3) * (card_size + 0.2)
-                fig_height = (num_rows * row_height) + 2 + legend_height  # Additional padding on the top and bottom
+        # Calculate dynamic figure size based on rows and columns
+        pilot_column_width = max([len(item['name']) for item in rows]) * 0.20
+        padding = 1.0  # Padding between columns
+        fig_width = pilot_column_width + padding + (
+                    num_columns * column_width) + 2  # Additional padding on the sides
+        legend_height = (5 if num_landings < 20 else 3) * (card_size + 0.2)
+        fig_height = (num_rows * row_height) + 2 + legend_height  # Additional padding on the top and bottom
 
-                if num_columns < 20:
-                    fig_width += 14
+        if num_columns < 20:
+            fig_width += 14
 
-                self.env.figure.set_size_inches(fig_width, fig_height)
+        self.env.figure.set_size_inches(fig_width, fig_height)
 
-                rounding_radius = 0.1  # Radius for rounded corners
+        rounding_radius = 0.1  # Radius for rounded corners
 
-                # Plot table headers with proper padding
-                self.axes.text(0, 0, "Pilot", va='center', ha='left', fontsize=text_size, color=text_color,
-                               fontweight='bold', fontname=font_name)
-                self.axes.text(pilot_column_width + padding, 0, "AVG", va='center', ha='center', fontsize=text_size,
-                               color=text_color, fontweight='bold', fontname=font_name)
+        # Plot table headers with proper padding
+        self.axes.text(0, 0, "Pilot", va='center', ha='left', fontsize=text_size, color=text_color,
+                       fontweight='bold', fontname=font_name)
+        self.axes.text(pilot_column_width + padding, 0, "AVG", va='center', ha='center', fontsize=text_size,
+                       color=text_color, fontweight='bold', fontname=font_name)
 
-                # Add dynamic column headers directly above the card columns
-                for j in range(num_columns):
-                    x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2) + card_size / 2
-                    self.axes.text(x_pos, 0, str(j + 1), va='center', ha='center', fontsize=text_size, color=text_color,
-                                   fontweight='bold', fontname=font_name)
+        # Add dynamic column headers directly above the card columns
+        for j in range(num_columns):
+            x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2) + card_size / 2
+            self.axes.text(x_pos, 0, str(j + 1), va='center', ha='center', fontsize=text_size, color=text_color,
+                           fontweight='bold', fontname=font_name)
 
-                for i, row in enumerate(rows):
-                    y_position = -i * row_height - 1
+        for i, row in enumerate(rows):
+            y_position = -i * row_height - 1
 
-                    # Add a light gray background to odd rows
-                    if i % 2 == 0:
-                        self.axes.add_patch(plt.Rectangle((-0.5, y_position - row_height / 2), fig_width, row_height,
-                                                          color=odd_row_bg_color, zorder=1))
+            # Add a light gray background to odd rows
+            if i % 2 == 0:
+                self.axes.add_patch(plt.Rectangle((-0.5, y_position - row_height / 2), fig_width, row_height,
+                                                  color=odd_row_bg_color, zorder=1))
 
-                    member = self.bot.get_member_by_ucid(row['player_ucid'])
-                    if member:
-                        name = member.display_name
-                    else:
-                        name = row['name']
+            member = self.bot.get_member_by_ucid(row['player_ucid'])
+            if member:
+                name = member.display_name
+            else:
+                name = row['name']
 
-                    self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color=text_color,
-                                   fontweight='bold', fontname=font_name)
-                    self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center',
-                                   ha='center',
-                                   fontsize=text_size, color=text_color, fontname=font_name)
+            self.axes.text(0, y_position, name, va='center', ha='left', fontsize=text_size, color=text_color,
+                           fontweight='bold', fontname=font_name)
+            self.axes.text(pilot_column_width + padding, y_position, f'{row["points"]:.1f}', va='center',
+                           ha='center',
+                           fontsize=text_size, color=text_color, fontname=font_name)
 
+            async with self.apool.connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cursor:
                     await cursor.execute(sql2, {
                         "player_ucid": row['player_ucid'],
                         "server_name": server_name,
@@ -399,55 +401,55 @@ class GreenieBoard(GraphElement):
                     if not landings_rtl:
                         landings.reverse()
 
-                    for j in range(num_columns):
-                        x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2)
-                        if j < len(landings):
-                            grade = landings[j]['grade']
+            for j in range(num_columns):
+                x_pos = pilot_column_width + padding + 1 + j * (card_size + 0.2)
+                if j < len(landings):
+                    grade = landings[j]['grade']
 
-                            # fixing grades...
-                            if grade in ['WOP', 'OWO', 'TWO', 'TLU']:
-                                grade = 'NC'
-                            elif grade == 'WOFD':
-                                grade = 'WO'
+                    # fixing grades...
+                    if grade in ['WOP', 'OWO', 'TWO', 'TLU']:
+                        grade = 'NC'
+                    elif grade == 'WOFD':
+                        grade = 'WO'
 
-                            if grade == '_OK_':
-                                imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)
-                                ab = AnnotationBbox(imagebox, (x_pos + card_size / 2, y_position), frameon=False,
-                                                    zorder=3)
-                                self.axes.add_artist(ab)
-                            else:
-                                rect = FancyBboxPatch((x_pos, y_position - card_size / 2),
-                                                      card_size, card_size,
-                                                      boxstyle="round,pad=0.02,rounding_size=0.1",
-                                                      edgecolor='none', facecolor=grades[grade]['color'],
-                                                      lw=0, zorder=2)
-                                self.axes.add_patch(rect)
-                            # mark night passes
-                            if landings[j]['night']:
-                                self.axes.plot(x_pos + card_size / 2, y_position, 'o', color='black', markersize=10,
-                                               zorder=3)
+                    if grade == '_OK_':
+                        imagebox = OffsetImage(unicorn_image, zoom=1, resample=True)
+                        ab = AnnotationBbox(imagebox, (x_pos + card_size / 2, y_position), frameon=False,
+                                            zorder=3)
+                        self.axes.add_artist(ab)
+                    else:
+                        rect = FancyBboxPatch((x_pos, y_position - card_size / 2),
+                                              card_size, card_size,
+                                              boxstyle="round,pad=0.02,rounding_size=0.1",
+                                              edgecolor='none', facecolor=grades[grade]['color'],
+                                              lw=0, zorder=2)
+                        self.axes.add_patch(rect)
+                    # mark night passes
+                    if landings[j]['night']:
+                        self.axes.plot(x_pos + card_size / 2, y_position, 'o', color='black', markersize=10,
+                                       zorder=3)
 
-                        else:
-                            # Draw true rounded brackets using arcs and lines
-                            y_top = y_position + card_size / 2
-                            y_bottom = y_position - card_size / 2
+                else:
+                    # Draw true rounded brackets using arcs and lines
+                    y_top = y_position + card_size / 2
+                    y_bottom = y_position - card_size / 2
 
-                            # Left rounded bracket
-                            self.axes.plot([x_pos + rounding_radius, x_pos], [y_top, y_top - rounding_radius],
-                                           color='grey', lw=1.5)
-                            self.axes.plot([x_pos, x_pos], [y_top - rounding_radius, y_bottom + rounding_radius],
-                                           color='grey', lw=1.5)
-                            self.axes.plot([x_pos, x_pos + rounding_radius], [y_bottom + rounding_radius, y_bottom],
-                                           color='grey', lw=1.5)
+                    # Left rounded bracket
+                    self.axes.plot([x_pos + rounding_radius, x_pos], [y_top, y_top - rounding_radius],
+                                   color='grey', lw=1.5)
+                    self.axes.plot([x_pos, x_pos], [y_top - rounding_radius, y_bottom + rounding_radius],
+                                   color='grey', lw=1.5)
+                    self.axes.plot([x_pos, x_pos + rounding_radius], [y_bottom + rounding_radius, y_bottom],
+                                   color='grey', lw=1.5)
 
-                            # Right rounded bracket
-                            x_right = x_pos + card_size
-                            self.axes.plot([x_right - rounding_radius, x_right], [y_top, y_top - rounding_radius],
-                                           color='grey', lw=1.5)
-                            self.axes.plot([x_right, x_right], [y_top - rounding_radius, y_bottom + rounding_radius],
-                                           color='grey', lw=1.5)
-                            self.axes.plot([x_right, x_right - rounding_radius], [y_bottom + rounding_radius, y_bottom],
-                                           color='grey', lw=1.5)
+                    # Right rounded bracket
+                    x_right = x_pos + card_size
+                    self.axes.plot([x_right - rounding_radius, x_right], [y_top, y_top - rounding_radius],
+                                   color='grey', lw=1.5)
+                    self.axes.plot([x_right, x_right], [y_top - rounding_radius, y_bottom + rounding_radius],
+                                   color='grey', lw=1.5)
+                    self.axes.plot([x_right, x_right - rounding_radius], [y_bottom + rounding_radius, y_bottom],
+                                   color='grey', lw=1.5)
 
                 legend_start_y = -row_height * num_rows - 1.5
                 self.add_legend(config=config, start_y=legend_start_y, num_landings=num_landings, text_color=text_color)
