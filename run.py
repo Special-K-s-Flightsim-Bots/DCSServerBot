@@ -15,6 +15,7 @@ import time
 
 from datetime import datetime
 from psycopg import OperationalError
+from psycopg_pool import PoolTimeout
 
 # DCSServerBot imports
 try:
@@ -265,6 +266,9 @@ if __name__ == "__main__":
         # do not restart again
         exit(-2)
     except psycopg.OperationalError as ex:
+        if isinstance(ex, PoolTimeout):
+            # try again on pool timeouts
+            exit(-1)
         log.error(f"Database Error: {ex}", exc_info=True)
         input("Press any key to continue ...")
         # do not restart again

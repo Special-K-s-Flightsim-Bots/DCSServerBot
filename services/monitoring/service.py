@@ -5,6 +5,7 @@ import ctypes
 import logging
 import os
 import psutil
+import psycopg
 import shutil
 import sys
 
@@ -51,6 +52,7 @@ class MonitoringService(Service):
             self.space_warning_sent['C:'] = False
             self.space_alert_sent['C:'] = False
         self.check_autoexec()
+        self.monitoring.add_exception_type(psycopg.DatabaseError)
         self.monitoring.start()
         if self.get_config().get('time_sync', False):
             time_server = self.get_config().get('time_server', None)

@@ -135,10 +135,13 @@ class Mission(Plugin[MissionEventListener]):
         self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.start()
         self.afk_check.start()
+        self.check_for_unban.add_exception_type(psycopg.DatabaseError)
         self.check_for_unban.start()
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
         if self.bot.locals.get('autorole', {}):
+            self.check_roles.add_exception_type(psycopg.DatabaseError)
+            self.check_roles.add_exception_type(discord.errors.DiscordException)
             self.check_roles.start()
 
     async def cog_unload(self):
@@ -1872,25 +1875,22 @@ class Mission(Plugin[MissionEventListener]):
 
     @tasks.loop(minutes=1.0)
     async def check_for_unban(self):
-        try:
-            async with self.apool.connection() as conn:
-                async with conn.transaction():
-                    cursor = await conn.execute("""
-                        SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
-                    """)
-                    rows = await cursor.fetchall()
-                    for row in rows:
-                        for server in self.bot.servers.values():
-                            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
-                                continue
-                            await server.send_to_dcs({
-                                "command": "unban",
-                                "ucid": row[0]
-                            })
-                        # delete unbanned accounts from the database
-                        await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
-        except Exception as ex:
-            self.log.exception(ex)
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                cursor = await conn.execute("""
+                    SELECT ucid FROM bans WHERE banned_until < (NOW() AT TIME ZONE 'utc')
+                """)
+                rows = await cursor.fetchall()
+                for row in rows:
+                    for server in self.bot.servers.values():
+                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                            continue
+                        await server.send_to_dcs({
+                            "command": "unban",
+                            "ucid": row[0]
+                        })
+                    # delete unbanned accounts from the database
+                    await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
 
     @check_for_unban.before_loop
     async def before_check_unban(self):
