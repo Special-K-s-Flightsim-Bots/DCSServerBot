@@ -486,10 +486,10 @@ class ServerImpl(Server):
                 self.set_affinity(self.locals.get('affinity'))
             else:
                 # make sure, we only use P-cores for DCS servers
-                p_core_affinity = utils.get_p_core_affinity()
-                if p_core_affinity:
+                e_core_affinity = utils.get_e_core_affinity()
+                if e_core_affinity:
                     self.log.info(f"  => P/E-Core CPU detected.")
-                    self.set_affinity(utils.get_cpus_from_affinity(p_core_affinity))
+                    self.set_affinity(utils.get_cpus_from_affinity(utils.get_p_core_affinity()))
             self.log.info(f"  => DCS server starting up with PID {p.pid}")
         except Exception:
             self.log.error(f"  => Error while trying to launch DCS!", exc_info=True)

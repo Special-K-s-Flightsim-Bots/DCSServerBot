@@ -29,13 +29,6 @@ dcsbot.eventHandler = dcsbot.eventHandler or {}
 
 local event_by_id = {}
 
-local event_filter = {
-    [world.event.S_EVENT_MARK_ADDED] = "S_EVENT_MARK_ADDED",
-    [world.event.S_EVENT_MARK_CHANGE] = "S_EVENT_MARK_CHANGE",
-    [world.event.S_EVENT_MARK_REMOVED] = "S_EVENT_MARK_REMOVED",
-    [world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION] = "S_EVENT_DISCARD_CHAIR_AFTER_EJECTION",
-    [world.event.S_EVENT_AI_ABORT_MISSION] = "S_EVENT_AI_ABORT_MISSION"
-}
 
 function dcsbot.eventHandler:onEvent(event)
 	status, err = pcall(onMissionEvent, event)
@@ -49,7 +42,7 @@ function onMissionEvent(event)
 	    return
 	end
 
-    if event_filter[event.id] ~= nil then
+    if event_by_id[event.id] == nil then
         return
     end
 
@@ -257,15 +250,24 @@ function dcsbot.getMissionSituation(channel)
     dcsbot.sendBotTable(msg, channel)
 end
 
-function dcsbot.enableMissionStats()
-        if not dcsbot.mission_stats_enabled then
-            for k, v in pairs(world.event) do
-            event_by_id[v] = k
-        end
-        world.addEventHandler(dcsbot.eventHandler)
-        env.info('DCSServerBot - Mission Statistics enabled.')
-        dcsbot.mission_stats_enabled = true
+function dcsbot.enableMissionStats(filter)
+    filter = net.json2lua(filter)
+
+    local filter_lookup = {}
+    for _, v in ipairs(filter) do
+        filter_lookup[v] = true
     end
+
+    if not dcsbot.mission_stats_enabled then
+        for k, v in pairs(world.event) do
+            if not filter_lookup[k] then
+                event_by_id[v] = k
+            end
+        end
+    end
+    world.addEventHandler(dcsbot.eventHandler)
+    env.info('DCSServerBot - Mission Statistics enabled.')
+    dcsbot.mission_stats_enabled = true
 end
 
 function dcsbot.disableMissionStats()

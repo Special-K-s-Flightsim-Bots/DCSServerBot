@@ -59,7 +59,16 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
     async def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
-            await server.send_to_dcs({"command": "enableMissionStats"})
+            await server.send_to_dcs({
+                "command": "enableMissionStats",
+                "filter": self.plugin.get_config(server).get('event_filter', [
+                    "S_EVENT_MARK_ADDED",
+                    "S_EVENT_MARK_CHANGE",
+                    "S_EVENT_MARK_REMOVED",
+                    "S_EVENT_DISCARD_CHAIR_AFTER_EJECTION",
+                    "S_EVENT_AI_ABORT_MISSION"
+                ])
+            })
             await server.send_to_dcs({"command": "getMissionSituation",
                                       "channel": server.channels.get(Channel.STATUS, -1)})
         else:
@@ -82,7 +91,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 return None
             return values[index1][index2]
 
-        if not config.get('persistence', True) or data['eventName'] in config.get('event_filter', []):
+        if not config.get('persistence', True):
             return
         player = get_value(data, 'initiator', 'name')
         init_player = server.get_player(name=player) if player else None
