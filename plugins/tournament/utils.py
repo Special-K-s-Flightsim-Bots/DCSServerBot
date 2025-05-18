@@ -1,13 +1,15 @@
 import aiohttp
 import math
+import numpy as np
 import pandas as pd
 import random
 
 from io import BytesIO
+from matplotlib import pyplot as plt, patches
 from openpyxl import Workbook
 from openpyxl.styles import Border, Side, Font
 from trueskill import Rating
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 
 def create_elimination_matches(squadrons: list[tuple[int, float]]) -> list[tuple[int, int]]:
@@ -109,37 +111,89 @@ def create_group_matches(groups: list[list[int]]) -> list[tuple[int, int]]:
     return matches
 
 
-async def create_versus_image(team1_image_url: str, team2_image_url: str) -> BytesIO:
+async def download_image(image_url: str) -> bytes:
     timeout = aiohttp.ClientTimeout(total=30)  # 30 seconds total timeout
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        # Download first image
-        async with session.get(team1_image_url) as response1:
+        async with session.get(image_url) as response1:
             if not response1.headers.get('content-type', '').startswith('image/'):
-                raise ValueError(f"URL does not point to an image: {team1_image_url}")
-            img1_data = await response1.read()
-            if len(img1_data) > 10 * 1024 * 1024:  # 10MB limit
-                raise ValueError(f"Image too large: {team1_image_url}")
+                raise ValueError(f"URL does not point to an image: {image_url}")
+            img_data = await response1.read()
+            if len(img_data) > 10 * 1024 * 1024:  # 10MB limit
+                raise ValueError(f"Image too large: {image_url}")
+            return img_data
 
-        # Download second image
-        async with session.get(team2_image_url) as response2:
-            if not response2.headers.get('content-type', '').startswith('image/'):
-                raise ValueError(f"URL does not point to an image: {team2_image_url}")
-            img2_data = await response2.read()
-            if len(img2_data) > 10 * 1024 * 1024:  # 10MB limit
-                raise ValueError(f"Image too large: {team2_image_url}")
+
+async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> BytesIO:
+    """
+    Create a versus image or winner image depending on if winner is specified.
+    :param team_blue_image_url: Blue team image URL
+    :param team_red_image_url: Red team image URL
+    :param winner: Optional - either 'blue' or 'red' to indicate winner
+    """
+    img1_data = await download_image(team_blue_image_url)
+    img2_data = await download_image(team_red_image_url)
 
     # Open images from binary data and convert to RGBA
     img1 = Image.open(BytesIO(img1_data)).convert('RGBA')
     img2 = Image.open(BytesIO(img2_data)).convert('RGBA')
 
-    # Define standard size for each team image
-    standard_size = (200, 200)
+    if winner is None:
+        # Original versus logic
+        standard_size = (200, 200)
+        img1.thumbnail(standard_size, Image.Resampling.LANCZOS)
+        img2.thumbnail(standard_size, Image.Resampling.LANCZOS)
+    else:
+        # Winner/loser logic
+        winner_size = (200, 200)
+        loser_size = (150, 150)
 
-    # Resize images while maintaining aspect ratio
-    img1.thumbnail(standard_size, Image.Resampling.LANCZOS)
-    img2.thumbnail(standard_size, Image.Resampling.LANCZOS)
+        if winner.lower() == 'blue':
+            img1.thumbnail(winner_size, Image.Resampling.LANCZOS)
+            img2.thumbnail(loser_size, Image.Resampling.LANCZOS)
+            winner_img = img1
+            loser_img = img2
+        else:  # 'red'
+            img1.thumbnail(loser_size, Image.Resampling.LANCZOS)
+            img2.thumbnail(winner_size, Image.Resampling.LANCZOS)
+            winner_img = img2
+            loser_img = img1
 
-    # Add spacing for VS text
+        # Create glow effect for winner
+        glow_color = (255, 215, 0, 100)  # Golden color with alpha
+        glow_size = 10
+        winner_with_glow = Image.new('RGBA',
+                                     (winner_img.width + 2 * glow_size,
+                                      winner_img.height + 2 * glow_size),
+                                     (0, 0, 0, 0))
+
+        # Create glow effect using multiple passes
+        glow = winner_img.copy()
+        glow = glow.convert('RGBA')
+        for i in range(glow_size):
+            glow_layer = Image.new('RGBA', winner_with_glow.size, (0, 0, 0, 0))
+            glow_layer.paste(glow, (i, i))
+            glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(glow_size - i))
+            for x in range(glow_layer.width):
+                for y in range(glow_layer.height):
+                    r, g, b, a = glow_layer.getpixel((x, y))
+                    if a > 0:
+                        glow_layer.putpixel((x, y),
+                                            (glow_color[0], glow_color[1],
+                                             glow_color[2], min(a, glow_color[3])))
+            winner_with_glow = Image.alpha_composite(winner_with_glow, glow_layer)
+
+        # Paste the original winner image in the center of the glow
+        winner_with_glow.paste(winner_img, (glow_size, glow_size), winner_img)
+
+        # Replace original images with processed ones
+        if winner.lower() == 'blue':
+            img1 = winner_with_glow
+            img2 = loser_img
+        else:
+            img1 = loser_img
+            img2 = winner_with_glow
+
+    # Add spacing for VS text or spacing between winner/loser
     spacing = 100
     total_width = img1.width + img2.width + spacing
     max_height = max(img1.height, img2.height)
@@ -155,33 +209,143 @@ async def create_versus_image(team1_image_url: str, team2_image_url: str) -> Byt
     combined_image.paste(img1, (0, y1), img1)
     combined_image.paste(img2, (img1.width + spacing, y2), img2)
 
-    # Add VS text
+    # Add text
     draw = ImageDraw.Draw(combined_image)
     try:
-        font = ImageFont.truetype("arial.ttf", 32)
+        font = ImageFont.truetype("arial.ttf", 32 if winner is None else 24)
     except:
         font = ImageFont.load_default()
 
-    vs_text = " vs "
-    # Get text size
-    text_bbox = draw.textbbox((0, 0), vs_text, font=font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
+    if winner is None:
+        # Original VS text logic
+        vs_text = " vs "
+        text_bbox = draw.textbbox((0, 0), vs_text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        x = (total_width - text_width) // 2
+        y = (max_height - text_height) // 2
 
-    # Calculate text position
-    x = (total_width - text_width) // 2
-    y = (max_height - text_height) // 2
+        # Draw VS text with outline
+        draw.text((x - 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x + 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x - 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x + 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x, y), vs_text, font=font, fill=(255, 255, 255, 255))
+    else:
+        # Add WINNER text under winning image
+        winner_text = "WINNER"
+        text_bbox = draw.textbbox((0, 0), winner_text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
 
-    # Draw text with outline for better visibility
-    draw.text((x - 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
-    draw.text((x + 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
-    draw.text((x - 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
-    draw.text((x + 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
-    draw.text((x, y), vs_text, font=font, fill=(255, 255, 255, 255))
+        if winner.lower() == 'blue':
+            x = (img1.width - text_width) // 2
+            y = y1 + img1.height + 5
+        else:
+            x = img1.width + spacing + (img2.width - text_width) // 2
+            y = y2 + img2.height + 5
+
+        # Draw WINNER text with golden color and outline
+        draw.text((x - 1, y - 1), winner_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x + 1, y - 1), winner_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x - 1, y + 1), winner_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x + 1, y + 1), winner_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x, y), winner_text, font=font, fill=(255, 215, 0, 255))
 
     # Save to binary buffer
     buffer = BytesIO()
     combined_image.save(buffer, format='PNG')
+    buffer.seek(0)
+
+    return buffer
+
+
+async def create_winner_image(winner_image_url: str) -> BytesIO:
+    """
+    Create a special victory image for the tournament winner with enhanced visual effects.
+    :param winner_image_url: URL of the winning squadron's image
+    """
+    winner_data = await download_image(winner_image_url)
+    winner_img = Image.open(BytesIO(winner_data)).convert('RGBA')
+
+    # Make the winner image larger for tournament victory
+    winner_size = (300, 300)  # Bigger size for the tournament winner
+    winner_img.thumbnail(winner_size, Image.Resampling.LANCZOS)
+
+    # Create a larger canvas for effects
+    padding = 100  # Extra space for effects and text
+    extra_bottom_space = 150
+    canvas_size = (winner_img.width + padding * 2,
+                   winner_img.height + padding * 2 + extra_bottom_space)
+    final_image = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+    # Create multiple layers of the golden glow with different intensities
+    glow_colors = [
+        (255, 215, 0, 100),  # Golden
+        (255, 223, 0, 80),  # Lighter golden
+        (255, 200, 0, 60),  # Darker golden
+    ]
+
+    for i, glow_color in enumerate(glow_colors):
+        glow_size = 20 - i * 5  # Decreasing glow size for each layer
+        glow_layer = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+        # Create star-like rays
+        draw = ImageDraw.Draw(glow_layer)
+        center = (canvas_size[0] // 2, canvas_size[1] // 2)
+        for angle in range(0, 360, 45):  # 8 rays
+            end_x = center[0] + int(math.cos(math.radians(angle)) * (winner_size[0] // 2 + 50))
+            end_y = center[1] + int(math.sin(math.radians(angle)) * (winner_size[1] // 2 + 50))
+            draw.line([center, (end_x, end_y)], fill=glow_color, width=10)
+
+        # Add circular glow
+        glow = winner_img.copy()
+        glow = glow.filter(ImageFilter.GaussianBlur(glow_size))
+        mask = Image.new('L', glow.size, 0)
+        draw_mask = ImageDraw.Draw(mask)
+        draw_mask.ellipse([(0, 0), glow.size], fill=255)
+        glow.putalpha(mask)
+
+        # Position the glow in the center
+        glow_pos = ((canvas_size[0] - glow.width) // 2,
+                    (canvas_size[1] - glow.height) // 2)
+        final_image.paste(glow, glow_pos, glow)
+
+    # Add the main image in the center
+    winner_pos = ((canvas_size[0] - winner_img.width) // 2,
+                  (canvas_size[1] - winner_img.height) // 2)
+    final_image.paste(winner_img, winner_pos, winner_img)
+
+    # Add text
+    draw = ImageDraw.Draw(final_image)
+    try:
+        title_font = ImageFont.truetype("arial.ttf", 48)
+        subtitle_font = ImageFont.truetype("arial.ttf", 36)
+    except:
+        title_font = ImageFont.load_default()
+        subtitle_font = ImageFont.load_default()
+
+    # Add "TOURNAMENT CHAMPION" text
+    title_text = "TOURNAMENT"
+    subtitle_text = "CHAMPION"
+
+    # Calculate text positions - moved lower with extra spacing
+    base_text_y = canvas_size[1] - extra_bottom_space + 20  # Start text higher up from bottom
+
+    # Calculate text positions
+    for i, (text, font) in enumerate([(title_text, title_font), (subtitle_text, subtitle_font)]):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        x = (canvas_size[0] - text_width) // 2
+        y = base_text_y + (i * 50)  # Stack the text lines
+
+        # Draw text with golden gradient effect
+        for offset in range(3):  # Create 3D effect
+            draw.text((x - offset, y - offset), text, font=font,
+                      fill=(255 - offset * 20, 215 - offset * 20, offset * 20, 255))
+
+    # Save to binary buffer
+    buffer = BytesIO()
+    final_image.save(buffer, format='PNG')
     buffer.seek(0)
 
     return buffer
@@ -329,5 +493,132 @@ def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame
 
     buf = BytesIO()
     wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def create_placeholder_icon(size=(32, 32)):
+    """Create a simple placeholder icon with a question mark"""
+    img = np.ones((size[0], size[1], 4), dtype=np.uint8) * 255  # White background with alpha
+    img[:, :, 3] = 255  # Full opacity
+    # Convert to PIL Image
+    pil_img = Image.fromarray(img)
+    return pil_img
+
+
+async def render_groups(groups: list[list[tuple[str, str]]]) -> BytesIO:
+    n_groups = len(groups)
+    max_members = max(len(group) for group in groups)
+
+    width_per_group = 3
+    height_per_member = 0.8
+    icon_size = 32
+
+    fig_width = max(8, n_groups * width_per_group)
+    fig_height = max(4, (max_members + 1) ** height_per_member)
+
+    dpi = 150
+    fig = plt.figure(figsize=(fig_width, fig_height), dpi=dpi)
+    ax = fig.add_subplot(111)
+
+    ax.set_facecolor('#424242')
+    fig.patch.set_facecolor('#424242')
+
+    ax.set_xlim(0, n_groups)
+    ax.set_ylim(-(max_members + 1), 0)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    header = patches.Rectangle((0, -1), n_groups, 1,
+                               facecolor='#4472C4',
+                               edgecolor='none')
+    ax.add_patch(header)
+
+    for i in range(n_groups):
+        bg = patches.Rectangle((i, -(max_members + 1)), 1, max_members,
+                               facecolor='#424242',
+                               edgecolor='none')
+        ax.add_patch(bg)
+
+    for i in range(n_groups + 1):
+        ax.plot([i, i], [-(max_members + 1), 0], 'gray', linewidth=0.5)
+    for i in range(max_members + 2):
+        ax.plot([0, n_groups], [-i, -i], 'gray', linewidth=0.5)
+
+    placeholder_icon = create_placeholder_icon()
+
+    for i in range(n_groups):
+        group_letter = chr(65 + i)
+
+        ax.text(i + 0.5, -0.5, f"Group {group_letter}",
+                horizontalalignment='center',
+                verticalalignment='center',
+                color='white',
+                fontweight='bold')
+
+        for j, (name, image_url) in enumerate(groups[i]):
+            y_pos = -(j + 1.5)
+
+            # Moved text closer to images
+            ax.text(i + 0.3, y_pos, name,
+                    horizontalalignment='left',
+                    verticalalignment='center',
+                    color='white')
+
+            try:
+                if image_url:
+                    img_data = await download_image(image_url)
+                    if img_data:
+                        figure_coords = ax.get_figure().transFigure.inverted()
+                        data_coords = ax.transData
+
+                        icon_left, icon_bottom = figure_coords.transform(
+                            data_coords.transform((i + 0.05, y_pos - 0.15))
+                        )
+                        icon_right, icon_top = figure_coords.transform(
+                            data_coords.transform((i + 0.25, y_pos + 0.15))
+                        )
+
+                        icon_ax = fig.add_axes((
+                            icon_left,
+                            icon_bottom,
+                            icon_right - icon_left,
+                            icon_top - icon_bottom
+                        ))
+
+                        img = Image.open(BytesIO(img_data))
+                        if img.mode != 'RGBA':
+                            img = img.convert('RGBA')
+
+                        img = img.resize((icon_size, icon_size))
+                        icon_ax.imshow(img)
+                        icon_ax.axis('off')
+                    else:
+                        ax.imshow(placeholder_icon,
+                                  extent=(i + 0.05, i + 0.25, y_pos - 0.15, y_pos + 0.15),
+                                  aspect='auto')
+                else:
+                    ax.imshow(placeholder_icon,
+                              extent=(i + 0.05, i + 0.25, y_pos - 0.15, y_pos + 0.15),
+                              aspect='auto')
+
+            except Exception as e:
+                print(f"Error loading icon: {e}")
+                ax.imshow(placeholder_icon,
+                          extent=(i + 0.05, i + 0.25, y_pos - 0.15, y_pos + 0.15),
+                          aspect='auto')
+
+    buf = BytesIO()
+    fig.savefig(buf,
+                format='png',
+                bbox_inches='tight',
+                dpi=300,
+                facecolor='#424242',
+                edgecolor='none')
+    plt.close(fig)
+
     buf.seek(0)
     return buf

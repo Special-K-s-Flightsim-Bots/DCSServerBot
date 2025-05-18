@@ -6,6 +6,7 @@ from psycopg.errors import UniqueViolation
 from trueskill import Rating
 from typing import TYPE_CHECKING, Optional
 
+from .const import TOURNAMENT_PHASE
 from .utils import calculate_point_multipliers
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
@@ -33,13 +34,6 @@ class TournamentEventListener(EventListener["Tournament"]):
         else:
             channel = self.bot.get_admin_channel(server)
         await channel.send(message)
-
-    async def announce(self, server: Server, message: str):
-        await self.inform_streamer(server, message)
-        config = self.get_config(server)
-        channel = self.bot.get_channel(config.get('channels', {}).get('info', -1))
-        if channel:
-            await channel.send(message)
 
     async def inform_squadrons(self, server, *, message: str):
         match_id = await self.get_active_match(server)
@@ -145,8 +139,9 @@ class TournamentEventListener(EventListener["Tournament"]):
             ])
             if num_planes == tournament['num_players'] * 2:
                 asyncio.create_task(server.current_mission.unpause())
-                asyncio.create_task(self.announce(server,
-                                                  _("All sides have occupied their units. The match can start now!")))
+                asyncio.create_task(self.inform_streamer(
+                    server, _("All sides have occupied their units. The match can start now!"))
+                )
                 messages = [_("The server is now unpaused!\n")]
                 config = self.get_config(server, plugin_name='competitive')
                 delayed_start = config.get('delayed_start', 0)
@@ -237,8 +232,9 @@ class TournamentEventListener(EventListener["Tournament"]):
                                        (winner_id, match_id))
             # inform people
             squadron = utils.get_squadron(self.node, squadron_id=winner_id)
+            asyncio.create_task(self.plugin.render_info_embed(tournament['tournament_id'],
+                                                              phase=TOURNAMENT_PHASE.MATCH_FINISHED, match_id=match_id))
             message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
-            asyncio.create_task(self.announce(server, message=message))
             message += _("\nServer will be shut down in 60 seonds ...")
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
             await asyncio.sleep(60)
@@ -247,12 +243,30 @@ class TournamentEventListener(EventListener["Tournament"]):
                 server,f"Match {match_id} is now finished. Squadron {squadron['name']} won the match.\n"
                        f"Closing the squadron channels now."))
             asyncio.create_task(self.plugin.close_channel(match_id))
+            # check if that was the last game to play
+            asyncio.create_task(self.check_tournament_finished(tournament['tournament_id']))
         else:
             # inform people
             asyncio.create_task(self.inform_squadrons(server, message=message))
+            asyncio.create_task(self.plugin.render_info_embed(tournament['tournament_id'],
+                                                              phase=TOURNAMENT_PHASE.MATCH_RUNNING, match_id=match_id))
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
             # play another round
             asyncio.create_task(self.next_round(server, match_id))
+
+    async def check_tournament_finished(self, tournament_id: int) -> None:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT stage, SUM(CASE WHEN winner_squadron_id IS NULL THEN 0 ELSE 1 END) AS NUM FROM tm_matches 
+                WHERE tournament_id = %s
+                GROUP BY stage
+                ORDER BY stage DESC
+				LIMIT 1
+            """, (tournament_id,))
+            num = (await cursor.fetchone())[1]
+            if num == 1:
+                asyncio.create_task(self.plugin.render_info_embed(tournament_id,
+                                                                  phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
@@ -286,7 +300,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         # inform players and people
         asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
         asyncio.create_task(self.inform_squadrons(server, message=message))
-        asyncio.create_task(self.announce(server, message))
+        asyncio.create_task(self.inform_streamer(server, message))
 
         # pause the server
         asyncio.create_task(server.current_mission.pause())
@@ -356,8 +370,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                 """, (match_id, ))
                 row = await cursor.fetchone()
                 round_number = row[0]
-        new_mission = await self.plugin.prepare_mission(server, match_id, round_number=round_number)
-        asyncio.create_task(server.sendPopupMessage(Coalition.ALL, _("The next round will start in 10s!")))
+        new_mission = await self.plugin.prepare_mission(server, match_id)
+        await server.sendPopupMessage(Coalition.ALL, _("The next round will start in 10s!"))
         await asyncio.sleep(10)
         await server.loadMission(new_mission, modify_mission=False, use_orig=False)
         await self.inform_squadrons(

@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import os
 import pandas as pd
@@ -8,15 +9,17 @@ from core import Plugin, Group, utils, get_translation, PluginRequiredError, Sta
     MizFile, DataObjectFactory, async_cache
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
+from io import BytesIO
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from time import time
 from typing import Optional, Literal
 
+from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
 from .utils import create_versus_image, create_elimination_matches, create_group_matches, create_groups, \
-    create_tournament_sheet
+    create_tournament_sheet, render_groups, create_winner_image
 from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModal, TimesSelectView
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
@@ -306,32 +309,145 @@ class Tournament(Plugin[TournamentEventListener]):
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
 
-    async def render_info_embed(self, tournament_id: int):
+    async def render_groups_image(self, tournament_id: int) -> BytesIO:
+        groups: list[list[int]] = []
+        async with self.apool.connection() as conn:
+            async for row in await conn.execute("""
+                SELECT group_number, squadron_id 
+                FROM tm_squadrons 
+                WHERE tournament_id = %s
+                ORDER BY group_number
+            """, (tournament_id,)):
+                if row[0] > len(groups):
+                    groups.append([])
+                groups[row[0] - 1].append(row[1])
+
+        all_squadron_ids = [squad_id for group in groups for squad_id in group]
+        squadron_data = {
+            squad_id: utils.get_squadron(self.node, squadron_id=squad_id)
+            for squad_id in all_squadron_ids
+        }
+
+        buffer = await render_groups([
+            [
+                (squadron_data[squad_id]['name'], squadron_data[squad_id]['image_url'])
+                for squad_id in group
+            ]
+            for group in groups
+        ])
+        return buffer
+
+    async def render_info_embed(self, tournament_id: int, *,
+                                phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.SIGNUP,
+                                match_id: Optional[int] = None) -> None:
         tournament = await self.get_tournament(tournament_id)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT COUNT(*) FROM tm_squadrons WHERE tournament_id = %s AND status = 'ACCEPTED'
             """, (tournament_id,))
-            num = (await cursor.fetchone())[0]
+            num_squadrons = (await cursor.fetchone())[0]
 
-        message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
-                    "A new tournament has been created:\n"
-                    "\n"
-                    "```{}```").format(tournament['description'])
-        # TODO: if tournament['start'] > datetime.now(timezone.utc):
-        message += _("\nYou can use {} to sign up.").format(
-            (await utils.get_command(self.bot, group=self.tournament.name, name=self.signup.name)).mention)
+        embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Information")
+        buffer = None
 
-        embed = discord.Embed(color=discord.Color.blue(),
-                              title=_("Signup for Tournament {}!").format(tournament['name']))
-        embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
+        if phase == TOURNAMENT_PHASE.SIGNUP:
+            message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
+                        "A new tournament has been created:\n"
+                        "\n"
+                        "```{}```").format(tournament['description'])
+            message += _("\nYou can use {} to sign up.").format(
+                (await utils.get_command(self.bot, group=self.tournament.name, name=self.signup.name)).mention)
+            embed.add_field(name=utils.print_ruler(ruler_length=27), value="_ _", inline=False)
+            embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}>")
+            embed.add_field(name=_("# Players per Side"), value=str(tournament['num_players']))
+            embed.add_field(name=_("# Subscriptions"), value=str(num_squadrons))
+            embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up."))
+
+        elif phase == TOURNAMENT_PHASE.START_GROUP_PHASE:
+            message = _("The group phase is now running.")
+            tmp = await self.render_matches(tournament=tournament)
+            for field in tmp.fields:
+                embed.add_field(name=field.name, value=field.value, inline=field.inline)
+            buffer = await self.render_groups_image(tournament_id)
+
+        elif phase == TOURNAMENT_PHASE.START_ELIMINATION_PHASE:
+            message = _("The eliminiation phase is now running.")
+            tmp = await self.render_matches(tournament=tournament)
+            for field in tmp.fields:
+                embed.add_field(name=field.name, value=field.value, inline=field.inline)
+
+        elif phase == TOURNAMENT_PHASE.MATCH_RUNNING:
+            match = await self.get_match(match_id=match_id)
+            message = _("A match is running on server {}!").format(utils.escape_string(match['server_name']))
+            squadron_blue = utils.get_squadron(node=self.node, squadron_id=match['squadron_blue'])
+            squadron_red = utils.get_squadron(node=self.node, squadron_id=match['squadron_red'])
+            blue_image = squadron_blue['image_url']
+            red_image = squadron_red['image_url']
+            if blue_image and red_image:
+                buffer = await create_versus_image(blue_image, red_image)
+
+            embed.add_field(name=_("Blue"), value=squadron_blue['name'])
+            ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
+            ratings_red = await Competitive.read_squadron_member_ratings(self.node, match['squadron_red'])
+            win_propability = Competitive.win_probability(ratings_blue, ratings_red)
+            embed.add_field(name=_("Win propability"), value=f"{win_propability * 100.0:.2f}%")
+            embed.add_field(name=_("Red"), value=squadron_red['name'])
+
+            embed.add_field(name=_("Round"), value=f"{match['round_number']} of {tournament['rounds']}")
+            embed.add_field(name=_("Blue Wins"), value=str(match['squadron_blue_rounds_won']))
+            embed.add_field(name=_("Red Wins"), value=str(match['squadron_red_rounds_won']))
+
+        elif phase == TOURNAMENT_PHASE.MATCH_FINISHED:
+            match = await self.get_match(match_id=match_id)
+            winner = "blue" if match['winner_squadron_id'] == match['squadron_blue'] else "red"
+            message = _("The match is over: {} won!").format(winner.upper())
+            squadron_blue = utils.get_squadron(node=self.node, squadron_id=match['squadron_blue'])
+            squadron_red = utils.get_squadron(node=self.node, squadron_id=match['squadron_red'])
+            blue_image = squadron_blue['image_url']
+            red_image = squadron_red['image_url']
+            if blue_image and red_image:
+                buffer = await create_versus_image(blue_image, red_image, winner)
+
+            embed.add_field(name=_("Round"), value=f"{match['round_number']} of {tournament['rounds']}")
+            embed.add_field(name=_("Blue Wins"), value=str(match['squadron_blue_rounds_won']))
+            embed.add_field(name=_("Red Wins"), value=str(match['squadron_red_rounds_won']))
+
+        else: # TOURNAMENT_PHASE.FINISHED:
+            embed.title = _("THE TOURNAMENT HAS FINISHED!")
+            embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
+            async with self.apool.connection() as conn:
+                # check if we have flown matches already
+                cursor = await conn.execute("""
+                    SELECT winner_squadron_id FROM tm_matches 
+                    WHERE tournament_id = %s 
+                    ORDER BY stage DESC LIMIT 1
+                """, (tournament_id,))
+                winner_id = (await cursor.fetchone())[0]
+            winner = utils.get_squadron(node=self.node, squadron_id=winner_id)
+            winner_image = winner['image_url']
+            if winner_image:
+                buffer = await create_winner_image(winner_image)
+            message = _("### Stand proud, {}!\n"
+                        "_Through fire and thunder you prevailed,\n"
+                        "When others faltered, you stood strong,\n"
+                        "Victory is where you belong!_").format(winner['name'])
+
+        #embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
         embed.description = message
-        embed.add_field(name=utils.print_ruler(ruler_length=27), value="_ _", inline=False)
-        embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}>")
-        embed.add_field(name=_("# Players per Side"), value=str(tournament['num_players']))
-        embed.add_field(name=_("# Subscriptions"), value=str(num))
-        embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up."))
-        return embed
+
+        if buffer:
+            file = discord.File(fp=buffer, filename=f"tournament_{tournament_id}.png")
+            embed.set_image(url=f"attachment://tournament_{tournament_id}.png")
+        else:
+            file = None
+        try:
+            # create a persistent message
+            channel_id = self.get_config().get('channels', {}).get('info')
+            await self.bot.setEmbed(embed_name=f"tournament_{tournament_id}", embed=embed, file=file,
+                                    channel_id=channel_id)
+        finally:
+            if buffer:
+                buffer.close()
 
     @tournament.command(description='Create a tournament')
     @app_commands.guild_only()
@@ -391,9 +507,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
 
-        embed = await self.render_info_embed(tournament_id)
-        # create a persistent message
-        await self.bot.setEmbed(embed_name=f"tournament_{tournament_id}", embed=embed, channel_id=channel.id)
+        await self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.SIGNUP)
 
     @staticmethod
     def reset_serversettings(server: Server):
@@ -790,7 +904,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     groups = create_groups(squadrons, num_groups)
                     matches = create_group_matches(groups)
 
-                # assign the available servers to the matches
+                # assign the available servers to the matcheso
                 async with conn.transaction():
                     if stage == 'group':
                         # update the groups, if any
@@ -825,7 +939,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 await interaction.followup.send(f"Error: {ex}")
                 return
 
-        # generate the match list
+        asyncio.create_task(self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.START_GROUP_PHASE))
         embed = await self.render_matches(tournament=tournament, unflown=True)
         await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
                                         ephemeral=utils.get_ephemeral(interaction))
@@ -1020,8 +1134,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         ON CONFLICT (server_name, player_ucid) DO UPDATE SET coalition = '{coalition}'
                     """, (server.name, match['match_id']))
 
-    async def prepare_mission(self, server: Server, match_id: int, mission_id: Optional[int] = None,
-                              round_number: int = 1) -> str:
+    async def prepare_mission(self, server: Server, match_id: int, mission_id: Optional[int] = None) -> str:
         config = self.get_config(server)
         # set startindex or use last mission
         if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
@@ -1174,7 +1287,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # change settings
         await self.setup_server_for_match(msg, messages, server, match, channels)
         # prepare the mission
-        await self.prepare_mission(server, match_id, mission_id, round_number)
+        await self.prepare_mission(server, match_id, mission_id)
         # Starting the server up again
         messages.append(_("Starting server {} ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
@@ -1196,30 +1309,8 @@ class Tournament(Plugin[TournamentEventListener]):
             await channel.send(embed=embed)
         info = self.get_info_channel()
         if info:
-            embed = discord.Embed(color=discord.Color.blue(),
-                                  title=_("A match is about to start on server {}!").format(server.display_name))
-            blue_image = squadrons['blue']['image_url']
-            red_image = squadrons['red']['image_url']
-            if blue_image and red_image:
-                buffer = await create_versus_image(blue_image, red_image)
-            else:
-                buffer = None
-            try:
-                if buffer:
-                    file = discord.File(buffer, filename="vs.png")
-                    embed.set_image(url="attachment://vs.png")
-                else:
-                    file = None
-                embed.add_field(name=_("Blue"), value=squadrons['blue']['name'])
-                ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
-                ratings_red = await Competitive.read_squadron_member_ratings(self.node, match['squadron_red'])
-                win_propability = Competitive.win_probability(ratings_blue, ratings_red)
-                embed.add_field(name=_("Win propability"), value=f"{win_propability * 100.0:.2f}%")
-                embed.add_field(name=_("Red"), value=squadrons['red']['name'])
-                await info.send(embed=embed, file=file)
-            finally:
-                if buffer:
-                    buffer.close()
+            asyncio.create_task(self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING,
+                                                       match_id=match_id))
 
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
