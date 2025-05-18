@@ -178,8 +178,8 @@ class GraphElement(ReportElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: Optional[int] = 0, col: Optional[int] = 0,
                  colspan: Optional[int] = 1, rowspan: Optional[int] = 1, polar: Optional[bool] = False):
         super().__init__(env)
-        self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan, fig=self.env.figure,
-                                     polar=polar)
+        self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan,
+                                     fig=self.env.figure, polar=polar)
 
     @abstractmethod
     async def render(self, **kwargs):
@@ -215,7 +215,8 @@ class Graph(ReportElement):
         self.env.filename = f'{uuid.uuid4()}.png'
         self.env.buffer = BytesIO()
         warnings.filterwarnings("ignore", category=UserWarning, message=".*Glyph.*")
-        self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight')
+        self.env.figure.savefig(self.env.buffer, format='png', bbox_inches='tight',
+                                facecolor=self.env.figure.get_facecolor(), transparent=False)
         self.env.buffer.seek(0)
 
     async def _async_plot(self):
@@ -226,6 +227,8 @@ class Graph(ReportElement):
                      facecolor: Optional[str] = '#2C2F33'):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = facecolor
+        plt.rcParams['figure.facecolor'] = facecolor
+        plt.rcParams['savefig.facecolor'] = facecolor
         fonts = get_supported_fonts()
         if fonts:
             plt.rcParams['font.family'] = [f"Noto Sans {x}" for x in fonts] + ['sans-serif']
@@ -233,6 +236,7 @@ class Graph(ReportElement):
         try:
             if facecolor:
                 self.env.figure.set_facecolor(facecolor)
+                self.env.figure.patch.set_facecolor(facecolor)
             tasks = []
             for element in elements:
                 if 'params' in element:
@@ -243,13 +247,13 @@ class Graph(ReportElement):
                 if not element_class and 'type' in element:
                     element_class = getattr(sys.modules[__name__], element['type'])
                 if element_class:
-                    # remove parameters, that are not in the class __init__ signature
+                    # remove the parameters that are not in the class __init__ signature
                     signature = inspect.signature(element_class.__init__).parameters.keys()
                     class_args = {name: value for name, value in element_args.items() if name in signature}
                     # instantiate the class
                     element_class = element_class(self.env, rows, cols, **class_args)
                     if isinstance(element_class, (GraphElement, MultiGraphElement)):
-                        # remove parameters, that are not in the render methods signature
+                        # remove the parameters that are not in the render methods signature
                         signature = inspect.signature(element_class.render).parameters.keys()
                         render_args = {name: value for name, value in element_args.items() if name in signature}
                         tasks.append(asyncio.create_task(element_class.render(**render_args)))
