@@ -135,7 +135,9 @@ class TournamentEventListener(EventListener["Tournament"]):
             # check if we have the necessary number of players
             num_planes = len([
                 x for x in server.get_active_players()
-                if x.sub_slot == 0 and x.unit_type not in ['instructor', 'forward_observer', 'observer', 'artillery_commander']
+                if x.sub_slot == 0 and x.unit_type not in [
+                    '', 'instructor', 'forward_observer', 'observer', 'artillery_commander'
+                ]
             ])
             if num_planes == tournament['num_players'] * 2:
                 asyncio.create_task(server.current_mission.unpause())

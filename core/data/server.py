@@ -214,7 +214,7 @@ class Server(DataObject):
         return members
 
     def is_populated(self) -> bool:
-        if self.status == Status.RUNNING and self.get_active_players():
+        if self.status in [Status.RUNNING, Status.PAUSED] and self.get_active_players():
             return True
         return False
 

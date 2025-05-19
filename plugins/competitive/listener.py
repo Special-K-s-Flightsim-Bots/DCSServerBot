@@ -2,7 +2,7 @@ import asyncio
 import trueskill
 
 from core import EventListener, event, Server, Status, Player, chat_command, Side, get_translation, ChatCommand, \
-    Coalition
+    Coalition, ThreadSafeDict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from discord.ext import tasks
@@ -95,10 +95,13 @@ class CompetitiveListener(EventListener["Competitive"]):
         return server.name in self.active_servers
 
     @staticmethod
-    async def inform_players(match: Match, message: str, time: Optional[int] = 10):
+    async def inform_players(server: Server, match: Match, message: str, time: Optional[int] = 10):
         all_players = match.teams
-        for player in ([p for p in all_players[Side.BLUE]] + [p for p in all_players[Side.RED]]):
-            await player.sendUserMessage(message, timeout=time)
+        if match.match_id == GLOBAL_MATCH_ID:
+            await server.sendPopupMessage(Coalition.ALL, message, timeout=time)
+        else:
+            for player in ([p for p in all_players[Side.BLUE]] + [p for p in all_players[Side.RED]]):
+                await player.sendUserMessage(message, timeout=time)
 
     async def rank_teams(self, winners: list[Player], losers: list[Player]):
         r_winners, r_losers = trueskill.rate([
@@ -119,7 +122,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             self.active_servers.discard(server.name)
             return
         if server.name not in self.in_match:
-            self.in_match[server.name] = {}
+            self.in_match[server.name] = ThreadSafeDict()
         if server.name not in self.matches:
             self.matches[server.name] = {}
         if server.name not in self.home_base:
@@ -144,10 +147,11 @@ class CompetitiveListener(EventListener["Competitive"]):
         if player:
             asyncio.create_task(self._print_trueskill(player))
 
-    async def start_match(self, match: Match):
+    async def start_match(self, server: Server, match: Match):
         match.started = datetime.now(timezone.utc)
         self.log.debug(f"The match {match.match_id} is now on.")
         await self.inform_players(
+            server,
             match, _("The match is on! If you die, crash or leave now, you lose!"))
 
     async def countdown_with_warnings(self, match: Match, server: Server, delayed_start: int):
@@ -172,13 +176,13 @@ class CompetitiveListener(EventListener["Competitive"]):
             current_minute = int(remaining / 60)
             if current_minute != last_minute_warning and remaining > 10:
                 if current_minute > 0:  # Only show minute warnings if there's at least 1 minute
-                    await self.inform_players(match, _("The match will start in {} minute{}.").format(
+                    await self.inform_players(server, match, _("The match will start in {} minute{}.").format(
                         current_minute, 's' if current_minute != 1 else ''))
                 last_minute_warning = current_minute
 
             # Single 10-second warning
             if remaining <= 10 and not ten_second_warning_sent:
-                await self.inform_players(match, _("The match will start in 10 seconds."))
+                await self.inform_players(server, match, _("The match will start in 10 seconds."))
                 ten_second_warning_sent = True
 
             await asyncio.sleep(1)
@@ -188,7 +192,7 @@ class CompetitiveListener(EventListener["Competitive"]):
         for player in players:
             match = self.in_match[server.name].get(player.ucid)
             # don't re-add the player to a match (e.g., join on takeoff)
-            if match:
+            if match or match.started:
                 return
 
             match_id = data['match_id']
@@ -207,6 +211,7 @@ class CompetitiveListener(EventListener["Competitive"]):
             config = self.get_config(server)
             if not config.get('silent', False):
                 await self.inform_players(
+                    server,
                     match, _("Player {name} ({rating}) joined the {side} team!").format(
                         name=player.name, rating=self.calculate_rating(await self.get_rating(player)),
                         side=player.side.name))
@@ -220,7 +225,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 delayed_start = config.get('delayed_start', 0)
                 if delayed_start > 0:
                     await self.countdown_with_warnings(match, server, delayed_start)
-                asyncio.create_task(self.start_match(match))
+                asyncio.create_task(self.start_match(server, match))
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
@@ -273,9 +278,8 @@ class CompetitiveListener(EventListener["Competitive"]):
             for player in players:
                 match.player_dead(player)
                 # remove the player from the running match so that they can join another one
-                if match.match_id != GLOBAL_MATCH_ID:
-                    self.in_match[server.name].pop(player.ucid, None)
-                elif self.get_config(server).get('kick_on_death', False):
+                self.in_match[server.name].pop(player.ucid, None)
+                if self.get_config(server).get('kick_on_death', False):
                     self.loop.call_later(delay=10, callback=partial(asyncio.create_task,
                                                                     server.kick(player, "You are dead.")))
 
@@ -328,13 +332,17 @@ class CompetitiveListener(EventListener["Competitive"]):
 
             # check if we are in a registered match
             match = in_match(server, killers[0])
-            if match:
+            if match and match == in_match(server, victims[0]):
                 match.log.append(
                     (now, _("{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}").format(
                         killer=print_crew(killers), killer_module=killers[0].unit_display_name,
                         what=_('killed') if data['arg3'] != data['arg4'] else _('team-killed'),
                         victim=print_crew(victims), victim_module=victims[0].unit_display_name,
                         weapon=data['arg7'] or 'Guns')))
+                # on team-kills the enemy squadron gets the kill points
+                if data['arg3'] == data['arg6']:
+                    if self.get_config(server).get('credit_on_leave', False):
+                        await award_squadron(server, match, victims[0])
                 await remove_players(match, server, victims)
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
@@ -356,6 +364,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=players[0].unit_display_name, event=_(data['eventName']))))
                 await remove_players(match, server, players)
+                # on self-kills the enemy squadron gets the kill points
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, players[0])
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
@@ -372,6 +381,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 match.log.append((now, _("{player} in {module} died ({event})").format(
                     player=print_crew(players), module=players[0].unit_display_name, event=_(data['eventName']))))
                 await remove_players(match, server, players)
+                # on bail-outs the enemy squadron gets the kill points
                 if self.get_config(server).get('credit_on_leave', False):
                     await award_squadron(server, match, player)
             elif self.in_match[server.name].get(player.ucid):
@@ -480,7 +490,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 message += _("\nYour new rating is as follows:\n")
                 for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
                     message += f"- {player.name}: {self.calculate_rating(await self.get_rating(player))}\n"
-                asyncio.create_task(self.inform_players(match, message, 60))
+                asyncio.create_task(self.inform_players(server, match, message, 60))
 
                 asyncio.create_task(self.bot.bus.send_to_node({
                     "command": "onMatchFinished",

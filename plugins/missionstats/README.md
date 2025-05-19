@@ -19,6 +19,8 @@ DCS.release_server:
     - S_EVENT_TOOK_CONTROL
     - S_EVENT_DISCARD_CHAIR_AFTER_EJECTION
     - S_EVENT_AI_ABORT_MISSION
+    - S_EVENT_SHOOTING_START
+    - S_EVENT_SHOOTING_END
   mission_end:                    # optional: display a final mission statistics embed at mission end
     persistent: true              # send a persistent mission end embed (default: non persistent) 
     channel: 1122334455667788     # channel to display the embed in

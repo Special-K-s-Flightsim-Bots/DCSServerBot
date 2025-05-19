@@ -123,15 +123,18 @@ async def download_image(image_url: str) -> bytes:
             return img_data
 
 
-async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> BytesIO:
+async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> Optional[BytesIO]:
     """
     Create a versus image or winner image depending on if winner is specified.
     :param team_blue_image_url: Blue team image URL
     :param team_red_image_url: Red team image URL
     :param winner: Optional - either 'blue' or 'red' to indicate winner
     """
-    img1_data = await download_image(team_blue_image_url)
-    img2_data = await download_image(team_red_image_url)
+    try:
+        img1_data = await download_image(team_blue_image_url)
+        img2_data = await download_image(team_red_image_url)
+    except ValueError:
+        return None
 
     # Open images from binary data and convert to RGBA
     img1 = Image.open(BytesIO(img1_data)).convert('RGBA')
@@ -259,12 +262,15 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
     return buffer
 
 
-async def create_winner_image(winner_image_url: str) -> BytesIO:
+async def create_winner_image(winner_image_url: str) -> Optional[BytesIO]:
     """
     Create a special victory image for the tournament winner with enhanced visual effects.
     :param winner_image_url: URL of the winning squadron's image
     """
-    winner_data = await download_image(winner_image_url)
+    try:
+        winner_data = await download_image(winner_image_url)
+    except ValueError:
+        return None
     winner_img = Image.open(BytesIO(winner_data)).convert('RGBA')
 
     # Make the winner image larger for tournament victory
@@ -497,7 +503,7 @@ def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame
     return buf
 
 
-def create_placeholder_icon(size=(32, 32)):
+def create_placeholder_icon(size=(32, 32)) -> Image:
     """Create a simple placeholder icon with a question mark"""
     img = np.ones((size[0], size[1], 4), dtype=np.uint8) * 255  # White background with alpha
     img[:, :, 3] = 255  # Full opacity
@@ -570,7 +576,10 @@ async def render_groups(groups: list[list[tuple[str, str]]]) -> BytesIO:
 
             try:
                 if image_url:
-                    img_data = await download_image(image_url)
+                    try:
+                        img_data = await download_image(image_url)
+                    except ValueError:
+                        img_data = None
                     if img_data:
                         figure_coords = ax.get_figure().transFigure.inverted()
                         data_coords = ax.transData

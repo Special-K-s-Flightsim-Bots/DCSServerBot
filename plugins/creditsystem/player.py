@@ -50,6 +50,8 @@ class CreditPlayer(Player):
 
     @points.setter
     def points(self, p: int) -> None:
+        if p == self._points:
+            return
         old_points = self.points
 
         if 'max_points' in self.config and p > int(self.config['max_points']):

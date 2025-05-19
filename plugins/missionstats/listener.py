@@ -66,7 +66,9 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                     "S_EVENT_MARK_CHANGE",
                     "S_EVENT_MARK_REMOVED",
                     "S_EVENT_DISCARD_CHAIR_AFTER_EJECTION",
-                    "S_EVENT_AI_ABORT_MISSION"
+                    "S_EVENT_AI_ABORT_MISSION",
+                    "S_EVENT_SHOOTING_START",
+                    "S_EVENT_SHOOTING_END"
                 ])
             })
             await server.send_to_dcs({"command": "getMissionSituation",
