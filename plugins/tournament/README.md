@@ -211,17 +211,18 @@ final is reached, where two squadrons play together for the win.
 The tournament ends if all matches were played and only one winning squadron succeeded.
 
 ## Discord Commands
-| Command              | Parameter                                          | Channel          | Role           | Description                                                       |
-|----------------------|----------------------------------------------------|------------------|----------------|-------------------------------------------------------------------|
-| /tournament create   | campaign rounds num_players                        | admin-channel    | Admin          | Creates a new tournament, based on a campaign.                    |
-| /tournament delete   | tournament                                         | admin-channel    | Admin          | Deletes the tournament and all its underlying data!               |
-| /tournament signup   | tournament squadron                                | any              | Squadron Admin | Signs up this squadron to this tournament.                        |
-| /tournament withdraw | tournament squadron                                | any              | Squadron Admin | Withdraws this squadron from this tournament.                     |
-| /tournament verify   | tournament squadron                                | admin-channel    | GameMaster     | Accept or reject a squadron for this tournament.                  |
-| /tournament bracket  | tournament                                         | admin-channel    | GameMaster     | Generate a bracket Excel file.                                    |
-| /match generate      | tournament <group\|eliminate> [num_groups]         | admin-channel    | GameMaster     | Auto-generates matches for each stage of the tournament.          |
-| /match create        | tournament stage server squadron_blue squadron_red | admin-channel    | GameMaster     | Creates a match manually.                                         |
-| /match list          | tournament                                         | any              | DCS            | List all matches of a specific tournament.                        |
-| /match start         | tournament match [mission] [round_number]          | admin-channel    | GameMaster     | Starts a match. Prepares and starts the DCS server.               |
-| /match edit          | tournament match [winner_squadron_id]              | admin-channel    | GameMaster     | Edit the results of a match.                                      |
-| /match customize     |                                                    | squadron channel | Squadron Admin | Customize the next mission for the next round of a running match. |
+| Command                 | Parameter                                          | Channel          | Role           | Description                                                       |
+|-------------------------|----------------------------------------------------|------------------|----------------|-------------------------------------------------------------------|
+| /tournament create      | campaign rounds num_players                        | admin-channel    | Admin          | Creates a new tournament, based on a campaign.                    |
+| /tournament delete      | tournament                                         | admin-channel    | Admin          | Deletes the tournament and all its underlying data!               |
+| /tournament signup      | tournament squadron                                | any              | Squadron Admin | Signs up this squadron to this tournament.                        |
+| /tournament withdraw    | tournament squadron                                | any              | Squadron Admin | Withdraws this squadron from this tournament.                     |
+| /tournament verify      | tournament squadron                                | admin-channel    | GameMaster     | Accept or reject a squadron for this tournament.                  |
+| /tournament bracket     | tournament                                         | admin-channel    | GameMaster     | Generate a bracket Excel file.                                    |
+| /tournament preferences | \[tournament\]                                     | admin-channel    | GameMaster     | Show time and map preferences as piecharts.                       |
+| /match generate         | tournament <group\|eliminate> \[num_groups\]       | admin-channel    | GameMaster     | Auto-generates matches for each stage of the tournament.          |
+| /match create           | tournament stage server squadron_blue squadron_red | admin-channel    | GameMaster     | Creates a match manually.                                         |
+| /match list             | tournament                                         | any              | DCS            | List all matches of a specific tournament.                        |
+| /match start            | tournament match \[mission\] \[round_number\]      | admin-channel    | GameMaster     | Starts a match. Prepares and starts the DCS server.               |
+| /match edit             | tournament match \[winner_squadron_id\]            | admin-channel    | GameMaster     | Edit the results of a match.                                      |
+| /match customize        |                                                    | squadron channel | Squadron Admin | Customize the next mission for the next round of a running match. |

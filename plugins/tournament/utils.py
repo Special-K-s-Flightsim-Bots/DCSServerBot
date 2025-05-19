@@ -10,8 +10,11 @@ from io import BytesIO
 from matplotlib import pyplot as plt, patches
 from openpyxl import Workbook
 from openpyxl.styles import Border, Side, Font
+from psycopg.rows import dict_row
 from trueskill import Rating
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+from core import report
 
 
 def create_elimination_matches(squadrons: list[tuple[int, float]]) -> list[tuple[int, int]]:
@@ -633,3 +636,70 @@ async def render_groups(groups: list[list[tuple[str, str]]]) -> BytesIO:
 
     buf.seek(0)
     return buf
+
+
+class TimePreferences(report.GraphElement):
+
+    async def render(self, tournament_id: Optional[int] = None):
+        labels = []
+        values = []
+        inner_sql = "WHERE tournament_id = %(tournament_id)s" if tournament_id else ""
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute(f"""
+                SELECT t.start_time, count(p.squadron_id) AS num 
+                FROM tm_squadron_time_preferences p 
+                JOIN tm_available_times t on p.available_time_id = t.time_id
+                {inner_sql}
+                GROUP BY 1
+                ORDER BY 2 DESC
+            """, {"tournament_id": tournament_id})
+            async for row in cursor:
+                labels.insert(0, row[0].strftime('%H:%M'))
+                values.insert(0, row[1])
+
+        if values:
+            def func(pct, allvals):
+                absolute = int(round(pct / 100. * np.sum(allvals)))
+                return f'{absolute}'
+
+            patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+            plt.setp(pcts, color='black', fontweight='bold', fontsize=15)
+            plt.setp(texts, color='white', fontsize=15)
+            self.axes.set_title('Preferred Times', color='white', fontsize=25)
+            self.axes.axis('equal')
+        else:
+            self.axes.set_visible(False)
+
+
+class TerrainPreferences(report.GraphElement):
+
+    async def render(self, tournament_id: Optional[int] = None):
+        labels = []
+        values = []
+        inner_sql = "WHERE tournament_id = %(tournament_id)s" if tournament_id else ""
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute(f"""
+                SELECT terrain, count(*) AS num 
+                FROM tm_squadron_terrain_preferences
+                {inner_sql}
+                GROUP BY 1
+                ORDER BY 2 DESC
+            """, {"tournament_id": tournament_id})
+            async for row in cursor:
+                labels.insert(0, row[0].replace('_terrain', ''))
+                values.insert(0, row[1])
+
+        if values:
+            def func(pct, allvals):
+                absolute = int(round(pct / 100. * np.sum(allvals)))
+                return f'{absolute}'
+
+            patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+            plt.setp(pcts, color='black', fontweight='bold', fontsize=15)
+            plt.setp(texts, color='white', fontsize=15)
+            self.axes.set_title('Preferred Terrains', color='white', fontsize=25)
+            self.axes.axis('equal')
+        else:
+            self.axes.set_visible(False)

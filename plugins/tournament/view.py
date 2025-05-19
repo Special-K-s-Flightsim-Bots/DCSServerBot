@@ -77,19 +77,43 @@ class ApplicationModal(Modal, title=_("Apply to a tournament")):
         self.stop()
 
 
-class TimesSelectView(View):
-    def __init__(self, options: list[SelectOption]):
+class SignupView(View):
+    def __init__(self, times_options: list[SelectOption], terrain_options: list[SelectOption]):
         super().__init__()
+        # set times options
         select = cast(Select, self.children[0])
-        select.options = options
-        select.max_values = len(options)
-        self.result = None
+        select.options = times_options
+        select.max_values = len(times_options)
+        # set map options
+        select = cast(Select, self.children[1])
+        select.options = terrain_options
+        select.max_values = len(terrain_options)
+        self.times = []
+        self.terrains = []
 
     @discord.ui.select(placeholder=_("Select your preferred mach times"), min_values=1)
-    async def callback(self, interaction: discord.Interaction, select: Select):
-        self.result = select.values
+    async def times_callback(self, interaction: discord.Interaction, select: Select):
+        self.times = select.values
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
+
+    @discord.ui.select(placeholder=_("Select your preferred DCS terrains"), min_values=1)
+    async def maps_callback(self, interaction: discord.Interaction, select: Select):
+        self.terrains = select.values
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+
+    @discord.ui.button(label=_("Signup"), style=discord.ButtonStyle.green)
+    async def signup(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label=_("Cancel"), style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: Button):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.times = self.terrains = None
         self.stop()
 
 

@@ -6,7 +6,7 @@ import random
 import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
-    MizFile, DataObjectFactory, async_cache
+    MizFile, DataObjectFactory, async_cache, Report
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from io import BytesIO
@@ -20,7 +20,7 @@ from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
 from .utils import create_versus_image, create_elimination_matches, create_group_matches, create_groups, \
     create_tournament_sheet, render_groups, create_winner_image
-from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModal, TimesSelectView
+from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModal, SignupView
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
 
@@ -654,28 +654,44 @@ class Tournament(Plugin[TournamentEventListener]):
                         ephemeral=True)
 
                 # read the preferred times
-                options: list[discord.SelectOption] = []
+                times_options: list[discord.SelectOption] = []
                 async for row in await conn.execute("""
                     SELECT time_id, start_time FROM tm_available_times WHERE tournament_id = %s
                 """, (tournament_id,)):
-                    options.append(discord.SelectOption(label=str(row[1]), value=str(row[0])))
+                    times_options.append(discord.SelectOption(label=str(row[1]), value=str(row[0])))
 
-                view = TimesSelectView(options)
+                # get available maps
+                terrain_options = [
+                    discord.SelectOption(label=x, value=x)
+                    for x in await self.node.get_available_modules()
+                    if x.endswith('_terrain')
+                ]
+
+                view = SignupView(times_options, terrain_options)
                 msg = await interaction.followup.send(view=view, ephemeral=True)
                 try:
                     await view.wait()
                 finally:
                     await msg.delete()
 
+                if view.times is None:
+                    await interaction.followup.send(_("Aborted."), ephemeral=True)
+                    return
+
                 async with conn.transaction():
                     await conn.execute("""
                         INSERT INTO tm_squadrons(tournament_id, squadron_id, application) VALUES (%s, %s, %s)
                     """, (tournament_id, squadron_id, modal.application_text.value))
-                    for value in view.result:
+                    for value in view.times:
                         await conn.execute("""
                             INSERT INTO tm_squadron_time_preferences (tournament_id, squadron_id, available_time_id)
                             VALUES (%s, %s, %s)
                         """, (tournament_id, squadron_id, int(value)))
+                    for value in view.terrains:
+                        await conn.execute("""
+                            INSERT INTO tm_squadron_terrain_preferences (tournament_id, squadron_id, terrain)
+                            VALUES (%s, %s, %s)
+                        """, (tournament_id, squadron_id, value))
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(
                 _("Squadron application handed in for tournament {}.").format(tournament['name']), ephemeral=True)
@@ -796,6 +812,21 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(file=file, ephemeral=utils.get_ephemeral(interaction))
         finally:
             buffer.close()
+
+    @tournament.command(description='Show squadron preferences')
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=tournament_autocomplete)
+    @utils.has_role('GameMaster')
+    async def preferences(self, interaction: discord.Interaction, tournament_id: Optional[int] = None):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        report = Report(bot=self.bot, plugin=self.plugin_name, filename="preferences.json")
+        env = await report.render(tournament_id=tournament_id)
+        try:
+            await interaction.followup.send(file=discord.File(env.buffer, filename=env.filename), ephemeral=True)
+        finally:
+            env.buffer.close()
 
     # New command group "/matches"
     match = Group(name="match", description="Commands to manage matches in a tournament")
