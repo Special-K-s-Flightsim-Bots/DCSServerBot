@@ -1,3 +1,5 @@
+from typing import Optional
+
 import aiohttp
 import math
 import numpy as np
