@@ -168,6 +168,25 @@ class TournamentEventListener(EventListener["Tournament"]):
             else:
                 player = server.get_player(name=initiator['name'])
                 await server.kick(player, "All seats are taken, you are not allowed to join anymore!")
+        elif data['eventName'] == 'S_EVENT_SHOT':
+            initiator = server.get_player(name=data['initiator']['name'])
+            target = server.get_player(name=data['target']['name'])
+            if target:
+                asyncio.create_task(self.inform_streamer(server, _("{} player {} shot an {} at {} player {}").format(
+                    initiator.coalition.value.title(), initiator.display_name, data['weapon']['name'],
+                    target.coalition.value, target.display_name)))
+        elif data['eventName'] == 'S_EVENT_HIT':
+            initiator = data['initiator']
+            target = data['target']
+            if target:
+                asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {} with an {}").format(
+                    initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
+                    target.display_name, data['weapon']['name'])))
+        elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
+            player = server.get_player(name=data['initiator']['name'])
+            if player:
+                asyncio.create_task(self.inform_streamer(server, _("{} player {} is out!").format(
+                    player.coalition.value.title(), player.display_name)))
 
     async def calculate_balance(self, server: Server, winner: str, winner_squadron: Squadron,
                                 loser_squadron: Squadron) -> None:

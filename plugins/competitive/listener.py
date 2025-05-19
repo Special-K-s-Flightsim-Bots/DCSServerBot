@@ -433,7 +433,9 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
-        match = self.matches[server.name].pop(data['match_id'])
+        match = self.matches[server.name].pop(data['match_id'], None)
+        if not match:
+            return
         match.finished = datetime.now(timezone.utc)
 
         # unlock players

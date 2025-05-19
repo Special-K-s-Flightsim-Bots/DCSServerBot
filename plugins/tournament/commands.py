@@ -930,9 +930,11 @@ class Tournament(Plugin[TournamentEventListener]):
                 if stage == 'elimination':
                     groups = []
                     matches = create_elimination_matches(squadrons)
+                    phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
                 else: # group stage
                     groups = create_groups(squadrons, num_groups)
                     matches = create_group_matches(groups)
+                    phase = TOURNAMENT_PHASE.START_GROUP_PHASE
 
                 # assign the available servers to the matcheso
                 async with conn.transaction():
@@ -969,7 +971,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 await interaction.followup.send(f"Error: {ex}")
                 return
 
-        asyncio.create_task(self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.START_GROUP_PHASE))
+        asyncio.create_task(self.render_info_embed(tournament_id, phase=phase))
         embed = await self.render_matches(tournament=tournament, unflown=True)
         await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
                                         ephemeral=utils.get_ephemeral(interaction))
