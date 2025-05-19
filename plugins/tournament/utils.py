@@ -643,7 +643,7 @@ class TimePreferences(report.GraphElement):
     async def render(self, tournament_id: Optional[int] = None):
         labels = []
         values = []
-        inner_sql = "WHERE tournament_id = %(tournament_id)s" if tournament_id else ""
+        inner_sql = "WHERE p.tournament_id = %(tournament_id)s" if tournament_id else ""
         async with self.apool.connection() as conn:
             cursor = await conn.execute(f"""
                 SELECT t.start_time, count(p.squadron_id) AS num 

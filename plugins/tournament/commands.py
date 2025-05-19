@@ -664,9 +664,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 terrain_options = [
                     discord.SelectOption(label=x, value=x)
                     for x in await self.node.get_available_modules()
-                    if x.endswith('_terrain')
+                    if x.endswith('_terrain') and x not in ['CAUCASUS_terrain', 'MARIANAISLANDS_terrain']
                 ]
-
                 view = SignupView(times_options, terrain_options)
                 msg = await interaction.followup.send(view=view, ephemeral=True)
                 try:
