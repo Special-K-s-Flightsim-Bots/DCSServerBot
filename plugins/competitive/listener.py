@@ -280,8 +280,10 @@ class CompetitiveListener(EventListener["Competitive"]):
                 # remove the player from the running match so that they can join another one
                 self.in_match[server.name].pop(player.ucid, None)
                 if self.get_config(server).get('kick_on_death', False):
-                    self.loop.call_later(delay=10, callback=partial(asyncio.create_task,
-                                                                    server.kick(player, "You are dead.")))
+                    kick_time = self.get_config(server).get('kick_time', 30)
+                    self.loop.call_later(delay=kick_time,
+                                         callback=partial(asyncio.create_task,
+                                                          server.kick(player, "You are dead.")))
 
             config = self.get_config(server)
             survivor = match.survivor()

@@ -67,6 +67,7 @@ DCS.server:
   join_on: birth        # Match only: join on birth, takeoff, enter_zone (future)
   win_on: survival      # Match only: one of survival, landing, rtb, time (future), (default: survival)
   kick_on_death: false  # Match only: Kick a dead player.
+  kick_time: 30         # Match only: Seconds after a dead player will be kicked.
   end_mission: false    # Match only: end the mission if a match is over (default: false)
   delayed_start: 300    # optional: give people 300 seconds to join and prepare their planes.
   credit_on_leave: true # Tournament only: squadrons will gain credits on crash, disconnect, change_slot
