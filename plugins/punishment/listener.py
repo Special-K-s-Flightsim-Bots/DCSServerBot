@@ -95,7 +95,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if 'default' in penalty:
             points = penalty['default']
         else:
-            points = penalty['human'] if 'target' in data else penalty.get('AI', 0)
+            points = penalty.get('human', 0) if 'target' in data else penalty.get('AI', 0)
         # apply flight hours to points
         hours = await self._get_flight_hours(initiator)
         if 'flightHoursWeight' in config:

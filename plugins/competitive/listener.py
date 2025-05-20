@@ -192,7 +192,7 @@ class CompetitiveListener(EventListener["Competitive"]):
         for player in players:
             match = self.in_match[server.name].get(player.ucid)
             # don't re-add the player to a match (e.g., join on takeoff)
-            if match or match.started:
+            if match:
                 return
 
             match_id = data['match_id']

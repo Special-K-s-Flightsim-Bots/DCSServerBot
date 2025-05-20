@@ -190,6 +190,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                     initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
                     target.display_name, data['weapon']['name']), coalition=initiator.coalition))
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
+            if not data['initiator']:
+                return
             player = server.get_player(name=data['initiator']['name'])
             if player:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} is out!").format(
