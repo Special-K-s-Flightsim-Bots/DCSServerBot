@@ -883,7 +883,7 @@ def get_interaction_param(interaction: discord.Interaction, name: str) -> Option
                     return param['value']
         return None
 
-    return inner(interaction.data['options'])
+    return inner(interaction.data.get('options', {}))
 
 
 def get_all_linked_members(interaction: discord.Interaction) -> list[discord.Member]:

@@ -741,7 +741,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @app_commands.autocomplete(squadron_id=all_squadron_autocomplete)
-    @utils.has_role('GameMaster')
+    @utils.app_has_role('GameMaster')
     async def verify(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -786,7 +786,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
-    @utils.has_role('GameMaster')
+    @utils.app_has_role('GameMaster')
     async def bracket(self, interaction: discord.Interaction, tournament_id: int):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -816,7 +816,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
-    @utils.has_role('GameMaster')
+    @utils.app_has_role('GameMaster')
     async def preferences(self, interaction: discord.Interaction, tournament_id: Optional[int] = None):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1371,7 +1371,10 @@ class Tournament(Plugin[TournamentEventListener]):
                     overwrite = discord.PermissionOverwrite(
                         view_channel=True,
                         send_messages=True,
-                        read_message_history=True
+                        embed_links=True,
+                        attach_files=True,
+                        read_message_history=True,
+                        use_application_commands=True
                     )
                     try:
                         await channel.set_permissions(role, overwrite=overwrite)

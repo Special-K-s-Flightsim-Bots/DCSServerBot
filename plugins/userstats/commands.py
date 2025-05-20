@@ -617,7 +617,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
     @app_commands.guild_only()
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete)
     @app_commands.rename(squadron_id="squadron")
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def donate(self, interaction: discord.Interaction, squadron_id: int, points: int,
                      server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
         # noinspection PyUnresolvedReferences
