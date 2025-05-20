@@ -363,9 +363,12 @@ class TournamentEventListener(EventListener["Tournament"]):
                         if not row:
                             raise ValueError("Match aborted!")
                         finished[side] = row[0]
-            if time == int(time_to_choose / 2):
+            if time_to_choose - time in [300, 180, 60]:
                 await self.inform_squadrons(
-                    server, message="The next round will start in {}!".format(utils.format_time(time_to_choose - time)))
+                    server,
+                    message="## :warning: The next round will start in {}!".format(
+                        utils.format_time(time_to_choose - time))
+                )
             await asyncio.sleep(1)
             time += 1
 
