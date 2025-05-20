@@ -163,6 +163,7 @@ class ChoicesView(View):
         self.match_id = match_id
         self.squadron_id = squadron_id
         self.config = config
+        self.saved = False
 
     async def render(self) -> discord.Embed:
         squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
@@ -280,26 +281,9 @@ class ChoicesView(View):
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
     async def save(self, interaction: discord.Interaction):
-        async with self.plugin.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    UPDATE tm_matches
-                    SET 
-                        choices_blue_ack = CASE 
-                            WHEN squadron_blue = %(squadron_id)s THEN true 
-                            ELSE choices_blue_ack 
-                        END,
-                        choices_red_ack = CASE 
-                            WHEN squadron_red = %(squadron_id)s THEN true 
-                            ELSE choices_red_ack 
-                        END
-                    WHERE 
-                        (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
-                        AND match_id = %(match_id)s
-                """, {"match_id": self.match_id, "squadron_id": self.squadron_id})
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(_("Your selection will be applied to the next round."),
-                                                ephemeral=True)
+        await interaction.response.defer()
+        self.saved = True
         self.stop()
 
     async def cancel(self, interaction: discord.Interaction):

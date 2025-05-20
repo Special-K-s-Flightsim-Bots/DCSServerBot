@@ -1199,7 +1199,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     async for row in await conn.execute(f"""
                         SELECT preset, num FROM tm_choices c 
                         JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
-                        WHERE m.match_id = %(match_id)s
+                        WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
                     """, {"match_id": match_id}):
                         self.log.debug(f"Applying preset {row[0]} ...")
                         miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
@@ -1536,7 +1536,30 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         msg = await interaction.followup.send(view=view, embed=embed, ephemeral=ephemeral)
         try:
-           await view.wait()
+            if not await view.wait() and await utils.yn_question(
+                    interaction, _("Are you sure?\n"
+                                   "Your settings will be directly applied to the next round."),
+                    ephemeral=True):
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
+                            UPDATE tm_matches
+                            SET 
+                                choices_blue_ack = CASE
+                                    WHEN squadron_blue = %(squadron_id)s THEN true
+                                    ELSE choices_blue_ack
+                                END,
+                                choices_red_ack  = CASE
+                                    WHEN squadron_red = %(squadron_id)s THEN true
+                                    ELSE choices_red_ack
+                                END
+                            WHERE 
+                                (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
+                                AND match_id = %(match_id)s
+                        """, {"match_id": match_id, "squadron_id": squadron_id})
+                await interaction.followup.send(_("Thanks, your selection will now be applied."), ephemeral=True)
+            else:
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
         finally:
             try:
                 await msg.delete()
