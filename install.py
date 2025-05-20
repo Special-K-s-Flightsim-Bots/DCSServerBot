@@ -420,7 +420,7 @@ If you need any further assistance, please visit the support discord, listed in 
                         "home": os.path.join(SAVED_GAMES, instance)
                     }
                     if srs_path:
-                        srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
+                        srs_config = os.path.join('{instance.home}', 'Config', 'SRS.cfg')
                         node['instances'][instance]['extensions'] = {
                             "SRS": {
                                 "config": srs_config,

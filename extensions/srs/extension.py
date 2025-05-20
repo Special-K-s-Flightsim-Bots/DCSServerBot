@@ -73,9 +73,12 @@ class SRS(Extension, FileSystemEventHandler):
         self.clients: dict[str, set[int]] = {}
         super().__init__(server, config)
 
+    def get_config_path(self) -> str:
+        return os.path.expandvars(self.config['config'].format(server=self.server, instance=self.server.instance))
+
     def load_config(self) -> Optional[dict]:
         if 'config' in self.config:
-            self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
+            self.cfg.read(self.get_config_path(), encoding='utf-8')
             return {
                 s: {_name: Autoexec.parse(_value) for _name, _value in self.cfg.items(s)}
                 for s in self.cfg.sections()
@@ -144,7 +147,7 @@ class SRS(Extension, FileSystemEventHandler):
 
         if self.config.get('autoupdate', False):
             await self.check_for_updates()
-        path = os.path.expandvars(self.config['config'])
+        path = self.get_config_path()
         if 'client_export_file_path' not in self.config:
             self.config['client_export_file_path'] = os.path.join(os.path.dirname(path), 'clients-list.json')
         dirty = self._maybe_update_config('Server Settings', 'SERVER_PORT', 'port')
@@ -215,7 +218,7 @@ class SRS(Extension, FileSystemEventHandler):
 
     async def startup(self) -> bool:
         if self.config.get('autostart', True):
-            self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.config['config']}\"")
+            self.log.debug(f"Launching SRS server with: \"{self.get_exe_path()}\" -cfg=\"{self.get_config_path()}\"")
 
             def run_subprocess():
                 if sys.platform == 'win32' and self.config.get('minimized', True):
@@ -231,7 +234,7 @@ class SRS(Extension, FileSystemEventHandler):
 
                 return subprocess.Popen([
                     self.get_exe_path(),
-                    f"-cfg={os.path.expandvars(self.config['config'])}"
+                    f"-cfg={self.get_config_path()}"
                 ], startupinfo=info, stdout=out, stderr=out, close_fds=True)
 
             try:
@@ -277,7 +280,7 @@ class SRS(Extension, FileSystemEventHandler):
                 finally:
                     if self.observer:
                         self.stop_observer()
-            return True
+        return True
 
     def on_modified(self, event: FileSystemEvent) -> None:
         if self.loop.is_running():

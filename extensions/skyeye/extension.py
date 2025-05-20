@@ -59,7 +59,7 @@ class SkyEye(Extension):
         # register shutdown handler
         atexit.register(self.terminate)
 
-    def get_config(self, cfg: dict) -> str:
+    def get_config_path(self, cfg: dict) -> str:
         return os.path.expandvars(utils.format_string(
             cfg.get('config', '{instance.home}\\Config\\SkyEye-{coalition}.yaml'),
             server=self.server, instance=self.server.instance, coalition=cfg.get('coalition', 'blue'))
@@ -77,7 +77,7 @@ class SkyEye(Extension):
             for instance in self.config['instances']:
                 cfg = data.copy()
                 cfg |= main_config
-                cfg_file = self.get_config(cfg | instance)
+                cfg_file = self.get_config_path(cfg | instance)
                 if os.path.exists(cfg_file):
                     cfg |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
                 else:
@@ -85,7 +85,7 @@ class SkyEye(Extension):
                 cfg |= instance.copy()
                 self.configs.append(cfg)
         else:
-            cfg_file = self.get_config(self.config)
+            cfg_file = self.get_config_path(self.config)
             if os.path.exists(cfg_file):
                 self.config |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
             else:
@@ -211,7 +211,7 @@ class SkyEye(Extension):
             # grpc-password is not supported yet
 
         if dirty:
-            with open(self.get_config(cfg), mode='w', encoding='utf-8') as outfile:
+            with open(self.get_config_path(cfg), mode='w', encoding='utf-8') as outfile:
                 out = cfg.copy()
                 out.pop('installation', None)
                 out.pop('autoupdate', None)
@@ -276,7 +276,7 @@ class SkyEye(Extension):
             # Define the subprocess command
             args = [
                 self.get_exe_path(),
-                '--config-file', self.get_config(cfg)
+                '--config-file', self.get_config_path(cfg)
             ]
             if cfg.get('recognizer', 'openai-whisper-local') == 'openai-whisper-local':
                 args.extend(['--whisper-model', 'whisper.bin'])

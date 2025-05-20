@@ -28,7 +28,7 @@ MyNode:
       # [...]
       extensions:
         SRS:
-          config: '%USERPROFILE%\Saved Games\DCS.release_server\Config\SRS.cfg'
+          config: '{instance.home}\Config\SRS.cfg'
           host: 127.0.0.1
           port: 5002
           minimized: true     # start SRS minimized (default: true)
