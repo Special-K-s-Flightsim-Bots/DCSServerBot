@@ -32,8 +32,6 @@ _ = get_translation(__name__.split('.')[1])
 
 
 async def tournament_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("""
             SELECT tournament_id, campaign 
@@ -1495,32 +1493,35 @@ class Tournament(Plugin[TournamentEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        for coalition in ['blue', 'red']:
-            async with self.apool.connection() as conn:
-                cursor = await conn.execute(f"""
-                    SELECT m.match_id, squadron_{coalition}, choices_{coalition}_ack, server_name 
-                    FROM tm_matches m 
-                    JOIN tm_tournaments t ON m.tournament_id = t.tournament_id 
-                    JOIN campaigns c ON t.campaign = c.name
-                    WHERE c.start <= NOW() AT TIME ZONE 'UTC' AND squadron_{coalition}_channel = %s
-                    AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
-                    AND m.round_number > 0 and m.winner_squadron_id IS NULL
-                """, (interaction.channel.id, ))
-                row = await cursor.fetchone()
-                if row:
-                    if row[2]:
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                for coalition in ['blue', 'red']:
+                    await cursor.execute(f"""
+                        SELECT m.tournament_id, m.match_id, 
+                               squadron_{coalition} AS squadron_id, choices_{coalition}_ack AS ack, 
+                               server_name 
+                        FROM tm_matches m 
+                        JOIN tm_tournaments t ON m.tournament_id = t.tournament_id 
+                        JOIN campaigns c ON t.campaign = c.name
+                        WHERE c.start <= NOW() AT TIME ZONE 'UTC' AND squadron_{coalition}_channel = %s
+                        AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
+                        AND m.round_number > 0 and m.winner_squadron_id IS NULL
+                    """, (interaction.channel.id, ))
+                    row = await cursor.fetchone()
+                    if not row:
+                        continue
+                    if row['ack']:
                         await interaction.followup.send(_("You already made your choice. Wait for the next round!"),
                                                         ephemeral=True)
                         return
-                    match_id = row[0]
-                    squadron_id = row[1]
+                    tournament_id = row['tournament_id']
+                    match_id = row['match_id']
+                    squadron_id = row['squadron_id']
                     break
                 else:
-                    continue
-        else:
-            await interaction.followup.send("{} has to be used in the respective coalition channel.".format(
-                (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
-            return
+                    await interaction.followup.send("{} has to be used in the respective coalition channel.".format(
+                        (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
+                    return
 
         admins = utils.get_squadron_admins(self.node, squadron_id)
         if interaction.user.id not in admins and not utils.check_roles(self.bot.roles['GameMaster'], interaction.user):
@@ -1529,8 +1530,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 ephemeral=True
             )
             return
-        view = ChoicesView(self, match_id=match_id, squadron_id=squadron_id,
-                           config=self.get_config(self.bot.servers[row[3]]))
+        view = ChoicesView(self, tournament_id=tournament_id, match_id=match_id, squadron_id=squadron_id,
+                           config=self.get_config(self.bot.servers[row['server_name']]))
         embed = await view.render()
         # noinspection PyUnresolvedReferences
         if not view.children[0].options:
@@ -1539,30 +1540,34 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         msg = await interaction.followup.send(view=view, embed=embed, ephemeral=ephemeral)
         try:
-            if not await view.wait() and await utils.yn_question(
-                    interaction, _("Are you sure?\n"
-                                   "Your settings will be directly applied to the next round."),
+            if await view.wait():
+                return
+
+            if not view.saved or not await utils.yn_question(
+                    interaction, _("Are you sure?\nYour settings will be directly applied to the next round."),
                     ephemeral=True):
-                async with self.apool.connection() as conn:
-                    async with conn.transaction():
-                        await conn.execute("""
-                            UPDATE tm_matches
-                            SET 
-                                choices_blue_ack = CASE
-                                    WHEN squadron_blue = %(squadron_id)s THEN true
-                                    ELSE choices_blue_ack
-                                END,
-                                choices_red_ack  = CASE
-                                    WHEN squadron_red = %(squadron_id)s THEN true
-                                    ELSE choices_red_ack
-                                END
-                            WHERE 
-                                (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
-                                AND match_id = %(match_id)s
-                        """, {"match_id": match_id, "squadron_id": squadron_id})
-                await interaction.followup.send(_("Thanks, your selection will now be applied."), ephemeral=True)
-            else:
-                await interaction.followup.send(_("Aborted."), ephemeral=True)
+                await interaction.followup.send(_("Your choices were saved but will not be applied to the next round."),
+                                                ephemeral=ephemeral)
+                return
+
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    await conn.execute("""
+                        UPDATE tm_matches
+                        SET 
+                            choices_blue_ack = CASE
+                                WHEN squadron_blue = %(squadron_id)s THEN true
+                                ELSE choices_blue_ack
+                            END,
+                            choices_red_ack  = CASE
+                                WHEN squadron_red = %(squadron_id)s THEN true
+                                ELSE choices_red_ack
+                            END
+                        WHERE 
+                            (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
+                            AND match_id = %(match_id)s
+                    """, {"match_id": match_id, "squadron_id": squadron_id})
+            await interaction.followup.send(_("Thanks, your selection will now be applied."), ephemeral=True)
         finally:
             try:
                 await msg.delete()

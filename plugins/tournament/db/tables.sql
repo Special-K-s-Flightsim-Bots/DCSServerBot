@@ -64,3 +64,11 @@ CREATE TABLE tm_choices (
     PRIMARY KEY (match_id, squadron_id, preset),
     FOREIGN KEY (match_id) REFERENCES tm_matches(match_id) ON DELETE CASCADE
 );
+CREATE TABLE tm_tickets (
+    tournament_id INTEGER,
+    squadron_id INTEGER,
+    ticket_name TEXT NOT NULL,
+    ticket_count INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (tournament_id, squadron_id, ticket_name),
+    FOREIGN KEY (tournament_id, squadron_id) REFERENCES tm_squadrons(tournament_id, squadron_id) ON DELETE CASCADE
+);

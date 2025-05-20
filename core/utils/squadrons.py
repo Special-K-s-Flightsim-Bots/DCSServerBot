@@ -29,8 +29,6 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str) 
 
 
 async def squadron_autocomplete_admin(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
     async with interaction.client.apool.connection() as conn:
         # DCS Admins can access any squadron
         if not check_roles(interaction.client.roles["DCS Admin"], interaction.user):

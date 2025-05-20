@@ -157,13 +157,24 @@ class NumbersModal(Modal):
 
 
 class ChoicesView(View):
-    def __init__(self, plugin: "Tournament", match_id: int, squadron_id: int, config: dict):
+    def __init__(self, plugin: "Tournament", tournament_id: int, match_id: int, squadron_id: int, config: dict):
         super().__init__()
         self.plugin = plugin
+        self.tournament_id = tournament_id
         self.match_id = match_id
         self.squadron_id = squadron_id
         self.config = config
         self.saved = False
+
+    async def get_tickets(self) -> dict[str, int]:
+        async with self.plugin.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT ticket_name, ticket_count
+                FROM tm_tickets
+                WHERE tournament_id = %s AND squadron_id = %s
+            """, (self.tournament_id, self.squadron_id))
+            tickets = {x[0]: x[1] for x in await cursor.fetchall()}
+        return tickets
 
     async def render(self) -> discord.Embed:
         squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
@@ -176,14 +187,14 @@ class ChoicesView(View):
             cursor = await conn.execute("""
                 SELECT preset, num FROM tm_choices WHERE match_id = %s AND squadron_id = %s
             """, (self.match_id, self.squadron_id))
-            choices = [x for x in await cursor.fetchall()]
-        if not choices:
+            already_selected = [x for x in await cursor.fetchall()]
+        if not already_selected:
             embed.add_field(name="Choices", value="No choices selected yet.", inline=False)
         else:
             presets = []
             costs = []
             number = []
-            for choice in choices:
+            for choice in already_selected:
                 preset = choice[0]
                 presets.append(preset)
                 cost = self.config['presets']['choices'][preset]['costs']
@@ -197,31 +208,40 @@ class ChoicesView(View):
         embed.set_footer(text="Please make your choice!")
         # build the selections
         self.clear_items()
-        if choices:
+        choices = self.config['presets']['choices']
+        tickets = await self.get_tickets()
+        if already_selected:
             select = Select(placeholder="Remove a choice",
                             options=[
                                 SelectOption(label=x[0], value=x[0])
-                                for idx, x in enumerate(choices)
+                                for idx, x in enumerate(already_selected)
                                 if idx < 25
                             ],
                             min_values=1, max_values=1)
             select.callback = self.remove_choice
             self.add_item(select)
-        if len(choices) < len(self.config['presets']['choices']):
-            select = Select(placeholder="Add a choice",
-                            options=[
-                                SelectOption(label=f"{x} (Cost={self.config['presets']['choices'][x]['costs']})",
-                                             value=x)
-                                for idx, x in enumerate(self.config['presets']['choices'].keys())
-                                if idx < 25 and self.config['presets']['choices'][x]['costs'] <= squadron.points
-                                   and x not in [x[0] for x in choices]
-                            ], min_values=1, max_values=1)
+        if len(already_selected) < len(choices):
+            select = Select(
+                placeholder="Add a choice",
+                options=[
+                    SelectOption(
+                        label="{name} ({costs}{ticket})".format(
+                            name=x, costs=f"Costs={choices[x]['costs']}" if choices[x].get('costs', 0) else "",
+                            ticket="{}Ticket".format(',' if choices[x].get('costs', 0) else '') if tickets.get(choices[x].get('ticket')) else ""),
+                        value=x
+                    )
+                    for idx, x in enumerate(choices.keys())
+                    if idx < 25
+                       and choices[x].get('costs', 0) <= squadron.points
+                       and tickets.get(choices[x].get('ticket'), 1) > 0
+                       and x not in [x[0] for x in already_selected]
+                ], min_values=1, max_values=1)
             select.callback = self.add_choice
             self.add_item(select)
         button = Button(label="Confirm & buy", style=discord.ButtonStyle.green)
         button.callback = self.save
         self.add_item(button)
-        button = Button(label="Close", style=discord.ButtonStyle.red)
+        button = Button(label="Save & Close", style=discord.ButtonStyle.red)
         button.callback = self.cancel
         self.add_item(button)
         return embed
@@ -230,8 +250,11 @@ class ChoicesView(View):
         choice = interaction.data['values'][0]
         squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]['costs']
+        tickets = await self.get_tickets()
+        ticket_name = self.config['presets']['choices'][choice].get('ticket')
+        ticket_count = tickets.get(ticket_name, 99)
 
-        max_num = self.config['presets']['choices'][choice].get('max')
+        max_num = max(self.config['presets']['choices'][choice].get('max'), ticket_count)
         if not max_num or max_num > 1:
             modal = NumbersModal(choice, costs, squadron.points, max_num)
             # noinspection PyUnresolvedReferences
@@ -252,6 +275,12 @@ class ChoicesView(View):
                         INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
                         VALUES (%s, %s, %s, %s)
                     """, (self.match_id, self.squadron_id, choice, num))
+                    if ticket_name:
+                        # invalidate the ticket
+                        await conn.execute("""
+                            UPDATE tm_tickets SET ticket_count = ticket_count - %s
+                            WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
+                        """, (num, self.tournament_id, self.squadron_id, ticket_name))
             squadron.points -= costs * num
             squadron.audit(event='match_choice', points=-costs * num,
                            remark=f'Bought {num} of {choice} during a match choice.')
@@ -264,6 +293,7 @@ class ChoicesView(View):
         choice = interaction.data['values'][0]
         squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]['costs']
+        ticket_name = self.config['presets']['choices'][choice].get('ticket')
 
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -275,6 +305,13 @@ class ChoicesView(View):
                     RETURNING num
                 """, (self.match_id, self.squadron_id, choice))
                 num = (await cursor.fetchone())[0]
+                if ticket_name:
+                    # return the ticket
+                    await conn.execute("""
+                        UPDATE tm_tickets SET ticket_count = ticket_count + %s
+                        WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
+                    """, (num, self.tournament_id, self.squadron_id, ticket_name))
+
         squadron.points += costs * num
         squadron.audit(event='match_choice', points=costs * num,
                        remark=f'Cancelled {num} of {choice} during a match choice.')
@@ -301,7 +338,7 @@ class ApplicationView(View):
         self.squadron_id = squadron_id
         self.squadron = utils.get_squadron(self.plugin.node, squadron_id=self.squadron_id)
 
-    async def inform_squadron(self, message: str):
+    async def inform_squadron(self, *, message: Optional[str] = None, embed: Optional[discord.Embed] = None):
         async with self.plugin.apool.connection() as conn:
             async for row in await conn.execute("""
                 SELECT p.discord_id
@@ -312,28 +349,54 @@ class ApplicationView(View):
                 if user:
                     tournament = await self.plugin.get_tournament(self.tournament_id)
                     dm_channel = await user.create_dm()
-                    await dm_channel.send(message.format(squadron=self.squadron['name'], tournament=tournament['name']))
+                    if message:
+                        message = message.format(squadron=self.squadron['name'], tournament=tournament['name'])
+                    await dm_channel.send(content=message, embed=embed)
 
     @discord.ui.button(label=_("Accept"), style=discord.ButtonStyle.green)
     async def on_accept(self, interaction: discord.Interaction, button: Button):
+        tournament = await self.plugin.get_tournament(self.tournament_id)
+        embed = discord.Embed(color=discord.Color.green(), title=_("Your Squadron has been accepted!"))
+        embed.description = _("Congratulations, you will be part of our upcoming tournament!")
+        embed.add_field(name=_("Tournament"), value=tournament['name'])
+        embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}:f>")
         async with self.plugin.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
                     UPDATE tm_squadrons SET status = 'ACCEPTED' WHERE tournament_id = %s AND squadron_id = %s
                 """, (self.tournament_id, self.squadron_id))
+                # create the tickets if there are any
+                tickets = self.plugin.get_config().get('presets', {}).get('tickets', {})
+                if tickets:
+                    embed.description += _(
+                        "\n\nYou can use the following tickets during the tournament to buy special customizations:"
+                    )
+                    await conn.execute("DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s",
+                                       (self.tournament_id, self.squadron_id))
+                    ticket_names = []
+                    ticket_counts = []
+                    for name, count in tickets.items():
+                        await conn.execute("""
+                            INSERT INTO tm_tickets(tournament_id, squadron_id, ticket_name, ticket_count)
+                            VALUES (%s, %s, %s, %s)
+                        """, (self.tournament_id, self.squadron_id, name, count))
+                        ticket_names.append(name)
+                        ticket_counts.append(count)
+                    embed.add_field(name=_("Tickets"),
+                                    value="\n".join([f"{y} x {x}" for x, y in zip(ticket_names, ticket_counts)]))
+                    embed.set_footer(text=_("You can use each ticket only once, so use them wisely!"))
 
         # update the info embed
         channel_id = self.plugin.get_config().get('channels', {}).get('info')
         if channel_id:
             await self.plugin.render_info_embed(self.tournament_id)
-        tournament = await self.plugin.get_tournament(self.tournament_id)
         await self.plugin.bot.audit(
             f"accepted squadron {self.squadron['name']} for tournament {tournament['name']}.",
             user=interaction.user
         )
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Squadron {} accepted.").format(self.squadron['name']))
-        await self.inform_squadron(_("Your squadron {squadron} was accepted for tournament {tournament}."))
+        await self.inform_squadron(embed=embed)
         self.stop()
 
     @discord.ui.button(label=_("Reject"), style=discord.ButtonStyle.red)
@@ -362,10 +425,13 @@ class ApplicationView(View):
             user=interaction.user
         )
         await interaction.followup.send(_("Squadron {} rejected.").format(self.squadron['name']))
-        message = _("Your squadron {squadron} was rejected from tournament {tournament}.")
+        embed = discord.Embed(color=discord.Color.red(), title=_("Your Squadron has been rejected!"))
+        embed.description = _("Your squadron {squadron} was rejected from tournament {tournament}.").format(
+            squadron=self.squadron['name'], tournament=tournament['name']
+        )
         if reason:
-            message += _("\nReason: {}").format(reason)
-        await self.inform_squadron(message)
+            embed.add_field(name=_("Reason"), value=reason)
+        await self.inform_squadron(embed=embed)
         self.stop()
 
     @discord.ui.button(label=_("Cancel"), style=discord.ButtonStyle.secondary)

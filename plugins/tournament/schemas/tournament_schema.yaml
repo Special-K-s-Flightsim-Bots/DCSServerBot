@@ -36,8 +36,14 @@ schema;element_schema:
               type: map
               nullable: false
               mapping:
-                costs: {type: int, nullable: false, range: {min: 1}}
+                costs: {type: int, nullable: false, range: {min: 0}}
                 max: {type: int, nullable: false, range: {min: 1}}
+                ticket: {type: str, nullable: false, range: {min: 1}}
+        tickets:
+          type: map
+          nullable: false
+          mapping:
+            regex;(.+): {type: int, nullable: false, range: {min: 1}}
     channels:
       type: map
       nullable: false

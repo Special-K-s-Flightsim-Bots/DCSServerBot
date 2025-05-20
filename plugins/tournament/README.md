@@ -40,13 +40,16 @@ DEFAULT:
   balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
   presets:
     file: presets_tournament.yaml
-    initial:          # presets that have to be applied to any mission
-      - sanitize      # preset to be used for sanitization (security settings in mission)
-      - switch_sides  # This will switch the blue and red sides on any round
+    initial:                # presets that have to be applied to any mission
+      - sanitize            # preset to be used for sanitization (security settings in mission)
+      - switch_sides        # This will switch the blue and red sides on any round
+      - random_weather      # Randomize the weather
     choices:  # list of preset | cost in squadron credits
-      'AIM-120': {"costs": 2}           # each AIM-120 costs you 2 credit points
-      'AIM-9x': {"costs": 1}            # each AIM-9x costs you 1 credit points
-      'AWACS': {"costs": 5, "max": 1}   # each AWACS costs you 5 credit points, but you can only choose one
+      'AIM-120': {"costs": 2}                   # each AIM-120 costs you 2 credit points
+      'AIM-9x': {"costs": 1}                    # each AIM-9x costs you 1 credit points
+      'AWACS': {"costs": 0, "max": 1, "ticket": "AWACS"}  # each AWACS costs you no credit points but one AWACS ticket. You can only choose one AWACS per round.
+    tickets:                # you can get a specific number of tickets per tournament
+      AWACS: 2
   channels:
     info: 112233445566778899      # information channel
     streamer: 91827364519283745   # channel for a tournament streamer
@@ -195,6 +198,10 @@ need to configure the respective [MizEdit](../../extensions/mizedit/README.md) p
 > [!NOTE]
 > If a player disconnects or somehow self-kills themselves, the other side gets the points as squadron points that this
 > kill would have been worth.
+
+### Tickets
+Each squadron can get tickets on signup. You can configure them in your tournaments.yaml (see above). A ticket is a 
+different credit option, which will be invalidated as soon as you use it.
 
 ### End of a Match
 A match is finished if all rounds were played.<br>
