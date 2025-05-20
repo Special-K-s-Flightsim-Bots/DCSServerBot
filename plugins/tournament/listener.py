@@ -18,6 +18,13 @@ if TYPE_CHECKING:
 _ = get_translation(__name__.split('.')[1])
 
 
+COALITION_FORMATS = {
+    Coalition.BLUE: "```ansi\n\u001b[0;34mBLUE {}```",
+    Coalition.RED: "```ansi\n\u001b[0;31mRED {}```",
+    Coalition.ALL: "```ansi\n\u001b[0;32m{}```"
+}
+
+
 class TournamentEventListener(EventListener["Tournament"]):
 
     def __init__(self, plugin: "Tournament"):
@@ -43,11 +50,11 @@ class TournamentEventListener(EventListener["Tournament"]):
             channel = await self.plugin.get_squadron_channel(match_id, side)
             await channel.send(self.bot.get_role(squadron['role']).mention + " " + message)
 
-    async def inform_streamer(self, server: Server, message: str):
+    async def inform_streamer(self, server: Server, message: str, coalition: Coalition = Coalition.ALL):
         config = self.get_config(server)
         channel = self.bot.get_channel(config.get('channels', {}).get('streamer', -1))
         if channel:
-            await channel.send(message)
+            await channel.send(COALITION_FORMATS[coalition].format(message))
 
     async def get_active_tournament(self, server: Server) -> Optional[int]:
         async with self.apool.connection() as conn:
@@ -174,19 +181,19 @@ class TournamentEventListener(EventListener["Tournament"]):
             if target:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} shot an {} at {} player {}").format(
                     initiator.coalition.value.title(), initiator.display_name, data['weapon']['name'],
-                    target.coalition.value, target.display_name)))
+                    target.coalition.value, target.display_name), coalition=initiator.coalition))
         elif data['eventName'] == 'S_EVENT_HIT':
-            initiator = data['initiator']
-            target = data['target']
+            initiator = server.get_player(name=data['initiator']['name'])
+            target = server.get_player(name=data['target']['name'])
             if target:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {} with an {}").format(
                     initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
-                    target.display_name, data['weapon']['name'])))
+                    target.display_name, data['weapon']['name']), coalition=initiator.coalition))
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             player = server.get_player(name=data['initiator']['name'])
             if player:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} is out!").format(
-                    player.coalition.value.title(), player.display_name)))
+                    player.coalition.value.title(), player.display_name), coalition=player.coalition))
 
     async def calculate_balance(self, server: Server, winner: str, winner_squadron: Squadron,
                                 loser_squadron: Squadron) -> None:
@@ -297,6 +304,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         # do we have a winner?
         if winner in ['blue', 'red']:
             loser = 'blue' if winner == 'red' else 'red'
+            coalition = Coalition.RED if winner == 'red' else Coalition.BLUE
             async with self.apool.connection() as conn:
                 async with conn.transaction():
                     cursor = await conn.execute(f"""
@@ -315,13 +323,14 @@ class TournamentEventListener(EventListener["Tournament"]):
                 await self.calculate_balance(server, winner, winner_squadron, loser_squadron)
 
         else:
+            coalition = Coalition.ALL
             match = await self.plugin.get_match(match_id)
             message = _("Round {} was a draw!").format(match['round_number'])
 
         # inform players and people
         asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
         asyncio.create_task(self.inform_squadrons(server, message=message))
-        asyncio.create_task(self.inform_streamer(server, message))
+        asyncio.create_task(self.inform_streamer(server, message, coalition))
 
         # pause the server
         asyncio.create_task(server.current_mission.pause())
@@ -442,5 +451,5 @@ class TournamentEventListener(EventListener["Tournament"]):
                                                    f"Unregistered player {player.name} ({player.ucid}) "
                                                    f"tried to join the running match on the {side} side."))
                     return
-        await self.inform_streamer(server, _("Player {name} joined the match in a {unit} on the {side} side.").format(
-            name=player.name, unit=player.unit_display_name, side=side))
+        await self.inform_streamer(server, _("Player {name} joined the match in their {unit}.").format(
+            name=player.name, unit=player.unit_display_name), coalition=player.coalition)
