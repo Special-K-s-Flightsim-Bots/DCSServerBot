@@ -1037,6 +1037,10 @@ class Mission(Plugin[MissionEventListener]):
     async def unlock(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                      player: app_commands.Transform[Player, utils.PlayerTransformer(active=False)]):
+        if not player:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Player not found."), ephemeral=True)
+            return
         await player.unlock()
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Player {} has been unlocked.").format(player.display_name),
