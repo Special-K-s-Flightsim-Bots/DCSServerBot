@@ -1189,7 +1189,7 @@ class Tournament(Plugin[TournamentEventListener]):
         miz = MizFile(new_filename)
         # apply the initial presets
         for preset in config.get('presets', {}).get('initial', []):
-            self.log.debug(f"Applying preset {preset} ...")
+            self.log.debug(f"Applying initial preset: {preset} ...")
             miz.apply_preset(all_presets[preset])
 
         async with self.apool.connection() as conn:
@@ -1201,7 +1201,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
                         WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
                     """, {"match_id": match_id}):
-                        self.log.debug(f"Applying preset {row[0]} ...")
+                        self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
                         miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
 
                 # delete the choices from the database and update the acknoledgement
