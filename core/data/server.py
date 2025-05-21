@@ -187,7 +187,7 @@ class Server(DataObject):
         for player in self.players.values():
             if player.id == 1:
                 continue
-            if 'active' in kwargs and player.active != kwargs['active']:
+            if kwargs.get('active') is not None and player.active != kwargs['active']:
                 continue
             if 'ucid' in kwargs and player.ucid == kwargs['ucid']:
                 return player

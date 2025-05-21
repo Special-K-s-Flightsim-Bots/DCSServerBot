@@ -18,6 +18,7 @@ if sys.platform == 'win32':
     import ctypes
 
 from configparser import RawConfigParser
+from contextlib import suppress
 from core import Extension, utils, Server, ServiceRegistry, Autoexec, get_translation, InstallException
 from discord.ext import tasks
 from services.bot import BotService
@@ -444,7 +445,7 @@ class SRS(Extension, FileSystemEventHandler):
             return False
 
     async def check_for_updates(self) -> Optional[str]:
-        try:
+        with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(SRS_GITHUB_URL, proxy=self.node.proxy,
@@ -453,10 +454,7 @@ class SRS(Extension, FileSystemEventHandler):
                         version = response.url.raw_parts[-1]
                         if version != self.version:
                             return version
-                        else:
-                            return None
-        except aiohttp.ClientConnectionError:
-            return None
+        return None
 
     def do_update(self):
         try:

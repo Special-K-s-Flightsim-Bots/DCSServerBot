@@ -1139,7 +1139,7 @@ class PlayerTransformer(app_commands.Transformer):
     """
 
     """
-    def __init__(self, *, active: bool = False, watchlist: Optional[bool] = None, vip: Optional[bool] = None):
+    def __init__(self, *, active: Optional[bool] = None, watchlist: Optional[bool] = None, vip: Optional[bool] = None):
         super().__init__()
         self.active = active
         self.watchlist = watchlist

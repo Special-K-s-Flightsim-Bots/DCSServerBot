@@ -787,14 +787,23 @@ class Tournament(Plugin[TournamentEventListener]):
                     await interaction.followup.send(_("Squadron ID not found."), ephemeral=True)
                     return
 
-        embed = discord.Embed(color=discord.Color.blue(), title=_('Application for Squadron "{}"').format(
-            utils.escape_string(row['name'])))
-        embed.description = row['application']
-        if row['image_url']:
-            embed.set_thumbnail(url=row['image_url'])
-        embed.add_field(name=_("# Members"), value=str(row['member_count']))
-        embed.add_field(name=_("Role"), value=self.bot.get_role(row['role']).name if row['role'] else _("n/a"))
-        embed.add_field(name=_("State"), value=row['status'])
+                embed = discord.Embed(color=discord.Color.blue(), title=_('Application for Squadron "{}"').format(
+                    utils.escape_string(row['name'])))
+                embed.description = row['application']
+                if row['image_url']:
+                    embed.set_thumbnail(url=row['image_url'])
+                embed.add_field(name=_("# Members"), value=str(row['member_count']))
+                embed.add_field(name=_("Role"), value=self.bot.get_role(row['role']).name if row['role'] else _("n/a"))
+                embed.add_field(name=_("State"), value=row['status'])
+
+                terrains = []
+                async for row in await cursor.execute("""
+                    SELECT terrain FROM tm_squadron_terrain_preferences 
+                    WHERE tournament_id = %s AND squadron_id = %s
+                """, (tournament_id, squadron_id)):
+                    terrains.append('- ' + row['terrain'])
+                if terrains:
+                    embed.add_field(name=_("Terrain Preferences"), value='\n'.join(terrains), inline=False)
 
         view = ApplicationView(self, tournament_id=tournament_id, squadron_id=squadron_id)
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))

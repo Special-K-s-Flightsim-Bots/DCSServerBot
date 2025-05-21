@@ -277,8 +277,9 @@ class CompetitiveListener(EventListener["Competitive"]):
         async def remove_players(match: Match, server: Server, players: list[Player]):
             for player in players:
                 match.player_dead(player)
-                # remove the player from the running match so that they can join another one
-                self.in_match[server.name].pop(player.ucid, None)
+                if match.match_id != GLOBAL_MATCH_ID:
+                    # remove the player from the running match so that they can join another one
+                    self.in_match[server.name].pop(player.ucid, None)
                 if self.get_config(server).get('kick_on_death', False):
                     kick_time = self.get_config(server).get('kick_time', 30)
                     self.loop.call_later(delay=kick_time,
