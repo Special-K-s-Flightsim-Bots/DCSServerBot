@@ -111,6 +111,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         tournament_id = await self.get_active_tournament(server)
         if not tournament_id:
             self.tournaments.pop(server.name, None)
+            return
 
         self.tournaments[server.name] = await self.plugin.get_tournament(tournament_id)
         match_id = await self.get_active_match(server)
