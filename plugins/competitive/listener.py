@@ -173,7 +173,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                 break
 
             # Minute warnings
-            current_minute = int(remaining / 60)
+            current_minute = (remaining + 59) // 60
             if current_minute != last_minute_warning and remaining > 10:
                 if current_minute > 0:  # Only show minute warnings if there's at least 1 minute
                     await self.inform_players(server, match, _("The match will start in {} minute{}.").format(

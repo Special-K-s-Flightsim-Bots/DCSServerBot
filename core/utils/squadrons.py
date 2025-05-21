@@ -56,6 +56,8 @@ def get_squadron(node: Node, *, name: Optional[str] = None, squadron_id: Optiona
         sql += " WHERE name = %(name)s"
     elif squadron_id:
         sql += " WHERE id = %(squadron_id)s"
+    else:
+        return None
     with node.pool.connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(sql, {"name": name, "squadron_id": squadron_id})

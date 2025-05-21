@@ -153,13 +153,15 @@ class Scheduler(Plugin[SchedulerListener]):
             return sorted(times.keys(), reverse=True)
         return []
 
-    async def warn_users(self, server: Server, config: dict, what: str, max_warn_time: Optional[int] = None):
-        if 'warn' not in config:
+    async def warn_users(self, server: Server, config: dict, rconf: dict, max_warn_time: Optional[int] = None):
+        warn = config.get('warn', {})
+        if not warn:
             return
-        times: Union[list, dict] = config.get('warn', {}).get('times', [0])
+
+        times: Union[list, dict] = warn.get('times', [0])
         if isinstance(times, list):
             warn_times = sorted(times, reverse=True)
-            warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
+            warn_text = warn.get('text', '!!! {item} will {what} in {when} !!!')
         elif isinstance(times, dict):
             warn_times = sorted(times.keys(), reverse=True)
         else:
@@ -169,10 +171,10 @@ class Scheduler(Plugin[SchedulerListener]):
             restart_in = max(warn_times)
         else:
             restart_in = max_warn_time
-        self.log.debug(f"Scheduler: Restart in {restart_in} seconds...")
+        self.log.debug(f"Scheduler: Restart {server.name} in {restart_in} seconds...")
 
-        if what == 'restart_with_shutdown':
-            what = 'restart'
+        what = rconf['method']
+        if what == 'restart' and rconf.get('shutdown', False):
             item = 'Server'
         elif what == 'shutdown':
             item = 'Server'
@@ -191,15 +193,14 @@ class Scheduler(Plugin[SchedulerListener]):
                 message = warn_text.format(item=item, what=what, when=utils.format_time(warn_time))
                 await server.sendPopupMessage(Coalition.ALL, message, server.locals.get('message_timeout', 10))
                 await server.sendChatMessage(Coalition.ALL, message)
-                if 'sound' in config['warn']:
-                    await server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
-                                                                              time=warn_time))
+                if 'sound' in warn:
+                    await server.playSound(Coalition.ALL, utils.format_string(warn['sound'], time=warn_time))
             with suppress(Exception):
                 events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
                 if events_channel:
                     await events_channel.send(warn_text.format(item=item, what=what,
                                                                when=utils.format_time(warn_time)))
-            self.log.debug(f"Scheduler: Warning for {warn_time} fired.")
+            self.log.debug(f"Scheduler: Warning for {server.name} @ {warn_time} fired.")
 
         tasks = [asyncio.create_task(do_warn(i)) for i in warn_times if i <= restart_in]
         await asyncio.gather(*tasks)
@@ -234,7 +235,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 await self.bot.audit(
                     f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
                     server=server)
-                await self.warn_users(server, config, 'shutdown')
+                await self.warn_users(server, config, {"method": "shutdown"})
             # if the shutdown has been cancelled due to maintenance mode
             if not server.restart_pending:
                 return
@@ -249,13 +250,13 @@ class Scheduler(Plugin[SchedulerListener]):
         method = rconf['method']
         # shall we do something at mission end only?
         if rconf.get('mission_end', False):
-            self.log.debug(f"Scheduler: setting mission_end trigger.")
+            self.log.debug(f"Scheduler: setting mission_end trigger (server={server.name}).")
             server.on_mission_end = {'command': method}
             server.restart_pending = True
             return
         # check if the server is populated
         if server.is_populated():
-            self.log.debug(f"Scheduler: Server is populated.")
+            self.log.debug(f"Scheduler: Server {server.name} is populated.")
             # max_mission_time overwrites the populated false
             if not rconf.get('populated', True) and not rconf.get('max_mission_time'):
                 if not server.on_empty:
@@ -271,16 +272,16 @@ class Scheduler(Plugin[SchedulerListener]):
                             server.on_empty['mission_file'] = random.choice(mission_file)
                         elif isinstance(mission_file, str):
                             server.on_empty['mission_file'] = mission_file
-                    self.log.debug("Scheduler: Setting on_empty trigger.")
+                    self.log.debug(f"Scheduler: Setting on_empty trigger in server {server.name}.")
                 server.restart_pending = True
                 return
             server.restart_pending = True
-            self.log.debug("Scheduler: Warning users ...")
+            self.log.debug(f"Scheduler: Warning users on server {server.name} ...")
             if max_warn_time < 60:
                 max_warn_time = 60
-            await self.warn_users(server, config, method, max_warn_time)
+            await self.warn_users(server, config, rconf, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
-            # if the restart has been cancelled due to maintenance mode
+            # if the restart has been canceled due to maintenance mode
             if not server.restart_pending:
                 return
             else:
@@ -290,15 +291,15 @@ class Scheduler(Plugin[SchedulerListener]):
 
         try:
             if method == 'shutdown' or rconf.get('shutdown', False):
-                self.log.debug(f"Scheduler: Shutting down DCS Server {server.name} ...")
+                self.log.debug(f"Scheduler: Shutting down server {server.name} ...")
                 await self.teardown_dcs(server)
             if method == 'restart':
                 try:
                     modify_mission = rconf.get('run_extensions', True)
                     use_orig = rconf.get('use_orig', True)
                     if server.status == Status.SHUTDOWN:
-                        self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
-                        await asyncio.sleep(self.get_config(server).get('startup_delay', 0))
+                        self.log.debug(f"Scheduler: Starting server {server.name}")
+                        await asyncio.sleep(config.get('startup_delay', 0))
                         await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
                         self.log.debug(f"Scheduler: Restarting mission on server {server.name} ...")
@@ -315,7 +316,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     use_orig = rconf.get('use_orig', True)
                     if server.status == Status.SHUTDOWN:
                         await server.setStartIndex(server.settings['listStartIndex'] + 1)
-                        self.log.debug(f"Scheduler: Starting DCS Server {server.name} ...")
+                        self.log.debug(f"Scheduler: Starting server {server.name} ...")
                         await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
                         await server.loadNextMission(modify_mission=modify_mission, use_orig=use_orig)
@@ -325,7 +326,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                          server=server)
             elif method == 'stop':
-                self.log.debug(f"Scheduler: Stopping DCS Server {server.name} ...")
+                self.log.debug(f"Scheduler: Stopping server {server.name} ...")
                 await server.stop()
                 await self.bot.audit(f"{self.plugin_name.title()} stopped DCS Server {server.name}",
                                      server=server)
@@ -367,7 +368,7 @@ class Scheduler(Plugin[SchedulerListener]):
                     use_orig = rconf.get('use_orig', True)
                     if server.status == Status.SHUTDOWN:
                         await server.setStartIndex(mission_id)
-                        self.log.debug(f"Scheduler: Starting DCS Server {server.name} ...")
+                        self.log.debug(f"Scheduler: Starting server {server.name} ...")
                         await self.launch_dcs(server, modify_mission=modify_mission, use_orig=use_orig)
                     else:
                         if not await server.loadMission(mission=mission_id, modify_mission=modify_mission,

@@ -32,9 +32,11 @@ roles:
 To configure the tournament plugin, create a file config\plugins\tournament.yaml like so:
 ```yaml
 DEFAULT:
+  use_signup_form: false    # Do you want participating squadrons to write an application form on signup? (default: false)
   coalition_passwords: true # Auto-generate coalition passwords for red and blue.
   allow_exports: false      # Do not allow exports (default: false).
   auto_join: true           # If true, your pilot will be automatically assigned to the associated squadron on join (default: false).
+  delayed_start: 300        # optional: give people 300 seconds to prepare their planes.
   time_to_choose: 600       # The time squadrons have to choose their customizations for the next round.
   sudden_death: false       # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
   balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference

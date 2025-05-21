@@ -447,7 +447,7 @@ class Tournament(Plugin[TournamentEventListener]):
             if buffer:
                 buffer.close()
 
-    @tournament.command(description='Create a tournament')
+    @tournament.command(description=_('Create a tournament'))
     @app_commands.guild_only()
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
     @utils.app_has_role('Admin')
@@ -514,7 +514,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if os.path.exists(orig_file):
             shutil.copy2(orig_file, filename)
 
-    @tournament.command(description='Finish a tournament')
+    @tournament.command(description=_('Finish a tournament'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.rename(tournament_id="tournament")
@@ -568,7 +568,7 @@ class Tournament(Plugin[TournamentEventListener]):
         messages.append(_("The tournament {} is finished.").format(name))
         await msg.edit(content='\n'.join(messages))
 
-    @tournament.command(description='Delete a tournament')
+    @tournament.command(description=_('Delete a tournament'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.rename(tournament_id="tournament")
@@ -618,7 +618,7 @@ class Tournament(Plugin[TournamentEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Error deleting tournament: {}").format(ex), ephemeral=True)
 
-    @tournament.command(description='Signup to a tournament')
+    @tournament.command(description=_('Signup to a tournament'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
@@ -626,12 +626,19 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(squadron_id=utils.squadron_autocomplete_admin)
     @utils.squadron_role_check()
     async def signup(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
-        modal = ApplicationModal()
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_modal(modal)
-        if await modal.wait():
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
+        config = self.get_config()
+        if config.get('use_signup_form', False):
+            modal = ApplicationModal()
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_modal(modal)
+            if await modal.wait():
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
+                return
+        else:
+            modal = None
+            # noinspection PyUnresolvedReferences
+            await interaction.response.defer()
+
         try:
             squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
             if not squadron['role']:
@@ -678,7 +685,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 async with conn.transaction():
                     await conn.execute("""
                         INSERT INTO tm_squadrons(tournament_id, squadron_id, application) VALUES (%s, %s, %s)
-                    """, (tournament_id, squadron_id, modal.application_text.value))
+                    """, (tournament_id, squadron_id, modal.application_text.value if modal else None))
                     for value in view.times:
                         await conn.execute("""
                             INSERT INTO tm_squadron_time_preferences (tournament_id, squadron_id, available_time_id)
@@ -701,7 +708,7 @@ class Tournament(Plugin[TournamentEventListener]):
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(_("Squadron already signed up for tournament."), ephemeral=True)
 
-    @tournament.command(description='Signup to a tournament')
+    @tournament.command(description=_('Withdraw from a tournament'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
@@ -709,31 +716,50 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(squadron_id=reject_squadron_autocomplete)
     @utils.squadron_role_check()
     async def withdraw(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
-        tournament = await self.get_tournament(tournament_id)
-        squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
-        if tournament['start'] <= datetime.now(timezone.utc):
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message("You can not withdraw from an active tournament.", ephemeral=True)
-            return
-        async with self.apool.connection() as conn:
-            async with conn.transaction():
-                await conn.execute("""
-                    DELETE FROM tm_squadrons 
-                    WHERE tournament_id = %s AND squadron_id = %s
-                    """, (tournament_id, squadron_id))
-
-        await self.bot.audit(f"withdrew squadron {squadron['name']} from tournament {tournament['name']}.",
-                             user=interaction.user)
         # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(
-            _("Your squadron has been withdrawn from tournament {}.").format(tournament['name']), ephemeral=True)
+        await interaction.response.defer()
 
+        tournament = await self.get_tournament(tournament_id)
+        if tournament['start'] <= datetime.now(timezone.utc) and not await utils.yn_question(
+                interaction, _("You are going to withdraw from a running tournament!\n"
+                               "All already scheduled matches will be marked as lost.")):
+            # noinspection PyUnresolvedReferences
+            await interaction.followup.send("Abort.", ephemeral=True)
+            return
+
+        squadron = utils.get_squadron(self.node, squadron_id=squadron_id)
         admin_channel = self.get_admin_channel()
         if admin_channel:
             await admin_channel.send(
-                _("Squadron {} withdrew from tournament {}.").format(squadron['name'], tournament['name']))
+                _("Squadron {} forfeit and withdrew from tournament {}.").format(
+                    squadron['name'], tournament['name']))
 
-    @tournament.command(description='Verfiy Applications')
+        async with self.apool.connection() as conn:
+            async with conn.transaction():
+                await conn.execute("""
+                    UPDATE tm_squadrons SET status = 'WITHDRAW' 
+                    WHERE tournament_id = %s AND squadron_id = %s
+                    """, (tournament_id, squadron_id))
+                for side in ['red', 'blue']:
+                    opposite = 'blue' if side == 'red' else 'red'
+                    cursor = await conn.execute(f"""
+                        UPDATE tm_matches SET winner_squadron_id = squadron_{opposite} 
+                        WHERE tournament_id = %s AND squadron_{side} = %s AND winner_squadron_id IS NULL
+                        RETURNING match_id, winner_squadron_id
+                    """, (tournament_id, squadron_id))
+                    for match_id, winner_squadron_id  in await cursor.fetchall():
+                        if admin_channel:
+                            winner_squadron = utils.get_squadron(self.node, squadron_id=winner_squadron_id)
+                            await admin_channel.send(_("- Match {} vs {} was marked as won by {} due to a forfeit.").format(
+                                squadron['name'], winner_squadron['name'], winner_squadron['name']))
+
+        await self.bot.audit(f"withdrew squadron {squadron['name']} from tournament {tournament['name']}.",
+                             user=interaction.user)
+        await interaction.followup.send(
+            _("Your squadron has been withdrawn from tournament {}.").format(tournament['name']), ephemeral=True)
+        await self.eventlistener.check_tournament_finished(tournament_id)
+
+    @tournament.command(description=_('Verfiy Applications'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
@@ -780,7 +806,7 @@ class Tournament(Plugin[TournamentEventListener]):
             except discord.NotFound:
                 pass
 
-    @tournament.command(description='Generate bracket')
+    @tournament.command(description=_('Generate bracket'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
@@ -810,7 +836,7 @@ class Tournament(Plugin[TournamentEventListener]):
         finally:
             buffer.close()
 
-    @tournament.command(description='Show squadron preferences')
+    @tournament.command(description=_('Show squadron preferences'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
@@ -825,10 +851,10 @@ class Tournament(Plugin[TournamentEventListener]):
         finally:
             env.buffer.close()
 
-    # New command group "/matches"
-    match = Group(name="match", description="Commands to manage matches in a tournament")
+    # New command group "/match"
+    match = Group(name="match", description=_("Commands to manage matches in a tournament"))
 
-    @match.command(description='Generate matches')
+    @match.command(description=_('Generate matches'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
@@ -974,7 +1000,7 @@ class Tournament(Plugin[TournamentEventListener]):
         await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
                                         ephemeral=utils.get_ephemeral(interaction))
 
-    @match.command(description='Create a manual match')
+    @match.command(description=_('Create a manual match'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.describe(stage=_("The level of your match. If all matches on one level are finished, increase the level by one."))
@@ -1023,7 +1049,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     squadrons_red.append(utils.get_squadron(self.node, squadron_id=row['squadron_red'])['name'])
                     if row['round_number'] == 0:
                         status.append("Not started")
-                    elif row['round_number'] <= rounds and row['winner_squadron_id'] is None:
+                    elif row['winner_squadron_id'] is None:
                         status.append(_("Round: {}, {} : {}").format(row['round_number'],
                                                                      row['squadron_blue_rounds_won'],
                                                                      row['squadron_red_rounds_won']))
@@ -1039,7 +1065,7 @@ class Tournament(Plugin[TournamentEventListener]):
         embed.add_field(name=_("Status"), value='\n'.join(status), inline=True)
         return embed
 
-    @match.command(name="list", description='List matches')
+    @match.command(name="list", description=_('List matches'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
@@ -1097,7 +1123,10 @@ class Tournament(Plugin[TournamentEventListener]):
         # Server should start paused
         advanced = server.settings['advanced']
         advanced |= {
-            "resume_mode": 0
+            "resume_mode": 0,
+            "pause_on_load": True,
+            "sav_autosave": False,
+            "maxPing": 300
         }
 
         # sanitize the server
@@ -1113,11 +1142,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 "allow_object_export": False,
                 "allow_sensor_export": False,
                 "allow_players_pool": False,
-                "disable_events": True,
-                "resume_mode": 0,
-                "pause_on_load": True,
-                "sav_autosave": False,
-                "maxPing": 300
+                "disable_events": True
             }
 
         results = config.get('channels', {}).get('results', -1)
@@ -1216,7 +1241,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
         return new_filename
 
-    @match.command(description='Start a match')
+    @match.command(description=_('Start a match'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
@@ -1407,7 +1432,7 @@ class Tournament(Plugin[TournamentEventListener]):
             except discord.Forbidden:
                 raise PermissionError("You need to give the bot the Manage Roles permission!")
 
-    @match.command(description='Edit a match')
+    @match.command(description=_('Edit a match'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
@@ -1487,7 +1512,10 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             await interaction.followup.send(_("Match not updated."), ephemeral=True)
 
-    @match.command(description='Customize the next round')
+        if self.eventlistener.check_tournament_finished(tournament_id):
+            await interaction.followup.send(_("You just finished the tournament!"), ephemeral=True)
+
+    @match.command(description=_('Customize the next round'))
     @app_commands.guild_only()
     async def customize(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
@@ -1519,9 +1547,15 @@ class Tournament(Plugin[TournamentEventListener]):
                     squadron_id = row['squadron_id']
                     break
                 else:
-                    await interaction.followup.send("{} has to be used in the respective coalition channel.".format(
+                    await interaction.followup.send(_("{} has to be used in the respective coalition channel.").format(
                         (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
                     return
+
+        # check if a match is running
+        server = self.bus.servers[row['server_name']]
+        if server.status == Status.RUNNING:
+            await interaction.followup.send(_("You can not choose during a running match!"), ephemeral=True)
+            return
 
         admins = utils.get_squadron_admins(self.node, squadron_id)
         if interaction.user.id not in admins and not utils.check_roles(self.bot.roles['GameMaster'], interaction.user):
@@ -1530,8 +1564,9 @@ class Tournament(Plugin[TournamentEventListener]):
                 ephemeral=True
             )
             return
+
         view = ChoicesView(self, tournament_id=tournament_id, match_id=match_id, squadron_id=squadron_id,
-                           config=self.get_config(self.bot.servers[row['server_name']]))
+                           config=self.get_config(server))
         embed = await view.render()
         # noinspection PyUnresolvedReferences
         if not view.children[0].options:
@@ -1573,6 +1608,37 @@ class Tournament(Plugin[TournamentEventListener]):
                 await msg.delete()
             except discord.NotFound:
                 pass
+
+    # New command group "/tickets"
+    tickets = Group(name="tickets", description=_("Commands to manage tickets in a tournament"))
+
+    @tickets.command(name="list", description=_('List tickets of a squadron'))
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @app_commands.autocomplete(squadron_id=valid_squadron_autocomplete)
+    @utils.app_has_role('DCS')
+    async def _list(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
+        embed = discord.Embed(colour=discord.Colour.blue(), title=_("Your Tickets"))
+        ticket_names = []
+        ticket_counts = []
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                async for row in await cursor.execute(
+                        "SELECT * FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s",
+                        (tournament_id, squadron_id)):
+                    ticket_names.append(row['ticket_name'])
+                    ticket_counts.append(row['ticket_count'])
+        if not ticket_names:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("Your squadron does not have any tickets."), ephemeral=True)
+            return
+
+        embed.add_field(name=_("Tickets"),
+                        value="\n".join([f"{y} x {x}" for x, y in zip(ticket_names, ticket_counts)]))
+        # noinspection PyUnresolvedReferences
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

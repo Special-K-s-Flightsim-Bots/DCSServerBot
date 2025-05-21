@@ -1,7 +1,9 @@
 import asyncio
 import discord
 
-from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, PersistentReport
+from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, PersistentReport, \
+    Player
+from datetime import datetime, timedelta
 from psycopg.errors import UniqueViolation
 from trueskill import Rating
 from typing import TYPE_CHECKING, Optional
@@ -32,6 +34,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         self.tournaments: dict[str, dict] = {}
         self.ratings: dict[int, Rating] = {}
         self.squadron_credits: dict[int, int] = {}
+        self.round_started: dict[str, bool] = {}
 
     async def audit(self, server: Server, message: str):
         config = self.get_config(server)
@@ -106,14 +109,17 @@ class TournamentEventListener(EventListener["Tournament"]):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         tournament_id = await self.get_active_tournament(server)
-        if tournament_id:
-            self.tournaments[server.name] = await self.plugin.get_tournament(tournament_id)
-            match_id = await self.get_active_match(server)
-            match = await self.plugin.get_match(match_id)
-            # if no match is running, disable tournament plugin
-            if not match:
-                self.tournaments.pop(server.name, None)
-                return
+        if not tournament_id:
+            self.tournaments.pop(server.name, None)
+
+        self.tournaments[server.name] = await self.plugin.get_tournament(tournament_id)
+        match_id = await self.get_active_match(server)
+        match = await self.plugin.get_match(match_id)
+        # if no match is running, disable the tournament plugin
+        if not match:
+            self.tournaments.pop(server.name, None)
+            return
+        if not data['channel'].startswith('sync-'):
             # store ratings before match for accelerator
             self.ratings[match['squadron_blue']] = await Competitive.trueskill_squadron(
                 self.node, match['squadron_blue'])
@@ -125,11 +131,70 @@ class TournamentEventListener(EventListener["Tournament"]):
             self.squadron_credits[match['squadron_red']] = (
                 await self.plugin.get_squadron(match_id, match['squadron_red'])
             ).points
+            self.round_started[server.name] = False
         else:
-            self.tournaments.pop(server.name, None)
+            self.round_started[server.name] = True
+
+    async def countdown_with_warnings(self, server: Server, delayed_start: int):
+        start_time = datetime.now()
+        end_time = start_time + timedelta(seconds=delayed_start)
+        last_minute_warning = None
+        ten_second_warning_sent = False
+
+        self.round_started[server.name] = False
+        while True:
+            remaining = int((end_time - datetime.now()).total_seconds())
+
+            if remaining <= 0:
+                break
+
+            # Minute warnings
+            current_minute = (remaining + 59) // 60
+            if current_minute != last_minute_warning and remaining > 10:
+                if current_minute > 0:  # Only show minute warnings if there's at least 1 minute
+                    await server.sendPopupMessage(
+                        Coalition.ALL, _("The round will start in {} minute{}.\n"
+                                         "If you takeoff/engage before this time is over, you will be disqualified."
+                                         ).format(current_minute, 's' if current_minute != 1 else ''))
+                last_minute_warning = current_minute
+
+            # Single 10-second warning
+            if remaining <= 10 and not ten_second_warning_sent:
+                await server.sendPopupMessage(Coalition.ALL, _("The round will start in 10 seconds."))
+                ten_second_warning_sent = True
+
+            await asyncio.sleep(1)
+
+        self.round_started[server.name] = True
+        await server.sendPopupMessage(Coalition.ALL, _("You are now allowed to takeoff. Happy fighting!"))
+
+    @event(name="onSimulationResume")
+    async def onSimulationResume(self, server: Server, data: dict) -> None:
+        config = self.get_config(server)
+        if 'delayed_start' in config:
+            asyncio.create_task(self.countdown_with_warnings(server, config['delayed_start']))
+        else:
+            self.round_started[server.name] = True
+
+    async def disqualify(self, server: Server, player: Player, reason: str) -> None:
+        await server.kick(player, reason)
+        asyncio.create_task(self.inform_streamer(server, _("{} player {}: {}").format(
+            player.coalition.value.title(), player.display_name, reason), coalition=player.coalition))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
+        if not self.round_started[server.name]:
+            if data['eventName'] in ['S_EVENT_RUNWAY_TAKEOFF', 'S_EVENT_TAKEOFF']:
+                reason = _('Disqualified due to early takeoff.')
+            elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL'] and data['target']:
+                reason = _('Disqualified due to early engagement.')
+            else:
+                reason = None
+
+            if reason:
+                player = server.get_player(name=data['initiator']['name'])
+                asyncio.create_task(self.disqualify(server, player, reason))
+
         if data['eventName'] == 'S_EVENT_BIRTH':
             tournament = self.tournaments[server.name]
             initiator = data['initiator']
@@ -284,7 +349,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             # play another round
             asyncio.create_task(self.next_round(server, match_id))
 
-    async def check_tournament_finished(self, tournament_id: int) -> None:
+    async def check_tournament_finished(self, tournament_id: int) -> bool:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT stage, SUM(CASE WHEN winner_squadron_id IS NULL THEN 0 ELSE 1 END) AS NUM FROM tm_matches 
@@ -297,6 +362,8 @@ class TournamentEventListener(EventListener["Tournament"]):
             if num == 1:
                 asyncio.create_task(self.plugin.render_info_embed(tournament_id,
                                                                   phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
+                return True
+            return False
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:

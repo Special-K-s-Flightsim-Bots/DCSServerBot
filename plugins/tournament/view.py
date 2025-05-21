@@ -97,7 +97,7 @@ class SignupView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
-    @discord.ui.select(placeholder=_("Select your preferred DCS terrains"), min_values=1)
+    @discord.ui.select(placeholder=_("Select the DCS terrains you own"), min_values=1)
     async def maps_callback(self, interaction: discord.Interaction, select: Select):
         self.terrains = select.values
         # noinspection PyUnresolvedReferences
