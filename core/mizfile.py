@@ -647,7 +647,7 @@ class MizFile:
 
         if isinstance(config, list):
             for cfg in config:
-                self.modify(cfg)
+                self.modify(cfg, **kwargs)
             return
 
         # enable debug logging

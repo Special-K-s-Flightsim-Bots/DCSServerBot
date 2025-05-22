@@ -2,6 +2,8 @@ import discord
 import numpy as np
 import re
 
+from psycopg.types.json import Json
+
 from core import get_translation, utils
 from discord import SelectOption
 from discord.ui import Select, Button, Modal, TextInput, View
@@ -179,13 +181,13 @@ class ChoicesView(View):
     async def render(self) -> discord.Embed:
         squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
         embed = discord.Embed(colour=discord.Colour.blue(),
-                              title=_("You have {} credit points.").format(squadron.points))
+                              title=_("You have {} credit points left to spend.").format(squadron.points))
         embed.description = ("Here you can select the presets to change the upcoming mission to your request.\n"
                              "Please keep in mind, that you will have to pay credit points, "
                              "according to the requested presets price.")
         async with self.plugin.apool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT preset, num FROM tm_choices WHERE match_id = %s AND squadron_id = %s
+                SELECT preset, config FROM tm_choices WHERE match_id = %s AND squadron_id = %s
             """, (self.match_id, self.squadron_id))
             already_selected = [x for x in await cursor.fetchall()]
         if not already_selected:
@@ -199,7 +201,7 @@ class ChoicesView(View):
                 presets.append(preset)
                 cost = self.config['presets']['choices'][preset]['costs']
                 costs.append(cost)
-                number.append(choice[1])
+                number.append(choice[1]['num'])
             embed.add_field(name="Your selection", value="\n".join(presets))
             embed.add_field(name="Costs in Credits", value="\n".join([str(x) for x in costs]))
             embed.add_field(name="Count", value="\n".join([str(x) for x in number]))
@@ -277,9 +279,9 @@ class ChoicesView(View):
             async with self.plugin.apool.connection() as conn:
                 async with conn.transaction():
                     await conn.execute("""
-                        INSERT INTO tm_choices (match_id, squadron_id, preset, num) 
+                        INSERT INTO tm_choices (match_id, squadron_id, preset, config) 
                         VALUES (%s, %s, %s, %s)
-                    """, (self.match_id, self.squadron_id, choice, num))
+                    """, (self.match_id, self.squadron_id, choice, Json({"num": num})))
                     if ticket_name:
                         # invalidate the ticket
                         await conn.execute("""
@@ -307,9 +309,9 @@ class ChoicesView(View):
                 cursor = await conn.execute("""
                     DELETE FROM tm_choices 
                     WHERE match_id = %s AND squadron_id = %s AND preset = %s
-                    RETURNING num
+                    RETURNING config
                 """, (self.match_id, self.squadron_id, choice))
-                num = (await cursor.fetchone())[0]
+                num = (await cursor.fetchone())[0]['num']
                 if ticket_name:
                     # return the ticket
                     await conn.execute("""

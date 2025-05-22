@@ -40,6 +40,7 @@ DEFAULT:
   time_to_choose: 600       # The time squadrons have to choose their customizations for the next round.
   sudden_death: false       # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
   balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
+  remove_on_death: .*       # optional: if set, any unit name that matches this regular expression will result in the removal of this unit in the next rounds of the same match
   presets:
     file: presets_tournament.yaml
     initial:                # presets that have to be applied to any mission
@@ -64,6 +65,9 @@ DEFAULT:
 > and the stronger party with less. So the weaker party can buy more stuff on the next round than the stronger party.
 > The system is based on an "upset bonus system" which allows multipliers between 0.5 and 2.5, depending on the
 > situation.
+
+> [!IMPORTANT]
+> The remove_on_death needs you to have single unit groups in your mission.
 
 > [!WARNING]
 > The streamer channel above will receive all information about what's going on in your match. 

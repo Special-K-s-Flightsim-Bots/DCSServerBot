@@ -1217,13 +1217,22 @@ class Tournament(Plugin[TournamentEventListener]):
             async with conn.transaction():
                 # apply the squadron presets
                 for side in ['blue', 'red']:
+                    # apply persistent presets
                     async for row in await conn.execute(f"""
-                        SELECT preset, num FROM tm_choices c 
+                        SELECT preset, config FROM tm_persistent_choices c
+                        JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
+                        WHERE m.match_id = %s 
+                    """, (match_id,)):
+                        self.log.debug(f"Applying persistent preset for side {side}: {row[0]} ...")
+                        miz.apply_preset(all_presets[row[0]], side=side, **row[1])
+                    # apply choices
+                    async for row in await conn.execute(f"""
+                        SELECT preset, config FROM tm_choices c 
                         JOIN tm_matches m ON c.match_id = m.match_id AND c.squadron_id = m.squadron_{side}
                         WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
                     """, {"match_id": match_id}):
                         self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
-                        miz.apply_preset(all_presets[row[0]], side=side.upper(), num=row[1])
+                        miz.apply_preset(all_presets[row[0]], side=side.upper(), **row[1])
 
                 # delete the choices from the database and update the acknoledgement
                 await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
@@ -1329,7 +1338,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         channel = self.bot.get_channel(channels[side])
                         await channel.send(_("You can now use {} to chose your customizations!\n"
                                              "If you do not want to change anything, "
-                                             "please run it and say 'No Change'").format(
+                                             "please run it and say 'Skip this round'").format(
                             (await utils.get_command(self.bot, group=self.match.name,
                                                      name=self.customize.name)).mention))
                     else:
@@ -1357,7 +1366,11 @@ class Tournament(Plugin[TournamentEventListener]):
         # Starting the server up again
         messages.append(_("Starting server {} ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
-        await server.startup(modify_mission=False, use_orig=False)
+        try:
+            await server.startup(modify_mission=False, use_orig=False)
+        except (TimeoutError, asyncio.TimeoutError):
+            await interaction.followup.send(_("Error during starting the server: Timeout."), ephemeral=True)
+            return
         # Check if we need to forward Tacview
         results = config.get('channels', {}).get('results', -1)
         if results > 0:
@@ -1563,7 +1576,8 @@ class Tournament(Plugin[TournamentEventListener]):
                     break
                 else:
                     await interaction.followup.send(_("{} has to be used in the respective coalition channel.").format(
-                        (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention))
+                        (await utils.get_command(self.bot, group=self.match.name, name=self.customize.name)).mention),
+                        ephemeral=True)
                     return
 
         # check if a match is running
@@ -1598,8 +1612,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     ephemeral=True)):
                 await interaction.followup.send(
                     _("Your choices were saved.\n"
-                      "If you want them to be applied to the next round, press 'Confirm & Buy'."),
-                    ephemeral=ephemeral)
+                      "If you want them to be applied to the next round, press 'Confirm & Buy'."))
                 return
 
             async with self.apool.connection() as conn:
@@ -1620,10 +1633,13 @@ class Tournament(Plugin[TournamentEventListener]):
                             AND match_id = %(match_id)s
                     """, {"match_id": match_id, "squadron_id": squadron_id})
             if view.acknowledged is True:
-                await interaction.followup.send(_("Thanks, your selection will now be applied."), ephemeral=True)
+                embed = await view.render()
+                embed.description = embed.title
+                embed.title = _("Your selection will now be applied.")
+                embed.set_footer(text=None)
+                await interaction.followup.send(embed=embed, ephemeral=True)
             else:
-                await interaction.followup.send(_("You decided to not buy any customizations in this round."),
-                                                ephemeral=True)
+                await interaction.followup.send(_("You decided to not buy any customizations in this round."))
         finally:
             try:
                 await msg.delete()

@@ -60,8 +60,16 @@ CREATE TABLE tm_choices (
     match_id INTEGER,
     squadron_id INTEGER,
     preset TEXT NOT NULL,
-    num INTEGER NOT NULL,
+    config JSON,
     PRIMARY KEY (match_id, squadron_id, preset),
+    FOREIGN KEY (match_id) REFERENCES tm_matches(match_id) ON DELETE CASCADE
+);
+CREATE TABLE tm_persistent_choices (
+    choice_id SERIAL PRIMARY KEY,
+    match_id INTEGER,
+    squadron_id INTEGER,
+    preset TEXT NOT NULL,
+    config JSON,
     FOREIGN KEY (match_id) REFERENCES tm_matches(match_id) ON DELETE CASCADE
 );
 CREATE TABLE tm_tickets (

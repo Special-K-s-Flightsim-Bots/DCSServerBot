@@ -1,10 +1,12 @@
 import asyncio
 import discord
+import re
 
 from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, PersistentReport, \
     Player
 from datetime import datetime, timedelta
 from psycopg.errors import UniqueViolation
+from psycopg.types.json import Json
 from trueskill import Rating
 from typing import TYPE_CHECKING, Optional
 
@@ -35,6 +37,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         self.ratings: dict[int, Rating] = {}
         self.squadron_credits: dict[int, int] = {}
         self.round_started: dict[str, bool] = {}
+        self.tasks: dict[str, asyncio.Task] = {}
 
     async def audit(self, server: Server, message: str):
         config = self.get_config(server)
@@ -173,7 +176,7 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def onSimulationResume(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
         if 'delayed_start' in config:
-            asyncio.create_task(self.countdown_with_warnings(server, config['delayed_start']))
+            self.tasks[server.name] = asyncio.create_task(self.countdown_with_warnings(server, config['delayed_start']))
         else:
             self.round_started[server.name] = True
 
@@ -241,6 +244,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             else:
                 player = server.get_player(name=initiator['name'])
                 await server.kick(player, "All seats are taken, you are not allowed to join anymore!")
+
         elif data['eventName'] == 'S_EVENT_SHOT':
             initiator = server.get_player(name=data['initiator']['name'])
             target = server.get_player(name=data['target']['name'])
@@ -248,6 +252,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} shot an {} at {} player {}").format(
                     initiator.coalition.value.title(), initiator.display_name, data['weapon']['name'],
                     target.coalition.value, target.display_name), coalition=initiator.coalition))
+
         elif data['eventName'] == 'S_EVENT_HIT':
             initiator = server.get_player(name=data['initiator']['name'])
             target = server.get_player(name=data['target']['name'])
@@ -255,6 +260,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {} with an {}").format(
                     initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
                     target.display_name, data['weapon']['name']), coalition=initiator.coalition))
+
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             if not data['initiator']:
                 return
@@ -262,6 +268,24 @@ class TournamentEventListener(EventListener["Tournament"]):
             if player:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} is out!").format(
                     player.coalition.value.title(), player.display_name), coalition=player.coalition))
+
+        elif data['eventName'] in ['S_EVENT_UNIT_LOST']:
+            config = self.get_config(server)
+            pattern = config.get('remove_on_death')
+            initiator = server.get_player(name=data['initiator']['name'])
+            if pattern and re.match(pattern, initiator.unit_name):
+                match_id = await self.get_active_match(server)
+                match = await self.plugin.get_match(match_id)
+                squadron_id = match[f'squadron_{initiator.coalition.value}']
+                async with self.apool.connection() as conn:
+                    async with conn.transaction():
+                        await conn.execute("""
+                            INSERT INTO tm_persistent_choices (match_id, squadron_id, preset, config)
+                            VALUES (%s, %s, %s, %s)
+                        """, (match_id, squadron_id, 'disable_group', Json({"group": initiator.group_name})))
+                asyncio.create_task(server.sendPopupMessage(
+                    initiator.coalition, _("Unit {} is lost an will be permanently removed from the match.").format(
+                        initiator.unit_name)))
 
     async def calculate_balance(self, server: Server, winner: str, winner_squadron: Squadron,
                                 loser_squadron: Squadron) -> None:
@@ -370,6 +394,8 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def onMatchFinished(self, server: Server, data: dict) -> None:
         winner = data['winner'].lower()
         match_id = await self.get_active_match(server)
+        if self.tasks.get(server.name):
+            self.tasks.pop(server.name).cancel()
 
         # do we have a winner?
         if winner in ['blue', 'red']:

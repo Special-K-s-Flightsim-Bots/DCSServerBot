@@ -18,6 +18,7 @@ schema;element_schema:
     auto_join: {type: bool, nullable: false}
     delayed_start: {type: int, nullable: false, range: {min: 0}}
     time_to_choose: {type: int, nullable: false, range: {min: 300, max: 900}}
+    remove_on_death: {type: str, nullable: false, range: {min: 1}}
     sudden_death: {type: bool, nullable: false}
     balance_multiplier: {type: bool, nullable: false}
     presets:
