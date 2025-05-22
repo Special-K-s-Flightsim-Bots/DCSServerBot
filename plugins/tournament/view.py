@@ -164,7 +164,7 @@ class ChoicesView(View):
         self.match_id = match_id
         self.squadron_id = squadron_id
         self.config = config
-        self.saved = False
+        self.acknowledged = None
 
     async def get_tickets(self) -> dict[str, int]:
         async with self.plugin.apool.connection() as conn:
@@ -238,12 +238,17 @@ class ChoicesView(View):
                 ], min_values=1, max_values=1)
             select.callback = self.add_choice
             self.add_item(select)
-        button = Button(label="Confirm & buy", style=discord.ButtonStyle.green)
-        button.callback = self.save
-        self.add_item(button)
-        button = Button(label="Save & Close", style=discord.ButtonStyle.red)
-        button.callback = self.cancel
-        self.add_item(button)
+        if already_selected:
+            button = Button(label="Confirm & Buy", style=discord.ButtonStyle.green)
+            button.callback = self.save
+            self.add_item(button)
+            button = Button(label="Save & Close", style=discord.ButtonStyle.red)
+            button.callback = self.cancel
+            self.add_item(button)
+        else:
+            button = Button(label="Skip this round", style=discord.ButtonStyle.primary)
+            button.callback = self.no_change
+            self.add_item(button)
         return embed
 
     async def add_choice(self, interaction: discord.Interaction):
@@ -254,7 +259,7 @@ class ChoicesView(View):
         ticket_name = self.config['presets']['choices'][choice].get('ticket')
         ticket_count = tickets.get(ticket_name, 99)
 
-        max_num = max(self.config['presets']['choices'][choice].get('max'), ticket_count)
+        max_num = max(self.config['presets']['choices'][choice].get('max', 99), ticket_count)
         if not max_num or max_num > 1:
             modal = NumbersModal(choice, costs, squadron.points, max_num)
             # noinspection PyUnresolvedReferences
@@ -320,12 +325,18 @@ class ChoicesView(View):
     async def save(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
-        self.saved = True
+        self.acknowledged = True
         self.stop()
 
     async def cancel(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
+        self.stop()
+
+    async def no_change(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.acknowledged = False
         self.stop()
 
 

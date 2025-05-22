@@ -520,7 +520,7 @@ class GameMaster(Plugin[GameMasterEventListener]):
                         # await server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                         pass
                 if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
-                    if message.content.startswith('/') is False:
+                    if not message.content.startswith('/'):
                         await server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
     @commands.Cog.listener()

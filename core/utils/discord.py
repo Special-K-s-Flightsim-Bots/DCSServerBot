@@ -267,7 +267,7 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
 class YNQuestionView(View):
     def __init__(self):
         super().__init__(timeout=120)
-        self.result = False
+        self.result = None
 
     @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
@@ -288,7 +288,7 @@ class YNQuestionView(View):
 
 
 async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
-                      message: Optional[str] = None, ephemeral: Optional[bool] = True) -> bool:
+                      message: Optional[str] = None, ephemeral: Optional[bool] = True) -> Optional[bool]:
     """
     :param ctx: The context in which the yn_question method is being called. It can be either a discord.py commands.Context object or a discord.Interaction object.
     :param question: The question to be displayed in the embedded message.
@@ -309,8 +309,7 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
     view = YNQuestionView()
     msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
-        if await view.wait():
-            return False
+        await view.wait()
         return view.result
     finally:
         try:

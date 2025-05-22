@@ -1145,7 +1145,7 @@ class Tournament(Plugin[TournamentEventListener]):
         server.settings['require_pure_scripts'] = True
         server.settings['listShuffle'] = False
         server.settings['listLoop'] = False
-        if config.get('allow_exports', False) is False:
+        if not config.get('allow_exports', False):
             advanced |= {
                 "allow_ownship_export": False,
                 "allow_object_export": False,
@@ -1327,7 +1327,9 @@ class Tournament(Plugin[TournamentEventListener]):
                     squadron = await self.get_squadron(match_id, squadrons[side]['id'])
                     if squadron.points > min_costs:
                         channel = self.bot.get_channel(channels[side])
-                        await channel.send(_("You can now use {} to chose your customizations!").format(
+                        await channel.send(_("You can now use {} to chose your customizations!\n"
+                                             "If you do not want to change anything, "
+                                             "please run it and say 'No Change'").format(
                             (await utils.get_command(self.bot, group=self.match.name,
                                                      name=self.customize.name)).mention))
                     else:
@@ -1591,11 +1593,13 @@ class Tournament(Plugin[TournamentEventListener]):
             if await view.wait():
                 return
 
-            if not view.saved or not await utils.yn_question(
+            if view.acknowledged is None or (view.acknowledged is True and not await utils.yn_question(
                     interaction, _("Are you sure?\nYour settings will be directly applied to the next round."),
-                    ephemeral=True):
-                await interaction.followup.send(_("Your choices were saved but will not be applied to the next round."),
-                                                ephemeral=ephemeral)
+                    ephemeral=True)):
+                await interaction.followup.send(
+                    _("Your choices were saved.\n"
+                      "If you want them to be applied to the next round, press 'Confirm & Buy'."),
+                    ephemeral=ephemeral)
                 return
 
             async with self.apool.connection() as conn:
@@ -1615,7 +1619,11 @@ class Tournament(Plugin[TournamentEventListener]):
                             (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
                             AND match_id = %(match_id)s
                     """, {"match_id": match_id, "squadron_id": squadron_id})
-            await interaction.followup.send(_("Thanks, your selection will now be applied."), ephemeral=True)
+            if view.acknowledged is True:
+                await interaction.followup.send(_("Thanks, your selection will now be applied."), ephemeral=True)
+            else:
+                await interaction.followup.send(_("You decided to not buy any customizations in this round."),
+                                                ephemeral=True)
         finally:
             try:
                 await msg.delete()
