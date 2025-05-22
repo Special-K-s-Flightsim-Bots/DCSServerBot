@@ -1154,17 +1154,6 @@ class Tournament(Plugin[TournamentEventListener]):
                 "disable_events": True
             }
 
-        results = config.get('channels', {}).get('results', -1)
-        if results > 0:
-            extensions = await server.list_extension()
-            if 'Tacview' in extensions:
-                await server.config_extension(
-                    name='Tacview',
-                    config={
-                        "target": f"<id:{results}>"
-                    }
-                )
-
         # set coalition passwords
         if config.get('coalition_passwords'):
             messages.append(_("Setting coalition passwords..."))
@@ -1249,6 +1238,17 @@ class Tournament(Plugin[TournamentEventListener]):
             self.log.info(f"  => New mission written: {new_filename}")
             await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
         return new_filename
+
+    async def change_tacview_output(self, server: Server, results: int):
+        extensions = await server.list_extension()
+        if 'Tacview' in extensions:
+            await server.run_on_extension(
+                extension='Tacview',
+                method='change_config',
+                config={
+                    "target": f"<id:{results}>"
+                }
+            )
 
     @match.command(description=_('Start a match'))
     @app_commands.guild_only()
@@ -1356,6 +1356,10 @@ class Tournament(Plugin[TournamentEventListener]):
         messages.append(_("Starting server {} ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
         await server.startup(modify_mission=False, use_orig=False)
+        # Check if we need to forward Tacview
+        results = config.get('channels', {}).get('results', -1)
+        if results > 0:
+            await self.change_tacview_output(server, results)
         messages.append(_("Server {} started. Inform squadrons ...").format(match['server_name']))
         await msg.edit(content='\n'.join(messages))
         # inform everyone

@@ -113,7 +113,10 @@ class Extension(ABC):
         ...
 
     async def get_config(self, **kwargs) -> dict:
-        return self.locals
+        return self.config
 
     async def get_ports(self) -> dict:
         return {}
+
+    async def change_config(self, config: dict):
+        self.config |= config
