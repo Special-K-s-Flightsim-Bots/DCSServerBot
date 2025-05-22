@@ -63,7 +63,10 @@ class BackupService(Service):
                 file_path = os.path.join(root, file)
                 zf.write(file_path, arcname=os.path.relpath(file_path, base))
 
-    def backup_bot(self) -> bool:
+    async def backup_bot(self):
+        await asyncio.to_thread(self._backup_bot)
+
+    def _backup_bot(self) -> bool:
         self.log.info("Backing up DCSServerBot ...")
         target = self.mkdir()
         config = self.locals['backups'].get('bot')
@@ -80,7 +83,10 @@ class BackupService(Service):
         finally:
             zf.close()
 
-    def backup_servers(self) -> bool:
+    async def backup_servers(self):
+        await asyncio.to_thread(self._backup_servers)
+
+    def _backup_servers(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
         rc = True
@@ -107,7 +113,10 @@ class BackupService(Service):
                     rc = False
         return rc
 
-    def backup_database(self) -> bool:
+    async def backup_database(self):
+        await asyncio.to_thread(self._backup_database)
+
+    def _backup_database(self) -> bool:
         target = self.mkdir()
         config = self.locals['backups'].get('database')
         cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
@@ -178,11 +187,11 @@ class BackupService(Service):
         try:
             if self.node.master:
                 if self.can_run(self.locals['backups'].get('bot')):
-                    await asyncio.to_thread(self.backup_bot)
+                    asyncio.create_task(self.backup_bot())
                 if self.can_run(self.locals['backups'].get('database')):
-                    await asyncio.to_thread(self.backup_database)
+                    asyncio.create_task(self.backup_database())
             if self.can_run(self.locals['backups'].get('servers')):
-                await asyncio.to_thread(self.backup_servers)
+                asyncio.create_task((self.backup_servers()))
         except Exception as ex:
             self.log.exception(ex)
 
