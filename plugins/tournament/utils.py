@@ -1,20 +1,17 @@
-from typing import Optional
-
 import aiohttp
 import math
 import numpy as np
 import pandas as pd
 import random
 
+from core import report
 from io import BytesIO
 from matplotlib import pyplot as plt, patches
 from openpyxl import Workbook
 from openpyxl.styles import Border, Side, Font
-from psycopg.rows import dict_row
-from trueskill import Rating
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-
-from core import report
+from trueskill import Rating
+from typing import Optional
 
 
 def create_elimination_matches(squadrons: list[tuple[int, float]]) -> list[tuple[int, int]]:

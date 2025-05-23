@@ -30,6 +30,12 @@ yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 
+TRAFFIC_LIGHTS = {
+    "red": "https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg",
+    "amber": "https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg",
+    "green": "https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg"
+}
+
 
 async def tournament_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     async with interaction.client.apool.connection() as conn:
@@ -162,6 +168,7 @@ async def all_matches_autocomplete(interaction: discord.Interaction, current: st
                 WHERE t.tournament_id = %s
                 ORDER BY 1
             """, (tournament_id, ))
+            if not current or current.casefold() in row[1].casefold() or current.casefold() in row[2].casefold()
         ]
         return choices[:25]
 
@@ -180,8 +187,15 @@ async def active_matches_autocomplete(interaction: discord.Interaction, current:
                      JOIN squadrons s1 ON s1.id = m.squadron_blue
                      JOIN squadrons s2 ON s2.id = m.squadron_red
                 WHERE t.tournament_id = %s AND m.winner_squadron_id IS NULL
+                AND (
+                    m.round_number > 0 OR m.server_name NOT IN (
+                        SELECT server_name FROM tm_matches
+                        WHERE round_number > 0 AND winner_squadron_id IS NULL
+                    )
+                )
                 ORDER BY 1
-            """, (tournament_id, ))
+            """, (tournament_id,))
+            if not current or current.casefold() in row[1].casefold() or current.casefold() in row[2].casefold()
         ]
         return choices[:25]
 
@@ -335,9 +349,9 @@ class Tournament(Plugin[TournamentEventListener]):
         ])
         return buffer
 
-    async def render_info_embed(self, tournament_id: int, *,
-                                phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.SIGNUP,
-                                match_id: Optional[int] = None) -> None:
+    async def render_status_embed(self, tournament_id: int, *,
+                                  phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.START_GROUP_PHASE,
+                                  match_id: Optional[int] = None) -> None:
         tournament = await self.get_tournament(tournament_id)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -345,8 +359,24 @@ class Tournament(Plugin[TournamentEventListener]):
             """, (tournament_id,))
             num_squadrons = (await cursor.fetchone())[0]
 
-        embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Information")
-        buffer = None
+            embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Overview")
+            buffer = None
+
+            if match_id:
+                match = await self.get_match(match_id=match_id)
+                # read group number
+                cursor = await conn.execute("""
+                    SELECT group_number FROM tm_squadrons 
+                    WHERE squadron_id = (
+                        SELECT squadron_blue 
+                        FROM tm_matches 
+                        WHERE match_id = %s
+                    )""", (match_id,))
+                group_number = (await cursor.fetchone())[0]
+                if match['stage'] == 1 and group_number:
+                    phase = TOURNAMENT_PHASE.START_GROUP_PHASE
+                else:
+                    phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
 
         if phase == TOURNAMENT_PHASE.SIGNUP:
             message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
@@ -374,7 +404,52 @@ class Tournament(Plugin[TournamentEventListener]):
             for field in tmp.fields:
                 embed.add_field(name=field.name, value=field.value, inline=field.inline)
 
-        elif phase == TOURNAMENT_PHASE.MATCH_RUNNING:
+        elif TOURNAMENT_PHASE.TOURNAMENT_FINISHED:
+            embed.title = _("THE TOURNAMENT HAS FINISHED!")
+            embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
+            async with self.apool.connection() as conn:
+                # check if we have flown matches already
+                cursor = await conn.execute("""
+                    SELECT winner_squadron_id FROM tm_matches 
+                    WHERE tournament_id = %s 
+                    ORDER BY stage DESC LIMIT 1
+                """, (tournament_id,))
+                winner_id = (await cursor.fetchone())[0]
+            winner = utils.get_squadron(node=self.node, squadron_id=winner_id)
+            winner_image = winner['image_url']
+            if winner_image:
+                buffer = await create_winner_image(winner_image)
+            message = _("### Stand proud, {}!\n"
+                        "_Through fire and thunder you prevailed,\n"
+                        "When others faltered, you stood strong,\n"
+                        "Victory is where you belong!_").format(winner['name'])
+
+        else:
+            return
+
+        embed.description = message
+        if buffer:
+            file = discord.File(fp=buffer, filename=f"tournament_{tournament_id}.png")
+            embed.set_image(url=f"attachment://tournament_{tournament_id}.png")
+        else:
+            file = None
+        try:
+            # create a persistent message
+            channel_id = self.get_config().get('channels', {}).get('info')
+            await self.bot.setEmbed(embed_name=f"tournament_status_{tournament_id}", embed=embed, file=file,
+                                    channel_id=channel_id)
+        finally:
+            if buffer:
+                buffer.close()
+
+    async def render_info_embed(self, tournament_id: int, *,
+                                phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.SIGNUP,
+                                match_id: Optional[int] = None) -> None:
+        tournament = await self.get_tournament(tournament_id)
+        embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Information")
+        buffer = None
+
+        if phase == TOURNAMENT_PHASE.MATCH_RUNNING:
             match = await self.get_match(match_id=match_id)
             message = _("A match is running on server {}!").format(utils.escape_string(match['server_name']))
             squadron_blue = utils.get_squadron(node=self.node, squadron_id=match['squadron_blue'])
@@ -410,29 +485,19 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.add_field(name=_("Blue Wins"), value=str(match['squadron_blue_rounds_won']))
             embed.add_field(name=_("Red Wins"), value=str(match['squadron_red_rounds_won']))
 
-        else: # TOURNAMENT_PHASE.FINISHED:
-            embed.title = _("THE TOURNAMENT HAS FINISHED!")
-            embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
-            async with self.apool.connection() as conn:
-                # check if we have flown matches already
-                cursor = await conn.execute("""
-                    SELECT winner_squadron_id FROM tm_matches 
-                    WHERE tournament_id = %s 
-                    ORDER BY stage DESC LIMIT 1
-                """, (tournament_id,))
-                winner_id = (await cursor.fetchone())[0]
-            winner = utils.get_squadron(node=self.node, squadron_id=winner_id)
-            winner_image = winner['image_url']
-            if winner_image:
-                buffer = await create_winner_image(winner_image)
-            message = _("### Stand proud, {}!\n"
-                        "_Through fire and thunder you prevailed,\n"
-                        "When others faltered, you stood strong,\n"
-                        "Victory is where you belong!_").format(winner['name'])
+        elif TOURNAMENT_PHASE.TOURNAMENT_FINISHED:
+            # remove the status embed
+            channel_id = self.get_config().get('channels', {}).get('info')
+            channel = self.bot.get_channel(channel_id)
+            message = await self.bot.fetch_embed(embed_name=f"tournament_info_{tournament_id}", channel=channel)
+            if message:
+                await message.delete()
+            return
 
-        #embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
+        else:
+            return
+
         embed.description = message
-
         if buffer:
             file = discord.File(fp=buffer, filename=f"tournament_{tournament_id}.png")
             embed.set_image(url=f"attachment://tournament_{tournament_id}.png")
@@ -441,7 +506,7 @@ class Tournament(Plugin[TournamentEventListener]):
         try:
             # create a persistent message
             channel_id = self.get_config().get('channels', {}).get('info')
-            await self.bot.setEmbed(embed_name=f"tournament_{tournament_id}", embed=embed, file=file,
+            await self.bot.setEmbed(embed_name=f"tournament_info_{tournament_id}", embed=embed, file=file,
                                     channel_id=channel_id)
         finally:
             if buffer:
@@ -505,7 +570,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
 
-        await self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.SIGNUP)
+        await self.render_status_embed(tournament_id, phase=TOURNAMENT_PHASE.SIGNUP)
 
     @staticmethod
     def reset_serversettings(server: Server):
@@ -879,8 +944,6 @@ class Tournament(Plugin[TournamentEventListener]):
                                      stage, tournament['name'])):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
             return
-        squadrons: list[tuple[int, float]] = []
-        servers: list[str] = []
 
         async with self.apool.connection() as conn:
             # check if we have flown matches already
@@ -944,12 +1007,14 @@ class Tournament(Plugin[TournamentEventListener]):
 
             await interaction.followup.send(_("Generating {} matches for this tournament ...").format(stage))
 
+            squadrons: list[tuple[int, float]] = []
             # read all squadrons and their ratings
             for row in await cursor.fetchall():
                 rating = await Competitive.trueskill_squadron(self.node, row[0])
                 squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
 
             # read all available servers
+            servers: list[str] = []
             async for row in await conn.execute("""
                 SELECT server_name FROM campaigns_servers s
                 JOIN campaigns c ON s.campaign_id = c.id
@@ -957,6 +1022,12 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE t.tournament_id = %s
             """, (tournament_id,)):
                 servers.append(row[0])
+
+            # read the available times
+            times: list[datetime] = []
+            async for row in await conn.execute("SELECT start_time FROM tm_available_times WHERE tournament_id = %s",
+                                                (tournament_id,)):
+                times.append(row[0])
 
             try:
                 # create matches
@@ -969,7 +1040,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     matches = create_group_matches(groups)
                     phase = TOURNAMENT_PHASE.START_GROUP_PHASE
 
-                # assign the available servers to the matcheso
+                # assign the groups to the squadrons
                 async with conn.transaction():
                     if stage == 'group':
                         # update the groups, if any
@@ -993,6 +1064,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     # store new matches in the database
                     for idx, match in enumerate(matches):
                         server = servers[idx % len(servers)]
+                        time = times[idx % len(times)]
                         await conn.execute("""
                            INSERT INTO tm_matches(tournament_id, stage, server_name, squadron_red, squadron_blue)
                            VALUES (%s, %s, %s, %s, %s)
@@ -1004,7 +1076,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 await interaction.followup.send(f"Error: {ex}")
                 return
 
-        asyncio.create_task(self.render_info_embed(tournament_id, phase=phase))
+        asyncio.create_task(self.render_status_embed(tournament_id, phase=phase))
         embed = await self.render_matches(tournament=tournament, unflown=True)
         await interaction.followup.send(_("{} matches generated:").format(len(matches)), embed=embed,
                                         ephemeral=utils.get_ephemeral(interaction))
@@ -1043,21 +1115,23 @@ class Tournament(Plugin[TournamentEventListener]):
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = _("Matches for Tournament {}").format(tournament['name'])#
         embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
-        rounds = tournament['rounds']
         squadrons_blue = []
         squadrons_red = []
         status = []
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("SELECT * FROM tm_matches WHERE tournament_id = %s",
-                                     (tournament['tournament_id'],))
+                await cursor.execute("""
+                    SELECT * FROM tm_matches WHERE tournament_id = %s 
+                    ORDER BY winner_squadron_id DESC, round_number DESC, match_time
+                """, (tournament['tournament_id'],))
                 for row in await cursor.fetchall():
                     if row['winner_squadron_id'] and unflown:
                         continue
                     squadrons_blue.append(utils.get_squadron(self.node, squadron_id=row['squadron_blue'])['name'])
                     squadrons_red.append(utils.get_squadron(self.node, squadron_id=row['squadron_red'])['name'])
                     if row['round_number'] == 0:
-                        status.append("Not started")
+                        status.append("Not started" if row['match_time'] is None else
+                                      f"<t:{int(row['match_time'].replace(tzinfo=timezone.utc).timestamp())}:R>")
                     elif row['winner_squadron_id'] is None:
                         status.append(_("Round: {}, {} : {}").format(row['round_number'],
                                                                      row['squadron_blue_rounds_won'],
@@ -1094,7 +1168,7 @@ class Tournament(Plugin[TournamentEventListener]):
             return
         await interaction.followup.send(embed=embed)
 
-    async def setup_server_for_match(self, msg: discord.Message, messages: list[str], server: Server, match: dict,
+    async def setup_server_for_match(self, msg: discord.Message, embed: discord.Embed, server: Server, match: dict,
                                      channels: dict):
         config = self.get_config(server)
         squadrons = {
@@ -1156,25 +1230,25 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # set coalition passwords
         if config.get('coalition_passwords'):
-            messages.append(_("Setting coalition passwords..."))
-            await msg.edit(content='\n'.join(messages))
+            embed.description += _("\n- Setting coalition passwords...")
+            await msg.edit(embed=embed)
             for coalition in [Coalition.BLUE, Coalition.RED]:
                 password = str(random.randint(100000, 999999))
                 await server.setCoalitionPassword(coalition, password)
                 channel = self.bot.get_channel(channels[coalition.value])
-                embed = discord.Embed(color=discord.Color.blue(), title=_("**Get your team ready!**\n"))
+                _embed = discord.Embed(color=discord.Color.blue(), title=_("**Get your team ready!**\n"))
                 if squadrons[coalition.value]['image_url']:
-                    embed.set_thumbnail(url=squadrons[coalition.value]['image_url'])
-                embed.add_field(name=_("Coalition"), value=coalition.value.upper(), inline=True)
-                embed.add_field(name=_("Password"), value=password, inline=True)
-                embed.set_footer(text=_("You must not share the password with anyone outside your squadron!\n"
+                    _embed.set_thumbnail(url=squadrons[coalition.value]['image_url'])
+                _embed.add_field(name=_("Coalition"), value=coalition.value.upper(), inline=True)
+                _embed.add_field(name=_("Password"), value=password, inline=True)
+                _embed.set_footer(text=_("You must not share the password with anyone outside your squadron!\n"
                                         "You will stay on the {} side throughout the whole match.").format(
                     coalition.value))
-                await channel.send(embed=embed)
+                await channel.send(embed=_embed)
 
         # assign all members of the respective squadrons to the respective side
-        messages.append(_("Setting coalitions for players..."))
-        await msg.edit(content='\n'.join(messages))
+        embed.description += _("\n- Setting coalitions for players...")
+        await msg.edit(embed=embed)
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("DELETE FROM coalitions WHERE server_name = %s", (server.name, ))
@@ -1285,8 +1359,12 @@ class Tournament(Plugin[TournamentEventListener]):
             'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
         }
 
+        # set the correct round number
         if not round_number:
-            round_number = match['round_number'] + 1
+            if match['round_number'] == 0:
+                round_number = 1
+            else:
+                round_number = match['round_number'] if not match['winner_squadron_id'] else match['round_number'] + 1
 
         if not await yn_question(
                 interaction,
@@ -1305,7 +1383,11 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 await conn.execute("""
-                    UPDATE tm_matches SET round_number = %s, choices_blue_ack = FALSE, choices_red_ack = FALSE
+                    UPDATE tm_matches 
+                    SET round_number = %s, 
+                        match_time = NOW() AT TIME ZONE 'UTC',
+                        choices_blue_ack = FALSE, 
+                        choices_red_ack = FALSE
                     WHERE match_id = %s
                 """, (round_number, match_id))
 
@@ -1314,8 +1396,10 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("Server {} not found.").format(match['server_name']), ephemeral=True)
             return
 
-        messages = [_("Create the squadron channels ...")]
-        msg = await interaction.followup.send('\n'.join(messages), ephemeral=ephemeral)
+        embed = discord.Embed(color=discord.Color.blue(), title=_("Match Setup"))
+        embed.description = _("- Creating the squadron channels ...")
+        embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+        msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral)
         try:
             # open the channels
             channels = await self.open_channel(match_id, server)
@@ -1324,8 +1408,8 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         # inform the squadrons that they can choose
-        messages.append(_("Inform the squadrons and wait for their initial choice ..."))
-        await msg.edit(content='\n'.join(messages))
+        embed.description += _("\n- Inform the squadrons and wait for their initial choice ...")
+        await msg.edit(embed=embed)
         self.eventlistener.tournaments[server.name] = tournament
 
         config = self.get_config(server)
@@ -1349,34 +1433,38 @@ class Tournament(Plugin[TournamentEventListener]):
         await self.eventlistener.wait_until_choices_finished(server)
 
         # preparing the server
-        messages.append(_("Preparing server {} for the match ...").format(match['server_name']))
-        await msg.edit(content='\n'.join(messages))
+        embed.description += _("\n- Preparing server {} for the match ...").format(match['server_name'])
+        await msg.edit(embed=embed)
 
         # make sure the server is stopped
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            messages.append(_("Shutting down server {} ...").format(match['server_name']))
-            await msg.edit(content='\n'.join(messages))
+            embed.description += _("\n- Shutting down server {} ...").format(match['server_name'])
+            await msg.edit(embed=embed)
             await server.shutdown()
             await interaction.followup.send(_("Server {} shut down.").format(match['server_name']), ephemeral=ephemeral)
 
         # change settings
-        await self.setup_server_for_match(msg, messages, server, match, channels)
+        await self.setup_server_for_match(msg, embed, server, match, channels)
         # prepare the mission
         await self.prepare_mission(server, match_id, mission_id)
         # Starting the server up again
-        messages.append(_("Starting server {} ...").format(match['server_name']))
-        await msg.edit(content='\n'.join(messages))
+        embed.description += _("\n- Starting server {} ...").format(match['server_name'])
+        embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
+        await msg.edit(embed=embed)
         try:
             await server.startup(modify_mission=False, use_orig=False)
         except (TimeoutError, asyncio.TimeoutError):
-            await interaction.followup.send(_("Error during starting the server: Timeout."), ephemeral=True)
+            embed.description = _("## Error during starting server {}: Timeout").format(server.name)
+            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+            await msg.edit(embed=embed)
             return
         # Check if we need to forward Tacview
         results = config.get('channels', {}).get('results', -1)
         if results > 0:
             await self.change_tacview_output(server, results)
-        messages.append(_("Server {} started. Inform squadrons ...").format(match['server_name']))
-        await msg.edit(content='\n'.join(messages))
+        embed.description += _("\n- Server {} started. Inform squadrons ...").format(match['server_name'])
+        embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
+        await msg.edit(embed=embed)
         # inform everyone
         for side in ['blue', 'red']:
             channel: TextChannel = self.bot.get_channel(channels[side])
@@ -1392,6 +1480,8 @@ class Tournament(Plugin[TournamentEventListener]):
             await channel.send(embed=embed)
         info = self.get_info_channel()
         if info:
+            asyncio.create_task(self.render_status_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING,
+                                                         match_id=match_id))
             asyncio.create_task(self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING,
                                                        match_id=match_id))
 
@@ -1540,8 +1630,11 @@ class Tournament(Plugin[TournamentEventListener]):
         else:
             await interaction.followup.send(_("Match not updated."), ephemeral=True)
 
-        if self.eventlistener.check_tournament_finished(tournament_id):
+        if await self.eventlistener.check_tournament_finished(tournament_id):
             await interaction.followup.send(_("You just finished the tournament!"), ephemeral=True)
+        elif winner_squadron_id:
+            await self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_FINISHED, match_id=match_id)
+        await self.render_status_embed(tournament_id, match_id=match_id)
 
     @match.command(description=_('Customize the next round'))
     @app_commands.guild_only()

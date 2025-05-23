@@ -92,7 +92,7 @@ class TournamentEventListener(EventListener["Tournament"]):
 
     async def render_highscore(self, server: Server):
         config = self.get_config(server)
-        channel = self.bot.get_channel(config.get('channels', {}).get('info', -1))
+        channel = self.bot.get_channel(config.get('channels', {}).get('results', -1))
         if not channel:
             return
 
@@ -354,6 +354,9 @@ class TournamentEventListener(EventListener["Tournament"]):
             squadron = utils.get_squadron(self.node, squadron_id=winner_id)
             asyncio.create_task(self.plugin.render_info_embed(tournament['tournament_id'],
                                                               phase=TOURNAMENT_PHASE.MATCH_FINISHED, match_id=match_id))
+            asyncio.create_task(self.plugin.render_status_embed(tournament['tournament_id'],
+                                                                phase=TOURNAMENT_PHASE.MATCH_FINISHED,
+                                                                match_id=match_id))
             message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
             message += _("\nServer will be shut down in 60 seonds ...")
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
@@ -385,6 +388,8 @@ class TournamentEventListener(EventListener["Tournament"]):
             """, (tournament_id,))
             num = (await cursor.fetchone())[1]
             if num == 1:
+                asyncio.create_task(self.plugin.render_status_embed(tournament_id,
+                                                                    phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
                 asyncio.create_task(self.plugin.render_info_embed(tournament_id,
                                                                   phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
                 return True
