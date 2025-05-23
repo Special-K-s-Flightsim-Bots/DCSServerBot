@@ -3,7 +3,7 @@ import itertools
 import math
 import psycopg
 
-from core import Plugin, command, utils, get_translation, Node, Group
+from core import Plugin, utils, get_translation, Node, Group
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row

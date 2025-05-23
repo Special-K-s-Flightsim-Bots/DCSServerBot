@@ -75,7 +75,7 @@ class CompetitiveListener(EventListener["Competitive"]):
 
     def __init__(self, plugin: "Competitive"):
         super().__init__(plugin)
-        self.matches: dict[str, dict[str, Match]] = {}
+        self.matches: dict[str, dict[str, Match]] = ThreadSafeDict()
         self.in_match: dict[str, dict[str, Match]] = {}
         self.home_base: dict[str, dict[str, str]] = {}
         self.active_servers: set[str] = set()
@@ -389,7 +389,12 @@ class CompetitiveListener(EventListener["Competitive"]):
                     await award_squadron(server, match, player)
             elif self.in_match[server.name].get(player.ucid):
                 # in the unlikely event of a player leaving before the match started
-                await remove_players(self.in_match[server.name][player.ucid], server, [player])
+                match = self.in_match[server.name][player.ucid]
+                match.alive[player.side].remove(player)
+                # are all players gone => finish the match
+                if match.survivor() == Side.UNKNOWN:
+                    match = self.matches[server.name].pop(match.match_id, None)
+                    await self.finish_match(server, match)
         elif data['eventName'] == 'takeoff':
             player = server.get_player(id=data['arg1'])
             if not player:
@@ -434,19 +439,24 @@ class CompetitiveListener(EventListener["Competitive"]):
     async def onGameEvent(self, server: Server, data: dict) -> None:
         asyncio.create_task(self._onGameEvent(server, data))
 
+    async def finish_match(self, server: Server, match: Match) -> None:
+        match.finished = datetime.now(timezone.utc)
+
+        # unlock players
+        if match.match_id == GLOBAL_MATCH_ID:
+            for ucid in self.in_match[server.name].keys():
+                player = server.get_player(ucid=ucid)
+                await player.unlock()
+            self.in_match[server.name].clear()
+
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
         match = self.matches[server.name].pop(data['match_id'], None)
         if not match:
             return
-        match.finished = datetime.now(timezone.utc)
 
-        # unlock players
-        if data['match_id'] == GLOBAL_MATCH_ID:
-            for ucid in self.in_match[server.name].keys():
-                player = server.get_player(ucid=ucid)
-                await player.unlock()
-            self.in_match[server.name].clear()
+        # finish match / unlock players
+        await self.finish_match(server, match)
 
         # restart the mission if configured
         config = self.get_config(server)
