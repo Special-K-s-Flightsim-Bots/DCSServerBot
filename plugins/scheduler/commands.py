@@ -203,7 +203,7 @@ class Scheduler(Plugin[SchedulerListener]):
             self.log.debug(f"Scheduler: Warning for {server.name} @ {warn_time} fired.")
 
         tasks = [asyncio.create_task(do_warn(i)) for i in warn_times if i <= restart_in]
-        await asyncio.gather(*tasks)
+        await utils.run_parallel_nofail(*tasks)
         # sleep until the restart should happen
         await asyncio.sleep(min(restart_in, min(warn_times)))
 

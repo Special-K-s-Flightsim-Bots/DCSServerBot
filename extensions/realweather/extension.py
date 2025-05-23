@@ -1,13 +1,22 @@
+import aiohttp
 import asyncio
+import certifi
 import json
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import tempfile
 import sys
+import zipfile
 
-from core import Extension, MizFile, utils, DEFAULT_TAG, Server
+from contextlib import suppress
+from core import Extension, MizFile, utils, DEFAULT_TAG, Server, ServiceRegistry
+from io import BytesIO
+from packaging.version import parse
+from services.bot import BotService
+from services.servicebus import ServiceBus
 from typing import Optional
 
 # TOML
@@ -21,6 +30,9 @@ __all__ = [
     "RealWeather",
     "RealWeatherException"
 ]
+
+RW_GITHUB_URL = "https://github.com/evogelsa/dcs-real-weather/releases/latest"
+RW_DOWNLOAD_URL = "https://github.com/evogelsa/dcs-real-weather/releases/download/{version}/realweather_{version}.zip"
 
 
 class RealWeatherException(Exception):
@@ -72,6 +84,31 @@ class RealWeather(Extension):
             return filename[index + 5:index + 9]
         else:
             return None
+
+    async def _autoupdate(self):
+        try:
+            version = await self.check_for_updates()
+            if version:
+                self.log.info(f"A new DCS Real Weather update is available. Updating to version {version} ...")
+                await self.do_update(version)
+                self._version = version.lstrip('v')
+                self.log.info("DCS Real Weather updated.")
+                bus = ServiceRegistry.get(ServiceBus)
+                await bus.send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "audit",
+                    "params": {
+                        "message": f"DCS Real Weather updated to version {version} on node {self.node.name}."
+                    }
+                })
+        except Exception as ex:
+            self.log.exception(ex)
+
+    async def prepare(self) -> bool:
+        if self.config.get('autoupdate', False):
+            await self._autoupdate()
+        return await super().prepare()
 
     async def generate_config_1_0(self, input_mission: str, output_mission: str, override: Optional[dict] = None):
         try:
@@ -246,3 +283,26 @@ class RealWeather(Extension):
 
     def is_running(self) -> bool:
         return True
+
+    async def check_for_updates(self) -> Optional[str]:
+        with suppress(aiohttp.ClientConnectionError):
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get(RW_GITHUB_URL, proxy=self.node.proxy,
+                                       proxy_auth=self.node.proxy_auth) as response:
+                    if response.status in [200, 302]:
+                        version = response.url.raw_parts[-1]
+                        if parse(version) > parse(self.version):
+                            return version
+        return None
+
+    async def do_update(self, version: str):
+        installation_dir = os.path.expandvars(self.config['installation'])
+        async with aiohttp.ClientSession() as session:
+            async with session.get(RW_DOWNLOAD_URL.format(version=version), raise_for_status=True, proxy=self.node.proxy,
+                                   proxy_auth=self.node.proxy_auth) as response:
+                with zipfile.ZipFile(BytesIO(await response.content.read())) as z:
+                    for member in z.namelist():
+                        destination_path = os.path.join(installation_dir, member)
+                        with open(destination_path, 'wb') as output_file:
+                            output_file.write(z.read(member))

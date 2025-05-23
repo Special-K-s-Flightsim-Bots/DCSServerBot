@@ -74,7 +74,7 @@ class Cloud(Extension):
         try:
             if isinstance(data, list):
                 tasks = [send(line) for line in data]
-                return await asyncio.gather(*tasks)
+                return await asyncio.gather(*tasks, return_exceptions=True)
             else:
                 return await send(data)
         except asyncio.TimeoutError:

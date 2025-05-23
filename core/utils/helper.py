@@ -71,6 +71,7 @@ __all__ = [
     "tree_delete",
     "deep_merge",
     "hash_password",
+    "run_parallel_nofail",
     "evaluate",
     "for_each",
     "YAMLError",
@@ -810,6 +811,11 @@ def hash_password(password: str) -> str:
     hashed_password = key + ':' + encoded_digest
 
     return hashed_password
+
+
+async def run_parallel_nofail(*tasks):
+    """Run tasks in parallel, ignoring any failures."""
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union[str, int, float, bool, list, dict]:

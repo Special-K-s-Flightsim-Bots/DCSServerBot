@@ -261,11 +261,14 @@ class Graph(ReportElement):
                         raise UnknownGraphElement(element['class'])
                 else:
                     raise ClassNotFound(element['class'])
-            # check for any exceptions and raise them
-            try:
-                await asyncio.gather(*tasks)
-            except NothingToPlot:
-                return
+            # check for any exceptions and print them
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    if isinstance(result, NothingToPlot):
+                        continue
+                    self.log.exception(result)
+
             # only render the graph, if we don't have a rendered graph already attached as a file (image)
             if not self.env.filename:
                 await self._async_plot()

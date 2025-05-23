@@ -155,7 +155,7 @@ class LogAnalyser(Extension):
             wait_times = [max(warn_times) - t for t in warn_times]
             warn_tasks = [self._send_warning(self.server, t) for t in wait_times if t > 0]
             # Gather tasks then wait
-            await asyncio.gather(*warn_tasks)
+            await utils.run_parallel_nofail(*warn_tasks)
         await self.node.audit("restart due to unlisting from the ED server list", server=self.server)
         await self.server.restart(modify_mission=False)
 

@@ -69,7 +69,7 @@ class ServiceRegistry:
                     return value
             return None
         else:
-            return cls._singletons.get(t)
+            return cls._singletons.get(t, None)
 
     @classmethod
     def can_run(cls, t: Type[T]) -> bool:

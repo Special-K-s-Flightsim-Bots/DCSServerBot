@@ -1239,7 +1239,7 @@ class NodeImpl(Node):
                 if service and not isinstance(service, BotService):
                     assert service is not None
                     tasks.append(service.stop())
-            await asyncio.gather(*tasks)
+            await utils.run_parallel_nofail(*tasks)
 
             # rename the directory
             os.rename(instance.home, new_home)
@@ -1262,7 +1262,10 @@ class NodeImpl(Node):
                     assert service is not None
                     service.reload()
                     tasks.append(service.start())
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    self.log.exception(f"Failed to start service {list(ServiceRegistry.services().keys())[i]}")
         finally:
             # re-init the attached server instance
             await instance.server.reload()

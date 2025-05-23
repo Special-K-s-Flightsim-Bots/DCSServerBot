@@ -630,7 +630,7 @@ class Tournament(Plugin[TournamentEventListener]):
         if config.get('use_signup_form', False):
             modal = ApplicationModal()
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_modal(modal)
+            await interaction.response.send_modal(modal, ephemeral=True)
             if await modal.wait():
                 await interaction.followup.send(_("Aborted."), ephemeral=True)
                 return

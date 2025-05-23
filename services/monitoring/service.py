@@ -320,7 +320,8 @@ class MonitoringService(Service):
                 )
 
         tasks = [process_server(server) for server in self.bus.servers.values()]
-        await asyncio.gather(*tasks)
+        # run in parallel but ignore the exceptions
+        await utils.run_parallel_nofail(*tasks)
 
     @staticmethod
     def convert_bytes(size_bytes: int) -> str:

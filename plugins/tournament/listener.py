@@ -475,7 +475,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         for player in server.get_active_players():
             tasks.append(server.move_to_spectators(
                 player, reason=_("The round is over, please wait for the next one!")))
-        await asyncio.gather(*tasks)
+        await utils.run_parallel_nofail(*tasks)
         await asyncio.sleep(1)
         # TODO: check squadron credits!
         await asyncio.create_task(server.sendPopupMessage(

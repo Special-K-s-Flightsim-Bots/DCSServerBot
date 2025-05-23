@@ -640,7 +640,10 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                 self.render_highscore(h, server=server, mission_end=mission_end)
                 for h in highscore
             ]
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    self.log.exception(result)
             return
 
         # Extract and validate parameters

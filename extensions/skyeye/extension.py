@@ -443,7 +443,7 @@ class SkyEye(Extension):
         return True
 
     async def check_for_updates(self) -> Optional[str]:
-        try:
+        with suppress(aiohttp.ClientConnectionError):
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(SKYEYE_GITHUB_URL, proxy=self.node.proxy,
@@ -452,10 +452,7 @@ class SkyEye(Extension):
                         version = response.url.raw_parts[-1]
                         if parse(version) > parse(self.version):
                             return version
-                        else:
-                            return None
-        except aiohttp.ClientConnectionError:
-            return None
+        return None
 
     async def do_update(self, version: str):
         installation_dir = os.path.expandvars(self.config['installation'])
