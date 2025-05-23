@@ -836,9 +836,9 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
 
     if isinstance(value, list):
         for i in range(len(value)):
-            value[i] = _evaluate(value[i], **kwargs)
+            value[i] = evaluate(value[i], **kwargs)
     elif isinstance(value, dict):
-        return {_evaluate(k, **kwargs): _evaluate(v, **kwargs) for k, v in value.items()}
+        return {_evaluate(k, **kwargs): evaluate(v, **kwargs) for k, v in value.items()}
     else:
         return _evaluate(value, **kwargs)
 
