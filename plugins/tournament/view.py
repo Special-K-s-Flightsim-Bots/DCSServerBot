@@ -261,7 +261,7 @@ class ChoicesView(View):
         ticket_name = self.config['presets']['choices'][choice].get('ticket')
         ticket_count = tickets.get(ticket_name, 99)
 
-        max_num = max(self.config['presets']['choices'][choice].get('max', 99), ticket_count)
+        max_num = min(self.config['presets']['choices'][choice].get('max', 99), ticket_count)
         if not max_num or max_num > 1:
             modal = NumbersModal(choice, costs, squadron.points, max_num)
             # noinspection PyUnresolvedReferences

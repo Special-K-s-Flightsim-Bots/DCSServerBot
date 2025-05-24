@@ -187,7 +187,7 @@ class TournamentEventListener(EventListener["Tournament"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
-        if not self.round_started[server.name]:
+        if not self.round_started.get(server.name, False):
             if data['eventName'] in ['S_EVENT_RUNWAY_TAKEOFF', 'S_EVENT_TAKEOFF']:
                 reason = _('Disqualified due to early takeoff.')
             elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL'] and data['target']:
@@ -465,7 +465,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             if time_to_choose - time in [300, 180, 60]:
                 await self.inform_squadrons(
                     server,
-                    message="## :warning: The next round will start in {}!".format(
+                    message=":warning: The next round will start in {}!".format(
                         utils.format_time(time_to_choose - time))
                 )
             await asyncio.sleep(1)
