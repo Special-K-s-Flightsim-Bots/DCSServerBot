@@ -9,6 +9,8 @@ from discord import SelectOption
 from discord.ui import Select, Button, Modal, TextInput, View
 from typing import TYPE_CHECKING, cast, Optional
 
+from .const import TOURNAMENT_PHASE
+
 if TYPE_CHECKING:
     from .commands import Tournament
 
@@ -402,7 +404,7 @@ class ApplicationView(View):
         # update the info embed
         channel_id = self.plugin.get_config().get('channels', {}).get('info')
         if channel_id:
-            await self.plugin.render_status_embed(self.tournament_id)
+            await self.plugin.render_status_embed(self.tournament_id, phase=TOURNAMENT_PHASE.SIGNUP)
         await self.plugin.bot.audit(
             f"accepted squadron {self.squadron['name']} for tournament {tournament['name']}.",
             user=interaction.user
@@ -435,7 +437,7 @@ class ApplicationView(View):
         # update the info embed
         channel_id = self.plugin.get_config().get('channels', {}).get('info')
         if channel_id:
-            await self.plugin.render_status_embed(self.tournament_id)
+            await self.plugin.render_status_embed(self.tournament_id, phase=TOURNAMENT_PHASE.SIGNUP)
 
         tournament = await self.plugin.get_tournament(self.tournament_id)
         await self.plugin.bot.audit(
