@@ -188,7 +188,7 @@ class TournamentEventListener(EventListener["Tournament"]):
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         # ignore events with a blank initiator
-        if not data['initiator']:
+        if not data.get('initiator'):
             return
 
         if not self.round_started.get(server.name, False):
