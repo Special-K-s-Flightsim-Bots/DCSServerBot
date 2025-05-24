@@ -187,6 +187,10 @@ class TournamentEventListener(EventListener["Tournament"]):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
+        # ignore events with a blank initiator
+        if not data['initiator']:
+            return
+
         if not self.round_started.get(server.name, False):
             if data['eventName'] in ['S_EVENT_RUNWAY_TAKEOFF', 'S_EVENT_TAKEOFF']:
                 reason = _('Disqualified due to early takeoff.')
