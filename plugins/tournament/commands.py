@@ -1267,11 +1267,6 @@ class Tournament(Plugin[TournamentEventListener]):
         if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
             await server.setStartIndex(mission_id + 1)
 
-        # load the presets
-        preset_file = config.get('presets', {}).get('file', 'presets.yaml')
-        with open(os.path.join(self.node.config_dir, preset_file), mode='r', encoding='utf-8') as infile:
-            all_presets = yaml.load(infile)
-
         # change the mission
         filename = await server.get_current_mission_file()
         # create a writable mission
@@ -1282,10 +1277,11 @@ class Tournament(Plugin[TournamentEventListener]):
         shutil.copy2(orig_filename, new_filename)
 
         miz = MizFile(new_filename)
+        preset_file = config.get('presets', {}).get('file', 'presets.yaml')
         # apply the initial presets
         for preset in config.get('presets', {}).get('initial', []):
             self.log.debug(f"Applying initial preset: {preset} ...")
-            miz.apply_preset(all_presets[preset])
+            miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
 
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -1298,7 +1294,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         WHERE m.match_id = %s 
                     """, (match_id,)):
                         self.log.debug(f"Applying persistent preset for side {side}: {row[0]} ...")
-                        miz.apply_preset(all_presets[row[0]], side=side, **row[1])
+                        miz.apply_preset(utils.get_preset(self.node, row[0], filename=preset_file), side=side, **row[1])
                     # apply choices
                     async for row in await conn.execute(f"""
                         SELECT preset, config FROM tm_choices c 
@@ -1306,7 +1302,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
                     """, {"match_id": match_id}):
                         self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
-                        miz.apply_preset(all_presets[row[0]], side=side.upper(), **row[1])
+                        miz.apply_preset(utils.get_preset(self.node, row[0], filename=preset_file), side=side, **row[1])
 
                 # delete the choices from the database and update the acknoledgement
                 await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
