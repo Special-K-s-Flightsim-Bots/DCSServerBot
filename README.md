@@ -5,22 +5,23 @@
 [![License](https://img.shields.io/github/license/Special-K-s-Flightsim-Bots/DCSServerBot)](https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/refs/heads/master/LICENSE)
 
 You've found a comprehensive solution that helps you administrate your DCS World servers. It has a Discord integration 
-(now optional!) with slash-commands, built in per-server and per-user statistics, optional cloud-based statistics, 
-[Coalitions](./COALITIONS.md)-support and much more! 
+([now optional](#dcsserverbot-installation-non-discord)!) with slash-commands, built in per-server and per-user 
+statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support, a whole 
+[Tournament-System](./plugins/tournament/README.md) and much more!<br> 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. DCSServerBot is a solution for DCS server admins built by a DCS server admin.
 
 This documentation shows you the main features, how to install and configure the bot and some more sophisticated 
 stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
 
-Now let's see, what DCSServerBot can do for you (installation instructions [below](#installation))!
+Now let's see what DCSServerBot can do for you (installation-instructions [below](#installation))!
 
 ---
 
 ## Architecture
-DCSServerBot has a modular architecture with services, plugins and extensions that provide specific functionalities 
+DCSServerBot has a modular architecture with services, plugins, and extensions that provide specific functionalities 
 like monitoring the availability of your servers, a lot of Discord slash-commands and supports common add-ons like SRS, 
-LotAtc, DCS Olympus and others.
+LotAtc, DCS Olympus, and others.
 
 The solution itself is made for anything from single-server environments up to large scale, worldwide installations with
 high availability requirements. There are nearly no limits. If you are interested into some deeper insights to the
@@ -57,38 +58,39 @@ A plugin is an expansion of the bot that can be controlled via Discord commands 
 DCSServerBot comes with a rich set of default plugins, but it can be enhanced with optional plugins. I enhance the bot
 from time to time, but you as a community member can also create your own plugins (and maybe share them with others). 
 
-| Plugin       | Scope                                                                                  | Optional | Depending on            | Documentation                              |
-|--------------|----------------------------------------------------------------------------------------|----------|-------------------------|--------------------------------------------|
-| GameMaster   | Interaction with the running mission (inform users, set flags, etc)                    | no       |                         | [README](./plugins/gamemaster/README.md)   |
-| Mission      | Handling of missions, comparable to the WebGUI.                                        | no       | GameMaster              | [README](./plugins/mission/README.md)      |
-| Admin        | Admin commands to manage your DCS server.                                              | yes*     |                         | [README](./plugins/admin/README.md)        |
-| Help         | Interactive help commands for Discord and in-game chat                                 | yes*     |                         | [README](./plugins/help/README.md)         |
-| UserStats    | Users statistics system.                                                               | yes*     | Mission                 | [README](./plugins/userstats/README.md)    |
-| CreditSystem | User credits, based on achievements.                                                   | yes*     | Mission                 | [README](./plugins/creditsystem/README.md) |
-| Scheduler    | Autostart / -stop of servers or missions, modify missions, etc.                        | yes*     | Mission                 | [README](./plugins/scheduler/README.md)    |
-| Cloud        | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.          | yes*     | Userstats               | [README](./plugins/cloud/README.md)        |
-| MissionStats | Detailed users statistics / mission statistics.                                        | yes*     | Userstats               | [README](./plugins/missionstats/README.md) |
-| Backup       | Create a backup of your database, server or bot configurations.                        | yes      |                         | [README](./plugins/backup/README.md)       |
-| Battleground | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)           | yes      |                         | [README](./plugins/battleground/README.md) |
-| Commands     | Create custom discord commands.                                                        | yes      |                         | [README](./plugins/commands/README.md)     |
-| Competitive  | Support for PvP communities, especially with TrueSkill™️ ranking system.               | yes      | Mission                 | [README](./plugins/competitive/README.md)  |
-| DBExporter   | Export the DCSServerBot database or singular tables as json.                           | yes      |                         | [README](./plugins/dbexporter/README.md)   |
-| Discord      | Discord helper commands.                                                               | yes      |                         | [README](./plugins/discord/README.md)      |
-| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                          | yes      |                         | [README](./plugins/funkman/README.md)      |
-| GreenieBoard | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan) | yes      | Missionstats            | [README](./plugins/greenieboard/README.md) |
-| LotAtc       | Upload LotAtc Transponder files to your servers.                                       | yes      |                         | [README](./plugins/lotatc/README.md)       |
-| MOTD         | Message for players on join or when they jump in a module.                             | yes      | Mission, MissionStats   | [README](./plugins/motd/README.md)         |
-| Music        | Upload and play music over SRS.                                                        | yes      |                         | [README](./plugins/music/README.md)        |
-| ModManager   | Install or update mods into your DCS server.                                           | yes      |                         | [README](./plugins/modmanager/README.md)   |
-| Pretense     | Commands for Pretense missions.                                                        | yes      |                         | [README](./plugins/pretense/README.md)     |
-| Punishment   | Punish users for team-hits or team-kills.                                              | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
-| RealWeather  | Apply real weather to your missions (also available as an extension).                  | yes      |                         | [README](./plugins/realweather/README.md)  |
-| RestAPI      | Simple REST-API to query users and statistics (WIP).                                   | yes      | Userstats, MissionStats | [README](./plugins/restapi/README.md)      |
-| ServerStats  | Server statistics for your DCS servers.                                                | yes      | Userstats               | [README](./plugins/serverstats/README.md)  |
-| SlotBlocking | Slot blocking either based on discord roles or credits.                                | yes      | Mission, CreditSystem   | [README](./plugins/slotblocking/README.md) |
-| SRS          | Display players activity on SRS, show active channels and enable slot blocking.        | yes      | MissionStats            | [README](./plugins/srs/README.md)          |
-| Tacview      | Install or uninstall Tacview from your server(s) and do a basic configuration.         | yes      |                         | [README](./plugins/tacview/README.md)      |
-| Voting       | Simple voting system for players to be able to change missions, weather, etc.          | yes      |                         | [README](./plugins/voting/README.md)       |
+| Plugin       | Scope                                                                                  | Optional | Depending on                          | Documentation                              |
+|--------------|----------------------------------------------------------------------------------------|----------|---------------------------------------|--------------------------------------------|
+| GameMaster   | Interaction with the running mission (inform users, set flags, etc)                    | no       |                                       | [README](./plugins/gamemaster/README.md)   |
+| Mission      | Handling of missions, comparable to the WebGUI.                                        | no       | GameMaster                            | [README](./plugins/mission/README.md)      |
+| Admin        | Admin commands to manage your DCS server.                                              | yes*     |                                       | [README](./plugins/admin/README.md)        |
+| Help         | Interactive help commands for Discord and in-game chat                                 | yes*     |                                       | [README](./plugins/help/README.md)         |
+| UserStats    | Users statistics system.                                                               | yes*     | Mission                               | [README](./plugins/userstats/README.md)    |
+| CreditSystem | User credits, based on achievements.                                                   | yes*     | Mission                               | [README](./plugins/creditsystem/README.md) |
+| Scheduler    | Autostart / -stop of servers or missions, modify missions, etc.                        | yes*     | Mission                               | [README](./plugins/scheduler/README.md)    |
+| Cloud        | Cloud-based statistics and connection to the [DGSA](#dgsa) global ban system.          | yes*     | Userstats                             | [README](./plugins/cloud/README.md)        |
+| MissionStats | Detailed users statistics / mission statistics.                                        | yes*     | Userstats                             | [README](./plugins/missionstats/README.md) |
+| Backup       | Create a backup of your database, server or bot configurations.                        | yes      |                                       | [README](./plugins/backup/README.md)       |
+| Battleground | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)           | yes      |                                       | [README](./plugins/battleground/README.md) |
+| Commands     | Create custom discord commands.                                                        | yes      |                                       | [README](./plugins/commands/README.md)     |
+| Competitive  | Support for PvP communities, especially with TrueSkill™️ ranking system.               | yes      | Mission                               | [README](./plugins/competitive/README.md)  |
+| DBExporter   | Export the DCSServerBot database or singular tables as json.                           | yes      |                                       | [README](./plugins/dbexporter/README.md)   |
+| Discord      | Discord helper commands.                                                               | yes      |                                       | [README](./plugins/discord/README.md)      |
+| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                          | yes      |                                       | [README](./plugins/funkman/README.md)      |
+| GreenieBoard | Greenieboard and LSO quality mark analysis (Super Carrier and Moose.AIRBOSS / FunkMan) | yes      | Missionstats                          | [README](./plugins/greenieboard/README.md) |
+| LotAtc       | Upload LotAtc Transponder files to your servers.                                       | yes      |                                       | [README](./plugins/lotatc/README.md)       |
+| MOTD         | Message for players on join or when they jump in a module.                             | yes      | Mission, MissionStats                 | [README](./plugins/motd/README.md)         |
+| Music        | Upload and play music over SRS.                                                        | yes      |                                       | [README](./plugins/music/README.md)        |
+| ModManager   | Install or update mods into your DCS server.                                           | yes      |                                       | [README](./plugins/modmanager/README.md)   |
+| Pretense     | Commands for Pretense missions.                                                        | yes      |                                       | [README](./plugins/pretense/README.md)     |
+| Punishment   | Punish users for team-hits or team-kills.                                              | yes      | Mission                               | [README](./plugins/punishment/README.md)   |
+| RealWeather  | Apply real weather to your missions (also available as an extension).                  | yes      |                                       | [README](./plugins/realweather/README.md)  |
+| RestAPI      | Simple REST-API to query users and statistics (WIP).                                   | yes      | Userstats, MissionStats               | [README](./plugins/restapi/README.md)      |
+| ServerStats  | Server statistics for your DCS servers.                                                | yes      | Userstats                             | [README](./plugins/serverstats/README.md)  |
+| SlotBlocking | Slot blocking either based on discord roles or credits.                                | yes      | Mission, CreditSystem                 | [README](./plugins/slotblocking/README.md) |
+| SRS          | Display players activity on SRS, show active channels and enable slot blocking.        | yes      | MissionStats                          | [README](./plugins/srs/README.md)          |
+| Tacview      | Install or uninstall Tacview from your server(s) and do a basic configuration.         | yes      |                                       | [README](./plugins/tacview/README.md)      |
+| Tournament   | A full fledged tournament system for your group.                                       | yes      | GameMaster, MissionStats, Competitive | [README](./plugins/tournament/README.md)   |
+| Voting       | Simple voting system for players to be able to change missions, weather, etc.          | yes      |                                       | [README](./plugins/voting/README.md)       |
 
 *) These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
 &nbsp;&nbsp;&nbsp;&nbsp;If you do not want to load any of them, define a list of `plugins` in your main.yaml and only<br>
@@ -145,11 +147,11 @@ You need the following software to run DCSServerBot:
 You need to have [Python](https://www.python.org/downloads/) 3.10 or higher and installed. Please make sure that you tick "Add python.exe to PATH" 
 during your Python installation.<br>
 > [!NOTE]
-> Keep in mind, that Python 3.13 is still very new and can have bugs. I would recommend using the latest Python 3.12 for 
-> now.
+> Keep in mind that Python 3.13 is still very new and can have bugs. 
+> I would recommend using the latest Python 3.12 for now.
 
 #### b) PostgreSQL
-DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has a great performance
+DCSServerBot needs a database to store information in. I decided to use [PostgreSQL](https://www.postgresql.org/download/), as it has great performance
 and stability and allows secure remote access, which is needed for [Multi-Node](./MULTINODE.md) installations.
 > [!NOTE]
 > If you install PostgreSQL on Linux, please make sure that you install the postgresXX-contrib package also.
@@ -163,17 +165,17 @@ the ```git```-command is in your PATH.
 
 ### Discord Setup
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
-- Create a "New Application".
-- Select Bot from the left menu and give it a nice name, icon and maybe a banner.
-- Press "Reset Token" and then "Copy" to obtain your token. 
+- Create a "New Application"
+- Select Bot from the left menu and give it a nice name, icon, and maybe a banner.
+- Press "Reset Token" and then "Copy" to get your token. 
 - Now your Token is in your clipboard. Paste it in some editor for later use. 
 - All "Privileged Gateway Intents" have to be enabled on that page.<br/>
 - To add the bot to your Discord guild, select "OAuth2" from the left menu
 - Select the "bot" checkbox in "OAuth2 URL Generator"
 - Select the following "Bot Permissions":
   - Left side (optional):
-    - Manage Channels (only, if you want to have the bot auto-rename your status channel with the current number of players)
-    - Ban Members (only, if you want to use the bots auto-ban feature that is part of the global [DGSA](#dgsa) banlist)
+    - Manage Channels (only if you want to have the bot auto-rename your status channel with the current number of players)
+    - Ban Members (only if you want to use the bots auto-ban feature that is part of the global [DGSA](#dgsa) banlist)
   - Center (mandatory):
     - Send Messages
     - Manage Messages
@@ -182,14 +184,14 @@ The bot needs a unique Token per installation. This one can be obtained at http:
     - Read Message History
     - Add Reactions
 - Press "Copy" on the generated URL and paste it into the browser of your choice
-- Select the guild the bot has to be added to - and you're done!
+- Select the guild the bot has to be added to — and you're done!
 
 > [!IMPORTANT]
 > For easier access to user- and channel-IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
 ### 🆕 Setup without using Discord
 If you do not want to use Discord, or if you maybe are not allowed to do so due to limitations of your Country, etc.
-you can now install DCSServerBot without the need to use Discord. Just select the respective option during the 
+you can now install DCSServerBot without the need to use Discord. Select the respective option during the 
 installation, and you will install a variant that works without.
 
 > [!NOTE]
@@ -200,7 +202,7 @@ installation, and you will install a variant that works without.
 ### Download
 Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then always have 
 the newest fixes, independent of and release version. Otherwise, download the latest release version as ZIP and extract 
-it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
+it somewhere on your PC running the DCS server(s) and give it write permissions, if needed. 
 
 > [!CAUTION]
 > Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
@@ -211,7 +213,7 @@ it somewhere on your PC that is running the DCS server(s) and give it write perm
 Run the provided `install.cmd` script or just `run.cmd`.<br>
 It will ask you for your Guild ID (right-click on your Discord server icon and select "Copy Server ID") and the bots 
 user ID (right-click on the bot user and select "Copy User ID"). Then it will search for existing DCS installations, 
-create the database user, password and database and asks whether you want to add existing DCS servers to the 
+create the database user, password, and database, and asks whether you want to add existing DCS servers to the 
 configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
@@ -219,14 +221,14 @@ When finished, the bot should launch successfully and maybe even start your serv
 Run the provided `install.cmd` script or just `run.cmd`.<br>
 It will ask you for your DCS group name and a role mapping, where you can give specific DCS users roles that are needed
 to make the in-game commands work. You need the UCIDs of the users here. Then it will search for existing DCS 
-installations, create the database user, password and database and asks whether you want to add existing DCS servers 
+installations, create the database user, password, and database, and asks whether you want to add existing DCS servers 
 to the configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
 > [!IMPORTANT] 
-> You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
-> the servers Scripts directory.<br>
-> Please keep also in mind, that a lot of configuration parameters which you find below are not needed for a 
+> You should shut down your DCS servers during the bot installation, as it places its own LUA hooks inside
+> the server's Scripts directory.<br>
+> Please keep also in mind that a lot of configuration parameters which you find below are not needed for a 
 > non-Discord setup. If you have no idea what to put in a specific parameter, that is usually a good sign to just
 > skip it.
 
@@ -243,19 +245,19 @@ options:
   -u USER, --user USER              Database username (default = dcsserverbot)
   -d DATABASE, --database DATABASE  Database name (default = dcsserverbot)
 ```
-You might want to provide different node names, if you install multiple nodes on one PC and different database user
-and database names, if you want to install multiple bots for multiple Discord groups.
+You might want to provide different node names if you install multiple nodes on one PC, and different database user
+and database names if you want to install multiple bots for multiple Discord groups.
 
 ### Desanitization
-DCSServerBot desanitizes your MissionScripting environment. That means, it changes entries in Scripts\MissionScripting.lua
-of your DCS installation. If you use any other method of desanitization, DCSServerBot checks, if additional 
+DCSServerBot desanitizes your MissionScripting environment. That means it changes entries in Scripts\MissionScripting.lua
+of your DCS installation. If you use any other method of desanitization, DCSServerBot checks if additional 
 desanitizations are required and conducts them.
 
 > [!IMPORTANT]
 > DCSServerBot needs write-permissions on the DCS-installation directory.<br>
 > You can usually achieve that by giving the "User group" write permissions on it. Right-click on your DCS installation
 > folder,<br>select Properties -> Security -> Edit, select "Users (...)" and tick Modify below. Then press the OK button.
-> There might be a question about changing the permission on all subdirectories - say yes in that case. 
+> There might be a question about changing the permission on all subdirectories — say yes in that case. 
 
 Your MissionScripting.lua should look like this after a successful bot start:
 ```lua
@@ -271,7 +273,7 @@ end
 
 ### Custom MissionScripting.lua
 If you want to use a **custom MissionScripting.lua** that has more sanitization (for instance for LotAtc, Moose, 
-OverlordBot or the like) or additional lines to be loaded (for instance for LotAtc, or DCS-gRPC), just place the 
+OverlordBot or the like) or additional lines to be loaded (for instance for LotAtc, or DCS-gRPC), place the 
 MissionScripting.lua of your choice in the config directory of the bot. It will then be replaced on every bot startup.
 
 ---
@@ -279,12 +281,12 @@ MissionScripting.lua of your choice in the config directory of the bot. It will 
 ## Configuration
 The bot configuration is held in several files in the **config** subdirectory.
 If you run the `install.cmd` script for the first time, it will generate basic files for you that you can amend to your 
-needs afterwards. Your bot should be ready to run already, and you can skip this section for now, if you don't want to
-bother with the bots configuration in first place.
+needs afterward. Your bot should be ready to run already, and you can skip this section for now if you don't want to
+bother with the bot configuration in the first place.
 
 > [!TIP]
-> If you run more than one bot node, best is to share the configuration between all nodes. This can be done via a cloud
-> drive for instance or with some file sync tool (see [Multi-Node](./MULTINODE.md)).
+> If you run more than one bot node, the best is to share the configuration between all nodes. 
+> This can be done via a cloud drive, for instance, or with some file sync tool (see [Multi-Node](./MULTINODE.md)).
 
 The following samples will show you what you can configure in DCSServerBot. For most of the configuration, default 
 values will apply, so you don't need to define all these values explicitly. I printed them here for completeness and 
@@ -331,7 +333,7 @@ opt_plugins:                          # Optional: list of optional plugins to be
 
 ### config/nodes.yaml
 This file holds the main configuration for all your nodes.<br>
-For a cluster installation, you want to describe all your nodes and instances on all your nodes, as the bot can 
+For a cluster installation you want to describe all your nodes and instances on all your nodes, as the bot can 
 (auto-)migrate stuff in-between the cluster!
 
 ```yaml
@@ -392,7 +394,7 @@ NODENAME:                       # this will usually be your hostname
       ...
 ```
 > [!TIP]
-> Don't forget to put apostrophes around any path, as the colon might mangle your yaml!
+> Remember to put apostrophes around any path, as the colon might mangle your YAML!
 
 ### config/servers.yaml
 This is your server configuration.<br>
@@ -516,16 +518,16 @@ roles:                                          # Roles mapping. The bot uses in
   - @everyone
 ```
 > [!CAUTION]
-> Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
+> Never ever share your Discord TOKEN with anyone! If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
 
 > [!IMPORTANT]
-> The bots role needs to be above any other role in your Discord server that it has to be able to manage.<br>
-> If you want the bot to give the "Online" role for people for example, it has to be below the bot's role.
+> The bot role needs to be above any other role in your Discord server that it has to be able to manage.<br>
+> If you, for example, want the bot to give the "Online" role to people, it has to be below the bot's role.
 
 > [!TIP]
 > The bot will remove the Discord TOKEN on the first startup from your bot.yaml.<br>
-> If you want to replace the Discord TOKEN later, just re-add the line into your bot.yaml and DCSServerBot will replace 
+> If you want to replace the Discord TOKEN later, re-add the line into your bot.yaml and DCSServerBot will replace 
 > the internally saved Discord TOKEN with this one.
 > `token: NEW_TOKEN`
 
@@ -537,7 +539,7 @@ not be kicked on mission changes) and rollbacks to the original, not changed ver
 To do so, DCSServerBot creates special mission files and even its own directory to handle mission changes.
 
 #### .dcssb sub-directory
-DCSServerBot creates its own directory below your Missions-directory. This is needed, to allow changes of .miz files,
+DCSServerBot creates its own directory below your Missions-directory. This is needed to allow changes of .miz files,
 that are locked by DCS. Whenever a Missions\x.miz file is locked, a similar file is created in Missions\.dcssb\x.miz. 
 This file is then changed and loaded. Whenever you change the mission again, the earlier file (Missions\x.miz) is 
 changed again. This happens in a round-robin way.
@@ -548,25 +550,25 @@ in your .dcssb-directory, there is nothing to worry about. These are your backup
 
 #### Example
 You upload test.miz to your Missions directory and run it. Your server now locks the mission "test.miz."<br>
-Now you change the mission, lets say the start-time. You use `/mission modify` and load the respective preset.
-First, a backup is created by copying test.miz to .dcssb/test.miz.orig. Then, it gets changed, but can not be written, 
-as test.miz is locked by DCS. So, DCSServerBot creates .dcssb\test.miz, writes the new mission and loads .dcssb\test.miz 
+Now you change the mission, let's say the start-time. You use `/mission modify` and load the respective preset.
+First, a backup is created by copying test.miz to .dcssb/test.miz.orig. Then, it gets changed but cannot be written, 
+as test.miz is locked by DCS. So, DCSServerBot creates .dcssb\test.miz, writes the new mission, and loads .dcssb\test.miz 
 to your DCS server.<br>
-After this process, you end up with test.miz, .dcssb\test.miz.orig and .dcssb\test.miz. Sounds like a lot of copies? 
+After this process, you end up with test.miz, .dcssb\test.miz.orig, and .dcssb\test.miz. Sounds like a lot of copies? 
 Well, it's what you get when you want to change things at runtime.<br>
-DCSServerBot is smart enough to be able to replace the missions again on upload, load the correct mission on 
+DCSServerBot is smart enough to be able to replace the missions again on upload, load the correct mission on, 
 `/mission load` and provide the correct mission on `/download <Missions>` also.
 
 > [!NOTE]
 > When changing missions with `/mission modify` or the [MizEdit](./extensions/mizedit/README.md) extension, the change 
 > will per default use the .orig mission as a startpoint. This means, if you apply some preset that is not re-entrant, a 
-> subsequent call will not change the changed mission again, but will run against the .orig mission.<br>
-> You can configure this behaviour though, all commands have an option "use_orig", which you can set to false, to use
+> later call will not change the changed mission again, but will run against the .orig mission.<br>
+> You can configure this behavior though, all commands have an option "use_orig", which you can set to "false" to use
 > the latest mission file as reference instead.
 
 ### CJK-Fonts Support
 DCSServerBot supports external fonts, especially CJK-fonts to render the graphs and show your player names using the 
-real characters of your language. Unfortunately, I can not auto-download the respective fonts from Google Fonts
+real characters of your language. Unfortunately, I cannot auto-download the respective fonts from Google Fonts
 anymore, where I have to ask you guys to do that on your own.<br>
 To download the supported fonts, go to https://fonts.google.com/ and search for 
 - [Noto Sans Traditional Chinese](https://fonts.google.com/noto/specimen/Noto+Sans+TC)
@@ -574,18 +576,18 @@ To download the supported fonts, go to https://fonts.google.com/ and search for
 - [Noto Sans Korean](https://fonts.google.com/noto/specimen/Noto+Sans+KR)
 
 Then press "Get font" and "Download all". Copy the ZIP file into a folder "fonts" that you create below the DCSServerBot
-installation directory. The bot will take this ZIP on its next startup, unpack it and delete the ZIP file. From then
+installation directory. The bot will take this ZIP on its next startup, unpack it, and delete the ZIP file. From then
 on, the bot will use the respective font(s) without further configurations.
 
 ### Auto Matching (default: enabled)
-To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 
+To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics,  
 and you can see a variety of statistics yourself as well. The bot offers a linking system between Discord and DCS accounts 
-to enable this.
-Players can do this with the `/linkme` command. This creates a permanent and secured link that can then be used for in-game 
-commands. The bot can also auto-match a DCS player to Discord user. This way, players can see their own stats via Discord 
+to enable this. Players can do this with the `/linkme` command. This creates a permanent and secured link that can then 
+be used for in-game commands.<p>
+The bot can also auto-match a DCS player to Discord user. This way, players can see their own stats via Discord 
 commands. The bot will try to match the Discord username to DCS player name. This works best when DCS and Discord names 
-match! It can generate false links though, which is why I prefer (or recommend) the /linkme command. People still seem 
-to like the auto-matching, that is why it is in and you can use it (enabled per default).
+match! It can generate false links, which is why I prefer (or recommend) the /linkme command. People still seem 
+to like the auto-matching, that is why it is in, and you can use it (disabled per default).
 
 ### Auto-Banning (default: disabled)
 DCSServerBot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join 
@@ -596,9 +598,9 @@ all your configured DCS servers independent of that setting. You can prevent thi
 
 ### Roles (Discord and non-Discord)
 The bot uses the following **internal** roles to apply specific permissions to commands.<br>
-You can map your Discord roles to these internal roles like described in the example above or for the non-Discord
-variant, you just add your UCIDs as a list below each group.<br>
-Non-Discord installations usually only need the Admin and DCS Admin roles.
+You can map your Discord roles to these internal roles like described in the example above or, for the non-Discord
+variant, you add your UCIDs as a list below each group.<br>
+Non-Discord installations usually only need the "Admin" and "DCS Admin" roles.
 
 | Role           | Description                                                                                                                                         |
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -629,18 +631,22 @@ the bot.
 To view some sample configurations for the bot or for each configurable plugin, look [here](samples/README.md).
 
 ### Additional Security Features
-Players that have no pilot ID (empty or whitespace) or that share an account with others, will not be able to join your 
+Players who have no pilot ID (empty or whitespace) or that share an account with others will not be able to join your 
 DCS server. This is not configurable, it's a general rule (and a good one in my eyes).<br>
 Besides that, people that try to join from the very same IP that a banned user has used before will be rejected also
 (ban-avoidance). You get a message in the discord admin-channel about it.
 
+> [!NOTE]
+> If you want to "unban" such a player that was detected to have the same IP but, for instance, joined from a shared 
+> flat, you can unban the IP with `/dcs unban <ip>`.
+
 ### Setup Multiple Servers on a Single Host
 To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different 
-communication ports. This can be done with the parameter `bot_port` in nodes.yaml. The default is 6666, you can just 
+communication ports. This can be done with the parameter `bot_port` in nodes.yaml. The default is 6666, you can 
 increase that for every server (6667, 6668, ...).<br>
-Don't forget to configure different Discord channels (`chat` and `status`, optional `admin`) for every server, too. 
+Remember to configure different Discord channels (`chat` and `status`, optional `admin`) for every server, too. 
 This will be done in the servers.yaml file.<br>
-To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server 
+To add more servers, follow the steps above, and you're good, unless they are on a different Windows server 
 (see below).
 
 > [!NOTE]
@@ -657,13 +663,13 @@ installation. Please refer to [Multi-Node](./MULTINODE.md) for further informati
 ## Starting the Bot
 To start the bot, use the packaged ```run.cmd``` command. This creates the necessary Python virtual environment and 
 launches the bot afterward.<br/>
-If you want to run the bot from autostart, press Win+R, enter `shell:startup` and press ENTER, create a shortcut to your
-`run.cmd` in there.
+If you want to run the bot from Windows autostart, press Win+R, enter `shell:startup` and press ENTER, create a 
+shortcut to your `run.cmd` in there.
 
 ---
 
 ## Repairing the Bot
-If you have issues starting DCSServerBot, especially after an update, it might be that some 3rd party library got 
+If you have issues starting DCSServerBot, especially after an update, it might be that some 3rd-party library got 
 corrupted. In rare cases, it can also happen, that an auto-update is not possible at all, because some file got changed 
 that was not supposed to be changed, or some other corruption has occurred.<br>
 In these cases, you can run the `repair.cmd` script in the DCSServerBot installation folder.
@@ -673,13 +679,14 @@ In these cases, you can run the `repair.cmd` script in the DCSServerBot installa
 ## How to use DCSServerBot in Missions?
 
 ### How to talk to the Bot from inside Missions
-If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
+If you plan to create Bot-events from inside a DCS mission, that is possible! 
+Make sure you include this line in a trigger:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
 > Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._<br/>
  
-After that, you can for instance send chat messages to the bot using
+After that you can, for instance, send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
 ```
@@ -705,7 +712,8 @@ Embeds can be sent using code similar to this snippet:
   footer = 'Just kidding, they forgot to put their gear down!'
   dcsbot.sendEmbed(title, description, img, fields, footer)
 ```
-They will be posted in the chat channel by default, if not specified otherwise (adding the channel id as a last parameter of the sendEmbed() call, see sendBotMessage() above).
+They will be posted in the chat channel by default, if not specified otherwise (adding the channel id as a last 
+parameter of the sendEmbed() call, see sendBotMessage() above).
 
 If you like to use a single embed, maybe in the status channel, and update it instead of creating new messages, you 
 can do that, by giving is a name like "myEmbed" in this example. The name has to be unique per server.
@@ -728,7 +736,7 @@ replaced with this one.
 
 ### How to overwrite DCSServerBot's default commands?
 You can change any command either in discord or the in-game chat. You can select a different name, different roles, etc.,
-or even disable the command at all.
+or even disable the command completely.
 For Discord, you need to keep the command structure in mind, meaning, if you have a group command (like /server startup)
 or a single one (like /help). If you want to change any of the commands, go to your respective plugin configuration and
 add a top-level section like so:
@@ -753,7 +761,7 @@ chat_commands:
 ```
 If you add these lines to your mission.yaml, you disable the -911 command on your servers.
 
-### How to develop your own Services / Extensions, Plugins and Reports?
+### How to develop your own Services / Extensions, Plugins, and Reports?
 DCSServerBot has an extensible architecture. You can more or less overwrite, enhance, change anything you like.
 The easiest way to start developing for DCSServerBot would be to read up the concepts and to look at some examples.
 I have created some READMEs for you that you can start with:
@@ -777,8 +785,8 @@ DGSA (DCS Global Server Admins) is an association of server administrators manag
 servers worldwide. We established this group to enable quick and efficient coordination, ensuring a smooth experience 
 for players by addressing issues such as cheaters or disruptive individuals who negatively impact the enjoyment of DCS.
 
-One of the outcomes of this collaboration is the creation of two ban lists: one for DCS and one for Discord. These 
-lists include players who fall under the above-mentioned criteria. The **DCSServerBot** integrates with these ban lists, 
+One of the outcomes of this collaboration is the creation of two banlists: one for DCS and one for Discord. These 
+lists include players who fall under the above-mentioned criteria. The **DCSServerBot** integrates with these banlists, 
 ensuring that such players are automatically prevented from accessing your servers. For details on configuring this 
 feature, please visit [this guide](./plugins/cloud/README.md).
 
@@ -789,6 +797,7 @@ If you’re interested in becoming a member of DGSA, don’t hesitate to reach o
 ## Contact / Support
 If you need support, want to chat with me or other users, or are interested in contributing, feel free to join 
 my [Support Discord](https://discord.gg/h2zGDH9szZ).<br>
+
 If you enjoy what I do and would like to support me, you can do so on my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
 
 ---
@@ -796,5 +805,5 @@ If you enjoy what I do and would like to support me, you can do so on my [Patreo
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this 
 solution. I gave my best to mark the few parts in the code to show where I copied some ideas or even code from you guys, 
-which honestly is just a very small piece. Hope that is ok. Also thanks to Moose for aligning the API for [FunkMan](https://github.com/funkyfranky/FunkMan) 
-with me and make it compatible with DCSServerBot in first place.
+which honestly is just a tiny piece. Hope that is ok. Also, thanks to Moose for aligning the API for [FunkMan](https://github.com/funkyfranky/FunkMan) 
+with me and making it compatible with DCSServerBot in the first place.

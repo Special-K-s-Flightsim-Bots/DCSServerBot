@@ -93,18 +93,18 @@ MyNode:
 Setting up a tournament needs some prerequisites. Please read <b>carefully</>!
 
 ### Campaign
-Each tournament is based on a campaign. This means you need to create a campaign first like so:
-`/campaign add`
+Each tournament is based on a [campaign](../gamemaster/README.md). 
+This means you need to create a campaign first like so: `/campaign add`
 Give it a self-explaining name and a proper description, which you want to share with your players. It will be posted
-when creating the tournament.
+to everyone when creating the tournament!
 
 > [!NOTE]
 > The name and description of the campaign will be the name and description of the tournament!
 
 ### Squadrons
 For each participating party, a squadron needs to be created (if none exists yet). Each member that wants to fly in the
-tournament needs to be set up in the squadron. Squadron admins need to be Discord members, as they need to run 
-commands, squadron members not necessarily.
+tournament needs to be set up in one of these squadrons. Each squadron can have a squadron admin that needs to be 
+a Discord member, as they need to run commands. Squadron members do not necessarily need to be in your Discord.
 
 To create a squadron, you need to first create a role in your Discord.
 Then, use `/squadron create`, give it a name and assign the role that you created earlier.
@@ -115,10 +115,11 @@ squadron.
 
 > [!NOTE]
 > If you add a picture to each squadron, you make your posts more colorful.
+> These pictures need to be publicly available via a URL on the internet.
 
 Then you need to add the squadron administrator, which is usually the leader of that squadron or any member that should
 be able to admin this squadron (add / delete members, sign the squadron up for the tournament, etc.). You do this with
-`/squadron add`.
+`/squadron add` and by setting the respective optional admin flag.
 
 The squadron admin is then able to add the other participants for this squadron.
 > [!IMPORTANT]
@@ -126,7 +127,7 @@ The squadron admin is then able to add the other participants for this squadron.
 > at least once on the connected servers of the group running the tournament. Otherwise, you will not get them in the
 > auto-completion list.<br>
 > To counter that, you can enable "auto_join" in your tournament.yaml, which will auto-add each player to a squadron
-> on join.
+> when they join the DCS server and select their side.
 
 > [!WARNING]
 > A player can only be a member of ONE squadron at a time!
@@ -164,23 +165,22 @@ You can configure the number of groups where each group has to have at least two
 the correct number of matches for you and assigns each squadron into the correct group.
 
 b) Elimination Phase<br>
-This phase will either be your first phase, if you decide to not have a group phase, or as the first phase already,
-especially for smaller tournaments.<br>
+This phase will either be your first phase, if you decide to not have a group phase, or for smaller tournaments.<br>
 As we have information about the squadron's skills, we can make use of that when generating the matches.
 The bot will take each squadron's TrueSkill™️ rating and generate matches based on a snake pairing
 system. This assures exciting matches, as the risk of matching a very weak squadron with a very strong one is lower.
 
 > [!NOTE]
 > If a player of a squadron never played on any of your servers, their TrueSkill™️ rating will be on default (0.0).
-> The rating changes already throughout the tournament. The more tournaments you ran, the better the TrueSkill™️ rating
-> will be.
+> Their rating will change throughout the tournament. The more matches they play, the better their TrueSkill™️ rating
+> will be.<br>
 > Each squadron's TrueSkill™️ rating will be calculated with a specific algorithm, based on the ratings of their members.
 
-To create a match by yourself, use `/matches create`. To let the bot create the matches, run `/matches generate` instead. 
-You can list the configured matches with `/matches list`.
+To create a match by yourself, use `/match create`. To let the bot create the matches, run `/match generate` instead. 
+You can list the configured matches with `/match list`.
 
 ### Start a Match
-Use `/matches start` to start a match. This will start round one of the respective match, prepare the server for it, and
+Use `/match start` to start a match. This will start round one of the respective match, prepare the server for it, and
 start it up.<p>
 People of the assigned squadrons can now join the server. The [Coalition system](../../COALITIONS.md) is enabled and
 ensures that only players from these squadrons can join. They can only join the sides they are assigned to,
@@ -198,31 +198,38 @@ Squadron admins can "buy" configurations for the upcoming round with squadron cr
 ### Credit System
 Each squadron earns credits based on the kills their players achieve. The respective configuration needs to be done in 
 the [Credit System](../creditsystem/README.md). If a player earns kills throughout a match, both they and their squadron get credit points.<br>
-Squadron admins can then use these credit points between two rounds to configure the next mission by paid presets. 
+Squadron admins can then use the squadron credit points between two rounds to configure the next mission by paid presets. 
 A preset can be - more weapons, different planes, better starting positions, and whatnot. There are no limits, you just
-need to configure the respective [MizEdit](../../extensions/mizedit/README.md) presets.
+need to build the respective [MizEdit](../../extensions/mizedit/README.md) presets.
 
 > [!NOTE]
-> If a player disconnects or somehow self-kills themselves, the other side gets the points as squadron points that this
-> kill would have been worth.
+> When a player disconnects or commits suicide, their opponent's squadron receives the same number of points they 
+> would have earned for killing that player normally.
 
 ### Tickets
 Each squadron can get tickets on signup. You can configure them in your tournaments.yaml (see above). A ticket is a 
-different credit option, which will be invalidated as soon as you use it.
+different credit option, which will be invalidated as soon as you use it (one time use per match).
 
 ### End of a Match
-A match is finished if all rounds were played.<br>
-If one squadron scored more wins than the other squadron, this squadron wins the match.<br> 
-If both squadrons scored the same number of wins or draws, a next round is being played until a winner is found.
+A match is finished if at least the configured rounds were played and a winner was found.<p>
+Matches are won with a (n+1) / 2 ratio (best of 3, best of 5, etc.). If no winner could be found like that, the logic
+will be as follows:<br>
+* If one squadron scored more wins than the other squadron, this squadron wins the match.<br> 
+* If both squadrons scored the same number of wins or draws, a next round is being played until a winner is found.
 
-### End of the Phase
-The group phase will end, if all matches are played. The top 2 squadrons of each group will be selected, if you run
-`/match generate <elimination>`.<br>
-After each elimination stage is finished, you can generate another stage (quarter-finals, semi-final, etc) until the 
+### End of the Phase / Stage
+The phase will end if all matches were played.<p>
+To generate the elinimation phase after the group phase, you run `/match generate <elimination>`. This will 
+select the top 2 squadrons of each group and eliminate all others.<br>
+After each elimination stage is finished, you can generate another stage (quarter-finals, semi-final, etc.) until the 
 final is reached, where two squadrons play together for the win.
 
-## End of the Tournament
+### End of the Tournament
 The tournament ends if all matches were played and only one winning squadron succeeded.
+
+### Withdrawals
+Each squadron can withdraw at any time by using `/tournament withdraw`. They will be warned and if they still decide
+to leave, all their matches will be marked as won by the opposite squadron.
 
 ## Discord Commands
 | Command                 | Parameter                                          | Channel          | Role           | Description                                                       |
@@ -239,4 +246,5 @@ The tournament ends if all matches were played and only one winning squadron suc
 | /match list             | tournament                                         | any              | DCS            | List all matches of a specific tournament.                        |
 | /match start            | tournament match \[mission\] \[round_number\]      | admin-channel    | GameMaster     | Starts a match. Prepares and starts the DCS server.               |
 | /match edit             | tournament match \[winner_squadron_id\]            | admin-channel    | GameMaster     | Edit the results of a match.                                      |
-| /match customize        |                                                    | squadron channel | Squadron Admin | Customize the next mission for the next round of a running match. |
+| /match customize        |                                                    | squadron-channel | Squadron Admin | Customize the next mission for the next round of a running match. |
+| /tickets list           | tournament squadron                                | squadron-channel | Squadron Admin | Shows your tickets for this tournament.                           |

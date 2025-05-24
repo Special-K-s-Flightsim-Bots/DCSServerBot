@@ -158,7 +158,8 @@ class TournamentEventListener(EventListener["Tournament"]):
                 if current_minute > 0:  # Only show minute warnings if there's at least 1 minute
                     await server.sendPopupMessage(
                         Coalition.ALL, _("The round will start in {} minute{}.\n"
-                                         "If you takeoff/engage before this time is over, you will be disqualified."
+                                         "If you takeoff/engage before this time is over, "
+                                         "you will be kicked and cannot rejoin for this round!"
                                          ).format(current_minute, 's' if current_minute != 1 else ''))
                 last_minute_warning = current_minute
 
@@ -170,7 +171,8 @@ class TournamentEventListener(EventListener["Tournament"]):
             await asyncio.sleep(1)
 
         self.round_started[server.name] = True
-        await server.sendPopupMessage(Coalition.ALL, _("You are now allowed to takeoff. Happy fighting!"))
+        # TODO: make this text configurable
+        await server.sendPopupMessage(Coalition.ALL, _("GO GO GO! The fight is now on!"))
 
     @event(name="onSimulationResume")
     async def onSimulationResume(self, server: Server, data: dict) -> None:
@@ -193,9 +195,9 @@ class TournamentEventListener(EventListener["Tournament"]):
 
         if not self.round_started.get(server.name, False):
             if data['eventName'] in ['S_EVENT_RUNWAY_TAKEOFF', 'S_EVENT_TAKEOFF']:
-                reason = _('Disqualified due to early takeoff.')
+                reason = _('Kicked due to early takeoff.')
             elif data['eventName'] in ['S_EVENT_SHOT', 'S_EVENT_HIT', 'S_EVENT_KILL'] and data['target']:
-                reason = _('Disqualified due to early engagement.')
+                reason = _('Kicked due to early engagement.')
             else:
                 reason = None
 
