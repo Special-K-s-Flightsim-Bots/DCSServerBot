@@ -1767,9 +1767,14 @@ class Tournament(Plugin[TournamentEventListener]):
             if await view.wait():
                 return
 
+            if view.acknowledged is True:
+                embed = await view.render()
+                embed.description = None
+                embed.set_footer(text=None)
+
             if view.acknowledged is None or (view.acknowledged is True and not await utils.yn_question(
                     interaction, _("Are you sure?\nYour settings will be directly applied to the next round."),
-                    ephemeral=True)):
+                    embed=embed, ephemeral=True)):
                 await interaction.followup.send(
                     _("Your choices were saved.\n"
                       "If you want them to be applied to the next round, press 'Confirm & Buy'."))
@@ -1792,13 +1797,7 @@ class Tournament(Plugin[TournamentEventListener]):
                             (squadron_blue = %(squadron_id)s OR squadron_red = %(squadron_id)s)
                             AND match_id = %(match_id)s
                     """, {"match_id": match_id, "squadron_id": squadron_id})
-            if view.acknowledged is True:
-                embed = await view.render()
-                embed.description = embed.title
-                embed.title = _("Your selection will now be applied.")
-                embed.set_footer(text=None)
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
+            if not view.acknowledged:
                 await interaction.followup.send(_("You decided to not buy any customizations in this round."))
         finally:
             try:

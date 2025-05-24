@@ -287,12 +287,14 @@ class YNQuestionView(View):
         interaction.client.log.exception(error)
 
 
-async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
-                      message: Optional[str] = None, ephemeral: Optional[bool] = True) -> Optional[bool]:
+async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str, *,
+                      message: Optional[str] = None, embed: Optional[discord.Embed] = None,
+                      ephemeral: Optional[bool] = True) -> Optional[bool]:
     """
     :param ctx: The context in which the yn_question method is being called. It can be either a discord.py commands.Context object or a discord.Interaction object.
     :param question: The question to be displayed in the embedded message.
     :param message: An optional additional message to be displayed in the embedded message.
+    :param embed: An optional embed to be used. If None, then a default embed will be used. Replaces question and message.
     :param ephemeral: An optional boolean value indicating whether the message should be ephemeral (only visible to the user who triggered it). Default is True.
     :return: A boolean value indicating the result of the yn_question. True if the user answered "Yes", False if the user answered "No".
 
@@ -301,9 +303,11 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
     The yn_question method uses a custom view called YNQuestionView to handle the interaction. An embedded message is sent with the specified question and optional message, along with two
     * buttons for "Yes" and "No". The view listens for the user's button clicks and returns the corresponding boolean value.
     """
-    embed = discord.Embed(description="## " + question, color=discord.Color.red())
-    if message is not None:
-        embed.add_field(name=message, value='_ _')
+    if not embed:
+        embed = discord.Embed(color=discord.Color.red())
+        if message is not None:
+            embed.description = message
+    embed.title = question
     if isinstance(ctx, discord.Interaction):
         ctx = await ctx.client.get_context(ctx)
     view = YNQuestionView()
