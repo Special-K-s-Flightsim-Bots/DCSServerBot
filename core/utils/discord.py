@@ -1261,17 +1261,26 @@ class ConfigModal(Modal):
         if not old_values:
             old_values = {}
         for k, v in self.config.items():
-            self.add_item(TextInput(custom_id=k,
-                                    label=v.get('label'),
-                                    style=discord.TextStyle(v.get('style', 1)),
-                                    placeholder=v.get('placeholder'),
-                                    default=str(old_values.get(k)) if old_values.get(k) is not None else v.get('default', ''),
-                                    required=v.get('required', False),
-                                    min_length=v.get('min_length'),
-                                    max_length=v.get('max_length')))
+            self.add_item(TextInput(
+                custom_id=k,
+                label=v.get('label'),
+                style=discord.TextStyle(v.get('style', 1)),
+                placeholder=v.get('placeholder'),
+                default=self.parse(old_values.get(k)) if old_values.get(k) is not None else self.parse(v.get('default', '')),
+                required=v.get('required', False),
+                min_length=v.get('min_length'),
+                max_length=v.get('max_length')))
 
     @staticmethod
-    def unmap(value: str, t: str = None) -> Any:
+    def parse(value: Any) -> str:
+        if isinstance(value, bool):
+            return 'true' if value else 'false'
+        elif isinstance(value, datetime):
+            return value.strftime('%Y-%m-%d %H:%M:%S')
+        return str(value)
+
+    @staticmethod
+    def unparse(value: str, t: str = None) -> Any:
         if not t or t == str:
             return value
         elif not value:
@@ -1294,7 +1303,7 @@ class ConfigModal(Modal):
         await interaction.response.defer(ephemeral=self.ephemeral)
         # noinspection PyUnresolvedReferences
         self.value = {
-            v.custom_id: self.unmap(v.value, self.config[v.custom_id].get('type'))
+            v.custom_id: self.unparse(v.value, self.config[v.custom_id].get('type'))
             for v in self.children
         }
         self.stop()
