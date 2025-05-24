@@ -388,7 +388,7 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.add_field(name=utils.print_ruler(ruler_length=27), value="_ _", inline=False)
             embed.add_field(name=_("Start Date"), value=f"<t:{int(tournament['start'].timestamp())}>")
             embed.add_field(name=_("# Players per Side"), value=str(tournament['num_players']))
-            embed.add_field(name=_("# Subscriptions"), value=str(num_squadrons))
+            embed.add_field(name=_("# Signups"), value=str(num_squadrons))
             embed.set_footer(text=_("You need to be an admin of the respective squadron to sign up."))
 
         elif phase == TOURNAMENT_PHASE.START_GROUP_PHASE:
@@ -1277,7 +1277,7 @@ class Tournament(Plugin[TournamentEventListener]):
         shutil.copy2(orig_filename, new_filename)
 
         miz = MizFile(new_filename)
-        preset_file = config.get('presets', {}).get('file', 'presets.yaml')
+        preset_file = os.path.join(self.node.config_dir, config.get('presets', {}).get('file', 'presets.yaml'))
         # apply the initial presets
         for preset in config.get('presets', {}).get('initial', []):
             self.log.debug(f"Applying initial preset: {preset} ...")

@@ -402,7 +402,7 @@ class ApplicationView(View):
         # update the info embed
         channel_id = self.plugin.get_config().get('channels', {}).get('info')
         if channel_id:
-            await self.plugin.render_info_embed(self.tournament_id)
+            await self.plugin.render_status_embed(self.tournament_id)
         await self.plugin.bot.audit(
             f"accepted squadron {self.squadron['name']} for tournament {tournament['name']}.",
             user=interaction.user
@@ -431,6 +431,11 @@ class ApplicationView(View):
         channel_id = self.plugin.get_config().get('channels', {}).get('info')
         if channel_id:
             await self.plugin.render_info_embed(self.tournament_id)
+
+        # update the info embed
+        channel_id = self.plugin.get_config().get('channels', {}).get('info')
+        if channel_id:
+            await self.plugin.render_status_embed(self.tournament_id)
 
         tournament = await self.plugin.get_tournament(self.tournament_id)
         await self.plugin.bot.audit(
