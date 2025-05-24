@@ -669,12 +669,13 @@ class Tournament(Plugin[TournamentEventListener]):
                         row = await cursor.fetchone()
 
             # delete the info embed
-            msg = await self.bot.fetch_embed(embed_name=f"tournament_{tournament_id}", channel=self.get_info_channel())
-            try:
-                if msg:
-                    await msg.delete()
-            except discord.NotFound:
-                pass
+            for what in ['status', 'info']:
+                msg = await self.bot.fetch_embed(embed_name=f"tournament_{what}_{tournament_id}", channel=self.get_info_channel())
+                try:
+                    if msg:
+                        await msg.delete()
+                except discord.NotFound:
+                    pass
 
             await self.bot.audit(f"deleted tournament {row['campaign']}.", user=interaction.user)
             # noinspection PyUnresolvedReferences

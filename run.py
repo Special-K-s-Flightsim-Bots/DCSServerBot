@@ -258,6 +258,7 @@ if __name__ == "__main__":
         # restart again (old handling)
         exit(-1)
     except asyncio.CancelledError:
+        log.warning("Main loop cancelled.")
         # do not restart again
         exit(-2)
     except (YAMLError, FatalException) as ex:
