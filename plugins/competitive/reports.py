@@ -82,7 +82,7 @@ class MatchAAR(report.EmbedElement):
     async def render(self, match: dict):
         times = []
         logs = []
-        for time, log in match['log']:
+        for time, log in match['log'].items():
             times.append(datetime.fromisoformat(time).replace(tzinfo=timezone.utc))
             logs.append(log)
         self.add_field(name="Time", value="\n".join([f"<t:{int(t.timestamp())}:T>" for t in times]))

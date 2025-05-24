@@ -905,6 +905,16 @@ class Tournament(Plugin[TournamentEventListener]):
                 if terrains:
                     embed.add_field(name=_("Terrain Preferences"), value='\n'.join(terrains), inline=False)
 
+                times = []
+                async for row in await cursor.execute("""
+                    SELECT tp.available_time_id, tt.start_time 
+                    FROM tm_squadron_time_preferences tp JOIN tm_available_times tt ON tt.time_id = tp.available_time_id 
+                    WHERE tp.tournament_id = %s AND tp.squadron_id = %s
+                """, (tournament_id, squadron_id)):
+                    times.append('- ' + row['start_time'].replace(tzinfo=timezone.utc).strftime('%H:%M'))
+                if times:
+                    embed.add_field(name=_("Time Preferences"), value='\n'.join(times), inline=False)
+
         view = ApplicationView(self, tournament_id=tournament_id, squadron_id=squadron_id)
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
         try:

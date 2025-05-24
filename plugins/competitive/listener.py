@@ -78,7 +78,7 @@ class Match:
             'match_id': self.match_id,
             'started': self.started.isoformat() if self.started else None,
             'finished': self.finished.isoformat() if self.finished else None,
-            'winner': self.winner.name if self.winner else None,
+            'winner': self.winner.name.lower() if self.winner else None,
             'alive': {
                 Side.BLUE.name: [p.ucid for p in self.alive.get(Side.BLUE, [])],
                 Side.RED.name: [p.ucid for p in self.alive.get(Side.RED, [])]
