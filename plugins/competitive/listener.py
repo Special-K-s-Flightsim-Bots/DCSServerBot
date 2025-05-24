@@ -70,6 +70,21 @@ class Match:
         # noinspection PyUnresolvedReferences
         return next((x.squadron for x in self.alive.get(side, []) if x.squadron), None)
 
+    def to_dict(self) -> dict:
+        return {
+            'match_id': self.match_id,
+            'started': self.started.isoformat() if self.started else None,
+            'finished': self.finished.isoformat() if self.finished else None,
+            'winner': self.winner.name if self.winner else None,
+            'alive': {
+                Side.BLUE.name: [p.ucid for p in self.alive.get(Side.BLUE, [])],
+                Side.RED.name: [p.ucid for p in self.alive.get(Side.RED, [])]
+            },
+            'log': {
+                x[0].isoformat(): x[1] for x in self.log
+            }
+        }
+
 
 class CompetitiveListener(EventListener["Competitive"]):
 
@@ -461,8 +476,8 @@ class CompetitiveListener(EventListener["Competitive"]):
         # restart the mission if configured
         config = self.get_config(server)
         if config.get('end_mission', False):
-            if data['winner'] in ['RED', 'BLUE']:
-                side = data['winner'].lower()
+            if data['winner'] in ['red', 'blue']:
+                side = data['winner']
             else:
                 side = 'none'  # it's a draw, needs to be different from a server shutdown
             await server.send_to_dcs({
@@ -509,7 +524,5 @@ class CompetitiveListener(EventListener["Competitive"]):
 
                 asyncio.create_task(self.bot.bus.send_to_node({
                     "command": "onMatchFinished",
-                    "match_id": match.match_id,
-                    "winner": winner.name,
                     "server_name": server.name
-                }))
+                } | match.to_dict()))

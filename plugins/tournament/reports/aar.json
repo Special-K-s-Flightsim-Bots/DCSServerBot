@@ -9,6 +9,9 @@
   ],
   "elements": [
     {
+      "class": "plugins.competitive.reports.MatchAAR"
+    },
+    {
       "type": "Graph",
       "params": {
         "width": 15,

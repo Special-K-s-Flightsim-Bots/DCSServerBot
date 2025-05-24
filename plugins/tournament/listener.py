@@ -2,8 +2,7 @@ import asyncio
 import discord
 import re
 
-from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, PersistentReport, \
-    Player
+from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, Player, Report
 from datetime import datetime, timedelta
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Json
@@ -90,17 +89,20 @@ class TournamentEventListener(EventListener["Tournament"]):
         await server.shutdown()
         self.plugin.reset_serversettings(server)
 
-    async def render_highscore(self, server: Server):
+    async def render_aar(self, server: Server, match: dict):
         config = self.get_config(server)
         channel = self.bot.get_channel(config.get('channels', {}).get('results', -1))
         if not channel:
             return
 
         tournament = self.tournaments.get(server.name)
-        report = PersistentReport(self.bot, self.plugin_name, 'highscore.json',
-                                  embed_name=f"tournament_{tournament['tournament_id']}_highscore",
-                                  channel_id=channel.id)
-        await report.render(interaction=None, server_name=None, flt=CampaignFilter(period=tournament['name']))
+        report = Report(self.bot, self.plugin_name, 'aar.json')
+        env = await report.render(server_name=None, flt=CampaignFilter(period=tournament['name']), match=match)
+        try:
+            await channel.send(embed=env.embed, file=discord.File(env.buffer, filename='aar.png'))
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
@@ -113,6 +115,7 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         tournament_id = await self.get_active_tournament(server)
         if not tournament_id:
+            self.log.debug(f"registerDCSServer: No active tournament for {server.name}.")
             self.tournaments.pop(server.name, None)
             return
 
@@ -178,8 +181,10 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def onSimulationResume(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
         if 'delayed_start' in config:
+            self.log.debug(f"onSimulationResume: Delayed start for {server.name} is set to {config['delayed_start']} seconds.")
             self.tasks[server.name] = asyncio.create_task(self.countdown_with_warnings(server, config['delayed_start']))
         else:
+            self.log.debug(f"onSimulationResume: Delayed start for {server.name} is not set.")
             self.round_started[server.name] = True
 
     async def disqualify(self, server: Server, player: Player, reason: str) -> None:
@@ -403,7 +408,7 @@ class TournamentEventListener(EventListener["Tournament"]):
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:
-        winner = data['winner'].lower()
+        winner = data['winner']
         match_id = await self.get_active_match(server)
         if self.tasks.get(server.name):
             self.tasks.pop(server.name).cancel()
@@ -442,8 +447,8 @@ class TournamentEventListener(EventListener["Tournament"]):
         # pause the server
         asyncio.create_task(server.current_mission.pause())
 
-        # update the highscore
-        asyncio.create_task(self.render_highscore(server))
+        # render an AAR
+        asyncio.create_task(self.render_aar(server, data))
 
         # check if the match is finished
         await self.check_match_finished(server, match_id)

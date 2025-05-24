@@ -2,12 +2,16 @@ import discord
 import numpy as np
 
 from core import report
+from datetime import datetime, timezone
 from matplotlib import cm
 from psycopg.rows import dict_row
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from ..userstats.filter import StatisticsFilter, CampaignFilter
 from ..userstats.highscore import compute_font_size
+
+if TYPE_CHECKING:
+    from plugins.competitive.listener import Match
 
 
 class HighscoreTrueSkill(report.GraphElement):
@@ -71,3 +75,15 @@ class HighscoreTrueSkill(report.GraphElement):
                     self.axes.set_xticks([])
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+
+
+class MatchAAR(report.EmbedElement):
+
+    async def render(self, match: dict):
+        times = []
+        logs = []
+        for time, log in match['log']:
+            times.append(datetime.fromisoformat(time).replace(tzinfo=timezone.utc))
+            logs.append(log)
+        self.add_field(name="Time", value="\n".join([f"<t:{int(t.timestamp())}:T>" for t in times]))
+        self.add_field(name="Log", value="\n".join(logs))
