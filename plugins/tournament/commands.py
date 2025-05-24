@@ -1129,16 +1129,16 @@ class Tournament(Plugin[TournamentEventListener]):
                         continue
                     squadrons_blue.append(utils.get_squadron(self.node, squadron_id=row['squadron_blue'])['name'])
                     squadrons_red.append(utils.get_squadron(self.node, squadron_id=row['squadron_red'])['name'])
-                    if row['round_number'] == 0:
+                    if row['winner_squadron_id']:
+                        winner = utils.get_squadron(self.node, squadron_id=row['winner_squadron_id'])
+                        status.append(_("Winner: {}").format(winner['name']))
+                    elif row['round_number'] == 0:
                         status.append("Not started" if row['match_time'] is None else
                                       f"<t:{int(row['match_time'].replace(tzinfo=timezone.utc).timestamp())}:R>")
-                    elif row['winner_squadron_id'] is None:
+                    else:
                         status.append(_("Round: {}, {} : {}").format(row['round_number'],
                                                                      row['squadron_blue_rounds_won'],
                                                                      row['squadron_red_rounds_won']))
-                    else:
-                        winner = utils.get_squadron(self.node, squadron_id=row['winner_squadron_id'])
-                        status.append(_("Winner: {}").format(winner['name']))
         # no data
         if not len(squadrons_blue):
             return None
