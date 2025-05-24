@@ -1448,6 +1448,16 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # change settings
         await self.setup_server_for_match(msg, embed, server, match, channels)
+        # find mission
+        if not mission_id:
+            mission = config.get('mission')
+            if isinstance(mission, int):
+                mission_id = mission
+            elif isinstance(mission, str):
+                for idx, mission_file in enumerate(await server.getMissionList()):
+                    if mission in mission_file:
+                        mission_id = idx + 1
+                        break
         # prepare the mission
         await self.prepare_mission(server, match_id, mission_id)
         # Starting the server up again

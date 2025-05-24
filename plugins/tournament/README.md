@@ -42,6 +42,7 @@ DEFAULT:
   sudden_death: false       # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
   balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
   remove_on_death: .*       # optional: if set, any unit name that matches this regular expression will result in the removal of this unit in the next rounds of the same match
+  mission: Tournament_Test_Dyn.miz  # optional: the mission to load, otherwise the current mission is used. (Could be a name or a number. If name it has to be in the mission list.)
   presets:
     file: presets_tournament.yaml
     initial:                # presets that have to be applied to any mission
