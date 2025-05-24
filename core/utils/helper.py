@@ -174,6 +174,8 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
         string_ = NoneFormatter().format(string_, **kwargs)
     except (KeyError, TypeError):
         string_ = ""
+    except IndexError as ex:
+        logger.exception(ex)
     return string_
 
 
@@ -377,11 +379,15 @@ def get_preset(node: Node, name: str, filename: Optional[str] = None) -> Optiona
     :param filename: The optional filename of the preset file to search in. If not provided, it will search for preset files in the 'config' directory.
     :return: The dictionary containing the preset data if found, or None if the preset was not found.
     """
-    def _read_presets_from_file(filename: Path, name: str) -> Optional[dict]:
-        all_presets = yaml.load(filename.read_text(encoding='utf-8'))
+    @cache_with_expiration(120)
+    def load_all_presets(filename: Path) -> dict:
+        return yaml.load(filename.read_text(encoding='utf-8'))
+
+    def _read_presets_from_file(filename: Path, name: str) -> Optional[Union[dict, list]]:
+        all_presets = load_all_presets(filename)
         preset = all_presets.get(name)
         if isinstance(preset, list):
-            return {k: v for d in preset for k, v in all_presets.get(d, {}).items()}
+            return [_read_presets_from_file(filename, x) for x in preset]
         return preset
 
     if filename:
@@ -473,6 +479,7 @@ def async_cache(func):
 def cache_with_expiration(expiration: int):
     """
     Decorator to cache function results for a specific duration.
+    Works with both sync and async functions.
 
     :param expiration: Cache duration in seconds.
     """
@@ -481,24 +488,46 @@ def cache_with_expiration(expiration: int):
         cache: dict[Any, Any] = {}
         cache_expiry: dict[Any, float] = {}
 
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Generate a key based on function arguments
+        def get_cache_key(*args, **kwargs):
             hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
-            cache_key = (args, frozenset(hashable_kwargs.items()))
+            return (args, frozenset(hashable_kwargs.items()))
 
-            # Check if the cache is still valid
+        def check_cache(cache_key):
             if cache_key in cache and cache_key in cache_expiry:
                 if time.time() < cache_expiry[cache_key]:
                     return cache[cache_key]
+            return None
 
-            # Call the original function and cache its result
-            result = await func(*args, **kwargs)
+        def update_cache(cache_key, result):
             cache[cache_key] = result
             cache_expiry[cache_key] = time.time() + expiration
             return result
 
-        return wrapper
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            cache_key = get_cache_key(*args, **kwargs)
+
+            cached_result = check_cache(cache_key)
+            if cached_result is not None:
+                return cached_result
+
+            result = await func(*args, **kwargs)
+            return update_cache(cache_key, result)
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            cache_key = get_cache_key(*args, **kwargs)
+
+            cached_result = check_cache(cache_key)
+            if cached_result is not None:
+                return cached_result
+
+            result = func(*args, **kwargs)
+            return update_cache(cache_key, result)
+
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
 
     return decorator
 
