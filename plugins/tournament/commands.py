@@ -2,6 +2,7 @@ import asyncio
 import discord
 import os
 import pandas as pd
+import psycopg
 import random
 import shutil
 
@@ -9,6 +10,7 @@ from core import Plugin, Group, utils, get_translation, PluginRequiredError, Sta
     MizFile, DataObjectFactory, async_cache, Report
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
+from discord.ext import tasks
 from io import BytesIO
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
@@ -190,7 +192,9 @@ async def active_matches_autocomplete(interaction: discord.Interaction, current:
                 AND (
                     m.round_number > 0 OR m.server_name NOT IN (
                         SELECT server_name FROM tm_matches
-                        WHERE round_number > 0 AND winner_squadron_id IS NULL
+                        WHERE tournament_id = t.tournament_id
+                        AND round_number > 0 
+                        AND winner_squadron_id IS NULL
                     )
                 )
                 ORDER BY 1
@@ -257,6 +261,17 @@ async def time_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 class Tournament(Plugin[TournamentEventListener]):
 
+    async def cog_load(self) -> None:
+        if self.get_config().get('autostart_matches', False):
+            self.match_scheduler.start()
+
+    async def cog_unload(self) -> None:
+        if self.get_config().get('autostart_matches', False):
+            self.match_scheduler.cancel()
+
+    async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
+        await conn.execute('UPDATE tm_matches SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+
     def get_admin_channel(self):
         config = self.get_config()
         channel_id = config.get('channels', {}).get('admin')
@@ -317,6 +332,23 @@ class Tournament(Plugin[TournamentEventListener]):
             """, (match_id, ))
             campaign_id = (await cursor.fetchone())[0]
         return DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id)
+
+    async def inform_squadron(self, *, tournament_id: int, squadron_id: int, message: Optional[str] = None,
+                              embed: Optional[discord.Embed] = None):
+        async with self.apool.connection() as conn:
+            async for row in await conn.execute("""
+                SELECT p.discord_id
+                FROM players p JOIN squadron_members m ON p.ucid = m.player_ucid
+                WHERE m.squadron_id = %s AND m.admin IS TRUE
+            """, (squadron_id,)):
+                user = self.bot.get_user(row[0])
+                if user:
+                    tournament = await self.get_tournament(tournament_id)
+                    squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
+                    dm_channel = await user.create_dm()
+                    if message:
+                        message = message.format(squadron=squadron['name'], tournament=tournament['name'])
+                    await dm_channel.send(content=message, embed=embed)
 
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
@@ -1330,27 +1362,11 @@ class Tournament(Plugin[TournamentEventListener]):
                 }
             )
 
-    @match.command(description=_('Start a match'))
-    @app_commands.guild_only()
-    @app_commands.rename(tournament_id="tournament")
-    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
-    @app_commands.rename(match_id="match")
-    @app_commands.autocomplete(match_id=active_matches_autocomplete)
-    @app_commands.rename(mission_id="mission")
-    @app_commands.autocomplete(mission_id=mission_autocomplete)
-    @utils.app_has_role('GameMaster')
-    async def start(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
-                    mission_id: Optional[int] = None, round_number: Optional[int] = None):
-        ephemeral = utils.get_ephemeral(interaction)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.defer()
-        match = await self.get_match(match_id)
-        if match['winner_squadron_id']:
-            await interaction.followup.send(_("This match is over already. You can not start another round."),
-                                            ephemeral=True)
-            return
-
+    async def start_match(self, server: Server, tournament_id: int, match_id: int, mission_id: Optional[int] = None,
+                          round_number: Optional[int] = None):
         tournament = await self.get_tournament(tournament_id)
+        match = await self.get_match(match_id)
+
         squadrons = {
             'blue': utils.get_squadron(self.node, squadron_id=match['squadron_blue']),
             'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
@@ -1362,19 +1378,6 @@ class Tournament(Plugin[TournamentEventListener]):
                 round_number = 1
             else:
                 round_number = match['round_number'] if not match['winner_squadron_id'] else match['round_number'] + 1
-
-        if not await yn_question(
-                interaction,
-                _("Do you want to start round {} of the match between {} and {}??").format(
-                    round_number, squadrons['blue']['name'], squadrons['red']['name']
-                ), ephemeral=ephemeral):
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
-
-        # audit event
-        await self.bot.audit(f"started a match for tournament {tournament['name']} "
-                             f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
-                             user=interaction.user)
 
         # Start the next round
         async with self.apool.connection() as conn:
@@ -1388,20 +1391,21 @@ class Tournament(Plugin[TournamentEventListener]):
                     WHERE match_id = %s
                 """, (round_number, match_id))
 
-        server = self.bot.servers.get(match['server_name'])
+        channel_id = self.get_config(server).get('channels', {}).get('admin')
+        channel = self.bot.get_channel(channel_id) or self.bot.get_admin_channel(server)
         if not server:
-            await interaction.followup.send(_("Server {} not found.").format(match['server_name']), ephemeral=True)
+            await channel.send(_("Server {} not found.").format(match['server_name']))
             return
 
         embed = discord.Embed(color=discord.Color.blue(), title=_("Match Setup"))
         embed.description = _("- Creating the squadron channels ...")
         embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
-        msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+        msg = await channel.send(embed=embed)
         try:
             # open the channels
             channels = await self.open_channel(match_id, server)
         except (ValueError, PermissionError) as ex:
-            await interaction.followup.send(_("Error during opening the channels: {}").format(ex), ephemeral=True)
+            await channel.send(_("Error during opening the channels: {}").format(ex))
             return
 
         # inform the squadrons that they can choose
@@ -1438,7 +1442,7 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.description += _("\n- Shutting down server {} ...").format(match['server_name'])
             await msg.edit(embed=embed)
             await server.shutdown()
-            await interaction.followup.send(_("Server {} shut down.").format(match['server_name']), ephemeral=ephemeral)
+            await channel.send(_("Server {} shut down.").format(match['server_name']))
 
         # change settings
         await self.setup_server_for_match(msg, embed, server, match, channels)
@@ -1481,6 +1485,60 @@ class Tournament(Plugin[TournamentEventListener]):
                                                          match_id=match_id))
             asyncio.create_task(self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING,
                                                        match_id=match_id))
+
+    @match.command(description=_('Start a match'))
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.rename(match_id="match")
+    @app_commands.autocomplete(match_id=active_matches_autocomplete)
+    @app_commands.rename(mission_id="mission")
+    @app_commands.autocomplete(mission_id=mission_autocomplete)
+    @utils.app_has_role('GameMaster')
+    async def start(self, interaction: discord.Interaction, tournament_id: int, match_id: int,
+                    mission_id: Optional[int] = None, round_number: Optional[int] = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        match = await self.get_match(match_id)
+        if match['winner_squadron_id']:
+            await interaction.followup.send(_("This match is over already. You can not start another round."),
+                                            ephemeral=True)
+            return
+
+        tournament = await self.get_tournament(tournament_id)
+        squadrons = {
+            'blue': utils.get_squadron(self.node, squadron_id=match['squadron_blue']),
+            'red': utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+        }
+
+        # set the correct round number
+        if not round_number:
+            if match['round_number'] == 0:
+                round_number = 1
+            else:
+                round_number = match['round_number'] if not match['winner_squadron_id'] else match['round_number'] + 1
+
+        if not await yn_question(
+                interaction,
+                _("Do you want to start round {} of the match between {} and {}??").format(
+                    round_number, squadrons['blue']['name'], squadrons['red']['name']
+                ), ephemeral=ephemeral):
+            await interaction.followup.send(_("Aborted."), ephemeral=True)
+            return
+
+        server = self.bot.servers.get(match['server_name'])
+        if not server:
+            await interaction.followup.send(_("Server {} not found.").format(match['server_name']), ephemeral=True)
+            return
+
+        # start the match
+        await self.start_match(server, tournament_id, match_id, mission_id, round_number)
+
+        # audit event
+        await self.bot.audit(f"started a match for tournament {tournament['name']} "
+                             f"between squadrons {squadrons['blue']['name']} and {squadrons['red']['name']}.",
+                             user=interaction.user)
 
     async def open_channel(self, match_id: int, server: Server) -> dict[str, int]:
         config = self.get_config(server)
@@ -1766,6 +1824,92 @@ class Tournament(Plugin[TournamentEventListener]):
                         value="\n".join([f"{y} x {x}" for x, y in zip(ticket_names, ticket_counts)]))
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+    @tasks.loop(minutes=1.0)
+    async def match_scheduler(self):
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                # for all active tournaments
+                await cursor.execute("""
+                    SELECT t.tournament_id, t.campaign AS name
+                    FROM tm_tournaments t JOIN campaigns c ON t.campaign = c.name 
+                    WHERE c.start <= NOW() AT TIME ZONE 'UTC'
+                    AND COALESCE(c.stop, NOW() AT TIME ZONE 'UTC') >= NOW() AT TIME ZONE 'UTC'
+                    ORDER BY campaign
+                """)
+                tournaments = await cursor.fetchall()
+                for tournament in tournaments:
+                    # warn squadrons prior to their matches
+                    await cursor.execute("""
+                        SELECT match_id, match_time, squadron_blue, squadron_red
+                        FROM tm_matches m 
+                        WHERE tournament_id = %s
+                        AND round_number = 0
+                        AND winner_squadron_id IS NULL
+                        AND match_time IS NOT NULL
+                        AND 
+                        (
+                            DATE_TRUNC('minute', match_time) = DATE_TRUNC('minute', NOW() AT TIME ZONE 'UTC' - interval '24 hours')
+                        ) OR (
+                            DATE_TRUNC('minute', match_time) = DATE_TRUNC('minute', NOW() AT TIME ZONE 'UTC' - interval '1 hour')
+                        )
+                    """, (tournament['tournament_id'], ))
+                    for match in await cursor.fetchall():
+                        match_time = int(match['match_time'].replace(tzinfo=timezone.utc).timestamp())
+                        squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
+                        squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+                        await self.inform_squadron(
+                            tournament_id=tournament['tournament_id'],
+                            squadron_id=match['squadron_blue'],
+                            message=_("Your next match against {name} starts <t:{time}:R>!").format(
+                                name=squadron_red['name'], time=match_time))
+                        await self.inform_squadron(
+                            tournament_id=tournament['tournament_id'],
+                            squadron_id=match['squadron_red'],
+                            message=_("Your next match against {name} starts <t:{time}:R>!").format(
+                                name=squadron_blue['name'], time=match_time))
+
+                    # start scheduled matches if there is no one running already
+                    await cursor.execute("""
+                        SELECT match_id, server_name, squadron_blue, squadron_red
+                        FROM tm_matches m 
+                        WHERE tournament_id = %s
+                        AND round_number = 0
+                        AND winner_squadron_id IS NULL
+                        AND match_time IS NOT NULL
+                        AND match_time < NOW() AT TIME ZONE 'UTC'
+                        AND server_name NOT IN (
+                            SELECT server_name 
+                            FROM tm_matches
+                            WHERE tournament_id = m.tournament_id
+                            AND round_number > 0
+                            AND winner_squadron_id IS NULL
+                        )
+                    """, (tournament['tournament_id'], ))
+                    server_names = []
+                    for match in await cursor.fetchall():
+                        # we can only start ONE match per server at a time
+                        if match['server_name'] in server_names:
+                            continue
+                        server_names.append(match['server_name'])
+                        server = self.bus.servers[match['server_name']]
+                        # we must not start a match if the server is (still?) running
+                        if server.status == Status.RUNNING:
+                            continue
+
+                        # start the match
+                        await self.start_match(server, tournament_id=tournament['tournament_id'],
+                                               match_id=match['match_id'])
+                        # audit event
+                        squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
+                        squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
+                        await self.bot.audit(f"Scheduler started a match for tournament {tournament['name']} "
+                                             f"between squadrons {squadron_blue['name']} and {squadron_red['name']}.")
+
+    @match_scheduler.before_loop
+    async def before_match_scheduler(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot: DCSServerBot):

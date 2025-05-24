@@ -708,7 +708,7 @@ class Mission(Plugin[MissionEventListener]):
             filename = await server.get_current_mission_file()
             new_filename = await server.modifyMission(
                 filename,
-                [utils.get_preset(self.node, x) for x in view.result],
+                [utils.get_preset(self.node, x, presets_file) for x in view.result],
                 use_orig=use_orig
             )
             message = _('The following preset were applied: {}.').format(','.join(view.result))
@@ -911,7 +911,7 @@ class Mission(Plugin[MissionEventListener]):
             except discord.NotFound:
                 pass
 
-        fog = utils.get_preset(self.node, view.result[0])['fog']
+        fog = utils.get_preset(self.node, view.result[0], presets_file)['fog']
         fog.pop('mode', None)
         await server.send_to_dcs_sync(
             {

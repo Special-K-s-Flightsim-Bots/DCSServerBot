@@ -32,7 +32,8 @@ roles:
 To configure the tournament plugin, create a file config\plugins\tournament.yaml like so:
 ```yaml
 DEFAULT:
-  use_signup_form: false    # Do you want participating squadrons to write an application form on signup? (default: false)
+  use_signup_form: false    # Do you want the participating squadrons to write an application form on signup? (default: false)
+  autostart_matches: false  # If you want your matches to be autostarted by the bot (with a 1 day and 1 hour reminder per DM), set this to true (default: false)
   coalition_passwords: true # Auto-generate coalition passwords for red and blue.
   allow_exports: false      # Do not allow exports (default: false).
   auto_join: true           # If true, your pilot will be automatically assigned to the associated squadron on join (default: false).

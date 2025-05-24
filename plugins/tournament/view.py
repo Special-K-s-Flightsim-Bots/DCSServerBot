@@ -411,7 +411,7 @@ class ApplicationView(View):
         )
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(_("Squadron {} accepted.").format(self.squadron['name']))
-        await self.inform_squadron(embed=embed)
+        await self.plugin.inform_squadron(tournament_id=self.tournament_id, squadron_id=self.squadron_id, embed=embed)
         self.stop()
 
     @discord.ui.button(label=_("Reject"), style=discord.ButtonStyle.red)
@@ -451,7 +451,7 @@ class ApplicationView(View):
         )
         if reason:
             embed.add_field(name=_("Reason"), value=reason)
-        await self.inform_squadron(embed=embed)
+        await self.plugin.inform_squadron(tournament_id=self.tournament_id, squadron_id=self.squadron_id, embed=embed)
         self.stop()
 
     @discord.ui.button(label=_("Cancel"), style=discord.ButtonStyle.secondary)
