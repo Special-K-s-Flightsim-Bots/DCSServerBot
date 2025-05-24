@@ -46,7 +46,10 @@ class Match:
 
     def player_dead(self, player: Player):
         if player in self.alive.get(player.side, []):
-            self.alive[player.side].remove(player)
+            try:
+                self.alive[player.side].remove(player)
+            except ValueError:
+                pass
             if player.side not in self.dead:
                 self.dead[player.side] = []
             self.dead[player.side].append(player)
@@ -405,7 +408,10 @@ class CompetitiveListener(EventListener["Competitive"]):
             elif self.in_match[server.name].get(player.ucid):
                 # in the unlikely event of a player leaving before the match started
                 match = self.in_match[server.name][player.ucid]
-                match.alive[player.side].remove(player)
+                try:
+                    match.alive[player.side].remove(player)
+                except ValueError:
+                    pass
                 # are all players gone => finish the match
                 if match.survivor() == Side.UNKNOWN:
                     match = self.matches[server.name].pop(match.match_id, None)

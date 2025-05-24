@@ -258,7 +258,7 @@ class TournamentEventListener(EventListener["Tournament"]):
 
         elif data['eventName'] == 'S_EVENT_SHOT':
             initiator = server.get_player(name=data['initiator']['name'])
-            target = server.get_player(name=data['target']['name'])
+            target = server.get_player(name=data['target'].get('name'))
             if target:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} shot an {} at {} player {}").format(
                     initiator.coalition.value.title(), initiator.display_name, data['weapon']['name'],
@@ -266,7 +266,7 @@ class TournamentEventListener(EventListener["Tournament"]):
 
         elif data['eventName'] == 'S_EVENT_HIT':
             initiator = server.get_player(name=data['initiator']['name'])
-            target = server.get_player(name=data['target']['name'])
+            target = server.get_player(name=data['target'].get('name'))
             if target:
                 asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {} with an {}").format(
                     initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
