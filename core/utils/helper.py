@@ -161,7 +161,7 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                 spec = ''
                 value = default_ or ''
             elif isinstance(value, list):
-                value = '\n'.join(value)
+                value = repr(value)
             elif isinstance(value, dict):
                 value = json.dumps(value)
             elif isinstance(value, bool):
