@@ -174,6 +174,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             await asyncio.sleep(1)
 
         self.round_started[server.name] = True
+        await server.lock()
         # TODO: make this text configurable
         await server.sendPopupMessage(Coalition.ALL, _("GO GO GO! The fight is now on!"))
 
@@ -181,10 +182,9 @@ class TournamentEventListener(EventListener["Tournament"]):
     async def onSimulationResume(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
         if 'delayed_start' in config:
-            self.log.debug(f"onSimulationResume: Delayed start for {server.name} is set to {config['delayed_start']} seconds.")
             self.tasks[server.name] = asyncio.create_task(self.countdown_with_warnings(server, config['delayed_start']))
         else:
-            self.log.debug(f"onSimulationResume: Delayed start for {server.name} is not set.")
+            await server.lock()
             self.round_started[server.name] = True
 
     async def disqualify(self, server: Server, player: Player, reason: str) -> None:

@@ -1011,6 +1011,38 @@ class Scheduler(Plugin[SchedulerListener]):
         await server.cleanup()
         await interaction.followup.send(f"Server \"{server.display_name}\" cleaned up.", ephemeral=ephemeral)
 
+    @group.command(name="lock", description="Locks a DCS server")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def lock(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.PAUSED, Status.RUNNING])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        try:
+            await server.lock()
+            await interaction.followup.send(f"Server \"{server.display_name}\" locked.", ephemeral=ephemeral)
+        except (TimeoutError, asyncio.TimeoutError):
+            await interaction.followup.send(f"Timeout during locking of server \"{server.display_name}\"",
+                                            ephemeral=ephemeral)
+
+    @group.command(name="unlock", description="Unlocks a DCS server")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def unlock(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.PAUSED, Status.RUNNING])]):
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+        try:
+            await server.unlock()
+            await interaction.followup.send(f"Server \"{server.display_name}\" unlocked.", ephemeral=ephemeral)
+        except (TimeoutError, asyncio.TimeoutError):
+            await interaction.followup.send(f"Timeout during unlocking of server \"{server.display_name}\"",
+                                            ephemeral=ephemeral)
+
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")
 

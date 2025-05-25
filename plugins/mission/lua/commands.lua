@@ -9,6 +9,7 @@ local utils 	= base.require("DCSServerBotUtils")
 local mod_dictionary= require('dictionary')
 
 dcsbot.registered = false
+dcsbot.server_locked = false
 dcsbot.banList = dcsbot.banList or {}
 dcsbot.locked = dcsbot.locked or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
@@ -510,6 +511,16 @@ end
 function dcsbot.unlock_player(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_player()')
 	dcsbot.locked[json.ucid] = nil
+end
+
+function dcsbot.lock_server(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: lock_server()')
+	dcsbot.server_locked = true
+end
+
+function dcsbot.unlock_server(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_server()')
+	dcsbot.server_locked = false
 end
 
 function dcsbot.makeScreenshot(json)

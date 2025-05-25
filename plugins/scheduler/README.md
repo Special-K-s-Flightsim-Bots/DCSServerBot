@@ -143,6 +143,8 @@ The following environment variables can be used in the "run" command:
 | /server start          |                                            | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                                                     |
 | /server startup        | [maintenance] [mission] [run_extensions]   | admin-channel | DCS Admin | Starts a dedicated DCS server process and optionally launches a specified mission (default is last one). Optional: don't set maintenance flag, don't run extensions.             |
 | /server stop           |                                            | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                                                              |
+| /server lock           | server                                     | admin-channel | DCS Admin | Locks a server. Nobody can join.                                                                                                                                                 |
+| /server unlock         | server                                     | admin-channel | DCS Admin | Unlocks the server again. It will be auto-unlocked on any mission restart.                                                                                                       |
 | /server timeleft       | server                                     | all           | DCS       | Shows the time until the next scheduled restart.                                                                                                                                 |
 
 > [!IMPORTANT]

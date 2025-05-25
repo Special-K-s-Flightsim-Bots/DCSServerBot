@@ -307,6 +307,16 @@ class Server(DataObject):
             "sound": sound
         })
 
+    async def lock(self):
+        await self.send_to_dcs({
+            "command": "lock_server"
+        })
+
+    async def unlock(self):
+        await self.send_to_dcs({
+            "command": "unlock_server"
+        })
+
     async def stop(self) -> None:
         raise NotImplementedError()
 

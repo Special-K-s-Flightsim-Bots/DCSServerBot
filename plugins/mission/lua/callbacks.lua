@@ -11,7 +11,7 @@ dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
 
 local mission = mission or {}
-mission.last_to_landing = {}
+mission.last_landing = {}
 mission.last_change_slot = {}
 mission.num_change_slots = {}
 mission.last_collision = {}
@@ -52,6 +52,11 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         return
     end
     config = dcsbot.params['mission']
+    -- check if the server is locked
+    if dcsbot.server_locked then
+        return false, config['messages']['message_server_locked']
+    end
+    -- check if players use default names
     if locate(default_names, name) then
         return false, config['messages']['message_player_default_username']
     end
@@ -60,6 +65,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     if name ~= name2 then
         return false, config['messages']['message_player_username']
     end
+    -- check bans including the SMART ban system
     ipaddr = utils.getIP(addr)
     if isBanned(ucid) then
         if config['smart_bans'] then
@@ -83,6 +89,7 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
         }
         utils.sendBotTable(msg, config['channels']['admin'])
         return false, string.gsub(config['messages']['message_ban'], "{}", dcsbot.banList[old_ucid])
+    -- check if a player is temporarily locked
     elseif isLocked(ucid) then
         return false, config['messages']['message_seat_locked']
     end
@@ -145,7 +152,8 @@ function mission.onMissionLoadEnd()
     -- airbases
     msg.airbases = {}
     msg.dsmc_enabled = (base.HOOK ~= nil)
-    -- clear locklist
+    -- clear any lockings
+    dcsbot.server_locked = false
     dcsbot.locked = {}
     utils.sendBotTable(msg)
 end
@@ -315,10 +323,10 @@ local function handleTakeoffLanding(arg1)
     if utils.isWithinInterval(mission.last_change_slot[arg1], 20) then
         return false
     end
-    if utils.isWithinInterval(mission.last_to_landing[arg1], 30) then
+    if utils.isWithinInterval(mission.last_landing[arg1], 30) then
         return false
     else
-        mission.last_to_landing[arg1] = os.clock()
+        mission.last_landing[arg1] = os.clock()
     end
 end
 
