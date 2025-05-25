@@ -14,6 +14,8 @@ import ssl
 import sys
 import tempfile
 
+from packaging.version import parse
+
 if sys.platform == 'win32':
     import ctypes
 
@@ -398,11 +400,17 @@ class SRS(Extension, FileSystemEventHandler):
         return self._inst_path
 
     def get_exe_path(self) -> str:
-        return os.path.join(self.get_inst_path(), 'SR-Server.exe')
+        if parse(self.version) >= parse('2.2.0.0'):
+            #os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
+            #os_command = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
+            #return os.path.join(self.get_inst_path(), os_dir, os_command)
+            return os.path.join(self.get_inst_path(), 'Server', 'SRS-Server.exe')
+        else:
+            return os.path.join(self.get_inst_path(), 'SR-Server.exe')
 
     @property
     def version(self) -> Optional[str]:
-        return utils.get_windows_version(self.get_exe_path())
+        return utils.get_windows_version(os.path.join(self.get_inst_path(), 'SRS-AutoUpdater.exe'))
 
     async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
@@ -452,7 +460,7 @@ class SRS(Extension, FileSystemEventHandler):
                                        proxy_auth=self.node.proxy_auth) as response:
                     if response.status in [200, 302]:
                         version = response.url.raw_parts[-1]
-                        if version != self.version:
+                        if parse(version) > parse(self.version):
                             return version
         return None
 
