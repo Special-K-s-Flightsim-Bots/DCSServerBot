@@ -1,6 +1,7 @@
 {
   "color": "blue",
-  "title": "Highscore (TOP {limit})",
+  "title": "After Action Report for Tournament\n{tournament}",
+  "description": "{squadron_blue[name]} vs {squadron_red[name]}\nWinner: {winner}",
   "input": [
     {
       "name": "limit",
@@ -9,7 +10,24 @@
   ],
   "elements": [
     {
-      "class": "plugins.competitive.reports.MatchAAR"
+      "type": "Ruler",
+      "params": {
+        "header": "Credit Balance",
+        "ruler_length": 24
+      }
+    },
+    {
+      "class": "plugins.tournament.reports.AAR"
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "header": "Log",
+        "ruler_length": 24
+      }
+    },
+    {
+      "class": "plugins.competitive.reports.MatchLog"
     },
     {
       "type": "Graph",
@@ -29,7 +47,7 @@
               "params": { "col": 0, "row": 1, "kill_type": "PvP-KD-Ratio" }
             },
             {
-              "class": "plugins.competitive.reports.HighscoreTrueSkill",
+              "class": "plugins.tournament.reports.TrueSkill",
               "params": { "col": 1, "row": 1 }
             },
             {

@@ -4,6 +4,7 @@ import re
 
 from core import EventListener, event, Server, utils, get_translation, Coalition, DataObjectFactory, Player, Report
 from datetime import datetime, timedelta
+from discord.utils import MISSING
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Json
 from trueskill import Rating
@@ -13,7 +14,7 @@ from .const import TOURNAMENT_PHASE
 from .utils import calculate_point_multipliers
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
-from ..userstats.filter import CampaignFilter
+from ..userstats.filter import MissionIDFilter
 
 if TYPE_CHECKING:
     from .commands import Tournament
@@ -96,10 +97,32 @@ class TournamentEventListener(EventListener["Tournament"]):
             return
 
         tournament = self.tournaments.get(server.name)
+        match_id = await self.get_active_match(server)
+        _match = await self.plugin.get_match(match_id)
+        squadron_blue = await self.plugin.get_squadron(match_id=match_id, squadron_id=_match['squadron_blue'])
+        squadron_red = await self.plugin.get_squadron(match_id=match_id, squadron_id=_match['squadron_red'])
+        winner = match['winner']
         report = Report(self.bot, self.plugin_name, 'aar.json')
-        env = await report.render(server_name=None, flt=CampaignFilter(period=tournament['name']), match=match)
+        env = await report.render(interaction=None, server_name=None,
+                                  flt=MissionIDFilter(period=f"mission_id:{server.mission_id}"),
+                                  tournament=tournament['name'],
+                                  match=match,
+                                  squadron_blue={
+                                      "name": squadron_blue.name,
+                                      "points": squadron_blue.points - self.squadron_credits[_match['squadron_blue']],
+                                      "total": squadron_blue.points,
+                                      "trueskill": await Competitive.trueskill_squadron(self.node, squadron_blue.squadron_id)
+                                  },
+                                  squadron_red={
+                                      "name": squadron_red.name,
+                                      "points": squadron_red.points - self.squadron_credits[_match['squadron_red']],
+                                      "total": squadron_red.points,
+                                      "trueskill": await Competitive.trueskill_squadron(self.node, squadron_red.squadron_id)
+                                  },
+                                  winner=winner if winner != 'unknown' else 'draw')
         try:
-            await channel.send(embed=env.embed, file=discord.File(env.buffer, filename='aar.png'))
+            file = discord.File(fp=env.buffer, filename=env.filename) if env.filename else MISSING
+            await channel.send(embed=env.embed, file=file)
         finally:
             if env.buffer:
                 env.buffer.close()
@@ -515,7 +538,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 """, (match_id, ))
                 row = await cursor.fetchone()
                 round_number = row[0]
-        new_mission = await self.plugin.prepare_mission(server, match_id)
+        new_mission = await self.plugin.prepare_mission(server, match_id, round_number)
         await server.sendPopupMessage(Coalition.ALL, _("The next round will start in 10s!"))
         await asyncio.sleep(10)
         await server.loadMission(new_mission, modify_mission=False, use_orig=False)

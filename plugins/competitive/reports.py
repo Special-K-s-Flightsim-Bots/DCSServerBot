@@ -5,13 +5,10 @@ from core import report
 from datetime import datetime, timezone
 from matplotlib import cm
 from psycopg.rows import dict_row
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from ..userstats.filter import StatisticsFilter, CampaignFilter
 from ..userstats.highscore import compute_font_size
-
-if TYPE_CHECKING:
-    from plugins.competitive.listener import Match
 
 
 class HighscoreTrueSkill(report.GraphElement):
@@ -77,7 +74,7 @@ class HighscoreTrueSkill(report.GraphElement):
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
 
-class MatchAAR(report.EmbedElement):
+class MatchLog(report.EmbedElement):
 
     async def render(self, match: dict):
         times = []

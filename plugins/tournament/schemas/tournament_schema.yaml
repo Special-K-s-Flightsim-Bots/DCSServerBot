@@ -33,6 +33,16 @@ schema;element_schema:
           nullable: false
           sequence:
             - {type: str, nullable: false, range: {min: 1}, unique: true}
+        even:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false, range: {min: 1}, unique: true}
+        uneven:
+          type: seq
+          nullable: false
+          sequence:
+            - {type: str, nullable: false, range: {min: 1}, unique: true}
         choices:
           type: map
           nullable: false

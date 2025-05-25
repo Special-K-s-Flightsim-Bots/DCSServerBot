@@ -47,8 +47,10 @@ DEFAULT:
     file: presets_tournament.yaml
     initial:                # presets that have to be applied to any mission
       - sanitize            # preset to be used for sanitization (security settings in mission)
-      - switch_sides        # This will switch the blue and red sides on any round
       - random_weather      # Randomize the weather
+    even:
+      - switch_sides        # This will switch the blue and red sides on any even round (2, 4, ..)
+    # uneven:               # just to show you that it is there also
     choices:  # list of preset | cost in squadron credits
       'AIM-120': {"costs": 2}                   # each AIM-120 costs you 2 credit points
       'AIM-9x': {"costs": 1}                    # each AIM-9x costs you 1 credit points

@@ -466,11 +466,16 @@ def async_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    async def wrapper(*args):
-        if args in cache:
-            return cache[args]
-        result = await func(*args)
-        cache[args] = result
+    async def wrapper(*args, **kwargs):
+        # Create a cache key from both args and kwargs
+        # We need to freeze kwargs into an immutable form to use as dict key
+        cache_key = (args, frozenset(kwargs.items()))
+
+        if cache_key in cache:
+            return cache[cache_key]
+
+        result = await func(*args, **kwargs)
+        cache[cache_key] = result
         return result
 
     return wrapper

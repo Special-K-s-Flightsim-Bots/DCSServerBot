@@ -1056,7 +1056,7 @@ class Tournament(Plugin[TournamentEventListener]):
             # read all squadrons and their ratings
             for row in await cursor.fetchall():
                 rating = await Competitive.trueskill_squadron(self.node, row[0])
-                squadrons.append((row[0], rating.mu - 3.0 * rating.sigma))
+                squadrons.append((row[0], Competitive.calculate_rating(rating)))
 
             # read all available servers
             servers: list[str] = []
@@ -1306,7 +1306,8 @@ class Tournament(Plugin[TournamentEventListener]):
                         ON CONFLICT (server_name, player_ucid) DO UPDATE SET coalition = '{coalition}'
                     """, (server.name, match['match_id']))
 
-    async def prepare_mission(self, server: Server, match_id: int, mission_id: Optional[int] = None) -> str:
+    async def prepare_mission(self, server: Server, match_id: int, round_number: int,
+                              mission_id: Optional[int] = None) -> str:
         config = self.get_config(server)
         # set startindex or use last mission
         if mission_id is not None and server.settings['listStartIndex'] != mission_id + 1:
@@ -1327,6 +1328,15 @@ class Tournament(Plugin[TournamentEventListener]):
         for preset in config.get('presets', {}).get('initial', []):
             self.log.debug(f"Applying initial preset: {preset} ...")
             miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
+
+        if round_number %2 == 0:
+            for preset in config.get('presets', {}).get('even', []):
+                self.log.debug(f"Applying even-round preset: {preset} ...")
+                miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
+        else:
+            for preset in config.get('presets', {}).get('uneven', []):
+                self.log.debug(f"Applying uneven-round preset: {preset} ...")
+                miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
 
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -1466,10 +1476,10 @@ class Tournament(Plugin[TournamentEventListener]):
             elif isinstance(mission, str):
                 for idx, mission_file in enumerate(await server.getMissionList()):
                     if mission in mission_file:
-                        mission_id = idx + 1
+                        mission_id = idx
                         break
         # prepare the mission
-        await self.prepare_mission(server, match_id, mission_id)
+        await self.prepare_mission(server, match_id, round_number, mission_id)
         # Starting the server up again
         embed.description += _("\n- Starting server {} ...").format(match['server_name'])
         embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])

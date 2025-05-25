@@ -75,7 +75,7 @@ class CreditPlayer(Player):
         else:
             self.log.debug("No campaign active, player points will vanish after a bot restart.")
 
-        if self.squadron and old_points < self._points:
+        if self.squadron and self.sub_slot == 0 and old_points < self._points:
             if self.config.get('squadron_credits', False):
                 self.squadron.points += self._points - old_points
 

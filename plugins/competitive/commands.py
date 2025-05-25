@@ -102,6 +102,10 @@ class Competitive(Plugin[CompetitiveListener]):
             ephemeral=True)
 
     @staticmethod
+    def calculate_rating(r: Rating) -> float:
+        return r.mu - 3.0 * r.sigma
+
+    @staticmethod
     def win_probability(team1: list[Rating], team2: list[Rating]):
         delta_mu = sum(r.mu for r in team1) - sum(r.mu for r in team2)
         sum_sigma = sum(r.sigma ** 2 for r in itertools.chain(team1, team2))
@@ -170,7 +174,7 @@ class Competitive(Plugin[CompetitiveListener]):
             r = await self.trueskill_squadron(self.node, squadron_id)
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(_("TrueSkill:tm: rating: {rating:.2f}.").format(
-                rating=r.mu - 3.0 * r.sigma), ephemeral=True)
+                rating=self.calculate_rating(r)), ephemeral=True)
         else:
             await self._trueskill_player(interaction, user)
 

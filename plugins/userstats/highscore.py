@@ -39,9 +39,12 @@ class HighscorePlaytime(report.GraphElement):
 
     async def render(self, interaction: discord.Interaction, server_name: str, limit: int,
                      flt: StatisticsFilter, bar_labels: Optional[bool] = True):
-        sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
-              "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
-              "s.hop_off IS NOT NULL AND s.mission_id = m.id "
+        sql = """
+            SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, 
+                   ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on)))) AS playtime 
+            FROM statistics s, players p, missions m 
+            WHERE p.ucid = s.player_ucid AND s.mission_id = m.id
+        """
         if server_name:
             sql += "AND m.server_name = %(server_name)s"
             self.env.embed.description = utils.escape_string(server_name)
@@ -124,8 +127,11 @@ class HighscoreElement(report.GraphElement):
             'Most Efficient Killers': 'kills / h',
             'Most Wasteful Pilots': 'airframes wasted / h'
         }
-        sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \
-              f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
+        sql = f"""
+            SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value 
+            FROM players p, statistics s, missions m 
+            WHERE s.player_ucid = p.ucid AND s.mission_id = m.id
+        """
         if server_name:
             sql += "AND m.server_name = %(server_name)s"
             if server_name in self.bot.servers:
@@ -133,9 +139,9 @@ class HighscoreElement(report.GraphElement):
                     str(x) for x in get_sides(interaction, self.bot.servers[server_name])
                 ]) + ')'
         sql += ' AND ' + flt.filter(self.env.bot)
-        sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
+        sql += f' GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
         if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
-            sql += f' AND SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) > 1800'
+            sql += f" AND SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') - s.hop_on))) > 1800"
         sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
         async with self.apool.connection() as conn:

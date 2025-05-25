@@ -689,6 +689,9 @@ class MizFile:
             else:
                 self.log.error(f"Variable '{name}' has an unsupported value: {value}")
 
+        if 'if' in config and not utils.evaluate(config['if'], **kwargs):
+            return
+
         # run the processing
         try:
             for_each = config.get('for-each', '').lstrip('/')
