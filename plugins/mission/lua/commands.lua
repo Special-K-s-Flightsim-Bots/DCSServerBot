@@ -516,11 +516,19 @@ end
 function dcsbot.lock_server(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: lock_server()')
 	dcsbot.server_locked = true
+	if json.message then
+	    messages = dcsbot.params['mission']['messages']
+	    messages['message_server_locked_old'] = messages['message_server_locked']
+        messages['message_server_locked'] = json.message
+    end
 end
 
 function dcsbot.unlock_server(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: unlock_server()')
 	dcsbot.server_locked = false
+    -- reset the message to default
+    messages = dcsbot.params['mission']['messages']
+    messages['message_server_locked'] = messages['message_server_locked_old']
 end
 
 function dcsbot.makeScreenshot(json)

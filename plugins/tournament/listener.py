@@ -174,7 +174,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             await asyncio.sleep(1)
 
         self.round_started[server.name] = True
-        await server.lock()
+        await server.lock(_("There is a match running. Please wait for the round to finish."))
         # TODO: make this text configurable
         await server.sendPopupMessage(Coalition.ALL, _("GO GO GO! The fight is now on!"))
 
