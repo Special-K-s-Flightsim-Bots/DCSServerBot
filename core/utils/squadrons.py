@@ -17,8 +17,6 @@ _all_ = [
 
 
 async def squadron_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("SELECT id, name FROM squadrons WHERE name ILIKE %s", ('%' + current + '%', ))
         choices: list[app_commands.Choice[int]] = [
@@ -98,7 +96,7 @@ def get_squadron_admins(node: Node, squadron_id: int) -> list[int]:
 def squadron_role_check():
     def predicate(interaction: discord.Interaction) -> bool:
         squadron_id = get_interaction_param(interaction, 'squadron')
-        if squadron_id:
+        if isinstance(squadron_id, int):
             admins = get_squadron_admins(interaction.client.node, squadron_id)
             if interaction.user.id in admins:
                 return True

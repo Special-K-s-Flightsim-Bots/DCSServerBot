@@ -104,7 +104,7 @@ class ServerImpl(Server):
     def __post_init__(self):
         super().__post_init__()
         self.is_remote = False
-        self.lock = asyncio.Lock()
+        self._lock = asyncio.Lock()
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT (server_name) DO NOTHING",
@@ -510,7 +510,7 @@ class ServerImpl(Server):
         )
 
     async def init_extensions(self) -> list[str]:
-        async with self.lock:
+        async with self._lock:
             extensions = DEFAULT_EXTENSIONS | self.locals.get('extensions', {})
             for extension in extensions.keys():
                 try:
@@ -526,7 +526,7 @@ class ServerImpl(Server):
             return list(self.extensions.keys())
 
     async def prepare_extensions(self):
-        async with self.lock:
+        async with self._lock:
             for ext in self.extensions.values():
                 try:
                     await ext.prepare()
@@ -604,7 +604,7 @@ class ServerImpl(Server):
             raise
 
     async def _startup_extensions(self, status: Union[Status, str]) -> None:
-        async with self.lock:
+        async with self._lock:
             not_running_extensions = [
                 ext for ext in self.extensions.values() if not await asyncio.to_thread(ext.is_running)
             ]
@@ -621,7 +621,7 @@ class ServerImpl(Server):
             super().set_status(status)
 
     async def _shutdown_extensions(self, status: Union[Status, str]) -> None:
-        async with self.lock:
+        async with self._lock:
             running_extensions = [
                 ext for ext in self.extensions.values() if await asyncio.to_thread(ext.is_running)
             ]
@@ -662,7 +662,7 @@ class ServerImpl(Server):
                                                f"dcs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.log"))
 
     async def is_running(self) -> bool:
-        async with self.lock:
+        async with self._lock:
             if not self.process or not self.process.is_running():
                 self.process = await asyncio.to_thread(
                     lambda: next(utils.find_process("DCS_server.exe|DCS.exe", self.instance.name), None)

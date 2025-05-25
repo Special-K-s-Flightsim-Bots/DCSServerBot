@@ -1474,10 +1474,17 @@ class Tournament(Plugin[TournamentEventListener]):
         embed.description += _("\n- Starting server {} ...").format(match['server_name'])
         embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
         await msg.edit(embed=embed)
-        try:
-            await server.startup(modify_mission=False, use_orig=False)
-        except (TimeoutError, asyncio.TimeoutError):
-            embed.description = _("## Error during starting server {}: Timeout").format(server.name)
+        for i in range(0, 3):
+            try:
+                await server.startup(modify_mission=False, use_orig=False)
+                break
+            except (TimeoutError, asyncio.TimeoutError):
+                addon = '. Retrying in 5 seconds ...' if i < 2 else '. Giving up.'
+                self.log.warning(f"Timeout while starting server {server.name}{addon}")
+                if i < 2:
+                    await asyncio.sleep(5)
+        else:
+            embed.description = _("## Error during the startup of server\n{}: Timeout").format(server.name)
             embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
             await msg.edit(embed=embed)
             return
@@ -1543,7 +1550,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         if not await yn_question(
                 interaction,
-                _("Do you want to start round {} of the match between {} and {}??").format(
+                _("Do you want to start round {} of the match between\n{} and {}??").format(
                     round_number, squadrons['blue']['name'], squadrons['red']['name']
                 ), ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=True)
