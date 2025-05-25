@@ -434,7 +434,7 @@ class Mission(Plugin[MissionEventListener]):
                 await interaction.followup.send(_('Mission {}.').format(_('restarted')), ephemeral=ephemeral)
         else:
             name = os.path.basename(mission[:-4])
-            if mission_id and result == 'later':
+            if mission_id is not None and result == 'later':
                 # make sure, we load that mission, independently on what happens to the server
                 await server.setStartIndex(mission_id + 1)
                 server.on_empty = {

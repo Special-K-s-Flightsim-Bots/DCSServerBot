@@ -6,7 +6,7 @@ import random
 
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
-                  DEFAULT_TAG, get_translation)
+                  DEFAULT_TAG, get_translation, TRAFFIC_LIGHTS)
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 from discord.ext import tasks
@@ -509,6 +509,76 @@ class Scheduler(Plugin[SchedulerListener]):
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
+    async def _startup(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
+                       msg: discord.Message = None, mission_id: int = None, maintenance: Optional[bool] = False,
+                       run_extensions: bool = True, use_orig: bool = True, ephemeral: bool = False):
+
+        if maintenance and not server.maintenance:
+            server.maintenance = True
+            embed.description += f"\n- Maintenance flag set."
+
+        embed.description += f"\n- Starting DCS server, please wait ..."
+        embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+        if not msg:
+            msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+        else:
+            await msg.edit(embed=embed)
+
+        try:
+            if mission_id is not None:
+                mission = (await server.getMissionList())[mission_id]
+                await server.setStartIndex(mission_id + 1)
+            else:
+                mission = await server.get_current_mission_file()
+            embed.description += f"\n- Using mission \"{os.path.basename(mission)[:-4]}\" ..."
+            if run_extensions:
+                embed.description += "\n- Applying extensions"
+                if use_orig:
+                    embed.description += " to the original mission file ..."
+                else:
+                    embed.description += " to the current mission file ..."
+            await msg.edit(embed=embed)
+            task = asyncio.create_task(self.launch_dcs(server, interaction.user, modify_mission=run_extensions,
+                                                       use_orig=use_orig))
+            # wait until the server is loading
+            await server.wait_for_status_change(status=[Status.LOADING], timeout=180)
+            embed.description += f"\n- Loading ..."
+            embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
+            await msg.edit(embed=embed)
+            # wait for the startup
+            await task
+            if maintenance:
+                embed = utils.create_warning_embed(
+                    title=f"DCS server \"{server.display_name}\" started.",
+                    text="Server is in maintenance mode!\n"
+                         "Use {} to reset maintenance mode.".format(
+                        (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                    )
+                )
+                await msg.edit(embed=embed)
+            else:
+                if maintenance is False and server.maintenance:
+                    server.maintenance = False
+                    embed.description += f"\n- Maintenance flag cleared."
+                embed.description += f"\n- Server started successfully."
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
+                await msg.edit(embed=embed)
+        except (TimeoutError, asyncio.TimeoutError):
+            if server.status == Status.SHUTDOWN:
+                embed.description += f"\n- The server crashed during startup. Check the dcs.log."
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+                await msg.edit(embed=embed)
+            else:
+                embed.description += f"\n- Timeout while launching. Please check if the server has started properly."
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+                await msg.edit(embed=embed)
+        except Exception as ex:
+            self.log.exception(ex)
+            embed.description += f"\n- Something went wrong. Please check the dcssb*.log."
+            embed.description += f"\nException: {str(ex)}"
+            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+            await msg.edit(embed=embed)
+
     @group.command(description='Launches a DCS server')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
@@ -519,73 +589,100 @@ class Scheduler(Plugin[SchedulerListener]):
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                       maintenance: Optional[bool] = False, run_extensions: Optional[bool] = True,
                       use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
+
         if server.status == Status.STOPPED:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
-                                                    f"Please use /server start instead.", ephemeral=True)
-        elif server.status == Status.LOADING:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
-                                                    f"Please wait or use /server shutdown force instead.",
-                                                    ephemeral=True)
-        elif server.status == Status.SHUTTING_DOWN:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is shutting down.\n"
-                                                    f"Please wait or use /server shutdown force instead.",
-                                                    ephemeral=True)
-        elif server.status == Status.SHUTDOWN:
-            ephemeral = utils.get_ephemeral(interaction)
+            await interaction.response.send_message(
+                "DCS server \"{name}\" is stopped.\nPlease use {command} instead.".format(
+                    name=server.display_name,
+                    command=(await utils.get_command(self.bot, group=group.name, name=self.start.name)).mention),
+                ephemeral=True)
+            return
+        elif server.status in [Status.LOADING, Status.SHUTTING_DOWN]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f"Starting DCS server \"{server.display_name}\", please wait ...", ephemeral=ephemeral)
-            msg = await interaction.original_response()
-            # set maintenance flag. default is true to prevent auto stops of this server if configured to be stopped.
-            server.maintenance = maintenance
-            try:
-                if mission_id is not None:
-                    await server.setStartIndex(mission_id + 1)
-                await self.launch_dcs(server, interaction.user, modify_mission=run_extensions, use_orig=use_orig)
-                if maintenance:
-                    embed = utils.create_warning_embed(
-                        title=f"DCS server \"{server.display_name}\" started.",
-                        text="Server is in maintenance mode!\n"
-                             "Use {} to reset maintenance mode.".format(
-                            (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
-                        )
-                    )
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-                else:
-                    await interaction.followup.send(f"DCS server \"{server.display_name}\" started.",
-                                                    ephemeral=ephemeral)
-            except (TimeoutError, asyncio.TimeoutError):
-                if server.status == Status.SHUTDOWN:
-                    embed = utils.create_warning_embed(
-                        title=f"DCS server \"{server.display_name}\" crashed!",
-                        text="The server has crashed while starting.\n"
-                             "You should look for a cause in its dcs.log.")
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-                else:
-                    embed = utils.create_warning_embed(
-                        title=f"Timeout while launching \"{server.display_name}\"!",
-                        text="The server might be running anyway.\n"
-                             "Check with {}.".format(
-                            (await utils.get_command(self.bot, group='server', name='list')).mention
-                        )
-                    )
-                    await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            except Exception as ex:
-                self.log.error(ex)
-                await interaction.followup.send(f"Can't launch server {server.display_name}:\n```\n{ex}n```",
-                                                ephemeral=ephemeral)
-            finally:
-                try:
-                    await msg.delete()
-                except discord.NotFound:
-                    pass
-        else:
+                "DCS server \"{name}\" is {status}.\nPlease wait or use {command} force instead.".format(
+                    name=server.display_name, status=server.status.value.lower(),
+                    command=(await utils.get_command(self.bot, group=group.name, name=self.shutdown.name)).mention
+                ),
+                ephemeral=True)
+            return
+        elif server.status in [Status.RUNNING, Status.PAUSED]:
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is started already.",
                                                     ephemeral=True)
+            return
+
+        ephemeral = utils.get_ephemeral(interaction)
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer(ephemeral=ephemeral)
+
+        embed = discord.Embed(title=f"Launching DCS Server \"{server.display_name}\"", color=discord.Color.blue())
+        embed.description = ""
+        await self._startup(interaction, embed=embed, server=server, maintenance=maintenance, mission_id=mission_id,
+                            run_extensions=run_extensions, use_orig=use_orig, ephemeral=ephemeral)
+
+    async def _shutdown(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
+                        msg: discord.Message = None, maintenance: Optional[bool] = True, force: bool = False,
+                        ephemeral: bool = False):
+
+        if maintenance and not server.maintenance:
+            server.maintenance = True
+            embed.description += f"\n- Maintenance flag set."
+
+        try:
+            if force:
+                embed.description += "\n- Killing the DCS server, please wait ..."
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
+                if not msg:
+                    msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                else:
+                    await msg.edit(embed=embed)
+                task = asyncio.create_task(server.shutdown(force=True))
+            else:
+                embed.description += f"\n- Gracefully stopping the DCS server, please wait ..."
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
+                if not msg:
+                    msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+                else:
+                    await msg.edit(embed=embed)
+                task = asyncio.create_task(self.teardown_dcs(server, interaction.user))
+
+            await server.wait_for_status_change(status=[Status.SHUTTING_DOWN], timeout=180)
+            embed.description += f"\n- Shutdown process initiated ..."
+            embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
+            await msg.edit(embed=embed)
+            await server.wait_for_status_change(status=[Status.STOPPED, Status.SHUTDOWN], timeout=180)
+            # wait for the process to vanish
+            await task
+
+            if maintenance:
+                embed = utils.create_warning_embed(
+                    title=f"DCS server \"{server.display_name}\" shut down.",
+                    text="Server is in maintenance mode!\n"
+                         "Use {} to reset maintenance mode.".format(
+                        (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
+                    )
+                )
+                await msg.edit(embed=embed)
+            else:
+                if maintenance is False and server.maintenance:
+                    server.maintenance = False
+                    embed.description += f"\n- Maintenance flag cleared."
+                embed.description += f"\n- Server shut down successfully."
+                embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+                await msg.edit(embed=embed)
+
+        except (TimeoutError, asyncio.TimeoutError):
+            embed.description += f"\n- Timeout while shutting down. Please check if the server has shut down properly."
+            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+            await msg.edit(embed=embed)
+        except Exception as ex:
+            self.log.exception(ex)
+            embed.description += f"\n- Something went wrong. Please check the dcssb*.log."
+            embed.description += f"\nException: {str(ex)}"
+            embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
+            await msg.edit(embed=embed)
 
     @group.command(description='Shuts a DCS server down')
     @utils.app_has_role('DCS Admin')
@@ -595,55 +692,42 @@ class Scheduler(Plugin[SchedulerListener]):
                            status=[
                                Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.SHUTTING_DOWN
                            ])], force: Optional[bool] = False, maintenance: Optional[bool] = True):
-        async def do_shutdown(*, force: bool = False):
-            await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
-                                            ephemeral=ephemeral)
-            # set maintenance flag to prevent auto-starts of this server
-            server.maintenance = maintenance
-            if force:
-                await server.shutdown(force=True)
-            else:
-                await self.teardown_dcs(server, interaction.user)
-            if maintenance:
-                embed = utils.create_warning_embed(
-                    title=f"DCS server \"{server.display_name}\" shut down.",
-                    text="Server is in maintenance mode!\n"
-                         "Use {} to reset maintenance mode.".format(
-                        (await utils.get_command(self.bot, group='scheduler', name='clear')).mention
-                    )
-                )
-                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            else:
-                await interaction.followup.send(f"DCS server \"{server.display_name}\" shut down.", ephemeral=ephemeral)
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
-            if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"
-                                                             f"Do you want to force a shutdown?", ephemeral=ephemeral):
-                await do_shutdown(force=True)
-            else:
-                return
-        elif server.status != Status.SHUTDOWN:
-            if not force:
-                question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
-                if server.is_populated():
-                    result = await utils.populated_question(interaction, question, ephemeral=ephemeral)
-                else:
-                    result = await utils.yn_question(interaction, question, ephemeral=ephemeral)
-                if not result:
-                    await interaction.followup.send('Aborted.', ephemeral=ephemeral)
-                    return
-                elif result == 'later':
-                    server.on_empty = {"command": "shutdown", "user": interaction.user}
-                    server.restart_pending = True
-                    await interaction.followup.send('Shutdown postponed when server is empty.', ephemeral=ephemeral)
-                    return
-            await do_shutdown(force=force)
-        else:
+        if server.status == Status.SHUTDOWN:
             await interaction.followup.send(f"DCS server \"{server.display_name}\" is already shut down.",
                                             ephemeral=ephemeral)
+            return
+
+        if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN]:
+            if not force and not await utils.yn_question(
+                    interaction, f"Server is in state {server.status.name}.\n"
+                                 f"Do you want to force a shutdown?", ephemeral=ephemeral):
+                return
+            force = True
+
+        if not force:
+            question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
+            if server.is_populated():
+                result = await utils.populated_question(interaction, question, ephemeral=ephemeral)
+            else:
+                result = await utils.yn_question(interaction, question, ephemeral=ephemeral)
+            if not result:
+                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
+                return
+            elif result == 'later':
+                server.on_empty = {"command": "shutdown", "user": interaction.user}
+                server.restart_pending = True
+                await interaction.followup.send('Shutdown postponed when server is empty.', ephemeral=ephemeral)
+                return
+
+        embed = discord.Embed(title=f"Shutting down DCS Server \"{server.display_name}\"",
+                              color=discord.Color.blue())
+        embed.description = ""
+        await self._shutdown(interaction, embed=embed, server=server, maintenance=maintenance, force=force,
+                             ephemeral=ephemeral)
 
     @group.command(description='Restarts a DCS server')
     @utils.app_has_role('DCS Admin')
@@ -658,65 +742,58 @@ class Scheduler(Plugin[SchedulerListener]):
                           ])],
                       delay: Optional[int] = 120, force: Optional[bool] = False, run_extensions: Optional[bool] = True,
                       use_orig: Optional[bool] = True, mission_id: Optional[int] = None):
+
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
+
         question = f"Do you want to restart DCS server \"{server.display_name}\"?"
+        message = ""
         if server.is_populated():
-            question += "\nPeople are flying on this server atm."
-        if not await utils.yn_question(interaction, question, ephemeral=ephemeral):
+            message += "People are currently flying on this server!"
+        if server.restart_pending:
+            message += "\nA restart is pending already. If you continue, the restart will be voided."
+
+        if not await utils.yn_question(interaction, question, message=message, ephemeral=ephemeral):
             await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
+
+        maintenance = server.maintenance
+        server.maintenance = True
+
+        embed = discord.Embed(title=f"Restarting DCS Server \"{server.display_name}\"", color=discord.Color.blue())
+        embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
+        embed.description = "- Maintenance flag set."
+        msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+
+        # clear any restart flag
+        if server.restart_pending:
+            server.restart_pending = False
+            server.on_empty.clear()
+            server.on_mission_end.clear()
+            embed.description += "\n- Already pending restart was cancelled."
+            await msg.edit(embed=embed)
+
         # send warnings (TODO: change to warn structure)
         if server.is_populated():
             if delay > 0:
                 message = _("!!! Server will restart in {}!!!").format(utils.format_time(delay))
+                await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
+                embed.description += '- Restart is delayed for {}. Waiting ...'.format(utils.format_time(delay))
+                await msg.edit(embed=embed)
+                await asyncio.sleep(delay)
             else:
                 message = _("!!! Server will restart NOW !!!")
+                await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
 
-            msg = await interaction.followup.send(
-                _('Server will restart in {} (warning users before)...').format(utils.format_time(delay)),
-                ephemeral=ephemeral
-            )
-            await server.sendPopupMessage(Coalition.ALL, message, sender=interaction.user.display_name)
-            await asyncio.sleep(delay)
-            await msg.delete()
+        await self._shutdown(interaction, embed=embed, server=server, msg=msg, maintenance=None, force=force)
+        await self._startup(interaction, embed=embed, server=server, msg=msg, maintenance=None,
+                            run_extensions=run_extensions, use_orig=use_orig, mission_id=mission_id)
 
-        msg = await interaction.followup.send(
-            f'Shutting down DCS server "{server.display_name}" ...', ephemeral=ephemeral
-        )
-        try:
-            maintenance = server.maintenance
-            server.maintenance = True
-            if force:
-                await server.shutdown(force=True)
-            else:
-                await self.teardown_dcs(server, interaction.user)
-            await msg.edit(content=f"Server \"{server.display_name}\" shut down. Restarting ...")
-            if mission_id is not None:
-                await server.setStartIndex(mission_id + 1)
-            await self.launch_dcs(server, interaction.user, modify_mission=run_extensions, use_orig=use_orig)
+        if server.maintenance != maintenance:
             server.maintenance = maintenance
-            await msg.edit(content=f"DCS server \"{server.display_name}\" restarted.")
-        except (TimeoutError, asyncio.TimeoutError):
-            if server.status == Status.SHUTDOWN:
-                embed = utils.create_warning_embed(
-                    title=f"DCS server \"{server.display_name}\" crashed!",
-                    text="The server has crashed while restarting.\n"
-                         "You should look for a cause in its dcs.log.")
-                await msg.edit(content="", embed=embed)
-            else:
-                embed = utils.create_warning_embed(
-                    title=f"Timeout while restarting \"{server.display_name}\"!",
-                    text="The server might be running anyway.\n"
-                         "Check with {}.".format(
-                        (await utils.get_command(self.bot, group='server', name='list')).mention
-                    )
-                )
-                await msg.edit(content="", embed=embed)
-        except Exception as ex:
-            self.log.error(ex)
-            await msg.edit(content=ex)
+            embed.description += f"\n- Maintenance flag set." if maintenance else f"\n- Maintenance flag cleared."
+            await msg.edit(embed=embed)
 
     @group.command(description='Starts a stopped DCS server')
     @app_commands.guild_only()

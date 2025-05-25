@@ -41,12 +41,14 @@ SET PROGRAM=run.py
 if %ERRORLEVEL% EQU -1 (
     SET PROGRAM=run.py
     goto loop
-)
-if %ERRORLEVEL% EQU -3 (
+) else if %ERRORLEVEL% EQU -3 (
     SET PROGRAM=update.py
     goto loop
-)
-if %ERRORLEVEL% EQU -2 (
+) else if %ERRORLEVEL% EQU -2 (
     echo Please press any key to continue...
+    pause > NUL
+) else (
+    echo Unexpected return code: %ERRORLEVEL%
+    echo Please check the logs and press any key to continue...
     pause > NUL
 )

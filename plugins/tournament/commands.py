@@ -7,7 +7,7 @@ import random
 import shutil
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
-    MizFile, DataObjectFactory, async_cache, Report
+    MizFile, DataObjectFactory, async_cache, Report, TRAFFIC_LIGHTS
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from discord.ext import tasks
@@ -31,12 +31,6 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
-
-TRAFFIC_LIGHTS = {
-    "red": "https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg",
-    "amber": "https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg",
-    "green": "https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg"
-}
 
 
 async def tournament_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
