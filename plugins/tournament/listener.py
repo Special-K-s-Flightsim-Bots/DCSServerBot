@@ -203,6 +203,10 @@ class TournamentEventListener(EventListener["Tournament"]):
 
     @event(name="onSimulationResume")
     async def onSimulationResume(self, server: Server, data: dict) -> None:
+        # ignore any pause events if the round is already started
+        if self.round_started.get(server.name, False):
+            return
+
         config = self.get_config(server)
         if 'delayed_start' in config:
             self.tasks[server.name] = asyncio.create_task(self.countdown_with_warnings(server, config['delayed_start']))

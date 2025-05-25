@@ -114,12 +114,18 @@ def create_group_matches(groups: list[list[int]]) -> list[tuple[int, int]]:
 
 
 async def download_image(image_url: str) -> bytes:
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+    }
+
     timeout = aiohttp.ClientTimeout(total=30)  # 30 seconds total timeout
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.get(image_url) as response1:
-            if not response1.headers.get('content-type', '').startswith('image/'):
+        async with session.get(image_url, headers=headers) as response:
+            if not response.headers.get('content-type', '').startswith('image/'):
                 raise ValueError(f"URL does not point to an image: {image_url}")
-            img_data = await response1.read()
+            img_data = await response.read()
             if len(img_data) > 10 * 1024 * 1024:  # 10MB limit
                 raise ValueError(f"Image too large: {image_url}")
             return img_data
@@ -132,136 +138,151 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
     :param team_red_image_url: Red team image URL
     :param winner: Optional - either 'blue' or 'red' to indicate winner
     """
+    img1_bio = None
+    img2_bio = None
     try:
         img1_data = await download_image(team_blue_image_url)
         img2_data = await download_image(team_red_image_url)
     except ValueError:
         return None
 
-    # Open images from binary data and convert to RGBA
-    img1 = Image.open(BytesIO(img1_data)).convert('RGBA')
-    img2 = Image.open(BytesIO(img2_data)).convert('RGBA')
-
-    if winner is None:
-        # Original versus logic
-        standard_size = (200, 200)
-        img1.thumbnail(standard_size, Image.Resampling.LANCZOS)
-        img2.thumbnail(standard_size, Image.Resampling.LANCZOS)
-    else:
-        # Winner/loser logic
-        winner_size = (200, 200)
-        loser_size = (150, 150)
-
-        if winner.lower() == 'blue':
-            img1.thumbnail(winner_size, Image.Resampling.LANCZOS)
-            img2.thumbnail(loser_size, Image.Resampling.LANCZOS)
-            winner_img = img1
-            loser_img = img2
-        else:  # 'red'
-            img1.thumbnail(loser_size, Image.Resampling.LANCZOS)
-            img2.thumbnail(winner_size, Image.Resampling.LANCZOS)
-            winner_img = img2
-            loser_img = img1
-
-        # Create glow effect for winner
-        glow_color = (255, 215, 0, 100)  # Golden color with alpha
-        glow_size = 10
-        winner_with_glow = Image.new('RGBA',
-                                     (winner_img.width + 2 * glow_size,
-                                      winner_img.height + 2 * glow_size),
-                                     (0, 0, 0, 0))
-
-        # Create glow effect using multiple passes
-        glow = winner_img.copy()
-        glow = glow.convert('RGBA')
-        for i in range(glow_size):
-            glow_layer = Image.new('RGBA', winner_with_glow.size, (0, 0, 0, 0))
-            glow_layer.paste(glow, (i, i))
-            glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(glow_size - i))
-            for x in range(glow_layer.width):
-                for y in range(glow_layer.height):
-                    r, g, b, a = glow_layer.getpixel((x, y))
-                    if a > 0:
-                        glow_layer.putpixel((x, y),
-                                            (glow_color[0], glow_color[1],
-                                             glow_color[2], min(a, glow_color[3])))
-            winner_with_glow = Image.alpha_composite(winner_with_glow, glow_layer)
-
-        # Paste the original winner image in the center of the glow
-        winner_with_glow.paste(winner_img, (glow_size, glow_size), winner_img)
-
-        # Replace original images with processed ones
-        if winner.lower() == 'blue':
-            img1 = winner_with_glow
-            img2 = loser_img
-        else:
-            img1 = loser_img
-            img2 = winner_with_glow
-
-    # Add spacing for VS text or spacing between winner/loser
-    spacing = 100
-    total_width = img1.width + img2.width + spacing
-    max_height = max(img1.height, img2.height)
-
-    # Create new image with transparent background
-    combined_image = Image.new('RGBA', (total_width, max_height), (255, 255, 255, 0))
-
-    # Calculate vertical positions
-    y1 = (max_height - img1.height) // 2
-    y2 = (max_height - img2.height) // 2
-
-    # Paste images
-    combined_image.paste(img1, (0, y1), img1)
-    combined_image.paste(img2, (img1.width + spacing, y2), img2)
-
-    # Add text
-    draw = ImageDraw.Draw(combined_image)
     try:
-        font = ImageFont.truetype("arial.ttf", 32 if winner is None else 24)
-    except:
-        font = ImageFont.load_default()
+        img1_bio = BytesIO(img1_data)
+        img2_bio = BytesIO(img2_data)
 
-    if winner is None:
-        # Original VS text logic
-        vs_text = " vs "
-        text_bbox = draw.textbbox((0, 0), vs_text, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        x = (total_width - text_width) // 2
-        y = (max_height - text_height) // 2
+        # Open images from binary data and convert to RGBA
+        with Image.open(img1_bio) as img1, Image.open(img2_bio) as img2:
 
-        # Draw VS text with outline
-        draw.text((x - 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x + 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x - 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x + 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x, y), vs_text, font=font, fill=(255, 255, 255, 255))
-    else:
-        # Add WINNER text under winning image
-        winner_text = "WINNER"
-        text_bbox = draw.textbbox((0, 0), winner_text, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
+            img1 = img1.convert('RGBA')
+            img2 = img2.convert('RGBA')
 
-        if winner.lower() == 'blue':
-            x = (img1.width - text_width) // 2
-            y = y1 + img1.height + 5
-        else:
-            x = img1.width + spacing + (img2.width - text_width) // 2
-            y = y2 + img2.height + 5
+            if winner is None:
+                # Original versus logic
+                standard_size = (200, 200)
+                img1.thumbnail(standard_size, Image.Resampling.LANCZOS)
+                img2.thumbnail(standard_size, Image.Resampling.LANCZOS)
+            else:
+                # Winner/loser logic
+                winner_size = (200, 200)
+                loser_size = (150, 150)
 
-        # Draw WINNER text with golden color and outline
-        draw.text((x - 1, y - 1), winner_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x + 1, y - 1), winner_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x - 1, y + 1), winner_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x + 1, y + 1), winner_text, font=font, fill=(0, 0, 0, 255))
-        draw.text((x, y), winner_text, font=font, fill=(255, 215, 0, 255))
+                if winner.lower() == 'blue':
+                    img1.thumbnail(winner_size, Image.Resampling.LANCZOS)
+                    img2.thumbnail(loser_size, Image.Resampling.LANCZOS)
+                    winner_img = img1
+                    loser_img = img2
+                else:  # 'red'
+                    img1.thumbnail(loser_size, Image.Resampling.LANCZOS)
+                    img2.thumbnail(winner_size, Image.Resampling.LANCZOS)
+                    winner_img = img2
+                    loser_img = img1
 
-    # Save to binary buffer
-    buffer = BytesIO()
-    combined_image.save(buffer, format='PNG')
-    buffer.seek(0)
+                # Create glow effect for winner
+                glow_color = (255, 215, 0, 100)  # Golden color with alpha
+                glow_size = 10
+                winner_with_glow = Image.new('RGBA',
+                                             (winner_img.width + 2 * glow_size,
+                                              winner_img.height + 2 * glow_size),
+                                             (0, 0, 0, 0))
 
-    return buffer
+                # Create glow effect using multiple passes
+                glow = winner_img.copy()
+                glow = glow.convert('RGBA')
+                for i in range(glow_size):
+                    glow_layer = Image.new('RGBA', winner_with_glow.size, (0, 0, 0, 0))
+                    glow_layer.paste(glow, (i, i))
+                    glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(glow_size - i))
+                    for x in range(glow_layer.width):
+                        for y in range(glow_layer.height):
+                            r, g, b, a = glow_layer.getpixel((x, y))
+                            if a > 0:
+                                glow_layer.putpixel((x, y),
+                                                    (glow_color[0], glow_color[1],
+                                                     glow_color[2], min(a, glow_color[3])))
+                    winner_with_glow = Image.alpha_composite(winner_with_glow, glow_layer)
+
+                # Paste the original winner image in the center of the glow
+                winner_with_glow.paste(winner_img, (glow_size, glow_size), winner_img)
+
+                # Replace original images with processed ones
+                if winner.lower() == 'blue':
+                    img1 = winner_with_glow
+                    img2 = loser_img
+                else:
+                    img1 = loser_img
+                    img2 = winner_with_glow
+
+            # Add spacing for VS text or spacing between winner/loser
+            spacing = 100
+            total_width = img1.width + img2.width + spacing
+            max_height = max(img1.height, img2.height)
+
+            # Create new image with transparent background
+            combined_image = Image.new('RGBA', (total_width, max_height), (255, 255, 255, 0))
+
+            # Calculate vertical positions
+            y1 = (max_height - img1.height) // 2
+            y2 = (max_height - img2.height) // 2
+
+            # Paste images
+            combined_image.paste(img1, (0, y1), img1)
+            combined_image.paste(img2, (img1.width + spacing, y2), img2)
+
+            # Add text
+            draw = ImageDraw.Draw(combined_image)
+            try:
+                font = ImageFont.truetype("arial.ttf", 32 if winner is None else 24)
+            except:
+                font = ImageFont.load_default()
+
+            if winner is None:
+                # Original VS text logic
+                vs_text = " vs "
+                text_bbox = draw.textbbox((0, 0), vs_text, font=font)
+                text_width = text_bbox[2] - text_bbox[0]
+                text_height = text_bbox[3] - text_bbox[1]
+                x = (total_width - text_width) // 2
+                y = (max_height - text_height) // 2
+
+                # Draw VS text with outline
+                draw.text((x - 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x + 1, y - 1), vs_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x - 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x + 1, y + 1), vs_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x, y), vs_text, font=font, fill=(255, 255, 255, 255))
+            else:
+                # Add WINNER text under winning image
+                winner_text = "WINNER"
+                text_bbox = draw.textbbox((0, 0), winner_text, font=font)
+                text_width = text_bbox[2] - text_bbox[0]
+
+                if winner.lower() == 'blue':
+                    x = (img1.width - text_width) // 2
+                    y = y1 + img1.height + 5
+                else:
+                    x = img1.width + spacing + (img2.width - text_width) // 2
+                    y = y2 + img2.height + 5
+
+                # Draw WINNER text with golden color and outline
+                draw.text((x - 1, y - 1), winner_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x + 1, y - 1), winner_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x - 1, y + 1), winner_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x + 1, y + 1), winner_text, font=font, fill=(0, 0, 0, 255))
+                draw.text((x, y), winner_text, font=font, fill=(255, 215, 0, 255))
+
+            # Save to binary buffer
+            buffer = BytesIO()
+            combined_image.save(buffer, format='PNG')
+            buffer.seek(0)
+
+            return buffer
+
+    finally:
+        # Clean up BytesIO objects
+        if img1_bio:
+            img1_bio.close()
+        if img2_bio:
+            img2_bio.close()
 
 
 async def create_winner_image(winner_image_url: str) -> Optional[BytesIO]:
@@ -269,94 +290,105 @@ async def create_winner_image(winner_image_url: str) -> Optional[BytesIO]:
     Create a special victory image for the tournament winner with enhanced visual effects.
     :param winner_image_url: URL of the winning squadron's image
     """
+    winner_bio = None
     try:
         winner_data = await download_image(winner_image_url)
     except ValueError:
         return None
-    winner_img = Image.open(BytesIO(winner_data)).convert('RGBA')
 
-    # Make the winner image larger for tournament victory
-    winner_size = (300, 300)  # Bigger size for the tournament winner
-    winner_img.thumbnail(winner_size, Image.Resampling.LANCZOS)
-
-    # Create a larger canvas for effects
-    padding = 100  # Extra space for effects and text
-    extra_bottom_space = 150
-    canvas_size = (winner_img.width + padding * 2,
-                   winner_img.height + padding * 2 + extra_bottom_space)
-    final_image = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
-
-    # Create multiple layers of the golden glow with different intensities
-    glow_colors = [
-        (255, 215, 0, 100),  # Golden
-        (255, 223, 0, 80),  # Lighter golden
-        (255, 200, 0, 60),  # Darker golden
-    ]
-
-    for i, glow_color in enumerate(glow_colors):
-        glow_size = 20 - i * 5  # Decreasing glow size for each layer
-        glow_layer = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
-
-        # Create star-like rays
-        draw = ImageDraw.Draw(glow_layer)
-        center = (canvas_size[0] // 2, canvas_size[1] // 2)
-        for angle in range(0, 360, 45):  # 8 rays
-            end_x = center[0] + int(math.cos(math.radians(angle)) * (winner_size[0] // 2 + 50))
-            end_y = center[1] + int(math.sin(math.radians(angle)) * (winner_size[1] // 2 + 50))
-            draw.line([center, (end_x, end_y)], fill=glow_color, width=10)
-
-        # Add circular glow
-        glow = winner_img.copy()
-        glow = glow.filter(ImageFilter.GaussianBlur(glow_size))
-        mask = Image.new('L', glow.size, 0)
-        draw_mask = ImageDraw.Draw(mask)
-        draw_mask.ellipse([(0, 0), glow.size], fill=255)
-        glow.putalpha(mask)
-
-        # Position the glow in the center
-        glow_pos = ((canvas_size[0] - glow.width) // 2,
-                    (canvas_size[1] - glow.height) // 2)
-        final_image.paste(glow, glow_pos, glow)
-
-    # Add the main image in the center
-    winner_pos = ((canvas_size[0] - winner_img.width) // 2,
-                  (canvas_size[1] - winner_img.height) // 2)
-    final_image.paste(winner_img, winner_pos, winner_img)
-
-    # Add text
-    draw = ImageDraw.Draw(final_image)
     try:
-        title_font = ImageFont.truetype("arial.ttf", 48)
-        subtitle_font = ImageFont.truetype("arial.ttf", 36)
-    except:
-        title_font = ImageFont.load_default()
-        subtitle_font = ImageFont.load_default()
+        winner_bio = BytesIO(winner_data)
 
-    # Add "TOURNAMENT CHAMPION" text
-    title_text = "TOURNAMENT"
-    subtitle_text = "CHAMPION"
+        with Image.open(winner_bio) as winner_img:
 
-    # Calculate text positions - moved lower with extra spacing
-    base_text_y = canvas_size[1] - extra_bottom_space + 20  # Start text higher up from bottom
+            winner_img = winner_img.convert('RGBA')
 
-    # Calculate text positions
-    for i, (text, font) in enumerate([(title_text, title_font), (subtitle_text, subtitle_font)]):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        x = (canvas_size[0] - text_width) // 2
-        y = base_text_y + (i * 50)  # Stack the text lines
+            # Make the winner image larger for tournament victory
+            winner_size = (300, 300)  # Bigger size for the tournament winner
+            winner_img.thumbnail(winner_size, Image.Resampling.LANCZOS)
 
-        # Draw text with golden gradient effect
-        for offset in range(3):  # Create 3D effect
-            draw.text((x - offset, y - offset), text, font=font,
-                      fill=(255 - offset * 20, 215 - offset * 20, offset * 20, 255))
+            # Create a larger canvas for effects
+            padding = 100  # Extra space for effects and text
+            extra_bottom_space = 150
+            canvas_size = (winner_img.width + padding * 2,
+                           winner_img.height + padding * 2 + extra_bottom_space)
+            final_image = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-    # Save to binary buffer
-    buffer = BytesIO()
-    final_image.save(buffer, format='PNG')
-    buffer.seek(0)
+            # Create multiple layers of the golden glow with different intensities
+            glow_colors = [
+                (255, 215, 0, 100),  # Golden
+                (255, 223, 0, 80),  # Lighter golden
+                (255, 200, 0, 60),  # Darker golden
+            ]
 
-    return buffer
+            for i, glow_color in enumerate(glow_colors):
+                glow_size = 20 - i * 5  # Decreasing glow size for each layer
+                glow_layer = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+                # Create star-like rays
+                draw = ImageDraw.Draw(glow_layer)
+                center = (canvas_size[0] // 2, canvas_size[1] // 2)
+                for angle in range(0, 360, 45):  # 8 rays
+                    end_x = center[0] + int(math.cos(math.radians(angle)) * (winner_size[0] // 2 + 50))
+                    end_y = center[1] + int(math.sin(math.radians(angle)) * (winner_size[1] // 2 + 50))
+                    draw.line([center, (end_x, end_y)], fill=glow_color, width=10)
+
+                # Add circular glow
+                glow = winner_img.copy()
+                glow = glow.filter(ImageFilter.GaussianBlur(glow_size))
+                mask = Image.new('L', glow.size, 0)
+                draw_mask = ImageDraw.Draw(mask)
+                draw_mask.ellipse([(0, 0), glow.size], fill=255)
+                glow.putalpha(mask)
+
+                # Position the glow in the center
+                glow_pos = ((canvas_size[0] - glow.width) // 2,
+                            (canvas_size[1] - glow.height) // 2)
+                final_image.paste(glow, glow_pos, glow)
+
+            # Add the main image in the center
+            winner_pos = ((canvas_size[0] - winner_img.width) // 2,
+                          (canvas_size[1] - winner_img.height) // 2)
+            final_image.paste(winner_img, winner_pos, winner_img)
+
+            # Add text
+            draw = ImageDraw.Draw(final_image)
+            try:
+                title_font = ImageFont.truetype("arial.ttf", 48)
+                subtitle_font = ImageFont.truetype("arial.ttf", 36)
+            except:
+                title_font = ImageFont.load_default()
+                subtitle_font = ImageFont.load_default()
+
+            # Add "TOURNAMENT CHAMPION" text
+            title_text = "TOURNAMENT"
+            subtitle_text = "CHAMPION"
+
+            # Calculate text positions - moved lower with extra spacing
+            base_text_y = canvas_size[1] - extra_bottom_space + 20  # Start text higher up from bottom
+
+            # Calculate text positions
+            for i, (text, font) in enumerate([(title_text, title_font), (subtitle_text, subtitle_font)]):
+                bbox = draw.textbbox((0, 0), text, font=font)
+                text_width = bbox[2] - bbox[0]
+                x = (canvas_size[0] - text_width) // 2
+                y = base_text_y + (i * 50)  # Stack the text lines
+
+                # Draw text with golden gradient effect
+                for offset in range(3):  # Create 3D effect
+                    draw.text((x - offset, y - offset), text, font=font,
+                              fill=(255 - offset * 20, 215 - offset * 20, offset * 20, 255))
+
+            # Save to binary buffer
+            buffer = BytesIO()
+            final_image.save(buffer, format='PNG')
+            buffer.seek(0)
+
+            return buffer
+
+    finally:
+        if winner_bio:
+            winner_bio.close()
 
 
 def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) -> tuple[float, float]:
