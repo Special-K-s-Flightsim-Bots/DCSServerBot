@@ -1826,6 +1826,10 @@ class Tournament(Plugin[TournamentEventListener]):
                     """, {"match_id": match_id, "squadron_id": squadron_id})
             if not view.acknowledged:
                 await interaction.followup.send(_("You decided to not buy any customizations in this round."))
+            else:
+                embed.title = _("Invoice")
+                embed.set_footer(text=_("Thank you for your purchase!"))
+                await interaction.followup.send(embed=embed)
         finally:
             try:
                 await msg.delete()
