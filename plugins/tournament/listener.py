@@ -295,7 +295,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                             VALUES (%s, %s, %s, %s)
                         """, (match_id, squadron_id, 'disable_group', Json({"group": initiator.group_name})))
                 asyncio.create_task(server.sendPopupMessage(
-                    initiator.coalition, _("Unit {} is lost an will be permanently removed from the match.").format(
+                    initiator.coalition, _("Unit {} is lost and will be permanently removed from the match.").format(
                         initiator.unit_name)))
 
     async def calculate_balance(self, server: Server, winner: str, winner_squadron: Squadron,
