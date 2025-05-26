@@ -56,7 +56,10 @@ class MizFile:
             pattern = r'local self_ID\s*=\s*"(.*?)";'
             with open(entry_lua, "r", encoding="utf-8") as file:
                 match = re.search(pattern, file.read())
-                terrain_id = match.group(1)
+                if match:
+                    terrain_id = match.group(1)
+                else:
+                    raise ValueError(f"No self_ID found in {entry_lua}")
             towns_file = os.path.join(terrain_path, "Map", "towns.lua")
             if os.path.exists(towns_file):
                 try:

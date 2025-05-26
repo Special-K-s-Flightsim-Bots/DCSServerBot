@@ -1,6 +1,8 @@
 import asyncio
 import discord
+import json
 import os
+
 from contextlib import suppress
 from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils
 from discord import SelectOption
@@ -356,4 +358,82 @@ class InfoView(View):
             message += '(ucid={self.ucid}) '
         message += 'from the watchlist'
         await self.bot.audit(message, user=interaction.user)
+        self.stop()
+
+
+class ModifyView(View):
+    def __init__(self, presets: dict, mission_change: str, warehouses_change: str, options_change: str):
+        super().__init__()
+        self.presets = presets
+        self.embed = discord.Embed(color=discord.Color.blue())
+        self.render()
+        self.mission_change = self.cut(mission_change)
+        self.warehouses_change = self.cut(warehouses_change)
+        self.options_change = self.cut(options_change)
+
+        button = Button(label="Presets", style=discord.ButtonStyle.primary)
+        button.callback = self.display_presets
+        self.add_item(button)
+
+        if self.mission_change:
+            button = Button(label="mission", style=discord.ButtonStyle.secondary)
+            button.callback = self.display_mission
+            self.add_item(button)
+
+        if self.warehouses_change:
+            button = Button(label="warehouses", style=discord.ButtonStyle.secondary)
+            button.callback = self.display_warehouses
+            self.add_item(button)
+
+        if self.options_change:
+            button = Button(label="options", style=discord.ButtonStyle.secondary)
+            button.callback = self.display_options
+            self.add_item(button)
+
+        button = Button(label="Cancel", style=discord.ButtonStyle.red)
+        button.callback = self.cancel
+        self.add_item(button)
+
+    def cut(self, message: Optional[str] = None) -> str:
+        if not message or len(message) <= 4096:
+            return message
+        remark = f"``` ... {len(message) - 4096} more"
+        return message[:4096 - len(remark)] + remark
+
+    def render(self):
+        self.embed.title = 'Presets'
+        self.embed.description = 'These modifications will be applied to your mission:\n\n'
+        for k, v in self.presets.items():
+            self.embed.description += "{k}:\n```json\n{v}\n```".format(k=k, v=json.dumps(v, indent=2))
+
+    async def display_presets(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.render()
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def display_mission(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.embed.title = 'mission'
+        self.embed.description = self.mission_change
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def display_warehouses(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.embed.title = 'warehouses'
+        self.embed.description = self.warehouses_change
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def display_options(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+        self.embed.title = 'options'
+        self.embed.description = self.options_change
+        await interaction.edit_original_response(embed=self.embed)
+
+    async def cancel(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
         self.stop()

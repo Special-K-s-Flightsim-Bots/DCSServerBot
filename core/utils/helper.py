@@ -28,6 +28,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from croniter import croniter
 from datetime import datetime, timedelta, timezone
+from difflib import unified_diff
 from importlib import import_module
 from pathlib import Path
 from typing import Optional, Union, TYPE_CHECKING, Generator, Iterable, Callable, Any
@@ -75,7 +76,9 @@ __all__ = [
     "evaluate",
     "for_each",
     "YAMLError",
-    "DictWrapper"
+    "DictWrapper",
+    "format_dict_pretty",
+    "show_dict_diff"
 ]
 
 logger = logging.getLogger(__name__)
@@ -169,6 +172,12 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
             elif isinstance(value, datetime) and value.tzinfo:
                 value = value.astimezone(timezone.utc).replace(tzinfo=None)
             return super().format_field(value, spec)
+
+        def get_value(self, key, args, kwargs):
+            if isinstance(key, int):
+                return args[key]
+            else:
+                return kwargs.get(key) or ("{" + key + "}")
 
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
@@ -965,7 +974,8 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
             yield from process_indexing(_next, data, search, depth, debug, **kwargs)
         elif _next.startswith('$'):
             if debug:
-                logger.debug("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth - 1]} elements")
+                pattern = format_string(_next[1:], **kwargs)
+                logger.debug("  " * depth + f"|_ Searching pattern {pattern} on {len(data)} {search[depth - 1]} elements")
             yield from process_pattern(_next, data, search, depth, debug, **kwargs)
         elif _next in data:
             if debug:
@@ -1068,3 +1078,47 @@ class DictWrapper:
     def clone(self):
         """Deeply clone the DictWrapper object."""
         return DictWrapper(deepcopy(self.to_dict()))
+
+
+def format_dict_pretty(d: dict) -> str:
+    """Convert dictionary to pretty-printed JSON string with indentation."""
+
+    def default_serializer(obj):
+        return str(obj)
+
+    # Convert to string keys and sort manually
+    items = sorted(d.items(), key=lambda x: str(x[0]))
+    sorted_dict = dict(items)
+
+    return json.dumps(sorted_dict, indent=4, sort_keys=False, default=default_serializer)
+
+
+def show_dict_diff(old_dict: dict[str, Any], new_dict: dict[str, Any], context_lines: int = 3) -> str:
+    """
+    Generate a Discord-friendly diff between two dictionaries with context lines.
+
+    Args:
+        old_dict: Original dictionary
+        new_dict: Modified dictionary
+        context_lines: Number of context lines to show before and after changes
+
+    Returns:
+        String formatted for Discord with diff syntax highlighting
+    """
+    # Convert both dictionaries to a pretty-printed format
+    old_str = format_dict_pretty(old_dict).splitlines()
+    new_str = format_dict_pretty(new_dict).splitlines()
+
+    # Generate a unified diff with specified context
+    diff = list(unified_diff(old_str, new_str, lineterm='', n=context_lines))
+
+    # Build the formatted string for Discord
+    result = ["```diff"]
+    for line in diff:
+        # Skip the header lines that show file names
+        if line.startswith('---') or line.startswith('+++'):
+            continue
+        result.append(line)
+    result.append("```")
+
+    return '\n'.join(result)

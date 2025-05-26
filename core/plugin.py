@@ -229,11 +229,11 @@ class Group(app_commands.Group):
 
 class Plugin(commands.Cog, Generic[TEventListener]):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None, name: Optional[str] = None):
         from services.servicebus import ServiceBus
 
         super().__init__()
-        self.plugin_name = type(self).__module__.split('.')[-2]
+        self.plugin_name = name or type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
         self.node = bot.node
@@ -349,7 +349,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                             INSERT INTO plugins (plugin, version) VALUES (%s, %s) 
                             ON CONFLICT (plugin) DO NOTHING
                         """, (self.plugin_name, self.plugin_version))
-                        self.log.info(f'  => {self.plugin_name.title()} installed.')
+                        self.log.info(f'  => {self.__cog_name__} installed.')
                         return True
                     else:
                         installed = (await cursor.fetchone())[0]
@@ -375,7 +375,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                                 ver, rev = installed.split('.')
                                 installed = ver + '.' + str(int(rev) + 1)
                             await self.migrate(installed, conn)
-                            self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
+                            self.log.info(f'  => {self.__cog_name__} migrated to version {installed}.')
                             await cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
                                                  (self.plugin_version, self.plugin_name))
                         return False

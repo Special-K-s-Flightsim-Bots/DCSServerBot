@@ -24,7 +24,7 @@ from typing import Optional, Union, Literal, Type
 
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
-from .views import ServerView, PresetView, InfoView
+from .views import ServerView, PresetView, InfoView, ModifyView
 from ..userstats.filter import PeriodFilter
 
 # ruamel YAML support
@@ -614,11 +614,14 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(presets_file=presets_autocomplete)
     @app_commands.describe(presets_file=_('Chose an alternate presets file'))
     @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
+    @app_commands.describe(simulate_only="This will only show you what would happen but not apply the preset")
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])],
-                     presets_file: Optional[str] = None, use_orig: Optional[bool] = True):
+                     presets_file: Optional[str] = None, use_orig: Optional[bool] = True,
+                     simulate_only: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
+
         if presets_file is None:
             presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
         try:
@@ -629,6 +632,7 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
             return
+
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
         try:
@@ -674,66 +678,117 @@ class Mission(Plugin[MissionEventListener]):
                 return
 
         view = PresetView(options[:25])
-        # noinspection PyUnresolvedReferences
-        if interaction.response.is_done():
-            msg = await interaction.followup.send(view=view, ephemeral=ephemeral)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(view=view, ephemeral=ephemeral)
-            msg = await interaction.original_response()
+        msg = await interaction.followup.send(view=view, ephemeral=ephemeral)
+
         try:
             if await view.wait() or view.result is None:
                 return
+
+            if simulate_only:
+                mission_file = await server.get_current_mission_file()
+                if use_orig:
+                    if server.is_remote:
+                        await interaction.followup.send(
+                            "Simulation is currently only supported on local servers.", ephemeral=True)
+                        return
+                    mission_file = utils.get_orig_file(mission_file)
+                old_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
+                new_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
+                presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in view.result}
+
+                if not presets:
+                    await interaction.followup.send("You need to select presets.", ephemeral=True)
+                    return
+
+                for k, v in presets.items():
+                    try:
+                        await asyncio.to_thread(new_mission.apply_preset, v)
+                    except Exception as ex:
+                        await interaction.followup.send(
+                            _("Error while applying preset {}: {}").format(k, ex), ephemeral=True)
+                        return
+
+                changed = False
+                if old_mission.mission != new_mission.mission:
+                    changed = True
+                    mission_change = utils.show_dict_diff(old_mission.mission, new_mission.mission)
+                    self.log.debug(f"Mission change:\n{mission_change}")
+                else:
+                    mission_change = None
+                if old_mission.warehouses != new_mission.warehouses:
+                    changed = True
+                    warehouses_change = utils.show_dict_diff(old_mission.warehouses, new_mission.warehouses)
+                    self.log.debug(f"Warehouses change:\n{warehouses_change}")
+                else:
+                    warehouses_change = None
+                if old_mission.options != new_mission.options:
+                    changed = True
+                    options_change = utils.show_dict_diff(old_mission.options, new_mission.options)
+                    self.log.debug(f"Options change:\n{options_change}")
+                else:
+                    options_change = None
+
+                if changed:
+                    view = ModifyView(presets, mission_change, warehouses_change, options_change)
+                    msg = await interaction.followup.send(embed=view.embed, view=view, ephemeral=ephemeral)
+                    try:
+                        await view.wait()
+                    finally:
+                        await msg.delete()
+                else:
+                    await interaction.followup.send("Your mission was not changed.", ephemeral=ephemeral)
+                return
+
+            if result == 'later':
+                server.on_empty = {
+                    "command": "preset",
+                    "preset": view.result,
+                    "use_orig": use_orig,
+                    "user": interaction.user
+                }
+                server.restart_pending = True
+                await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
+            else:
+                server.on_empty = dict()
+                startup = False
+                msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
+                # we need to stop the mission if rewrite is false
+                if not server.locals.get('mission_rewrite', True) and server.status in [Status.PAUSED, Status.RUNNING]:
+                    await server.stop()
+                    startup = True
+                filename = await server.get_current_mission_file()
+                new_filename = await server.modifyMission(
+                    filename,
+                    [utils.get_preset(self.node, x, presets_file) for x in view.result],
+                    use_orig=use_orig
+                )
+                message = _('The following preset were applied: {}.').format(','.join(view.result))
+                if new_filename != filename:
+                    self.log.info(f"  => {message}")
+                    self.log.info(f"  => New mission written: {new_filename}")
+                    await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
+                else:
+                    self.log.info(f"  => Mission {filename} overwritten.")
+                if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+                    try:
+                        # if the filename has not changed, we can just restart the running mission
+                        if filename == new_filename:
+                            await server.restart(modify_mission=False)
+                        # otherwise we load the new mission
+                        else:
+                            await server.loadMission(new_filename, modify_mission=False)
+                        message += _('\nMission reloaded.')
+                        await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
+                                             user=interaction.user)
+                        await msg.delete()
+                    except (TimeoutError, asyncio.TimeoutError):
+                        message = _("Timeout during restart of mission!\n"
+                                    "Please check, if the mission is running or if it somehow got corrupted.")
+                await interaction.followup.send(message, ephemeral=ephemeral)
+
         finally:
             with suppress(discord.NotFound):
                 await msg.delete()
-
-        if result == 'later':
-            server.on_empty = {
-                "command": "preset",
-                "preset": view.result,
-                "use_orig": use_orig,
-                "user": interaction.user
-            }
-            server.restart_pending = True
-            await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
-        else:
-            server.on_empty = dict()
-            startup = False
-            msg = await interaction.followup.send(_('Changing mission ...'), ephemeral=ephemeral)
-            # we need to stop the mission, if rewrite is false
-            if not server.locals.get('mission_rewrite', True) and server.status in [Status.PAUSED, Status.RUNNING]:
-                await server.stop()
-                startup = True
-            filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(
-                filename,
-                [utils.get_preset(self.node, x, presets_file) for x in view.result],
-                use_orig=use_orig
-            )
-            message = _('The following preset were applied: {}.').format(','.join(view.result))
-            if new_filename != filename:
-                self.log.info(f"  => {message}")
-                self.log.info(f"  => New mission written: {new_filename}")
-                await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
-            else:
-                self.log.info(f"  => Mission {filename} overwritten.")
-            if startup or server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                try:
-                    # if the filename has not changed, we can just restart the running mission
-                    if filename == new_filename:
-                        await server.restart(modify_mission=False)
-                    # otherwise we load the new mission
-                    else:
-                        await server.loadMission(new_filename, modify_mission=False)
-                    message += _('\nMission reloaded.')
-                    await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
-                                         user=interaction.user)
-                    await msg.delete()
-                except (TimeoutError, asyncio.TimeoutError):
-                    message = _("Timeout during restart of mission!\n"
-                                "Please check, if the mission is running or if it somehow got corrupted.")
-            await interaction.followup.send(message, ephemeral=ephemeral)
 
     @mission.command(description=_('Save mission preset\n'))
     @app_commands.guild_only()
