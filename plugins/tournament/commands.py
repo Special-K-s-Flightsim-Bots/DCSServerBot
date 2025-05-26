@@ -968,6 +968,7 @@ class Tournament(Plugin[TournamentEventListener]):
                            squadron_red_rounds_won, squadron_blue_rounds_won, winner_squadron_id,
                            match_time
                     FROM tm_matches WHERE tournament_id = %s
+                    ORDER BY match_time
                 """, (tournament_id,))
                 matches_df = pd.DataFrame(await cursor.fetchall())
                 await cursor.execute("""

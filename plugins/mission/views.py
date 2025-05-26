@@ -1,12 +1,13 @@
 import asyncio
 import discord
-import json
 import os
 
 from contextlib import suppress
 from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils
 from discord import SelectOption
 from discord.ui import View, Select, Button
+from io import StringIO
+from ruamel.yaml import YAML
 from typing import cast, Optional, Union
 
 from services.bot import DCSServerBot
@@ -401,10 +402,17 @@ class ModifyView(View):
         return message[:4096 - len(remark)] + remark
 
     def render(self):
+        yaml = YAML()
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        yaml.default_flow_style = False
+        yaml.sort_keys = True
+        stream = StringIO()
+
         self.embed.title = 'Presets'
         self.embed.description = 'These modifications will be applied to your mission:\n\n'
         for k, v in self.presets.items():
-            self.embed.description += "{k}:\n```json\n{v}\n```".format(k=k, v=json.dumps(v, indent=2))
+            yaml.dump(v, stream)
+            self.embed.description += "{k}:\n```yaml\n{v}\n```".format(k=k, v=stream.getvalue())
 
     async def display_presets(self, interaction: discord.Interaction):
         # noinspection PyUnresolvedReferences
