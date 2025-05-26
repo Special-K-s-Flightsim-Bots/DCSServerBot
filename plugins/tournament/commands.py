@@ -6,12 +6,15 @@ import psycopg
 import random
 import shutil
 
+from openpyxl.utils import get_column_letter
+
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
     MizFile, DataObjectFactory, async_cache, Report, TRAFFIC_LIGHTS
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from discord.ext import tasks
 from io import BytesIO
+from openpyxl.worksheet.datavalidation import DataValidation
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -946,6 +949,125 @@ class Tournament(Plugin[TournamentEventListener]):
             file = discord.File(buffer, filename=filename)
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(file=file, ephemeral=utils.get_ephemeral(interaction))
+        finally:
+            buffer.close()
+
+    @tournament.command(description=_('Export matches'))
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=tournament_autocomplete)
+    @utils.app_has_role('GameMaster')
+    async def export(self, interaction: discord.Interaction, tournament_id: int):
+        # noinspection PyUnresolvedReferences
+        await interaction.response.defer()
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                    SELECT match_id, server_name, squadron_red, squadron_blue, round_number, 
+                           squadron_red_rounds_won, squadron_blue_rounds_won, winner_squadron_id,
+                           match_time
+                    FROM tm_matches WHERE tournament_id = %s
+                """, (tournament_id,))
+                matches_df = pd.DataFrame(await cursor.fetchall())
+                await cursor.execute("""
+                                     SELECT ts.squadron_id, ts.group_number, s.name
+                                     FROM tm_squadrons ts
+                                              JOIN squadrons s ON ts.squadron_id = s.id
+                                     WHERE ts.tournament_id = %s
+                                       AND ts.status = 'ACCEPTED'
+                                     ORDER BY group_number
+                                     """, (tournament_id,))
+                squadrons_df = pd.DataFrame(await cursor.fetchall())
+                await cursor.execute("""
+                    SELECT server_name FROM campaigns_servers cs
+                        JOIN campaigns c ON cs.campaign_id = c.id
+                        JOIN tm_tournaments t ON c.name = t.campaign
+                    WHERE t.tournament_id = %s         
+                """, (tournament_id,))
+                servers_df = pd.DataFrame(await cursor.fetchall())
+
+        # Create the mapping dictionary from squadron_id to name
+        squadron_name_map = dict(zip(squadrons_df['squadron_id'], squadrons_df['name']))
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            # Export each dataframe to a different sheet
+            matches_df.to_excel(writer, sheet_name='Matches', index=False)
+            squadrons_df.to_excel(writer, sheet_name='Squadrons', index=False)
+            servers_df.to_excel(writer, sheet_name='Servers', index=False)
+
+            # Get the matches worksheet
+            matches_sheet = writer.sheets['Matches']
+
+            # List of columns that contain squadron IDs
+            squadron_columns = ['squadron_red', 'squadron_blue', 'winner_squadron_id']
+
+            # Find the column indices
+            squadron_cols = {}
+            server_col = None
+            for idx, col in enumerate(matches_df.columns):
+                if col in squadron_columns:
+                    squadron_cols[col] = idx + 1  # +1 because Excel columns start at 1
+                elif col == 'server_name':
+                    server_col = idx + 1
+
+            # Create the data validation if we found any squadron columns
+            if squadron_cols:
+                # Get the number of rows in matches_df
+                num_rows = len(matches_df) + 1  # +1 for header
+
+                # Create the formula for the dropdown (references the name column in Squadrons sheet)
+                formula = f'=Squadrons!$C$2:$C${len(squadrons_df) + 1}'  # Assuming 'name' is in column C
+
+                # Create data validation object
+                dv = DataValidation(type="list", formula1=formula)
+                matches_sheet.add_data_validation(dv)
+
+                # Apply data validation to squadron columns
+                for row in range(2, num_rows + 1):  # Start from row 2 to skip header
+                    for col_name, col_index in squadron_cols.items():
+                        cell = matches_sheet.cell(row=row, column=col_index)
+                        cell.value = squadron_name_map.get(matches_df.iloc[row - 2][col_name])
+                        dv.add(cell)
+
+            if server_col:
+                # Create the formula for server dropdown
+                server_formula = f'=Servers!$A$2:$A${len(servers_df) + 1}'  # Assuming server_name is in column A
+
+                # Create data validation object for servers
+                server_dv = DataValidation(type="list", formula1=server_formula)
+                matches_sheet.add_data_validation(server_dv)
+
+                # Apply server data validation
+                for row in range(2, num_rows + 1):  # Start from row 2 to skip the header
+                    cell = matches_sheet.cell(row=row, column=server_col)
+                    cell.value = matches_df.iloc[row - 2]['server_name']
+                    server_dv.add(cell)
+
+            # hide the match_id
+            matches_sheet.column_dimensions['A'].hidden = True
+
+            for worksheet in [matches_sheet, writer.sheets['Squadrons'], writer.sheets['Servers']]:
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = get_column_letter(column[0].column)
+
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+
+                    # Setting width with some padding
+                    adjusted_width = max_length + 2
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+
+        buffer.seek(0)
+        try:
+            # noinspection PyUnresolvedReferences
+            await interaction.followup.send(file=discord.File(fp=buffer, filename=f'tournament_{tournament_id}.xlsx'))
         finally:
             buffer.close()
 

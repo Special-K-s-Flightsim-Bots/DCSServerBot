@@ -347,6 +347,7 @@ _ _
             output.seek(0)
             # noinspection PyUnresolvedReferences
             await interaction.followup.send(file=discord.File(fp=output, filename='DCSSB-Commands.xlsx'))
+            output.close()
         elif role:
             modal = DocModal(role=role)
             # noinspection PyUnresolvedReferences
@@ -428,6 +429,7 @@ _ _
 
         output.seek(0)
         await interaction.followup.send(file=discord.File(fp=output, filename='ServerInfo.xlsx'))
+        output.close()
 
     @command(description=_('Generate Documentation'))
     @app_commands.guild_only()

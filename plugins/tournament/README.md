@@ -243,6 +243,7 @@ to leave, all their matches will be marked as won by the opposite squadron.
 | /tournament withdraw    | tournament squadron                                | any              | Squadron Admin | Withdraws this squadron from this tournament.                     |
 | /tournament verify      | tournament squadron                                | admin-channel    | GameMaster     | Accept or reject a squadron for this tournament.                  |
 | /tournament bracket     | tournament                                         | admin-channel    | GameMaster     | Generate a bracket Excel file.                                    |
+| /tournament export      | tournament                                         | admin-channel    | GameMaster     | Export the matches as Excel for manual amanedments.               |
 | /tournament preferences | \[tournament\]                                     | admin-channel    | GameMaster     | Show time and map preferences as piecharts.                       |
 | /match generate         | tournament <group\|eliminate> \[num_groups\]       | admin-channel    | GameMaster     | Auto-generates matches for each stage of the tournament.          |
 | /match create           | tournament stage server squadron_blue squadron_red | admin-channel    | GameMaster     | Creates a match manually.                                         |
