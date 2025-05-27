@@ -2203,6 +2203,10 @@ class Tournament(Plugin[TournamentEventListener]):
         if not filename.startswith('tournament') or not filetype.startswith('xls'):
             return
 
+        if not utils.check_roles(['DCS Admin', 'GameMaster'], message.author):
+            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload data."))
+            return
+
         match = re.match(r'^tournament_(\d+)\.xlsx?$', filename)
         if not match:
             await message.channel.send(_("The filename has to be 'tournament_ID.xlsx'."))
