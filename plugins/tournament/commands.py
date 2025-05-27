@@ -9,14 +9,13 @@ import re
 import shutil
 import warnings
 
-from openpyxl.utils import get_column_letter
-
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
     MizFile, DataObjectFactory, async_cache, Report, TRAFFIC_LIGHTS
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from discord.ext import tasks, commands
 from io import BytesIO
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
@@ -386,8 +385,7 @@ class Tournament(Plugin[TournamentEventListener]):
         return buffer
 
     async def render_status_embed(self, tournament_id: int, *,
-                                  phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.START_GROUP_PHASE,
-                                  match_id: Optional[int] = None) -> None:
+                                  phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.START_GROUP_PHASE) -> None:
         tournament = await self.get_tournament(tournament_id)
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
@@ -398,18 +396,19 @@ class Tournament(Plugin[TournamentEventListener]):
             embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Overview")
             buffer = None
 
-            if match_id:
-                match = await self.get_match(match_id=match_id)
-                # read group number
+            if not phase:
                 cursor = await conn.execute("""
-                    SELECT group_number FROM tm_squadrons 
-                    WHERE squadron_id = (
-                        SELECT squadron_blue 
-                        FROM tm_matches 
-                        WHERE match_id = %s
-                    )""", (match_id,))
-                group_number = (await cursor.fetchone())[0]
-                if match['stage'] == 1 and group_number:
+                    SELECT COUNT(*) FROM tm_squadrons 
+                    WHERE tournament_id = %s 
+                      AND group_number IS NOT NULL
+                """, (tournament_id,))
+                groups = (await cursor.fetchone())[0] > 0
+                cursor = await conn.execute("""
+                    SELECT MAX(stage) FROM tm_matches 
+                    WHERE tournament_id = %s
+                """, (tournament_id,))
+                level = (await cursor.fetchone())[0]
+                if groups and level == 1:
                     phase = TOURNAMENT_PHASE.START_GROUP_PHASE
                 else:
                     phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
@@ -1850,7 +1849,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await interaction.followup.send(_("You just finished the tournament!"), ephemeral=True)
         elif winner_squadron_id:
             await self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_FINISHED, match_id=match_id)
-        await self.render_status_embed(tournament_id, match_id=match_id)
+        await self.render_status_embed(tournament_id)
 
     @match.command(description=_('Customize the next round'))
     @app_commands.guild_only()
@@ -2248,6 +2247,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     # check if the tournament has finished
                     if await self.eventlistener.check_tournament_finished(tournament_id):
                         await message.channel.send("The upload finished the tournament.")
+                    await self.render_status_embed(tournament_id)
         except Exception as ex:
             self.log.exception(ex)
             await message.channel.send(_("Error while processing the file: {}").format(ex))
