@@ -692,6 +692,9 @@ class MizFile:
             else:
                 self.log.error(f"Variable '{name}' has an unsupported value: {value}")
 
+        # debug
+        self.log.debug(f"Variables read: {repr(kwargs)}")
+
         if 'if' in config and not utils.evaluate(config['if'], **kwargs):
             return
 
