@@ -1511,9 +1511,11 @@ class NodeUploadHandler:
             if not directory:
                 await self.channel.send(_('Upload aborted.'))
                 return None
+
+            return directory
+
         finally:
             await msg.delete()
-        return directory
 
     async def upload_file(self, directory: str, att: discord.Attachment) -> UploadStatus:
         self.log.debug(f"Uploading {att.filename} to {self.node.name}:{directory} ...")

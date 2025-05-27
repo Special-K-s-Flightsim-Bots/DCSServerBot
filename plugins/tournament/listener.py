@@ -416,23 +416,27 @@ class TournamentEventListener(EventListener["Tournament"]):
             # play another round
             asyncio.create_task(self.next_round(server, match_id))
 
-    async def check_tournament_finished(self, tournament_id: int) -> bool:
+    async def is_tournament_finished(self, tournament_id: int) -> bool:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT stage, SUM(CASE WHEN winner_squadron_id IS NULL THEN 0 ELSE 1 END) AS NUM FROM tm_matches 
+                SELECT stage, SUM(CASE WHEN winner_squadron_id IS NULL THEN 0 ELSE 1 END) AS NUM
+                FROM tm_matches
                 WHERE tournament_id = %s
                 GROUP BY stage
                 ORDER BY stage DESC
-				LIMIT 1
+                LIMIT 1
             """, (tournament_id,))
             num = (await cursor.fetchone())[1]
-            if num == 1:
-                asyncio.create_task(self.plugin.render_status_embed(tournament_id,
-                                                                    phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
-                asyncio.create_task(self.plugin.render_info_embed(tournament_id,
-                                                                  phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
-                return True
-            return False
+            return num == 1
+
+    async def check_tournament_finished(self, tournament_id: int) -> bool:
+        if await self.is_tournament_finished(tournament_id):
+            asyncio.create_task(self.plugin.render_status_embed(tournament_id,
+                                                                phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
+            asyncio.create_task(self.plugin.render_info_embed(tournament_id,
+                                                              phase=TOURNAMENT_PHASE.TOURNAMENT_FINISHED))
+            return True
+        return False
 
     @event(name="onMatchFinished")
     async def onMatchFinished(self, server: Server, data: dict) -> None:

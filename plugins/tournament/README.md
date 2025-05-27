@@ -182,6 +182,16 @@ system. This assures exciting matches, as the risk of matching a very weak squad
 To create a match by yourself, use `/match create`. To let the bot create the matches, run `/match generate` instead. 
 You can list the configured matches with `/match list`.
 
+### Match Modification (Excel)
+Especially on larger tournaments, you might want to edit matches more efficiently. To do so, you can let the bot 
+generate an excel export from your current match table with `/tournament export`. You can then edit this Excel sheet, 
+change, for instance, the match times, and re-upload it by dropping it into your admin channel. The bot will then update
+your matches accordingly.
+
+>[!IMPORTANT]
+> Please do not add new lines to the Excel export!
+> The Excel export method can only be used to alter existing matches, not to create new ones.
+
 ### Start a Match
 Use `/match start` to start a match. This will start round one of the respective match, prepare the server for it, and
 start it up.<p>

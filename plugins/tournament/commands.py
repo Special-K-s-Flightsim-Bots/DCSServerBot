@@ -1,10 +1,13 @@
 import asyncio
+import aiohttp
 import discord
 import os
 import pandas as pd
 import psycopg
 import random
+import re
 import shutil
+import warnings
 
 from openpyxl.utils import get_column_letter
 
@@ -12,7 +15,7 @@ from core import Plugin, Group, utils, get_translation, PluginRequiredError, Sta
     MizFile, DataObjectFactory, async_cache, Report, TRAFFIC_LIGHTS
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
-from discord.ext import tasks
+from discord.ext import tasks, commands
 from io import BytesIO
 from openpyxl.worksheet.datavalidation import DataValidation
 from psycopg.errors import UniqueViolation
@@ -2069,6 +2072,173 @@ class Tournament(Plugin[TournamentEventListener]):
     @match_scheduler.before_loop
     async def before_match_scheduler(self):
         await self.bot.wait_until_ready()
+
+    async def import_tournament_data(self, buffer: BytesIO, tournament_id: int) -> pd.DataFrame:
+        """
+        Import tournament data from Excel buffer and convert squadron names back to IDs
+
+        Args:
+            buffer: BytesIO object containing the Excel file
+            tournament_id: The tournament ID to verify data against
+
+        Returns:
+            DataFrame with the processed matches data
+        """
+        # Read all sheets from the Excel file
+        xlsx = pd.ExcelFile(buffer)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            matches_df = pd.read_excel(xlsx, 'Matches')
+            squadrons_df = pd.read_excel(xlsx, 'Squadrons')
+
+        # Create reverse mapping from squadron name to ID
+        name_squadron_map = dict(zip(squadrons_df['name'], squadrons_df['squadron_id']))
+
+        # List of columns that contain squadron names that need to be converted back to IDs
+        squadron_columns = ['squadron_red', 'squadron_blue', 'winner_squadron_id']
+
+        # Verify match_ids haven't been tampered with
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute("""
+                                     SELECT match_id
+                                     FROM tm_matches
+                                     WHERE tournament_id = %s
+                                     ORDER BY match_id
+                                     """, (tournament_id,))
+                original_match_ids = pd.DataFrame(await cursor.fetchall())
+
+        # Verify match IDs are unchanged
+        if set(matches_df['match_id']) != set(original_match_ids['match_id']):
+            raise ValueError("Match IDs have been modified. This is not allowed.")
+
+        # Sort the DataFrame by match_id to ensure consistent processing
+        matches_df = matches_df.sort_values('match_id').reset_index(drop=True)
+
+        # Convert squadron names back to IDs
+        for column in squadron_columns:
+            if column in matches_df.columns:
+                if column == 'winner_squadron_id':
+                    # For winner_squadron_id, handle NaN values specially
+                    matches_df[column] = matches_df[column].map(
+                        lambda x: name_squadron_map.get(x) if pd.notna(x) else None)
+                else:
+                    # For required columns (squadron_red, squadron_blue), use regular mapping
+                    matches_df[column] = matches_df[column].map(name_squadron_map)
+
+                # Check if any required mappings failed (would result in NaN)
+                if column != 'winner_squadron_id' and matches_df[column].isna().any():
+                    invalid_names = matches_df[matches_df[column].isna()][column].unique()
+                    raise ValueError(f"Invalid squadron names found in {column}: {invalid_names}")
+
+        # Verify the server names exist
+        if 'server_name' in matches_df.columns:
+            servers_df = pd.read_excel(xlsx, 'Servers')
+            valid_servers = set(servers_df['server_name'].unique())
+            invalid_servers = set(matches_df['server_name'].unique()) - valid_servers
+            if invalid_servers:
+                raise ValueError(f"Invalid server names found: {invalid_servers}")
+
+        # Convert match_time back to datetime if it exists
+        if 'match_time' in matches_df.columns:
+            matches_df['match_time'] = pd.to_datetime(matches_df['match_time'])
+
+        return matches_df
+
+    async def import_tournament_data_to_db(self, match_df: pd.DataFrame, tournament_id: int):
+        """
+        Update tournament matches in the database based on the provided DataFrame.
+
+        Args:
+            match_df: DataFrame containing the match data
+            tournament_id: ID of the tournament
+
+        Raises:
+            ValueError: If update fails or invalid data is encountered
+        """
+        # Get the column names from the DataFrame that we want to update
+        updateable_columns = [
+            'squadron_red', 'squadron_blue', 'round_number',
+            'squadron_red_rounds_won', 'squadron_blue_rounds_won',
+            'winner_squadron_id', 'server_name', 'match_time'
+        ]
+
+        # Filter to only columns that exist in the DataFrame
+        columns_to_update = [col for col in updateable_columns if col in match_df.columns]
+
+        if not columns_to_update:
+            raise ValueError("No valid columns to update found in the DataFrame")
+
+        # Construct the SQL UPDATE query dynamically based on available columns
+        set_clause = ", ".join(f"{col} = %s" for col in columns_to_update)
+        query = f"""
+            UPDATE tm_matches 
+            SET {set_clause}
+            WHERE match_id = %s AND tournament_id = %s
+        """
+
+        try:
+            async with self.apool.connection() as conn:
+                async with conn.transaction():
+                    # Process each row in the DataFrame
+                    for _, row in match_df.iterrows():
+                        # Extract values for the update in the correct order
+                        update_values = [row[col] for col in columns_to_update]
+                        # Add match_id and tournament_id for the WHERE clause
+                        update_values.extend([row['match_id'], tournament_id])
+
+                        await conn.execute(query, tuple(update_values))
+
+        except Exception as e:
+            raise ValueError(f"Failed to update tournament data: {str(e)}")
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        att = message.attachments[0]
+        filename = att.filename.lower()
+        filetype = filename.lower().split('.')[-1]
+        if not filename.startswith('tournament') or not filetype.startswith('xls'):
+            return
+
+        match = re.match(r'^tournament_(\d+)\.xlsx?$', filename)
+        if not match:
+            await message.channel.send(_("The filename has to be 'tournament_ID.xlsx'."))
+            return
+
+        tournament_id = int(match.group(1))
+        tournament = await self.get_tournament(tournament_id)
+        if not tournament:
+            await message.channel.send(_("Tournament not found."))
+            return
+
+        ctx = await self.bot.get_context(message)
+        if await self.eventlistener.is_tournament_finished(tournament_id):
+            msg = _("This tournament is already finished!\n")
+        else:
+            msg = ""
+        if not await utils.yn_question(ctx, msg + _("Do you want to import the data and overwrite your matches?")):
+            await message.channel.send(_("Aborted."))
+            return
+
+        # read the file
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(att.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    response.raise_for_status()
+                    match_df = await self.import_tournament_data(BytesIO(await response.read()), tournament_id)
+                    await self.import_tournament_data_to_db(match_df, tournament_id)
+                    embed = await self.render_matches(tournament)
+                    embed.set_footer(text=_("The data has been imported successfully."))
+                    await message.channel.send(embed=embed)
+                    # check if the tournament has finished
+                    if await self.eventlistener.check_tournament_finished(tournament_id):
+                        await message.channel.send("The upload finished the tournament.")
+        except Exception as ex:
+            self.log.exception(ex)
+            await message.channel.send(_("Error while processing the file: {}").format(ex))
 
 
 async def setup(bot: DCSServerBot):
