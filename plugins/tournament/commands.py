@@ -264,6 +264,8 @@ class Tournament(Plugin[TournamentEventListener]):
     async def cog_load(self) -> None:
         await super().cog_load()
         if self.get_config().get('autostart_matches', False):
+            self.match_scheduler.add_exception_type(psycopg.OperationalError)
+            self.match_scheduler.add_exception_type(ValueError)
             self.match_scheduler.start()
 
     async def cog_unload(self) -> None:
@@ -2061,8 +2063,14 @@ class Tournament(Plugin[TournamentEventListener]):
                             continue
 
                         # start the match
-                        await self.start_match(server, tournament_id=tournament['tournament_id'],
-                                               match_id=match['match_id'])
+                        try:
+                            await self.start_match(server,
+                                                   tournament_id=tournament['tournament_id'],
+                                                   match_id=match['match_id'])
+                        except ValueError as ex:
+                            self.log.warning(ex)
+                            return
+
                         # audit event
                         squadron_blue = utils.get_squadron(self.node, squadron_id=match['squadron_blue'])
                         squadron_red = utils.get_squadron(self.node, squadron_id=match['squadron_red'])
