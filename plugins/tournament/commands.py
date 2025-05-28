@@ -439,7 +439,7 @@ class Tournament(Plugin[TournamentEventListener]):
             for field in tmp.fields:
                 embed.add_field(name=field.name, value=field.value, inline=field.inline)
 
-        elif TOURNAMENT_PHASE.TOURNAMENT_FINISHED:
+        elif phase == TOURNAMENT_PHASE.TOURNAMENT_FINISHED:
             embed.title = _("THE TOURNAMENT HAS FINISHED!")
             embed.set_thumbnail(url=self.bot.guilds[0].icon.url)
             async with self.apool.connection() as conn:
@@ -451,7 +451,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 """, (tournament_id,))
                 winner_id = (await cursor.fetchone())[0]
             winner = utils.get_squadron(node=self.node, squadron_id=winner_id)
-            winner_image = winner['image_url']
+            winner_image = winner.get('image_url')
             if winner_image:
                 buffer = await create_winner_image(winner_image)
             message = _("### Stand proud, {}!\n"
@@ -1104,43 +1104,34 @@ class Tournament(Plugin[TournamentEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
-        if not await yn_question(interaction,
-                                 _("Do you want to generate {} matches for tournament {}?\n"
-                                   "This will overwrite any existing **unflown** matches!").format(
-                                     stage, tournament['name'])):
-            await interaction.followup.send(_("Aborted."), ephemeral=True)
-            return
 
         async with self.apool.connection() as conn:
             # check if we have flown matches already
             cursor = await conn.execute("""
-                SELECT COUNT(*), 
-                       COALESCE(SUM(CASE WHEN winner_squadron_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS flown,
-                       COALESCE(MAX(stage), 0) AS stage
+                SELECT COALESCE(stage, 0), COUNT(*), 
+                       COALESCE(SUM(CASE WHEN winner_squadron_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS flown
                 FROM tm_matches 
-                WHERE tournament_id = %s            
+                WHERE tournament_id = %s
+                GROUP BY stage
+                ORDER BY 1 DESC LIMIT 1
             """, (tournament_id,))
-            all_matches, flown_matches, level = await cursor.fetchone()
+            level, all_matches, flown_matches = await cursor.fetchone()
 
-            # initial setup
-            if all_matches == 0 or stage == 'group':
-                if flown_matches > 0:
-                    await interaction.followup.send(
-                        _("Can't restart group phase, there are already flown matches in this tournament."),
-                        ephemeral=True)
-                    return
-                elif all_matches > 0 and not await yn_question(
-                        interaction, _("Do you really want to generate new groups?")):
+            if flown_matches > 0:
+                await interaction.followup.send(
+                    _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
+                return
+
+            if stage == 'group':
+                if all_matches > 0 and not await yn_question(
+                        interaction, _("Do you really want to generate {} new groups?").format(num_groups)):
                     await interaction.followup.send(_("Aborted."), ephemeral=True)
                     return
                 cursor = await conn.execute("""
                     SELECT squadron_id FROM tm_squadrons WHERE tournament_id = %s AND status = 'ACCEPTED'
                 """, (tournament_id,))
-            elif all_matches > flown_matches:
-                await interaction.followup.send(
-                    _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
-                return
-            else:
+
+            elif stage == 'elimination':
                 cursor = await conn.execute("""
                     WITH squadron_stats AS (
                         SELECT 
@@ -1167,6 +1158,14 @@ class Tournament(Plugin[TournamentEventListener]):
                     ORDER BY group_number, matches_won DESC, total_rounds_won DESC;
                 """, (tournament_id,))
 
+            if not await yn_question(
+                    interaction,
+                    question=_("Do you want to generate {} matches for tournament {}?").format(
+                        stage, tournament['name']),
+                    message=_("This will overwrite any existing **unflown** matches!")):
+                await interaction.followup.send(_("Aborted."), ephemeral=True)
+                return
+
             if cursor.rowcount == 2 and all_matches == flown_matches and flown_matches % 2 == 1:
                 await interaction.followup.send(_("This tournament is finished already!"))
                 return
@@ -1188,12 +1187,6 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE t.tournament_id = %s
             """, (tournament_id,)):
                 servers.append(row[0])
-
-            # read the available times
-            times: list[datetime] = []
-            async for row in await conn.execute("SELECT start_time FROM tm_available_times WHERE tournament_id = %s",
-                                                (tournament_id,)):
-                times.append(row[0])
 
             try:
                 # create matches
@@ -1230,11 +1223,52 @@ class Tournament(Plugin[TournamentEventListener]):
                     # store new matches in the database
                     for idx, match in enumerate(matches):
                         server = servers[idx % len(servers)]
-                        time = times[idx % len(times)]
                         await conn.execute("""
                            INSERT INTO tm_matches(tournament_id, stage, server_name, squadron_red, squadron_blue)
                            VALUES (%s, %s, %s, %s, %s)
                         """, (tournament_id, level, server, match[0], match[1]))
+
+                    if level > 1:
+                        # check for eliminations
+                        async for row in await conn.execute(f"""
+                            WITH active_squadrons AS (
+                                SELECT DISTINCT squadron_id
+                                FROM (
+                                    SELECT squadron_blue AS squadron_id
+                                    FROM tm_matches
+                                    WHERE tournament_id = %(tournament_id)s
+                                    AND winner_squadron_id IS NULL
+                                    UNION ALL
+                                    SELECT squadron_red AS squadron_id
+                                    FROM tm_matches
+                                    WHERE tournament_id = %(tournament_id)s
+                                    AND winner_squadron_id IS NULL
+                                ) all_active
+                            ),
+                            previous_stage_squadrons AS (
+                                SELECT DISTINCT squadron_id
+                                FROM (
+                                    SELECT squadron_blue AS squadron_id
+                                    FROM tm_matches
+                                    WHERE tournament_id = %(tournament_id)s
+                                    AND winner_squadron_id IS NOT NULL
+                                    UNION ALL
+                                    SELECT squadron_red AS squadron_id
+                                    FROM tm_matches
+                                    WHERE tournament_id = %(tournament_id)s
+                                    AND winner_squadron_id IS NOT NULL
+                                ) all_previous
+                            )
+                            SELECT squadron_id 
+                            FROM previous_stage_squadrons
+                            WHERE squadron_id NOT IN (SELECT squadron_id FROM active_squadrons)
+                        """, {"tournament_id": tournament_id}):
+                            embed = discord.Embed(title=_("You have been eliminated!"), color=discord.Color.blue())
+                            embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Uncle_Sam_%28pointing_finger%29.png/960px-Uncle_Sam_%28pointing_finger%29.png")
+                            embed.description = _("You have been eliminated from the tournament {}.\n"
+                                                  "Thank you for your participation!").format(tournament['name'])
+                            await self.inform_squadron(tournament_id=tournament_id, squadron_id=row[0], embed=embed)
+
 
                 await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
                                      user=interaction.user)
@@ -1562,7 +1596,7 @@ class Tournament(Plugin[TournamentEventListener]):
             async with conn.transaction():
                 for side in ['blue', 'red']:
                     squadron = await self.get_squadron(match_id, squadrons[side]['id'])
-                    if squadron.points > min_costs:
+                    if squadron.points >= min_costs:
                         channel = self.bot.get_channel(channels[side])
                         await channel.send(_("You can now use {} to chose your customizations!\n"
                                              "If you do not want to change anything, "
@@ -1641,8 +1675,7 @@ class Tournament(Plugin[TournamentEventListener]):
             await channel.send(embed=embed)
         info = self.get_info_channel()
         if info:
-            asyncio.create_task(self.render_status_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING,
-                                                         match_id=match_id))
+            asyncio.create_task(self.render_status_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING))
             asyncio.create_task(self.render_info_embed(tournament_id, phase=TOURNAMENT_PHASE.MATCH_RUNNING,
                                                        match_id=match_id))
 
@@ -1681,7 +1714,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         if not await yn_question(
                 interaction,
-                _("Do you want to start round {} of the match between\n{} and {}??").format(
+                _("Do you want to start round {} of the match between\n{} and {}?").format(
                     round_number, squadrons['blue']['name'], squadrons['red']['name']
                 ), ephemeral=ephemeral):
             await interaction.followup.send(_("Aborted."), ephemeral=True)

@@ -1,7 +1,7 @@
 import asyncio
 import discord
 
-from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_PLUGINS
+from core import Channel, utils, Status, PluginError, Group, Node
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
@@ -30,7 +30,7 @@ class DCSServerBot(commands.Bot):
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.eventListeners: list[EventListener] = self.bus.eventListeners
+        self.eventListeners: set[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.member: Optional[discord.Member] = None
         self.lock: asyncio.Lock = asyncio.Lock()
@@ -462,14 +462,15 @@ class DCSServerBot(commands.Bot):
                         message = await thread.fetch_message(row[0])
                 else:
                     message = await channel.fetch_message(row[0])
-                return message
             except discord.errors.NotFound:
                 pass
             except discord.errors.DiscordException as ex:
                 self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
+                raise
             except Exception as ex:
                 self.log.exception(ex)
-        return None
+                raise
+        return message
 
     async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Union[Channel, int] = Channel.STATUS,
                        file: Optional[discord.File] = None, server: Optional["Server"] = None):
@@ -501,7 +502,11 @@ class DCSServerBot(commands.Bot):
                 return
 
             # try to read an already existing message
-            message = await self.fetch_embed(embed_name, channel, server)
+            try:
+                message = await self.fetch_embed(embed_name, channel, server)
+            except Exception as ex:
+                return
+
             if message:
                 if not file:
                     await message.edit(embed=embed)

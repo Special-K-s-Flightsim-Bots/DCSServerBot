@@ -394,8 +394,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             asyncio.create_task(self.plugin.render_info_embed(tournament['tournament_id'],
                                                               phase=TOURNAMENT_PHASE.MATCH_FINISHED, match_id=match_id))
             asyncio.create_task(self.plugin.render_status_embed(tournament['tournament_id'],
-                                                                phase=TOURNAMENT_PHASE.MATCH_FINISHED,
-                                                                match_id=match_id))
+                                                                phase=TOURNAMENT_PHASE.MATCH_FINISHED))
             message = _("Squadron {squadron} is the winner of the match!").format(squadron=squadron['name'])
             message += _("\nServer will be shut down in 60 seonds ...")
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message, 60))
@@ -414,7 +413,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                                                               phase=TOURNAMENT_PHASE.MATCH_RUNNING, match_id=match_id))
             asyncio.create_task(server.sendPopupMessage(Coalition.ALL, message))
             # play another round
-            asyncio.create_task(self.next_round(server, match_id))
+            asyncio.create_task(self.next_round(server, match))
 
     async def is_tournament_finished(self, tournament_id: int) -> bool:
         async with self.apool.connection() as conn:
@@ -514,7 +513,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             await asyncio.sleep(1)
             time += 1
 
-    async def next_round(self, server: Server, match_id: int):
+    async def next_round(self, server: Server, match: dict):
         await asyncio.create_task(server.sendPopupMessage(
             Coalition.ALL, _("You will be moved back to spectators in 60 seconds ...")))
         await asyncio.sleep(60)
@@ -525,12 +524,21 @@ class TournamentEventListener(EventListener["Tournament"]):
                 player, reason=_("The round is over, please wait for the next one!")))
         await utils.run_parallel_nofail(*tasks)
         await asyncio.sleep(1)
-        # TODO: check squadron credits!
-        await asyncio.create_task(server.sendPopupMessage(
-            Coalition.ALL, _("Squadron admins, you can now choose your weapons for the next round!")))
-        await self.inform_squadrons(server, message=_("You can now use {} to chose your customizations!").format(
-                (await utils.get_command(self.bot, group=self.plugin.match.name,
-                                         name=self.plugin.customize.name)).mention))
+
+        tournament_id = match['tournament_id']
+        match_id = match['match_id']
+        min_costs = min(choice['costs'] for choice in self.get_config(server)['presets']['choices'].values())
+        for side in ['blue', 'red']:
+            squadron = await self.plugin.get_squadron(match_id, match[f'squadron_{side}'])
+            coalition = Coalition.RED if side == 'red' else Coalition.BLUE
+            if squadron.points >= min_costs:
+                await asyncio.create_task(server.sendPopupMessage(
+                    coalition, _("Squadron admins, you can now choose your weapons for the next round!")))
+                channel = self.bot.get_channel(match[f'squadron_{side}_channel'])
+                if channel:
+                    await channel.send(_("You can now use {} to chose your customizations!").format(
+                        (await utils.get_command(self.bot, group=self.plugin.match.name,
+                                                 name=self.plugin.customize.name)).mention))
         try:
             await self.wait_until_choices_finished(server)
         except ValueError:
@@ -553,6 +561,9 @@ class TournamentEventListener(EventListener["Tournament"]):
         await server.loadMission(new_mission, modify_mission=False, use_orig=False)
         await self.inform_squadrons(
             server, message=f"Round {round_number} is starting now! Please jump back into the server!")
+        asyncio.create_task(self.plugin.render_info_embed(tournament_id,
+                                                          phase=TOURNAMENT_PHASE.MATCH_RUNNING, match_id=match_id))
+        asyncio.create_task(self.plugin.render_status_embed(tournament_id))
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
