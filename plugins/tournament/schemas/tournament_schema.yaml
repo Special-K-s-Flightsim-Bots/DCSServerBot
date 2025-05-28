@@ -68,7 +68,12 @@ schema;element_schema:
           type: map
           nullable: false
           mapping:
-            regex;(.+): {type: int, nullable: false, range: {min: 1}}
+            regex;(.+):
+              type: map
+              nullable: false
+              mapping:
+                num: {required: true, type: int, nullable: false, range: {min: 0}}
+                credits: {type: int, nullable: false, range: {min: 0}}
     channels:
       type: map
       nullable: false

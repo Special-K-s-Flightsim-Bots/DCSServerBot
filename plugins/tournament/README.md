@@ -58,8 +58,8 @@ DEFAULT:
       'AIM-120': {"costs": 2}                   # each AIM-120 costs you 2 credit points
       'AIM-9x': {"costs": 1}                    # each AIM-9x costs you 1 credit points
       'AWACS': {"costs": 0, "max": 1, "ticket": "AWACS"}  # each AWACS costs you no credit points but one AWACS ticket. You can only choose one AWACS per round.
-    tickets:                # you can get a specific number of tickets per tournament
-      AWACS: 2
+    tickets:                        # you can get a specific number of tickets per tournament
+      AWACS: {num: 1, credits: 500} # you get 1 ticket per default, but you can optionally sell tickets with /ticket sell and get the number in credits for it
   channels:
     info: 112233445566778899      # information channel
     streamer: 91827364519283745   # channel for a tournament streamer

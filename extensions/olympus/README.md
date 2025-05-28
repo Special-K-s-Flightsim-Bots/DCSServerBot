@@ -16,6 +16,9 @@ To use the DCS Olympus client, you need [Node.js](https://nodejs.org/download/re
 Click on the link, download and install it. Remember the installation location, as you need to provide it in the 
 configuration.
 
+> [!WARNING]
+> Do NOT install Chocolatey, it is unnecessary for Olympus, and it seems to create issues with Python installations.
+
 ## Configuration
 Then you can add the DCS Olympus extension like so to your nodes.yaml:
 

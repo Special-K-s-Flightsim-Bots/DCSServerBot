@@ -181,7 +181,7 @@ class ChoicesView(View):
         return tickets
 
     async def render(self) -> discord.Embed:
-        squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
+        squadron = await self.plugin.get_squadron(self.tournament_id, self.squadron_id)
         embed = discord.Embed(colour=discord.Colour.blue(),
                               title=_("You have {} credit points left to spend.").format(squadron.points))
         embed.description = ("Here you can select the presets to change the upcoming mission to your request.\n"
@@ -257,7 +257,7 @@ class ChoicesView(View):
 
     async def add_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
-        squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
+        squadron = await self.plugin.get_squadron(self.tournament_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]['costs']
         tickets = await self.get_tickets()
         ticket_name = self.config['presets']['choices'][choice].get('ticket')
@@ -300,7 +300,7 @@ class ChoicesView(View):
 
     async def remove_choice(self, interaction: discord.Interaction):
         choice = interaction.data['values'][0]
-        squadron = await self.plugin.get_squadron(self.match_id, self.squadron_id)
+        squadron = await self.plugin.get_squadron(self.tournament_id, self.squadron_id)
         costs = self.config['presets']['choices'][choice]['costs']
         ticket_name = self.config['presets']['choices'][choice].get('ticket')
 

@@ -99,8 +99,8 @@ class TournamentEventListener(EventListener["Tournament"]):
         tournament = self.tournaments.get(server.name)
         match_id = await self.get_active_match(server)
         _match = await self.plugin.get_match(match_id)
-        squadron_blue = await self.plugin.get_squadron(match_id=match_id, squadron_id=_match['squadron_blue'])
-        squadron_red = await self.plugin.get_squadron(match_id=match_id, squadron_id=_match['squadron_red'])
+        squadron_blue = await self.plugin.get_squadron(tournament['tournament_id'], _match['squadron_blue'])
+        squadron_red = await self.plugin.get_squadron(tournament['tournament_id'], _match['squadron_red'])
         winner = match['winner']
         report = Report(self.bot, self.plugin_name, 'aar.json')
         env = await report.render(interaction=None, server_name=None,
@@ -154,12 +154,12 @@ class TournamentEventListener(EventListener["Tournament"]):
             self.ratings[match['squadron_blue']] = await Competitive.trueskill_squadron(
                 self.node, match['squadron_blue'])
             self.squadron_credits[match['squadron_blue']] = (
-                await self.plugin.get_squadron(match_id, match['squadron_blue'])
+                await self.plugin.get_squadron(tournament_id, match['squadron_blue'])
             ).points
             self.ratings[match['squadron_red']] = await Competitive.trueskill_squadron(
                 self.node, match['squadron_red'])
             self.squadron_credits[match['squadron_red']] = (
-                await self.plugin.get_squadron(match_id, match['squadron_red'])
+                await self.plugin.get_squadron(tournament_id, match['squadron_red'])
             ).points
             self.round_started[server.name] = False
         else:
@@ -169,7 +169,6 @@ class TournamentEventListener(EventListener["Tournament"]):
         start_time = datetime.now()
         end_time = start_time + timedelta(seconds=delayed_start)
         last_minute_warning = None
-        ten_second_warning_sent = False
 
         self.round_started[server.name] = False
         while True:
@@ -375,7 +374,7 @@ class TournamentEventListener(EventListener["Tournament"]):
                 # If all rounds were draws, play one additional decisive round
                 if match['squadron_blue_rounds_won'] == match['squadron_red_rounds_won']:
                     message = _("No winner found yet, playing one decisive round!")
-                # Otherwise determine winner by who has more rounds won
+                # Otherwise determine the winner by who has more rounds won
                 elif match['squadron_blue_rounds_won'] > match['squadron_red_rounds_won']:
                     winner_id = match['squadron_blue']
                 elif match['squadron_red_rounds_won'] > match['squadron_blue_rounds_won']:
@@ -456,11 +455,11 @@ class TournamentEventListener(EventListener["Tournament"]):
                         UPDATE tm_matches 
                         SET squadron_{winner}_rounds_won = squadron_{winner}_rounds_won + 1
                         WHERE match_id = %s
-                        RETURNING squadron_{winner}, squadron_{loser}, round_number
+                        RETURNING tournament_id, squadron_{winner}, squadron_{loser}, round_number
                     """, (match_id,))
-                    winner_id, loser_id, round_number = await cursor.fetchone()
-            winner_squadron = await self.plugin.get_squadron(match_id, winner_id)
-            loser_squadron = await self.plugin.get_squadron(match_id, loser_id)
+                    tournament_id, winner_id, loser_id, round_number = await cursor.fetchone()
+            winner_squadron = await self.plugin.get_squadron(tournament_id, winner_id)
+            loser_squadron = await self.plugin.get_squadron(tournament_id, loser_id)
             message = _("Squadron {name} won round {round}!").format(name=winner_squadron.name, round=round_number)
 
             # calculate balance
@@ -531,7 +530,7 @@ class TournamentEventListener(EventListener["Tournament"]):
         match_id = match['match_id']
         min_costs = min(choice['costs'] for choice in self.get_config(server)['presets']['choices'].values())
         for side in ['blue', 'red']:
-            squadron = await self.plugin.get_squadron(match_id, match[f'squadron_{side}'])
+            squadron = await self.plugin.get_squadron(tournament_id, match[f'squadron_{side}'])
             coalition = Coalition.RED if side == 'red' else Coalition.BLUE
             if squadron.points >= min_costs:
                 await asyncio.create_task(server.sendPopupMessage(

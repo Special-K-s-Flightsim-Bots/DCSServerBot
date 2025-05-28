@@ -53,8 +53,6 @@ async def tournament_autocomplete(interaction: discord.Interaction, current: str
 
 
 async def active_tournament_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
     async with interaction.client.apool.connection() as conn:
         cursor = await conn.execute("""
             SELECT t.tournament_id, t.campaign 
@@ -73,8 +71,15 @@ async def active_tournament_autocomplete(interaction: discord.Interaction, curre
 
 async def squadron_autocomplete(interaction: discord.Interaction, current: str,
                                 config: str) -> list[app_commands.Choice[int]]:
-    if not await interaction.command._check_can_run(interaction):
-        return []
+    if not utils.check_roles(interaction.client.roles["GameMaster"], interaction.user):
+        ucid = await interaction.client.get_ucid_by_member(interaction.user)
+        squadron_admin_sql = """
+        JOIN squadron_members sm ON sm.squadron_id = sq.id AND sm.player_ucid = %(ucid)s AND sm.admin IS TRUE
+        """
+    else:
+        ucid = None
+        squadron_admin_sql = ""
+
     tournament_id = utils.get_interaction_param(interaction, "tournament")
     if config == 'all':
         sub_query = ""
@@ -88,16 +93,17 @@ async def squadron_autocomplete(interaction: discord.Interaction, current: str,
         cursor = await conn.execute(f"""
             SELECT ts.squadron_id, sq.name, ts.status  
             FROM tm_squadrons ts JOIN squadrons sq ON ts.squadron_id = sq.id  
-            WHERE ts.tournament_id = %s {sub_query} AND sq.name ILIKE %s 
+            {squadron_admin_sql}
+            WHERE ts.tournament_id = %(tournament_id)s {sub_query} AND sq.name ILIKE %(name)s 
             ORDER BY CASE status
                 WHEN 'PENDING' THEN 1
                 WHEN 'REJECTED' THEN 2
                 WHEN 'ACCEPTED' THEN 3
                 ELSE 4
             END, sq.name
-        """, (tournament_id, '%' + current + '%'))
+        """, {"tournament_id": tournament_id, "name": '%' + current + '%', "ucid": ucid})
         choices: list[app_commands.Choice[int]] = [
-            app_commands.Choice(name=f"{row[1]} ({row[2]})", value=row[0])
+            app_commands.Choice(name=f"{row[1]} ({row[2]})" if config == 'all' else row[1], value=row[0])
             async for row in cursor
         ]
         return choices[:25]
@@ -258,6 +264,19 @@ async def time_autocomplete(interaction: discord.Interaction, current: str) -> l
         return choices[:25]
 
 
+async def tickets_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    tournament_id = utils.get_interaction_param(interaction, "tournament")
+    squadron_id = utils.get_interaction_param(interaction, "squadron")
+    async with interaction.client.apool.connection() as conn:
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=row[0], value=row[0])
+            async for row in await conn.execute("""
+                SELECT ticket_name FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_count > 0
+            """, (tournament_id, squadron_id))
+        ]
+        return choices[:25]
+
+
 class Tournament(Plugin[TournamentEventListener]):
 
     async def cog_load(self) -> None:
@@ -324,15 +343,14 @@ class Tournament(Plugin[TournamentEventListener]):
         return None
 
     @async_cache
-    async def get_squadron(self, match_id: int, squadron_id: int) -> Squadron:
+    async def get_squadron(self, tournament_id: int, squadron_id: int) -> Squadron:
         squadron = utils.get_squadron(node=self.node, squadron_id=squadron_id)
         async with self.node.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT c.id FROM campaigns c 
                 JOIN tm_tournaments t ON t.campaign = c.name
-                JOIN tm_matches tm ON tm.tournament_id = t.tournament_id
-                WHERE tm.match_id = %s
-            """, (match_id, ))
+                WHERE t.tournament_id = %s
+            """, (tournament_id, ))
             campaign_id = (await cursor.fetchone())[0]
         return DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'], campaign_id=campaign_id)
 
@@ -1595,7 +1613,7 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             async with conn.transaction():
                 for side in ['blue', 'red']:
-                    squadron = await self.get_squadron(match_id, squadrons[side]['id'])
+                    squadron = await self.get_squadron(tournament_id, squadrons[side]['id'])
                     if squadron.points >= min_costs:
                         channel = self.bot.get_channel(channels[side])
                         await channel.send(_("You can now use {} to chose your customizations!\n"
@@ -1999,7 +2017,7 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @app_commands.rename(squadron_id="squadron")
     @app_commands.autocomplete(squadron_id=valid_squadron_autocomplete)
-    @utils.app_has_role('DCS')
+    @utils.squadron_role_check()
     async def _list(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int):
         embed = discord.Embed(colour=discord.Colour.blue(), title=_("Your Tickets"))
         ticket_names = []
@@ -2021,6 +2039,72 @@ class Tournament(Plugin[TournamentEventListener]):
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @tickets.command(name="sell", description=_('Sell tickets for credits'))
+    @app_commands.guild_only()
+    @app_commands.rename(tournament_id="tournament")
+    @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
+    @app_commands.rename(squadron_id="squadron")
+    @app_commands.autocomplete(squadron_id=valid_squadron_autocomplete)
+    @app_commands.autocomplete(ticket_name=tickets_autocomplete)
+    @utils.squadron_role_check()
+    async def sell(self, interaction: discord.Interaction, tournament_id: int, squadron_id: int, ticket_name: str):
+        squadron = await self.get_squadron(tournament_id, squadron_id)
+        ticket = self.get_config().get('presets', {}).get('tickets', {}).get(ticket_name)
+        if not ticket:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(_("The ticket {} does not exist.").format(ticket_name),
+                                                    ephemeral=True)
+            return
+
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                my_tickets = {}
+                async for row in await cursor.execute("""
+                    SELECT ticket_name, ticket_count
+                    FROM tm_tickets
+                    WHERE tournament_id = %s AND squadron_id = %s AND ticket_count > 0
+                """, (tournament_id, squadron_id)):
+                    my_tickets[row['ticket_name']] = row['ticket_count']
+
+                if not my_tickets.get(ticket_name):
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(_("You do not have any tickets of this type."),
+                                                            ephemeral=True)
+                    return
+
+                credits = ticket.get('credits', 0)
+                if credits == 0:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        _("Tickets of type {} are not for sale.").format(ticket_name), ephemeral=True)
+                    return
+
+                if not await utils.yn_question(
+                        interaction, _("Do you really want to sell a tickets of type {} for {} credits?").format(
+                            ticket_name, credits)):
+                    await interaction.followup.send(_("Aborted"))
+                    return
+
+                async with conn.transaction():
+                    cursor = await cursor.execute("""
+                        UPDATE tm_tickets SET ticket_count = ticket_count - 1
+                        WHERE tournament_id = %s 
+                          AND squadron_id = %s
+                          AND ticket_name = %s
+                        RETURNING ticket_count
+                    """, (tournament_id, squadron_id, ticket_name))
+                    ticket_count = (await cursor.fetchone())['ticket_count']
+                    if ticket_count == 0:
+                        await conn.execute("""
+                            DELETE FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_name = %s
+                        """, (tournament_id, squadron_id, ticket_name))
+                    squadron.points += credits
+                    squadron.audit(event='Ticket sale', points=credits, remark=f"{ticket_name} sold")
+            # noinspection PyUnresolvedReferences
+            await interaction.followup.send(
+                _("You sold a ticket of type {} and got {} credits back.\n"
+                  "Your total squadron balance is {} credits.").format(ticket_name, credits, squadron.points),
+                ephemeral=True)
 
     @tasks.loop(minutes=1.0)
     async def match_scheduler(self):
