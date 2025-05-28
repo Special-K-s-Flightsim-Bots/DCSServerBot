@@ -23,6 +23,16 @@ schema;element_schema:
     sudden_death: {type: bool, nullable: false}
     balance_multiplier: {type: bool, nullable: false}
     mission: {type: text, nullable: false}
+    events:
+      type: map
+      nullable: false
+      mapping:
+        regex;(.+):
+          type: map
+          nullable: false
+          mapping:
+            message: {type: str, nullable: false, range: {min: 1}}
+            sound: {type: str, nullable: false, range: {min: 1}}
     presets:
       type: map
       nullable: false

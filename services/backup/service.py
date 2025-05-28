@@ -122,41 +122,62 @@ class BackupService(Service):
         cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
         if not os.path.exists(cmd):
             raise FileNotFoundError(cmd)
-        filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
-        path = os.path.join(target, filename)
-        url = urlparse(self.node.config.get("database", self.node.locals.get('database'))['url'])
-        try:
-            password = utils.get_password('postgres', self.node.config_dir)
-            username = config.get('username', 'postgres')
-        except ValueError:
-            username = url.username
-            password = utils.get_password('database', self.node.config_dir)
-        database = url.path.strip('/')
-        args = [
-            '--no-owner',
-            '--no-privileges',
-            '-U', username,
-            '-F', 't',
-            '-f', path,
-            '-d', database,
-            '-h', url.hostname
+
+        cpool_url = self.node.config.get("database", self.node.locals.get('database'))['url']
+        lpool_url = self.node.locals.get("database", self.node.config.get('database'))['url']
+
+        databases = [
+            (
+                urlparse(lpool_url),
+                utils.get_password('database', self.node.config_dir),
+                f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
+            )
         ]
-        try:
-            os.environ['PGPASSWORD'] = password
-        except ValueError:
-            self.log.error("Backup of database failed. No password set.")
-            return False
-        self.log.info(f'Backing up database "{database}" ...')
-        process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-        rc = process.returncode
-        if rc == 0:
-            self.log.info("Backup of database complete.")
-            return True
-        else:
-            error_message = process.stderr.strip()
-            self.log.info(f"Backup of database failed. Code: {rc}. Error: {error_message}")
-            return False
+        if cpool_url != lpool_url:
+            databases.append(
+                (
+                    urlparse(cpool_url),
+                    utils.get_password('clusterdb', self.node.config_dir),
+                    f"clusterdb_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
+                )
+            )
+
+        ret = True
+        for url, password, filename in databases:
+            try:
+                password = utils.get_password('postgres', self.node.config_dir)
+                username = config.get('username', 'postgres')
+            except ValueError:
+                username = url.username
+                password = password
+            database = url.path.strip('/')
+            args = [
+                '--no-owner',
+                '--no-privileges',
+                '-U', username,
+                '-F', 't',
+                '-f', os.path.join(target, filename),
+                '-d', database,
+                '-h', url.hostname
+            ]
+            try:
+                os.environ['PGPASSWORD'] = password
+            except ValueError:
+                self.log.error(f"Backup of database {database} failed. No password set.")
+                return False
+            self.log.info(f'Backing up database "{database}" ...')
+            process = subprocess.run([os.path.basename(cmd), *args], executable=cmd,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            rc = process.returncode
+            if rc != 0:
+                ret = False
+                error_message = process.stderr.strip()
+                self.log.info(f"Backup of database {database} failed. Code: {rc}. Error: {error_message}")
+                continue
+            else:
+                self.log.info(f"Backup of database {database} complete.")
+
+        return ret
 
     def recover_database(self, date: str):
         ...

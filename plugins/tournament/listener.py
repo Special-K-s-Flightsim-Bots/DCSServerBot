@@ -190,16 +190,18 @@ class TournamentEventListener(EventListener["Tournament"]):
                 last_minute_warning = current_minute
 
             # Single 10-second warning
-            if remaining <= 10 and not ten_second_warning_sent:
-                await server.sendPopupMessage(Coalition.ALL, _("The round will start in 10 seconds."))
-                ten_second_warning_sent = True
+            if remaining <= 10:
+                await server.sendPopupMessage(Coalition.ALL, _("The round will start in {} seconds.").format(remaining),
+                                              timeout=1)
 
             await asyncio.sleep(1)
 
         self.round_started[server.name] = True
         await server.lock(_("There is a match running. Please wait for the round to finish."))
-        # TODO: make this text configurable
-        await server.sendPopupMessage(Coalition.ALL, _("GO GO GO! The fight is now on!"))
+        config = self.get_config(server)
+        await server.sendPopupMessage(
+            Coalition.ALL, config.get('events', {}).get('go', {}).get('message', 'GO GO GO! The fight is now on!'))
+        await server.playSound(Coalition.ALL, config.get('events', {}).get('go', {}).get('sound', 'siren.ogg'))
 
     @event(name="onSimulationResume")
     async def onSimulationResume(self, server: Server, data: dict) -> None:

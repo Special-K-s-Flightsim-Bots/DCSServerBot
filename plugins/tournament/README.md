@@ -43,9 +43,12 @@ DEFAULT:
   balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
   remove_on_death: .*       # optional: if set, any unit name that matches this regular expression will result in the removal of this unit in the next rounds of the same match
   mission: Tournament_Test_Dyn.miz  # optional: the mission to load, otherwise the current mission is used. (Could be a name or a number. If name it has to be in the mission list.)
+  events:
+    go: {message: "GO GO GO! The fight is now on!", sound: "siren.ogg"}   # Go message to be sent at match start (optional add a sound)
   presets:
     file: presets_tournament.yaml
     initial:                # presets that have to be applied to any mission
+      - default             # Add a default preset (sample has a sound to be added)
       - sanitize            # preset to be used for sanitization (security settings in mission)
       - random_weather      # Randomize the weather
     even:
