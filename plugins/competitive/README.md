@@ -70,6 +70,7 @@ DCS.server:
   kick_time: 30         # Match only: Seconds after a dead player will be kicked.
   end_mission: false    # Match only: end the mission if a match is over (default: false)
   delayed_start: 300    # optional: give people 300 seconds to join and prepare their planes.
+  win_on_noshow: 300    # optional: you win, if nobody of the opposite coalition shows up for 300 seconds
   credit_on_leave: true # Tournament only: squadrons will gain credits on a crash, disconnect, change_slot
 ```
 > [!NOTE]

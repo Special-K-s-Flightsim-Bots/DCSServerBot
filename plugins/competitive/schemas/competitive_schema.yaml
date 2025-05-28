@@ -20,6 +20,7 @@ schema;element_schema:
     kick_time: {type: int, nullable: false, range: {min: 0}}
     end_mission: {type: bool, nullable: false}
     delayed_start: {type: int, nullable: false, range: {min: 0}}
+    win_on_noshow: {type: int, nullable: false, range: {min: 60}}
     credit_on_leave: {type: bool, nullable: false}
 
 type: map

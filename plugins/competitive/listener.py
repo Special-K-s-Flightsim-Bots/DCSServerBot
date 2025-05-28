@@ -31,6 +31,8 @@ class Match:
     started: datetime = field(default=None)
     finished: datetime = field(default=None)
     winner: Optional[Side] = field(default=None)
+    timer_task: Optional[asyncio.Task] = field(default=None)
+    first_join: Optional[Side] = field(default=None)
 
     @property
     def teams(self) -> dict[Side, list[Player]]:
@@ -205,6 +207,26 @@ class CompetitiveListener(EventListener["Competitive"]):
 
             await asyncio.sleep(1)
 
+    async def check_join_timeout(self, server: Server, match: Match, waiting_side: Side):
+        config = self.get_config(server)
+        timeout = config['win_on_noshow']
+
+        try:
+            await asyncio.sleep(timeout)
+            # If we reach this point, the timer wasn't canceled,
+            # meaning the other side didn't join
+            message = _("{} side lost due to not participarting {} seconds after {} side joined the match").format(
+                waiting_side.name.title(), timeout, match.first_join.name.title())
+            await server.sendPopupMessage(Coalition.ALL, message)
+            match.log.append((datetime.now(timezone.utc), message))
+
+            # Trigger match end with the side that took off as winner
+            match.winner = match.first_join
+
+        except asyncio.CancelledError:
+            # Timer was canceled because the other side joined - do nothing
+            pass
+
     async def _addPlayerToMatch(self, server: Server, data: dict) -> None:
         players = server.get_crew_members(server.get_player(name=data['player_name']))
         for player in players:
@@ -227,6 +249,18 @@ class CompetitiveListener(EventListener["Competitive"]):
             self.log.debug(f"Player {player.name} ({player.ucid}) joined the match {match_id}")
 
             config = self.get_config(server)
+
+            # initialize noshow timer
+            if config.get('win_on_noshow'):
+                if not match.is_on():
+                    match.first_join = player.side
+                    waiting_side = Side.RED if player.side == Side.BLUE else Side.BLUE
+                    match.timer_task = asyncio.create_task(self.check_join_timeout(server, match, waiting_side))
+                else:
+                    match.timer_task.cancel()
+                    match.timer_task = None
+                    match.first_join = None
+
             if not config.get('silent', False):
                 await self.inform_players(
                     server,
@@ -512,8 +546,9 @@ class CompetitiveListener(EventListener["Competitive"]):
                     continue
 
                 if winner != Side.UNKNOWN:
-                    await self.rank_teams(match.teams[winner],
-                                          match.teams[Side.BLUE if winner == Side.RED else Side.RED])
+                    if match.teams[Side.BLUE] and match.teams[Side.RED]:
+                        await self.rank_teams(match.teams[winner],
+                                              match.teams[Side.BLUE if winner == Side.RED else Side.RED])
                     message = _("The match is over, {} won!\n\n"
                                 "The following players are still alive:\n").format(winner.name)
                     for player in match.alive[winner]:
