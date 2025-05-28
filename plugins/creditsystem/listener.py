@@ -187,7 +187,8 @@ class CreditSystemListener(EventListener["CreditSystem"]):
                         victim = server.get_player(id=data['arg4'])
                         message_kill = config.get('messages', {}).get('message_kill')
                         if message_kill:
-                            await player.sendUserMessage(message_kill.format(points=ppk, victim=victim.name))
+                            await player.sendUserMessage(message_kill.format(
+                                points=ppk, victim=victim.name if victim else f"AI in {data['arg5']}"))
 
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
