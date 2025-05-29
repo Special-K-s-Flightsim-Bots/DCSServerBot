@@ -313,7 +313,7 @@ class TournamentEventListener(EventListener["Tournament"]):
             config = self.get_config(server)
             pattern = config.get('remove_on_death')
             initiator = server.get_player(name=data['initiator']['name'])
-            if pattern and re.match(pattern, initiator.unit_name):
+            if pattern and re.search(pattern, initiator.unit_name):
                 match_id = await self.get_active_match(server)
                 match = await self.plugin.get_match(match_id)
                 squadron_id = match[f'squadron_{initiator.coalition.value}']
