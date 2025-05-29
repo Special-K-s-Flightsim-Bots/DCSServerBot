@@ -875,7 +875,11 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
             return value
         value = format_string(value[1:], **kwargs)
         namespace = {k: v for k, v in globals().items() if not k.startswith("__")}
-        return eval(value, namespace, kwargs) if value else False
+        try:
+            return eval(value, namespace, kwargs) if value else False
+        except Exception:
+            logger.error(f"Error evaluating: {value} using kwargs={repr(kwargs)}")
+            raise
 
     if isinstance(value, list):
         for i in range(len(value)):
