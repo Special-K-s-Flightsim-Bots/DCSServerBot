@@ -150,7 +150,7 @@ class PresetView(View):
             select.max_values = min(10, len(options))
         else:
             select.max_values = 1
-        self.result = None
+        self.result: Optional[list[str]] = None
 
     @discord.ui.select(placeholder="Select the preset(s) you want to apply")
     async def callback(self, interaction: discord.Interaction, select: Select):

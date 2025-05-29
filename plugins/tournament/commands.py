@@ -401,7 +401,7 @@ class Tournament(Plugin[TournamentEventListener]):
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
 
-    async def render_groups_image(self, tournament_id: int) -> BytesIO:
+    async def render_groups_image(self, tournament_id: int) -> bytes:
         groups: list[list[int]] = []
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
@@ -438,9 +438,6 @@ class Tournament(Plugin[TournamentEventListener]):
             """, (tournament_id,))
             num_squadrons = (await cursor.fetchone())[0]
 
-            embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Overview")
-            buffer = None
-
             if not phase:
                 cursor = await conn.execute("""
                     SELECT COUNT(*) FROM tm_squadrons 
@@ -458,6 +455,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 else:
                     phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
 
+        embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Overview")
+        buffer = None
         if phase == TOURNAMENT_PHASE.SIGNUP:
             message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
                         "A new tournament has been created:\n"
@@ -509,18 +508,15 @@ class Tournament(Plugin[TournamentEventListener]):
 
         embed.description = message
         if buffer:
-            file = discord.File(fp=buffer, filename=f"tournament_{tournament_id}.png")
+            file = discord.File(fp=BytesIO(buffer), filename=f"tournament_{tournament_id}.png")
             embed.set_image(url=f"attachment://tournament_{tournament_id}.png")
         else:
             file = None
-        try:
-            # create a persistent message
-            channel_id = self.get_config().get('channels', {}).get('info')
-            await self.bot.setEmbed(embed_name=f"tournament_status_{tournament_id}", embed=embed, file=file,
-                                    channel_id=channel_id)
-        finally:
-            if buffer:
-                buffer.close()
+
+        # create a persistent message
+        channel_id = self.get_config().get('channels', {}).get('info')
+        await self.bot.setEmbed(embed_name=f"tournament_status_{tournament_id}", embed=embed, file=file,
+                                channel_id=channel_id)
 
     async def render_info_embed(self, tournament_id: int, *,
                                 phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.SIGNUP,
@@ -579,18 +575,14 @@ class Tournament(Plugin[TournamentEventListener]):
 
         embed.description = message
         if buffer:
-            file = discord.File(fp=buffer, filename=f"tournament_{tournament_id}.png")
+            file = discord.File(fp=BytesIO(buffer), filename=f"tournament_{tournament_id}.png")
             embed.set_image(url=f"attachment://tournament_{tournament_id}.png")
         else:
             file = None
-        try:
-            # create a persistent message
-            channel_id = self.get_config().get('channels', {}).get('info')
-            await self.bot.setEmbed(embed_name=f"tournament_info_{tournament_id}", embed=embed, file=file,
-                                    channel_id=channel_id)
-        finally:
-            if buffer:
-                buffer.close()
+        # create a persistent message
+        channel_id = self.get_config().get('channels', {}).get('info')
+        await self.bot.setEmbed(embed_name=f"tournament_info_{tournament_id}", embed=embed, file=file,
+                                channel_id=channel_id)
 
     @tournament.command(description=_('Create a tournament'))
     @app_commands.guild_only()
@@ -985,14 +977,11 @@ class Tournament(Plugin[TournamentEventListener]):
                 """, (tournament_id,))
                 squadrons_df = pd.DataFrame(await cursor.fetchall())
 
-        buffer = create_tournament_sheet(squadrons_df, matches_df, tournament_id)
+        buffer: bytes = create_tournament_sheet(squadrons_df, matches_df, tournament_id)
         filename = f"tournament_{tournament_id}.xlsx"
-        try:
-            file = discord.File(buffer, filename=filename)
-            # noinspection PyUnresolvedReferences
-            await interaction.followup.send(file=file, ephemeral=utils.get_ephemeral(interaction))
-        finally:
-            buffer.close()
+        file = discord.File(BytesIO(buffer), filename=filename)
+        # noinspection PyUnresolvedReferences
+        await interaction.followup.send(file=file, ephemeral=utils.get_ephemeral(interaction))
 
     @tournament.command(description=_('Export matches'))
     @app_commands.guild_only()

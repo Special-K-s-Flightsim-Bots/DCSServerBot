@@ -2,6 +2,8 @@ import aiohttp
 import math
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import random
 
 from core import report
@@ -131,7 +133,7 @@ async def download_image(image_url: str) -> bytes:
             return img_data
 
 
-async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> Optional[BytesIO]:
+async def create_versus_image(team_blue_image_url: str, team_red_image_url: str, winner: str = None) -> Optional[bytes]:
     """
     Create a versus image or winner image depending on if winner is specified.
     :param team_blue_image_url: Blue team image URL
@@ -274,8 +276,10 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
             buffer = BytesIO()
             combined_image.save(buffer, format='PNG')
             buffer.seek(0)
+            image_bytes = buffer.getvalue()
+            buffer.close()
 
-            return buffer
+            return image_bytes
 
     finally:
         # Clean up BytesIO objects
@@ -285,7 +289,7 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
             img2_bio.close()
 
 
-async def create_winner_image(winner_image_url: str) -> Optional[BytesIO]:
+async def create_winner_image(winner_image_url: str) -> Optional[bytes]:
     """
     Create a special victory image for the tournament winner with enhanced visual effects.
     :param winner_image_url: URL of the winning squadron's image
@@ -383,8 +387,10 @@ async def create_winner_image(winner_image_url: str) -> Optional[BytesIO]:
             buffer = BytesIO()
             final_image.save(buffer, format='PNG')
             buffer.seek(0)
+            image_bytes = buffer.getvalue()
+            buffer.close()
 
-            return buffer
+            return image_bytes
 
     finally:
         if winner_bio:
@@ -438,7 +444,7 @@ def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) ->
     return killer_multiplier, victim_multiplier
 
 
-def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame, tournament_id: int):
+def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame, tournament_id: int) -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = f"Tournament {tournament_id}"
@@ -534,7 +540,10 @@ def create_tournament_sheet(squadrons_df: pd.DataFrame, matches_df: pd.DataFrame
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
-    return buf
+    xls_bytes = buf.getvalue()
+    buf.close()
+
+    return xls_bytes
 
 
 def create_placeholder_icon(size=(32, 32)) -> Image:
@@ -546,7 +555,7 @@ def create_placeholder_icon(size=(32, 32)) -> Image:
     return pil_img
 
 
-async def render_groups(groups: list[list[tuple[str, str]]]) -> BytesIO:
+async def render_groups(groups: list[list[tuple[str, str]]]) -> bytes:
     n_groups = len(groups)
     max_members = max(len(group) for group in groups)
 
@@ -664,7 +673,10 @@ async def render_groups(groups: list[list[tuple[str, str]]]) -> BytesIO:
     plt.close(fig)
 
     buf.seek(0)
-    return buf
+    image_bytes = buf.getvalue()
+    buf.close()
+
+    return image_bytes
 
 
 class TimePreferences(report.GraphElement):
