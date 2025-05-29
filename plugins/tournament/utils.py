@@ -2,8 +2,6 @@ import aiohttp
 import math
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
 import random
 
 from core import report
@@ -567,6 +565,7 @@ async def render_groups(groups: list[list[tuple[str, str]]]) -> bytes:
     fig_height = max(4, (max_members + 1) ** height_per_member)
 
     dpi = 150
+    plt.switch_backend('agg')
     fig = plt.figure(figsize=(fig_width, fig_height), dpi=dpi)
     ax = fig.add_subplot(111)
 

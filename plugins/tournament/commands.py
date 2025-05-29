@@ -433,30 +433,38 @@ class Tournament(Plugin[TournamentEventListener]):
                                   phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.START_GROUP_PHASE) -> None:
         tournament = await self.get_tournament(tournament_id)
         async with self.apool.connection() as conn:
+            # read number of squadrons
             cursor = await conn.execute("""
                 SELECT COUNT(*) FROM tm_squadrons WHERE tournament_id = %s AND status = 'ACCEPTED'
             """, (tournament_id,))
             num_squadrons = (await cursor.fetchone())[0]
 
-            if not phase:
-                cursor = await conn.execute("""
-                    SELECT COUNT(*) FROM tm_squadrons 
-                    WHERE tournament_id = %s 
-                      AND group_number IS NOT NULL
-                """, (tournament_id,))
-                groups = (await cursor.fetchone())[0] > 0
-                cursor = await conn.execute("""
-                    SELECT MAX(stage) FROM tm_matches 
-                    WHERE tournament_id = %s
-                """, (tournament_id,))
-                level = (await cursor.fetchone())[0]
-                if groups and level == 1:
-                    phase = TOURNAMENT_PHASE.START_GROUP_PHASE
-                else:
-                    phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
+            # check if we have groups defined
+            cursor = await conn.execute("""
+                SELECT COUNT(*)
+                FROM tm_squadrons
+                WHERE tournament_id = %s
+                  AND group_number IS NOT NULL
+            """, (tournament_id,))
+            groups = (await cursor.fetchone())[0] > 0
+
+            # check which stage/level we are in
+            cursor = await conn.execute("""
+                SELECT MAX(stage)
+                FROM tm_matches
+                WHERE tournament_id = %s
+            """, (tournament_id,))
+            level = (await cursor.fetchone())[0]
 
         embed = discord.Embed(color=discord.Color.blue(), title=f"Tournament {tournament['name']} Overview")
         buffer = None
+
+        if not phase:
+            if groups and level == 1:
+                phase = TOURNAMENT_PHASE.START_GROUP_PHASE
+            else:
+                phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
+
         if phase == TOURNAMENT_PHASE.SIGNUP:
             message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
                         "A new tournament has been created:\n"
@@ -477,11 +485,19 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed.add_field(name=field.name, value=field.value, inline=field.inline)
             buffer = await self.render_groups_image(tournament_id)
 
-        elif phase in [TOURNAMENT_PHASE.START_ELIMINATION_PHASE, TOURNAMENT_PHASE.MATCH_RUNNING]:
-            message = _("The eliminiation phase is now running.") if phase == TOURNAMENT_PHASE.START_ELIMINATION_PHASE else _("A match is running.")
+        elif phase == TOURNAMENT_PHASE.START_ELIMINATION_PHASE:
+            message = _("The eliminiation phase is now running.")
             tmp = await self.render_matches(tournament=tournament)
             for field in tmp.fields:
                 embed.add_field(name=field.name, value=field.value, inline=field.inline)
+
+        elif phase == TOURNAMENT_PHASE.MATCH_RUNNING:
+            message = _("A match is running.")
+            tmp = await self.render_matches(tournament=tournament)
+            for field in tmp.fields:
+                embed.add_field(name=field.name, value=field.value, inline=field.inline)
+            if groups and level == 1:
+                buffer = await self.render_groups_image(tournament_id)
 
         elif phase == TOURNAMENT_PHASE.TOURNAMENT_FINISHED:
             embed.title = _("THE TOURNAMENT HAS FINISHED!")

@@ -509,7 +509,7 @@ class DCSServerBot(commands.Bot):
 
             if message:
                 if not file:
-                    await message.edit(embed=embed)
+                    await message.edit(embed=embed, attachments=[])
                 else:
                     await message.edit(embed=embed, attachments=[file])
             else:
