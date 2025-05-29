@@ -271,8 +271,10 @@ async def tickets_autocomplete(interaction: discord.Interaction, current: str) -
         choices: list[app_commands.Choice[int]] = [
             app_commands.Choice(name=row[0], value=row[0])
             async for row in await conn.execute("""
-                SELECT ticket_name FROM tm_tickets WHERE tournament_id = %s AND squadron_id = %s AND ticket_count > 0
-            """, (tournament_id, squadron_id))
+                SELECT ticket_name 
+                FROM tm_tickets 
+                WHERE tournament_id = %s AND squadron_id = %s AND ticket_count > 0 AND ticket_name ILIKE %s
+            """, (tournament_id, squadron_id, '%' + current + '%'))
         ]
         return choices[:25]
 
@@ -1126,14 +1128,18 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             # check if we have flown matches already
             cursor = await conn.execute("""
-                SELECT COALESCE(stage, 0), COUNT(*), 
-                       COALESCE(SUM(CASE WHEN winner_squadron_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS flown
+                SELECT stage AS level, COUNT(*) AS all_matches, 
+                       COALESCE(SUM(CASE WHEN winner_squadron_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS flown_matches
                 FROM tm_matches 
                 WHERE tournament_id = %s
                 GROUP BY stage
                 ORDER BY 1 DESC LIMIT 1
             """, (tournament_id,))
-            level, all_matches, flown_matches = await cursor.fetchone()
+            row = await cursor.fetchone()
+            if row:
+                level, all_matches, flown_matches = row
+            else:
+                level = all_matches = flown_matches = 0
 
             if flown_matches > 0:
                 await interaction.followup.send(
@@ -1557,6 +1563,10 @@ class Tournament(Plugin[TournamentEventListener]):
                 }
             )
 
+    async def get_mission(self, server: Server, squadrons: dict) -> Optional[str]:
+        config = self.get_config(server)
+        return random.choice(config['missions'])
+
     async def start_match(self, server: Server, tournament_id: int, match_id: int, mission_id: Optional[int] = None,
                           round_number: Optional[int] = None):
         tournament = await self.get_tournament(tournament_id)
@@ -1641,9 +1651,12 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # change settings
         await self.setup_server_for_match(msg, embed, server, match, channels)
-        # find mission
+        # find a mission
         if not mission_id:
-            mission = config.get('mission')
+            if 'missions' in config:
+                mission = await self.get_mission(server, squadrons)
+            else:
+                mission = config.get('mission')
             if isinstance(mission, int):
                 mission_id = mission
             elif isinstance(mission, str):
