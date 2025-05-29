@@ -498,7 +498,7 @@ class Tournament(Plugin[TournamentEventListener]):
             winner = utils.get_squadron(node=self.node, squadron_id=winner_id)
             winner_image = winner.get('image_url')
             if winner_image:
-                buffer = await create_winner_image(winner_image)
+                buffer = None # TODO: await create_winner_image(winner_image)
             message = _("### Stand proud, {}!\n"
                         "_Through fire and thunder you prevailed,\n"
                         "When others faltered, you stood strong,\n"
@@ -537,7 +537,7 @@ class Tournament(Plugin[TournamentEventListener]):
             blue_image = squadron_blue['image_url']
             red_image = squadron_red['image_url']
             if blue_image and red_image:
-                buffer = await create_versus_image(blue_image, red_image)
+                buffer = None # TODO: await create_versus_image(blue_image, red_image)
 
             embed.add_field(name=_("Blue"), value=squadron_blue['name'])
             ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
@@ -559,7 +559,7 @@ class Tournament(Plugin[TournamentEventListener]):
             blue_image = squadron_blue['image_url']
             red_image = squadron_red['image_url']
             if blue_image and red_image:
-                buffer = await create_versus_image(blue_image, red_image, winner)
+                buffer = None # TODO: await create_versus_image(blue_image, red_image, winner)
 
             embed.add_field(name=_("Round"), value=f"{match['round_number']} of {tournament['rounds']}")
             embed.add_field(name=_("Blue Wins"), value=str(match['squadron_blue_rounds_won']))
