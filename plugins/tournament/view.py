@@ -381,7 +381,11 @@ class ApplicationView(View):
                     UPDATE tm_squadrons SET status = 'ACCEPTED' WHERE tournament_id = %s AND squadron_id = %s
                 """, (self.tournament_id, self.squadron_id))
                 # create the tickets if there are any
-                tickets = self.plugin.get_config().get('presets', {}).get('tickets', {})
+                tickets = {
+                    k: v['num']
+                    for k, v in self.plugin.get_config().get('presets', {}).get('tickets', {})
+                    if v.get('num', 0) > 0
+                }
                 if tickets:
                     embed.description += _(
                         "\n\nYou can use the following tickets during the tournament to buy special customizations:"
