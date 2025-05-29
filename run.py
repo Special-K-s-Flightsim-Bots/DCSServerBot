@@ -12,6 +12,7 @@ import platform
 import psycopg
 import sys
 import time
+import traceback
 
 from datetime import datetime
 from psycopg import OperationalError
@@ -190,10 +191,49 @@ class Main:
                     await self.node.unregister()
 
 
+def handle_exception(loop, context):
+    # Extract exception details from context
+    exception = context.get('exception')
+    message = context.get('message')
+
+    # Log detailed information
+    if exception:
+        log.error(f"Async error: {message}", exc_info=exception)
+    else:
+        log.error(f"Async error: {message}")
+
+    # Write to async_errors.log with task information
+    with open(os.path.join('logs', 'async_errors.log'), 'a') as f:
+        f.write(f"\n{'=' * 50}\n{datetime.now().isoformat()}: {message}\n")
+
+        # Dump all running tasks
+        f.write("\nRunning tasks:\n")
+        for task in asyncio.all_tasks(loop):
+            f.write(f"Task {task.get_name()}: {str(task)}\n")
+            # Get task stack
+            stack = task.get_stack()
+            if stack:
+                f.write('Stack:\n')
+                f.write(''.join(traceback.format_stack(stack[-1])))
+            f.write('\n')
+
+        if exception:
+            f.write("\nException details:\n")
+            traceback.print_exception(type(exception), exception, exception.__traceback__, file=f)
+        f.write(f"{'=' * 50}\n")
+
+
 async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
-    async with NodeImpl(name=name, config_dir=config_dir) as node:
-        await Main(node, no_autoupdate=no_autoupdate).run()
-        return node.rc
+    loop = asyncio.get_running_loop()
+    loop.set_exception_handler(handle_exception)
+
+    try:
+        async with NodeImpl(name=name, config_dir=config_dir) as node:
+            await Main(node, no_autoupdate=no_autoupdate).run()
+            return node.rc
+    except Exception as ex:
+        log.exception(ex)
+        raise
 
 
 if __name__ == "__main__":
