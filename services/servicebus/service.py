@@ -23,7 +23,7 @@ from enum import Enum
 from functools import reduce
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
-from typing import Optional, cast, Union, Any, TYPE_CHECKING
+from typing import Optional, cast, Union, Any, TYPE_CHECKING, Callable
 
 __all__ = [
     "ServiceBus"
@@ -645,7 +645,7 @@ class ServiceBus(Service):
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         if 'method' in data:
             method_name = data['method']
-            func = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
+            func: Callable = reduce(lambda attr, part: getattr(attr, part, None), method_name.split('.'), obj)
             if not func:
                 raise ValueError(f"Call to non-existing function {method_name}()")
 

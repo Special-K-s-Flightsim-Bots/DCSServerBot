@@ -21,7 +21,8 @@ from zoneinfo import ZoneInfo
 
 __all__ = [
     "MizFile",
-    "UnsupportedMizFileException"
+    "UnsupportedMizFileException",
+    "THEATRES"
 ]
 
 THEATRES = {}
@@ -29,7 +30,7 @@ THEATRES = {}
 
 class MizFile:
 
-    def __init__(self, filename: str):
+    def __init__(self, filename: Optional[str] = None):
         from core.services.registry import ServiceRegistry
         from services.servicebus import ServiceBus
 
@@ -38,7 +39,8 @@ class MizFile:
         self.mission: dict = {}
         self.options: dict = {}
         self.warehouses: dict = {}
-        self._load()
+        if filename:
+            self._load()
         self._files: list[dict] = []
         self.node = ServiceRegistry.get(ServiceBus).node
         if not THEATRES:
@@ -93,6 +95,8 @@ class MizFile:
                                                               'utf-8')
                 except FileNotFoundError:
                     pass
+        except FileNotFoundError:
+            raise
         except Exception:
             self.log.warning(f"Error while processing mission {self.filename}", exc_info=True)
             raise UnsupportedMizFileException(self.filename)

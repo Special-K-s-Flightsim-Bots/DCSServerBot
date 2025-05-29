@@ -82,6 +82,28 @@ class LogAnalyser(Extension):
             self.config.get('log', os.path.join(self.server.instance.home, 'Logs', 'dcs.log'))
         )
 
+    async def process_lines(self, lines: list[str]):
+        for idx, line in enumerate(lines):
+            if '=== Log closed.' in line:
+                self.log_pos = -1
+                return
+
+            for pattern, callback in self.pattern.items():
+                match = pattern.search(line)
+                if not match:
+                    continue
+
+                if asyncio.iscoroutinefunction(callback):
+                    asyncio.create_task(
+                        callback(self.log_pos + idx, line, match),
+                        name=f"callback_{callback.__name__}_{self.log_pos + idx}"
+                    )
+                else:
+                    asyncio.create_task(
+                        asyncio.to_thread(callback, self.log_pos + idx, line, match),
+                        name=f"executor_{callback.__name__}_{self.log_pos + idx}"
+                    )
+
     async def check_log(self):
         try:
             logfile = os.path.expandvars(
@@ -105,17 +127,7 @@ class LogAnalyser(Extension):
 
                         self.log_pos = await file.seek(self.log_pos, 0)
                         lines = await file.readlines()
-                        for idx, line in enumerate(lines):
-                            if '=== Log closed.' in line:
-                                self.log_pos = -1
-                                return
-                            for pattern, callback in self.pattern.items():
-                                match = pattern.search(line)
-                                if match:
-                                    if asyncio.iscoroutinefunction(callback):
-                                        asyncio.create_task(callback(self.log_pos + idx, line, match))
-                                    else:
-                                        self.loop.run_in_executor(None, callback, self.log_pos + idx, line, match)
+                        await self.process_lines(lines)
                         self.log_pos = await file.tell()
                 except FileNotFoundError:
                     pass

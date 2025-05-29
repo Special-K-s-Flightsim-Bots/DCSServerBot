@@ -22,7 +22,7 @@ schema;element_schema:
     remove_on_death: {type: str, nullable: false, range: {min: 1}}
     sudden_death: {type: bool, nullable: false}
     balance_multiplier: {type: bool, nullable: false}
-    mission: {type: text, nullable: false}
+    mission: {type: any, nullable: false, func: text_or_list}
     events:
       type: map
       nullable: false

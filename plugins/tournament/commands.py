@@ -10,7 +10,7 @@ import shutil
 import warnings
 
 from core import Plugin, Group, utils, get_translation, PluginRequiredError, Status, Coalition, yn_question, Server, \
-    MizFile, DataObjectFactory, async_cache, Report, TRAFFIC_LIGHTS
+    MizFile, DataObjectFactory, async_cache, Report, TRAFFIC_LIGHTS, THEATRES
 from datetime import datetime, timezone, timedelta
 from discord import app_commands, TextChannel, CategoryChannel, NotFound
 from discord.ext import tasks, commands
@@ -372,6 +372,31 @@ class Tournament(Plugin[TournamentEventListener]):
                     if message:
                         message = message.format(squadron=squadron['name'], tournament=tournament['name'])
                     await dm_channel.send(content=message, embed=embed)
+
+    async def get_terrain_preferences(self, tournament_id: int, squadron_id: int) -> list[str]:
+        terrains = []
+        async with self.apool.connection() as conn:
+            async for row in await conn.execute("""
+                SELECT terrain
+                FROM tm_squadron_terrain_preferences
+                WHERE tournament_id = %s
+                AND squadron_id = %s
+            """, (tournament_id, squadron_id)):
+                terrains.append(row[0])
+        return terrains
+
+    async def get_time_preferences(self, tournament_id: int, squadron_id: int) -> list[str]:
+        times = []
+        async with self.apool.connection() as conn:
+            async for row in await conn.execute("""
+                SELECT tp.available_time_id, tt.start_time
+                FROM tm_squadron_time_preferences tp
+                JOIN tm_available_times tt ON tt.time_id = tp.available_time_id
+                WHERE tp.tournament_id = %s
+                AND tp.squadron_id = %s
+            """, (tournament_id, squadron_id)):
+                times.append(row[1].replace(tzinfo=timezone.utc).strftime('%H:%M'))
+        return times
 
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
@@ -787,10 +812,12 @@ class Tournament(Plugin[TournamentEventListener]):
                     times_options.append(discord.SelectOption(label=str(row[1]), value=str(row[0])))
 
                 # get available maps
+                if not THEATRES:
+                    await asyncio.to_thread(MizFile)
                 terrain_options = [
                     discord.SelectOption(label=x, value=x)
-                    for x in await self.node.get_installed_modules()
-                    if x.endswith('_terrain') and x not in ['CAUCASUS_terrain', 'MARIANAISLANDS_terrain']
+                    for x in THEATRES.keys()
+                    if x not in ['Caucasus', 'MarianaIslands']
                 ]
                 view = SignupView(times_options, terrain_options)
                 msg = await interaction.followup.send(view=view, ephemeral=True)
@@ -917,24 +944,15 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed.add_field(name=_("Role"), value=self.bot.get_role(row['role']).name if row['role'] else _("n/a"))
                 embed.add_field(name=_("State"), value=row['status'])
 
-                terrains = []
-                async for row in await cursor.execute("""
-                    SELECT terrain FROM tm_squadron_terrain_preferences 
-                    WHERE tournament_id = %s AND squadron_id = %s
-                """, (tournament_id, squadron_id)):
-                    terrains.append('- ' + row['terrain'])
+                terrains = await self.get_terrain_preferences(tournament_id, squadron_id)
                 if terrains:
-                    embed.add_field(name=_("Terrain Preferences"), value='\n'.join(terrains), inline=False)
+                    embed.add_field(name=_("Terrain Preferences"), value='\n'.join([f"- {x}" for x in terrains]),
+                                    inline=False)
 
-                times = []
-                async for row in await cursor.execute("""
-                    SELECT tp.available_time_id, tt.start_time 
-                    FROM tm_squadron_time_preferences tp JOIN tm_available_times tt ON tt.time_id = tp.available_time_id 
-                    WHERE tp.tournament_id = %s AND tp.squadron_id = %s
-                """, (tournament_id, squadron_id)):
-                    times.append('- ' + row['start_time'].replace(tzinfo=timezone.utc).strftime('%H:%M'))
+                times = await self.get_time_preferences(tournament_id, squadron_id)
                 if times:
-                    embed.add_field(name=_("Time Preferences"), value='\n'.join(times), inline=False)
+                    embed.add_field(name=_("Time Preferences"), value='\n'.join([f"- {x}" for x in times]),
+                                    inline=False)
 
         view = ApplicationView(self, tournament_id=tournament_id, squadron_id=squadron_id)
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
@@ -1501,7 +1519,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # and copy the orig file over
         shutil.copy2(orig_filename, new_filename)
 
-        miz = MizFile(new_filename)
+        miz = await asyncio.to_thread(MizFile, new_filename)
         preset_file = os.path.join(self.node.config_dir, config.get('presets', {}).get('file', 'presets.yaml'))
         # apply the initial presets
         for preset in config.get('presets', {}).get('initial', []):
@@ -1563,9 +1581,35 @@ class Tournament(Plugin[TournamentEventListener]):
                 }
             )
 
-    async def get_mission(self, server: Server, squadrons: dict) -> Optional[str]:
+    async def get_mission(self, server: Server, tournament_id: int, match: dict) -> Optional[str]:
         config = self.get_config(server)
-        return random.choice(config['missions'])
+        if isinstance(config.get('mission'), str):
+            return config['mission']
+        prefs_red = set(await self.get_terrain_preferences(tournament_id, match['squadron_red']))
+        prefs_blue = set(await self.get_terrain_preferences(tournament_id, match['squadron_blue']))
+
+        common_maps = prefs_red & prefs_blue
+        common_maps.add('Caucasus')
+        common_maps.add('MarianaIslands')
+
+        missions_dir = await server.get_missions_dir()
+        if isinstance(config.get('mission'), list):
+            missions = {}
+            for mission in config['mission']:
+                try:
+                    miz: MizFile = await asyncio.to_thread(MizFile, os.path.join(missions_dir, mission))
+                    missions[mission] = miz.theatre
+                except Exception:
+                    self.log.error(f"Can't read mission {mission}, skipping ...")
+            config['mission'] = missions
+
+        if isinstance(config.get('mission'), dict):
+            valid_missions = [
+                mission for mission, terrain in config['mission'].items()
+                if terrain in common_maps
+            ]
+            return random.choice(valid_missions) if valid_missions else None
+        return None
 
     async def start_match(self, server: Server, tournament_id: int, match_id: int, mission_id: Optional[int] = None,
                           round_number: Optional[int] = None):
@@ -1651,21 +1695,30 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # change settings
         await self.setup_server_for_match(msg, embed, server, match, channels)
+
         # find a mission
+        mission_list = await server.getMissionList()
         if not mission_id:
-            if 'missions' in config:
-                mission = await self.get_mission(server, squadrons)
-            else:
-                mission = config.get('mission')
+            mission = await self.get_mission(server, tournament_id, match)
             if isinstance(mission, int):
                 mission_id = mission
             elif isinstance(mission, str):
-                for idx, mission_file in enumerate(await server.getMissionList()):
+                for idx, mission_file in enumerate(mission_list):
                     if mission in mission_file:
                         mission_id = idx
                         break
+                else:
+                    self.log.warning(f"Mission {mission} not found in mission list! Using default mission.")
+
+        # mission id is still not set, use the default mission
+        if not mission_id:
+            mission_id = server.settings['listStartIndex'] - 1
+
         # prepare the mission
+        embed.description += _("\n- Preparing mission {} ...").format(os.path.basename(mission_list[mission_id]))
+        await msg.edit(embed=embed)
         await self.prepare_mission(server, match_id, round_number, mission_id)
+
         # Starting the server up again
         embed.description += _("\n- Starting server {} ...").format(match['server_name'])
         embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
