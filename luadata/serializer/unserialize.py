@@ -1,6 +1,8 @@
 import math
+import sys
 
 from lupa.lua51 import LuaRuntime, lua_type
+sys.setrecursionlimit(5000)
 
 
 def _unserialize(raw, encoding="utf-8", multival=False, verbose=False):
