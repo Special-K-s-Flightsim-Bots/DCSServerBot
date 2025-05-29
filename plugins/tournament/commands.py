@@ -478,8 +478,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 embed.add_field(name=field.name, value=field.value, inline=field.inline)
             buffer = await self.render_groups_image(tournament_id)
 
-        elif phase == TOURNAMENT_PHASE.START_ELIMINATION_PHASE:
-            message = _("The eliminiation phase is now running.")
+        elif phase in [TOURNAMENT_PHASE.START_ELIMINATION_PHASE, TOURNAMENT_PHASE.MATCH_RUNNING]:
+            message = _("The eliminiation phase is now running.") if phase == TOURNAMENT_PHASE.START_ELIMINATION_PHASE else _("A match is running.")
             tmp = await self.render_matches(tournament=tournament)
             for field in tmp.fields:
                 embed.add_field(name=field.name, value=field.value, inline=field.inline)
