@@ -225,7 +225,7 @@ def handle_exception(loop, context):
 
 async def run_node(name, config_dir=None, no_autoupdate=False) -> int:
     loop = asyncio.get_running_loop()
-    loop.set_debug(True)
+    #loop.set_debug(True)
     loop.set_exception_handler(handle_exception)
 
     try:
