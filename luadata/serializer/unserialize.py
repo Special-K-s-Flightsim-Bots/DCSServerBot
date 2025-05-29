@@ -8,7 +8,7 @@ lua = LuaRuntime(unpack_returned_tuples=False, encoding="utf-8", max_memory=0)
 _lua_lock = Lock()
 
 
-def _unserialize(raw, encoding="utf-8", multival=False, verbose=False):
+def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
     """Unserialize stringified lua data to python data
 
     Args:
@@ -388,7 +388,7 @@ def _lua_table_to_dict(lua_table):
         return py_dict
 
 
-def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
+def _unserialize(raw, encoding="utf-8", multival=False, verbose=False):
    # lua = LuaRuntime(unpack_returned_tuples=multival, encoding=encoding, max_memory=0)
     with _lua_lock:
         gc.disable()
