@@ -30,7 +30,7 @@ class DataObject:
     def __post_init__(self):
         self.pool = self.node.pool
         self.apool = self.node.apool
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config = self.node.config
 
 

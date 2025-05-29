@@ -100,7 +100,7 @@ class Service(ABC):
         self.name = name or self.__class__.__name__
         self.running: bool = False
         self.node = node
-        self.log = logging.getLogger(self.name)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = node.pool
         self.apool = node.apool
         self.config = node.config

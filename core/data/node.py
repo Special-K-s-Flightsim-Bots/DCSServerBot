@@ -51,7 +51,7 @@ class Node:
 
     def __init__(self, name: str, config_dir: Optional[str] = 'config'):
         self.name = name
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.config_dir = config_dir
         self.instances: list["Instance"] = list()
         self.locals = None

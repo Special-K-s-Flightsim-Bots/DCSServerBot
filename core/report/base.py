@@ -231,7 +231,7 @@ class PaginationReport(Report):
     class PaginationReportView(View):
         def __init__(self, name, values, index, func, keep_image: bool, *args, **kwargs):
             super().__init__()
-            self.log = logging.getLogger(__name__)
+            self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
             self.name = name
             self.values = values
             self.index = index

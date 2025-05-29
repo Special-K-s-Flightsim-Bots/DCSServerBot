@@ -1,5 +1,6 @@
 from __future__ import annotations
 import inspect
+import logging
 
 from dataclasses import MISSING
 from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional, Iterable, Callable, Union, Generic
@@ -112,7 +113,7 @@ class EventListener(Generic[TPlugin], metaclass=EventListenerMeta):
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.bot: DCSServerBot = plugin.bot
         self.node = plugin.node
-        self.log = plugin.log
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = plugin.pool
         self.apool = plugin.apool
         self.locals: dict = plugin.locals

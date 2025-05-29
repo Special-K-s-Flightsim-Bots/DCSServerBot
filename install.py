@@ -33,7 +33,7 @@ class Install:
 
     def __init__(self, node: str):
         self.node = node
-        self.log = logging.getLogger(name='dcsserverbot')
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.log.propagate = False
         self.log.setLevel(logging.DEBUG)
         self.use_upnp = utils.is_upnp_available()

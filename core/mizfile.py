@@ -34,7 +34,7 @@ class MizFile:
         from core.services.registry import ServiceRegistry
         from services.servicebus import ServiceBus
 
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.filename = filename
         self.mission: dict = {}
         self.options: dict = {}

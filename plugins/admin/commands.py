@@ -707,10 +707,16 @@ class Admin(Plugin[AdminEventListener]):
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None,
                            ephemeral: Optional[bool] = True):
         if not node:
-            msg = _("Do you want to {} all nodes?").format(_(method))
+            question = _("Are you sure you want to proceed?")
+            message = _("This will {} **all** nodes.").format(_(method))
         else:
-            msg = _("Do you want to {method} node {node}?").format(method=_(method), node=node.name)
-        if not await utils.yn_question(interaction, msg, ephemeral=ephemeral):
+            question = _("Are you sure you want to {} node `{}`?").format(_(method), node.name)
+            message = None
+        embed = discord.Embed(color=discord.Color.red())
+        embed.description = message
+        embed.set_thumbnail(
+            url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+        if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         if method != 'upgrade' or node:
@@ -762,17 +768,38 @@ class Admin(Plugin[AdminEventListener]):
                       node: Optional[app_commands.Transform[Node, utils.NodeTransformer]],
                       shutdown: Optional[bool] = True):
         async def _node_offline(node_name: str):
+            tasks = []
+            if shutdown:
+                msg = await interaction.followup.send(_("Shutting down all servers on node {} ...").format(node_name))
             for server in self.bus.servers.values():
                 if server.node.name == node_name:
                     server.maintenance = True
                     if shutdown:
-                        asyncio.create_task(server.shutdown())
+                        tasks.append(asyncio.create_task(server.shutdown()))
+            if shutdown:
+                await asyncio.gather(*tasks)
+                await msg.edit(content=_("All servers on node {} were shut down.").format(node_name))
             await interaction.followup.send(_("Node {} is now offline.").format(node_name))
             await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
 
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+
+        if shutdown:
+            question = _("Are you sure you want to proceed?")
+            if not node:
+                message = _("This will shutdown **all** servers on **all** nodes.")
+            else:
+                message = _("This will shutdown **all** servers on node `{}`.").format(node.name)
+            embed = discord.Embed(color=discord.Color.red())
+            embed.description = message
+            embed.set_thumbnail(
+                url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+            if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+                return
+
         if node:
             await _node_offline(node.name)
         else:

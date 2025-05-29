@@ -238,7 +238,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
         self.bot: DCSServerBot = bot
         self.node = bot.node
         self.bus = ServiceRegistry.get(ServiceBus)
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self.pool = self.bot.pool
         self.apool = self.bot.apool
         self.loop = self.bot.loop
