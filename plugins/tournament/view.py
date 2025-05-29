@@ -383,7 +383,7 @@ class ApplicationView(View):
                 # create the tickets if there are any
                 tickets = {
                     k: v['num']
-                    for k, v in self.plugin.get_config().get('presets', {}).get('tickets', {})
+                    for k, v in self.plugin.get_config().get('presets', {}).get('tickets', {}).items()
                     if v.get('num', 0) > 0
                 }
                 if tickets:
