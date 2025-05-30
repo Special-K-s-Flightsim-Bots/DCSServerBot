@@ -1742,7 +1742,7 @@ class Tournament(Plugin[TournamentEventListener]):
                     self.log.warning(f"Mission {mission} not found in mission list! Using default mission.")
 
         # mission id is still not set, use the default mission
-        if not mission_id:
+        if mission_id is None:
             mission_id = server.settings['listStartIndex'] - 1
 
         # prepare the mission
