@@ -252,13 +252,14 @@ class CompetitiveListener(EventListener["Competitive"]):
 
             # initialize noshow timer
             if config.get('win_on_noshow'):
-                if not match.is_on():
+                if not match.is_on() and not match.timer_task:
                     match.first_join = player.side
                     waiting_side = Side.RED if player.side == Side.BLUE else Side.BLUE
                     match.timer_task = asyncio.create_task(self.check_join_timeout(server, match, waiting_side))
                 else:
-                    match.timer_task.cancel()
-                    match.timer_task = None
+                    if match.timer_task:
+                        match.timer_task.cancel()
+                        match.timer_task = None
                     match.first_join = None
 
             if not config.get('silent', False):
