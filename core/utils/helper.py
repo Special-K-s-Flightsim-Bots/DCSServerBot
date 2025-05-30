@@ -176,8 +176,10 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
         def get_value(self, key, args, kwargs):
             if isinstance(key, int):
                 return args[key]
+            elif key in kwargs:
+                return kwargs[key]
             else:
-                return kwargs.get(key) or ("{" + key + "}")
+                return "{" + key + "}"
 
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
