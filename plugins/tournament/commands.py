@@ -1524,6 +1524,7 @@ class Tournament(Plugin[TournamentEventListener]):
         # and copy the orig file over
         shutil.copy2(orig_filename, new_filename)
 
+        self.log.debug(f"Changing mission {new_filename}")
         miz = await asyncio.to_thread(MizFile, new_filename)
         preset_file = os.path.join(self.node.config_dir, config.get('presets', {}).get('file', 'presets.yaml'))
         # apply the initial presets
