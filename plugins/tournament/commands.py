@@ -1530,16 +1530,25 @@ class Tournament(Plugin[TournamentEventListener]):
         # apply the initial presets
         for preset in config.get('presets', {}).get('initial', []):
             self.log.debug(f"Applying initial preset: {preset} ...")
-            miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
+            await asyncio.to_thread(
+                miz.apply_preset,
+                utils.get_preset(self.node, preset, filename=preset_file)
+            )
 
         if round_number %2 == 0:
             for preset in config.get('presets', {}).get('even', []):
                 self.log.debug(f"Applying even-round preset: {preset} ...")
-                miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
+                await asyncio.to_thread(
+                    miz.apply_preset,
+                    utils.get_preset(self.node, preset, filename=preset_file)
+                )
         else:
             for preset in config.get('presets', {}).get('uneven', []):
                 self.log.debug(f"Applying uneven-round preset: {preset} ...")
-                miz.apply_preset(utils.get_preset(self.node, preset, filename=preset_file))
+                await asyncio.to_thread(
+                    miz.apply_preset,
+                    utils.get_preset(self.node, preset, filename=preset_file)
+                )
 
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -1552,7 +1561,11 @@ class Tournament(Plugin[TournamentEventListener]):
                         WHERE m.match_id = %s 
                     """, (match_id,)):
                         self.log.debug(f"Applying persistent preset for side {side}: {row[0]} ...")
-                        miz.apply_preset(utils.get_preset(self.node, row[0], filename=preset_file), side=side, **row[1])
+                        await asyncio.to_thread(
+                            miz.apply_preset,
+                            utils.get_preset(self.node, row[0], filename=preset_file),
+                            side=side, **row[1]
+                        )
                     # apply choices
                     async for row in await conn.execute(f"""
                         SELECT preset, config FROM tm_choices c 
@@ -1560,7 +1573,11 @@ class Tournament(Plugin[TournamentEventListener]):
                         WHERE m.match_id = %(match_id)s AND m.choices_{side}_ack = TRUE
                     """, {"match_id": match_id}):
                         self.log.debug(f"Applying custom preset for side {side}: {row[0]} ...")
-                        miz.apply_preset(utils.get_preset(self.node, row[0], filename=preset_file), side=side, **row[1])
+                        await asyncio.to_thread(
+                            miz.apply_preset,
+                            utils.get_preset(self.node, row[0], filename=preset_file),
+                            side=side, **row[1]
+                        )
 
                 # delete the choices from the database and update the acknoledgement
                 await conn.execute("DELETE FROM tm_choices WHERE match_id = %s", (match_id,))
@@ -1714,7 +1731,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # find a mission
         mission_list = await server.getMissionList()
-        if not mission_id:
+        if mission_id is None:
             mission = await self.get_mission(server, tournament_id, match)
             if isinstance(mission, int):
                 mission_id = mission
