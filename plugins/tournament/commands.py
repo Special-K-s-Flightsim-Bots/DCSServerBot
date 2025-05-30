@@ -1586,6 +1586,13 @@ class Tournament(Plugin[TournamentEventListener]):
                 }
             )
 
+    def find_mission_in_list(self, mission_list: list[str], mission: str) -> int:
+        for idx, mission_file in enumerate(mission_list):
+            if mission in mission_file:
+                return idx
+        else:
+            raise IndexError(f"Mission {mission} not found in mission list.")
+
     async def get_mission(self, server: Server, tournament_id: int, match: dict) -> Optional[str]:
         config = self.get_config(server)
         if isinstance(config.get('mission'), str):
@@ -1597,13 +1604,16 @@ class Tournament(Plugin[TournamentEventListener]):
         common_maps.add('Caucasus')
         common_maps.add('MarianaIslands')
 
-        missions_dir = await server.get_missions_dir()
         if isinstance(config.get('mission'), list):
+            all_missions = await server.getMissionList()
             missions = {}
             for mission in config['mission']:
                 try:
-                    miz: MizFile = await asyncio.to_thread(MizFile, os.path.join(missions_dir, mission))
+                    mission_id = self.find_mission_in_list(all_missions, mission)
+                    miz: MizFile = await asyncio.to_thread(MizFile, all_missions[mission_id])
                     missions[mission] = miz.theatre
+                except IndexError:
+                    self.log.warning(f"Mission {mission} not found in mission list, skipping ...")
                 except Exception:
                     self.log.error(f"Can't read mission {mission}, skipping ...")
             config['mission'] = missions
@@ -1708,11 +1718,9 @@ class Tournament(Plugin[TournamentEventListener]):
             if isinstance(mission, int):
                 mission_id = mission
             elif isinstance(mission, str):
-                for idx, mission_file in enumerate(mission_list):
-                    if mission in mission_file:
-                        mission_id = idx
-                        break
-                else:
+                try:
+                    mission_id = self.find_mission_in_list(mission_list, mission)
+                except IndexError:
                     self.log.warning(f"Mission {mission} not found in mission list! Using default mission.")
 
         # mission id is still not set, use the default mission
