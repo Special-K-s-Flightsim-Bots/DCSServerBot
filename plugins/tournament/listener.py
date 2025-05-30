@@ -190,8 +190,8 @@ class TournamentEventListener(EventListener["Tournament"]):
 
             # Single 10-second warning
             if remaining <= 10:
-                await server.sendPopupMessage(Coalition.ALL, _("The round will start in {} seconds.").format(remaining),
-                                              timeout=1)
+                await server.sendPopupMessage(Coalition.ALL, _("The round will start in {} second{}.").format(
+                    remaining, 's' if remaining > 1 else ''), timeout=1)
 
             await asyncio.sleep(1)
 
