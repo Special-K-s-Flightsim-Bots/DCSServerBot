@@ -1781,10 +1781,11 @@ class Tournament(Plugin[TournamentEventListener]):
             embed = discord.Embed(color=discord.Color.blue(), title=_("The match is starting NOW!"))
             if squadrons[side]['image_url']:
                 embed.set_thumbnail(url=squadrons[side]['image_url'])
-            embed.add_field(name=_("Server"), value=server.name)
             embed.description = _("You can **now** join the server.")
+            embed.add_field(name=_("Server"), value=server.name)
             embed.add_field(name=_("IP:Port"), value=f"{server.node.public_ip}:{server.settings['port']}")
             embed.add_field(name=_("Password"), value=server.settings.get('password', ''))
+            embed.add_field(name=_("Terrain"), value=server.current_mission.map)
             embed.set_footer(text=_("Please keep in mind that you can only use {} planes!").format(
                 tournament['num_players']))
             await channel.send(embed=embed)
