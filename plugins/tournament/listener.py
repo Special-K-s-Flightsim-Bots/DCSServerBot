@@ -296,9 +296,9 @@ class TournamentEventListener(EventListener["Tournament"]):
             initiator = server.get_player(name=data['initiator']['name'])
             target = server.get_player(name=data['target'].get('name'))
             if target:
-                asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {} with an {}").format(
+                asyncio.create_task(self.inform_streamer(server, _("{} player {} hit {} player {}").format(
                     initiator.coalition.value.title(), initiator.display_name, target.coalition.value,
-                    target.display_name, data['weapon']['name']), coalition=initiator.coalition))
+                    target.display_name), coalition=initiator.coalition))
 
         elif data['eventName'] == 'S_EVENT_PLAYER_LEAVE_UNIT':
             if not data['initiator']:
