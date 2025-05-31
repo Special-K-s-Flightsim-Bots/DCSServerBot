@@ -153,14 +153,21 @@ class TournamentEventListener(EventListener["Tournament"]):
             # store ratings before match for accelerator
             self.ratings[match['squadron_blue']] = await Competitive.trueskill_squadron(
                 self.node, match['squadron_blue'])
+            self.log.debug("Settings at round start:")
+            self.log.debug(f"- Squadron {match['squadron_blue']}")
+            self.log.debug(f"  => Rating: {Competitive.calculate_rating(self.ratings[match['squadron_blue']])}")
             self.squadron_credits[match['squadron_blue']] = (
                 await self.plugin.get_squadron(tournament_id, match['squadron_blue'])
             ).points
+            self.log.debug(f"  => Points: {self.squadron_credits[match['squadron_blue']]}")
             self.ratings[match['squadron_red']] = await Competitive.trueskill_squadron(
                 self.node, match['squadron_red'])
+            self.log.debug(f"- Squadron {match['squadron_red']}")
+            self.log.debug(f"  => Rating: {Competitive.calculate_rating(self.ratings[match['squadron_red']])}")
             self.squadron_credits[match['squadron_red']] = (
                 await self.plugin.get_squadron(tournament_id, match['squadron_red'])
             ).points
+            self.log.debug(f"  => Points: {self.squadron_credits[match['squadron_red']]}")
             self.round_started[server.name] = False
         else:
             self.round_started[server.name] = True
@@ -340,19 +347,19 @@ class TournamentEventListener(EventListener["Tournament"]):
                                                                           self.ratings[loser_squadron.squadron_id])
         self.log.debug(f"Mulipliers are as follows: Killer = {killer_multiplier} / Victim = {loser_multiplier}")
         winner_squadron.points -= winner_points  # remove the points first
-        winner_squadron.points += winner_points * killer_multiplier  # add the points with the correct multiplier
-        self.log.debug(f"Winner got {winner_points * killer_multiplier} points instead of {winner_points} points.")
+        winner_squadron.points += int(winner_points * killer_multiplier)  # add the points with the correct multiplier
+        self.log.debug(f"Winner got {int(winner_points * killer_multiplier)} points instead of {winner_points} points.")
         if winner_points * killer_multiplier > 0:
             await server.sendPopupMessage(
                 winner_coalition, f"Squadron {winner_squadron.name}, you earned "
-                                  f"{winner_points * killer_multiplier} points!")
+                                  f"{int(winner_points * killer_multiplier)} points!")
         loser_squadron.points -= loser_points  # remove the points first
-        loser_squadron.points += loser_points * loser_multiplier  # add the points with the correct multiplier
-        self.log.debug(f"Loser got {loser_points * loser_multiplier} points instead of {loser_points} points.")
+        loser_squadron.points += int(loser_points * loser_multiplier)  # add the points with the correct multiplier
+        self.log.debug(f"Loser got {int(loser_points * loser_multiplier)} points instead of {loser_points} points.")
         if loser_points * loser_multiplier > 0:
             await server.sendPopupMessage(
                 loser_coalition, f"Squadron {loser_squadron.name}, you earned "
-                                 f"{loser_points * loser_multiplier} points!")
+                                 f"{int(loser_points * loser_multiplier)} points!")
 
     async def check_match_finished(self, server: Server, match_id: int) -> None:
         config = self.get_config(server)
