@@ -158,6 +158,9 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         async with self.lock:
             if player.deposit == 0:
                 return
+            # avoid squadron payback
+            squadron = player.squadron
+            player.squadron = None
             old_points = player.points
             plane_costs = self._get_costs(server, player)
             if plane_only:
@@ -166,6 +169,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 player.points += player.deposit
             player.audit('payback', old_points, reason)
             player.deposit = 0
+            player.squadron = squadron
             message = self.get_config(server).get('messages', {}).get(
                 'payback', '').format(
                 deposit=plane_costs, old_points=old_points, new_points=player.points)
