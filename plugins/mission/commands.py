@@ -788,7 +788,6 @@ class Mission(Plugin[MissionEventListener]):
                     message += _('\nMission reloaded.')
                     await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
                                          user=interaction.user)
-                    await msg.delete()
                 except (TimeoutError, asyncio.TimeoutError):
                     message = _("Timeout during restart of mission!\n"
                                 "Please check, if the mission is running or if it somehow got corrupted.")
