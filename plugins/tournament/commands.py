@@ -2275,7 +2275,7 @@ class Tournament(Plugin[TournamentEventListener]):
                         server = self.bus.servers[match['server_name']]
                         # we must not start a match if the server is (still?) running
                         if server.status == Status.RUNNING:
-                            self.log.debug("Match Scheduler: match found, but the server is running already!")dbu
+                            self.log.debug("Match Scheduler: match found, but the server is running already!")
                             continue
 
                         # start the match
