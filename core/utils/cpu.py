@@ -388,6 +388,8 @@ def get_cache_info():
 
 
 def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False):
+    if not display:
+        plt.switch_backend('agg')
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(20, 12))
     ax.set_aspect('equal')
