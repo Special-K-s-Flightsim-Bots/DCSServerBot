@@ -419,25 +419,28 @@ def calculate_point_multipliers(killer_rating: Rating, victim_rating: Rating) ->
         # Skills are effectively equal - use base multiplier
         return 1.0, 1.0
 
+    # Increased scale to make multipliers less extreme for small differences
+    scale = 15.0
+
     # Killer multiplier
     if skill_difference > 0:
         # Killer has lower skill than victim - they get bonus points
-        killer_raw_multiplier = 1.0 + math.log(1 + skill_difference / 10) * 0.5
+        killer_raw_multiplier = 1.0 + math.log(1 + skill_difference / scale)
         killer_multiplier = min(killer_raw_multiplier * uncertainty_factor, 2.5)
     else:
         # Killer has higher skill - they get reduced points
-        killer_raw_multiplier = 1.0 / (1 + abs(skill_difference / 20))
+        killer_raw_multiplier = 1.0 / (1 + abs(skill_difference) / scale)
         killer_multiplier = max(killer_raw_multiplier * uncertainty_factor, 0.5)
 
     # Victim multiplier
     if skill_difference > 0:
-        # Victim has higher skill - they lose fewer points
-        victim_raw_multiplier = 1.0 / (1 + skill_difference / 20)
+        # Victim has higher skill - they get reduced points
+        victim_raw_multiplier = 1.0 / (1 + skill_difference / scale)
         victim_multiplier = max(victim_raw_multiplier * uncertainty_factor, 0.5)
     else:
-        # Victim has lower skill - they lose more points
-        victim_raw_multiplier = 1.0 + math.log(1 + abs(skill_difference) / 10) * 0.5
-        victim_multiplier = min(victim_raw_multiplier * uncertainty_factor, 2.5)
+        # Victim has lower skill - they get bonus points
+        victim_raw_multiplier = 1.0 + math.log(1 + abs(skill_difference) / scale)
+        victim_multiplier = min(victim_raw_multiplier * uncertainty_factor * 1.25, 2.5)
 
     return killer_multiplier, victim_multiplier
 
