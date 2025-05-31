@@ -755,6 +755,7 @@ class Mission(Plugin[MissionEventListener]):
             }
             server.restart_pending = True
             await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
+            return
         else:
             server.on_empty = dict()
             startup = False
