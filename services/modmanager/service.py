@@ -149,19 +149,30 @@ class ModManagerService(Service):
                 ]
 
     async def get_repo_versions(self, repo: str) -> set[str]:
-        versions: set[str] = set()
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
-        exp = re.compile(r'(\d+\.\d+(\.\d+)?)')
         async with ClientSession() as session:
             async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                 response.raise_for_status()
                 data = await response.json()
-                for release in data:
-                    for asset in release['assets']:
-                        match = exp.search(asset['name'])
-                        if match:
-                            versions.add(match.group(1))
-        return versions
+        return set([x['tag_name'].strip('v') for x in data])
+
+    async def get_download_url(self, repo: str, package_name: str, version: str) -> Optional[str]:
+        url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
+        async with ClientSession() as session:
+            async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                response.raise_for_status()
+                data = await response.json()
+        element = next((x for x in data if x['tag_name'].strip('v') == version), None)
+        if not element:
+            return None
+        for asset in element.get('assets', []):
+            if asset['name'] == f"{package_name}_{version}.zip":
+                return asset['browser_download_url']
+        else:
+            try:
+                return element['assets'][0]['browser_download_url']
+            except (KeyError, IndexError):
+                return None
 
     async def get_available_versions(self, server: Server, folder: Folder, package_name: str) -> list[str]:
         local_versions: set[str] = set()
@@ -173,7 +184,7 @@ class ModManagerService(Service):
         with suppress(StopIteration):
             package = next(x for x in config.get('packages', []) if x['name'] == package_name and x['source'] == folder.value)
             if 'repo' in package:
-                remote_versions = await self.get_repo_versions(package['repo'])
+                remote_versions = {x[0] for x in await self.get_repo_versions(package['repo'])}
         return sorted(local_versions | remote_versions)
 
     @staticmethod
@@ -203,7 +214,7 @@ class ModManagerService(Service):
             package_name = self.extract_repo_name(repo).split('/')[-1]
         if not version or version == 'latest':
             version = await self.get_latest_repo_version(repo)
-        url = f'{repo}/releases/download/v{version}/{package_name}_v{version}.zip'
+        url = await self.get_download_url(repo, package_name, version)
         try:
             await self.download(url, folder, force)
         except ClientResponseError:
