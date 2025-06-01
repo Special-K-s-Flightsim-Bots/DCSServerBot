@@ -14,6 +14,7 @@ schema;element_schema:
     enabled: {type: bool, nullable: false}
     use_signup_form: {type: bool, nullable: false}
     autostart_matches: {type: bool, nullable: false}
+    match_generation: {type: str, nullable: false, enum: ['standard', 'trueskill']}
     coalition_passwords: {type: bool, nullable: false}
     allow_exports: {type: bool, nullable: false}
     auto_join: {type: bool, nullable: false}

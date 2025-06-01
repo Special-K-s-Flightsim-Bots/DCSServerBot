@@ -32,31 +32,32 @@ roles:
 To configure the tournament plugin, create a file config\plugins\tournament.yaml like so:
 ```yaml
 DEFAULT:
-  use_signup_form: false    # Do you want the participating squadrons to write an application form on signup? (default: false)
-  autostart_matches: false  # If you want your matches to be autostarted by the bot (with a 1 day and 1 hour reminder per DM), set this to true (default: false)
-  coalition_passwords: true # Auto-generate coalition passwords for red and blue.
-  allow_exports: false      # Do not allow exports (default: false).
-  auto_join: true           # If true, your pilot will be automatically assigned to the associated squadron on join (default: false).
-  delayed_start: 300        # optional: give people 300 seconds to prepare their planes.
-  time_to_choose: 600       # The time squadrons have to choose their customizations for the next round.
-  sudden_death: false       # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
-  balance_multiplier: true  # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
-  remove_on_death: .*       # Optional: if set, any unit that was lost and where the name matches this regular expression will be removed in the next round of the same match
-  # mission: Tournament.miz # Optional: the mission to load, otherwise the current mission is used. (Could be a name or a number. If name it has to be in the mission list.)
-  mission:                  # Optional: if you provide a list of missions, a random pick will be done. Terrain perferences of the squadrons will be considered.
-    - Caucasus.miz          # you need at least (!) one mission on Caucasus or MarianaIslands
-    - PersianGulf.miz       # all missions need to be in your mission list in serverSettings.lua!
+  use_signup_form: false      # Do you want the participating squadrons to write an application form on signup? (default: false)
+  match_generation: trueskill # One of trueskill or standard (see below)
+  autostart_matches: false    # If you want your matches to be autostarted by the bot (with a 1 day and 1 hour reminder per DM), set this to true (default: false)
+  coalition_passwords: true   # Auto-generate coalition passwords for red and blue.
+  allow_exports: false        # Do not allow exports (default: false).
+  auto_join: true             # If true, your pilot will be automatically assigned to the associated squadron on join (default: false).
+  delayed_start: 300          # optional: give people 300 seconds to prepare their planes.
+  time_to_choose: 600         # The time squadrons have to choose their customizations for the next round.
+  sudden_death: false         # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
+  balance_multiplier: true    # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
+  remove_on_death: .*         # Optional: if set, any unit that was lost and where the name matches this regular expression will be removed in the next round of the same match
+  # mission: Tournament.miz   # Optional: the mission to load, otherwise the current mission is used. (Could be a name or a number. If name it has to be in the mission list.)
+  mission:                    # Optional: if you provide a list of missions, a random pick will be done. Terrain perferences of the squadrons will be considered.
+    - Caucasus.miz            # you need at least (!) one mission on Caucasus or MarianaIslands
+    - PersianGulf.miz         # all missions need to be in your mission list in serverSettings.lua!
   events:
     go: {message: "GO GO GO! The fight is now on!", sound: "siren.ogg"}   # Go message to be sent at match start (optional add a sound)
   presets:
     file: presets_tournament.yaml
-    initial:                # presets that have to be applied to any mission
-      - default             # Add a default preset (sample has a sound to be added)
-      - sanitize            # preset to be used for sanitization (security settings in mission)
-      - random_weather      # Randomize the weather
+    initial:                  # presets that have to be applied to any mission
+      - default               # Add a default preset (sample has a sound to be added)
+      - sanitize              # preset to be used for sanitization (security settings in mission)
+      - random_weather        # Randomize the weather
     even:
-      - switch_sides        # This will switch the blue and red sides on any even round (2, 4, ..)
-    # uneven:               # just to show you that it is there also
+      - switch_sides          # This will switch the blue and red sides on any even round (2, 4, ..)
+    # uneven:                 # just to show you that it is there also
     choices:  # list of preset | cost in squadron credits
       'AIM-120': {"costs": 2}                   # each AIM-120 costs you 2 credit points
       'AIM-9x': {"costs": 1}                    # each AIM-9x costs you 1 credit points
@@ -174,7 +175,10 @@ You can configure the number of groups where each group has to have at least two
 the correct number of matches for you and assigns each squadron into the correct group.
 
 b) Elimination Phase<br>
-This phase will either be your first phase, if you decide to not have a group phase, or for smaller tournaments.<br>
+This phase will either be your first phase, if you decide to not have a group phase, or for smaller tournaments.
+There are two options you can configure by the `match_generation` method defined in your tournament.yaml:
+
+#### match_generation: trueskill
 As we have information about the squadron's skills, we can make use of that when generating the matches.
 The bot will take each squadron's TrueSkill™️ rating and generate matches based on a snake pairing
 system. This assures exciting matches, as the risk of matching a very weak squadron with a very strong one is lower.
@@ -184,6 +188,11 @@ system. This assures exciting matches, as the risk of matching a very weak squad
 > Their rating will change throughout the tournament. The more matches they play, the better their TrueSkill™️ rating
 > will be.<br>
 > Each squadron's TrueSkill™️ rating will be calculated with a specific algorithm, based on the ratings of their members.
+
+#### match_generation: standard
+The standard way of matching is to snake-pair squadrons by their ranking. 
+If there was no group phase, there is no ranking yet, so the matching will be random. After the group phase was run,
+the ranking will be determined by the number of matches won and the number of rounds won.
 
 To create a match by yourself, use `/match create`. To let the bot create the matches, run `/match generate` instead. 
 You can list the configured matches with `/match list`.

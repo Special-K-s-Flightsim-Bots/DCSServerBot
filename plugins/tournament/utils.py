@@ -87,9 +87,26 @@ def create_groups(squadrons: list[tuple[int, float]], num_groups: int) -> list[l
     return groups
 
 
+def squadrons_to_groups(squadrons: list[tuple[int, int]]) -> list[list[int]]:
+    """
+    Convert a list of squadron IDs to a list of groups, where each group is a list of squadron IDs.
+    """
+    # Find max group number to determine number of groups
+    max_group = max(group_num for _, group_num in squadrons)
+
+    # Initialize empty groups
+    groups = [[] for _ in range(max_group)]
+
+    # Sort squadrons into their groups (group_number - 1 for 0-based indexing)
+    for squadron_id, group_num in squadrons:
+        groups[group_num - 1].append(squadron_id)
+
+    return groups
+
+
 def create_group_matches(groups: list[list[int]]) -> list[tuple[int, int]]:
     """
-    Create matches for group phase where each squadron plays against all other squadrons in their group.
+    Create matches for the group phase where each squadron plays against all other squadrons in their group.
 
     Args:
         groups: List of groups, where each group is a list of squadron IDs
@@ -103,9 +120,7 @@ def create_group_matches(groups: list[list[int]]) -> list[tuple[int, int]]:
     """
     matches = []
 
-    # For each group
     for group in groups:
-        # Create matches between each pair of squadrons in the group
         for i in range(len(group)):
             for j in range(i + 1, len(group)):
                 matches.append((group[i], group[j]))

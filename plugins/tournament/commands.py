@@ -26,7 +26,7 @@ from typing import Optional, Literal
 from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener
 from .utils import create_versus_image, create_elimination_matches, create_group_matches, create_groups, \
-    create_tournament_sheet, render_groups, create_winner_image
+    create_tournament_sheet, render_groups, create_winner_image, squadrons_to_groups
 from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModal, SignupView
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
@@ -401,7 +401,7 @@ class Tournament(Plugin[TournamentEventListener]):
     # New command group "/tournament"
     tournament = Group(name="tournament", description="Commands to manage tournaments")
 
-    async def render_groups_image(self, tournament_id: int) -> bytes:
+    async def render_groups_image(self, tournament_id: int) -> Optional[bytes]:
         groups: list[list[int]] = []
         async with self.apool.connection() as conn:
             async for row in await conn.execute("""
@@ -410,6 +410,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 WHERE tournament_id = %s
                 ORDER BY group_number
             """, (tournament_id,)):
+                if not row[0]:
+                    return None
                 if row[0] > len(groups):
                     groups.append([])
                 groups[row[0] - 1].append(row[1])
@@ -430,7 +432,7 @@ class Tournament(Plugin[TournamentEventListener]):
         return buffer
 
     async def render_status_embed(self, tournament_id: int, *,
-                                  phase: TOURNAMENT_PHASE = TOURNAMENT_PHASE.START_GROUP_PHASE) -> None:
+                                  phase: Optional[TOURNAMENT_PHASE] = None) -> None:
         tournament = await self.get_tournament(tournament_id)
         async with self.apool.connection() as conn:
             # read number of squadrons
@@ -481,23 +483,26 @@ class Tournament(Plugin[TournamentEventListener]):
         elif phase == TOURNAMENT_PHASE.START_GROUP_PHASE:
             message = _("The group phase is now running.")
             tmp = await self.render_matches(tournament=tournament)
-            for field in tmp.fields:
-                embed.add_field(name=field.name, value=field.value, inline=field.inline)
-            buffer = await self.render_groups_image(tournament_id)
+            if tmp:
+                for field in tmp.fields:
+                    embed.add_field(name=field.name, value=field.value, inline=field.inline)
+                buffer = await self.render_groups_image(tournament_id)
 
         elif phase == TOURNAMENT_PHASE.START_ELIMINATION_PHASE:
             message = _("The eliminiation phase is now running.")
             tmp = await self.render_matches(tournament=tournament)
-            for field in tmp.fields:
-                embed.add_field(name=field.name, value=field.value, inline=field.inline)
+            if tmp:
+                for field in tmp.fields:
+                    embed.add_field(name=field.name, value=field.value, inline=field.inline)
 
         elif phase == TOURNAMENT_PHASE.MATCH_RUNNING:
             message = _("A match is running.")
             tmp = await self.render_matches(tournament=tournament)
-            for field in tmp.fields:
-                embed.add_field(name=field.name, value=field.value, inline=field.inline)
-            if groups and level == 1:
-                buffer = await self.render_groups_image(tournament_id)
+            if tmp:
+                for field in tmp.fields:
+                    embed.add_field(name=field.name, value=field.value, inline=field.inline)
+                if groups and level == 1:
+                    buffer = await self.render_groups_image(tournament_id)
 
         elif phase == TOURNAMENT_PHASE.TOURNAMENT_FINISHED:
             embed.title = _("THE TOURNAMENT HAS FINISHED!")
@@ -1004,17 +1009,20 @@ class Tournament(Plugin[TournamentEventListener]):
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def export(self, interaction: discord.Interaction, tournament_id: int):
+    async def export(self, interaction: discord.Interaction, tournament_id: int, unflown: Optional[bool] = False):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
+        subquery = "AND winner_squadron_id IS NULL" if unflown else ""
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
+                await cursor.execute(f"""
                     SELECT match_id, server_name, squadron_red, squadron_blue, round_number, 
                            squadron_red_rounds_won, squadron_blue_rounds_won, winner_squadron_id,
                            match_time
-                    FROM tm_matches WHERE tournament_id = %s
+                    FROM tm_matches 
+                    WHERE tournament_id = %s
+                    {subquery}
                     ORDER BY match_time
                 """, (tournament_id,))
                 matches_df = pd.DataFrame(await cursor.fetchall())
@@ -1137,13 +1145,104 @@ class Tournament(Plugin[TournamentEventListener]):
     # New command group "/match"
     match = Group(name="match", description=_("Commands to manage matches in a tournament"))
 
+    async def generate_group_stage(self, interaction: discord.Interaction, tournament_id: int,
+                                   num_groups: int) -> list[tuple[int, int]]:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                SELECT squadron_id, group_number
+                FROM tm_squadrons
+                WHERE tournament_id = %s
+                  AND status = 'ACCEPTED'
+            """, (tournament_id,))
+
+            squadrons: list[tuple[int, int]] = await cursor.fetchall()
+
+            if squadrons[0][1] is None or await utils.yn_question(
+                    interaction, question=_("Do you want to re-generate your groups?")):
+                groups = create_groups(squadrons, num_groups)
+                # update the groups, if any
+                for idx, group in enumerate(groups):
+                    for squadron_id in group:
+                        await conn.execute("""
+                            UPDATE tm_squadrons
+                            SET group_number = %s
+                            WHERE tournament_id = %s
+                             AND squadron_id = %s
+                                           """, (idx + 1, tournament_id, squadron_id))
+            else:
+                groups = squadrons_to_groups(squadrons)
+
+        return create_group_matches(groups)
+
+    async def generate_elimination_stage(self, interaction: discord.Interaction, tournament_id: int,
+                                         level: int) -> list[tuple[int, int]]:
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT COUNT(DISTINCT(group_number)) FROM tm_squadrons WHERE tournament_id = %s",
+                                        (tournament_id,))
+            has_groups = (await cursor.fetchone())[0] > 0
+
+            if level == 0:
+                cursor = await conn.execute("""
+                    SELECT squadron_id, 0 AS rank 
+                    FROM tm_squadrons 
+                    WHERE tournament_id = %s AND status = 'ACCEPTED'
+                """, (tournament_id,))
+            elif level == 1 and has_groups:
+                cursor = await conn.execute("""
+                    WITH squadron_stats AS (SELECT s.squadron_id,
+                                                   s.group_number,
+                                                   m.stage,
+                                                   COUNT(CASE WHEN m.winner_squadron_id = s.squadron_id THEN 1 END) as matches_won,
+                                                   SUM(CASE
+                                                           WHEN m.winner_squadron_id = m.squadron_blue
+                                                               THEN m.squadron_blue_rounds_won
+                                                           WHEN m.winner_squadron_id = m.squadron_red
+                                                               THEN m.squadron_red_rounds_won
+                                                           ELSE 0 END) as total_rounds_won,
+                                                   ROW_NUMBER() OVER (
+                                                       PARTITION BY s.group_number
+                                                       ORDER BY 4, 5
+                                                       )  as rank
+                                            FROM tm_matches m
+                                                     LEFT JOIN tm_squadrons s
+                                                               ON (m.tournament_id =
+                                                                   s.tournament_id AND
+                                                                   s.squadron_id =
+                                                                   m.winner_squadron_id)
+                                            WHERE m.tournament_id = %s
+                                              AND m.winner_squadron_id IS NOT NULL
+                                            GROUP BY s.squadron_id, s.group_number, m.stage)
+                    SELECT squadron_id, group_number
+                    FROM squadron_stats
+                    WHERE rank <= 2
+                    ORDER BY group_number, rank
+                """, (tournament_id,))
+            else:
+                cursor = await conn.execute("""
+                    SELECT winner_squadron_id, 0 AS rank 
+                    FROM tm_matches 
+                    WHERE tournament_id = %s
+                    AND stage = %s
+                """, (tournament_id, level))
+
+            config = self.get_config()
+            squadrons: list[tuple[int, float]] = []
+            # read all squadrons and their ratings
+            for row in await cursor.fetchall():
+                if config.get('match_generation', 'trueskill') == 'trueskill':
+                    rating = await Competitive.trueskill_squadron(self.node, row[0])
+                    squadrons.append((row[0], Competitive.calculate_rating(rating)))
+                else:
+                    squadrons.append((row[0], row[1]))
+
+        return create_elimination_matches(squadrons)
+
     @match.command(description=_('Generate matches'))
     @app_commands.guild_only()
     @app_commands.rename(tournament_id="tournament")
     @app_commands.autocomplete(tournament_id=active_tournament_autocomplete)
     @utils.app_has_role('GameMaster')
-    async def generate(self, interaction: discord.Interaction, tournament_id: int,
-                       stage: Literal['group', 'elimination'], num_groups: Optional[int] = 4):
+    async def generate(self, interaction: discord.Interaction, tournament_id: int, num_groups: Optional[int] = 4):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         tournament = await self.get_tournament(tournament_id)
@@ -1164,66 +1263,22 @@ class Tournament(Plugin[TournamentEventListener]):
             else:
                 level = all_matches = flown_matches = 0
 
-            if flown_matches > 0:
-                await interaction.followup.send(
-                    _("Can't generate new matches, not all matches have been flown yet."), ephemeral=True)
-                return
-
-            if stage == 'group':
-                if all_matches > 0 and not await yn_question(
-                        interaction, _("Do you really want to generate {} new groups?").format(num_groups)):
-                    await interaction.followup.send(_("Aborted."), ephemeral=True)
-                    return
-                cursor = await conn.execute("""
-                    SELECT squadron_id FROM tm_squadrons WHERE tournament_id = %s AND status = 'ACCEPTED'
-                """, (tournament_id,))
-
-            elif stage == 'elimination':
-                cursor = await conn.execute("""
-                    WITH squadron_stats AS (
-                        SELECT 
-                            s.squadron_id,
-                            s.group_number,
-                            m.stage,
-                            COUNT(CASE WHEN m.winner_squadron_id = s.squadron_id THEN 1 END) as matches_won,
-                            SUM(CASE WHEN m.winner_squadron_id = m.squadron_blue THEN m.squadron_blue_rounds_won 
-                                     WHEN m.winner_squadron_id = m.squadron_red THEN m.squadron_red_rounds_won 
-                                     ELSE 0 END) as total_rounds_won,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY s.group_number 
-                                ORDER BY 4, 5
-                            ) as rank
-                        FROM tm_matches m
-                        LEFT JOIN tm_squadrons s ON (m.tournament_id = s.tournament_id AND s.squadron_id = m.winner_squadron_id)
-                        WHERE m.tournament_id = %s
-                        AND m.winner_squadron_id IS NOT NULL
-                        GROUP BY s.squadron_id, s.group_number, m.stage
-                    )
-                    SELECT squadron_id 
-                    FROM squadron_stats
-                    WHERE rank <= 2 OR stage > 1
-                    ORDER BY group_number, matches_won DESC, total_rounds_won DESC;
-                """, (tournament_id,))
-
-            if not await yn_question(
-                    interaction,
-                    question=_("Do you want to generate {} matches for tournament {}?").format(
-                        stage, tournament['name']),
-                    message=_("This will overwrite any existing **unflown** matches!")):
-                await interaction.followup.send(_("Aborted."), ephemeral=True)
-                return
-
-            if cursor.rowcount == 2 and all_matches == flown_matches and flown_matches % 2 == 1:
+            if all_matches == flown_matches and flown_matches == 1:
                 await interaction.followup.send(_("This tournament is finished already!"))
                 return
 
-            await interaction.followup.send(_("Generating {} matches for this tournament ...").format(stage))
+            elif 0 < flown_matches < all_matches:
+                await interaction.followup.send(
+                    _("Can't generate new matches, not all matches of this stage have been flown yet."), ephemeral=True)
+                return
 
-            squadrons: list[tuple[int, float]] = []
-            # read all squadrons and their ratings
-            for row in await cursor.fetchall():
-                rating = await Competitive.trueskill_squadron(self.node, row[0])
-                squadrons.append((row[0], Competitive.calculate_rating(rating)))
+            elif all_matches > 0 and flown_matches == 0 and not await utils.yn_question(
+                    interaction,
+                    question=_("Do you want to generate new matches for tournament {}?").format(tournament['name']),
+                    message=_("This will overwrite any existing **unflown** matches!")):
+                # noinspection PyUnresolvedReferences
+                await interaction.followup.send("Abort.", ephemeral=True)
+                return
 
             # read all available servers
             servers: list[str] = []
@@ -1236,31 +1291,24 @@ class Tournament(Plugin[TournamentEventListener]):
                 servers.append(row[0])
 
             try:
-                # create matches
-                if stage == 'elimination':
-                    groups = []
-                    matches = create_elimination_matches(squadrons)
+                if flown_matches > 0 and flown_matches == all_matches:
+                    await interaction.followup.send(_("Generating knockout matches for this tournament ..."))
                     phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
-                else: # group stage
-                    groups = create_groups(squadrons, num_groups)
-                    matches = create_group_matches(groups)
-                    phase = TOURNAMENT_PHASE.START_GROUP_PHASE
+                    matches = await self.generate_elimination_stage(interaction, tournament_id, level)
+                elif level <= 1:
+                    if await utils.yn_question(interaction, "Do you want to generate a group stage?"):
+                        await interaction.followup.send(_("Generating group matches for this tournament ..."))
+                        phase = TOURNAMENT_PHASE.START_GROUP_PHASE
+                        matches = await self.generate_group_stage(interaction, tournament_id, num_groups)
+                    else:
+                        await interaction.followup.send(_("Generating knockout matches for this tournament ..."))
+                        phase = TOURNAMENT_PHASE.START_ELIMINATION_PHASE
+                        matches = await self.generate_elimination_stage(interaction, tournament_id, 0)
 
-                # assign the groups to the squadrons
                 async with conn.transaction():
-                    if stage == 'group':
-                        # update the groups, if any
-                        for idx, group in enumerate(groups):
-                            for squadron_id in group:
-                                await conn.execute("""
-                                    UPDATE tm_squadrons SET group_number = %s 
-                                    WHERE tournament_id = %s AND squadron_id = %s
-                                """, (idx + 1, tournament_id, squadron_id))
-
                     # delete old matches
                     cursor = await conn.execute("""
-                        DELETE FROM tm_matches
-                        WHERE tournament_id = %s AND winner_squadron_id IS NULL
+                        DELETE FROM tm_matches WHERE tournament_id = %s AND winner_squadron_id IS NULL
                         RETURNING *
                     """, (tournament_id, ))
                     # we have not deleted anything, so we are creating a new stage
@@ -1316,7 +1364,6 @@ class Tournament(Plugin[TournamentEventListener]):
                                                   "Thank you for your participation!").format(tournament['name'])
                             await self.inform_squadron(tournament_id=tournament_id, squadron_id=row[0], embed=embed)
 
-
                 await self.bot.audit(f"generated matches for tournament {tournament['name']}.",
                                      user=interaction.user)
             except ValueError as ex:
@@ -1368,9 +1415,15 @@ class Tournament(Plugin[TournamentEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
-                    SELECT * FROM tm_matches WHERE tournament_id = %s 
+                    SELECT * FROM tm_matches 
+                    WHERE tournament_id = %(tournament_id)s
+                    AND stage = (
+                        SELECT MAX(stage) 
+                        FROM tm_matches 
+                        WHERE tournament_id = %(tournament_id)s
+                    )
                     ORDER BY winner_squadron_id DESC, round_number DESC, match_time
-                """, (tournament['tournament_id'],))
+                """, tournament)
                 for row in await cursor.fetchall():
                     if row['winner_squadron_id'] and unflown:
                         continue
@@ -2321,21 +2374,6 @@ class Tournament(Plugin[TournamentEventListener]):
         # List of columns that contain squadron names that need to be converted back to IDs
         squadron_columns = ['squadron_red', 'squadron_blue', 'winner_squadron_id']
 
-        # Verify match_ids haven't been tampered with
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                                     SELECT match_id
-                                     FROM tm_matches
-                                     WHERE tournament_id = %s
-                                     ORDER BY match_id
-                                     """, (tournament_id,))
-                original_match_ids = pd.DataFrame(await cursor.fetchall())
-
-        # Verify match IDs are unchanged
-        if set(matches_df['match_id']) != set(original_match_ids['match_id']):
-            raise ValueError("Match IDs have been modified. This is not allowed.")
-
         # Sort the DataFrame by match_id to ensure consistent processing
         matches_df = matches_df.sort_values('match_id').reset_index(drop=True)
 
@@ -2407,7 +2445,15 @@ class Tournament(Plugin[TournamentEventListener]):
                     # Process each row in the DataFrame
                     for _, row in match_df.iterrows():
                         # Extract values for the update in the correct order
-                        update_values = [row[col] for col in columns_to_update]
+                        update_values = []
+                        for col in columns_to_update:
+                            if col == 'match_time':
+                                # Handle NaT values for datetime column
+                                value = None if pd.isna(row[col]) else row[col]
+                            else:
+                                value = row[col]
+                            update_values.append(value)
+
                         # Add match_id and tournament_id for the WHERE clause
                         update_values.extend([row['match_id'], tournament_id])
 
