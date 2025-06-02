@@ -1,3 +1,5 @@
+import logging
+
 import aiohttp
 import math
 import numpy as np
@@ -12,6 +14,8 @@ from openpyxl.styles import Border, Side, Font
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from trueskill import Rating
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 def create_elimination_matches(squadrons: list[tuple[int, float]]) -> list[tuple[int, int]]:
@@ -158,7 +162,8 @@ async def create_versus_image(team_blue_image_url: str, team_red_image_url: str,
     try:
         img1_data = await download_image(team_blue_image_url)
         img2_data = await download_image(team_red_image_url)
-    except ValueError:
+    except ValueError as ex:
+        logger.warning(f"Error downloading image: {ex}")
         return None
 
     try:
