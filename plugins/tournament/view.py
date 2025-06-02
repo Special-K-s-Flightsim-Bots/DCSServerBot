@@ -162,7 +162,7 @@ class NumbersModal(Modal):
 
 class ChoicesView(View):
     def __init__(self, plugin: "Tournament", tournament_id: int, match_id: int, squadron_id: int, config: dict):
-        super().__init__()
+        super().__init__(timeout=config.get('time_to_choose', 600))
         self.plugin = plugin
         self.tournament_id = tournament_id
         self.match_id = match_id

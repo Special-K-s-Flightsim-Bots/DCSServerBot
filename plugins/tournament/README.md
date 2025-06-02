@@ -39,7 +39,7 @@ DEFAULT:
   allow_exports: false        # Do not allow exports (default: false).
   auto_join: true             # If true, your pilot will be automatically assigned to the associated squadron on join (default: false).
   delayed_start: 300          # optional: give people 300 seconds to prepare their planes.
-  time_to_choose: 600         # The time squadrons have to choose their customizations for the next round.
+  time_to_choose: 600         # The time in seconds squadrons have to choose their customizations for the next round (default: 600s).
   sudden_death: false         # true: add one decisive round after the configured rounds were played if no winner was found. false: wait until the best out of X is reached.
   balance_multiplier: true    # true: use a sophisticated multiplier for credit points, based on the Trueskill™️ difference
   remove_on_death: .*         # Optional: if set, any unit that was lost and where the name matches this regular expression will be removed in the next round of the same match
