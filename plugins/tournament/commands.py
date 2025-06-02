@@ -555,6 +555,9 @@ class Tournament(Plugin[TournamentEventListener]):
             red_image = squadron_red['image_url']
             if blue_image and red_image:
                 buffer = await create_versus_image(blue_image, red_image)
+                if not buffer:
+                    self.log.debug("Image was not created between {} and {}.".format(squadron_blue['name'],
+                                                                                     squadron_red['name']))
 
             embed.add_field(name=_("Blue"), value=squadron_blue['name'])
             ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
@@ -577,6 +580,8 @@ class Tournament(Plugin[TournamentEventListener]):
             red_image = squadron_red['image_url']
             if blue_image and red_image:
                 buffer = await create_versus_image(blue_image, red_image, winner)
+                self.log.debug("Image was not created between {} and {}.".format(squadron_blue['name'],
+                                                                                 squadron_red['name']))
 
             embed.add_field(name=_("Round"), value=f"{match['round_number']} of {tournament['rounds']}")
             embed.add_field(name=_("Blue Wins"), value=str(match['squadron_blue_rounds_won']))

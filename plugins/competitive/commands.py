@@ -107,6 +107,9 @@ class Competitive(Plugin[CompetitiveListener]):
 
     @staticmethod
     def win_probability(team1: list[Rating], team2: list[Rating]):
+        if not team1 or not team2:
+            return 0.5  # 50% chance when either team is empty
+
         delta_mu = sum(r.mu for r in team1) - sum(r.mu for r in team2)
         sum_sigma = sum(r.sigma ** 2 for r in itertools.chain(team1, team2))
         size = len(team1) + len(team2)
