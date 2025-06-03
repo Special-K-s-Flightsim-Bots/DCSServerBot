@@ -21,7 +21,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from time import time
-from typing import Optional, Literal
+from typing import Optional
 
 from .const import TOURNAMENT_PHASE
 from .listener import TournamentEventListener

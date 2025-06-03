@@ -2075,12 +2075,12 @@ class Mission(Plugin[MissionEventListener]):
         config = self.get_config().get('uploads', {})
         if not MissionUploadHandler.is_valid(message, pattern, config.get('discord', self.bot.roles['DCS Admin'])):
             return
-        # check, if upload is enabled
+        # check if upload is enabled
         if not config.get('enabled', True):
             self.log.debug("Mission upload is disabled!")
             return
 
-        # check, if we are in the correct channel
+        # check if we are in the correct channel
         server = await MissionUploadHandler.get_server(message)
         if not server:
             return

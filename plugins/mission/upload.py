@@ -121,8 +121,8 @@ class MissionUploadHandler(ServerUploadHandler):
                 return
             elif rc == 'later':
                 mission_id = (await self.server.getMissionList()).index(filename)
-                await self.server.setStartIndex(mission_id)
-                self.server.on_empty = {"command": "load", "mission_id": mission_id, "user": self.message.author}
+                await self.server.setStartIndex(mission_id + 1)
+                self.server.on_empty = {"command": "load", "mission_id": mission_id + 1, "user": self.message.author}
                 await self.channel.send(
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(filename))
                 return
