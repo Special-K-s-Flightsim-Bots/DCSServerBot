@@ -160,6 +160,8 @@ class IntegrityCheck(report.EmbedElement):
             values.append("Pure Scripts")
         if server.settings.get('require_pure_models', False):
             values.append("Pure Models")
+        if server.settings.get('require_pure_textures', False):
+            values.append("Pure Textures")
         if values:
             self.add_field(name='Client Limits', value='\n'.join([f":shield: {x}" for x in values]))
 
