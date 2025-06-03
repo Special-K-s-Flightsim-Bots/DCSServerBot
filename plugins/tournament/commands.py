@@ -562,8 +562,11 @@ class Tournament(Plugin[TournamentEventListener]):
             embed.add_field(name=_("Blue"), value=squadron_blue['name'])
             ratings_blue = await Competitive.read_squadron_member_ratings(self.node, match['squadron_blue'])
             ratings_red = await Competitive.read_squadron_member_ratings(self.node, match['squadron_red'])
-            win_propability = Competitive.win_probability(ratings_blue, ratings_red)
-            embed.add_field(name=_("Win propability"), value=f"{win_propability * 100.0:.2f}%")
+            win_probability = Competitive.win_probability(ratings_blue, ratings_red)
+            embed.add_field(
+                name=_("Win-Chance"),
+                value=_("Blue") if win_probability > 0.5 else _("Red") if win_probability < 0.5 else _("Draw")
+            )
             embed.add_field(name=_("Red"), value=squadron_red['name'])
 
             embed.add_field(name=_("Round"), value=f"{match['round_number']} of {tournament['rounds']}")
