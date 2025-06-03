@@ -13,6 +13,9 @@
       "class": "plugins.mission.status.WeatherInfo"
     },
     {
+      "class": "plugins.mission.status.IntegrityCheck"
+    },
+    {
       "class": "plugins.mission.status.ExtensionsInfo"
     },
     {

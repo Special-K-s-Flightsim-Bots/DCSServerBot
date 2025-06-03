@@ -1538,7 +1538,7 @@ class Tournament(Plugin[TournamentEventListener]):
 
         # set coalition passwords
         if config.get('coalition_passwords'):
-            embed.description += _("\n- Setting coalition passwords...")
+            embed.description += _("\n- Setting passwords...")
             await msg.edit(embed=embed)
             for coalition in [Coalition.BLUE, Coalition.RED]:
                 password = str(random.randint(100000, 999999))
@@ -1555,7 +1555,7 @@ class Tournament(Plugin[TournamentEventListener]):
                 await channel.send(embed=_embed)
 
         # assign all members of the respective squadrons to the respective side
-        embed.description += _("\n- Setting coalitions for players...")
+        embed.description += _("\n- Assigning coalitions ...")
         await msg.edit(embed=embed)
         async with self.apool.connection() as conn:
             async with conn.transaction():
@@ -1741,7 +1741,7 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         embed = discord.Embed(color=discord.Color.blue(), title=_("Match Setup"))
-        embed.description = _("- Creating the squadron channels ...")
+        embed.description = _("- Creating squadron channels ...")
         embed.set_thumbnail(url=TRAFFIC_LIGHTS['red'])
         msg = await channel.send(embed=embed)
         try:
@@ -1752,7 +1752,7 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         # inform the squadrons that they can choose
-        embed.description += _("\n- Inform the squadrons and wait for their initial choice ...")
+        embed.description += _("\n- Awaiting squadron choices ...")
         await msg.edit(embed=embed)
         self.eventlistener.tournaments[server.name] = tournament
 
@@ -1777,7 +1777,7 @@ class Tournament(Plugin[TournamentEventListener]):
         await self.eventlistener.wait_until_choices_finished(server)
 
         # preparing the server
-        embed.description += _("\n- Preparing server {} for the match ...").format(match['server_name'])
+        embed.description += _("\n- Preparing server {} ...").format(match['server_name'])
         await msg.edit(embed=embed)
 
         # make sure the server is stopped
@@ -1807,7 +1807,7 @@ class Tournament(Plugin[TournamentEventListener]):
             mission_id = server.settings['listStartIndex'] - 1
 
         # prepare the mission
-        embed.description += _("\n- Preparing mission {} ...").format(os.path.basename(mission_list[mission_id]))
+        embed.description += _("\n- Using mission {} ...").format(os.path.basename(mission_list[mission_id]))
         await msg.edit(embed=embed)
         await self.prepare_mission(server, match_id, round_number, mission_id)
 
@@ -1833,7 +1833,7 @@ class Tournament(Plugin[TournamentEventListener]):
         results = config.get('channels', {}).get('results', -1)
         if results > 0:
             await self.change_tacview_output(server, results)
-        embed.description += _("\n- Server {} started. Inform squadrons ...").format(match['server_name'])
+        embed.description += _("\n- Server {} ready, notifying teams ...").format(match['server_name'])
         embed.set_thumbnail(url=TRAFFIC_LIGHTS['green'])
         await msg.edit(embed=embed)
         # inform everyone
