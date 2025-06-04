@@ -128,7 +128,7 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             config = next(x for x in config['downloads'] if x['label'] == label)
         except StopIteration:
             return []
-        base_dir = config['directory'].format(server=server)
+        base_dir = utils.format_string(config['directory'], server=server)
         exp_base, file_list = await server.node.list_directory(base_dir, pattern=config['pattern'], traverse=True)
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.relpath(x, exp_base), value=os.path.relpath(x, exp_base))
@@ -496,7 +496,7 @@ class Admin(Plugin[AdminEventListener]):
         if what == 'Missions':
             base_dir = await server.get_missions_dir()
         else:
-            base_dir = os.path.expandvars(config['directory'].format(server=server))
+            base_dir = os.path.expandvars(utils.format_string(config['directory'], server=server))
         try:
             # make sure nobody injected a wrong path
             path = utils.sanitize_filename(os.path.abspath(os.path.join(base_dir, filename)), base_dir)
