@@ -8,7 +8,7 @@ from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
                   DEFAULT_TAG, get_translation, TRAFFIC_LIGHTS)
 from datetime import datetime, timedelta, timezone
-from discord import app_commands
+from discord import app_commands, TextStyle
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
 from functools import partial
@@ -875,8 +875,9 @@ class Scheduler(Plugin[SchedulerListener]):
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        coalition: Optional[Literal['red', 'blue']] = None):
         class PasswordModal(Modal, title="Enter Password"):
+            # noinspection PyTypeChecker
             password = TextInput(label="New Password" + (f" for coalition {coalition}:" if coalition else ":"),
-                                 style=discord.TextStyle.short, required=False)
+                                 style=TextStyle.short, required=False)
 
             async def on_submit(derived, interaction: discord.Interaction):
                 ephemeral = utils.get_ephemeral(interaction)

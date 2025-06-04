@@ -826,7 +826,8 @@ class Admin(Plugin[AdminEventListener]):
             next_startup = 0
             for server in [x for x in self.bus.servers.values() if x.node.name == node_name]:
                 if startup:
-                    self.loop.call_later(delay=next_startup, callback=partial(asyncio.create_task, _startup(server)))
+                    self.loop.call_later(delay=next_startup,
+                                         callback=partial(asyncio.create_task, _startup(server)))
                     next_startup += startup_delay
                 else:
                     server.maintenance = False
@@ -1185,7 +1186,7 @@ Please make sure you forward the following ports:
             return
         # read the default config, if there is any
         config = self.get_config().get('uploads', {})
-        # check, if upload is enabled
+        # check if upload is enabled
         if not config.get('enabled', True):
             return
         # check if the user has the correct role to upload, defaults to Admin
@@ -1223,8 +1224,9 @@ Please make sure you forward the following ports:
             schema_path = os.path.join('plugins', name[:-4], 'schemas', name[:-4] + '_schema.yaml')
             plugin = True
         else:
-            return False
+            return
         target_file = os.path.join(target_path, att.filename)
+        # TODO: schema validation
         rc = await server.node.write_file(target_file, att.url, True)
         if rc != UploadStatus.OK:
             if rc == UploadStatus.WRITE_ERROR:

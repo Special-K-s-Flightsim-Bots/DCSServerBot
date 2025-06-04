@@ -10,7 +10,6 @@ from core import Plugin, utils, Server, Status, Report
 from discord.ext import commands
 from discord.ext.commands import Command
 from services.bot import DCSServerBot
-from typing import Optional
 
 
 class Commands(Plugin):
@@ -25,7 +24,7 @@ class Commands(Plugin):
         await super().cog_unload()
 
     @staticmethod
-    async def execute(ctx: commands.Context, config: dict, **kwargs) -> Optional[dict]:
+    async def execute(ctx: commands.Context, config: dict, **kwargs) -> None:
         cmd: list[str] = [config['cmd']]
         if 'args' in config:
             cmd.extend([utils.format_string(x, **kwargs) for x in shlex.split(config['args'])])
@@ -43,10 +42,10 @@ class Commands(Plugin):
             except Exception as ex:
                 traceback.print_exc()
                 await ctx.send(ex.__str__())
-                return None
+                return
             if not stdout:
                 await ctx.send('Done')
-                return None
+                return
             lines = stdout.splitlines()
             messages = []
             current_message = '```'

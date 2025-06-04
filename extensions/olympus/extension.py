@@ -153,7 +153,7 @@ class Olympus(Extension):
             "value": value
         }
 
-    async def prepare_olympus_json(self):
+    async def prepare_olympus_json(self) -> bool:
         global server_ports, client_ports
 
         try:
@@ -210,6 +210,7 @@ class Olympus(Extension):
                 } | self.config.get('audio', {})
         with open(self.config_path, mode='w', encoding='utf-8') as cfg:
             json.dump(self.locals, cfg, indent=2)
+        return True
 
     async def prepare_exports_lua(self):
         export_file = os.path.join(self.server.instance.home, 'Scripts', 'Export.lua')
@@ -228,7 +229,8 @@ class Olympus(Extension):
             return False
         self.log.debug(f"Preparing {self.name} configuration ...")
         try:
-            await self.prepare_olympus_json()
+            if not await self.prepare_olympus_json():
+                return False
             if self.version != '1.0.3.0':
                 await self.prepare_exports_lua()
             return await super().prepare()
@@ -254,7 +256,7 @@ class Olympus(Extension):
                 frontend_exe = os.path.join(path, 'bin', 'www')
             if not os.path.exists(frontend_exe):
                 self.log.error(f"Path {frontend_exe} does not exist, can't launch Olympus!")
-                return
+                return False
             args = [self.nodejs, frontend_exe]
             if self.version != '1.0.3.0':
                 args.append('--config')

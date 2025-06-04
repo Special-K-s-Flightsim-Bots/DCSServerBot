@@ -158,7 +158,10 @@ class Mission(Plugin[MissionEventListener]):
         migrate_module = importlib.import_module('.migrate', package=__package__)
         migrate_function = getattr(migrate_module, function_name, None)
         if callable(migrate_function):
-            await migrate_function(self)
+            if asyncio.iscoroutinefunction(migrate_function):
+                await migrate_function(self)
+            else:
+                migrate_function(self)
 
     async def rename(self, conn: psycopg.AsyncConnection, old_name: str, new_name: str):
         await conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -961,26 +964,22 @@ class Mission(Plugin[MissionEventListener]):
             await interaction.response.send_message(view=view, ephemeral=ephemeral)
             msg = await interaction.original_response()
         try:
-            if await view.wait() or view.result is None:
-                return
+            if not await view.wait() and view.result is not None:
+                fog = utils.get_preset(self.node, view.result[0], presets_file)['fog']
+                fog.pop('mode', None)
+                await server.send_to_dcs_sync(
+                    {
+                        'command': 'setFogAnimation',
+                        'values': [
+                            (key, value["visibility"], value["thickness"])
+                            for key, value in fog.items()
+                        ]
+                    })
+                message = _('The following preset was applied: {}.').format(view.result[0])
+                await interaction.followup.send(message, ephemeral=ephemeral)
         finally:
-            try:
+            with suppress(discord.NotFound):
                 await msg.delete()
-            except discord.NotFound:
-                pass
-
-        fog = utils.get_preset(self.node, view.result[0], presets_file)['fog']
-        fog.pop('mode', None)
-        await server.send_to_dcs_sync(
-            {
-                'command': 'setFogAnimation',
-                'values': [
-                    (key, value["visibility"], value["thickness"])
-                    for key, value in fog.items()
-                ]
-            })
-        message = _('The following preset was applied: {}.').format(view.result[0])
-        await interaction.followup.send(message, ephemeral=ephemeral)
 
     @mission.command(description=_('Enables persistence'))
     @app_commands.guild_only()
@@ -1659,13 +1658,12 @@ class Mission(Plugin[MissionEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # check all unmatched players
-                unmatched = []
-                await cursor.execute("""
+                unmatched: list[dict] = []
+                async for row in await cursor.execute("""
                     SELECT ucid, name FROM players 
                     WHERE discord_id = -1 AND name IS NOT NULL 
                     ORDER BY last_seen DESC
-                                """)
-                async for row in cursor:
+                """):
                     matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
@@ -1710,7 +1708,7 @@ class Mission(Plugin[MissionEventListener]):
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 # check all matched members
-                suspicious = []
+                suspicious: list[dict] = []
                 for member in self.bot.get_all_members():
                     # ignore bots
                     if member.bot:

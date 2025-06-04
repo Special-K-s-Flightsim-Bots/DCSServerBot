@@ -111,7 +111,7 @@ def command(
     return decorator
 
 
-class Command(app_commands.Command):
+class Command(app_commands.Command[GroupT, P, T]):
 
     def __init__(
         self,
@@ -271,7 +271,7 @@ class Plugin(commands.Cog, Generic[TEventListener]):
                     if isinstance(params, list):
                         for param in params:
                             self.change_commands(param, group_commands)
-                    elif params:
+                    elif isinstance(params, dict):
                         self.change_commands(params, group_commands)
                     else:
                         self.log.warning(f"{self.__cog_name__} command {name} has no params!")

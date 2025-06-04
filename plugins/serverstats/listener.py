@@ -3,6 +3,10 @@ import math
 
 from core import EventListener, Plugin, event, Server, utils, ServiceRegistry
 from services.bot import BotService
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import ServerStats
 
 
 class ServerStatsListener(EventListener["ServerStats"]):

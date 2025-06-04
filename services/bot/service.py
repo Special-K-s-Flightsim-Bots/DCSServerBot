@@ -95,6 +95,7 @@ class BotService(Service):
             return None
         if username and password:
             return BasicAuth(username, password)
+        return None
 
     def init_bot(self):
         if self.locals.get('no_discord', False):

@@ -1654,7 +1654,8 @@ class Tournament(Plugin[TournamentEventListener]):
             await server.replaceMission(int(server.settings['listStartIndex']), new_filename)
         return new_filename
 
-    async def change_tacview_output(self, server: Server, results: int):
+    @staticmethod
+    async def change_tacview_output(server: Server, results: int):
         extensions = await server.list_extension()
         if 'Tacview' in extensions:
             await server.run_on_extension(
@@ -1665,7 +1666,8 @@ class Tournament(Plugin[TournamentEventListener]):
                 }
             )
 
-    def find_mission_in_list(self, mission_list: list[str], mission: str) -> int:
+    @staticmethod
+    def find_mission_in_list(mission_list: list[str], mission: str) -> int:
         for idx, mission_file in enumerate(mission_list):
             if mission in mission_file:
                 return idx
@@ -2358,13 +2360,13 @@ class Tournament(Plugin[TournamentEventListener]):
     async def before_match_scheduler(self):
         await self.bot.wait_until_ready()
 
-    async def import_tournament_data(self, buffer: BytesIO, tournament_id: int) -> pd.DataFrame:
+    @staticmethod
+    async def import_tournament_data(buffer: BytesIO) -> pd.DataFrame:
         """
         Import tournament data from Excel buffer and convert squadron names back to IDs
 
         Args:
             buffer: BytesIO object containing the Excel file
-            tournament_id: The tournament ID to verify data against
 
         Returns:
             DataFrame with the processed matches data
@@ -2510,7 +2512,7 @@ class Tournament(Plugin[TournamentEventListener]):
             async with aiohttp.ClientSession() as session:
                 async with session.get(att.url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                     response.raise_for_status()
-                    match_df = await self.import_tournament_data(BytesIO(await response.read()), tournament_id)
+                    match_df = await self.import_tournament_data(BytesIO(await response.read()))
                     await self.import_tournament_data_to_db(match_df, tournament_id)
                     embed = await self.render_matches(tournament)
                     embed.set_footer(text=_("The data has been imported successfully."))

@@ -4,7 +4,7 @@ import os
 import psycopg
 
 from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group, get_translation
-from discord import SelectOption, TextStyle, app_commands
+from discord import SelectOption, app_commands, ButtonStyle, TextStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from services.bot import DCSServerBot
 from services.modmanager import ModManagerService, Folder
@@ -218,11 +218,13 @@ class ModManager(Plugin):
                                     row=1)
                     select.callback = derived.uninstall
                     derived.add_item(select)
-                button = Button(label=_("Download"), style=discord.ButtonStyle.primary, row=2)
+                # noinspection PyTypeChecker
+                button = Button(label=_("Download"), style=ButtonStyle.primary, row=2)
                 button.callback = derived.download
                 derived.add_item(button)
                 if server.status != Status.SHUTDOWN:
-                    button = Button(label=_("Shutdown"), style=discord.ButtonStyle.secondary, row=2)
+                    # noinspection PyTypeChecker
+                    button = Button(label=_("Shutdown"), style=ButtonStyle.secondary, row=2)
                     button.callback = derived.shutdown
                     derived.add_item(button)
                     derived.embed.set_footer(
@@ -233,7 +235,8 @@ class ModManager(Plugin):
                         # noinspection PyUnresolvedReferences
                         if isinstance(derived.children[i], Button) and derived.children[i].label == "Shutdown":
                             derived.remove_item(derived.children[i])
-                button = Button(label=_("Quit"), style=discord.ButtonStyle.red, row=2)
+                # noinspection PyTypeChecker
+                button = Button(label=_("Quit"), style=ButtonStyle.red, row=2)
                 button.callback = derived.cancel
                 derived.add_item(button)
 
@@ -295,10 +298,13 @@ class ModManager(Plugin):
 
             async def download(derived, interaction: discord.Interaction):
                 class UploadModal(Modal, title=_("Download a new Mod")):
+                    # noinspection PyTypeChecker
                     url = TextInput(label=_("URL / GitHub Repo"), placeholder='https://github.com/...',
                                     style=TextStyle.short, required=True)
+                    # noinspection PyTypeChecker
                     dest = TextInput(label=_("Destination (S=Saved Games / R=Root Folder)"), style=TextStyle.short,
                                      required=True, min_length=1, max_length=1)
+                    # noinspection PyTypeChecker
                     version = TextInput(label=_("Version"), style=TextStyle.short, required=False, default='latest')
 
                     async def on_submit(_, interaction: discord.Interaction) -> None:

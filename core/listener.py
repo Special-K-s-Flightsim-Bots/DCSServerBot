@@ -58,7 +58,7 @@ class ChatCommand:
     def __init__(self, func, **kwargs):
         self.name: str = kwargs.get('name', func.__name__)
         self.help: str = inspect.cleandoc(kwargs.get('help', ''))
-        self.roles: list[[Union[str, int]]] = kwargs.get('roles', [])
+        self.roles: list[Union[str, int]] = kwargs.get('roles', [])
         self.usage: str = kwargs.get('usage')
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func

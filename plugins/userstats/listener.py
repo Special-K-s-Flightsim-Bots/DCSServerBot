@@ -224,6 +224,8 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                 kill_type = 'pvp_planes'
             elif data['victimCategory'] == 'Helicopters':
                 kill_type = 'pvp_helicopters'
+            else:
+                kill_type = 'kill_other'
         elif data['victimCategory'] == 'Planes':
             kill_type = 'kill_planes'
         elif data['victimCategory'] == 'Helicopters':
@@ -252,6 +254,8 @@ class UserStatisticsEventListener(EventListener["UserStatistics"]):
                 death_type = 'deaths_pvp_planes'
             elif data['killerCategory'] == 'Helicopters':
                 death_type = 'deaths_pvp_helicopters'
+            else:
+                death_type = 'other'
         elif data['killerCategory'] == 'Planes':
             death_type = 'deaths_planes'
         elif data['killerCategory'] == 'Helicopters':

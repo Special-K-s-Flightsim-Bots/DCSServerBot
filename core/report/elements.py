@@ -74,7 +74,7 @@ class ReportElement(ABC):
         self.apool = env.bot.apool
 
     @abstractmethod
-    async def render(self, **kwargs):
+    async def render(self, **kwargs) -> None:
         ...
 
 
@@ -83,9 +83,10 @@ class EmbedElement(ReportElement):
         super().__init__(env)
         self.embed = env.embed
 
-    def add_field(self, *, name: str, value: str, inline=True):
+    def add_field(self, *, name: str, value: str, inline=True) -> discord.Embed:
         if len(self.embed.fields) >= 25:
-            return
+            self.log.warning(f"Can't add field '{name}': too many fields in embed.")
+            return self.embed
         if name is None or name == '':
             name = '_ _'
         else:
@@ -389,7 +390,7 @@ class BarChart(GraphElement):
             if self.rotate_labels > 0:
                 for label in self.axes.get_xticklabels():
                     label.set_rotation(self.rotate_labels)
-                    label.set_ha('right')
+                    label.set_horizontalalignment('right')
             if self.bar_labels:
                 for c in self.axes.containers:
                     self.axes.bar_label(c, fmt='%.1f h' if self.is_time else '%.1f', label_type='edge', padding=2)

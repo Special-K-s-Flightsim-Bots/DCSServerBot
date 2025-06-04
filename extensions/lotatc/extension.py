@@ -235,13 +235,10 @@ class LotAtc(Extension, FileSystemEventHandler):
                         if name is not None and name.text == 'com.lotatc.server.server23':
                             version = package.find('Version')
                             if version is not None:
-                                break
-                    else:
-                        return None
-                    _, inst_version = self.get_inst_version()
-                    if version.text != inst_version:
-                        return version.text
-                    return None
+                                _, inst_version = self.get_inst_version()
+                                if version.text != inst_version:
+                                    return version.text
+        return None
 
     def do_update(self):
         cwd = self.get_inst_path()

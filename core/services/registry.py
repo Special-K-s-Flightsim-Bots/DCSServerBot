@@ -3,7 +3,7 @@ import logging
 
 from core.data.node import FatalException
 from core.services.base import Service
-from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING
+from typing import Type, Optional, TypeVar, Callable, Union, TYPE_CHECKING, Generic
 
 if TYPE_CHECKING:
     from core import NodeImpl
@@ -13,7 +13,7 @@ __all__ = ["ServiceRegistry"]
 T = TypeVar("T", bound=Service)
 
 
-class ServiceRegistry:
+class ServiceRegistry(Generic[T]):
     _instance: Optional["ServiceRegistry"] = None
     _node: Optional["NodeImpl"] = None
     _registry: dict[Type[T], Type[T]] = {}

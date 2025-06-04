@@ -2,6 +2,7 @@ import discord
 
 from core import Server, get_translation, utils
 from datetime import datetime, timezone
+from discord import TextStyle, ButtonStyle
 from discord.ui import Modal, TextInput, View
 from typing import Union, Optional
 
@@ -11,10 +12,14 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class CampaignModal(Modal):
-    name = TextInput(label=_("Name"), required=True, style=discord.TextStyle.short, min_length=3, max_length=80)
+    # noinspection PyTypeChecker
+    name = TextInput(label=_("Name"), required=True, style=TextStyle.short, min_length=3, max_length=80)
+    # noinspection PyTypeChecker
     start = TextInput(label=_("Start (UTC)"), placeholder="yyyy-mm-dd hh24:mi", required=True)
+    # noinspection PyTypeChecker
     end = TextInput(label=_("End (UTC)"), placeholder="yyyy-mm-dd hh24:mi", required=False)
-    description = TextInput(label=_("Description"), required=False, style=discord.TextStyle.long)
+    # noinspection PyTypeChecker
+    description = TextInput(label=_("Description"), required=False, style=TextStyle.long)
 
     def __init__(self, eventlistener: GameMasterEventListener):
         super().__init__(title=_("Campaign Info"))
@@ -41,7 +46,8 @@ class CampaignModal(Modal):
 
 
 class ScriptModal(Modal):
-    script = TextInput(label=_("Enter your script here:"), style=discord.TextStyle.long, required=True)
+    # noinspection PyTypeChecker
+    script = TextInput(label=_("Enter your script here:"), style=TextStyle.long, required=True)
 
     def __init__(self, server: Server, ephemeral: bool):
         super().__init__(title=_("Lua Script"))
@@ -58,7 +64,8 @@ class ScriptModal(Modal):
 
 
 class MessageModal(Modal):
-    message = TextInput(label="Message", style=discord.TextStyle.long, required=True)
+    # noinspection PyTypeChecker
+    message = TextInput(label="Message", style=TextStyle.long, required=True)
 
     def __init__(self, message: Optional[str] = None):
         super().__init__(title="User Message")
@@ -90,7 +97,8 @@ class MessageView(View):
                         value=self.messages[self.index]['message'], inline=False)
         return embed
 
-    @discord.ui.button(emoji='◀️', style=discord.ButtonStyle.primary)
+    # noinspection PyTypeChecker
+    @discord.ui.button(emoji='◀️', style=ButtonStyle.primary)
     async def on_left(self, interaction: discord.Interaction, _: discord.ui.Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -98,7 +106,8 @@ class MessageView(View):
             self.index -= 1
             await interaction.edit_original_response(embed=await self.render(), view=self)
 
-    @discord.ui.button(emoji='🗒️', style=discord.ButtonStyle.primary)
+    # noinspection PyTypeChecker
+    @discord.ui.button(emoji='🗒️', style=ButtonStyle.primary)
     async def on_edit(self, interaction: discord.Interaction, _: discord.ui.Button):
         modal = MessageModal(self.messages[self.index]['message'])
         # noinspection PyUnresolvedReferences
@@ -112,7 +121,8 @@ class MessageView(View):
             self.messages[self.index]['message'] = modal.message.value
             await interaction.edit_original_response(embed=await self.render(), view=self)
 
-    @discord.ui.button(emoji='🚮', style=discord.ButtonStyle.primary)
+    # noinspection PyTypeChecker
+    @discord.ui.button(emoji='🚮', style=ButtonStyle.primary)
     async def on_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -128,7 +138,8 @@ class MessageView(View):
             self.index -= 1
         await interaction.edit_original_response(embed=await self.render(), view=self)
 
-    @discord.ui.button(emoji='▶️', style=discord.ButtonStyle.primary)
+    # noinspection PyTypeChecker
+    @discord.ui.button(emoji='▶️', style=ButtonStyle.primary)
     async def on_right(self, interaction: discord.Interaction, _: discord.ui.Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -136,7 +147,8 @@ class MessageView(View):
             self.index += 1
             await interaction.edit_original_response(embed=await self.render(), view=self)
 
-    @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label="Quit", style=ButtonStyle.red)
     async def on_cancel(self, interaction: discord.Interaction, _: discord.ui.Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()

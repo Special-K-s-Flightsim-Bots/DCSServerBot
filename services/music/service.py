@@ -108,18 +108,21 @@ class MusicService(Service):
         radio = self.radios.get(server.name, {}).get(radio_name)
         if radio:
             return radio.mode
+        return None
 
     @proxy
     async def set_mode(self, server: Server, radio_name: str, mode: Mode) -> None:
         radio = self.radios.get(server.name, {}).get(radio_name)
         if radio:
             radio.mode = mode
+        return None
 
     @proxy
     async def set_config(self, server: Server, radio_name: str, config: dict) -> None:
         radio = self.radios.get(server.name, {}).get(radio_name)
         if radio:
             radio.config = config
+        return None
 
     @proxy
     async def reset_playlist(self, server: Server, radio_name: str) -> None:

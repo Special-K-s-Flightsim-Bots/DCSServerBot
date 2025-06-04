@@ -9,10 +9,9 @@ import json
 import os
 import platform
 import psycopg
+import psycopg_pool
 import re
 import shutil
-
-import psycopg_pool
 import sqlparse
 import ssl
 import subprocess
@@ -33,12 +32,12 @@ from psycopg import sql
 from psycopg.errors import UndefinedTable, InFailedSqlTransaction, ConnectionTimeout
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Optional, Union, Awaitable, Callable, Any
+from typing import Optional, Union, Awaitable, Callable, Any, cast
 from urllib.parse import urlparse, quote
 from version import __version__
 
 from core.autoexec import Autoexec
-from core.data.dataobject import DataObjectFactory
+from core.data.dataobject import DataObjectFactory, DataObject
 from core.data.node import Node, UploadStatus, SortOrder, FatalException
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
@@ -79,6 +78,7 @@ DEFAULT_PLUGINS = [
     "admin",
     "userstats",
     "missionstats",
+    "serverstats",
     "creditsystem",
     "gamemaster",
     "cloud"
@@ -654,6 +654,7 @@ class NodeImpl(Node):
                         UPDATER_URL.format(branch), proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                     if response.status == 200:
                         return [x['version'] for x in json.loads(gzip.decompress(await response.read()))['versions2']]
+            return None
 
         async def _get_latest_versions_auth() -> Optional[list[str]]:
             user = self.locals['DCS'].get('user')
@@ -665,16 +666,18 @@ class NodeImpl(Node):
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with await session.post(LOGIN_URL, data={"login": user, "password": password},
                                               proxy=self.proxy, proxy_auth=self.proxy_auth) as r1:
+                    rc = None
                     if r1.status == 200:
                         async with await session.get(UPDATER_URL.format(branch)) as r2:
                             if r2.status == 200:
                                 result = await r2.read()
                                 try:
-                                    return [x['version'] for x in json.loads(gzip.decompress(result))['versions2']]
+                                    rc = [x['version'] for x in json.loads(gzip.decompress(result))['versions2']]
                                 except BadGzipFile:
                                     self.log.warning(f"ED response is not a GZIP: {result.decode('utf8')}")
                         async with await session.get(LOGOUT_URL):
                             pass
+                return rc
 
         if not self.locals['DCS'].get('user'):
             return await _get_latest_versions_no_auth()
@@ -1118,7 +1121,7 @@ class NodeImpl(Node):
             yaml.dump(config, outfile)
         settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
-            settings = SettingsDict(self, settings_path, root='cfg')
+            settings = SettingsDict(cast(DataObject, self), settings_path, root='cfg')
             settings['port'] = instance.dcs_port
             settings['name'] = 'n/a'
         bus = ServiceRegistry.get(ServiceBus)

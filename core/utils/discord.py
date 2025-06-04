@@ -7,12 +7,13 @@ import logging
 import os
 import re
 
+from contextlib import suppress
 from core import Status, utils
 from core.data.node import SortOrder, UploadStatus
 from core.services.registry import ServiceRegistry
 from core.translations import get_translation
 from datetime import datetime
-from discord import app_commands, Interaction, SelectOption
+from discord import app_commands, Interaction, SelectOption, ButtonStyle
 from discord.ext import commands
 from discord.ui import Button, View, Select, Item, Modal, TextInput
 from enum import Enum, auto
@@ -108,21 +109,23 @@ async def wait_for_single_reaction(interaction: discord.Interaction, message: di
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == interaction.channel) & (user == member) & (react.message.id == message.id)
 
-    tasks = [
+    member = interaction.user
+    pending_tasks = [
         asyncio.create_task(interaction.client.wait_for('reaction_add', check=check_press)),
         asyncio.create_task(interaction.client.wait_for('reaction_remove', check=check_press))
     ]
-    try:
-        member = interaction.user
-        done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
-        if len(done) > 0:
-            react, _ = done.pop().result()
-            return react
-        else:
-            raise TimeoutError
-    finally:
-        for task in tasks:
-            task.cancel()
+
+    done, pending = await asyncio.wait(pending_tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
+
+    # cancel pending tasks
+    for task in pending:
+        task.cancel()
+
+    if not done:
+        raise TimeoutError
+
+    react, _ = done.pop().result()
+    return react
 
 
 async def selection_list(interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
@@ -209,13 +212,15 @@ class SelectView(View):
             self.result = select.values[0]
         self.stop()
 
-    @discord.ui.button(label='OK', style=discord.ButtonStyle.green, custom_id='sl_ok')
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='OK', style=ButtonStyle.green, custom_id='sl_ok')
     async def on_ok(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='sl_cancel')
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='sl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -253,15 +258,12 @@ async def selection(interaction: Union[discord.Interaction, commands.Context], *
                 msg = await interaction.original_response()
         else:
             msg = await interaction.send(embed=embed, view=view)
-        if await view.wait():
-            return None
-        return view.result
+        if not await view.wait():
+            return view.result
     finally:
-        try:
-            if msg:
+        if msg:
+            with suppress(discord.NotFound):
                 await msg.delete()
-        except discord.NotFound:
-            pass
 
 
 class YNQuestionView(View):
@@ -269,14 +271,14 @@ class YNQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes')
+    @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = True
         self.stop()
 
-    @discord.ui.button(label='No', style=discord.ButtonStyle.red, custom_id='yn_no')
+    @discord.ui.button(label='No', style=ButtonStyle.red, custom_id='yn_no')
     async def on_no(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -313,13 +315,12 @@ async def yn_question(ctx: Union[commands.Context, discord.Interaction], questio
     view = YNQuestionView()
     msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
-        await view.wait()
-        return view.result
+        if not await view.wait():
+            return view.result
     finally:
-        try:
-            await msg.delete()
-        except discord.NotFound:
-            pass
+        if msg:
+            with suppress(discord.NotFound):
+                await msg.delete()
 
 
 class PopulatedQuestionView(View):
@@ -327,21 +328,21 @@ class PopulatedQuestionView(View):
         super().__init__(timeout=120)
         self.result = None
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='pl_yes')
+    @discord.ui.button(label='Yes', style=ButtonStyle.green, custom_id='pl_yes')
     async def on_yes(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'yes'
         self.stop()
 
-    @discord.ui.button(label='Later', style=discord.ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
+    @discord.ui.button(label='Later', style=ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
     async def on_later(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.result = 'later'
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='pl_cancel')
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red, custom_id='pl_cancel')
     async def on_cancel(self, interaction: Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -369,14 +370,12 @@ async def populated_question(ctx: Union[commands.Context, discord.Interaction], 
     view = PopulatedQuestionView()
     msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
-        if await view.wait():
-            return None
-        return view.result
+        if not await view.wait():
+            return view.result
     finally:
-        try:
-            await msg.delete()
-        except discord.NotFound:
-            pass
+        if msg:
+            with suppress(discord.NotFound):
+                await msg.delete()
 
 
 def check_roles(roles: Iterable[Union[str, int]], member: Optional[discord.Member] = None) -> bool:
@@ -1404,13 +1403,13 @@ class DirectoryPicker(discord.ui.View):
         except Exception as ex:
             interaction.client.log.exception(ex)
 
-    @discord.ui.button(label="Upload", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="Upload", style=ButtonStyle.green, row=2)
     async def on_upload(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label="Up", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Up", style=ButtonStyle.secondary)
     async def on_up(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1418,7 +1417,7 @@ class DirectoryPicker(discord.ui.View):
             self.dir = os.path.dirname(self.dir)
             await self.refresh(interaction)
 
-    @discord.ui.button(label="Create", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Create", style=ButtonStyle.primary)
     async def on_create(self, interaction: discord.Interaction, button: Button):
         class TextModal(Modal, title="Create Directory"):
             name = TextInput(label="Name", max_length=80, required=True)
@@ -1440,7 +1439,7 @@ class DirectoryPicker(discord.ui.View):
                 self.dir = modal.name.value
             await self.refresh(interaction)
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
+    @discord.ui.button(label="Cancel", style=ButtonStyle.red, row=2)
     async def on_cancel(self, interaction: discord.Interaction, button: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -1684,14 +1683,16 @@ class DatabaseModal(Modal):
             self.add_item(text_input)
             setattr(self, column_name, text_input)
 
-    def validate_integer(self, value: str) -> int:
+    @staticmethod
+    def validate_integer(value: str) -> int:
         """Validate and convert integer input"""
         try:
             return int(value)
         except ValueError:
             raise ValueError(f"'{value}' is not a valid integer")
 
-    def validate_numeric(self, value: str, scale: int = None) -> float:
+    @staticmethod
+    def validate_numeric(value: str, scale: int = None) -> float:
         """Validate and convert numeric input"""
         try:
             num = float(value)
@@ -1703,7 +1704,8 @@ class DatabaseModal(Modal):
         except ValueError as e:
             raise ValueError(f"'{value}' is not a valid number: {str(e)}")
 
-    def validate_timestamp(self, value: str) -> datetime:
+    @staticmethod
+    def validate_timestamp(value: str) -> datetime:
         """Validate and convert timestamp input"""
         try:
             return datetime.strptime(value, '%Y-%m-%d %H:%M')

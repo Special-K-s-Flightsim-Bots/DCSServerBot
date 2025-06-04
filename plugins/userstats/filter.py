@@ -329,3 +329,4 @@ class PeriodTransformer(app_commands.Transformer):
             ][:25]
         except Exception as ex:
             interaction.client.log.exception(ex)
+            return []

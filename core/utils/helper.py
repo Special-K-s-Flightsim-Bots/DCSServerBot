@@ -506,7 +506,7 @@ def cache_with_expiration(expiration: int):
 
         def get_cache_key(*args, **kwargs):
             hashable_kwargs = {k: tuple(v) if isinstance(v, list) else v for k, v in kwargs.items()}
-            return (args, frozenset(hashable_kwargs.items()))
+            return args, frozenset(hashable_kwargs.items())
 
         def check_cache(cache_key):
             if cache_key in cache and cache_key in cache_expiry:
@@ -893,7 +893,7 @@ def evaluate(value: Union[str, int, float, bool, list, dict], **kwargs) -> Union
 
 
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
-             debug: Optional[bool] = False, **kwargs) -> Generator[dict]:
+             debug: Optional[bool] = False, **kwargs) -> Generator[Optional[dict]]:
     """
     :param data: The data to iterate over.
     :param search: The search pattern to match elements in the data.

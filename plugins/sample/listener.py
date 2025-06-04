@@ -1,4 +1,8 @@
 from core import EventListener, Server, event, chat_command, Player
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Sample
 
 
 class SampleEventListener(EventListener["Sample"]):

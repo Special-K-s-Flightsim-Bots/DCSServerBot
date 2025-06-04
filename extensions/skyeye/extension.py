@@ -313,8 +313,8 @@ class SkyEye(Extension):
                 pipe.close()
 
             if log_file:
-                Thread(target=log_output, args=(proc.stdout,logger), daemon=True).start()
-                Thread(target=log_output, args=(proc.stderr,logger), daemon=True).start()
+                Thread(target=log_output, args=(proc.stdout, logger), daemon=True).start()
+                Thread(target=log_output, args=(proc.stderr, logger), daemon=True).start()
 
             return proc
 

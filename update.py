@@ -17,7 +17,7 @@ from typing import Iterable
 from version import __version__
 
 
-def install_requirements() -> int:
+def install_requirements() -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
 
 

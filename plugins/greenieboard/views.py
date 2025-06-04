@@ -11,10 +11,15 @@ _ = get_translation(__name__.split('.')[1])
 
 
 class TrapModal(Modal):
+    # noinspection PyTypeChecker
     time = TextInput(label=_('Time (HH24:MI)'), style=TextStyle.short, required=True, min_length=5, max_length=5)
+    # noinspection PyTypeChecker
     case = TextInput(label=_('Case'), style=TextStyle.short, required=True, min_length=1, max_length=1)
+    # noinspection PyTypeChecker
     grade = TextInput(label=_('Grade'), style=TextStyle.short, required=True, min_length=1, max_length=4)
+    # noinspection PyTypeChecker
     comment = TextInput(label=_('LSO Comment'), style=TextStyle.long, required=False)
+    # noinspection PyTypeChecker
     wire = TextInput(label=_('Wire'), style=TextStyle.short, required=False, min_length=1, max_length=1)
 
     def __init__(self, bot: DCSServerBot, *, config: dict, user: Union[str, discord.Member], unit_type: str):

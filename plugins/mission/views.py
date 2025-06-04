@@ -4,7 +4,7 @@ import os
 
 from contextlib import suppress
 from core import Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils
-from discord import SelectOption
+from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button
 from io import StringIO
 from ruamel.yaml import YAML
@@ -45,25 +45,31 @@ class ServerView(View):
 #            select.callback = self.change_preset
 #            self.add_item(select)
         if self.server.status in [Status.PAUSED, Status.STOPPED]:
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='▶️')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='▶️')
             button.callback = self.run
             self.add_item(button)
         elif self.server.status == Status.RUNNING:
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='⏸️')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='⏸️')
             button.callback = self.pause
             self.add_item(button)
         if self.server.status in [Status.RUNNING, Status.PAUSED]:
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='⏹️')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='⏹️')
             button.callback = self.stop_server
             self.add_item(button)
-            button: Button = Button(style=discord.ButtonStyle.primary, emoji='🔁')
+            # noinspection PyTypeChecker
+            button: Button = Button(style=ButtonStyle.primary, emoji='🔁')
             button.callback = self.reload
             self.add_item(button)
-        button: Button = Button(style=discord.ButtonStyle.primary if self.modify_mission else discord.ButtonStyle.gray,
+        # noinspection PyTypeChecker
+        button: Button = Button(style=ButtonStyle.primary if self.modify_mission else ButtonStyle.gray,
                                 emoji='⛅' if self.modify_mission else '🚫')
         button.callback = self.toggle_modify
         self.add_item(button)
-        button: Button = Button(label='Quit', style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        button: Button = Button(label='Quit', style=ButtonStyle.red)
         button.callback = self.quit
         self.add_item(button)
         return self.env.embed
@@ -158,13 +164,15 @@ class PresetView(View):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
 
-    @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='OK', style=ButtonStyle.green)
     async def ok(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
+    # noinspection PyTypeChecker
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, _: Button):
         # noinspection PyUnresolvedReferences
         await interaction.response.defer()
@@ -225,7 +233,8 @@ class InfoView(View):
                 self.add_item(button)
         else:
             banned = watchlist = False
-        button = Button(label="Cancel", style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.red)
         button.callback = self.on_cancel
         self.add_item(button)
         report = Report(self.bot, 'mission', 'info.json')
@@ -372,30 +381,36 @@ class ModifyView(View):
         self.warehouses_change = self.cut(warehouses_change)
         self.options_change = self.cut(options_change)
 
-        button = Button(label="Presets", style=discord.ButtonStyle.primary)
+        # noinspection PyTypeChecker
+        button = Button(label="Presets", style=ButtonStyle.primary)
         button.callback = self.display_presets
         self.add_item(button)
 
         if self.mission_change:
-            button = Button(label="mission", style=discord.ButtonStyle.secondary)
+            # noinspection PyTypeChecker
+            button = Button(label="mission", style=ButtonStyle.secondary)
             button.callback = self.display_mission
             self.add_item(button)
 
         if self.warehouses_change:
-            button = Button(label="warehouses", style=discord.ButtonStyle.secondary)
+            # noinspection PyTypeChecker
+            button = Button(label="warehouses", style=ButtonStyle.secondary)
             button.callback = self.display_warehouses
             self.add_item(button)
 
         if self.options_change:
-            button = Button(label="options", style=discord.ButtonStyle.secondary)
+            # noinspection PyTypeChecker
+            button = Button(label="options", style=ButtonStyle.secondary)
             button.callback = self.display_options
             self.add_item(button)
 
-        button = Button(label="Cancel", style=discord.ButtonStyle.red)
+        # noinspection PyTypeChecker
+        button = Button(label="Cancel", style=ButtonStyle.red)
         button.callback = self.cancel
         self.add_item(button)
 
-    def cut(self, message: Optional[str] = None) -> str:
+    @staticmethod
+    def cut(message: Optional[str] = None) -> str:
         if not message or len(message) <= 4096:
             return message
         remark = f"``` ... {len(message) - 4096} more"

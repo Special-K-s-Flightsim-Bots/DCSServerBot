@@ -18,7 +18,7 @@ from pathlib import Path
 from rich import print
 from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from urllib.parse import quote, urlparse
 
 # ruamel YAML support
@@ -165,7 +165,7 @@ class Install:
             print(_("\n[u]2. Discord Setup[/]"))
             guild_id = IntPrompt.ask(
                 _('Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")'))
-            main = {
+            main: dict[str, Any] = {
                 "guild_id": guild_id,
                 "autoupdate": autoupdate
             }
@@ -437,7 +437,7 @@ If you need any further assistance, please visit the support discord, listed in 
                     bot_port += 1
                     srs_port += 2
 
-                    # we only set up channels, if we configure a discord bot
+                    # we only set up channels if we configure a discord bot
                     if not bot.get('no_discord', False):
                         channels = {
                             "Status Channel": _("To display the mission and player status."),
@@ -528,7 +528,7 @@ If you need any further assistance, please visit the support discord, listed in 
 
 
 if __name__ == "__main__":
-    # get the command line args from core
+    # get the command line args from the core
     args = COMMAND_LINE_ARGS
     console = Console()
     try:

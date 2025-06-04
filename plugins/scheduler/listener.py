@@ -4,7 +4,10 @@ import random
 
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from datetime import datetime, timedelta, timezone
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Scheduler
 
 
 class SchedulerListener(EventListener["Scheduler"]):

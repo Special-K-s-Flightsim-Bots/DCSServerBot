@@ -218,7 +218,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             # workaround for DCS base capture bug:
             if name in stats['coalitions'][win_coalition.name]['airbases'] or \
                     name not in stats['coalitions'][lose_coalition.name]['airbases']:
-                return None
+                return
             stats['coalitions'][win_coalition.name]['airbases'].append(name)
             if 'captures' not in stats['coalitions'][win_coalition.name]:
                 stats['coalitions'][win_coalition.name]['captures'] = 1

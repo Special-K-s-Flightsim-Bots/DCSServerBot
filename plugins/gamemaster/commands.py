@@ -4,8 +4,7 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
-from core import (Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player, get_translation,
-                  PlayerType)
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, get_translation, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands

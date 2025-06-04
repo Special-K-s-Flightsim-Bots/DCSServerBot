@@ -81,7 +81,8 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
             self._config[server.node.name][server.instance.name] = default | specific
         return self._config[server.node.name][server.instance.name]
 
-    def plot_trapheet(self, filename: str) -> bytes:
+    @staticmethod
+    def plot_trapheet(filename: str) -> bytes:
         ts = read_trapsheet(filename)
         ps = parse_filename(filename)
         fig, axs = plt.subplots(3, 1, sharex=True, facecolor="#404040", dpi=150)

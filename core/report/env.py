@@ -17,7 +17,7 @@ class ReportEnv:
     bot: DCSServerBot
     embed: Embed = None
     view: View = None
-    figure: Figure = None
+    figure: Optional[Figure] = None
     filename: Optional[str] = None
     buffer: BytesIO = None
     params: dict = None
