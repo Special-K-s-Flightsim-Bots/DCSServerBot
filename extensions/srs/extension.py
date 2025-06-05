@@ -76,6 +76,7 @@ class SRS(Extension, FileSystemEventHandler):
         self.observer: Optional[Observer] = None
         self.first_run = True
         self._inst_path: Optional[str] = None
+        self.exe_name = None
         self.clients: dict[str, set[int]] = {}
         super().__init__(server, config)
 
@@ -269,7 +270,7 @@ class SRS(Extension, FileSystemEventHandler):
                 try:
                     super().shutdown()
                     if not self.process:
-                        self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
+                        self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
                     if self.process:
                         utils.terminate_process(self.process)
                         self.process = None
@@ -357,7 +358,7 @@ class SRS(Extension, FileSystemEventHandler):
 
     def is_running(self) -> bool:
         if not self.process:
-            self.process = next(utils.find_process('SR-Server.exe', self.server.instance.name), None)
+            self.process = next(utils.find_process(self.exe_name, self.server.instance.name), None)
             running = self.process is not None and self.process.is_running()
             if not running:
                 self.log.debug("SRS: is NOT running (process)")
@@ -405,11 +406,12 @@ class SRS(Extension, FileSystemEventHandler):
     def get_exe_path(self) -> str:
         if parse(self.version) >= parse('2.2.0.0'):
             os_dir = 'ServerCommandLine-Windows' if sys.platform == 'win32' else 'ServerCommandLine-Linux'
-            os_command = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
-            return os.path.join(self.get_inst_path(), os_dir, os_command)
+            self.exe_name = 'SRS-Server-Commandline.exe' if sys.platform == 'win32' else 'SRS-Server-Commandline'
+            return os.path.join(self.get_inst_path(), os_dir, self.exe_name)
             #return os.path.join(self.get_inst_path(), 'Server', 'SRS-Server.exe')
         else:
-            return os.path.join(self.get_inst_path(), 'SR-Server.exe')
+            self.exe_name = 'SR-Server.exe'
+            return os.path.join(self.get_inst_path(), self.exe_name)
 
     @property
     def version(self) -> Optional[str]:
