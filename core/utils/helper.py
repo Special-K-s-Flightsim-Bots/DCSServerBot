@@ -960,7 +960,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
             elif evaluate(_next, **(kwargs | data)):
                 if debug:
                     logger.debug("  " * depth + f"  - Element {format_string(_next[1:], **kwargs)} matches.")
-                yield from for_each(evaluate(_next, **(kwargs | data)), search, depth + 1, debug=debug, **kwargs)
+                yield from for_each(data, search, depth + 1, debug=debug, **kwargs)
 
     if not data or len(search) == depth:
         if len(search) == depth:

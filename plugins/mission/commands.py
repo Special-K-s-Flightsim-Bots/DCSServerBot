@@ -632,6 +632,7 @@ class Mission(Plugin[MissionEventListener]):
             try:
                 await asyncio.to_thread(new_mission.apply_preset, v)
             except Exception as ex:
+                self.log.exception(ex)
                 await interaction.followup.send(
                     _("Error while applying preset {}: {}").format(k, ex), ephemeral=True)
                 return
