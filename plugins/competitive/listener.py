@@ -427,7 +427,7 @@ class CompetitiveListener(EventListener["Competitive"]):
                     await award_squadron(server, match, players[0])
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
-            if not player or data['arg3'] == 0: # ignore slot changes from spectators or before disconnecting
+            if not player or data.get('arg3', -1) == 0: # ignore slot changes from spectators or before disconnecting
                 return
             # if the pilot of an MC aircraft leaves, both pilots get booted
             if player.slot == 0:
