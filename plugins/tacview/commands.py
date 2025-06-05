@@ -17,8 +17,9 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
             interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
-        config = server.instance.locals.get('extensions', {}).get('Tacview', {})
-        path = os.path.expandvars(config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR))
+        config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |
+                  server.instance.locals.get('extensions', {}).get('Tacview', {}))
+        path = config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
         # single file per player
         if config.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
             ucid = await interaction.client.get_ucid_by_member(interaction.user)
@@ -28,16 +29,16 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
                     row = await cursor.fetchone()
                     if row:
                         name = row[0]
-                _, files = await server.node.list_directory(os.path.join(path, name),
+                path, files = await server.node.list_directory(os.path.join(path, name),
                                                             pattern='*.acmi', is_dir=False)
             else:
                 files = []
         else:
-            _, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False)
+            path, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False, traverse=True)
 
         # file per session
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.basename(x), value=os.path.relpath(x, path))
+            app_commands.Choice(name=os.path.relpath(x, path), value=os.path.relpath(x, path))
             for x in files
             if not current or current.casefold() in x.casefold()
         ]
@@ -170,7 +171,10 @@ class Tacview(Plugin):
         ephemeral = utils.get_ephemeral(interaction)
         # noinspection PyUnresolvedReferences
         await interaction.response.defer(ephemeral=ephemeral)
-        file_data = await self.node.read_file(file)
+        config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |
+                  server.instance.locals.get('extensions', {}).get('Tacview', {}))
+        path = config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+        file_data = await self.node.read_file(os.path.join(path, file))
         await interaction.followup.send(file=discord.File(fp=BytesIO(file_data), filename=os.path.basename(file)))
 
 
