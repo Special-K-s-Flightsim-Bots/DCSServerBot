@@ -499,7 +499,9 @@ class Admin(Plugin[AdminEventListener]):
             base_dir = utils.format_string(config['directory'], server=server)
         try:
             # make sure nobody injected a wrong path
-            path = utils.sanitize_filename(os.path.abspath(os.path.join(base_dir, filename)), base_dir)
+            utils.sanitize_filename(os.path.abspath(os.path.join(os.path.expandvars(base_dir), filename)),
+                                    os.path.expandvars(base_dir))
+            path = os.path.join(base_dir, filename)
         except ValueError:
             await self.bot.audit("User attempted a relative file injection!",
                                  user=interaction.user, base_dir=base_dir, file=filename)
