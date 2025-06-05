@@ -4,12 +4,10 @@ import asyncio
 import atexit
 import certifi
 import discord
-import ipaddress
 import json
 import os
 import psutil
 import shutil
-import socket
 import subprocess
 import ssl
 import sys
