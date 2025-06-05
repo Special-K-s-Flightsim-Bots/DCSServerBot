@@ -9,6 +9,7 @@ import json
 import os
 import psutil
 import shutil
+import socket
 import subprocess
 import ssl
 import sys
@@ -363,20 +364,14 @@ class SRS(Extension, FileSystemEventHandler):
             if not running:
                 self.log.debug("SRS: is NOT running (process)")
         else:
-            try:
-                server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
-                if server_ip == '0.0.0.0':
-                    server_ip = '127.0.0.1'
-                ipaddress.ip_address(server_ip)
-            except ValueError:
-                self.log.warning(f"Please check [Server Settings]: SERVER_IP in your {self.config.get('config')}. "
-                                 f"It does not contain a valid IP-address!")
+            server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
+            if server_ip == '0.0.0.0':
                 server_ip = '127.0.0.1'
             running = utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
             if not running:
                 self.log.debug("SRS: is NOT running (port)")
                 self.process = None
-        # start the observer, if we were started to a running SRS server
+        # start the observer if we were started to a running SRS server
         if running and not self.observer:
             self.start_observer()
         return running
